@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "Always produces a DataFrame from SQL query results"
+    }
+  },
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "title": "Asset Name",
+      "description": "Name of the asset",
+      "default": "query_result"
+    },
+    "database_url": {
+      "type": "string",
+      "title": "Database URL",
+      "description": "Database connection URL",
+      "default": "${DATABASE_URL}"
+    },
+    "query": {
+      "type": "string",
+      "title": "SQL Query",
+      "description": "SQL query to execute",
+      "default": "SELECT * FROM table_name"
+    },
+    "cache_to_parquet": {
+      "type": "boolean",
+      "title": "Cache to Parquet",
+      "description": "Whether to cache results to parquet file",
+      "default": false
+    },
+    "cache_path": {
+      "type": "string",
+      "title": "Cache Path",
+      "description": "Path to parquet cache file"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "title": "Group Name",
+      "description": "Asset group for organization"
+    }
+  },
+  "required": ["asset_name", "database_url", "query"]
+}

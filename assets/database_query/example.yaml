@@ -1,0 +1,15 @@
+type: dagster_component_templates.DatabaseQueryComponent
+attributes:
+  asset_name: daily_sales
+  database_url: ${DATABASE_URL}
+  query: |
+    SELECT
+      date,
+      COUNT(*) as num_orders,
+      SUM(amount) as total_revenue
+    FROM sales
+    WHERE date = CURRENT_DATE
+    GROUP BY date
+  cache_to_parquet: false
+  description: Daily sales summary
+  group_name: reports

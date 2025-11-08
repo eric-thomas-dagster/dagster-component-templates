@@ -1,0 +1,15 @@
+# DataFrame Transformer Component
+# Dependencies are set by drawing connections in the visual editor
+# Just connect any DataFrame-producing asset to this transformer!
+
+type: dagster_component_templates.DataFrameTransformerComponent
+attributes:
+  asset_name: cleaned_data
+  drop_duplicates: true
+  filter_columns: "id,name,amount,date"
+  fill_na_value: "0"
+  filter_expression: "amount > 0"
+  sort_by: "date"
+  sort_ascending: false
+  description: Clean and filter data from upstream assets
+  group_name: transformation

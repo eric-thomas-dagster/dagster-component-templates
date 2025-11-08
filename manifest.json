@@ -22,6 +22,24 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/requirements.txt"
     },
     {
+      "id": "filesystem_monitor",
+      "name": "Filesystem Monitor",
+      "category": "sensors",
+      "description": "Monitor local directories for new files and trigger jobs with file metadata via run_config",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/filesystem_monitor",
+      "tags": ["filesystem", "files", "monitoring", "run-config", "local"],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/filesystem_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/filesystem_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/filesystem_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/filesystem_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/filesystem_monitor/requirements.txt"
+    },
+    {
       "id": "csv_file_ingestion",
       "name": "CSV File Ingestion",
       "category": "assets",
@@ -56,6 +74,78 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/s3_to_database/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/s3_to_database/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/s3_to_database/requirements.txt"
+    },
+    {
+      "id": "rest_api_fetcher",
+      "name": "REST API Fetcher",
+      "category": "assets",
+      "description": "Fetch data from REST APIs with authentication support and multiple output formats",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/rest_api_fetcher",
+      "tags": ["api", "rest", "http", "ingestion", "external-data"],
+      "dependencies": {
+        "pip": ["requests>=2.28.0", "pandas>=2.0.0", "pyarrow>=10.0.0"]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rest_api_fetcher/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rest_api_fetcher/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rest_api_fetcher/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rest_api_fetcher/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rest_api_fetcher/requirements.txt"
+    },
+    {
+      "id": "file_transformer",
+      "name": "File Transformer",
+      "category": "assets",
+      "description": "Transform files between formats (CSV, JSON, Parquet, Excel) with run_config support",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/file_transformer",
+      "tags": ["transformation", "files", "csv", "json", "parquet", "excel", "run-config"],
+      "dependencies": {
+        "pip": ["pandas>=2.0.0", "pyarrow>=10.0.0", "openpyxl>=3.0.0"]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/file_transformer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/file_transformer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/file_transformer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/file_transformer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/file_transformer/requirements.txt"
+    },
+    {
+      "id": "database_query",
+      "name": "Database Query",
+      "category": "assets",
+      "description": "Execute SQL queries against databases and materialize results as assets",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/database_query",
+      "tags": ["database", "sql", "query", "data-extraction", "analytics"],
+      "dependencies": {
+        "pip": ["pandas>=2.0.0", "sqlalchemy>=2.0.0", "pyarrow>=10.0.0"]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/database_query/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/database_query/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/database_query/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/database_query/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/database_query/requirements.txt"
+    },
+    {
+      "id": "dataframe_transformer",
+      "name": "DataFrame Transformer",
+      "category": "assets",
+      "description": "Transform DataFrames from upstream assets using IO managers for automatic data flow",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/dataframe_transformer",
+      "tags": ["dataframe", "transformation", "io-manager", "dependencies", "pandas"],
+      "dependencies": {
+        "pip": ["pandas>=2.0.0", "pyarrow>=10.0.0"]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dataframe_transformer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dataframe_transformer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dataframe_transformer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dataframe_transformer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dataframe_transformer/requirements.txt"
     }
   ]
 }

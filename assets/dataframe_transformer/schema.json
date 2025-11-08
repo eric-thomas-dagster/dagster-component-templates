@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "accepts_multiple": true,
+      "description": "Connect DataFrame-producing assets (REST API, Database Query, CSV Ingestion)"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Transformed DataFrame"
+    }
+  },
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "title": "Asset Name",
+      "description": "Name of this asset",
+      "default": "transformed_data"
+    },
+    "filter_columns": {
+      "type": "string",
+      "title": "Filter Columns",
+      "description": "Comma-separated list of columns to keep (optional)"
+    },
+    "drop_columns": {
+      "type": "string",
+      "title": "Drop Columns",
+      "description": "Comma-separated list of columns to drop (optional)"
+    },
+    "rename_columns": {
+      "type": "string",
+      "title": "Rename Columns",
+      "description": "JSON mapping of column renames: {\"old\": \"new\"}"
+    },
+    "drop_duplicates": {
+      "type": "boolean",
+      "title": "Drop Duplicates",
+      "description": "Whether to drop duplicate rows",
+      "default": false
+    },
+    "drop_na": {
+      "type": "boolean",
+      "title": "Drop NA Rows",
+      "description": "Whether to drop rows with NA values",
+      "default": false
+    },
+    "fill_na_value": {
+      "type": "string",
+      "title": "Fill NA Value",
+      "description": "Value to fill NA values with (optional)"
+    },
+    "filter_expression": {
+      "type": "string",
+      "title": "Filter Expression",
+      "description": "Pandas query expression: 'amount > 100 and status == \"active\"'"
+    },
+    "sort_by": {
+      "type": "string",
+      "title": "Sort By",
+      "description": "Comma-separated columns to sort by (optional)"
+    },
+    "sort_ascending": {
+      "type": "boolean",
+      "title": "Sort Ascending",
+      "description": "Sort direction",
+      "default": true
+    },
+    "group_by": {
+      "type": "string",
+      "title": "Group By",
+      "description": "Comma-separated columns to group by (optional)"
+    },
+    "agg_functions": {
+      "type": "string",
+      "title": "Aggregation Functions",
+      "description": "JSON mapping: {\"amount\": \"sum\", \"id\": \"count\"}"
+    },
+    "combine_method": {
+      "type": "string",
+      "title": "Combine Method",
+      "description": "How to combine multiple DataFrames",
+      "enum": ["concat", "merge", "first"],
+      "default": "concat"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "title": "Group Name",
+      "description": "Asset group for organization"
+    }
+  },
+  "required": ["asset_name"]
+}

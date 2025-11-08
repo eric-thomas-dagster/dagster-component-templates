@@ -5,6 +5,12 @@
   "description": "Ingest CSV files into Dagster assets with pandas DataFrames",
   "version": "1.0.0",
   "author": "Dagster Community",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "Always produces a DataFrame from CSV file"
+    }
+  },
   "attributes": {
     "asset_name": {
       "type": "string",

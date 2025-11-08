@@ -1,0 +1,41 @@
+{
+  "version": "1.0.0",
+  "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
+  "last_updated": "2025-01-08T00:00:00Z",
+  "components": [
+    {
+      "id": "slack_notification_sensor",
+      "name": "Slack Notification Sensor",
+      "category": "sensors",
+      "description": "Monitor Slack channels and trigger jobs based on messages or reactions",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/slack_notification",
+      "tags": ["slack", "notification", "webhook", "chat"],
+      "dependencies": {
+        "pip": ["slack-sdk>=3.19.0", "requests>=2.28.0"]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/example.yaml"
+    },
+    {
+      "id": "csv_file_ingestion_asset",
+      "name": "CSV File Ingestion Asset",
+      "category": "assets",
+      "description": "Load and parse CSV files into pandas DataFrames with automatic schema detection",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/csv_file_ingestion",
+      "tags": ["csv", "data-ingestion", "pandas", "files"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0"]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/csv_file_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/csv_file_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/csv_file_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/csv_file_ingestion/example.yaml"
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "title": "Asset Name",
+      "description": "Name of the asset",
+      "default": "transform_file"
+    },
+    "input_file_path": {
+      "type": "string",
+      "title": "Input File Path",
+      "description": "Fixed input file path (optional, can use run_config instead)"
+    },
+    "input_format": {
+      "type": "string",
+      "title": "Input Format",
+      "description": "Input file format",
+      "enum": ["auto", "csv", "json", "parquet", "excel"],
+      "default": "auto"
+    },
+    "output_format": {
+      "type": "string",
+      "title": "Output Format",
+      "description": "Output file format",
+      "enum": ["csv", "json", "parquet", "excel"],
+      "default": "parquet"
+    },
+    "output_directory": {
+      "type": "string",
+      "title": "Output Directory",
+      "description": "Directory to write transformed files",
+      "default": "/data/processed"
+    },
+    "output_filename": {
+      "type": "string",
+      "title": "Output Filename",
+      "description": "Output filename (optional)"
+    },
+    "csv_delimiter": {
+      "type": "string",
+      "title": "CSV Delimiter",
+      "description": "CSV delimiter character",
+      "default": ","
+    },
+    "csv_encoding": {
+      "type": "string",
+      "title": "CSV Encoding",
+      "description": "CSV file encoding",
+      "default": "utf-8"
+    },
+    "json_orient": {
+      "type": "string",
+      "title": "JSON Orientation",
+      "description": "JSON orientation",
+      "enum": ["records", "split", "index", "columns", "values"],
+      "default": "records"
+    },
+    "excel_sheet_name": {
+      "type": "string",
+      "title": "Excel Sheet Name",
+      "description": "Excel sheet name",
+      "default": "Sheet1"
+    },
+    "parquet_compression": {
+      "type": "string",
+      "title": "Parquet Compression",
+      "description": "Parquet compression",
+      "enum": ["snappy", "gzip", "brotli", "None"],
+      "default": "snappy"
+    },
+    "drop_duplicates": {
+      "type": "boolean",
+      "title": "Drop Duplicates",
+      "description": "Whether to drop duplicate rows",
+      "default": false
+    },
+    "fill_na_value": {
+      "type": "string",
+      "title": "Fill NA Value",
+      "description": "Value to fill NaN values with"
+    },
+    "columns_to_keep": {
+      "type": "string",
+      "title": "Columns to Keep",
+      "description": "Comma-separated list of columns to keep"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "title": "Group Name",
+      "description": "Asset group for organization"
+    }
+  },
+  "required": ["asset_name", "output_format", "output_directory"]
+}

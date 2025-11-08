@@ -98,25 +98,108 @@ def daily_summary(sales_cleaned):  # ← Implicit dependency
 
 ## How It Works
 
-### 1. YAML Parsing
-The system parses your multi-document YAML file (documents separated by `---`):
-- Asset components define what to compute
-- `DependencyGraphComponent` defines how they connect
+**Important**: The `DependencyGraphComponent` is a **metadata-only component** - it stores dependency information but doesn't create assets. The actual dependency injection happens at runtime in your project's `definitions.py` file.
 
-### 2. Code Generation
-The code generator (`template_service.py`):
-- Reads edges from `DependencyGraphComponent`
-- For each asset, finds its dependencies from the graph
-- Adds those dependencies as function parameters
-- Dagster treats matching parameter names as implicit inputs
+### Architecture
 
-### 3. IO Manager Pattern
-Dagster's IO manager automatically:
-- Serializes/persists DataFrames after each asset runs
-- Loads DataFrames when needed by downstream assets
-- Passes DataFrames as function arguments
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 1. DependencyGraphComponent (YAML)                          │
+│    Stores edges as metadata                                  │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 2. Backend writes custom_lineage.json                       │
+│    Extracts edges from component → JSON file                │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 3. definitions.py reads JSON at runtime                     │
+│    Loads edges when Dagster starts                           │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 4. map_asset_specs() injects dependencies                   │
+│    Modifies AssetSpecs to add deps attribute                │
+└─────────────────────────────────────────────────────────────┘
+```
 
-### 4. Visual UI
+### 1. Component Storage (YAML)
+The `DependencyGraphComponent` stores edges in your `defs.yaml`:
+```yaml
+type: dagster_component_templates.DependencyGraphComponent
+attributes:
+  edges:
+    - source: api_data
+      target: cleaned_data
+```
+
+### 2. JSON Export
+When you save your project, the backend:
+- Extracts edges from `DependencyGraphComponent`
+- Merges with any UI-drawn edges
+- Writes to `defs/custom_lineage.json`
+
+### 3. Runtime Loading (definitions.py)
+Your project's `definitions.py` must include this code:
+
+```python
+import json
+from pathlib import Path
+import dagster as dg
+
+# Load custom lineage from JSON file
+custom_lineage_file = Path(__file__).parent / "defs" / "custom_lineage.json"
+custom_lineage_edges = []
+if custom_lineage_file.exists():
+    try:
+        with open(custom_lineage_file, "r") as f:
+            custom_lineage_data = json.load(f)
+            custom_lineage_edges = custom_lineage_data.get("edges", [])
+    except Exception as e:
+        print(f"⚠️  Failed to load custom_lineage.json: {e}")
+
+# ... create your defs ...
+
+# Apply custom lineage by injecting dependencies into asset specs
+if custom_lineage_edges:
+    def inject_custom_dependencies(spec):
+        """Inject custom lineage dependencies into asset specs."""
+        spec_key_str = "/".join(spec.key.path)
+
+        # Find edges where this asset is the target
+        custom_deps = []
+        for edge in custom_lineage_edges:
+            if edge["target"] == spec_key_str:
+                custom_deps.append(dg.AssetKey(edge["source"].split("/")))
+
+        if custom_deps:
+            # Merge with existing deps
+            existing_deps = set(spec.deps or [])
+            all_deps = existing_deps | set(custom_deps)
+            return spec.replace_attributes(deps=list(all_deps))
+
+        return spec
+
+    defs = defs.map_asset_specs(func=inject_custom_dependencies)
+```
+
+**Why this approach?**
+- Assets must exist before dependencies can be added
+- Component loading order cannot be controlled
+- `map_asset_specs()` runs after all assets are loaded
+- Non-invasive: doesn't modify asset source code
+
+### 4. Dependency Injection
+At runtime, Dagster:
+- Calls `inject_custom_dependencies` for each AssetSpec
+- Adds dependencies from `custom_lineage.json` to `spec.deps`
+- Creates the full DAG with all edges
+
+### 5. Visual UI
 The UI:
 - Reads `DependencyGraphComponent` to draw edges in the graph
 - When you draw connections, updates the `DependencyGraphComponent`
@@ -337,10 +420,133 @@ edges:
     target: a
 ```
 
+## Using Outside Dagster Designer
+
+If you're using the `DependencyGraphComponent` without the Dagster Designer tool, you **must** add the custom lineage loading logic to your `definitions.py` manually.
+
+### Setup Steps
+
+1. **Add the component to your YAML**:
+```yaml
+# defs.yaml
+type: dagster_component_templates.DependencyGraphComponent
+attributes:
+  edges:
+    - source: upstream_asset
+      target: downstream_asset
+```
+
+2. **Create `custom_lineage.json`**:
+```json
+{
+  "edges": [
+    {"source": "upstream_asset", "target": "downstream_asset"}
+  ]
+}
+```
+
+3. **Add loading logic to `definitions.py`**:
+
+Add this code BEFORE your `defs = Definitions(...)` line:
+
+```python
+import json
+from pathlib import Path
+import dagster as dg
+
+# Load custom lineage from JSON file
+custom_lineage_file = Path(__file__).parent / "defs" / "custom_lineage.json"
+custom_lineage_edges = []
+if custom_lineage_file.exists():
+    try:
+        with open(custom_lineage_file, "r") as f:
+            custom_lineage_data = json.load(f)
+            custom_lineage_edges = custom_lineage_data.get("edges", [])
+            if custom_lineage_edges:
+                print(f"✅ Loaded {len(custom_lineage_edges)} custom lineage edge(s)")
+    except Exception as e:
+        print(f"⚠️  Failed to load custom_lineage.json: {e}")
+```
+
+Add this code AFTER your `defs = Definitions(...)` creation:
+
+```python
+# Apply custom lineage by injecting dependencies into asset specs
+if custom_lineage_edges:
+    def inject_custom_dependencies(spec):
+        """Inject custom lineage dependencies into asset specs."""
+        spec_key_str = "/".join(spec.key.path)
+
+        # Find edges where this asset is the target
+        custom_deps = []
+        for edge in custom_lineage_edges:
+            if edge["target"] == spec_key_str:
+                custom_deps.append(dg.AssetKey(edge["source"].split("/")))
+
+        if custom_deps:
+            # Merge with existing deps
+            existing_deps = set(spec.deps or [])
+            all_deps = existing_deps | set(custom_deps)
+            return spec.replace_attributes(deps=list(all_deps))
+
+        return spec
+
+    defs = defs.map_asset_specs(func=inject_custom_dependencies)
+    print(f"✅ Applied custom lineage to asset specs")
+```
+
+### Complete Example
+
+```python
+# definitions.py
+import json
+from pathlib import Path
+import dagster as dg
+from dagster import Definitions, load_from_defs_folder
+
+# Load custom lineage
+custom_lineage_file = Path(__file__).parent / "defs" / "custom_lineage.json"
+custom_lineage_edges = []
+if custom_lineage_file.exists():
+    with open(custom_lineage_file, "r") as f:
+        custom_lineage_data = json.load(f)
+        custom_lineage_edges = custom_lineage_data.get("edges", [])
+
+# Create definitions
+defs = Definitions.merge(
+    load_from_defs_folder(path_within_project=Path(__file__).parent),
+    Definitions(resources={...})
+)
+
+# Inject custom dependencies
+if custom_lineage_edges:
+    def inject_custom_dependencies(spec):
+        spec_key_str = "/".join(spec.key.path)
+        custom_deps = []
+        for edge in custom_lineage_edges:
+            if edge["target"] == spec_key_str:
+                custom_deps.append(dg.AssetKey(edge["source"].split("/")))
+
+        if custom_deps:
+            existing_deps = set(spec.deps or [])
+            all_deps = existing_deps | set(custom_deps)
+            return spec.replace_attributes(deps=list(all_deps))
+        return spec
+
+    defs = defs.map_asset_specs(func=inject_custom_dependencies)
+```
+
+### Automatic Injection (Dagster Designer)
+
+If you import a project into Dagster Designer, this logic is **automatically injected** into your `definitions.py`. You don't need to do anything manually!
+
+Projects created by Dagster Designer include this logic by default.
+
 ## Requirements
 
 - dagster >= 1.5.0
 - No additional Python dependencies
+- Custom lineage loading code in `definitions.py` (automatically added by Dagster Designer, or manually if using standalone)
 
 ## License
 

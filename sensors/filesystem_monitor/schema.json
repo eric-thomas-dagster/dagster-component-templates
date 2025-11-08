@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "sensor_name": {
+      "type": "string",
+      "title": "Sensor Name",
+      "description": "Unique name for this sensor",
+      "default": "filesystem_sensor"
+    },
+    "directory_path": {
+      "type": "string",
+      "title": "Directory Path",
+      "description": "Path to the directory to monitor for new files",
+      "default": "/data/incoming"
+    },
+    "file_pattern": {
+      "type": "string",
+      "title": "File Pattern",
+      "description": "Regex pattern to match files (e.g., '.*\\.csv$' for CSV files)",
+      "default": ".*"
+    },
+    "job_name": {
+      "type": "string",
+      "title": "Job Name",
+      "description": "Name of the job to trigger when files are detected",
+      "default": "process_files_job"
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "title": "Minimum Interval (seconds)",
+      "description": "Minimum time between sensor evaluations",
+      "default": 30,
+      "minimum": 1
+    },
+    "recursive": {
+      "type": "boolean",
+      "title": "Recursive",
+      "description": "Whether to recursively search subdirectories",
+      "default": false
+    },
+    "default_status": {
+      "type": "string",
+      "title": "Default Status",
+      "description": "Default status of the sensor",
+      "enum": ["running", "stopped"],
+      "default": "running"
+    }
+  },
+  "required": ["sensor_name", "directory_path", "job_name"]
+}

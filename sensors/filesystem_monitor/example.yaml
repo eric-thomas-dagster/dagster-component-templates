@@ -1,0 +1,9 @@
+type: dagster_component_templates.FilesystemMonitorSensorComponent
+attributes:
+  sensor_name: data_files_sensor
+  directory_path: /data/incoming
+  file_pattern: ".*\\.csv$"
+  job_name: process_files_job
+  minimum_interval_seconds: 60
+  recursive: false
+  default_status: running

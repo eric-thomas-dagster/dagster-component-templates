@@ -1,0 +1,10 @@
+type: dagster_component_templates.FileTransformerComponent
+attributes:
+  asset_name: csv_to_parquet
+  input_format: auto
+  output_format: parquet
+  output_directory: /data/processed
+  parquet_compression: snappy
+  drop_duplicates: true
+  description: Transform CSV files to Parquet format
+  group_name: transformation

@@ -1,0 +1,2 @@
+# No additional dependencies required
+# This sensor uses only Python standard library modules (os, pathlib, re)

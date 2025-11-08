@@ -1,0 +1,16 @@
+# S3 to Database Asset Example
+# This asset works with S3 sensors that pass run_config
+
+type: dagster_component_templates.S3ToDatabaseAssetComponent
+attributes:
+  asset_name: orders_ingestion
+  database_url: ${DATABASE_URL}
+  table_name: orders
+  schema_name: public
+  if_exists: append
+  file_format: csv
+  csv_delimiter: ","
+  column_mapping: '{"order_date": "created_at", "cust_id": "customer_id"}'
+  dtype_mapping: '{"order_id": "int64", "customer_id": "int64", "amount": "float64"}'
+  description: Load order files from S3 to database
+  group_name: ingestion

@@ -1,0 +1,128 @@
+{
+  "type": "dagster_component_templates.S3ToDatabaseAssetComponent",
+  "name": "S3 to Database",
+  "category": "assets",
+  "description": "Load files from S3 into database tables, designed to work with S3 sensors via run_config",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Unique name for this asset",
+      "default": "s3_to_db",
+      "placeholder": "orders_ingestion"
+    },
+    "database_url": {
+      "type": "string",
+      "required": true,
+      "label": "Database URL",
+      "description": "Database connection URL (use ${DB_URL} for environment variable)",
+      "placeholder": "${DATABASE_URL}",
+      "sensitive": true
+    },
+    "table_name": {
+      "type": "string",
+      "required": true,
+      "label": "Table Name",
+      "description": "Name of the database table to write to",
+      "placeholder": "orders"
+    },
+    "schema_name": {
+      "type": "string",
+      "required": false,
+      "label": "Schema Name",
+      "description": "Database schema name (optional)",
+      "placeholder": "public"
+    },
+    "if_exists": {
+      "type": "string",
+      "required": false,
+      "label": "If Table Exists",
+      "description": "How to behave if the table already exists",
+      "default": "append",
+      "enum": ["fail", "replace", "append"]
+    },
+    "aws_region": {
+      "type": "string",
+      "required": false,
+      "label": "AWS Region",
+      "description": "AWS region (optional, uses default credentials if not specified)",
+      "placeholder": "us-east-1"
+    },
+    "file_format": {
+      "type": "string",
+      "required": false,
+      "label": "File Format",
+      "description": "Expected file format",
+      "default": "csv",
+      "enum": ["csv", "json", "parquet", "auto"]
+    },
+    "csv_delimiter": {
+      "type": "string",
+      "required": false,
+      "label": "CSV Delimiter",
+      "description": "Delimiter character for CSV files",
+      "default": ",",
+      "placeholder": ","
+    },
+    "json_orient": {
+      "type": "string",
+      "required": false,
+      "label": "JSON Orientation",
+      "description": "JSON data orientation",
+      "default": "records",
+      "enum": ["records", "split", "index", "columns", "values"]
+    },
+    "column_mapping": {
+      "type": "string",
+      "required": false,
+      "label": "Column Mapping (JSON)",
+      "description": "JSON mapping to rename columns",
+      "placeholder": "{\"old_name\": \"new_name\", \"col1\": \"column_one\"}"
+    },
+    "dtype_mapping": {
+      "type": "string",
+      "required": false,
+      "label": "Data Types (JSON)",
+      "description": "JSON mapping of column names to data types",
+      "placeholder": "{\"order_id\": \"int64\", \"amount\": \"float64\"}"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Description of this asset",
+      "placeholder": "Load orders from S3 to database"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Asset Group",
+      "description": "Group name for organizing assets",
+      "placeholder": "ingestion"
+    }
+  },
+  "outputs": [
+    {
+      "name": "dataframe",
+      "type": "pandas.DataFrame",
+      "description": "The processed data as a pandas DataFrame"
+    }
+  ],
+  "dependencies": {
+    "pip": ["boto3>=1.26.0", "pandas>=2.0.0", "sqlalchemy>=2.0.0", "pyarrow>=10.0.0"]
+  },
+  "tags": ["s3", "database", "ingestion", "etl", "run-config"],
+  "run_config": {
+    "accepts": true,
+    "schema": {
+      "s3_bucket": "string (required)",
+      "s3_key": "string (required)",
+      "s3_size": "int (optional)",
+      "s3_last_modified": "string (optional)"
+    },
+    "description": "This component accepts run_config from S3 sensors with file information"
+  }
+}

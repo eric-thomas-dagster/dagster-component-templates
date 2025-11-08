@@ -38,6 +38,24 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/csv_file_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/csv_file_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/csv_file_ingestion/requirements.txt"
+    },
+    {
+      "id": "s3_to_database",
+      "name": "S3 to Database",
+      "category": "assets",
+      "description": "Load files from S3 into database tables, works with S3 sensors via run_config",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/s3_to_database",
+      "tags": ["s3", "database", "ingestion", "etl", "run-config"],
+      "dependencies": {
+        "pip": ["boto3>=1.26.0", "pandas>=2.0.0", "sqlalchemy>=2.0.0", "pyarrow>=10.0.0"]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/s3_to_database/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/s3_to_database/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/s3_to_database/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/s3_to_database/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/s3_to_database/requirements.txt"
     }
   ]
 }

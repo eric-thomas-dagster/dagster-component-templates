@@ -14,11 +14,12 @@ from dagster import (
     Definitions,
     AssetExecutionContext,
     asset,
+    Resolvable,
 )
 from pydantic import BaseModel, Field
 
 
-class DataFrameTransformerComponent(Component, BaseModel):
+class DataFrameTransformerComponent(Component, Resolvable, BaseModel):
     """Component for transforming DataFrames from upstream assets.
 
     This component works with visual dependency drawing in Dagster Designer.

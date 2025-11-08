@@ -1,12 +1,12 @@
 """AssetReferenceComponent for including existing assets in pipeline definitions."""
 
 from typing import Optional
-from pydantic import Field
-from dagster import Definitions
+from pydantic import BaseModel, Field
+from dagster import Definitions, Resolvable
 from dagster._core.definitions.component import Component, ComponentLoadContext
 
 
-class AssetReferenceComponent(Component):
+class AssetReferenceComponent(Component, Resolvable, BaseModel):
     """Reference an existing asset (dbt, python, etc.) in a pipeline.
 
     Use this component to include existing assets from your codebase in a

@@ -17,12 +17,13 @@ from dagster import (
     SensorEvaluationContext,
     SensorResult,
     sensor,
+    Resolvable,
 )
 from dagster._core.definitions.sensor_definition import DefaultSensorStatus
 from pydantic import BaseModel, Field
 
 
-class FilesystemMonitorSensorComponent(Component, BaseModel):
+class FilesystemMonitorSensorComponent(Component, Resolvable, BaseModel):
     """Component for monitoring filesystem directories for new files.
 
     This sensor monitors a local directory for new files matching a pattern and triggers

@@ -1,0 +1,9 @@
+# Asset Reference Component
+# Reference existing assets from your codebase
+
+type: dagster_component_templates.AssetReferenceComponent
+attributes:
+  asset_name: dbt_staging_customers
+  module: my_project.dbt_assets
+  description: "Staging customers table from dbt"
+  group_name: staging

@@ -1,0 +1,32 @@
+{
+  "type": "dagster_component_templates.DependencyGraphComponent",
+  "name": "Dependency Graph",
+  "category": "core",
+  "description": "Define dependencies between assets without modifying component schemas",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "attributes": {
+    "edges": {
+      "type": "array",
+      "required": true,
+      "label": "Dependency Edges",
+      "description": "List of edges defining dependencies between assets",
+      "default": [],
+      "items": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "description": "Source asset name"
+          },
+          "target": {
+            "type": "string",
+            "description": "Target asset name (depends on source)"
+          }
+        },
+        "required": ["source", "target"]
+      }
+    }
+  },
+  "tags": ["core", "dependencies", "graph", "wiring"]
+}

@@ -1,0 +1,39 @@
+{
+  "type": "dagster_component_templates.AssetReferenceComponent",
+  "name": "Asset Reference",
+  "category": "core",
+  "description": "Reference an existing asset (dbt, Python, etc.) in a pipeline definition",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the existing asset to reference",
+      "placeholder": "my_existing_asset"
+    },
+    "module": {
+      "type": "string",
+      "required": false,
+      "label": "Module Path",
+      "description": "Python module where the asset is defined",
+      "placeholder": "my_project.assets"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Description of what this asset does",
+      "placeholder": "Existing asset for customer data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Asset Group",
+      "description": "Asset group for organization",
+      "placeholder": "staging"
+    }
+  },
+  "tags": ["core", "reference", "existing-asset", "import"]
+}

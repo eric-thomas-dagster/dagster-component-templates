@@ -146,6 +146,42 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dataframe_transformer/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dataframe_transformer/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dataframe_transformer/requirements.txt"
+    },
+    {
+      "id": "dependency_graph",
+      "name": "Dependency Graph",
+      "category": "core",
+      "description": "Define dependencies between assets without modifying component schemas - enables fully YAML-based pipelines",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "core/dependency_graph",
+      "tags": ["core", "dependencies", "graph", "wiring", "yaml"],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/dependency_graph/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/dependency_graph/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/dependency_graph/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/dependency_graph/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/dependency_graph/requirements.txt"
+    },
+    {
+      "id": "asset_reference",
+      "name": "Asset Reference",
+      "category": "core",
+      "description": "Reference existing assets (dbt, Python, etc.) in pipeline definitions without creating new assets",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "core/asset_reference",
+      "tags": ["core", "reference", "existing-asset", "import", "dbt", "python"],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/asset_reference/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/asset_reference/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/asset_reference/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/asset_reference/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/asset_reference/requirements.txt"
     }
   ]
 }

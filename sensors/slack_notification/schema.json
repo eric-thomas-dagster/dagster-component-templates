@@ -1,0 +1,76 @@
+{
+  "type": "dagster_component_templates.SlackNotificationSensorComponent",
+  "name": "Slack Notification Sensor",
+  "category": "sensors",
+  "description": "Monitor Slack channels for new messages and trigger jobs based on keywords or users",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name",
+      "description": "Unique name for this sensor",
+      "default": "my_slack_sensor",
+      "placeholder": "slack_alert_sensor"
+    },
+    "slack_token": {
+      "type": "string",
+      "required": true,
+      "label": "Slack Bot Token",
+      "description": "Slack Bot User OAuth token (use ${SLACK_TOKEN} for env var)",
+      "placeholder": "${SLACK_TOKEN}",
+      "sensitive": true
+    },
+    "channel_id": {
+      "type": "string",
+      "required": true,
+      "label": "Channel ID",
+      "description": "Slack channel ID to monitor (e.g., C1234567890)",
+      "placeholder": "C1234567890"
+    },
+    "job_name": {
+      "type": "string",
+      "required": true,
+      "label": "Job to Trigger",
+      "description": "Name of the job to run when matching messages are found",
+      "placeholder": "process_slack_message_job"
+    },
+    "keyword_filter": {
+      "type": "string",
+      "required": false,
+      "label": "Keyword Filter",
+      "description": "Only trigger on messages containing this keyword (leave empty for all messages)",
+      "placeholder": "alert"
+    },
+    "user_filter": {
+      "type": "string",
+      "required": false,
+      "label": "User Filter",
+      "description": "Only trigger on messages from this Slack user ID (leave empty for all users)",
+      "placeholder": "U1234567890"
+    },
+    "minimum_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Check Interval (seconds)",
+      "description": "How often to check for new messages",
+      "default": 60,
+      "min": 30,
+      "max": 3600
+    },
+    "default_status": {
+      "type": "string",
+      "required": false,
+      "label": "Default Status",
+      "description": "Initial status of the sensor",
+      "default": "RUNNING",
+      "enum": ["RUNNING", "STOPPED"]
+    }
+  },
+  "outputs": [],
+  "dependencies": {
+    "pip": ["slack-sdk>=3.19.0"]
+  },
+  "tags": ["slack", "notification", "webhook", "chat", "messaging"]
+}

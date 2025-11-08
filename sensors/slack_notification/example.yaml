@@ -1,0 +1,9 @@
+type: dagster_component_templates.SlackNotificationSensorComponent
+attributes:
+  sensor_name: alert_monitor_sensor
+  slack_token: ${SLACK_TOKEN}
+  channel_id: C1234567890
+  job_name: process_alert_job
+  keyword_filter: alert
+  minimum_interval_seconds: 60
+  default_status: RUNNING

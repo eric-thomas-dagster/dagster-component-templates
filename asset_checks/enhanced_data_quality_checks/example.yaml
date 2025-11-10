@@ -1,0 +1,158 @@
+# Example configuration for Enhanced Data Quality Checks Component
+# This example demonstrates multiple check types across different assets
+
+type: dagster_component_templates.EnhancedDataQualityChecksComponent
+attributes:
+  # Configure checks for multiple assets
+  assets:
+    # Basic validation example
+    RAW_DATA.users:
+      row_count_check:
+        - name: "users_row_count"
+          min_rows: 10
+          max_rows: 1000000
+          blocking: true
+
+      data_type_check:
+        - name: "users_data_type"
+          columns:
+            - column: "user_id"
+              expected_type: "int"
+            - column: "email"
+              expected_type: "object"
+            - column: "is_active"
+              expected_type: "bool"
+          blocking: true
+
+    # Comprehensive validation example with grouping
+    CLEANED.orders_cleaned:
+      database_resource_key: "duckdb"
+      table_name: "analytics.orders_cleaned"
+
+      # Row count validation with grouping by date
+      row_count_check:
+        - name: "orders_row_count"
+          min_rows: 10
+          max_rows: 1000000
+          group_by: "date"
+          allowed_failures: 2
+          blocking: true
+
+      # Null value checks for critical columns
+      null_check:
+        - name: "orders_null_check"
+          columns: ["user_id", "quantity", "price", "date"]
+          blocking: true
+
+      # Data type validation
+      data_type_check:
+        - name: "orders_data_type"
+          columns:
+            - column: "user_id"
+              expected_type: "int"
+            - column: "quantity"
+              expected_type: "int"
+            - column: "price"
+              expected_type: "float"
+            - column: "date"
+              expected_type: "datetime"
+          blocking: true
+
+      # Range validation with grouping
+      range_check:
+        - name: "orders_range_check"
+          columns:
+            - column: "quantity"
+              min_value: 1
+              max_value: 100
+            - column: "price"
+              min_value: 0.01
+              max_value: 10000
+          group_by: "date"
+          allowed_failures: 2
+          blocking: false
+
+      # Static threshold checks for order metrics
+      static_threshold:
+        - name: "avg_order_value"
+          metric: "mean:total"
+          min_value: 10.0
+          max_value: 500.0
+          group_by: "date"
+          allowed_failures: 2
+          blocking: false
+
+      # Anomaly detection on order counts
+      anomaly_detection:
+        - name: "order_count_anomaly"
+          metric: "num_rows"
+          method: "z_score"
+          threshold: 2.0
+          history: 10
+          group_by: "date"
+          allowed_failures: 2
+          blocking: false
+
+      # Percent delta tracking for order volume
+      percent_delta:
+        - name: "order_volume_delta"
+          metric: "num_rows"
+          max_delta: 50.0
+          history: 5
+          group_by: "date"
+          allowed_failures: 2
+          blocking: false
+
+      # Uniqueness check
+      uniqueness_check:
+        - name: "order_uniqueness"
+          columns:
+            - columns: ["order_id"]
+          blocking: true
+
+      # Custom SQL checks
+      custom_sql_check:
+        - name: "order_total_validation"
+          sql_query: "SELECT COUNT(*) as invalid FROM analytics.orders_cleaned WHERE total != quantity * price"
+          expected_result: 0
+          comparison: "equals"
+          description: "Ensure order totals are calculated correctly"
+          blocking: true
+
+    # Advanced statistical checks example
+    CLEANED.products:
+      database_resource_key: "duckdb"
+
+      # Pattern matching for SKU format
+      pattern_matching:
+        - name: "sku_format"
+          column: "sku"
+          regex_pattern: "^[A-Z]{3}-[0-9]{6}$"
+          match_percentage: 99.0
+          blocking: false
+
+      # Value set validation
+      value_set_validation:
+        - name: "category_validation"
+          column: "category"
+          allowed_values: ["Electronics", "Clothing", "Food", "Books"]
+          min_pct: 95.0
+          blocking: false
+
+      # Entropy analysis
+      entropy_analysis:
+        - name: "category_diversity"
+          column: "category"
+          min_entropy: 1.0
+          max_entropy: 2.5
+          blocking: false
+
+      # Correlation check
+      correlation_check:
+        - name: "price_cost_correlation"
+          column_x: "price"
+          column_y: "cost"
+          method: "pearson"
+          min_correlation: 0.5
+          max_correlation: 1.0
+          blocking: false

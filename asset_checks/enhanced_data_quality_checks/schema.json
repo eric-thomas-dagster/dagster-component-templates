@@ -1,0 +1,419 @@
+{
+  "type": "dagster_component_templates.EnhancedDataQualityChecksComponent",
+  "name": "Enhanced Data Quality Checks",
+  "category": "asset_checks",
+  "description": "Comprehensive data quality validation framework with 15+ check types, automatic processing mode selection (SQL/dataframe), support for pandas/polars, grouping, historical trend analysis, and multi-asset configuration",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "attributes": {
+    "assets": {
+      "type": "object",
+      "required": true,
+      "label": "Asset Configurations",
+      "description": "Multi-asset configuration dictionary. Key is the asset name (e.g., 'schema.table_name'), value is a dictionary of check configurations for that asset. Each asset can have any combination of the 15+ check types.",
+      "placeholder": "{ \"RAW_DATA.users\": { \"row_count_check\": [...], \"null_check\": [...] } }",
+      "nested_structure": {
+        "asset_key": {
+          "description": "Asset key (e.g., 'schema.table_name')",
+          "checks": {
+            "database_resource_key": {
+              "type": "string",
+              "description": "Override database resource key for this asset"
+            },
+            "table_name": {
+              "type": "string",
+              "description": "Override table name for this asset"
+            },
+            "row_count_check": {
+              "type": "array",
+              "description": "List of row count checks",
+              "items": {
+                "name": "string (required)",
+                "min_rows": "number (default: 1)",
+                "max_rows": "number (optional)",
+                "group_by": "string (optional) - Column to group by",
+                "allowed_failures": "number (default: 0) - Number of groups allowed to fail",
+                "blocking": "boolean (default: false) - Whether check fails pipeline",
+                "severity": "string (default: 'WARN') - 'WARN' or 'ERROR'"
+              }
+            },
+            "null_check": {
+              "type": "array",
+              "description": "List of null value checks",
+              "items": {
+                "name": "string (required)",
+                "columns": "array of strings (required) - Columns to check",
+                "group_by": "string (optional)",
+                "allowed_failures": "number (default: 0)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            },
+            "data_type_check": {
+              "type": "array",
+              "description": "List of data type validation checks",
+              "items": {
+                "name": "string (required)",
+                "columns": "array of objects (required) - [{ column: 'name', expected_type: 'int' }]",
+                "group_by": "string (optional)",
+                "allowed_failures": "number (default: 0)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            },
+            "range_check": {
+              "type": "array",
+              "description": "List of range validation checks",
+              "items": {
+                "name": "string (required)",
+                "columns": "array of objects (required) - [{ column: 'name', min_value: 0, max_value: 100 }]",
+                "group_by": "string (optional)",
+                "allowed_failures": "number (default: 0)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            },
+            "pattern_matching": {
+              "type": "array",
+              "description": "List of regex pattern matching checks",
+              "items": {
+                "name": "string (required)",
+                "column": "string (required)",
+                "regex_pattern": "string (optional) - Custom regex pattern",
+                "preset": "string (optional) - Preset pattern (email, phone, etc.)",
+                "match_percentage": "number (default: 95.0) - Min % of values that should match",
+                "group_by": "string (optional)",
+                "allowed_failures": "number (default: 0)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            },
+            "value_set_validation": {
+              "type": "array",
+              "description": "List of value set validation checks (allowed values)",
+              "items": {
+                "name": "string (required)",
+                "column": "string (required)",
+                "allowed_values": "array of strings (required) - Allowed values",
+                "min_pct": "number (default: 95.0) - Min % in allowed set",
+                "group_by": "string (optional)",
+                "allowed_failures": "number (default: 0)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            },
+            "uniqueness_check": {
+              "type": "array",
+              "description": "List of uniqueness validation checks",
+              "items": {
+                "name": "string (required)",
+                "columns": "array of objects (required) - [{ columns: ['user_id', 'date'] }]",
+                "group_by": "string (optional)",
+                "allowed_failures": "number (default: 0)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            },
+            "static_threshold": {
+              "type": "array",
+              "description": "List of static threshold checks for metrics",
+              "items": {
+                "name": "string (required)",
+                "metric": "string (default: 'num_rows') - Metric to check (num_rows, mean:column, sum:column, etc.)",
+                "min_value": "number (optional)",
+                "max_value": "number (optional)",
+                "group_by": "string (optional)",
+                "allowed_failures": "number (default: 0)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            },
+            "anomaly_detection": {
+              "type": "array",
+              "description": "List of anomaly detection checks",
+              "items": {
+                "name": "string (required)",
+                "metric": "string (required) - Metric to analyze (num_rows, mean:column, etc.)",
+                "method": "string (default: 'z_score') - z_score, iqr, isolation_forest",
+                "threshold": "number (default: 2.0) - Threshold for anomaly",
+                "history": "number (default: 10) - Historical data points to use",
+                "group_by": "string (optional)",
+                "allowed_failures": "number (default: 0)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            },
+            "percent_delta": {
+              "type": "array",
+              "description": "List of percent delta checks (compare current vs historical)",
+              "items": {
+                "name": "string (required)",
+                "metric": "string (required) - Metric to compare",
+                "max_delta": "number (required) - Max allowed % change",
+                "history": "number (default: 10) - Historical data points",
+                "group_by": "string (optional)",
+                "allowed_failures": "number (default: 0)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            },
+            "entropy_analysis": {
+              "type": "array",
+              "description": "List of Shannon entropy analysis checks (data diversity)",
+              "items": {
+                "name": "string (required)",
+                "column": "string (required)",
+                "min_entropy": "number (optional)",
+                "max_entropy": "number (optional)",
+                "group_by": "string (optional)",
+                "allowed_failures": "number (default: 0)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            },
+            "benford_law": {
+              "type": "array",
+              "description": "List of Benford's Law analysis checks (numerical distribution)",
+              "items": {
+                "name": "string (required)",
+                "column": "string (required)",
+                "threshold": "number (default: 0.05) - Significance threshold",
+                "digit_position": "number (default: 1) - 1=first digit, 2=second, 12=first two",
+                "min_samples": "number (default: 100) - Min samples for reliable test",
+                "group_by": "string (optional)",
+                "allowed_failures": "number (default: 0)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            },
+            "correlation_check": {
+              "type": "array",
+              "description": "List of correlation analysis checks between column pairs",
+              "items": {
+                "name": "string (required)",
+                "column_x": "string (required)",
+                "column_y": "string (required)",
+                "method": "string (default: 'pearson') - pearson, spearman, kendall",
+                "min_correlation": "number (optional)",
+                "max_correlation": "number (optional)",
+                "group_by": "string (optional)",
+                "allowed_failures": "number (default: 0)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            },
+            "predicted_range": {
+              "type": "array",
+              "description": "List of predicted range checks using historical data",
+              "items": {
+                "name": "string (required)",
+                "metric": "string (required)",
+                "method": "string (default: 'moving_average') - moving_average, linear_regression, exponential_smoothing, arima",
+                "confidence": "number (default: 0.95)",
+                "history": "number (default: 10)",
+                "group_by": "string (optional)",
+                "allowed_failures": "number (default: 0)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            },
+            "distribution_change": {
+              "type": "array",
+              "description": "List of distribution change checks using statistical tests",
+              "items": {
+                "name": "string (required)",
+                "metric": "string (required)",
+                "method": "string (default: 'ks_test') - ks_test, chi_square",
+                "significance_level": "number (default: 0.05)",
+                "group_by": "string (optional)",
+                "allowed_failures": "number (default: 0)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            },
+            "cross_table_validation": {
+              "type": "array",
+              "description": "List of cross-table validation checks",
+              "items": {
+                "name": "string (required)",
+                "source_table": "string (required)",
+                "source_database": "string (optional)",
+                "join_columns": "array of strings (required)",
+                "validation_type": "string (default: 'row_count') - row_count, column_values, aggregate",
+                "aggregate_column": "string (optional)",
+                "aggregate_function": "string (default: 'sum') - sum, avg, min, max, count",
+                "group_by": "string (optional)",
+                "allowed_failures": "number (default: 0)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            },
+            "custom_sql_check": {
+              "type": "array",
+              "description": "List of custom SQL checks",
+              "items": {
+                "name": "string (required)",
+                "sql_query": "string (required) - SQL query to execute",
+                "expected_result": "any (optional)",
+                "comparison": "string (default: 'equals') - equals, not_equals, greater_than, less_than, etc.",
+                "description": "string (optional)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            },
+            "custom_dataframe_check": {
+              "type": "array",
+              "description": "List of custom Python dataframe checks",
+              "items": {
+                "name": "string (required)",
+                "python_code": "string (required) - Python code to execute on df",
+                "expected_result": "any (optional)",
+                "comparison": "string (default: 'equals')",
+                "description": "string (optional)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            },
+            "dataframe_query_check": {
+              "type": "array",
+              "description": "List of dataframe query checks",
+              "items": {
+                "name": "string (required)",
+                "query": "string (required) - Dataframe query to execute",
+                "expected_result": "any (optional)",
+                "comparison": "string (default: 'equals')",
+                "description": "string (optional)",
+                "blocking": "boolean (default: false)",
+                "severity": "string (default: 'WARN')"
+              }
+            }
+          }
+        }
+      }
+    },
+    "data_source_type": {
+      "type": "string",
+      "required": false,
+      "label": "Data Source Type",
+      "description": "Source of data: 'database' for SQL queries or 'dataframe' for pandas/polars dataframes. If not specified, auto-detects based on database_resource_key.",
+      "enum": ["database", "dataframe"],
+      "default": "database"
+    },
+    "table_name": {
+      "type": "string",
+      "required": false,
+      "label": "Table Name",
+      "description": "Database table name to query (e.g., 'schema.table_name'). Can be overridden per asset. Auto-detected from asset key if it follows schema.table pattern.",
+      "placeholder": "analytics.orders_cleaned"
+    },
+    "database_resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Database Resource Key",
+      "description": "Dagster resource key for database connection (e.g., 'duckdb', 'postgres', 'snowflake'). Can be overridden per asset.",
+      "default": "duckdb",
+      "placeholder": "duckdb"
+    },
+    "table_name_targets": {
+      "type": "object",
+      "required": false,
+      "label": "Table Name Targets (Environment-specific)",
+      "description": "Environment-specific table names for multi-environment deployments. Example: {'dev': 'dev_schema.table', 'prod': 'prod_schema.table'}",
+      "placeholder": "{ \"dev\": \"dev_table\", \"prod\": \"prod_table\" }"
+    },
+    "database_resource_key_targets": {
+      "type": "object",
+      "required": false,
+      "label": "Database Resource Key Targets",
+      "description": "Environment-specific database resource keys. Example: {'dev': 'dev_db', 'prod': 'prod_db'}",
+      "placeholder": "{ \"dev\": \"dev_db\", \"prod\": \"prod_db\" }"
+    },
+    "sample_size": {
+      "type": "number",
+      "required": false,
+      "label": "Sample Size",
+      "description": "Number of rows to sample for analysis. Improves performance on large datasets. Leave empty to analyze all rows.",
+      "placeholder": "10000",
+      "min": 1
+    },
+    "sample_method": {
+      "type": "string",
+      "required": false,
+      "label": "Sample Method",
+      "description": "Sampling method when sample_size is specified",
+      "enum": ["random", "top"],
+      "default": "random"
+    },
+    "where_clause": {
+      "type": "string",
+      "required": false,
+      "label": "WHERE Clause",
+      "description": "Custom SQL WHERE clause to filter data before analysis (e.g., 'status = \\'active\\' AND created_at > \\'2024-01-01\\'')",
+      "placeholder": "status = 'active'"
+    },
+    "time_filter_column": {
+      "type": "string",
+      "required": false,
+      "label": "Time Filter Column",
+      "description": "Column name for time-based filtering (used with hours_back or days_back)",
+      "placeholder": "created_at"
+    },
+    "hours_back": {
+      "type": "number",
+      "required": false,
+      "label": "Hours Back",
+      "description": "Filter data to last N hours (requires time_filter_column)",
+      "placeholder": "24",
+      "min": 1
+    },
+    "days_back": {
+      "type": "number",
+      "required": false,
+      "label": "Days Back",
+      "description": "Filter data to last N days (requires time_filter_column)",
+      "placeholder": "7",
+      "min": 1
+    }
+  },
+  "outputs": [],
+  "dependencies": {
+    "pip": ["pandas>=1.3.0", "numpy>=1.21.0", "scipy>=1.7.0"]
+  },
+  "tags": ["data-quality", "validation", "checks", "monitoring", "anomaly-detection", "data-testing", "asset-checks"],
+  "documentation": {
+    "overview": "Comprehensive data quality validation framework with 15+ check types including row count, null checks, data types, ranges, patterns, uniqueness, static thresholds, anomaly detection, percent delta, entropy analysis, Benford's Law, correlation, predicted ranges, distribution changes, and cross-table validation. Supports automatic processing mode selection (SQL vs dataframe), works with both pandas and polars, includes grouping and historical trend analysis, and allows multi-asset configuration.",
+    "check_types": [
+      "row_count_check - Validate min/max row counts with optional grouping",
+      "null_check - Check for null values in specified columns",
+      "data_type_check - Validate column data types",
+      "range_check - Validate min/max values for numeric columns",
+      "pattern_matching - Regex pattern validation for text columns",
+      "value_set_validation - Validate values against allowed list",
+      "uniqueness_check - Check uniqueness of column combinations",
+      "static_threshold - Validate metrics against static thresholds",
+      "anomaly_detection - Detect anomalies using z-score, IQR, or isolation forest",
+      "percent_delta - Track percent changes from historical values",
+      "entropy_analysis - Analyze data diversity using Shannon entropy",
+      "benford_law - Validate numerical distributions with Benford's Law",
+      "correlation_check - Analyze correlations between column pairs",
+      "predicted_range - Validate values against predicted ranges from historical data",
+      "distribution_change - Detect distribution changes using statistical tests",
+      "cross_table_validation - Validate data consistency across tables",
+      "custom_sql_check - Execute custom SQL queries",
+      "custom_dataframe_check - Execute custom Python code on dataframes",
+      "dataframe_query_check - Execute dataframe queries"
+    ],
+    "features": [
+      "Automatic processing mode selection (SQL vs dataframe)",
+      "Support for both pandas and polars dataframes",
+      "Grouping support for all check types",
+      "Historical trend analysis for anomaly and delta checks",
+      "Multi-asset configuration in single component",
+      "Environment-aware table and resource configuration",
+      "Data sampling for performance on large datasets",
+      "Time-based filtering with hours_back/days_back",
+      "Custom WHERE clauses for filtering",
+      "Blocking and non-blocking checks with severity levels"
+    ]
+  }
+}

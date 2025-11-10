@@ -2199,27 +2199,44 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         # Default to WARN
         return CheckSeverity.WARN.value
 
+    def _get_check_name(self, asset_key: AssetKey, component, default_suffix: str) -> str:
+        """Get check name from config or generate default.
+
+        Args:
+            asset_key: The asset key
+            component: The component with _current_check_config
+            default_suffix: Suffix for auto-generated name (e.g., 'row_count', 'null_check')
+
+        Returns:
+            Check name (custom or auto-generated)
+        """
+        sanitized_name = self._sanitize_asset_key_name(asset_key)
+        custom_name = (getattr(component, '_current_check_config', None) and
+                      getattr(component._current_check_config, 'name', None))
+        return custom_name or f"{sanitized_name}_{default_suffix}"
+
     def _create_row_count_check(self, asset_key: AssetKey, component=None):
         """Create row count check - can use SQL or dataframe."""
         if component is None:
             component = self
-            
-        sanitized_name = self._sanitize_asset_key_name(asset_key)
+
+        check_name = self._get_check_name(asset_key, component, "row_count")
+
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_row_count")
+            @asset_check(asset=asset_key, name=check_name)
             def dataframe_row_count_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_row_count(context, df)
             return dataframe_row_count_check
         else:
             # Database mode - only include required_resource_keys if database_resource_key is not None
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_row_count", required_resource_keys={component.database_resource_key})
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key})
                 def database_row_count_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_row_count(context)
                 return database_row_count_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_row_count")
+                @asset_check(asset=asset_key, name=check_name)
                 def dataframe_row_count_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_row_count(context, df)
                 return dataframe_row_count_check
@@ -2229,22 +2246,22 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if component is None:
             component = self
             
-        sanitized_name = self._sanitize_asset_key_name(asset_key)
+        check_name = self._get_check_name(asset_key, component, "null_check")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_null_check")
+            @asset_check(asset=asset_key, name=check_name)
             def dataframe_null_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_null_check(context, df)
             return dataframe_null_check
         else:
             # Database mode - only include required_resource_keys if database_resource_key is not None
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_null_check", required_resource_keys={component.database_resource_key})
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key})
                 def database_null_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_null_check(context)
                 return database_null_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_null_check")
+                @asset_check(asset=asset_key, name=check_name)
                 def dataframe_null_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_null_check(context, df)
                 return dataframe_null_check
@@ -2254,22 +2271,22 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if component is None:
             component = self
             
-        sanitized_name = self._sanitize_asset_key_name(asset_key)
+        check_name = self._get_check_name(asset_key, component, "static_threshold")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_static_threshold")
+            @asset_check(asset=asset_key, name=check_name)
             def dataframe_static_threshold_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_static_threshold(context, df)
             return dataframe_static_threshold_check
         else:
             # Database mode - only include required_resource_keys if database_resource_key is not None
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_static_threshold", required_resource_keys={component.database_resource_key})
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key})
                 def database_static_threshold_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_static_threshold(context)
                 return database_static_threshold_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_static_threshold")
+                @asset_check(asset=asset_key, name=check_name)
                 def dataframe_static_threshold_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_static_threshold(context, df)
                 return dataframe_static_threshold_check
@@ -2279,22 +2296,22 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if component is None:
             component = self
             
-        sanitized_name = self._sanitize_asset_key_name(asset_key)
+        check_name = self._get_check_name(asset_key, component, "benford_law")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_benford_law")
+            @asset_check(asset=asset_key, name=check_name)
             def dataframe_benford_law_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_benford_law(context, df)
             return dataframe_benford_law_check
         else:
             # Database source but complex check → fetch data and process as dataframe
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_benford_law", required_resource_keys={component.database_resource_key})
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key})
                 def database_benford_law_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_benford_law(context)
                 return database_benford_law_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_benford_law")
+                @asset_check(asset=asset_key, name=check_name)
                 def dataframe_benford_law_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_benford_law(context, df)
                 return dataframe_benford_law_check
@@ -2304,7 +2321,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if component is None:
             component = self
             
-        sanitized_name = self._sanitize_asset_key_name(asset_key)
+        check_name = self._get_check_name(asset_key, component, "entropy_analysis")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
             @asset_check(asset=asset_key, name=f"{sanitized_name}_entropy")
             def dataframe_entropy_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
@@ -2329,7 +2346,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if component is None:
             component = self
             
-        sanitized_name = self._sanitize_asset_key_name(asset_key)
+        check_name = self._get_check_name(asset_key, component, "correlation_check")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
             @asset_check(asset=asset_key, name=f"{sanitized_name}_correlation")
             def dataframe_correlation_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
@@ -2354,22 +2371,22 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if component is None:
             component = self
             
-        sanitized_name = self._sanitize_asset_key_name(asset_key)
+        check_name = self._get_check_name(asset_key, component, "value_set_validation")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_value_set_validation")
+            @asset_check(asset=asset_key, name=check_name)
             def dataframe_value_set_validation_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_value_set_validation(context, df)
             return dataframe_value_set_validation_check
         else:
             # Database source but complex check → fetch data and process as dataframe
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_value_set_validation", required_resource_keys={component.database_resource_key})
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key})
                 def database_value_set_validation_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_value_set_validation(context)
                 return database_value_set_validation_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_value_set_validation")
+                @asset_check(asset=asset_key, name=check_name)
                 def dataframe_value_set_validation_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_value_set_validation(context, df)
                 return dataframe_value_set_validation_check
@@ -2379,22 +2396,22 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if component is None:
             component = self
             
-        sanitized_name = self._sanitize_asset_key_name(asset_key)
+        check_name = self._get_check_name(asset_key, component, "pattern_matching")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_pattern_matching")
+            @asset_check(asset=asset_key, name=check_name)
             def dataframe_pattern_matching_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_pattern_matching(context, df)
             return dataframe_pattern_matching_check
         else:
             # Database source but complex check → fetch data and process as dataframe
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_pattern_matching", required_resource_keys={component.database_resource_key})
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key})
                 def database_pattern_matching_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_pattern_matching(context)
                 return database_pattern_matching_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_pattern_matching")
+                @asset_check(asset=asset_key, name=check_name)
                 def dataframe_pattern_matching_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_pattern_matching(context, df)
                 return dataframe_pattern_matching_check
@@ -2404,22 +2421,22 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if component is None:
             component = self
             
-        sanitized_name = self._sanitize_asset_key_name(asset_key)
+        check_name = self._get_check_name(asset_key, component, "predicted_range")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_predicted_range")
+            @asset_check(asset=asset_key, name=check_name)
             def dataframe_predicted_range_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_predicted_range(context, df)
             return dataframe_predicted_range_check
         else:
             # Database source but complex check → fetch data and process as dataframe
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_predicted_range", required_resource_keys={component.database_resource_key})
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key})
                 def database_predicted_range_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_predicted_range(context)
                 return database_predicted_range_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_predicted_range")
+                @asset_check(asset=asset_key, name=check_name)
                 def dataframe_predicted_range_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_predicted_range(context, df)
                 return dataframe_predicted_range_check
@@ -2429,22 +2446,22 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if component is None:
             component = self
             
-        sanitized_name = self._sanitize_asset_key_name(asset_key)
+        check_name = self._get_check_name(asset_key, component, "percent_delta")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_percent_delta")
+            @asset_check(asset=asset_key, name=check_name)
             def dataframe_percent_delta_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_percent_delta(context, df)
             return dataframe_percent_delta_check
         else:
             # Database mode - only include required_resource_keys if database_resource_key is not None
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_percent_delta", required_resource_keys={component.database_resource_key})
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key})
                 def database_percent_delta_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_percent_delta(context)
                 return database_percent_delta_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_percent_delta")
+                @asset_check(asset=asset_key, name=check_name)
                 def dataframe_percent_delta_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_percent_delta(context, df)
                 return dataframe_percent_delta_check
@@ -2454,22 +2471,22 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if component is None:
             component = self
             
-        sanitized_name = component._sanitize_asset_key_name(asset_key)
+        check_name = self._get_check_name(asset_key, component, "distribution_change")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_distribution_change")
+            @asset_check(asset=asset_key, name=check_name)
             def dataframe_distribution_change_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_distribution_change(context, df)
             return dataframe_distribution_change_check
         else:
             # Database mode - only include required_resource_keys if database_resource_key is not None
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_distribution_change", required_resource_keys={component.database_resource_key})
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key})
                 def database_distribution_change_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_distribution_change(context)
                 return database_distribution_change_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_distribution_change")
+                @asset_check(asset=asset_key, name=check_name)
                 def dataframe_distribution_change_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_distribution_change(context, df)
                 return dataframe_distribution_change_check
@@ -2478,23 +2495,23 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create anomaly detection check - can use SQL or dataframe."""
         if component is None:
             component = self
-            
-        sanitized_name = component._sanitize_asset_key_name(asset_key)
+
+        check_name = self._get_check_name(asset_key, component, "anomaly_detection")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_anomaly_detection")
+            @asset_check(asset=asset_key, name=check_name)
             def dataframe_anomaly_detection_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_anomaly_detection(context, df)
             return dataframe_anomaly_detection_check
         else:
             # Database mode - only include required_resource_keys if database_resource_key is not None
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_anomaly_detection", required_resource_keys={component.database_resource_key})
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key})
                 def database_anomaly_detection_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_anomaly_detection(context)
                 return database_anomaly_detection_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_anomaly_detection")
+                @asset_check(asset=asset_key, name=check_name)
                 def dataframe_anomaly_detection_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_anomaly_detection(context, df)
                 return dataframe_anomaly_detection_check
@@ -2504,7 +2521,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if component is None:
             component = self
             
-        sanitized_name = component._sanitize_asset_key_name(asset_key)
+        check_name = self._get_check_name(asset_key, component, "predicted_range")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
             @asset_check(asset=asset_key, name=f"{sanitized_name}_data_type")
             def dataframe_data_type_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
@@ -2529,22 +2546,22 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if component is None:
             component = self
             
-        sanitized_name = component._sanitize_asset_key_name(asset_key)
+        check_name = self._get_check_name(asset_key, component, "percent_delta")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_range_check")
+            @asset_check(asset=asset_key, name=check_name)
             def dataframe_range_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_range_check(context, df)
             return dataframe_range_check
         else:
             # Database source - can use SQL for simple range checks
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_range_check", required_resource_keys={component.database_resource_key})
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key})
                 def database_range_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_range_check(context)
                 return database_range_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_range_check")
+                @asset_check(asset=asset_key, name=check_name)
                 def dataframe_range_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_range_check(context, df)
                 return dataframe_range_check
@@ -2554,22 +2571,22 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if component is None:
             component = self
             
-        sanitized_name = component._sanitize_asset_key_name(asset_key)
+        check_name = self._get_check_name(asset_key, component, "range_check")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_uniqueness_check")
+            @asset_check(asset=asset_key, name=check_name)
             def dataframe_uniqueness_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_uniqueness_check(context, df)
             return dataframe_uniqueness_check
         else:
             # Database source but complex check → fetch data and process as dataframe
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_uniqueness_check", required_resource_keys={component.database_resource_key})
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key})
                 def database_uniqueness_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_uniqueness_check(context)
                 return database_uniqueness_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_uniqueness_check")
+                @asset_check(asset=asset_key, name=check_name)
                 def dataframe_uniqueness_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_uniqueness_check(context, df)
                 return dataframe_uniqueness_check
@@ -2579,7 +2596,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if component is None:
             component = self
             
-        sanitized_name = component._sanitize_asset_key_name(asset_key)
+        check_name = self._get_check_name(asset_key, component, "data_type_check")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
             @asset_check(asset=asset_key, name=f"{sanitized_name}_custom_dataframe_check")
             def dataframe_custom_dataframe_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
@@ -2653,7 +2670,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if component is None:
             component = self
             
-        sanitized_name = component._sanitize_asset_key_name(asset_key)
+        check_name = self._get_check_name(asset_key, component, "cross_table_validation")
         # Cross-table validation is database-only
         required_resource_keys = set()
         if component.database_resource_key:
@@ -2665,12 +2682,12 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             required_resource_keys.add(source_database)
             
         if required_resource_keys:
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_cross_table_validation", required_resource_keys=required_resource_keys)
+            @asset_check(asset=asset_key, name=check_name, required_resource_keys=required_resource_keys)
             def cross_table_validation_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                 return component._execute_cross_table_validation(context)
             return cross_table_validation_check
         else:
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_cross_table_validation")
+            @asset_check(asset=asset_key, name=check_name)
             def cross_table_validation_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                 return component._execute_cross_table_validation(context)
             return cross_table_validation_check

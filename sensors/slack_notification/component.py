@@ -8,6 +8,7 @@ from slack_sdk.errors import SlackApiError
 from dagster import (
     Component,
     Resolvable,
+    Model,
     Definitions,
     SensorDefinition,
     RunRequest,
@@ -16,10 +17,10 @@ from dagster import (
     ComponentLoadContext,
     DefaultSensorStatus,
 )
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 
-class SlackNotificationSensorComponent(Component, Resolvable, BaseModel):
+class SlackNotificationSensorComponent(Component, Model, Resolvable):
     """
     Monitor Slack channels for new messages and trigger jobs.
 

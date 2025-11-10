@@ -18,11 +18,12 @@ from dagster import (
     multi_asset,
     Config,
     Resolvable,
+    Model,
 )
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 
-class FileTransformerComponent(Component, Resolvable, BaseModel):
+class FileTransformerComponent(Component, Model, Resolvable):
     """Component for transforming files between formats.
 
     This asset transforms files from one format to another. It can accept file

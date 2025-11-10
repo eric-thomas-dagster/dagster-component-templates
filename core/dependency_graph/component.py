@@ -1,12 +1,12 @@
 """DependencyGraphComponent for defining asset dependencies without modifying component schemas."""
 
 from typing import List, Dict, Any
-from pydantic import BaseModel, Field
-from dagster import Definitions, Resolvable
+from pydantic import Field
+from dagster import Definitions, Resolvable, Model
 from dagster._core.definitions.component import Component, ComponentLoadContext
 
 
-class DependencyGraphComponent(Component, Resolvable, BaseModel):
+class DependencyGraphComponent(Component, Model, Resolvable):
     """Defines the dependency graph between assets in a pipeline.
 
     This component doesn't create any assets - it only specifies how

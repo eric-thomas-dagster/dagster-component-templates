@@ -18,11 +18,12 @@ from dagster import (
     AssetSpec,
     multi_asset,
     Resolvable,
+    Model,
 )
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 
-class RestApiFetcherComponent(Component, Resolvable, BaseModel):
+class RestApiFetcherComponent(Component, Model, Resolvable):
     """Component for fetching data from REST APIs.
 
     This asset fetches data from REST API endpoints and materializes the results.

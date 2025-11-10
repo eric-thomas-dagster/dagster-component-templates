@@ -15,11 +15,12 @@ from dagster import (
     AssetSpec,
     multi_asset,
     Resolvable,
+    Model,
 )
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 
-class DatabaseQueryComponent(Component, Resolvable, BaseModel):
+class DatabaseQueryComponent(Component, Model, Resolvable):
     """Component for executing SQL queries and materializing results.
 
     Execute SQL queries against any SQLAlchemy-compatible database and

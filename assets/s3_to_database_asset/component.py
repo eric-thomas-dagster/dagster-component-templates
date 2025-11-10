@@ -8,6 +8,7 @@ from sqlalchemy import create_engine
 from dagster import (
     Component,
     Resolvable,
+    Model,
     Definitions,
     AssetSpec,
     AssetExecutionContext,
@@ -15,10 +16,10 @@ from dagster import (
     multi_asset,
     Config,
 )
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 
-class S3ToDatabaseAssetComponent(Component, Resolvable, BaseModel):
+class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
     """
     Component for loading files from S3 into a database table.
 

@@ -6,16 +6,17 @@ from pathlib import Path
 from dagster import (
     Component,
     Resolvable,
+    Model,
     Definitions,
     AssetSpec,
     AssetExecutionContext,
     ComponentLoadContext,
     multi_asset,
 )
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 
-class CSVFileIngestionComponent(Component, Resolvable, BaseModel):
+class CSVFileIngestionComponent(Component, Model, Resolvable):
     """
     Component for ingesting CSV files into Dagster assets.
 

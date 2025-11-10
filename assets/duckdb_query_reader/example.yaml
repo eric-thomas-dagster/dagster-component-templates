@@ -1,0 +1,13 @@
+type: duckdb_query_reader.DuckDBQueryReaderComponent
+
+attributes:
+  asset_name: active_customers
+  database_path: "{{ project_root }}/data/demo.duckdb"
+  query: |
+    SELECT *
+    FROM customers
+    WHERE is_active = true
+    AND lifetime_value > 1000
+    ORDER BY lifetime_value DESC
+  description: "Active customers with high lifetime value"
+  group_name: analytics

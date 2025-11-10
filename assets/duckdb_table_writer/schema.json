@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "title": "Asset Name",
+      "description": "Name of the asset to create"
+    },
+    "source_asset": {
+      "type": "string",
+      "title": "Source Asset",
+      "description": "Name of the upstream asset that provides the DataFrame"
+    },
+    "database_path": {
+      "type": "string",
+      "title": "Database Path",
+      "description": "Path to the DuckDB database file (will be created if doesn't exist)"
+    },
+    "table_name": {
+      "type": "string",
+      "title": "Table Name",
+      "description": "Name of the table to write data to"
+    },
+    "write_mode": {
+      "type": "string",
+      "title": "Write Mode",
+      "description": "Write mode: 'create' (fail if exists), 'replace' (drop and recreate), 'append' (add rows)",
+      "enum": ["create", "replace", "append"],
+      "default": "replace"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description",
+      "description": "Description of the asset",
+      "default": ""
+    },
+    "group_name": {
+      "type": "string",
+      "title": "Group Name",
+      "description": "Asset group name for organization",
+      "default": ""
+    }
+  },
+  "required": ["asset_name", "source_asset", "database_path", "table_name"]
+}

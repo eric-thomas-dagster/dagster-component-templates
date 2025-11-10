@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "title": "Asset Name",
+      "description": "Name of the asset"
+    },
+    "schema_type": {
+      "type": "string",
+      "title": "Schema Type",
+      "description": "Type of data schema to generate",
+      "enum": ["customers", "orders", "products", "transactions", "events", "sensors", "users"],
+      "default": "customers"
+    },
+    "row_count": {
+      "type": "integer",
+      "title": "Row Count",
+      "description": "Number of rows to generate",
+      "default": 100,
+      "minimum": 1,
+      "maximum": 100000
+    },
+    "random_seed": {
+      "type": ["integer", "null"],
+      "title": "Random Seed",
+      "description": "Random seed for reproducible data generation (leave empty for random)",
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "title": "Description",
+      "description": "Description of the asset",
+      "default": ""
+    },
+    "group_name": {
+      "type": "string",
+      "title": "Group Name",
+      "description": "Asset group name for organization",
+      "default": ""
+    }
+  },
+  "required": ["asset_name", "schema_type", "row_count"]
+}

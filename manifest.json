@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2025-01-10T16:30:00Z",
+  "last_updated": "2025-11-10T22:30:00Z",
   "components": [
     {
       "id": "slack_notification_sensor",
@@ -146,6 +146,78 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dataframe_transformer/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dataframe_transformer/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dataframe_transformer/requirements.txt"
+    },
+    {
+      "id": "synthetic_data_generator",
+      "name": "Synthetic Data Generator",
+      "category": "assets",
+      "description": "Generate realistic synthetic/mock data with multiple pre-defined schemas for demos and testing",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/synthetic_data_generator",
+      "tags": ["synthetic", "mock-data", "demo", "testing", "faker", "data-generation"],
+      "dependencies": {
+        "pip": ["pandas>=2.0.0"]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/synthetic_data_generator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/synthetic_data_generator/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/synthetic_data_generator/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/synthetic_data_generator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/synthetic_data_generator/requirements.txt"
+    },
+    {
+      "id": "duckdb_table_writer",
+      "name": "DuckDB Table Writer",
+      "category": "assets",
+      "description": "Write pandas DataFrames to DuckDB tables with automatic schema creation and flexible write modes",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/duckdb_table_writer",
+      "tags": ["duckdb", "database", "storage", "persistence", "local-db"],
+      "dependencies": {
+        "pip": ["duckdb>=0.9.0", "pandas>=2.0.0"]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_table_writer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_table_writer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_table_writer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_table_writer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_table_writer/requirements.txt"
+    },
+    {
+      "id": "time_series_generator",
+      "name": "Time Series Generator",
+      "category": "assets",
+      "description": "Generate synthetic time-series data with configurable patterns, frequencies, and noise levels",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/time_series_generator",
+      "tags": ["time-series", "synthetic", "patterns", "analytics", "forecasting"],
+      "dependencies": {
+        "pip": ["pandas>=2.0.0", "numpy>=1.24.0"]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/time_series_generator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/time_series_generator/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/time_series_generator/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/time_series_generator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/time_series_generator/requirements.txt"
+    },
+    {
+      "id": "duckdb_query_reader",
+      "name": "DuckDB Query Reader",
+      "category": "assets",
+      "description": "Read and transform data from DuckDB tables using SQL queries, creating new assets from query results",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/duckdb_query_reader",
+      "tags": ["duckdb", "sql", "query", "analytics", "transformation"],
+      "dependencies": {
+        "pip": ["duckdb>=0.9.0", "pandas>=2.0.0"]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_query_reader/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_query_reader/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_query_reader/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_query_reader/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_query_reader/requirements.txt"
     },
     {
       "id": "dependency_graph",

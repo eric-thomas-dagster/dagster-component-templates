@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "title": "Asset Name",
+      "description": "Name of the asset"
+    },
+    "pattern_type": {
+      "type": "string",
+      "title": "Pattern Type",
+      "description": "Pattern to generate in the time series",
+      "enum": ["trend", "seasonal", "random_walk", "sine_wave", "step_function", "spike", "complex"],
+      "default": "complex"
+    },
+    "start_date": {
+      "type": "string",
+      "title": "Start Date",
+      "description": "Start date (YYYY-MM-DD format)",
+      "default": ""
+    },
+    "end_date": {
+      "type": "string",
+      "title": "End Date",
+      "description": "End date (YYYY-MM-DD format)",
+      "default": ""
+    },
+    "frequency": {
+      "type": "string",
+      "title": "Frequency",
+      "description": "Data point frequency",
+      "enum": ["1min", "5min", "15min", "30min", "1h", "1d"],
+      "default": "1h"
+    },
+    "base_value": {
+      "type": "number",
+      "title": "Base Value",
+      "description": "Starting/baseline value for the series",
+      "default": 100.0
+    },
+    "noise_level": {
+      "type": "number",
+      "title": "Noise Level",
+      "description": "Amount of random noise to add (0.0 = none, 1.0 = high)",
+      "default": 0.1,
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "random_seed": {
+      "type": ["integer", "null"],
+      "title": "Random Seed",
+      "description": "Random seed for reproducible data generation (leave empty for random)",
+      "default": null
+    },
+    "metric_name": {
+      "type": "string",
+      "title": "Metric Name",
+      "description": "Name of the metric/value column",
+      "default": "value"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description",
+      "description": "Description of the asset",
+      "default": ""
+    },
+    "group_name": {
+      "type": "string",
+      "title": "Group Name",
+      "description": "Asset group name for organization",
+      "default": ""
+    }
+  },
+  "required": ["asset_name", "pattern_type"]
+}

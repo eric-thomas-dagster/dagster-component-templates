@@ -1,0 +1,10 @@
+type: duckdb_table_writer.DuckDBTableWriterComponent
+
+attributes:
+  asset_name: customers_to_duckdb
+  source_asset: demo_customers
+  database_path: "{{ project_root }}/data/demo.duckdb"
+  table_name: customers
+  write_mode: replace
+  description: "Write customer data to DuckDB"
+  group_name: storage

@@ -1,0 +1,9 @@
+type: synthetic_data_generator.SyntheticDataGeneratorComponent
+
+attributes:
+  asset_name: demo_customers
+  schema_type: customers
+  row_count: 1000
+  random_seed: 42
+  description: "Demo customer data for testing"
+  group_name: synthetic_data

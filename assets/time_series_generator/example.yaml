@@ -1,0 +1,14 @@
+type: time_series_generator.TimeSeriesGeneratorComponent
+
+attributes:
+  asset_name: hourly_metrics
+  pattern_type: complex
+  start_date: "2024-01-01"
+  end_date: "2024-01-31"
+  frequency: "1h"
+  base_value: 100.0
+  noise_level: 0.15
+  random_seed: 42
+  metric_name: temperature
+  description: "Hourly temperature readings with trend and seasonality"
+  group_name: time_series

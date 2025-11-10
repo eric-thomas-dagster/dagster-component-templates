@@ -7,11 +7,6 @@
       "title": "Asset Name",
       "description": "Name of the asset to create"
     },
-    "source_asset": {
-      "type": "string",
-      "title": "Source Asset",
-      "description": "Name of the upstream asset that provides the DataFrame"
-    },
     "database_path": {
       "type": "string",
       "title": "Database Path",
@@ -42,5 +37,5 @@
       "default": ""
     }
   },
-  "required": ["asset_name", "source_asset", "database_path", "table_name"]
+  "required": ["asset_name", "database_path", "table_name"]
 }

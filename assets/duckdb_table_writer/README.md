@@ -29,7 +29,6 @@ DuckDB is perfect for local data workflows:
 ### Required Fields
 
 - **asset_name** (string): Name of the asset to create
-- **source_asset** (string): Name of the upstream asset providing the DataFrame
 - **database_path** (string): Path to the DuckDB database file (created if doesn't exist)
 - **table_name** (string): Name of the table to create/update
 
@@ -42,6 +41,10 @@ DuckDB is perfect for local data workflows:
 - **description** (string): Asset description
 - **group_name** (string): Asset group for organization
 
+### Connecting Upstream Data
+
+This component expects to receive a DataFrame from an upstream asset. Use the **Custom Lineage UI** in Dagster Designer to connect an upstream asset (like Synthetic Data Generator, CSV File Ingestion, or DataFrame Transformer) to this writer component. The lineage connection will automatically pass the DataFrame to the writer.
+
 ## Example Usage
 
 ### Basic Usage
@@ -50,11 +53,12 @@ type: duckdb_table_writer.DuckDBTableWriterComponent
 
 attributes:
   asset_name: customers_to_db
-  source_asset: demo_customers
   database_path: "{{ project_root }}/data/demo.duckdb"
   table_name: customers
   write_mode: replace
 ```
+
+Then use the Custom Lineage UI to connect `demo_customers` → `customers_to_db`.
 
 ### Append Mode for Accumulating Data
 ```yaml
@@ -62,12 +66,13 @@ type: duckdb_table_writer.DuckDBTableWriterComponent
 
 attributes:
   asset_name: sensor_data_writer
-  source_asset: sensor_readings
   database_path: "{{ project_root }}/data/sensors.duckdb"
   table_name: readings
   write_mode: append
   description: "Append new sensor readings to historical table"
 ```
+
+Connect `sensor_readings` → `sensor_data_writer` in the Custom Lineage UI.
 
 ### Multiple Tables in One Database
 ```yaml
@@ -75,7 +80,6 @@ attributes:
 type: duckdb_table_writer.DuckDBTableWriterComponent
 attributes:
   asset_name: write_customers
-  source_asset: customers_data
   database_path: "{{ project_root }}/data/ecommerce.duckdb"
   table_name: customers
   write_mode: replace
@@ -85,11 +89,14 @@ attributes:
 type: duckdb_table_writer.DuckDBTableWriterComponent
 attributes:
   asset_name: write_orders
-  source_asset: orders_data
   database_path: "{{ project_root }}/data/ecommerce.duckdb"
   table_name: orders
   write_mode: replace
 ```
+
+Connect the upstream assets in the Custom Lineage UI:
+- `customers_data` → `write_customers`
+- `orders_data` → `write_orders`
 
 ## Upstream Dependencies
 

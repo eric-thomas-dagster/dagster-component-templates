@@ -12,8 +12,6 @@ from dagster import (
     AssetExecutionContext,
     ComponentLoadContext,
     multi_asset,
-    AssetKey,
-    AssetDep,
 )
 from pydantic import Field
 
@@ -35,10 +33,6 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
     """
 
     asset_name: str = Field(description="Name of the asset to create")
-
-    source_asset: str = Field(
-        description="Name of the upstream asset that provides the DataFrame"
-    )
 
     database_path: str = Field(
         description="Path to the DuckDB database file (will be created if doesn't exist)"
@@ -68,7 +62,6 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
 
         # Capture fields for closure
         asset_name = self.asset_name
-        source_asset = self.source_asset
         database_path = self.database_path
         table_name = self.table_name
         write_mode = self.write_mode
@@ -82,7 +75,6 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
                     key=asset_name,
                     description=description,
                     group_name=group_name,
-                    deps=[AssetDep(AssetKey(source_asset))],
                 )
             ],
         )
@@ -90,12 +82,20 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
             """Write DataFrame to DuckDB table."""
             import duckdb
 
-            # Get the DataFrame from the upstream asset
-            df = kwargs[source_asset]
+            # Get the DataFrame from the upstream asset (via custom lineage)
+            # kwargs will contain the upstream asset's output based on custom lineage edges
+            if not kwargs:
+                raise ValueError(
+                    f"No upstream data provided to {asset_name}. "
+                    "Connect an upstream asset using the custom lineage UI."
+                )
+
+            # Get the first (and should be only) upstream DataFrame
+            df = list(kwargs.values())[0]
 
             if not isinstance(df, pd.DataFrame):
                 raise ValueError(
-                    f"Expected DataFrame from {source_asset}, got {type(df)}"
+                    f"Expected DataFrame from upstream asset, got {type(df)}"
                 )
 
             context.log.info(

@@ -35,6 +35,7 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Name of the asset to create")
 
     database_path: str = Field(
+        default="data.duckdb",
         description="Path to the DuckDB database file (will be created if doesn't exist)"
     )
 

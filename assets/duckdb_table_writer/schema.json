@@ -10,7 +10,8 @@
     "database_path": {
       "type": "string",
       "title": "Database Path",
-      "description": "Path to the DuckDB database file (will be created if doesn't exist)"
+      "description": "Path to the DuckDB database file (will be created if doesn't exist)",
+      "default": "data.duckdb"
     },
     "table_name": {
       "type": "string",
@@ -37,5 +38,5 @@
       "default": ""
     }
   },
-  "required": ["asset_name", "database_path", "table_name"]
+  "required": ["asset_name", "table_name"]
 }

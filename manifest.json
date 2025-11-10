@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2025-01-10T00:00:00Z",
+  "last_updated": "2025-01-10T16:30:00Z",
   "components": [
     {
       "id": "slack_notification_sensor",

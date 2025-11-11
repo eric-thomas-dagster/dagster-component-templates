@@ -141,6 +141,7 @@
       "dependencies": {
         "pip": ["pandas>=2.0.0", "pyarrow>=10.0.0"]
       },
+      "icon": "GitBranch",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dataframe_transformer/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dataframe_transformer/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dataframe_transformer/schema.json",
@@ -159,6 +160,7 @@
       "dependencies": {
         "pip": ["pandas>=2.0.0"]
       },
+      "icon": "Wand2",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/synthetic_data_generator/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/synthetic_data_generator/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/synthetic_data_generator/schema.json",
@@ -177,6 +179,7 @@
       "dependencies": {
         "pip": ["duckdb>=0.9.0", "pandas>=2.0.0"]
       },
+      "icon": "Database",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_table_writer/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_table_writer/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_table_writer/schema.json",
@@ -213,6 +216,7 @@
       "dependencies": {
         "pip": ["duckdb>=0.9.0", "pandas>=2.0.0"]
       },
+      "icon": "Search",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_query_reader/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_query_reader/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_query_reader/schema.json",

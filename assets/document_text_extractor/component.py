@@ -13,8 +13,7 @@ from dagster import (
     ComponentLoadContext,
     Definitions,
     AssetExecutionContext,
-    AssetSpec,
-    multi_asset,
+    asset,
     Resolvable,
     Model,
 )
@@ -27,22 +26,28 @@ class DocumentTextExtractorComponent(Component, Model, Resolvable):
     This asset extracts text from various document formats including PDF, DOCX,
     TXT, HTML, Markdown, and more. Useful as the first step in document processing pipelines.
 
-    Example:
+    File paths should be provided via:
+    - RunConfig (ideal for sensors detecting new files)
+    - Upstream assets producing file paths
+
+    Example with RunConfig:
         ```yaml
         type: dagster_component_templates.DocumentTextExtractorComponent
         attributes:
           asset_name: extracted_text
-          file_path: /path/to/document.pdf
           extraction_method: auto
+        ```
+
+        RunConfig (passed by sensor):
+        ```python
+        RunRequest(
+            run_config={"ops": {"extracted_text": {"config": {"file_path": "/path/to/document.pdf"}}}}
+        )
         ```
     """
 
     asset_name: str = Field(
         description="Name of the asset"
-    )
-
-    file_path: str = Field(
-        description="Path to the document file to extract text from"
     )
 
     extraction_method: str = Field(
@@ -97,7 +102,6 @@ class DocumentTextExtractorComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        file_path = self.file_path
         extraction_method = self.extraction_method
         ocr_enabled = self.ocr_enabled
         preserve_formatting = self.preserve_formatting
@@ -106,21 +110,51 @@ class DocumentTextExtractorComponent(Component, Model, Resolvable):
         output_format = self.output_format
         save_to_file = self.save_to_file
         output_path = self.output_path
-        description = self.description or f"Extract text from {file_path}"
+        description = self.description or "Extract text from documents"
         group_name = self.group_name
 
-        @multi_asset(
-            name=f"{asset_name}_asset",
-            specs=[
-                AssetSpec(
-                    key=asset_name,
-                    description=description,
-                    group_name=group_name,
-                )
-            ],
+        @asset(
+            name=asset_name,
+            description=description,
+            group_name=group_name,
         )
-        def document_text_extractor_asset(context: AssetExecutionContext):
-            """Asset that extracts text from documents."""
+        def document_text_extractor_asset(context: AssetExecutionContext, config: Optional[dict] = None, **kwargs):
+            """Asset that extracts text from documents.
+
+            File path can be provided via:
+            - RunConfig: context.op_execution_context.op_config['file_path']
+            - Upstream assets: via **kwargs (string or dict with 'file_path' key)
+
+            Ideal for use with sensors that detect new files and pass them via RunRequest.
+            """
+
+            # Get file_path from config (RunConfig) or upstream assets
+            file_path = None
+
+            # Priority 1: Check op config (from RunConfig)
+            if config and 'file_path' in config:
+                file_path = config['file_path']
+                context.log.info(f"Using file_path from RunConfig: {file_path}")
+
+            # Priority 2: Check upstream assets
+            if not file_path and kwargs:
+                upstream_assets = {k: v for k, v in kwargs.items()}
+                for key, value in upstream_assets.items():
+                    if isinstance(value, str):
+                        file_path = value
+                        context.log.info(f"Using file_path from upstream asset '{key}': {file_path}")
+                        break
+                    elif isinstance(value, dict) and 'file_path' in value:
+                        file_path = value['file_path']
+                        context.log.info(f"Using file_path from upstream asset '{key}' dict: {file_path}")
+                        break
+
+            if not file_path:
+                raise ValueError(
+                    f"Document Text Extractor '{asset_name}' requires file_path. "
+                    "Provide via RunConfig (ideal for sensors) or upstream asset. "
+                    "Example RunConfig: {\"ops\": {\"" + asset_name + "\": {\"config\": {\"file_path\": \"/path/to/file.pdf\"}}}}"
+                )
 
             # Verify file exists
             if not os.path.exists(file_path):

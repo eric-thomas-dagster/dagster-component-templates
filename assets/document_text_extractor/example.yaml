@@ -1,10 +1,34 @@
+# Document Text Extractor - File path provided via RunConfig or upstream asset
+#
+# IDEAL PATTERN: Use with sensors that detect new files and pass file paths via RunRequest
+#
+# Example sensor that monitors a directory for new files:
+#
+# @sensor(job=my_job)
+# def new_document_sensor(context):
+#     for filename in os.listdir("/path/to/watch"):
+#         if filename.endswith(".pdf"):
+#             yield RunRequest(
+#                 run_key=filename,
+#                 run_config={
+#                     "ops": {
+#                         "contract_text": {
+#                             "config": {
+#                                 "file_path": f"/path/to/watch/{filename}"
+#                             }
+#                         }
+#                     }
+#                 }
+#             )
+#
+# This allows dynamic file processing as new documents arrive!
+
 type: dagster_component_templates.DocumentTextExtractorComponent
 attributes:
   asset_name: contract_text
-  file_path: /data/contracts/contract_2024.pdf
   extraction_method: pypdf
   preserve_formatting: true
   extract_metadata: true
   output_format: json
-  description: "Extract text from legal contract PDF"
+  description: "Extract text from documents (file path from RunConfig or upstream)"
   group_name: document_processing

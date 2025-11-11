@@ -1,18 +1,27 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "run_config",
+      "required": true,
+      "description": "File path must be provided via RunConfig (ideal for sensors) or upstream asset. RunConfig format: {\"ops\": {\"asset_name\": {\"config\": {\"file_path\": \"/path/to/file.pdf\"}}}}. This allows sensors to dynamically pass file paths discovered at runtime.",
+      "run_config_key": "file_path",
+      "alternative": "Can also accept file_path from upstream asset (string or dict with 'file_path' key)"
+    },
+    "outputs": {
+      "type": "text",
+      "description": "Extracted text string (output_format='text'), dict with text and metadata (output_format='json'), or markdown formatted text (output_format='markdown')",
+      "conditional": true,
+      "condition": "Based on output_format parameter"
+    }
+  },
   "properties": {
     "asset_name": {
       "type": "string",
       "title": "Asset Name",
       "description": "Name of the asset",
       "default": "extracted_text"
-    },
-    "file_path": {
-      "type": "string",
-      "title": "File Path",
-      "description": "Path to document file",
-      "default": "/path/to/document.pdf"
     },
     "extraction_method": {
       "type": "string",
@@ -73,5 +82,5 @@
       "description": "Asset group for organization"
     }
   },
-  "required": ["asset_name", "file_path"]
+  "required": ["asset_name"]
 }

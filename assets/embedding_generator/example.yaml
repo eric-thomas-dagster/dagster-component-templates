@@ -1,0 +1,13 @@
+# Embedding Generator receives text/chunks from upstream assets via IO manager
+# Draw connection from Text Chunker, Document Text Extractor, or any text-producing asset
+
+type: dagster_component_templates.EmbeddingGeneratorComponent
+attributes:
+  asset_name: chunk_embeddings
+  provider: openai
+  model: text-embedding-3-small
+  batch_size: 100
+  api_key: ${OPENAI_API_KEY}
+  output_format: dataframe
+  description: "Generate embeddings for document chunks"
+  group_name: embeddings

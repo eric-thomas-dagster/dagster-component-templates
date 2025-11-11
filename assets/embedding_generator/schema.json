@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "any",
+      "required": true,
+      "description": "Accepts text or chunks from upstream asset via IO manager. Compatible types: string (single text), list of strings (multiple chunks), or DataFrame with text column (column name specified by text_column parameter, default: 'text')"
+    },
+    "outputs": {
+      "type": "any",
+      "conditional": true,
+      "condition": "output_format parameter",
+      "description": "Output type depends on output_format: 'array' produces NumPy array, 'list' produces Python list, 'dataframe' produces Pandas DataFrame with 'embedding' column and optionally 'text' column"
+    }
+  },
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "title": "Asset Name",
+      "description": "Name of the asset",
+      "default": "text_embeddings"
+    },
+    "provider": {
+      "type": "string",
+      "title": "Provider",
+      "description": "Embedding provider",
+      "enum": ["openai", "sentence_transformers", "cohere", "huggingface"],
+      "default": "openai"
+    },
+    "model": {
+      "type": "string",
+      "title": "Model",
+      "description": "Model name",
+      "default": "text-embedding-3-small"
+    },
+    "text_column": {
+      "type": "string",
+      "title": "Text Column",
+      "description": "Column with text (for DataFrame)",
+      "default": "text"
+    },
+    "batch_size": {
+      "type": "integer",
+      "title": "Batch Size",
+      "description": "Batch size for processing",
+      "default": 100,
+      "minimum": 1
+    },
+    "api_key": {
+      "type": "string",
+      "title": "API Key",
+      "description": "API key (use ${VAR_NAME} for environment variable)",
+      "default": "${OPENAI_API_KEY}"
+    },
+    "normalize_embeddings": {
+      "type": "boolean",
+      "title": "Normalize",
+      "description": "Normalize to unit length",
+      "default": true
+    },
+    "output_format": {
+      "type": "string",
+      "title": "Output Format",
+      "description": "Format of output",
+      "enum": ["array", "list", "dataframe"],
+      "default": "array"
+    },
+    "add_text_to_output": {
+      "type": "boolean",
+      "title": "Add Text to Output",
+      "description": "Include text in output",
+      "default": true
+    },
+    "save_to_file": {
+      "type": "boolean",
+      "title": "Save to File",
+      "description": "Save embeddings",
+      "default": false
+    },
+    "output_path": {
+      "type": "string",
+      "title": "Output Path",
+      "description": "Path to save embeddings"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "title": "Group Name",
+      "description": "Asset group"
+    }
+  },
+  "required": ["asset_name", "provider", "model"]
+}

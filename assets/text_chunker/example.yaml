@@ -1,0 +1,13 @@
+# Text Chunker receives text from upstream assets via IO manager
+# Draw connection from Document Text Extractor or any text-producing asset
+
+type: dagster_component_templates.TextChunkerComponent
+attributes:
+  asset_name: document_chunks
+  chunking_strategy: fixed_tokens
+  chunk_size: 512
+  chunk_overlap: 50
+  preserve_sentences: true
+  output_format: dataframe
+  description: "Chunk document into 512-token pieces for embedding"
+  group_name: document_processing

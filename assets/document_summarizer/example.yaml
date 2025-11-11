@@ -1,0 +1,11 @@
+# Document Summarizer receives text from upstream assets via IO manager
+# Draw connection from Document Text Extractor or any text-producing asset
+
+type: dagster_component_templates.DocumentSummarizerComponent
+attributes:
+  asset_name: report_summary
+  provider: openai
+  model: gpt-4
+  summary_type: executive
+  api_key: ${OPENAI_API_KEY}
+  group_name: summarization

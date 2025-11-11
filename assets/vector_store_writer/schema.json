@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Accepts embeddings DataFrame from upstream asset via IO manager. Must contain an 'embedding' column (configurable via embedding_column parameter, default: 'embedding'). Optionally includes 'text' column (configurable via text_column parameter, default: 'text') and any additional metadata columns specified in metadata_columns parameter."
+    },
+    "outputs": {
+      "type": "dict",
+      "description": "Returns status dictionary with keys: 'status' (success/failure), 'vectors_written' (count), 'collection_name' (target collection)"
+    }
+  },
+  "properties": {
+    "asset_name": {"type": "string", "default": "vector_store_index"},
+    "provider": {"type": "string", "enum": ["pinecone", "weaviate", "chromadb", "faiss", "qdrant"], "default": "chromadb"},
+    "collection_name": {"type": "string", "default": "documents"},
+    "embedding_column": {"type": "string", "default": "embedding"},
+    "text_column": {"type": "string", "default": "text"},
+    "metadata_columns": {"type": "array", "items": {"type": "string"}},
+    "connection_string": {"type": "string"},
+    "api_key": {"type": "string", "description": "API key (use ${VAR_NAME} for environment variable)"},
+    "batch_size": {"type": "integer", "default": 100},
+    "upsert": {"type": "boolean", "default": true},
+    "description": {"type": "string"},
+    "group_name": {"type": "string"}
+  },
+  "required": ["asset_name", "provider", "collection_name"]
+}

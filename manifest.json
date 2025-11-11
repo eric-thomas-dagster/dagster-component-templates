@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2025-11-10T22:30:00Z",
+  "last_updated": "2025-11-11T01:00:00Z",
   "components": [
     {
       "id": "slack_notification_sensor",
@@ -276,6 +276,234 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/enhanced_data_quality_checks/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/enhanced_data_quality_checks/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/enhanced_data_quality_checks/requirements.txt"
+    },
+    {
+      "id": "llm_prompt_executor",
+      "name": "LLM Prompt Executor",
+      "category": "assets",
+      "description": "Execute prompts against LLM APIs (OpenAI, Anthropic, Cohere, Hugging Face) with streaming, temperature control, and JSON mode",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/llm_prompt_executor",
+      "tags": ["llm", "ai", "openai", "anthropic", "prompts", "generation", "agentic"],
+      "dependencies": {
+        "pip": ["openai>=1.0.0", "anthropic>=0.18.0", "cohere>=4.0.0", "huggingface-hub>=0.20.0"]
+      },
+      "icon": "Bot",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_prompt_executor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_prompt_executor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_prompt_executor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_prompt_executor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_prompt_executor/requirements.txt"
+    },
+    {
+      "id": "document_text_extractor",
+      "name": "Document Text Extractor",
+      "category": "assets",
+      "description": "Extract text from PDF, DOCX, HTML, and other document formats with OCR support and metadata extraction",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/document_text_extractor",
+      "tags": ["pdf", "document", "extraction", "ocr", "text", "agentic"],
+      "dependencies": {
+        "pip": ["pypdf>=3.0.0", "pdfplumber>=0.9.0", "python-docx>=0.8.11", "beautifulsoup4>=4.11.0", "pytesseract>=0.3.10", "pdf2image>=1.16.0", "Pillow>=9.0.0"]
+      },
+      "icon": "FileText",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_text_extractor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_text_extractor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_text_extractor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_text_extractor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_text_extractor/requirements.txt"
+    },
+    {
+      "id": "text_chunker",
+      "name": "Text Chunker",
+      "category": "assets",
+      "description": "Split text into chunks using multiple strategies (fixed tokens, sentences, semantic) for embedding and LLM processing",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/text_chunker",
+      "tags": ["text", "chunking", "nlp", "embeddings", "preprocessing", "agentic"],
+      "dependencies": {
+        "pip": ["pandas>=2.0.0"]
+      },
+      "icon": "Scissors",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/text_chunker/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/text_chunker/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/text_chunker/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/text_chunker/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/text_chunker/requirements.txt"
+    },
+    {
+      "id": "embedding_generator",
+      "name": "Embedding Generator",
+      "category": "assets",
+      "description": "Generate vector embeddings using OpenAI, Sentence Transformers, Cohere, or Hugging Face models with batch processing",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/embedding_generator",
+      "tags": ["embeddings", "vector", "ai", "ml", "openai", "sentence-transformers", "agentic"],
+      "dependencies": {
+        "pip": ["openai>=1.0.0", "sentence-transformers>=2.0.0", "cohere>=4.0.0", "huggingface-hub>=0.20.0", "pandas>=2.0.0", "numpy>=1.24.0"]
+      },
+      "icon": "Zap",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/embedding_generator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/embedding_generator/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/embedding_generator/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/embedding_generator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/embedding_generator/requirements.txt"
+    },
+    {
+      "id": "vector_store_writer",
+      "name": "Vector Store Writer",
+      "category": "assets",
+      "description": "Write embeddings to vector databases (Pinecone, ChromaDB, Qdrant, FAISS) with metadata and batch operations",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/vector_store_writer",
+      "tags": ["vector-db", "embeddings", "storage", "pinecone", "chromadb", "qdrant", "agentic"],
+      "dependencies": {
+        "pip": ["chromadb>=0.4.0", "pinecone-client>=3.0.0", "qdrant-client>=1.7.0", "faiss-cpu>=1.7.4", "pandas>=2.0.0", "numpy>=1.24.0"]
+      },
+      "icon": "Database",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vector_store_writer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vector_store_writer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vector_store_writer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vector_store_writer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vector_store_writer/requirements.txt"
+    },
+    {
+      "id": "vector_store_query",
+      "name": "Vector Store Query",
+      "category": "assets",
+      "description": "Query vector databases for semantic search with configurable top-k and similarity thresholds",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/vector_store_query",
+      "tags": ["vector-db", "search", "retrieval", "semantic-search", "agentic"],
+      "dependencies": {
+        "pip": ["chromadb>=0.4.0", "pinecone-client>=3.0.0", "qdrant-client>=1.7.0", "faiss-cpu>=1.7.4", "pandas>=2.0.0"]
+      },
+      "icon": "Search",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vector_store_query/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vector_store_query/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vector_store_query/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vector_store_query/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vector_store_query/requirements.txt"
+    },
+    {
+      "id": "llm_chain_executor",
+      "name": "LLM Chain Executor",
+      "category": "assets",
+      "description": "Execute chains of LLM calls with context passing and templating for multi-step reasoning",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/llm_chain_executor",
+      "tags": ["llm", "chains", "reasoning", "multi-step", "agentic"],
+      "dependencies": {
+        "pip": ["openai>=1.0.0", "anthropic>=0.18.0"]
+      },
+      "icon": "Link",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_chain_executor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_chain_executor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_chain_executor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_chain_executor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_chain_executor/requirements.txt"
+    },
+    {
+      "id": "document_summarizer",
+      "name": "Document Summarizer",
+      "category": "assets",
+      "description": "Summarize documents using LLMs with map-reduce for long documents and multiple summary styles",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/document_summarizer",
+      "tags": ["llm", "summarization", "nlp", "document-processing", "agentic"],
+      "dependencies": {
+        "pip": ["openai>=1.0.0", "anthropic>=0.18.0"]
+      },
+      "icon": "FileText",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_summarizer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_summarizer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_summarizer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_summarizer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_summarizer/requirements.txt"
+    },
+    {
+      "id": "text_classifier",
+      "name": "Text Classifier",
+      "category": "assets",
+      "description": "Classify text using LLMs with custom categories, confidence scores, and reasoning explanations",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/text_classifier",
+      "tags": ["llm", "classification", "nlp", "sentiment", "agentic"],
+      "dependencies": {
+        "pip": ["openai>=1.0.0", "anthropic>=0.18.0"]
+      },
+      "icon": "Tag",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/text_classifier/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/text_classifier/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/text_classifier/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/text_classifier/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/text_classifier/requirements.txt"
+    },
+    {
+      "id": "conversation_memory",
+      "name": "Conversation Memory",
+      "category": "assets",
+      "description": "Manage conversation history and context for multi-turn LLM interactions with automatic trimming",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/conversation_memory",
+      "tags": ["llm", "conversation", "memory", "context", "chatbot", "agentic"],
+      "dependencies": {
+        "pip": []
+      },
+      "icon": "MessageSquare",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/conversation_memory/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/conversation_memory/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/conversation_memory/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/conversation_memory/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/conversation_memory/requirements.txt"
+    },
+    {
+      "id": "rag_pipeline",
+      "name": "RAG Pipeline",
+      "category": "assets",
+      "description": "Complete Retrieval-Augmented Generation pipeline combining query embedding, vector search, and LLM generation",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/rag_pipeline",
+      "tags": ["rag", "retrieval", "llm", "vector-search", "qa", "agentic"],
+      "dependencies": {
+        "pip": ["openai>=1.0.0", "anthropic>=0.18.0", "chromadb>=0.4.0", "pinecone-client>=3.0.0", "qdrant-client>=1.7.0", "sentence-transformers>=2.0.0"]
+      },
+      "icon": "Workflow",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rag_pipeline/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rag_pipeline/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rag_pipeline/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rag_pipeline/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rag_pipeline/requirements.txt"
+    },
+    {
+      "id": "llm_output_parser",
+      "name": "LLM Output Parser",
+      "category": "assets",
+      "description": "Parse and validate LLM outputs into structured formats (JSON, CSV, lists) with schema validation",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/llm_output_parser",
+      "tags": ["llm", "parsing", "validation", "structured-output", "agentic"],
+      "dependencies": {
+        "pip": ["pandas>=2.0.0", "jsonschema>=4.0.0"]
+      },
+      "icon": "Code",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_output_parser/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_output_parser/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_output_parser/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_output_parser/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_output_parser/requirements.txt"
     }
   ]
 }

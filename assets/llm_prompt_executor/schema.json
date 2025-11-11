@@ -1,0 +1,117 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "title": "Asset Name",
+      "description": "Name of the asset",
+      "default": "llm_response"
+    },
+    "provider": {
+      "type": "string",
+      "title": "LLM Provider",
+      "description": "LLM provider to use",
+      "enum": ["openai", "anthropic", "cohere", "huggingface"],
+      "default": "openai"
+    },
+    "model": {
+      "type": "string",
+      "title": "Model Name",
+      "description": "Model to use (e.g., 'gpt-4', 'claude-3-5-sonnet-20241022')",
+      "default": "gpt-4"
+    },
+    "system_prompt": {
+      "type": "string",
+      "title": "System Prompt",
+      "description": "System prompt to set context"
+    },
+    "temperature": {
+      "type": "number",
+      "title": "Temperature",
+      "description": "Response randomness (0.0-2.0)",
+      "default": 0.7,
+      "minimum": 0.0,
+      "maximum": 2.0
+    },
+    "max_tokens": {
+      "type": "integer",
+      "title": "Max Tokens",
+      "description": "Maximum tokens in response",
+      "minimum": 1
+    },
+    "api_key": {
+      "type": "string",
+      "title": "API Key",
+      "description": "API key (use ${VAR_NAME} for environment variable)",
+      "default": "${OPENAI_API_KEY}"
+    },
+    "response_format": {
+      "type": "string",
+      "title": "Response Format",
+      "description": "Format of the response",
+      "enum": ["text", "json", "markdown"],
+      "default": "text"
+    },
+    "json_schema": {
+      "type": "string",
+      "title": "JSON Schema",
+      "description": "JSON schema for structured output"
+    },
+    "streaming": {
+      "type": "boolean",
+      "title": "Streaming",
+      "description": "Use streaming responses",
+      "default": false
+    },
+    "cache_responses": {
+      "type": "boolean",
+      "title": "Cache Responses",
+      "description": "Cache LLM responses",
+      "default": false
+    },
+    "cache_path": {
+      "type": "string",
+      "title": "Cache Path",
+      "description": "Path to cache file"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "title": "Group Name",
+      "description": "Asset group for organization"
+    }
+  },
+  "required": ["asset_name", "provider", "model"],
+  "x-dagster-io": {
+    "description": "This component receives prompt text from upstream assets via IO managers and outputs LLM responses",
+    "inputs": {
+      "upstream_prompt": {
+        "description": "Prompt text from upstream assets (text file readers, prompt templates, user input components, etc.)",
+        "expected_format": "String or dict with 'prompt'/'text' key",
+        "required": true,
+        "compatible_components": [
+          "TextFileReaderComponent",
+          "PromptTemplateComponent",
+          "StaticTextComponent",
+          "DocumentTextExtractorComponent"
+        ]
+      }
+    },
+    "outputs": {
+      "llm_response": {
+        "description": "LLM-generated response in the specified format",
+        "format": "String (text/markdown) or dict (json mode)",
+        "compatible_components": [
+          "LLMOutputParserComponent",
+          "TextFileWriterComponent",
+          "LLMChainExecutorComponent"
+        ]
+      }
+    }
+  }
+}

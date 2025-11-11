@@ -1,0 +1,10 @@
+# Vector Store Query receives query embeddings from upstream assets via IO manager
+# Draw connection from Embedding Generator or any asset producing query embeddings
+
+type: dagster_component_templates.VectorStoreQueryComponent
+attributes:
+  asset_name: search_results
+  provider: chromadb
+  collection_name: documents
+  top_k: 10
+  group_name: retrieval

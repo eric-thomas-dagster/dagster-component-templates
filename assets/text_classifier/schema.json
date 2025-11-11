@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "text",
+      "description": "Accepts text from upstream assets via IO manager. Compatible with string, dict with 'text' key, or any text-producing asset (Document Text Extractor, Document Summarizer, Text Chunker, etc.).",
+      "required": true
+    },
+    "outputs": {
+      "type": "dict",
+      "description": "Produces dict with classification results including 'category' (string), 'confidence' (float, if include_confidence=true), and 'reasoning' (string, if include_reasoning=true). Output can be consumed by downstream assets via IO manager."
+    }
+  },
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "default": "text_classification"
+    },
+    "provider": {
+      "type": "string",
+      "enum": ["openai", "anthropic"],
+      "default": "openai"
+    },
+    "model": {
+      "type": "string",
+      "default": "gpt-4"
+    },
+    "categories": {
+      "type": "string"
+    },
+    "classification_task": {
+      "type": "string",
+      "default": "classification"
+    },
+    "include_confidence": {
+      "type": "boolean",
+      "default": true
+    },
+    "include_reasoning": {
+      "type": "boolean",
+      "default": false
+    },
+    "api_key": {
+      "type": "string",
+      "description": "Use ${ENV_VAR_NAME} syntax for environment variables"
+    },
+    "temperature": {
+      "type": "number",
+      "default": 0.1
+    },
+    "description": {
+      "type": "string"
+    },
+    "group_name": {
+      "type": "string"
+    }
+  },
+  "required": ["asset_name", "provider", "model", "categories"]
+}

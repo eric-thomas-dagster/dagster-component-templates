@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "title": "Asset Name",
+      "description": "Name of the asset",
+      "default": "extracted_text"
+    },
+    "file_path": {
+      "type": "string",
+      "title": "File Path",
+      "description": "Path to document file",
+      "default": "/path/to/document.pdf"
+    },
+    "extraction_method": {
+      "type": "string",
+      "title": "Extraction Method",
+      "description": "Method to use for extraction",
+      "enum": ["auto", "pypdf", "pdfplumber", "pytesseract", "docx", "html", "markdown", "text"],
+      "default": "auto"
+    },
+    "ocr_enabled": {
+      "type": "boolean",
+      "title": "Enable OCR",
+      "description": "Enable OCR for scanned documents",
+      "default": false
+    },
+    "preserve_formatting": {
+      "type": "boolean",
+      "title": "Preserve Formatting",
+      "description": "Preserve document formatting",
+      "default": false
+    },
+    "extract_metadata": {
+      "type": "boolean",
+      "title": "Extract Metadata",
+      "description": "Extract document metadata",
+      "default": true
+    },
+    "page_range": {
+      "type": "string",
+      "title": "Page Range",
+      "description": "Page range for PDFs (e.g., '1-5')"
+    },
+    "output_format": {
+      "type": "string",
+      "title": "Output Format",
+      "description": "Format of extracted text",
+      "enum": ["text", "json", "markdown"],
+      "default": "text"
+    },
+    "save_to_file": {
+      "type": "boolean",
+      "title": "Save to File",
+      "description": "Save extracted text to file",
+      "default": false
+    },
+    "output_path": {
+      "type": "string",
+      "title": "Output Path",
+      "description": "Path to save extracted text"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "title": "Group Name",
+      "description": "Asset group for organization"
+    }
+  },
+  "required": ["asset_name", "file_path"]
+}

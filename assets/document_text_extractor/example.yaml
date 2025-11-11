@@ -1,0 +1,10 @@
+type: dagster_component_templates.DocumentTextExtractorComponent
+attributes:
+  asset_name: contract_text
+  file_path: /data/contracts/contract_2024.pdf
+  extraction_method: pypdf
+  preserve_formatting: true
+  extract_metadata: true
+  output_format: json
+  description: "Extract text from legal contract PDF"
+  group_name: document_processing

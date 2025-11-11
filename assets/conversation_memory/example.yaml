@@ -1,0 +1,17 @@
+# Conversation Memory Component Example
+#
+# This component receives messages from upstream assets via IO managers.
+# Messages should be passed from upstream assets (like LLM responses) using
+# Dagster's IO manager pattern, not hardcoded in the YAML configuration.
+#
+# To use this component in a pipeline:
+# 1. Create an upstream asset that produces message data
+# 2. Configure this component to receive that data via IO managers
+# 3. The upstream asset's output will be automatically passed as kwargs
+
+type: dagster_component_templates.ConversationMemoryComponent
+attributes:
+  asset_name: conversation
+  memory_file: ./conversation.json
+  max_messages: 10
+  group_name: conversations

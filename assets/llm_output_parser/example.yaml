@@ -1,0 +1,7 @@
+type: dagster_component_templates.LLMOutputParserComponent
+attributes:
+  asset_name: structured_data
+  parser_type: json
+  validation_schema: '{"type": "object", "properties": {"name": {"type": "string"}}}'
+  output_format: dict
+  group_name: parsing  # Upstream assets are automatically connected via IO manager

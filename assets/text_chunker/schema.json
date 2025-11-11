@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "text",
+      "description": "Accepts text from upstream assets via IO manager. Compatible with string, dict with 'text' key, or any text-producing asset (Document Text Extractor, Document Summarizer, etc.).",
+      "required": true
+    },
+    "outputs": {
+      "type": "variable",
+      "description": "Produces list of chunks (output_format='list'), DataFrame with chunk metadata including chunk, index, start_pos, end_pos, length (output_format='dataframe'), or JSON (output_format='json')",
+      "conditional": "Based on output_format parameter"
+    }
+  },
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "title": "Asset Name",
+      "description": "Name of the asset",
+      "default": "text_chunks"
+    },
+    "chunking_strategy": {
+      "type": "string",
+      "title": "Chunking Strategy",
+      "description": "Strategy for chunking",
+      "enum": ["fixed_chars", "fixed_tokens", "sentence", "paragraph", "semantic", "recursive"],
+      "default": "fixed_chars"
+    },
+    "chunk_size": {
+      "type": "integer",
+      "title": "Chunk Size",
+      "description": "Target size of each chunk",
+      "default": 1000,
+      "minimum": 10
+    },
+    "chunk_overlap": {
+      "type": "integer",
+      "title": "Chunk Overlap",
+      "description": "Overlap between chunks",
+      "default": 200,
+      "minimum": 0
+    },
+    "separator": {
+      "type": "string",
+      "title": "Separator",
+      "description": "Custom separator for recursive strategy"
+    },
+    "preserve_sentences": {
+      "type": "boolean",
+      "title": "Preserve Sentences",
+      "description": "Try not to break sentences",
+      "default": true
+    },
+    "add_metadata": {
+      "type": "boolean",
+      "title": "Add Metadata",
+      "description": "Add metadata to chunks",
+      "default": true
+    },
+    "output_format": {
+      "type": "string",
+      "title": "Output Format",
+      "description": "Format of output",
+      "enum": ["list", "dataframe", "json"],
+      "default": "list"
+    },
+    "save_to_file": {
+      "type": "boolean",
+      "title": "Save to File",
+      "description": "Save chunks to file",
+      "default": false
+    },
+    "output_path": {
+      "type": "string",
+      "title": "Output Path",
+      "description": "Path to save chunks"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "title": "Group Name",
+      "description": "Asset group for organization"
+    }
+  },
+  "required": ["asset_name"]
+}

@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "x-dagster-io": {
+    "description": "This component receives context data from upstream assets via IO managers and outputs chain execution results",
+    "inputs": {
+      "upstream_context": {
+        "description": "Context data from upstream assets (document extractors, database queries, API fetchers, file readers, etc.)",
+        "expected_format": "String, dict, or DataFrame - all data becomes template variables",
+        "required": true,
+        "compatible_components": [
+          "DocumentTextExtractorComponent",
+          "DatabaseQueryComponent",
+          "RestApiFetcherComponent",
+          "TextFileReaderComponent",
+          "LLMPromptExecutorComponent"
+        ]
+      }
+    },
+    "outputs": {
+      "chain_results": {
+        "description": "Dictionary containing all chain step outputs with their output_keys",
+        "format": "Dict with keys matching output_key values from chain_steps",
+        "compatible_components": [
+          "LLMOutputParserComponent",
+          "LLMChainExecutorComponent",
+          "TextFileWriterComponent",
+          "DatabaseInsertComponent"
+        ]
+      }
+    }
+  },
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "default": "chain_output"
+    },
+    "provider": {
+      "type": "string",
+      "enum": ["openai", "anthropic"],
+      "default": "openai"
+    },
+    "model": {
+      "type": "string",
+      "default": "gpt-4"
+    },
+    "chain_steps": {
+      "type": "string",
+      "description": "JSON array of chain steps"
+    },
+    "initial_context": {
+      "type": "string",
+      "description": "Initial context as JSON"
+    },
+    "temperature": {
+      "type": "number",
+      "default": 0.7
+    },
+    "api_key": {
+      "type": "string",
+      "description": "API key (use ${VAR_NAME} for environment variable)"
+    },
+    "description": {
+      "type": "string"
+    },
+    "group_name": {
+      "type": "string"
+    }
+  },
+  "required": ["asset_name", "provider", "model", "chain_steps"]
+}

@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "any",
+      "required": false,
+      "description": "Accepts query from upstream asset via IO manager. Compatible types: string (query text directly) or dict with 'query' or 'text' key containing the query. Optional if query parameter is provided in configuration."
+    },
+    "outputs": {
+      "type": "dict",
+      "description": "Returns dict with keys: 'response' (generated answer), 'query' (original query text), 'num_sources' (count of retrieved documents), and optionally 'sources' (list of source documents with text and metadata if include_sources is true)"
+    }
+  },
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "default": "rag_response"
+    },
+    "vector_store_provider": {
+      "type": "string",
+      "enum": ["chromadb", "pinecone", "qdrant"],
+      "default": "chromadb"
+    },
+    "collection_name": {
+      "type": "string",
+      "default": "documents"
+    },
+    "llm_provider": {
+      "type": "string",
+      "enum": ["openai", "anthropic"],
+      "default": "openai"
+    },
+    "llm_model": {
+      "type": "string",
+      "default": "gpt-4"
+    },
+    "embedding_provider": {
+      "type": "string",
+      "default": "openai"
+    },
+    "embedding_model": {
+      "type": "string",
+      "default": "text-embedding-3-small"
+    },
+    "top_k": {
+      "type": "integer",
+      "default": 5
+    },
+    "vector_store_connection": {
+      "type": "string"
+    },
+    "llm_api_key": {
+      "type": "string",
+      "description": "LLM API key (use ${VAR_NAME} for environment variable)"
+    },
+    "embedding_api_key": {
+      "type": "string",
+      "description": "Embedding API key (use ${VAR_NAME} for environment variable)"
+    },
+    "include_sources": {
+      "type": "boolean",
+      "default": true
+    },
+    "temperature": {
+      "type": "number",
+      "default": 0.7
+    },
+    "description": {
+      "type": "string"
+    },
+    "group_name": {
+      "type": "string"
+    }
+  },
+  "required": ["asset_name", "vector_store_provider", "collection_name", "llm_provider", "llm_model"]
+}

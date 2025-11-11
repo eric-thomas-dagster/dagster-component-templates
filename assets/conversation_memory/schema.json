@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "default": "conversation_state"
+    },
+    "memory_file": {
+      "type": "string",
+      "default": "./conversation_memory.json"
+    },
+    "max_messages": {
+      "type": "integer",
+      "default": 10
+    },
+    "include_system_prompt": {
+      "type": "boolean",
+      "default": true
+    },
+    "system_prompt": {
+      "type": "string",
+      "default": "You are a helpful assistant."
+    },
+    "description": {
+      "type": "string"
+    },
+    "group_name": {
+      "type": "string"
+    }
+  },
+  "required": ["asset_name", "memory_file"],
+  "x-dagster-io": {
+    "description": "This component receives message data from upstream assets via IO managers and outputs complete conversation history",
+    "inputs": {
+      "upstream_messages": {
+        "description": "Message data from upstream assets (user input components, LLM executors, message queues, etc.)",
+        "expected_format": "Dict with 'user_message'/'assistant_message' keys, 'messages' list, or plain string (treated as user message)",
+        "required": true,
+        "compatible_components": [
+          "UserInputComponent",
+          "LLMPromptExecutorComponent",
+          "MessageQueueConsumerComponent",
+          "TextFileReaderComponent",
+          "RestApiFetcherComponent"
+        ]
+      }
+    },
+    "outputs": {
+      "conversation_memory": {
+        "description": "Complete conversation memory with full message history including system prompt",
+        "format": "Dict with 'messages' list containing role-content pairs",
+        "compatible_components": [
+          "LLMPromptExecutorComponent",
+          "LLMChainExecutorComponent",
+          "TextFileWriterComponent",
+          "DatabaseInsertComponent"
+        ]
+      }
+    }
+  }
+}

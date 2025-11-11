@@ -1,0 +1,17 @@
+# RAG Pipeline receives query from upstream assets via IO manager
+# Draw connection from any asset producing query text (string, dict with 'query' key, etc.)
+# Example upstream: user input asset, query generator, or static text asset
+
+type: dagster_component_templates.RAGPipelineComponent
+attributes:
+  asset_name: rag_answer
+  vector_store_provider: chromadb
+  collection_name: documents
+  llm_provider: openai
+  llm_model: gpt-4
+  embedding_provider: openai
+  embedding_model: text-embedding-3-small
+  top_k: 5
+  llm_api_key: ${OPENAI_API_KEY}
+  embedding_api_key: ${OPENAI_API_KEY}
+  group_name: rag

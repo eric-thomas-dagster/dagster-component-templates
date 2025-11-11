@@ -1,0 +1,23 @@
+# LLM Prompt Executor Component Example
+#
+# This component receives prompts from upstream assets via IO managers.
+# Prompts should be passed from upstream assets (like prompt generators) using
+# Dagster's IO manager pattern, not hardcoded in the YAML configuration.
+#
+# To use this component in a pipeline:
+# 1. Create an upstream asset that produces prompt text
+# 2. Configure this component to receive that data via IO managers
+# 3. The upstream asset's output will be automatically passed as kwargs
+
+type: dagster_component_templates.LLMPromptExecutorComponent
+attributes:
+  asset_name: product_description
+  provider: openai
+  model: gpt-4
+  system_prompt: "You are a creative marketing copywriter."
+  temperature: 0.8
+  max_tokens: 500
+  api_key: ${OPENAI_API_KEY}
+  response_format: text
+  description: "Generated product description using GPT-4"
+  group_name: marketing

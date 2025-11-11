@@ -1,0 +1,11 @@
+# LLM Chain Executor receives context from upstream assets via IO manager
+# Draw connection from any asset producing context data (dict, text, etc.)
+
+type: dagster_component_templates.LLMChainExecutorComponent
+attributes:
+  asset_name: chain_output
+  provider: openai
+  model: gpt-4
+  chain_steps: '[{"prompt": "Summarize: {text}", "output_key": "summary"}]'
+  api_key: ${OPENAI_API_KEY}
+  group_name: llm_chains

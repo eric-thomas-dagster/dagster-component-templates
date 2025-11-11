@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "x-dagster-io": {
+    "description": "This component receives LLM output from upstream assets via IO managers and outputs parsed structured data",
+    "inputs": {
+      "upstream_llm_output": {
+        "description": "LLM response text from upstream assets (LLM executors, text readers, chain executors, etc.)",
+        "expected_format": "String (text response) or dict (for validation/transformation)",
+        "required": true,
+        "compatible_components": [
+          "LLMPromptExecutorComponent",
+          "LLMChainExecutorComponent",
+          "TextFileReaderComponent"
+        ]
+      }
+    },
+    "outputs": {
+      "parsed_data": {
+        "description": "Parsed and structured data in the specified format",
+        "format": "Dict, list, or DataFrame depending on output_format configuration",
+        "compatible_components": [
+          "DataFrameTransformerComponent",
+          "DatabaseInsertComponent",
+          "TextFileWriterComponent",
+          "RestApiPosterComponent"
+        ]
+      }
+    }
+  },
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "title": "Asset Name",
+      "description": "Name of the asset",
+      "default": "parsed_output"
+    },
+    "parser_type": {
+      "type": "string",
+      "title": "Parser Type",
+      "description": "Type of parser to use",
+      "enum": ["json", "csv", "list", "key_value", "markdown_table", "custom"],
+      "default": "json"
+    },
+    "validation_schema": {
+      "type": "string",
+      "title": "Validation Schema",
+      "description": "JSON schema for validation (used with json parser)"
+    },
+    "custom_regex": {
+      "type": "string",
+      "title": "Custom Regex",
+      "description": "Custom regex pattern (used with custom parser)"
+    },
+    "extract_code_blocks": {
+      "type": "boolean",
+      "title": "Extract Code Blocks",
+      "description": "Extract code from markdown code blocks",
+      "default": false
+    },
+    "strip_markdown": {
+      "type": "boolean",
+      "title": "Strip Markdown",
+      "description": "Remove markdown formatting",
+      "default": true
+    },
+    "output_format": {
+      "type": "string",
+      "title": "Output Format",
+      "description": "Format of the output",
+      "enum": ["dict", "list", "dataframe"],
+      "default": "dict"
+    },
+    "strict_validation": {
+      "type": "boolean",
+      "title": "Strict Validation",
+      "description": "Raise error on validation failure",
+      "default": false
+    },
+    "description": {
+      "type": "string",
+      "title": "Description",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "title": "Group Name",
+      "description": "Asset group for organization"
+    }
+  },
+  "required": ["asset_name", "parser_type"]
+}

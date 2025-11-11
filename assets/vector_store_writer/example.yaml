@@ -1,0 +1,13 @@
+# Vector Store Writer receives embeddings from upstream assets via IO manager
+# Draw connection from Embedding Generator or any asset producing embeddings DataFrame
+
+type: dagster_component_templates.VectorStoreWriterComponent
+attributes:
+  asset_name: vector_index
+  provider: chromadb
+  collection_name: documents
+  embedding_column: embedding
+  text_column: text
+  connection_string: ./chroma_db
+  description: "Write embeddings to ChromaDB"
+  group_name: vector_storage

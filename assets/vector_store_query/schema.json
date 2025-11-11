@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "array",
+      "required": false,
+      "description": "Accepts query embeddings from upstream asset via IO manager. Compatible types: NumPy array or Python list of embedding values. Optional if query_text parameter is provided (will generate embeddings internally)."
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Returns DataFrame with search results containing columns: 'id' (document identifier), 'score' (similarity score), 'text' (document content), and any additional metadata columns from the vector store"
+    }
+  },
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "default": "search_results"
+    },
+    "provider": {
+      "type": "string",
+      "enum": ["pinecone", "chromadb", "faiss", "qdrant"],
+      "default": "chromadb"
+    },
+    "collection_name": {
+      "type": "string",
+      "default": "documents"
+    },
+    "query_text": {
+      "type": "string",
+      "description": "Direct query text (alternative to embedding)"
+    },
+    "top_k": {
+      "type": "integer",
+      "default": 10
+    },
+    "connection_string": {
+      "type": "string"
+    },
+    "api_key": {
+      "type": "string",
+      "description": "API key (use ${VAR_NAME} for environment variable)"
+    },
+    "include_distances": {
+      "type": "boolean",
+      "default": true
+    },
+    "description": {
+      "type": "string"
+    },
+    "group_name": {
+      "type": "string"
+    }
+  },
+  "required": ["asset_name", "provider", "collection_name"]
+}

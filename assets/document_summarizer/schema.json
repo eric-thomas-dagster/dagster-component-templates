@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "text",
+      "description": "Accepts text from upstream assets via IO manager. Compatible with string, dict with 'text' key, or any text-producing asset (Document Text Extractor, Text Chunker, etc.).",
+      "required": true
+    },
+    "outputs": {
+      "type": "text",
+      "description": "Produces summarized text string based on specified summary_type (concise, detailed, bullet_points, or executive). Output can be consumed by downstream text processing assets."
+    }
+  },
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "default": "document_summary"
+    },
+    "provider": {
+      "type": "string",
+      "enum": ["openai", "anthropic"],
+      "default": "openai"
+    },
+    "model": {
+      "type": "string",
+      "default": "gpt-4"
+    },
+    "summary_type": {
+      "type": "string",
+      "enum": ["concise", "detailed", "bullet_points", "executive"],
+      "default": "concise"
+    },
+    "max_length": {
+      "type": "integer"
+    },
+    "chunk_size": {
+      "type": "integer",
+      "default": 3000
+    },
+    "use_map_reduce": {
+      "type": "boolean",
+      "default": true
+    },
+    "api_key": {
+      "type": "string",
+      "description": "API key (use ${VAR_NAME} for environment variable)"
+    },
+    "temperature": {
+      "type": "number",
+      "default": 0.3
+    },
+    "description": {
+      "type": "string"
+    },
+    "group_name": {
+      "type": "string"
+    }
+  },
+  "required": ["asset_name", "provider", "model"]
+}

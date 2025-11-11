@@ -46,11 +46,11 @@ Create new assets from SQL transformations:
 ### Required Fields
 
 - **asset_name** (string): Name of the asset to create
-- **database_path** (string): Path to the DuckDB database file
 - **query** (string): SQL SELECT query to execute
 
 ### Optional Fields
 
+- **database_path** (string): Path to the DuckDB database file (defaults to `data.duckdb` in project root)
 - **description** (string): Asset description
 - **group_name** (string): Asset group for organization
 

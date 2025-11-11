@@ -2,7 +2,7 @@ type: duckdb_query_reader.DuckDBQueryReaderComponent
 
 attributes:
   asset_name: active_customers
-  database_path: "{{ project_root }}/data/demo.duckdb"
+  # database_path: "data.duckdb"  # Optional - defaults to data.duckdb in project root
   query: |
     SELECT *
     FROM customers

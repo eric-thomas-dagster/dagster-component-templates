@@ -4,6 +4,7 @@ Execute SQL queries against databases and materialize results as Dagster assets.
 """
 
 from typing import Optional
+from datetime import datetime
 
 import pandas as pd
 from sqlalchemy import create_engine, text
@@ -90,6 +91,23 @@ class DatabaseQueryComponent(Component, Model, Resolvable):
         def database_query_asset(context: AssetExecutionContext):
             """Asset that executes SQL query and returns results."""
 
+            # Check if running in partitioned mode
+            query_params = {}
+            if context.has_partition_key:
+                # Parse partition key as date (format: YYYY-MM-DD)
+                try:
+                    partition_date = datetime.strptime(context.partition_key, "%Y-%m-%d")
+                    query_params["partition_date"] = partition_date
+                    context.log.info(
+                        f"Running partitioned query for date: {context.partition_key}"
+                    )
+                except ValueError:
+                    context.log.warning(
+                        f"Could not parse partition key '{context.partition_key}' as date"
+                    )
+            else:
+                context.log.info("Running non-partitioned query")
+
             context.log.info(f"Connecting to database...")
             engine = create_engine(database_url)
 
@@ -97,7 +115,8 @@ class DatabaseQueryComponent(Component, Model, Resolvable):
 
             try:
                 # Execute query and load results into DataFrame
-                df = pd.read_sql(text(query), engine)
+                # Query params are available as :partition_date in SQL
+                df = pd.read_sql(text(query), engine, params=query_params)
 
                 context.log.info(f"Query returned {len(df)} rows")
 

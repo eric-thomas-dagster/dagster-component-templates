@@ -130,21 +130,51 @@ class TimeSeriesGeneratorComponent(Component, Model, Resolvable):
             if random_seed is not None:
                 np.random.seed(random_seed)
 
-            # Parse dates or use defaults
-            if start_date:
-                start = pd.to_datetime(start_date)
-            else:
-                start = datetime.now() - timedelta(days=30)
+            # Check if running in partitioned mode
+            if context.has_partition_key:
+                # Parse partition key as date (format: YYYY-MM-DD)
+                try:
+                    partition_date = datetime.strptime(context.partition_key, "%Y-%m-%d")
+                    # For partitioned mode, generate data for just this day
+                    start = partition_date
+                    end = partition_date + timedelta(days=1) - timedelta(seconds=1)
+                    context.log.info(
+                        f"Generating {pattern_type} time series for partition {context.partition_key} "
+                        f"at {frequency} frequency"
+                    )
+                except ValueError:
+                    context.log.warning(
+                        f"Could not parse partition key '{context.partition_key}' as date, "
+                        f"falling back to configured dates"
+                    )
+                    # Fall back to configured dates
+                    if start_date:
+                        start = pd.to_datetime(start_date)
+                    else:
+                        start = datetime.now() - timedelta(days=30)
 
-            if end_date:
-                end = pd.to_datetime(end_date)
+                    if end_date:
+                        end = pd.to_datetime(end_date)
+                    else:
+                        end = datetime.now()
             else:
-                end = datetime.now()
+                # Non-partitioned mode: use configured dates or defaults
+                context.log.info(f"Generating {pattern_type} time series (non-partitioned)")
 
-            context.log.info(
-                f"Generating {pattern_type} time series from {start} to {end} "
-                f"at {frequency} frequency"
-            )
+                if start_date:
+                    start = pd.to_datetime(start_date)
+                else:
+                    start = datetime.now() - timedelta(days=30)
+
+                if end_date:
+                    end = pd.to_datetime(end_date)
+                else:
+                    end = datetime.now()
+
+                context.log.info(
+                    f"Generating {pattern_type} time series from {start} to {end} "
+                    f"at {frequency} frequency"
+                )
 
             # Generate datetime index
             date_range = pd.date_range(start=start, end=end, freq=frequency)

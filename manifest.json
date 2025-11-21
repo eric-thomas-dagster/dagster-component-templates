@@ -161,6 +161,7 @@
         "pip": ["pandas>=2.0.0"]
       },
       "icon": "Wand2",
+      "supports_partitions": true,
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/synthetic_data_generator/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/synthetic_data_generator/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/synthetic_data_generator/schema.json",

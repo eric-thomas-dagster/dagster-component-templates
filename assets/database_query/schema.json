@@ -5,7 +5,9 @@
     "outputs": {
       "type": "dataframe",
       "description": "Always produces a DataFrame from SQL query results"
-    }
+    },
+    "supports_partitions": true,
+    "supported_partition_types": ["daily", "weekly", "monthly", "hourly"]
   },
   "properties": {
     "asset_name": {

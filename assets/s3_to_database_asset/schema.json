@@ -5,6 +5,10 @@
   "description": "Load files from S3 into database tables, designed to work with S3 sensors via run_config",
   "version": "1.0.0",
   "author": "Dagster Community",
+  "x-dagster-io": {
+    "supports_partitions": true,
+    "supported_partition_types": ["daily", "weekly", "monthly", "hourly"]
+  },
   "attributes": {
     "asset_name": {
       "type": "string",

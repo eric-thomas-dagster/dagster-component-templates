@@ -3,6 +3,7 @@
 from typing import Optional
 import pandas as pd
 from pathlib import Path
+from datetime import datetime
 from dagster import (
     Component,
     Resolvable,
@@ -129,11 +130,42 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
         def csv_ingestion_asset(context: AssetExecutionContext):
             """Asset that ingests CSV file into a pandas DataFrame."""
 
+            # Check if running in partitioned mode
+            partition_date = None
+            partitioned_file_path = file_path
+            if context.has_partition_key:
+                # Parse partition key as date (format: YYYY-MM-DD)
+                try:
+                    partition_date = datetime.strptime(context.partition_key, "%Y-%m-%d")
+                    context.log.info(f"Reading CSV for partition {context.partition_key}")
+
+                    # Support partitioned file paths with {partition_date} placeholder
+                    # e.g., /data/sales_{partition_date}.csv -> /data/sales_2024-01-01.csv
+                    if "{partition_date}" in file_path:
+                        partitioned_file_path = file_path.replace(
+                            "{partition_date}",
+                            partition_date.strftime("%Y-%m-%d")
+                        )
+                        context.log.info(f"Using partitioned file path: {partitioned_file_path}")
+                    elif "{partition_key}" in file_path:
+                        partitioned_file_path = file_path.replace(
+                            "{partition_key}",
+                            context.partition_key
+                        )
+                        context.log.info(f"Using partitioned file path: {partitioned_file_path}")
+                except ValueError:
+                    context.log.warning(
+                        f"Could not parse partition key '{context.partition_key}' as date, "
+                        "using original file path"
+                    )
+            else:
+                context.log.info("Reading CSV (non-partitioned)")
+
             # Check if we should use cached parquet
             if cache_to_parquet:
-                cache_path = parquet_path or f"{file_path}.parquet"
+                cache_path = parquet_path or f"{partitioned_file_path}.parquet"
                 cache_file = Path(cache_path)
-                source_file = Path(file_path)
+                source_file = Path(partitioned_file_path)
 
                 # Use cache if it exists and is newer than source
                 if cache_file.exists() and cache_file.stat().st_mtime > source_file.stat().st_mtime:
@@ -142,11 +174,11 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
                     return df
 
             # Read CSV file
-            context.log.info(f"Reading CSV file: {file_path}")
+            context.log.info(f"Reading CSV file: {partitioned_file_path}")
 
             try:
                 df = pd.read_csv(
-                    file_path,
+                    partitioned_file_path,
                     delimiter=delimiter,
                     encoding=encoding,
                     skiprows=skip_rows,
@@ -164,7 +196,7 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
 
                 # Cache to parquet if requested
                 if cache_to_parquet:
-                    cache_path = parquet_path or f"{file_path}.parquet"
+                    cache_path = parquet_path or f"{partitioned_file_path}.parquet"
                     context.log.info(f"Caching to parquet: {cache_path}")
                     df.to_parquet(cache_path, index=False)
 
@@ -179,10 +211,10 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
                 return df
 
             except FileNotFoundError:
-                context.log.error(f"CSV file not found: {file_path}")
+                context.log.error(f"CSV file not found: {partitioned_file_path}")
                 raise
             except pd.errors.EmptyDataError:
-                context.log.error(f"CSV file is empty: {file_path}")
+                context.log.error(f"CSV file is empty: {partitioned_file_path}")
                 raise
             except Exception as e:
                 context.log.error(f"Error reading CSV file: {str(e)}")

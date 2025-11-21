@@ -7,7 +7,9 @@
       "conditional": true,
       "condition": "output_format == 'dataframe'",
       "description": "Produces DataFrame when output_format is set to 'dataframe'"
-    }
+    },
+    "supports_partitions": true,
+    "supported_partition_types": ["daily", "weekly", "monthly", "hourly"]
   },
   "properties": {
     "asset_name": {

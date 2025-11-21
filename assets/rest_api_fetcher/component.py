@@ -7,6 +7,7 @@ Supports authentication, pagination, caching, and various output formats.
 import json
 from typing import Optional, Dict, Any
 from io import BytesIO
+from datetime import datetime
 
 import requests
 import pandas as pd
@@ -161,6 +162,21 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
         def rest_api_asset(context: AssetExecutionContext):
             """Asset that fetches data from REST API."""
 
+            # Check if running in partitioned mode
+            partition_date = None
+            if context.has_partition_key:
+                # Parse partition key as date (format: YYYY-MM-DD)
+                try:
+                    partition_date = datetime.strptime(context.partition_key, "%Y-%m-%d")
+                    context.log.info(f"Fetching API data for partition {context.partition_key}")
+                except ValueError:
+                    context.log.warning(
+                        f"Could not parse partition key '{context.partition_key}' as date, "
+                        "proceeding without partition date"
+                    )
+            else:
+                context.log.info("Fetching API data (non-partitioned)")
+
             # Parse headers
             headers = {}
             if headers_str:
@@ -178,6 +194,12 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
                 except json.JSONDecodeError as e:
                     context.log.error(f"Invalid params JSON: {e}")
                     raise
+
+            # Add partition date to params if available
+            # This allows API queries to filter by date using the partition
+            if partition_date:
+                params["date"] = partition_date.strftime("%Y-%m-%d")
+                params["partition_date"] = partition_date.strftime("%Y-%m-%d")
 
             # Parse body
             body = None

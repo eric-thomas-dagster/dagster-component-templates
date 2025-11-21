@@ -4,6 +4,7 @@ from typing import Optional
 import boto3
 import pandas as pd
 from io import BytesIO
+from datetime import datetime
 from sqlalchemy import create_engine
 from dagster import (
     Component,
@@ -149,7 +150,38 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
             bucket = config.s3_bucket
             key = config.s3_key
 
-            context.log.info(f"Processing s3://{bucket}/{key}")
+            # Check if running in partitioned mode
+            partition_date = None
+            partitioned_key = key
+            if context.has_partition_key:
+                # Parse partition key as date (format: YYYY-MM-DD)
+                try:
+                    partition_date = datetime.strptime(context.partition_key, "%Y-%m-%d")
+                    context.log.info(f"Processing S3 file for partition {context.partition_key}")
+
+                    # Support partitioned S3 keys with {partition_date} placeholder
+                    # e.g., data/sales_{partition_date}.csv -> data/sales_2024-01-01.csv
+                    if "{partition_date}" in key:
+                        partitioned_key = key.replace(
+                            "{partition_date}",
+                            partition_date.strftime("%Y-%m-%d")
+                        )
+                        context.log.info(f"Using partitioned S3 key: {partitioned_key}")
+                    elif "{partition_key}" in key:
+                        partitioned_key = key.replace(
+                            "{partition_key}",
+                            context.partition_key
+                        )
+                        context.log.info(f"Using partitioned S3 key: {partitioned_key}")
+                except ValueError:
+                    context.log.warning(
+                        f"Could not parse partition key '{context.partition_key}' as date, "
+                        "using original S3 key"
+                    )
+            else:
+                context.log.info(f"Processing S3 file (non-partitioned)")
+
+            context.log.info(f"Processing s3://{bucket}/{partitioned_key}")
 
             # Initialize S3 client
             s3_client_kwargs = {}
@@ -159,7 +191,7 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
 
             try:
                 # Download file from S3
-                response = s3_client.get_object(Bucket=bucket, Key=key)
+                response = s3_client.get_object(Bucket=bucket, Key=partitioned_key)
                 file_content = response['Body'].read()
 
                 context.log.info(f"Downloaded {len(file_content)} bytes from S3")
@@ -167,14 +199,14 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
                 # Determine file format
                 format_to_use = file_format
                 if format_to_use == "auto":
-                    if key.endswith('.csv'):
+                    if partitioned_key.endswith('.csv'):
                         format_to_use = "csv"
-                    elif key.endswith('.json'):
+                    elif partitioned_key.endswith('.json'):
                         format_to_use = "json"
-                    elif key.endswith('.parquet'):
+                    elif partitioned_key.endswith('.parquet'):
                         format_to_use = "parquet"
                     else:
-                        raise ValueError(f"Cannot auto-detect format for {key}")
+                        raise ValueError(f"Cannot auto-detect format for {partitioned_key}")
 
                 # Parse file into DataFrame
                 if format_to_use == "csv":
@@ -225,7 +257,7 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
                     "num_columns": len(df.columns),
                     "columns": list(df.columns),
                     "s3_bucket": bucket,
-                    "s3_key": key,
+                    "s3_key": partitioned_key,
                     "s3_size_bytes": config.s3_size,
                     "table": f"{schema_name + '.' if schema_name else ''}{table_name}",
                     "file_format": format_to_use,
@@ -234,7 +266,7 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
                 return df
 
             except Exception as e:
-                context.log.error(f"Error processing s3://{bucket}/{key}: {str(e)}")
+                context.log.error(f"Error processing s3://{bucket}/{partitioned_key}: {str(e)}")
                 raise
 
         return Definitions(assets=[s3_to_database_asset])

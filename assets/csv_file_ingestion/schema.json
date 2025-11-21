@@ -9,7 +9,9 @@
     "outputs": {
       "type": "dataframe",
       "description": "Always produces a DataFrame from CSV file"
-    }
+    },
+    "supports_partitions": true,
+    "supported_partition_types": ["daily", "weekly", "monthly", "hourly"]
   },
   "attributes": {
     "asset_name": {

@@ -124,6 +124,7 @@
         "pip": ["pandas>=2.0.0", "sqlalchemy>=2.0.0", "pyarrow>=10.0.0"]
       },
       "supports_partitions": true,
+      "supported_partition_types": ["daily", "weekly", "monthly", "hourly", "static"],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/database_query/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/database_query/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/database_query/schema.json",
@@ -163,6 +164,7 @@
       },
       "icon": "Wand2",
       "supports_partitions": true,
+      "supported_partition_types": ["daily", "weekly", "monthly", "hourly"],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/synthetic_data_generator/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/synthetic_data_generator/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/synthetic_data_generator/schema.json",
@@ -201,6 +203,7 @@
         "pip": ["pandas>=2.0.0", "numpy>=1.24.0"]
       },
       "supports_partitions": true,
+      "supported_partition_types": ["daily", "weekly", "monthly", "hourly"],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/time_series_generator/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/time_series_generator/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/time_series_generator/schema.json",

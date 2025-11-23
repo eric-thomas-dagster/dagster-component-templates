@@ -306,16 +306,6 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
             original_rows = len(df)
             original_cols = len(df.columns)
 
-            # Column filtering
-            if filter_columns:
-                cols = [c.strip() for c in filter_columns.split(',')]
-                missing = set(cols) - set(df.columns)
-                if missing:
-                    context.log.warning(f"Columns not found: {missing}")
-                existing = [c for c in cols if c in df.columns]
-                df = df[existing]
-                context.log.info(f"Filtered to {len(existing)} columns: {existing}")
-
             # Column dropping
             if drop_columns:
                 cols = [c.strip() for c in drop_columns.split(',')]
@@ -463,6 +453,16 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
                 except Exception as e:
                     context.log.error(f"Unpivot failed: {e}")
                     raise
+
+            # Column filtering (select final output columns) - applied LAST
+            if filter_columns:
+                cols = [c.strip() for c in filter_columns.split(',')]
+                missing = set(cols) - set(df.columns)
+                if missing:
+                    context.log.warning(f"Columns not found: {missing}")
+                existing = [c for c in cols if c in df.columns]
+                df = df[existing]
+                context.log.info(f"Selected {len(existing)} output columns: {existing}")
 
             # Add metadata
             context.add_output_metadata({

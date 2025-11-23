@@ -4,7 +4,7 @@ Transform DataFrames from upstream assets using IO managers for automatic data f
 Works with visual dependency drawing - just connect DataFrame-producing assets!
 """
 
-from typing import Optional
+from typing import Optional, Union
 import json
 
 import pandas as pd
@@ -17,7 +17,7 @@ from dagster import (
     Resolvable,
     Model,
 )
-from pydantic import Field
+from pydantic import Field, field_validator
 
 
 class DataFrameTransformerComponent(Component, Model, Resolvable):
@@ -152,6 +152,22 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         default=None,
         description='JSON config for unpivot/melt: {"id_vars": ["id", "name"], "value_vars": ["q1", "q2", "q3"], "var_name": "quarter", "value_name": "sales"}'
     )
+
+    # Field validators to handle Dagster Components auto-deserializing JSON strings
+    @field_validator('rename_columns', 'agg_functions', 'string_operations', 'string_replace',
+                     'calculated_columns', 'pivot_config', 'unpivot_config', mode='before')
+    @classmethod
+    def convert_dict_to_json_string(cls, v):
+        """Convert dict to JSON string if needed.
+
+        Dagster Components may auto-deserialize JSON strings in YAML to dicts,
+        so we accept both and ensure they're converted to JSON strings.
+        """
+        if v is None:
+            return None
+        if isinstance(v, dict) or isinstance(v, list):
+            return json.dumps(v)
+        return v
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name

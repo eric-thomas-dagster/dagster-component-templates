@@ -24,7 +24,12 @@
     "batch_size": {"type": "integer", "default": 100},
     "upsert": {"type": "boolean", "default": true},
     "description": {"type": "string"},
-    "group_name": {"type": "string"}
+    "group_name": {"type": "string"},
+    "upstream_asset_keys": {
+      "type": "string",
+      "description": "Comma-separated list of upstream asset keys to load DataFrames from (automatically set by custom lineage)",
+      "default": ""
+    }
   },
   "required": ["asset_name", "provider", "collection_name"]
 }

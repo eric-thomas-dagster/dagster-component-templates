@@ -1,6 +1,18 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Connect a DataFrame-producing asset to write to DuckDB"
+    },
+    "outputs": {
+      "type": "none",
+      "description": "Writes DataFrame to DuckDB table (no output)"
+    }
+  },
   "properties": {
     "asset_name": {
       "type": "string",
@@ -35,6 +47,12 @@
       "type": "string",
       "title": "Group Name",
       "description": "Asset group name for organization",
+      "default": ""
+    },
+    "upstream_asset_keys": {
+      "type": "string",
+      "title": "Upstream Asset Keys",
+      "description": "Comma-separated list of upstream asset keys to load DataFrames from (automatically set by custom lineage)",
       "default": ""
     }
   },

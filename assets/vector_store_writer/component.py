@@ -49,6 +49,10 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
     upsert: bool = Field(default=True, description="Upsert if exists")
     description: Optional[str] = Field(default=None, description="Asset description")
     group_name: Optional[str] = Field(default=None, description="Asset group")
+    upstream_asset_keys: Optional[str] = Field(
+        default=None,
+        description='Comma-separated list of upstream asset keys to load DataFrames from (automatically set by custom lineage)'
+    )
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
@@ -63,11 +67,18 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
         upsert = self.upsert
         description = self.description or f"Write embeddings to {provider}/{collection_name}"
         group_name = self.group_name
+        upstream_asset_keys_str = self.upstream_asset_keys
+
+        # Parse upstream asset keys if provided
+        upstream_keys = []
+        if upstream_asset_keys_str:
+            upstream_keys = [k.strip() for k in upstream_asset_keys_str.split(',')]
 
         @asset(
             name=asset_name,
             description=description,
             group_name=group_name,
+            deps=upstream_keys if upstream_keys else None,
         )
         def vector_store_writer_asset(context: AssetExecutionContext, **kwargs) -> Dict[str, Any]:
             """Write embeddings to vector store.
@@ -76,8 +87,24 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
             Compatible with: Embedding Generator or any DataFrame with embeddings.
             """
 
-            # Get embeddings from upstream assets
-            upstream_assets = {k: v for k, v in kwargs.items()}
+            # Load upstream assets based on configuration
+            upstream_assets = {}
+
+            # If upstream_asset_keys is configured, try to load assets explicitly
+            if upstream_keys and hasattr(context, 'load_asset_value'):
+                # Real execution context - load assets explicitly
+                context.log.info(f"Loading {len(upstream_keys)} upstream asset(s) via context.load_asset_value()")
+                for key in upstream_keys:
+                    try:
+                        value = context.load_asset_value(key)
+                        upstream_assets[key] = value
+                        context.log.info(f"  - Loaded '{key}': {type(value).__name__}")
+                    except Exception as e:
+                        context.log.error(f"  - Failed to load '{key}': {e}")
+                        raise
+            else:
+                # Preview/mock context or no upstream_keys - fall back to kwargs
+                upstream_assets = {k: v for k, v in kwargs.items()}
 
             if not upstream_assets:
                 raise ValueError(

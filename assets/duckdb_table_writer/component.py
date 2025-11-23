@@ -58,6 +58,11 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
         description="Asset group name for organization"
     )
 
+    upstream_asset_keys: Optional[str] = Field(
+        default=None,
+        description='Comma-separated list of upstream asset keys to load DataFrames from (automatically set by custom lineage)'
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions for the DuckDB table writer."""
 
@@ -68,6 +73,12 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
         write_mode = self.write_mode
         description = self.description or f"Write data to DuckDB table {table_name}"
         group_name = self.group_name or None
+        upstream_asset_keys_str = self.upstream_asset_keys
+
+        # Parse upstream asset keys if provided
+        upstream_keys = []
+        if upstream_asset_keys_str:
+            upstream_keys = [k.strip() for k in upstream_asset_keys_str.split(',')]
 
         @multi_asset(
             name=f"{asset_name}_writer",
@@ -76,6 +87,7 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
                     key=asset_name,
                     description=description,
                     group_name=group_name,
+                    deps=upstream_keys if upstream_keys else None,
                 )
             ],
         )
@@ -83,16 +95,33 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
             """Write DataFrame to DuckDB table."""
             import duckdb
 
-            # Get the DataFrame from the upstream asset (via custom lineage)
-            # kwargs will contain the upstream asset's output based on custom lineage edges
-            if not kwargs:
+            # Load upstream assets based on configuration
+            upstream_assets = {}
+
+            # If upstream_asset_keys is configured, try to load assets explicitly
+            if upstream_keys and hasattr(context, 'load_asset_value'):
+                # Real execution context - load assets explicitly
+                context.log.info(f"Loading {len(upstream_keys)} upstream asset(s) via context.load_asset_value()")
+                for key in upstream_keys:
+                    try:
+                        value = context.load_asset_value(key)
+                        upstream_assets[key] = value
+                        context.log.info(f"  - Loaded '{key}': {type(value).__name__}")
+                    except Exception as e:
+                        context.log.error(f"  - Failed to load '{key}': {e}")
+                        raise
+            else:
+                # Preview/mock context or no upstream_keys - fall back to kwargs
+                upstream_assets = {k: v for k, v in kwargs.items()}
+
+            if not upstream_assets:
                 raise ValueError(
-                    f"No upstream data provided to {asset_name}. "
-                    "Connect an upstream asset using the custom lineage UI."
+                    f"DuckDB Table Writer '{asset_name}' requires at least one upstream asset "
+                    "that produces a DataFrame. Connect an upstream asset using the custom lineage UI."
                 )
 
             # Get the first (and should be only) upstream DataFrame
-            df = list(kwargs.values())[0]
+            df = list(upstream_assets.values())[0]
 
             if not isinstance(df, pd.DataFrame):
                 raise ValueError(

@@ -3,12 +3,13 @@
   "type": "object",
   "x-dagster-io": {
     "inputs": {
-      "type": "any",
+      "type": "mixed",
+      "accepts": ["text", "dataframe"],
       "required": true,
-      "description": "Accepts text or chunks from upstream asset via IO manager. Compatible types: string (single text), list of strings (multiple chunks), or DataFrame with text column (column name specified by text_column parameter, default: 'text')"
+      "description": "Accepts text or DataFrames from upstream assets. Compatible types: string (single text), list of strings (multiple chunks), or DataFrame with text column (column name specified by text_column parameter, default: 'text')"
     },
     "outputs": {
-      "type": "any",
+      "type": "mixed",
       "conditional": true,
       "condition": "output_format parameter",
       "description": "Output type depends on output_format: 'array' produces NumPy array, 'list' produces Python list, 'dataframe' produces Pandas DataFrame with 'embedding' column and optionally 'text' column"
@@ -92,6 +93,12 @@
       "type": "string",
       "title": "Group Name",
       "description": "Asset group"
+    },
+    "upstream_asset_keys": {
+      "type": "string",
+      "title": "Upstream Asset Keys",
+      "description": "Comma-separated list of upstream asset keys to load data from (automatically set by custom lineage)",
+      "default": ""
     }
   },
   "required": ["asset_name", "provider", "model"]

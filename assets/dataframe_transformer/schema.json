@@ -94,6 +94,31 @@
       "type": "string",
       "title": "Group Name",
       "description": "Asset group for organization"
+    },
+    "string_operations": {
+      "type": "string",
+      "title": "String Operations",
+      "description": "JSON list of operations: [{\"column\": \"name\", \"operation\": \"upper\"}]. Operations: upper, lower, trim, strip, title"
+    },
+    "string_replace": {
+      "type": "string",
+      "title": "String Replace",
+      "description": "JSON mapping: {\"column_name\": {\"old\": \"new\", \"pattern\": \"replacement\"}}"
+    },
+    "calculated_columns": {
+      "type": "string",
+      "title": "Calculated Columns",
+      "description": "JSON mapping: {\"new_col\": \"price * quantity\", \"full_name\": \"first_name + ' ' + last_name\"}"
+    },
+    "pivot_config": {
+      "type": "string",
+      "title": "Pivot Configuration",
+      "description": "JSON config: {\"index\": \"date\", \"columns\": \"category\", \"values\": \"amount\", \"aggfunc\": \"sum\"}"
+    },
+    "unpivot_config": {
+      "type": "string",
+      "title": "Unpivot Configuration",
+      "description": "JSON config: {\"id_vars\": [\"id\", \"name\"], \"value_vars\": [\"q1\", \"q2\"], \"var_name\": \"quarter\", \"value_name\": \"sales\"}"
     }
   },
   "required": ["asset_name"]

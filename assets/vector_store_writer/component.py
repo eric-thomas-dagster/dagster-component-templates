@@ -14,6 +14,7 @@ from dagster import (
     ComponentLoadContext,
     Definitions,
     AssetExecutionContext,
+    AssetKey,
     asset,
     Resolvable,
     Model,
@@ -96,7 +97,9 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
                 context.log.info(f"Loading {len(upstream_keys)} upstream asset(s) via context.load_asset_value()")
                 for key in upstream_keys:
                     try:
-                        value = context.load_asset_value(key)
+                        # Convert string key to AssetKey if needed
+                        asset_key = AssetKey(key) if isinstance(key, str) else key
+                        value = context.load_asset_value(asset_key)
                         upstream_assets[key] = value
                         context.log.info(f"  - Loaded '{key}': {type(value).__name__}")
                     except Exception as e:

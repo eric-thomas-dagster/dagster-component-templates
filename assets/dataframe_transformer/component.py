@@ -125,6 +125,34 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         description="Asset group for organization"
     )
 
+    # String operations
+    string_operations: Optional[str] = Field(
+        default=None,
+        description='JSON list of string operations: [{"column": "name", "operation": "upper"}, {"column": "email", "operation": "trim"}]. Operations: upper, lower, trim, strip, title'
+    )
+
+    string_replace: Optional[str] = Field(
+        default=None,
+        description='JSON mapping of string replacements: {"column_name": {"old": "new", "pattern": "replacement"}}'
+    )
+
+    # Calculated columns
+    calculated_columns: Optional[str] = Field(
+        default=None,
+        description='JSON mapping of calculated columns: {"new_col": "price * quantity", "full_name": "first_name + \' \' + last_name"}'
+    )
+
+    # Pivot/Unpivot operations
+    pivot_config: Optional[str] = Field(
+        default=None,
+        description='JSON config for pivot: {"index": "date", "columns": "category", "values": "amount", "aggfunc": "sum"}'
+    )
+
+    unpivot_config: Optional[str] = Field(
+        default=None,
+        description='JSON config for unpivot/melt: {"id_vars": ["id", "name"], "value_vars": ["q1", "q2", "q3"], "var_name": "quarter", "value_name": "sales"}'
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         filter_columns = self.filter_columns
@@ -139,6 +167,11 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         group_by = self.group_by
         agg_functions_str = self.agg_functions
         combine_method = self.combine_method
+        string_operations_str = self.string_operations
+        string_replace_str = self.string_replace
+        calculated_columns_str = self.calculated_columns
+        pivot_config_str = self.pivot_config
+        unpivot_config_str = self.unpivot_config
         description = self.description or "Transform DataFrames from upstream assets"
         group_name = self.group_name
 
@@ -305,6 +338,85 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
                         context.log.info(f"Grouped by {group_cols}, aggregated {len(agg_map)} columns ({before} → {len(df)} rows)")
                 except Exception as e:
                     context.log.error(f"Aggregation failed: {e}")
+                    raise
+
+            # String operations
+            if string_operations_str:
+                try:
+                    operations = json.loads(string_operations_str)
+                    for op in operations:
+                        col = op.get('column')
+                        operation = op.get('operation')
+
+                        if col in df.columns:
+                            if operation == 'upper':
+                                df[col] = df[col].astype(str).str.upper()
+                            elif operation == 'lower':
+                                df[col] = df[col].astype(str).str.lower()
+                            elif operation in ['trim', 'strip']:
+                                df[col] = df[col].astype(str).str.strip()
+                            elif operation == 'title':
+                                df[col] = df[col].astype(str).str.title()
+
+                            context.log.info(f"Applied '{operation}' to column '{col}'")
+                except Exception as e:
+                    context.log.error(f"String operations failed: {e}")
+                    raise
+
+            # String replace
+            if string_replace_str:
+                try:
+                    replace_map = json.loads(string_replace_str)
+                    for col, replacements in replace_map.items():
+                        if col in df.columns:
+                            for old_val, new_val in replacements.items():
+                                df[col] = df[col].astype(str).str.replace(old_val, new_val, regex=False)
+                                context.log.info(f"Replaced '{old_val}' with '{new_val}' in column '{col}'")
+                except Exception as e:
+                    context.log.error(f"String replace failed: {e}")
+                    raise
+
+            # Calculated columns
+            if calculated_columns_str:
+                try:
+                    calc_cols = json.loads(calculated_columns_str)
+                    for new_col, expression in calc_cols.items():
+                        # Evaluate expression in context of DataFrame
+                        df[new_col] = df.eval(expression)
+                        context.log.info(f"Created calculated column '{new_col}' = '{expression}'")
+                except Exception as e:
+                    context.log.error(f"Calculated columns failed: {e}")
+                    raise
+
+            # Pivot
+            if pivot_config_str:
+                try:
+                    pivot_cfg = json.loads(pivot_config_str)
+                    df = df.pivot_table(
+                        index=pivot_cfg.get('index'),
+                        columns=pivot_cfg.get('columns'),
+                        values=pivot_cfg.get('values'),
+                        aggfunc=pivot_cfg.get('aggfunc', 'sum')
+                    ).reset_index()
+                    context.log.info(f"Pivoted DataFrame: {pivot_cfg}")
+                except Exception as e:
+                    context.log.error(f"Pivot failed: {e}")
+                    raise
+
+            # Unpivot (melt)
+            if unpivot_config_str:
+                try:
+                    unpivot_cfg = json.loads(unpivot_config_str)
+                    df = pd.melt(
+                        df,
+                        id_vars=unpivot_cfg.get('id_vars', []),
+                        value_vars=unpivot_cfg.get('value_vars'),
+                        var_name=unpivot_cfg.get('var_name', 'variable'),
+                        value_name=unpivot_cfg.get('value_name', 'value')
+                    )
+                    context.log.info(f"Unpivoted DataFrame: {unpivot_cfg}")
+                except Exception as e:
+                    context.log.error(f"Unpivot failed: {e}")
                     raise
 
             # Add metadata

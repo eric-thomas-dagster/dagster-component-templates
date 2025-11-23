@@ -219,8 +219,9 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
             # Load upstream assets based on configuration
             upstream_assets = {}
 
-            # If upstream_asset_keys is configured, load assets explicitly
-            if upstream_keys:
+            # If upstream_asset_keys is configured, try to load assets explicitly
+            if upstream_keys and hasattr(context, 'load_asset_value'):
+                # Real execution context - load assets explicitly
                 context.log.info(f"Loading {len(upstream_keys)} upstream asset(s) via context.load_asset_value()")
                 for key in upstream_keys:
                     try:
@@ -231,7 +232,7 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
                         context.log.error(f"  - Failed to load '{key}': {e}")
                         raise
             else:
-                # Fall back to kwargs (for direct component connections)
+                # Preview/mock context or no upstream_keys - fall back to kwargs
                 upstream_assets = {k: v for k, v in kwargs.items()}
 
             # Validate we have at least one upstream asset

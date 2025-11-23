@@ -9,10 +9,9 @@ from dagster import (
     Resolvable,
     Model,
     Definitions,
-    AssetSpec,
     AssetExecutionContext,
     ComponentLoadContext,
-    multi_asset,
+    asset,
 )
 from pydantic import Field
 
@@ -113,19 +112,15 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
         if self.parse_dates:
             parse_dates = [c.strip() for c in self.parse_dates.split(",")]
 
-        @multi_asset(
-            specs=[
-                AssetSpec(
-                    key=asset_name,
-                    description=description or f"CSV data from {file_path}",
-                    group_name=group_name,
-                    metadata={
-                        "source_file": file_path,
-                        "delimiter": delimiter,
-                        "encoding": encoding,
-                    }
-                )
-            ]
+        @asset(
+            name=asset_name,
+            description=description or f"CSV data from {file_path}",
+            group_name=group_name,
+            metadata={
+                "source_file": file_path,
+                "delimiter": delimiter,
+                "encoding": encoding,
+            }
         )
         def csv_ingestion_asset(context: AssetExecutionContext):
             """Asset that ingests CSV file into a pandas DataFrame."""

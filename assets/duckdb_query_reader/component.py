@@ -8,10 +8,9 @@ from dagster import (
     Resolvable,
     Model,
     Definitions,
-    AssetSpec,
     AssetExecutionContext,
     ComponentLoadContext,
-    multi_asset,
+    asset,
 )
 from pydantic import Field
 
@@ -63,15 +62,10 @@ class DuckDBQueryReaderComponent(Component, Model, Resolvable):
         description = self.description or f"Query results from DuckDB"
         group_name = self.group_name or None
 
-        @multi_asset(
-            name=f"{asset_name}_reader",
-            specs=[
-                AssetSpec(
-                    key=asset_name,
-                    description=description,
-                    group_name=group_name,
-                )
-            ],
+        @asset(
+            name=asset_name,
+            description=description,
+            group_name=group_name,
         )
         def duckdb_reader_asset(context: AssetExecutionContext) -> pd.DataFrame:
             """Execute SQL query and return results as DataFrame."""

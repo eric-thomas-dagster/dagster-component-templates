@@ -9,10 +9,9 @@ from dagster import (
     Resolvable,
     Model,
     Definitions,
-    AssetSpec,
     AssetExecutionContext,
     ComponentLoadContext,
-    multi_asset,
+    asset,
 )
 from pydantic import Field
 
@@ -113,15 +112,10 @@ class TimeSeriesGeneratorComponent(Component, Model, Resolvable):
         description = self.description or f"Time series with {pattern_type} pattern"
         group_name = self.group_name or None
 
-        @multi_asset(
-            name=f"{asset_name}_generator",
-            specs=[
-                AssetSpec(
-                    key=asset_name,
-                    description=description,
-                    group_name=group_name,
-                )
-            ],
+        @asset(
+            name=asset_name,
+            description=description,
+            group_name=group_name,
         )
         def time_series_asset(context: AssetExecutionContext) -> pd.DataFrame:
             """Generate time series data based on pattern type."""

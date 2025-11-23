@@ -14,8 +14,7 @@ from dagster import (
     ComponentLoadContext,
     Definitions,
     AssetExecutionContext,
-    AssetSpec,
-    multi_asset,
+    asset,
     Config,
     Resolvable,
     Model,
@@ -151,15 +150,10 @@ class FileTransformerComponent(Component, Model, Resolvable):
             file_modified_time: Optional[float] = None
             directory_path: Optional[str] = None
 
-        @multi_asset(
-            name=f"{asset_name}_asset",
-            specs=[
-                AssetSpec(
-                    key=asset_name,
-                    description=description,
-                    group_name=group_name,
-                )
-            ],
+        @asset(
+            name=asset_name,
+            description=description,
+            group_name=group_name,
         )
         def file_transformer_asset(context: AssetExecutionContext, config: FileConfig):
             """Asset that transforms files between formats."""

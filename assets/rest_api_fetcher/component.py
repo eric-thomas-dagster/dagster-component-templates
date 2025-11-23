@@ -16,8 +16,7 @@ from dagster import (
     ComponentLoadContext,
     Definitions,
     AssetExecutionContext,
-    AssetSpec,
-    multi_asset,
+    asset,
     Resolvable,
     Model,
 )
@@ -149,15 +148,10 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
         description = self.description or f"Fetch data from {api_url}"
         group_name = self.group_name
 
-        @multi_asset(
-            name=f"{asset_name}_asset",
-            specs=[
-                AssetSpec(
-                    key=asset_name,
-                    description=description,
-                    group_name=group_name,
-                )
-            ],
+        @asset(
+            name=asset_name,
+            description=description,
+            group_name=group_name,
         )
         def rest_api_asset(context: AssetExecutionContext):
             """Asset that fetches data from REST API."""

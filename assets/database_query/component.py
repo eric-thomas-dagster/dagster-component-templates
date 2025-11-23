@@ -13,8 +13,7 @@ from dagster import (
     ComponentLoadContext,
     Definitions,
     AssetExecutionContext,
-    AssetSpec,
-    multi_asset,
+    asset,
     Resolvable,
     Model,
 )
@@ -78,15 +77,10 @@ class DatabaseQueryComponent(Component, Model, Resolvable):
         description = self.description or f"Query: {query[:50]}..."
         group_name = self.group_name
 
-        @multi_asset(
-            name=f"{asset_name}_asset",
-            specs=[
-                AssetSpec(
-                    key=asset_name,
-                    description=description,
-                    group_name=group_name,
-                )
-            ],
+        @asset(
+            name=asset_name,
+            description=description,
+            group_name=group_name,
         )
         def database_query_asset(context: AssetExecutionContext):
             """Asset that executes SQL query and returns results."""

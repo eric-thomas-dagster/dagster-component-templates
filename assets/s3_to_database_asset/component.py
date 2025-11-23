@@ -11,10 +11,9 @@ from dagster import (
     Resolvable,
     Model,
     Definitions,
-    AssetSpec,
     AssetExecutionContext,
     ComponentLoadContext,
-    multi_asset,
+    asset,
     Config,
 )
 from pydantic import Field
@@ -130,19 +129,15 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
             s3_size: Optional[int] = None
             s3_last_modified: Optional[str] = None
 
-        @multi_asset(
-            specs=[
-                AssetSpec(
-                    key=asset_name,
-                    description=description or f"S3 to Database: {table_name}",
-                    group_name=group_name,
-                    metadata={
-                        "table": table_name,
-                        "schema": schema_name,
-                        "source": "s3",
-                    }
-                )
-            ]
+        @asset(
+            name=asset_name,
+            description=description or f"S3 to Database: {table_name}",
+            group_name=group_name,
+            metadata={
+                "table": table_name,
+                "schema": schema_name,
+                "source": "s3",
+            }
         )
         def s3_to_database_asset(context: AssetExecutionContext, config: S3FileConfig):
             """Asset that loads S3 files into a database table."""

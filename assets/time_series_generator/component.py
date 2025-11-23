@@ -12,6 +12,8 @@ from dagster import (
     AssetExecutionContext,
     ComponentLoadContext,
     asset,
+    Output,
+    MetadataValue,
 )
 from pydantic import Field
 
@@ -96,6 +98,11 @@ class TimeSeriesGeneratorComponent(Component, Model, Resolvable):
         description="Asset group name for organization"
     )
 
+    include_sample_metadata: bool = Field(
+        default=False,
+        description="Include sample data preview in metadata (first 5 rows as markdown table and interactive preview)"
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions for the time series generator."""
 
@@ -111,6 +118,7 @@ class TimeSeriesGeneratorComponent(Component, Model, Resolvable):
         metric_name = self.metric_name
         description = self.description or f"Time series with {pattern_type} pattern"
         group_name = self.group_name or None
+        include_sample = self.include_sample_metadata
 
         @asset(
             name=asset_name,
@@ -212,7 +220,19 @@ class TimeSeriesGeneratorComponent(Component, Model, Resolvable):
                 f"mean={df[metric_name].mean():.2f}"
             )
 
-            return df
+            if include_sample and len(df) > 0:
+                # Return with sample metadata
+                return Output(
+                    value=df,
+                    metadata={
+                        "row_count": len(df),
+                        "columns": df.columns.tolist(),
+                        "sample": MetadataValue.md(df.head().to_markdown()),
+                        "preview": MetadataValue.dataframe(df.head())
+                    }
+                )
+            else:
+                return df
 
         return Definitions(assets=[time_series_asset])
 

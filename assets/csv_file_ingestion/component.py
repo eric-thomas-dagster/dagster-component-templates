@@ -12,6 +12,8 @@ from dagster import (
     AssetExecutionContext,
     ComponentLoadContext,
     asset,
+    Output,
+    MetadataValue,
 )
 from pydantic import Field
 
@@ -78,6 +80,11 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
         description="Path where parquet cache will be stored (auto-generated if empty)"
     )
 
+    include_sample_metadata: bool = Field(
+        default=False,
+        description="Include sample data preview in metadata (first 5 rows as markdown table and interactive preview)"
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions for the CSV ingestion asset."""
 
@@ -92,6 +99,7 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
         header_row = self.header_row
         cache_to_parquet = self.cache_to_parquet
         parquet_path = self.parquet_path
+        include_sample = self.include_sample_metadata
 
         # Parse column list
         columns_to_read = None
@@ -203,7 +211,19 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
                     "memory_mb": df.memory_usage(deep=True).sum() / 1024 / 1024,
                 })
 
-                return df
+                if include_sample and len(df) > 0:
+                    # Return with sample metadata
+                    return Output(
+                        value=df,
+                        metadata={
+                            "row_count": len(df),
+                            "columns": df.columns.tolist(),
+                            "sample": MetadataValue.md(df.head().to_markdown()),
+                            "preview": MetadataValue.dataframe(df.head())
+                        }
+                    )
+                else:
+                    return df
 
             except FileNotFoundError:
                 context.log.error(f"CSV file not found: {partitioned_file_path}")

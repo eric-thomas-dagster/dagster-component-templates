@@ -12,6 +12,8 @@ from dagster import (
     AssetExecutionContext,
     ComponentLoadContext,
     asset,
+    Output,
+    MetadataValue,
 )
 from pydantic import Field
 
@@ -71,6 +73,11 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         description="Asset group name for organization"
     )
 
+    include_sample_metadata: bool = Field(
+        default=False,
+        description="Include sample data preview in metadata (first 5 rows as markdown table and interactive preview)"
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions for the synthetic data generator."""
 
@@ -81,6 +88,7 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         random_seed = self.random_seed
         description = self.description or f"Synthetic {schema_type} data"
         group_name = self.group_name or None
+        include_sample = self.include_sample_metadata
 
         @asset(
             name=asset_name,
@@ -126,7 +134,20 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
                 raise ValueError(f"Unknown schema type: {schema_type}")
 
             context.log.info(f"Generated DataFrame with shape {df.shape}")
-            return df
+
+            if include_sample and len(df) > 0:
+                # Return with sample metadata
+                return Output(
+                    value=df,
+                    metadata={
+                        "row_count": len(df),
+                        "columns": df.columns.tolist(),
+                        "sample": MetadataValue.md(df.head().to_markdown()),
+                        "preview": MetadataValue.dataframe(df.head())
+                    }
+                )
+            else:
+                return df
 
         return Definitions(assets=[synthetic_data_asset])
 

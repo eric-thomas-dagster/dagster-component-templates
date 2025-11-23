@@ -9,13 +9,17 @@ import json
 
 import pandas as pd
 from dagster import (
+    AssetKey,
     Component,
     ComponentLoadContext,
     Definitions,
     AssetExecutionContext,
+    AssetKey,
     asset,
     Resolvable,
     Model,
+    Output,
+    MetadataValue,
 )
 from pydantic import Field, field_validator
 
@@ -159,6 +163,12 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         description='Comma-separated list of upstream asset keys to load data from (automatically set by custom lineage)'
     )
 
+    # Sample metadata
+    include_sample_metadata: bool = Field(
+        default=False,
+        description="Include sample data preview in metadata (first 5 rows as markdown table and interactive preview)"
+    )
+
     # Field validators to handle Dagster Components auto-deserializing JSON strings
     @field_validator('rename_columns', 'agg_functions', 'string_operations', 'string_replace',
                      'calculated_columns', 'pivot_config', 'unpivot_config', mode='before')
@@ -197,6 +207,7 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         upstream_asset_keys_str = self.upstream_asset_keys
         description = self.description or "Transform DataFrames from upstream assets"
         group_name = self.group_name
+        include_sample = self.include_sample_metadata
 
         # Parse upstream asset keys if provided
         upstream_keys = []
@@ -225,7 +236,9 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
                 context.log.info(f"Loading {len(upstream_keys)} upstream asset(s) via context.load_asset_value()")
                 for key in upstream_keys:
                     try:
-                        value = context.load_asset_value(key)
+                        # Convert string key to AssetKey object
+                        asset_key = AssetKey(key)
+                        value = context.load_asset_value(asset_key)
                         upstream_assets[key] = value
                         context.log.info(f"  - Loaded '{key}': {type(value).__name__}")
                     except Exception as e:
@@ -483,6 +496,18 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
             )
 
             # Return DataFrame - IO manager will handle persistence
-            return df
+            if include_sample and len(df) > 0:
+                # Return with sample metadata
+                return Output(
+                    value=df,
+                    metadata={
+                        "row_count": len(df),
+                        "columns": df.columns.tolist(),
+                        "sample": MetadataValue.md(df.head().to_markdown()),
+                        "preview": MetadataValue.dataframe(df.head())
+                    }
+                )
+            else:
+                return df
 
         return Definitions(assets=[dataframe_transformer_asset])

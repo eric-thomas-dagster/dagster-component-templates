@@ -16,6 +16,8 @@ from dagster import (
     asset,
     Resolvable,
     Model,
+    Output,
+    MetadataValue,
 )
 from pydantic import Field
 
@@ -68,6 +70,11 @@ class DatabaseQueryComponent(Component, Model, Resolvable):
         description="Asset group for organization"
     )
 
+    include_sample_metadata: bool = Field(
+        default=False,
+        description="Include sample data preview in metadata (first 5 rows as markdown table and interactive preview)"
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         database_url = self.database_url
@@ -76,6 +83,7 @@ class DatabaseQueryComponent(Component, Model, Resolvable):
         cache_path = self.cache_path
         description = self.description or f"Query: {query[:50]}..."
         group_name = self.group_name
+        include_sample = self.include_sample_metadata
 
         @asset(
             name=asset_name,
@@ -127,7 +135,19 @@ class DatabaseQueryComponent(Component, Model, Resolvable):
                     "query": query,
                 })
 
-                return df
+                if include_sample and len(df) > 0:
+                    # Return with sample metadata
+                    return Output(
+                        value=df,
+                        metadata={
+                            "row_count": len(df),
+                            "columns": df.columns.tolist(),
+                            "sample": MetadataValue.md(df.head().to_markdown()),
+                            "preview": MetadataValue.dataframe(df.head())
+                        }
+                    )
+                else:
+                    return df
 
             except Exception as e:
                 context.log.error(f"Query failed: {e}")

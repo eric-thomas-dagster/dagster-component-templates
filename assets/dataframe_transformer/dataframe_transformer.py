@@ -13,6 +13,7 @@ from dagster import (
     ComponentLoadContext,
     Definitions,
     AssetExecutionContext,
+    AssetKey,
     asset,
     Resolvable,
     Model,
@@ -60,7 +61,7 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         description="Comma-separated list of columns to drop"
     )
 
-    rename_columns: Optional[Union[str, dict]] = Field(
+    rename_columns: Optional[str] = Field(
         default=None,
         description="JSON mapping of column renames: '{\"old_name\": \"new_name\"}'"
     )
@@ -104,7 +105,7 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         description="Comma-separated columns to group by"
     )
 
-    agg_functions: Optional[Union[str, dict]] = Field(
+    agg_functions: Optional[str] = Field(
         default=None,
         description="JSON mapping of aggregations: '{\"amount\": \"sum\", \"id\": \"count\"}'"
     )
@@ -126,42 +127,52 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
     )
 
     # String operations
-    string_operations: Optional[Union[str, list]] = Field(
+    string_operations: Optional[str] = Field(
         default=None,
         description='JSON list of string operations: [{"column": "name", "operation": "upper"}, {"column": "email", "operation": "trim"}]. Operations: upper, lower, trim, strip, title'
     )
 
-    string_replace: Optional[Union[str, dict]] = Field(
+    string_replace: Optional[str] = Field(
         default=None,
         description='JSON mapping of string replacements: {"column_name": {"old": "new", "pattern": "replacement"}}'
     )
 
     # Calculated columns
-    calculated_columns: Optional[Union[str, dict]] = Field(
+    calculated_columns: Optional[str] = Field(
         default=None,
         description='JSON mapping of calculated columns: {"new_col": "price * quantity", "full_name": "first_name + \' \' + last_name"}'
     )
 
     # Pivot/Unpivot operations
-    pivot_config: Optional[Union[str, dict]] = Field(
+    pivot_config: Optional[str] = Field(
         default=None,
         description='JSON config for pivot: {"index": "date", "columns": "category", "values": "amount", "aggfunc": "sum"}'
     )
 
-    unpivot_config: Optional[Union[str, dict]] = Field(
+    unpivot_config: Optional[str] = Field(
         default=None,
         description='JSON config for unpivot/melt: {"id_vars": ["id", "name"], "value_vars": ["q1", "q2", "q3"], "var_name": "quarter", "value_name": "sales"}'
     )
 
-    # Validators to convert dicts/lists to JSON strings
-    @field_validator('rename_columns', 'agg_functions', 'string_operations',
-                    'string_replace', 'calculated_columns', 'pivot_config', 'unpivot_config', mode='before')
+    # Upstream asset keys for explicit data loading
+    upstream_asset_keys: Optional[str] = Field(
+        default=None,
+        description='Comma-separated list of upstream asset keys to load data from (automatically set by custom lineage)'
+    )
+
+    # Field validators to handle Dagster Components auto-deserializing JSON strings
+    @field_validator('rename_columns', 'agg_functions', 'string_operations', 'string_replace',
+                     'calculated_columns', 'pivot_config', 'unpivot_config', mode='before')
     @classmethod
-    def normalize_json_fields(cls, v):
-        """Convert dict/list to JSON string if needed."""
+    def convert_dict_to_json_string(cls, v):
+        """Convert dict to JSON string if needed.
+
+        Dagster Components may auto-deserialize JSON strings in YAML to dicts,
+        so we accept both and ensure they're converted to JSON strings.
+        """
         if v is None:
             return None
-        if isinstance(v, (dict, list)):
+        if isinstance(v, dict) or isinstance(v, list):
             return json.dumps(v)
         return v
 
@@ -184,13 +195,20 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         calculated_columns_str = self.calculated_columns
         pivot_config_str = self.pivot_config
         unpivot_config_str = self.unpivot_config
+        upstream_asset_keys_str = self.upstream_asset_keys
         description = self.description or "Transform DataFrames from upstream assets"
         group_name = self.group_name
+
+        # Parse upstream asset keys if provided
+        upstream_keys = []
+        if upstream_asset_keys_str:
+            upstream_keys = [k.strip() for k in upstream_asset_keys_str.split(',')]
 
         @asset(
             name=asset_name,
             description=description,
             group_name=group_name,
+            deps=upstream_keys if upstream_keys else None,
         )
         def dataframe_transformer_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
             """Asset that transforms DataFrames from upstream assets.
@@ -199,8 +217,26 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
             and passed as keyword arguments.
             """
 
-            # Get all upstream assets from kwargs
-            upstream_assets = {k: v for k, v in kwargs.items()}
+            # Load upstream assets based on configuration
+            upstream_assets = {}
+
+            # If upstream_asset_keys is configured, try to load assets explicitly
+            if upstream_keys and hasattr(context, 'load_asset_value'):
+                # Real execution context - load assets explicitly
+                context.log.info(f"Loading {len(upstream_keys)} upstream asset(s) via context.load_asset_value()")
+                for key in upstream_keys:
+                    try:
+                        # Convert string key to AssetKey object
+                        asset_key = AssetKey(key)
+                        value = context.load_asset_value(asset_key)
+                        upstream_assets[key] = value
+                        context.log.info(f"  - Loaded '{key}': {type(value).__name__}")
+                    except Exception as e:
+                        context.log.error(f"  - Failed to load '{key}': {e}")
+                        raise
+            else:
+                # Preview/mock context or no upstream_keys - fall back to kwargs
+                upstream_assets = {k: v for k, v in kwargs.items()}
 
             # Validate we have at least one upstream asset
             if not upstream_assets:
@@ -272,16 +308,6 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
 
             original_rows = len(df)
             original_cols = len(df.columns)
-
-            # Column filtering
-            if filter_columns:
-                cols = [c.strip() for c in filter_columns.split(',')]
-                missing = set(cols) - set(df.columns)
-                if missing:
-                    context.log.warning(f"Columns not found: {missing}")
-                existing = [c for c in cols if c in df.columns]
-                df = df[existing]
-                context.log.info(f"Filtered to {len(existing)} columns: {existing}")
 
             # Column dropping
             if drop_columns:
@@ -430,6 +456,16 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
                 except Exception as e:
                     context.log.error(f"Unpivot failed: {e}")
                     raise
+
+            # Column filtering (select final output columns) - applied LAST
+            if filter_columns:
+                cols = [c.strip() for c in filter_columns.split(',')]
+                missing = set(cols) - set(df.columns)
+                if missing:
+                    context.log.warning(f"Columns not found: {missing}")
+                existing = [c for c in cols if c in df.columns]
+                df = df[existing]
+                context.log.info(f"Selected {len(existing)} output columns: {existing}")
 
             # Add metadata
             context.add_output_metadata({

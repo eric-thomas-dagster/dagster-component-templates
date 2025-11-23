@@ -11,6 +11,8 @@ from dagster import (
     AssetExecutionContext,
     ComponentLoadContext,
     asset,
+    Output,
+    MetadataValue,
 )
 from pydantic import Field
 
@@ -52,6 +54,11 @@ class DuckDBQueryReaderComponent(Component, Model, Resolvable):
         description="Asset group name for organization"
     )
 
+    include_sample_metadata: bool = Field(
+        default=False,
+        description="Include sample data preview in metadata (first 5 rows as markdown table and interactive preview)"
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions for the DuckDB query reader."""
 
@@ -61,6 +68,7 @@ class DuckDBQueryReaderComponent(Component, Model, Resolvable):
         query = self.query
         description = self.description or f"Query results from DuckDB"
         group_name = self.group_name or None
+        include_sample = self.include_sample_metadata
 
         @asset(
             name=asset_name,
@@ -99,7 +107,19 @@ class DuckDBQueryReaderComponent(Component, Model, Resolvable):
                 else:
                     context.log.warning("Query returned no rows")
 
-                return df
+                if include_sample and len(df) > 0:
+                    # Return with sample metadata
+                    return Output(
+                        value=df,
+                        metadata={
+                            "row_count": len(df),
+                            "columns": df.columns.tolist(),
+                            "sample": MetadataValue.md(df.head().to_markdown()),
+                            "preview": MetadataValue.dataframe(df.head())
+                        }
+                    )
+                else:
+                    return df
 
             except Exception as e:
                 context.log.error(f"Query execution failed: {str(e)}")

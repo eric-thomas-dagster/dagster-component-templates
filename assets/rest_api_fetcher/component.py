@@ -19,6 +19,8 @@ from dagster import (
     asset,
     Resolvable,
     Model,
+    Output,
+    MetadataValue,
 )
 from pydantic import Field
 
@@ -128,6 +130,11 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
         description="Asset group for organization"
     )
 
+    include_sample_metadata: bool = Field(
+        default=False,
+        description="Include sample data preview in metadata when output_format is 'dataframe' (first 5 rows as markdown table and interactive preview)"
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         api_url = self.api_url
@@ -147,6 +154,7 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
         verify_ssl = self.verify_ssl
         description = self.description or f"Fetch data from {api_url}"
         group_name = self.group_name
+        include_sample = self.include_sample_metadata
 
         @asset(
             name=asset_name,
@@ -328,6 +336,18 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
 
             context.add_output_metadata(metadata)
 
-            return result
+            # Return with sample metadata if requested and output is a DataFrame
+            if include_sample and output_format == "dataframe" and isinstance(result, pd.DataFrame) and len(result) > 0:
+                return Output(
+                    value=result,
+                    metadata={
+                        "row_count": len(result),
+                        "columns": result.columns.tolist(),
+                        "sample": MetadataValue.md(result.head().to_markdown()),
+                        "preview": MetadataValue.dataframe(result.head())
+                    }
+                )
+            else:
+                return result
 
         return Definitions(assets=[rest_api_asset])

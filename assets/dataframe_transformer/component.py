@@ -153,6 +153,12 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         description='JSON config for unpivot/melt: {"id_vars": ["id", "name"], "value_vars": ["q1", "q2", "q3"], "var_name": "quarter", "value_name": "sales"}'
     )
 
+    # Upstream asset keys for explicit data loading
+    upstream_asset_keys: Optional[str] = Field(
+        default=None,
+        description='Comma-separated list of upstream asset keys to load data from (automatically set by custom lineage)'
+    )
+
     # Field validators to handle Dagster Components auto-deserializing JSON strings
     @field_validator('rename_columns', 'agg_functions', 'string_operations', 'string_replace',
                      'calculated_columns', 'pivot_config', 'unpivot_config', mode='before')
@@ -188,13 +194,20 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         calculated_columns_str = self.calculated_columns
         pivot_config_str = self.pivot_config
         unpivot_config_str = self.unpivot_config
+        upstream_asset_keys_str = self.upstream_asset_keys
         description = self.description or "Transform DataFrames from upstream assets"
         group_name = self.group_name
+
+        # Parse upstream asset keys if provided
+        upstream_keys = []
+        if upstream_asset_keys_str:
+            upstream_keys = [k.strip() for k in upstream_asset_keys_str.split(',')]
 
         @asset(
             name=asset_name,
             description=description,
             group_name=group_name,
+            deps=upstream_keys if upstream_keys else None,
         )
         def dataframe_transformer_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
             """Asset that transforms DataFrames from upstream assets.
@@ -203,8 +216,23 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
             and passed as keyword arguments.
             """
 
-            # Get all upstream assets from kwargs
-            upstream_assets = {k: v for k, v in kwargs.items()}
+            # Load upstream assets based on configuration
+            upstream_assets = {}
+
+            # If upstream_asset_keys is configured, load assets explicitly
+            if upstream_keys:
+                context.log.info(f"Loading {len(upstream_keys)} upstream asset(s) via context.load_asset_value()")
+                for key in upstream_keys:
+                    try:
+                        value = context.load_asset_value(key)
+                        upstream_assets[key] = value
+                        context.log.info(f"  - Loaded '{key}': {type(value).__name__}")
+                    except Exception as e:
+                        context.log.error(f"  - Failed to load '{key}': {e}")
+                        raise
+            else:
+                # Fall back to kwargs (for direct component connections)
+                upstream_assets = {k: v for k, v in kwargs.items()}
 
             # Validate we have at least one upstream asset
             if not upstream_assets:

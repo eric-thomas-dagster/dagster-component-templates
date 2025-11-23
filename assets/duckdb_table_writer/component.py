@@ -8,10 +8,9 @@ from dagster import (
     Resolvable,
     Model,
     Definitions,
-    AssetSpec,
     AssetExecutionContext,
     ComponentLoadContext,
-    multi_asset,
+    asset,
 )
 from pydantic import Field
 
@@ -80,16 +79,11 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
         if upstream_asset_keys_str:
             upstream_keys = [k.strip() for k in upstream_asset_keys_str.split(',')]
 
-        @multi_asset(
-            name=f"{asset_name}_writer",
-            specs=[
-                AssetSpec(
-                    key=asset_name,
-                    description=description,
-                    group_name=group_name,
-                    deps=upstream_keys if upstream_keys else None,
-                )
-            ],
+        @asset(
+            name=asset_name,
+            description=description,
+            group_name=group_name,
+            deps=upstream_keys if upstream_keys else None,
         )
         def duckdb_writer_asset(context: AssetExecutionContext, **kwargs) -> None:
             """Write DataFrame to DuckDB table."""

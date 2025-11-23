@@ -9,10 +9,9 @@ from dagster import (
     Resolvable,
     Model,
     Definitions,
-    AssetSpec,
     AssetExecutionContext,
     ComponentLoadContext,
-    multi_asset,
+    asset,
 )
 from pydantic import Field
 
@@ -83,15 +82,10 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         description = self.description or f"Synthetic {schema_type} data"
         group_name = self.group_name or None
 
-        @multi_asset(
-            name=f"{asset_name}_generator",
-            specs=[
-                AssetSpec(
-                    key=asset_name,
-                    description=description,
-                    group_name=group_name,
-                )
-            ],
+        @asset(
+            name=asset_name,
+            description=description,
+            group_name=group_name,
         )
         def synthetic_data_asset(context: AssetExecutionContext) -> pd.DataFrame:
             """Generate synthetic data based on schema type."""

@@ -460,10 +460,40 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
             # Column filtering (select final output columns) - applied LAST
             if filter_columns:
                 cols = [c.strip() for c in filter_columns.split(',')]
-                missing = set(cols) - set(df.columns)
+
+                # Expand filter list to include renamed columns and calculated columns
+                # Build the final list of columns to keep
+                final_cols_to_keep = []
+
+                # Add renamed versions of filter columns
+                if rename_columns_str:
+                    try:
+                        rename_map = json.loads(rename_columns_str)
+                        for col in cols:
+                            # If this column was renamed, use the new name
+                            if col in rename_map:
+                                final_cols_to_keep.append(rename_map[col])
+                            else:
+                                final_cols_to_keep.append(col)
+                    except json.JSONDecodeError:
+                        final_cols_to_keep = cols
+                else:
+                    final_cols_to_keep = cols
+
+                # Add calculated columns (they should always be kept)
+                if calculated_columns_str:
+                    try:
+                        calc_cols = json.loads(calculated_columns_str)
+                        for new_col in calc_cols.keys():
+                            if new_col not in final_cols_to_keep:
+                                final_cols_to_keep.append(new_col)
+                    except json.JSONDecodeError:
+                        pass
+
+                missing = set(final_cols_to_keep) - set(df.columns)
                 if missing:
                     context.log.warning(f"Columns not found: {missing}")
-                existing = [c for c in cols if c in df.columns]
+                existing = [c for c in final_cols_to_keep if c in df.columns]
                 df = df[existing]
                 context.log.info(f"Selected {len(existing)} output columns: {existing}")
 

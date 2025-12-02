@@ -1,0 +1,123 @@
+{
+  "type": "dagster_component_templates.CustomerSegmentationComponent",
+  "name": "Customer Segmentation (RFM)",
+  "category": "cdp",
+  "description": "Segment customers using RFM (Recency, Frequency, Monetary) analysis to identify Champions, Loyal Customers, At-Risk customers, and other actionable segments.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Users",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "accepts_multiple": false,
+      "description": "Connect transaction/order data with customer_id, date, and amount"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Customer segments with RFM scores and actionable recommendations"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the customer segmentation output asset",
+      "placeholder": "customer_segments"
+    },
+    "transaction_data_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Transaction Data Asset",
+      "description": "Transaction/order data asset (automatically set via lineage)",
+      "default": ""
+    },
+    "customer_data_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Customer Data Asset",
+      "description": "Customer data for additional attributes (automatically set via lineage)",
+      "default": ""
+    },
+    "recency_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Recency Weight",
+      "description": "Weight for recency in RFM score",
+      "default": 1.0,
+      "minimum": 0,
+      "maximum": 10
+    },
+    "frequency_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Frequency Weight",
+      "description": "Weight for frequency in RFM score",
+      "default": 1.0,
+      "minimum": 0,
+      "maximum": 10
+    },
+    "monetary_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Monetary Weight",
+      "description": "Weight for monetary value in RFM score",
+      "default": 1.0,
+      "minimum": 0,
+      "maximum": 10
+    },
+    "scoring_method": {
+      "type": "string",
+      "required": false,
+      "label": "Scoring Method",
+      "description": "How to calculate RFM scores",
+      "default": "quintiles",
+      "enum": ["quintiles", "quartiles", "custom"]
+    },
+    "analysis_period_days": {
+      "type": "integer",
+      "required": false,
+      "label": "Analysis Period (Days)",
+      "description": "Number of days to analyze for RFM calculation",
+      "default": 365,
+      "minimum": 30,
+      "maximum": 1095
+    },
+    "use_predefined_segments": {
+      "type": "boolean",
+      "required": false,
+      "label": "Use Predefined Segments",
+      "description": "Use predefined RFM segments (Champions, Loyal, At Risk, etc.)",
+      "default": true
+    },
+    "include_recommendations": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Recommendations",
+      "description": "Include action recommendations for each segment",
+      "default": true
+    },
+    "calculate_segment_value": {
+      "type": "boolean",
+      "required": false,
+      "label": "Calculate Segment Value",
+      "description": "Calculate total and average value per segment",
+      "default": true
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "default": ""
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group name",
+      "default": "analytics"
+    }
+  }
+}

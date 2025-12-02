@@ -1,359 +1,487 @@
 """Funnel Analysis Component.
 
-Track conversion rates through multi-step user journeys and funnels.
-Analyzes drop-off rates and conversion optimization opportunities.
+Analyzes user progression through defined funnel stages to identify conversion rates,
+drop-off points, and optimization opportunities across the customer journey.
 """
 
-from typing import Optional
+from typing import Any, Optional, List, Dict
+
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
 from dagster import (
     AssetExecutionContext,
+    AssetIn,
     AssetKey,
-    Component,
-    ComponentLoadContext,
-    Definitions,
-    Model,
-    Resolvable,
+    OpExecutionContext,
     asset,
-    Output,
-    MetadataValue,
 )
+from dagster._core.definitions.definitions_class import Definitions
+from dagster_components import Component, ComponentLoadContext, component_type
+from dagster_components.core.component_defs_builder import build_defs_from_component
 from pydantic import Field
 
 
-class FunnelAnalysisComponent(Component, Model, Resolvable):
-    """Component for analyzing conversion funnels.
-
-    Funnel analysis tracks how users progress through ordered steps in a journey
-    (e.g., Landing → Product → Cart → Purchase). This helps identify:
-    - Conversion bottlenecks
-    - Drop-off points
-    - Time between steps
-    - Overall funnel efficiency
-
-    This component accepts event/session data and produces funnel metrics including
-    conversion rates, drop-off rates, and average time to next step.
-
-    Example:
-        ```yaml
-        type: dagster_component_templates.FunnelAnalysisComponent
-        attributes:
-          asset_name: checkout_funnel
-          source_asset: user_events
-          funnel_steps: "Landing,Product View,Add to Cart,Checkout,Purchase"
-          conversion_window_hours: 24
-          require_sequential: true
-          description: "E-commerce checkout funnel analysis"
-          group_name: product_analytics
-        ```
-    """
+@component_type(name="funnel_analysis")
+class FunnelAnalysisComponent(Component):
+    """Component that analyzes user progression through conversion funnels."""
 
     asset_name: str = Field(
-        description="Name of the asset to create"
+        ...,
+        description="Name of the funnel analysis asset to create",
     )
 
-    source_asset: Optional[str] = Field(
-        default=None,
-        description="Source asset with event/session data (set via lineage in Dagster Designer)"
+    # Input asset references (set via lineage)
+    event_data_asset: Optional[str] = Field(
+        default="",
+        description="Event/activity data with user actions and timestamps",
     )
 
-    funnel_steps: str = Field(
-        description="Comma-separated ordered funnel steps (e.g., 'Landing,Product,Cart,Purchase')"
+    user_data_asset: Optional[str] = Field(
+        default="",
+        description="User/customer data for segmentation (optional)",
     )
 
-    conversion_window_hours: int = Field(
-        default=24,
-        description="Maximum hours allowed between funnel steps"
+    # Funnel configuration
+    funnel_type: str = Field(
+        default="linear",
+        description="Funnel type: linear (sequential) or flexible (any order)",
     )
 
-    require_sequential: bool = Field(
+    stage_1_event: str = Field(
+        default="page_view",
+        description="Event name for first funnel stage",
+    )
+
+    stage_1_name: str = Field(
+        default="Awareness",
+        description="Display name for first stage",
+    )
+
+    stage_2_event: str = Field(
+        default="signup",
+        description="Event name for second funnel stage",
+    )
+
+    stage_2_name: str = Field(
+        default="Signup",
+        description="Display name for second stage",
+    )
+
+    stage_3_event: str = Field(
+        default="",
+        description="Event name for third funnel stage (optional)",
+    )
+
+    stage_3_name: str = Field(
+        default="",
+        description="Display name for third stage",
+    )
+
+    stage_4_event: str = Field(
+        default="",
+        description="Event name for fourth funnel stage (optional)",
+    )
+
+    stage_4_name: str = Field(
+        default="",
+        description="Display name for fourth stage",
+    )
+
+    stage_5_event: str = Field(
+        default="",
+        description="Event name for fifth funnel stage (optional)",
+    )
+
+    stage_5_name: str = Field(
+        default="",
+        description="Display name for fifth stage",
+    )
+
+    # Time window configuration
+    funnel_window_days: int = Field(
+        default=30,
+        description="Maximum days between first and last stage to count as conversion",
+    )
+
+    analysis_period_days: int = Field(
+        default=90,
+        description="Number of days of data to analyze",
+    )
+
+    # Cohort analysis
+    group_by_cohort: bool = Field(
         default=True,
-        description="Require steps to occur in exact order (no skipping)"
+        description="Group results by weekly/monthly cohorts",
     )
 
-    allow_skips: bool = Field(
+    cohort_period: str = Field(
+        default="weekly",
+        description="Cohort period: daily, weekly, or monthly",
+    )
+
+    # Segmentation
+    segment_by_source: bool = Field(
+        default=True,
+        description="Segment funnel by traffic source/campaign",
+    )
+
+    segment_by_attribute: str = Field(
+        default="",
+        description="Additional attribute to segment by (e.g., plan_type, country)",
+    )
+
+    # Output options
+    calculate_time_to_convert: bool = Field(
+        default=True,
+        description="Calculate median time between stages",
+    )
+
+    identify_drop_offs: bool = Field(
+        default=True,
+        description="Flag high drop-off stages",
+    )
+
+    drop_off_threshold: float = Field(
+        default=0.5,
+        description="Drop-off rate threshold to flag (e.g., 0.5 = 50% drop)",
+    )
+
+    include_user_level_data: bool = Field(
         default=False,
-        description="Allow users to skip intermediate steps"
+        description="Include individual user progression (large output)",
     )
 
-    user_id_field: Optional[str] = Field(
-        default=None,
-        description="User ID column name (auto-detected if not specified)"
+    # Asset properties
+    description: str = Field(
+        default="",
+        description="Asset description",
     )
 
-    event_name_field: Optional[str] = Field(
-        default=None,
-        description="Event name column (auto-detected if not specified)"
+    group_name: str = Field(
+        default="analytics",
+        description="Asset group name",
     )
 
-    timestamp_field: Optional[str] = Field(
-        default=None,
-        description="Timestamp column (auto-detected if not specified)"
-    )
+    def _get_funnel_stages(self) -> List[tuple]:
+        """Get configured funnel stages as (event, name) tuples."""
+        stages = []
 
-    description: Optional[str] = Field(
-        default=None,
-        description="Asset description"
-    )
+        if self.stage_1_event:
+            stages.append((self.stage_1_event, self.stage_1_name or "Stage 1"))
 
-    group_name: Optional[str] = Field(
-        default="product_analytics",
-        description="Asset group for organization"
-    )
+        if self.stage_2_event:
+            stages.append((self.stage_2_event, self.stage_2_name or "Stage 2"))
 
-    include_sample_metadata: bool = Field(
-        default=True,
-        description="Include sample data preview in metadata"
-    )
+        if self.stage_3_event:
+            stages.append((self.stage_3_event, self.stage_3_name or "Stage 3"))
+
+        if self.stage_4_event:
+            stages.append((self.stage_4_event, self.stage_4_name or "Stage 4"))
+
+        if self.stage_5_event:
+            stages.append((self.stage_5_event, self.stage_5_name or "Stage 5"))
+
+        return stages
+
+    def _prepare_event_data(self, event_data: pd.DataFrame) -> pd.DataFrame:
+        """Prepare and validate event data."""
+        if event_data is None or event_data.empty:
+            return pd.DataFrame()
+
+        # Standardize column names
+        df = event_data.copy()
+
+        # Map common column name variations
+        column_mappings = {
+            'user_id': ['user_id', 'customer_id', 'id', 'userid'],
+            'event_name': ['event_name', 'event', 'event_type', 'action'],
+            'timestamp': ['timestamp', 'event_timestamp', 'created_at', 'event_time'],
+        }
+
+        for target_col, possible_names in column_mappings.items():
+            for col in possible_names:
+                if col in df.columns and target_col not in df.columns:
+                    df[target_col] = df[col]
+                    break
+
+        # Validate required columns
+        if 'user_id' not in df.columns:
+            raise ValueError("Event data must have user_id column")
+        if 'event_name' not in df.columns:
+            raise ValueError("Event data must have event_name column")
+        if 'timestamp' not in df.columns:
+            raise ValueError("Event data must have timestamp column")
+
+        # Ensure timestamp is datetime
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+
+        # Filter to analysis period
+        cutoff_date = pd.Timestamp.now() - pd.Timedelta(days=self.analysis_period_days)
+        df = df[df['timestamp'] >= cutoff_date]
+
+        # Add optional fields if not present
+        if 'source' not in df.columns:
+            df['source'] = 'unknown'
+
+        return df
+
+    def _calculate_linear_funnel(self, event_data: pd.DataFrame, stages: List[tuple]) -> pd.DataFrame:
+        """Calculate conversion rates for linear (sequential) funnel."""
+        results = []
+
+        # Get all users who entered the funnel
+        stage_events = [event for event, name in stages]
+        funnel_data = event_data[event_data['event_name'].isin(stage_events)].copy()
+
+        if funnel_data.empty:
+            return pd.DataFrame()
+
+        # Sort by user and timestamp
+        funnel_data = funnel_data.sort_values(['user_id', 'timestamp'])
+
+        # For each user, find their progression through stages
+        user_progressions = []
+
+        for user_id, user_events in funnel_data.groupby('user_id'):
+            progression = {}
+            progression['user_id'] = user_id
+
+            # Find first occurrence of each stage
+            for i, (event, stage_name) in enumerate(stages):
+                stage_key = f"stage_{i+1}"
+                stage_events_df = user_events[user_events['event_name'] == event]
+
+                if not stage_events_df.empty:
+                    first_event = stage_events_df.iloc[0]
+                    progression[f"{stage_key}_timestamp"] = first_event['timestamp']
+                    progression[f"{stage_key}_completed"] = True
+
+                    # Capture source from first stage
+                    if i == 0 and 'source' in first_event:
+                        progression['source'] = first_event.get('source', 'unknown')
+                else:
+                    progression[f"{stage_key}_completed"] = False
+
+            user_progressions.append(progression)
+
+        if not user_progressions:
+            return pd.DataFrame()
+
+        df = pd.DataFrame(user_progressions)
+
+        # Validate sequential progression within time window
+        for i in range(len(stages) - 1):
+            current_stage = f"stage_{i+1}"
+            next_stage = f"stage_{i+2}"
+
+            if f"{current_stage}_timestamp" in df.columns and f"{next_stage}_timestamp" in df.columns:
+                # Check if next stage happened after current stage
+                valid_sequence = df[f"{next_stage}_timestamp"] > df[f"{current_stage}_timestamp"]
+
+                # Check if within time window
+                time_diff = (df[f"{next_stage}_timestamp"] - df[f"{current_stage}_timestamp"]).dt.days
+                within_window = time_diff <= self.funnel_window_days
+
+                # Mark next stage as incomplete if invalid
+                df.loc[~(valid_sequence & within_window), f"{next_stage}_completed"] = False
+
+        return df
+
+    def _aggregate_funnel_metrics(self, user_progressions: pd.DataFrame, stages: List[tuple]) -> pd.DataFrame:
+        """Aggregate user-level progressions into funnel metrics."""
+        if user_progressions.empty:
+            return pd.DataFrame()
+
+        metrics = []
+
+        # Overall funnel metrics
+        overall = {'segment': 'overall', 'cohort': 'all'}
+
+        for i, (event, stage_name) in enumerate(stages):
+            stage_key = f"stage_{i+1}"
+            completed_col = f"{stage_key}_completed"
+
+            if completed_col in user_progressions.columns:
+                reached = user_progressions[completed_col].sum()
+                overall[f"{stage_name}_count"] = reached
+
+                if i > 0:
+                    prev_stage = stages[i-1][1]
+                    prev_count = overall[f"{prev_stage}_count"]
+
+                    if prev_count > 0:
+                        conversion_rate = reached / prev_count
+                        drop_off_rate = 1 - conversion_rate
+                        overall[f"{stage_name}_conversion_rate"] = conversion_rate
+                        overall[f"{stage_name}_drop_off_rate"] = drop_off_rate
+
+                        # Calculate time to convert if enabled
+                        if self.calculate_time_to_convert:
+                            prev_stage_key = f"stage_{i}"
+                            if f"{prev_stage_key}_timestamp" in user_progressions.columns and f"{stage_key}_timestamp" in user_progressions.columns:
+                                completed_users = user_progressions[user_progressions[completed_col] == True]
+                                if not completed_users.empty:
+                                    time_diffs = (
+                                        completed_users[f"{stage_key}_timestamp"] -
+                                        completed_users[f"{prev_stage_key}_timestamp"]
+                                    ).dt.total_seconds() / 3600  # Convert to hours
+
+                                    overall[f"{stage_name}_median_hours"] = time_diffs.median()
+
+        metrics.append(overall)
+
+        # Segment by source if enabled
+        if self.segment_by_source and 'source' in user_progressions.columns:
+            for source in user_progressions['source'].unique():
+                if pd.isna(source):
+                    continue
+
+                source_data = user_progressions[user_progressions['source'] == source]
+                segment = {'segment': source, 'cohort': 'all'}
+
+                for i, (event, stage_name) in enumerate(stages):
+                    stage_key = f"stage_{i+1}"
+                    completed_col = f"{stage_key}_completed"
+
+                    if completed_col in source_data.columns:
+                        reached = source_data[completed_col].sum()
+                        segment[f"{stage_name}_count"] = reached
+
+                        if i > 0:
+                            prev_stage = stages[i-1][1]
+                            prev_count = segment.get(f"{prev_stage}_count", 0)
+
+                            if prev_count > 0:
+                                conversion_rate = reached / prev_count
+                                segment[f"{stage_name}_conversion_rate"] = conversion_rate
+                                segment[f"{stage_name}_drop_off_rate"] = 1 - conversion_rate
+
+                metrics.append(segment)
+
+        # Cohort analysis if enabled
+        if self.group_by_cohort and 'stage_1_timestamp' in user_progressions.columns:
+            user_progressions['cohort_date'] = user_progressions['stage_1_timestamp']
+
+            if self.cohort_period == 'daily':
+                user_progressions['cohort'] = user_progressions['cohort_date'].dt.date
+            elif self.cohort_period == 'weekly':
+                user_progressions['cohort'] = user_progressions['cohort_date'].dt.to_period('W').dt.start_time
+            else:  # monthly
+                user_progressions['cohort'] = user_progressions['cohort_date'].dt.to_period('M').dt.start_time
+
+            for cohort in user_progressions['cohort'].unique():
+                if pd.isna(cohort):
+                    continue
+
+                cohort_data = user_progressions[user_progressions['cohort'] == cohort]
+                cohort_metric = {'segment': 'overall', 'cohort': str(cohort)}
+
+                for i, (event, stage_name) in enumerate(stages):
+                    stage_key = f"stage_{i+1}"
+                    completed_col = f"{stage_key}_completed"
+
+                    if completed_col in cohort_data.columns:
+                        reached = cohort_data[completed_col].sum()
+                        cohort_metric[f"{stage_name}_count"] = reached
+
+                        if i > 0:
+                            prev_stage = stages[i-1][1]
+                            prev_count = cohort_metric.get(f"{prev_stage}_count", 0)
+
+                            if prev_count > 0:
+                                conversion_rate = reached / prev_count
+                                cohort_metric[f"{stage_name}_conversion_rate"] = conversion_rate
+
+                metrics.append(cohort_metric)
+
+        result_df = pd.DataFrame(metrics)
+
+        # Identify drop-off stages if enabled
+        if self.identify_drop_offs:
+            for i in range(1, len(stages)):
+                stage_name = stages[i][1]
+                drop_off_col = f"{stage_name}_drop_off_rate"
+
+                if drop_off_col in result_df.columns:
+                    result_df[f"{stage_name}_high_drop_off"] = result_df[drop_off_col] > self.drop_off_threshold
+
+        return result_df
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        """Build asset definitions."""
         asset_name = self.asset_name
-        source_asset = self.source_asset
-        funnel_steps_str = self.funnel_steps
-        conversion_window_hours = self.conversion_window_hours
-        require_sequential = self.require_sequential
-        allow_skips = self.allow_skips
-        user_id_field = self.user_id_field
-        event_name_field = self.event_name_field
-        timestamp_field = self.timestamp_field
-        description = self.description or "Funnel conversion analysis"
-        group_name = self.group_name
-        include_sample = self.include_sample_metadata
 
-        # Set up dependencies
-        upstream_keys = []
-        if source_asset:
-            upstream_keys.append(source_asset)
+        # Require event data
+        if not self.event_data_asset:
+            raise ValueError("Event data asset is required for funnel analysis")
+
+        asset_ins = {
+            "event_data": AssetIn(key=AssetKey.from_user_string(self.event_data_asset))
+        }
+
+        # Optional user data for segmentation
+        if self.user_data_asset:
+            asset_ins["user_data"] = AssetIn(key=AssetKey.from_user_string(self.user_data_asset))
+
+        component = self
 
         @asset(
             name=asset_name,
-            description=description,
-            group_name=group_name,
-            deps=upstream_keys if upstream_keys else None,
+            ins=asset_ins,
+            description=self.description or "Funnel analysis with conversion rates and drop-off identification",
+            group_name=self.group_name,
         )
-        def funnel_analysis_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
-            """Asset that performs funnel conversion analysis."""
+        def funnel_analysis_asset(context: AssetExecutionContext, **inputs) -> pd.DataFrame:
+            """Analyze user progression through conversion funnel."""
 
-            # Load upstream data
-            upstream_data = {}
-            if upstream_keys and hasattr(context, 'load_asset_value'):
-                for key in upstream_keys:
-                    try:
-                        value = context.load_asset_value(AssetKey(key))
-                        upstream_data[key] = value
-                        context.log.info(f"Loaded {len(value)} rows from {key}")
-                    except Exception as e:
-                        context.log.warning(f"Could not load {key}: {e}")
+            stages = component._get_funnel_stages()
+
+            if len(stages) < 2:
+                raise ValueError("Funnel must have at least 2 stages configured")
+
+            context.log.info(f"Analyzing {len(stages)}-stage funnel: {' → '.join([name for _, name in stages])}")
+
+            # Prepare event data
+            event_data = inputs.get('event_data')
+            prepared_data = component._prepare_event_data(event_data)
+
+            if prepared_data.empty:
+                context.log.warning("No event data available for analysis")
+                return pd.DataFrame()
+
+            context.log.info(f"Processing {len(prepared_data)} events from {prepared_data['user_id'].nunique()} users")
+
+            # Calculate funnel based on type
+            if component.funnel_type == 'linear':
+                context.log.info("Calculating linear (sequential) funnel...")
+                user_progressions = component._calculate_linear_funnel(prepared_data, stages)
             else:
-                upstream_data = kwargs
+                # Flexible funnel not implemented in this version
+                context.log.warning("Flexible funnel not yet implemented, using linear")
+                user_progressions = component._calculate_linear_funnel(prepared_data, stages)
 
-            if not upstream_data:
-                context.log.warning("No upstream data available")
+            if user_progressions.empty:
+                context.log.warning("No user progressions found")
                 return pd.DataFrame()
 
-            # Get the source DataFrame
-            df = list(upstream_data.values())[0]
-            if not isinstance(df, pd.DataFrame):
-                context.log.error("Source data is not a DataFrame")
-                return pd.DataFrame()
+            # Aggregate into metrics
+            context.log.info("Aggregating funnel metrics...")
+            funnel_metrics = component._aggregate_funnel_metrics(user_progressions, stages)
 
-            context.log.info(f"Processing {len(df)} event records for funnel analysis")
+            # Log summary
+            overall = funnel_metrics[funnel_metrics['segment'] == 'overall'].iloc[0]
+            for i, (event, stage_name) in enumerate(stages):
+                count = overall.get(f"{stage_name}_count", 0)
+                context.log.info(f"  {stage_name}: {count} users")
 
-            # Parse funnel steps
-            steps = [s.strip() for s in funnel_steps_str.split(',')]
-            if len(steps) < 2:
-                context.log.error("Funnel must have at least 2 steps")
-                return pd.DataFrame()
+                if i > 0:
+                    conversion = overall.get(f"{stage_name}_conversion_rate", 0)
+                    context.log.info(f"    Conversion: {conversion*100:.1f}%")
 
-            context.log.info(f"Analyzing funnel with {len(steps)} steps: {' → '.join(steps)}")
+            return funnel_metrics
 
-            # Auto-detect required columns
-            def find_column(possible_names, custom_name=None):
-                if custom_name and custom_name in df.columns:
-                    return custom_name
-                for name in possible_names:
-                    if name in df.columns:
-                        return name
-                return None
-
-            user_col = find_column(
-                ['user_id', 'customer_id', 'userId', 'customerId', 'visitor_id', 'session_id'],
-                user_id_field
-            )
-            event_col = find_column(
-                ['event_name', 'event', 'event_type', 'action', 'page_path'],
-                event_name_field
-            )
-            timestamp_col = find_column(
-                ['timestamp', 'event_time', 'created_at', 'date', 'time'],
-                timestamp_field
-            )
-
-            # Validate required columns
-            missing = []
-            if not user_col:
-                missing.append("user_id")
-            if not event_col:
-                missing.append("event_name")
-            if not timestamp_col:
-                missing.append("timestamp")
-
-            if missing:
-                context.log.error(f"Missing required columns: {', '.join(missing)}")
-                context.log.info(f"Available columns: {', '.join(df.columns)}")
-                return pd.DataFrame()
-
-            context.log.info(f"Using columns - User: {user_col}, Event: {event_col}, Timestamp: {timestamp_col}")
-
-            # Prepare data
-            funnel_df = df[[user_col, event_col, timestamp_col]].copy()
-            funnel_df.columns = ['user_id', 'event_name', 'timestamp']
-
-            # Parse timestamps
-            funnel_df['timestamp'] = pd.to_datetime(funnel_df['timestamp'], errors='coerce')
-            funnel_df = funnel_df.dropna(subset=['timestamp'])
-
-            # Filter to funnel events only
-            funnel_df = funnel_df[funnel_df['event_name'].isin(steps)]
-
-            if len(funnel_df) == 0:
-                context.log.warning(f"No events found matching funnel steps: {steps}")
-                return pd.DataFrame()
-
-            # Sort by user and timestamp
-            funnel_df = funnel_df.sort_values(['user_id', 'timestamp'])
-
-            context.log.info(f"Analyzing {len(funnel_df)} funnel events from {len(funnel_df['user_id'].unique())} users")
-
-            # Track user progression through funnel
-            user_progression = {}
-            conversion_window = timedelta(hours=conversion_window_hours)
-
-            for user_id, group in funnel_df.groupby('user_id'):
-                events = group['event_name'].tolist()
-                timestamps = group['timestamp'].tolist()
-
-                reached_steps = {}
-
-                for step_idx, step_name in enumerate(steps):
-                    # Find if user reached this step
-                    if step_name in events:
-                        # Get first occurrence of this step
-                        event_idx = events.index(step_name)
-                        step_timestamp = timestamps[event_idx]
-
-                        # Check prerequisites
-                        can_count = True
-
-                        if require_sequential and step_idx > 0:
-                            # Previous step must be completed
-                            if (step_idx - 1) not in reached_steps:
-                                can_count = False
-
-                        if can_count and step_idx > 0 and (step_idx - 1) in reached_steps:
-                            # Check conversion window
-                            prev_timestamp = reached_steps[step_idx - 1]
-                            time_diff = step_timestamp - prev_timestamp
-                            if time_diff > conversion_window:
-                                can_count = False
-
-                        if allow_skips and not require_sequential:
-                            # User can skip steps, just check they eventually reached it
-                            can_count = True
-
-                        if can_count:
-                            reached_steps[step_idx] = step_timestamp
-
-                user_progression[user_id] = reached_steps
-
-            # Calculate metrics per step
-            total_users = len(user_progression)
-            funnel_metrics = []
-
-            users_at_prev_step = total_users
-
-            for step_idx, step_name in enumerate(steps):
-                # Count users who reached this step
-                users_reached = sum(1 for progression in user_progression.values() if step_idx in progression)
-
-                # Calculate conversion rates
-                conversion_overall = (users_reached / total_users * 100) if total_users > 0 else 0
-
-                if step_idx > 0:
-                    conversion_from_prev = (users_reached / users_at_prev_step * 100) if users_at_prev_step > 0 else 0
-                    drop_off = ((users_at_prev_step - users_reached) / users_at_prev_step * 100) if users_at_prev_step > 0 else 0
-                else:
-                    conversion_from_prev = 100.0
-                    drop_off = 0.0
-
-                # Calculate average time to next step
-                if step_idx < len(steps) - 1:
-                    time_diffs = []
-                    for progression in user_progression.values():
-                        if step_idx in progression and (step_idx + 1) in progression:
-                            time_diff = progression[step_idx + 1] - progression[step_idx]
-                            time_diffs.append(time_diff.total_seconds() / 3600)  # Convert to hours
-
-                    avg_time_to_next = np.mean(time_diffs) if time_diffs else None
-                else:
-                    avg_time_to_next = None
-
-                funnel_metrics.append({
-                    'step_number': step_idx + 1,
-                    'step_name': step_name,
-                    'users_entered': users_reached,
-                    'conversion_rate_overall': round(conversion_overall, 2),
-                    'conversion_rate_from_previous': round(conversion_from_prev, 2),
-                    'drop_off_rate': round(drop_off, 2),
-                    'avg_time_to_next_hours': round(avg_time_to_next, 2) if avg_time_to_next is not None else None
-                })
-
-                users_at_prev_step = users_reached
-
-            result_df = pd.DataFrame(funnel_metrics)
-
-            context.log.info(f"Funnel analysis complete")
-            context.log.info(f"  Total users entering funnel: {total_users}")
-            context.log.info(f"  Users completing funnel: {users_at_prev_step} ({result_df.iloc[-1]['conversion_rate_overall']:.1f}%)")
-
-            # Log step-by-step metrics
-            for idx, row in result_df.iterrows():
-                context.log.info(
-                    f"  Step {row['step_number']} ({row['step_name']}): "
-                    f"{row['users_entered']} users ({row['conversion_rate_from_previous']:.1f}% from prev)"
-                )
-
-            # Add metadata
-            metadata = {
-                "row_count": len(result_df),
-                "total_steps": len(steps),
-                "total_users_entering": total_users,
-                "users_completing_funnel": users_at_prev_step,
-                "overall_conversion_rate": round(result_df.iloc[-1]['conversion_rate_overall'], 2) if len(result_df) > 0 else 0,
-                "conversion_window_hours": conversion_window_hours,
-                "require_sequential": require_sequential
-            }
-
-            # Identify biggest drop-off step
-            if len(result_df) > 1:
-                max_dropoff_idx = result_df['drop_off_rate'].idxmax()
-                max_dropoff_step = result_df.iloc[max_dropoff_idx]
-                metadata['biggest_dropoff_step'] = f"{max_dropoff_step['step_name']} ({max_dropoff_step['drop_off_rate']:.1f}%)"
-
-            # Return with metadata
-            if include_sample and len(result_df) > 0:
-                return Output(
-                    value=result_df,
-                    metadata={
-                        **metadata,
-                        "sample": MetadataValue.md(result_df.to_markdown(index=False)),
-                        "preview": MetadataValue.dataframe(result_df)
-                    }
-                )
-            else:
-                context.add_output_metadata(metadata)
-                return result_df
-
-        return Definitions(assets=[funnel_analysis_asset])
+        return build_defs_from_component(
+            context=context,
+            component=self,
+            asset_defs=[funnel_analysis_asset],
+        )

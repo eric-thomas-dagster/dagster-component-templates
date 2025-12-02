@@ -2,148 +2,229 @@
   "type": "dagster_component_templates.FunnelAnalysisComponent",
   "name": "Funnel Analysis",
   "category": "cdp",
-  "description": "Track conversion rates through multi-step user journeys. Analyzes drop-off rates and conversion optimization opportunities.",
+  "description": "Analyze user progression through defined funnel stages to identify conversion rates, drop-off points, and optimization opportunities.",
   "version": "1.0.0",
   "author": "Dagster Community",
+  "icon": "Filter",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",
       "required": true,
-      "description": "Event/session data with user_id, event_name, timestamp",
-      "expected_columns": [
-        {
-          "name": "user_id",
-          "type": "string",
-          "required": true,
-          "alternatives": ["customer_id", "userId", "customerId", "visitor_id", "session_id"]
-        },
-        {
-          "name": "event_name",
-          "type": "string",
-          "required": true,
-          "alternatives": ["event", "event_type", "action", "page_path"]
-        },
-        {
-          "name": "timestamp",
-          "type": "datetime",
-          "required": true,
-          "alternatives": ["event_time", "created_at", "date", "time"]
-        }
-      ],
-      "compatible_upstream": [
-        "google_analytics_4_ingestion",
-        "matomo_ingestion",
-        "product_analytics_standardizer",
-        "event_data_standardizer"
-      ]
+      "accepts_multiple": false,
+      "description": "Connect event/activity data with user actions and timestamps"
     },
     "outputs": {
       "type": "dataframe",
-      "description": "Funnel metrics with conversion rates, drop-offs, and time between steps",
-      "columns": [
-        {"name": "step_number", "type": "number"},
-        {"name": "step_name", "type": "string"},
-        {"name": "users_entered", "type": "number"},
-        {"name": "conversion_rate_overall", "type": "number"},
-        {"name": "conversion_rate_from_previous", "type": "number"},
-        {"name": "drop_off_rate", "type": "number"},
-        {"name": "avg_time_to_next_hours", "type": "number", "optional": true}
-      ]
-    },
-    "supports_partitions": false
+      "description": "Funnel metrics with conversion rates and drop-off analysis"
+    }
   },
   "attributes": {
     "asset_name": {
       "type": "string",
       "required": true,
       "label": "Asset Name",
-      "description": "Name of the funnel analysis asset",
-      "placeholder": "checkout_funnel"
+      "description": "Name of the funnel analysis output asset",
+      "placeholder": "conversion_funnel"
     },
-    "source_asset": {
+    "event_data_asset": {
       "type": "string",
       "required": false,
-      "label": "Source Asset",
-      "description": "Source asset with event/session data (set via lineage)",
-      "placeholder": "user_events"
+      "label": "Event Data Asset",
+      "description": "Event/activity data asset (automatically set via lineage)",
+      "default": ""
     },
-    "funnel_steps": {
+    "user_data_asset": {
       "type": "string",
-      "required": true,
-      "label": "Funnel Steps",
-      "description": "Comma-separated ordered funnel steps",
-      "placeholder": "Landing,Product View,Add to Cart,Checkout,Purchase"
-    },
-    "conversion_window_hours": {
-      "type": "number",
       "required": false,
-      "label": "Conversion Window Hours",
-      "description": "Maximum hours allowed between funnel steps",
-      "default": 24,
-      "min": 1,
-      "max": 720
+      "label": "User Data Asset",
+      "description": "User/customer data for segmentation (automatically set via lineage)",
+      "default": ""
     },
-    "require_sequential": {
+    "funnel_type": {
+      "type": "string",
+      "required": false,
+      "label": "Funnel Type",
+      "description": "Sequential or flexible funnel",
+      "default": "linear",
+      "enum": ["linear", "flexible"]
+    },
+    "stage_1_event": {
+      "type": "string",
+      "required": false,
+      "label": "Stage 1 Event",
+      "description": "Event name for first funnel stage",
+      "default": "page_view",
+      "placeholder": "page_view"
+    },
+    "stage_1_name": {
+      "type": "string",
+      "required": false,
+      "label": "Stage 1 Name",
+      "description": "Display name for first stage",
+      "default": "Awareness",
+      "placeholder": "Awareness"
+    },
+    "stage_2_event": {
+      "type": "string",
+      "required": false,
+      "label": "Stage 2 Event",
+      "description": "Event name for second funnel stage",
+      "default": "signup",
+      "placeholder": "signup"
+    },
+    "stage_2_name": {
+      "type": "string",
+      "required": false,
+      "label": "Stage 2 Name",
+      "description": "Display name for second stage",
+      "default": "Signup",
+      "placeholder": "Signup"
+    },
+    "stage_3_event": {
+      "type": "string",
+      "required": false,
+      "label": "Stage 3 Event",
+      "description": "Event name for third funnel stage (optional)",
+      "default": "",
+      "placeholder": "trial_started"
+    },
+    "stage_3_name": {
+      "type": "string",
+      "required": false,
+      "label": "Stage 3 Name",
+      "description": "Display name for third stage",
+      "default": "",
+      "placeholder": "Trial"
+    },
+    "stage_4_event": {
+      "type": "string",
+      "required": false,
+      "label": "Stage 4 Event",
+      "description": "Event name for fourth funnel stage (optional)",
+      "default": "",
+      "placeholder": "purchase"
+    },
+    "stage_4_name": {
+      "type": "string",
+      "required": false,
+      "label": "Stage 4 Name",
+      "description": "Display name for fourth stage",
+      "default": "",
+      "placeholder": "Purchase"
+    },
+    "stage_5_event": {
+      "type": "string",
+      "required": false,
+      "label": "Stage 5 Event",
+      "description": "Event name for fifth funnel stage (optional)",
+      "default": "",
+      "placeholder": "retained"
+    },
+    "stage_5_name": {
+      "type": "string",
+      "required": false,
+      "label": "Stage 5 Name",
+      "description": "Display name for fifth stage",
+      "default": "",
+      "placeholder": "Retained"
+    },
+    "funnel_window_days": {
+      "type": "integer",
+      "required": false,
+      "label": "Funnel Window (Days)",
+      "description": "Maximum days between first and last stage to count as conversion",
+      "default": 30,
+      "minimum": 1,
+      "maximum": 365
+    },
+    "analysis_period_days": {
+      "type": "integer",
+      "required": false,
+      "label": "Analysis Period (Days)",
+      "description": "Number of days of data to analyze",
+      "default": 90,
+      "minimum": 1,
+      "maximum": 730
+    },
+    "group_by_cohort": {
       "type": "boolean",
       "required": false,
-      "label": "Require Sequential",
-      "description": "Require steps to occur in exact order (no skipping)",
+      "label": "Group by Cohort",
+      "description": "Group results by weekly/monthly cohorts",
       "default": true
     },
-    "allow_skips": {
+    "cohort_period": {
+      "type": "string",
+      "required": false,
+      "label": "Cohort Period",
+      "description": "Time period for cohorts",
+      "default": "weekly",
+      "enum": ["daily", "weekly", "monthly"],
+      "condition": {
+        "group_by_cohort": true
+      }
+    },
+    "segment_by_source": {
       "type": "boolean",
       "required": false,
-      "label": "Allow Skips",
-      "description": "Allow users to skip intermediate steps",
+      "label": "Segment by Source",
+      "description": "Segment funnel by traffic source/campaign",
+      "default": true
+    },
+    "segment_by_attribute": {
+      "type": "string",
+      "required": false,
+      "label": "Segment by Attribute",
+      "description": "Additional attribute to segment by (e.g., plan_type, country)",
+      "default": "",
+      "placeholder": "plan_type"
+    },
+    "calculate_time_to_convert": {
+      "type": "boolean",
+      "required": false,
+      "label": "Calculate Time to Convert",
+      "description": "Calculate median time between stages",
+      "default": true
+    },
+    "identify_drop_offs": {
+      "type": "boolean",
+      "required": false,
+      "label": "Identify Drop-offs",
+      "description": "Flag high drop-off stages",
+      "default": true
+    },
+    "drop_off_threshold": {
+      "type": "number",
+      "required": false,
+      "label": "Drop-off Threshold",
+      "description": "Drop-off rate threshold to flag (e.g., 0.5 = 50% drop)",
+      "default": 0.5,
+      "minimum": 0,
+      "maximum": 1,
+      "condition": {
+        "identify_drop_offs": true
+      }
+    },
+    "include_user_level_data": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include User-Level Data",
+      "description": "Include individual user progression (large output)",
       "default": false
-    },
-    "user_id_field": {
-      "type": "string",
-      "required": false,
-      "label": "User ID Field",
-      "description": "User ID column name (auto-detected if not specified)",
-      "placeholder": "user_id"
-    },
-    "event_name_field": {
-      "type": "string",
-      "required": false,
-      "label": "Event Name Field",
-      "description": "Event name column (auto-detected if not specified)",
-      "placeholder": "event_name"
-    },
-    "timestamp_field": {
-      "type": "string",
-      "required": false,
-      "label": "Timestamp Field",
-      "description": "Timestamp column (auto-detected if not specified)",
-      "placeholder": "timestamp"
     },
     "description": {
       "type": "string",
       "required": false,
       "label": "Description",
       "description": "Asset description",
-      "placeholder": "Funnel conversion analysis"
+      "default": ""
     },
     "group_name": {
       "type": "string",
       "required": false,
       "label": "Group Name",
-      "description": "Asset group for organization",
-      "default": "product_analytics",
-      "placeholder": "product_analytics"
-    },
-    "include_sample_metadata": {
-      "type": "boolean",
-      "required": false,
-      "label": "Include Sample Metadata",
-      "description": "Include data preview in metadata",
-      "default": true
+      "description": "Asset group name",
+      "default": "analytics"
     }
-  },
-  "dependencies": {
-    "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
-  },
-  "tags": ["cdp", "funnel", "conversion", "product-analytics", "optimization"],
-  "icon": "GitBranch"
+  }
 }

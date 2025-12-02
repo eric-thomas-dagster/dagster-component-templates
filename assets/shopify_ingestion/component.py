@@ -91,22 +91,136 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
         description="Include sample data preview in metadata"
     )
 
+    # Database destination fields
     destination: Optional[str] = Field(
         default=None,
-        description="Optional dlt destination (e.g., 'snowflake', 'bigquery', 'postgres', 'redshift'). If not set, uses in-memory DuckDB and returns DataFrame."
+        description="Database destination for persisting data (leave empty for DataFrame-only mode)"
     )
 
-    destination_config: Optional[str] = Field(
-        default=None,
-        description="Optional destination configuration as connection string or JSON. Required if destination is set."
-    )
+    # Snowflake fields
+    snowflake_account: Optional[str] = Field(default=None, description="Snowflake account identifier")
+    snowflake_database: Optional[str] = Field(default=None, description="Snowflake database name")
+    snowflake_schema: Optional[str] = Field(default="public", description="Snowflake schema name")
+    snowflake_warehouse: Optional[str] = Field(default=None, description="Snowflake warehouse name")
+    snowflake_username: Optional[str] = Field(default=None, description="Snowflake username")
+    snowflake_password: Optional[str] = Field(default=None, description="Snowflake password")
+    snowflake_role: Optional[str] = Field(default=None, description="Snowflake role (optional)")
+
+    # BigQuery fields
+    bigquery_project_id: Optional[str] = Field(default=None, description="Google Cloud project ID")
+    bigquery_dataset: Optional[str] = Field(default=None, description="BigQuery dataset name")
+    bigquery_credentials_path: Optional[str] = Field(default=None, description="Path to service account JSON")
+    bigquery_location: Optional[str] = Field(default="US", description="BigQuery dataset location")
+
+    # Postgres fields
+    postgres_host: Optional[str] = Field(default="localhost", description="PostgreSQL host")
+    postgres_port: Optional[int] = Field(default=5432, description="PostgreSQL port")
+    postgres_database: Optional[str] = Field(default=None, description="PostgreSQL database name")
+    postgres_username: Optional[str] = Field(default=None, description="PostgreSQL username")
+    postgres_password: Optional[str] = Field(default=None, description="PostgreSQL password")
+    postgres_schema: Optional[str] = Field(default="public", description="PostgreSQL schema")
+
+    # Redshift fields
+    redshift_host: Optional[str] = Field(default=None, description="Redshift cluster endpoint")
+    redshift_port: Optional[int] = Field(default=5439, description="Redshift port")
+    redshift_database: Optional[str] = Field(default=None, description="Redshift database name")
+    redshift_username: Optional[str] = Field(default=None, description="Redshift username")
+    redshift_password: Optional[str] = Field(default=None, description="Redshift password")
+    redshift_schema: Optional[str] = Field(default="public", description="Redshift schema")
+
+    # DuckDB fields
+    duckdb_database_path: Optional[str] = Field(default=None, description="Path to DuckDB file")
+
+    # MotherDuck fields
+    motherduck_database: Optional[str] = Field(default=None, description="MotherDuck database name")
+    motherduck_token: Optional[str] = Field(default=None, description="MotherDuck authentication token")
+
+    # Databricks fields
+    databricks_server_hostname: Optional[str] = Field(default=None, description="Databricks workspace hostname")
+    databricks_http_path: Optional[str] = Field(default=None, description="SQL warehouse HTTP path")
+    databricks_access_token: Optional[str] = Field(default=None, description="Databricks personal access token")
+    databricks_catalog: Optional[str] = Field(default=None, description="Unity Catalog name")
+    databricks_schema: Optional[str] = Field(default="default", description="Databricks schema name")
 
     persist_and_return: bool = Field(
         default=False,
-        description="If True with destination set: persist to database AND return DataFrame. If False: only persist to database."
+        description="When destination is set: persist to database AND return DataFrame"
     )
 
-    def build_defs(self, context: ComponentLoadContext) -> Definitions:
+    def _build_destination_config(self) -> dict:
+        """Build dlt destination config from structured fields."""
+        if not self.destination:
+            return {}
+
+        if self.destination == "snowflake":
+            return {
+                "credentials": {
+                    "database": self.snowflake_database,
+                    "username": self.snowflake_username,
+                    "password": self.snowflake_password,
+                    "host": self.snowflake_account,
+                    "warehouse": self.snowflake_warehouse,
+                    "role": self.snowflake_role if self.snowflake_role else None,
+                }
+            }
+        elif self.destination == "bigquery":
+            config = {
+                "project_id": self.bigquery_project_id,
+                "dataset": self.bigquery_dataset,
+            }
+            if self.bigquery_credentials_path:
+                config["credentials"] = self.bigquery_credentials_path
+            if self.bigquery_location:
+                config["location"] = self.bigquery_location
+            return config
+        elif self.destination == "postgres":
+            return {
+                "credentials": {
+                    "database": self.postgres_database,
+                    "username": self.postgres_username,
+                    "password": self.postgres_password,
+                    "host": self.postgres_host,
+                    "port": self.postgres_port,
+                }
+            }
+        elif self.destination == "redshift":
+            return {
+                "credentials": {
+                    "database": self.redshift_database,
+                    "username": self.redshift_username,
+                    "password": self.redshift_password,
+                    "host": self.redshift_host,
+                    "port": self.redshift_port,
+                }
+            }
+        elif self.destination == "duckdb":
+            return {
+                "credentials": self.duckdb_database_path if self.duckdb_database_path else ":memory:"
+            }
+        elif self.destination == "motherduck":
+            return {
+                "credentials": {
+                    "database": self.motherduck_database,
+                    "token": self.motherduck_token,
+                }
+            }
+        elif self.destination == "databricks":
+            config = {
+                "credentials": {
+                    "server_hostname": self.databricks_server_hostname,
+                    "http_path": self.databricks_http_path,
+                    "access_token": self.databricks_access_token,
+                }
+            }
+            if self.databricks_catalog:
+                config["credentials"]["catalog"] = self.databricks_catalog
+            if self.databricks_schema:
+                config["credentials"]["schema"] = self.databricks_schema
+            return config
+        else:
+            return {}
+
+def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         shop_url = self.shop_url
         private_app_password = self.private_app_password
@@ -117,7 +231,6 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
         group_name = self.group_name
         include_sample = self.include_sample_metadata
         destination = self.destination
-        destination_config = self.destination_config
         persist_and_return = self.persist_and_return
 
         @asset(
@@ -133,17 +246,27 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
 
             # Determine destination
             use_destination = destination if destination else "duckdb"
-            if destination and not destination_config:
-                raise ValueError(f"destination_config is required when destination is set to '{destination}'")
-
+            destination_config = self._build_destination_config() if destination else {}
             context.log.info(f"Using destination: {use_destination}")
 
             # Create pipeline (in-memory DuckDB or specified destination)
-            pipeline = dlt.pipeline(
-                pipeline_name=f"{asset_name}_pipeline",
-                destination=use_destination,
-                dataset_name=asset_name if destination else f"{asset_name}_temp"
-            )
+            pipeline_kwargs = {
+                "pipeline_name": f"{asset_name}_pipeline",
+                "destination": use_destination,
+                "dataset_name": asset_name if destination else f"{asset_name}_temp"
+            }
+
+            # Add credentials if destination is configured
+            if destination_config:
+                if "credentials" in destination_config:
+                    pipeline_kwargs["credentials"] = destination_config["credentials"]
+                # For BigQuery, project_id goes at root level
+                if use_destination == "bigquery" and "project_id" in destination_config:
+                    pipeline_kwargs["project_id"] = destination_config["project_id"]
+                    if "location" in destination_config:
+                        pipeline_kwargs["location"] = destination_config["location"]
+
+            pipeline = dlt.pipeline(**pipeline_kwargs)
 
             # Create Shopify source
             source = shopify_source(

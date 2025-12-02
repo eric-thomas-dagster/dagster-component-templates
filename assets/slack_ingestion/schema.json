@@ -38,10 +38,18 @@
       "required": false,
       "label": "Resources",
       "description": "Slack resources to extract",
-      "default": ["messages", "channels", "users"],
+      "default": [
+        "messages",
+        "channels",
+        "users"
+      ],
       "items": {
         "type": "string",
-        "enum": ["messages", "channels", "users"]
+        "enum": [
+          "messages",
+          "channels",
+          "users"
+        ]
       }
     },
     "description": {
@@ -65,10 +73,376 @@
       "label": "Include Sample Metadata",
       "description": "Include data preview in metadata",
       "default": true
+    },
+    "destination": {
+      "type": "string",
+      "required": false,
+      "label": "Destination",
+      "description": "Database destination for persisting data (leave empty for DataFrame-only mode)",
+      "enum": [
+        "",
+        "snowflake",
+        "bigquery",
+        "postgres",
+        "redshift",
+        "duckdb",
+        "motherduck",
+        "databricks"
+      ],
+      "enumLabels": {
+        "": "None (DataFrame only)",
+        "snowflake": "Snowflake",
+        "bigquery": "Google BigQuery",
+        "postgres": "PostgreSQL",
+        "redshift": "Amazon Redshift",
+        "duckdb": "DuckDB (local file)",
+        "motherduck": "MotherDuck (cloud DuckDB)",
+        "databricks": "Databricks"
+      }
+    },
+    "snowflake_account": {
+      "type": "string",
+      "required": false,
+      "label": "Snowflake Account",
+      "description": "Snowflake account identifier (e.g., abc123.us-east-1)",
+      "placeholder": "myaccount.us-east-1",
+      "condition": {
+        "destination": "snowflake"
+      }
+    },
+    "snowflake_database": {
+      "type": "string",
+      "required": false,
+      "label": "Database",
+      "description": "Snowflake database name",
+      "placeholder": "analytics",
+      "condition": {
+        "destination": "snowflake"
+      }
+    },
+    "snowflake_schema": {
+      "type": "string",
+      "required": false,
+      "label": "Schema",
+      "description": "Snowflake schema name",
+      "default": "public",
+      "placeholder": "raw_data",
+      "condition": {
+        "destination": "snowflake"
+      }
+    },
+    "snowflake_warehouse": {
+      "type": "string",
+      "required": false,
+      "label": "Warehouse",
+      "description": "Snowflake warehouse name",
+      "placeholder": "transforming",
+      "condition": {
+        "destination": "snowflake"
+      }
+    },
+    "snowflake_username": {
+      "type": "string",
+      "required": false,
+      "label": "Username",
+      "description": "Snowflake username",
+      "placeholder": "${SNOWFLAKE_USERNAME}",
+      "condition": {
+        "destination": "snowflake"
+      }
+    },
+    "snowflake_password": {
+      "type": "string",
+      "required": false,
+      "label": "Password",
+      "description": "Snowflake password",
+      "placeholder": "${SNOWFLAKE_PASSWORD}",
+      "secret": true,
+      "condition": {
+        "destination": "snowflake"
+      }
+    },
+    "snowflake_role": {
+      "type": "string",
+      "required": false,
+      "label": "Role",
+      "description": "Snowflake role (optional)",
+      "placeholder": "dlt_role",
+      "condition": {
+        "destination": "snowflake"
+      }
+    },
+    "bigquery_project_id": {
+      "type": "string",
+      "required": false,
+      "label": "Project ID",
+      "description": "Google Cloud project ID",
+      "placeholder": "my-project-123",
+      "condition": {
+        "destination": "bigquery"
+      }
+    },
+    "bigquery_dataset": {
+      "type": "string",
+      "required": false,
+      "label": "Dataset",
+      "description": "BigQuery dataset name",
+      "placeholder": "raw_data",
+      "condition": {
+        "destination": "bigquery"
+      }
+    },
+    "bigquery_credentials_path": {
+      "type": "string",
+      "required": false,
+      "label": "Credentials Path",
+      "description": "Path to service account JSON file",
+      "placeholder": "/path/to/service-account.json",
+      "condition": {
+        "destination": "bigquery"
+      }
+    },
+    "bigquery_location": {
+      "type": "string",
+      "required": false,
+      "label": "Location",
+      "description": "BigQuery dataset location (optional)",
+      "default": "US",
+      "placeholder": "US",
+      "condition": {
+        "destination": "bigquery"
+      }
+    },
+    "postgres_host": {
+      "type": "string",
+      "required": false,
+      "label": "Host",
+      "description": "PostgreSQL host",
+      "placeholder": "localhost",
+      "condition": {
+        "destination": "postgres"
+      }
+    },
+    "postgres_port": {
+      "type": "number",
+      "required": false,
+      "label": "Port",
+      "description": "PostgreSQL port",
+      "default": 5432,
+      "placeholder": "5432",
+      "condition": {
+        "destination": "postgres"
+      }
+    },
+    "postgres_database": {
+      "type": "string",
+      "required": false,
+      "label": "Database",
+      "description": "PostgreSQL database name",
+      "placeholder": "analytics",
+      "condition": {
+        "destination": "postgres"
+      }
+    },
+    "postgres_username": {
+      "type": "string",
+      "required": false,
+      "label": "Username",
+      "description": "PostgreSQL username",
+      "placeholder": "${POSTGRES_USERNAME}",
+      "condition": {
+        "destination": "postgres"
+      }
+    },
+    "postgres_password": {
+      "type": "string",
+      "required": false,
+      "label": "Password",
+      "description": "PostgreSQL password",
+      "placeholder": "${POSTGRES_PASSWORD}",
+      "secret": true,
+      "condition": {
+        "destination": "postgres"
+      }
+    },
+    "postgres_schema": {
+      "type": "string",
+      "required": false,
+      "label": "Schema",
+      "description": "PostgreSQL schema (optional)",
+      "default": "public",
+      "placeholder": "public",
+      "condition": {
+        "destination": "postgres"
+      }
+    },
+    "redshift_host": {
+      "type": "string",
+      "required": false,
+      "label": "Host",
+      "description": "Redshift cluster endpoint",
+      "placeholder": "cluster.region.redshift.amazonaws.com",
+      "condition": {
+        "destination": "redshift"
+      }
+    },
+    "redshift_port": {
+      "type": "number",
+      "required": false,
+      "label": "Port",
+      "description": "Redshift port",
+      "default": 5439,
+      "placeholder": "5439",
+      "condition": {
+        "destination": "redshift"
+      }
+    },
+    "redshift_database": {
+      "type": "string",
+      "required": false,
+      "label": "Database",
+      "description": "Redshift database name",
+      "placeholder": "analytics",
+      "condition": {
+        "destination": "redshift"
+      }
+    },
+    "redshift_username": {
+      "type": "string",
+      "required": false,
+      "label": "Username",
+      "description": "Redshift username",
+      "placeholder": "${REDSHIFT_USERNAME}",
+      "condition": {
+        "destination": "redshift"
+      }
+    },
+    "redshift_password": {
+      "type": "string",
+      "required": false,
+      "label": "Password",
+      "description": "Redshift password",
+      "placeholder": "${REDSHIFT_PASSWORD}",
+      "secret": true,
+      "condition": {
+        "destination": "redshift"
+      }
+    },
+    "redshift_schema": {
+      "type": "string",
+      "required": false,
+      "label": "Schema",
+      "description": "Redshift schema (optional)",
+      "default": "public",
+      "placeholder": "public",
+      "condition": {
+        "destination": "redshift"
+      }
+    },
+    "duckdb_database_path": {
+      "type": "string",
+      "required": false,
+      "label": "Database Path",
+      "description": "Path to DuckDB file (use ':memory:' for in-memory)",
+      "placeholder": "/path/to/analytics.duckdb",
+      "condition": {
+        "destination": "duckdb"
+      }
+    },
+    "motherduck_database": {
+      "type": "string",
+      "required": false,
+      "label": "Database",
+      "description": "MotherDuck database name",
+      "placeholder": "my_database",
+      "condition": {
+        "destination": "motherduck"
+      }
+    },
+    "motherduck_token": {
+      "type": "string",
+      "required": false,
+      "label": "Token",
+      "description": "MotherDuck authentication token",
+      "placeholder": "${MOTHERDUCK_TOKEN}",
+      "secret": true,
+      "condition": {
+        "destination": "motherduck"
+      }
+    },
+    "databricks_server_hostname": {
+      "type": "string",
+      "required": false,
+      "label": "Server Hostname",
+      "description": "Databricks workspace hostname",
+      "placeholder": "dbc-a1b2c3d4-e5f6.cloud.databricks.com",
+      "condition": {
+        "destination": "databricks"
+      }
+    },
+    "databricks_http_path": {
+      "type": "string",
+      "required": false,
+      "label": "HTTP Path",
+      "description": "SQL warehouse HTTP path",
+      "placeholder": "/sql/1.0/warehouses/abc123",
+      "condition": {
+        "destination": "databricks"
+      }
+    },
+    "databricks_access_token": {
+      "type": "string",
+      "required": false,
+      "label": "Access Token",
+      "description": "Databricks personal access token",
+      "placeholder": "${DATABRICKS_TOKEN}",
+      "secret": true,
+      "condition": {
+        "destination": "databricks"
+      }
+    },
+    "databricks_catalog": {
+      "type": "string",
+      "required": false,
+      "label": "Catalog",
+      "description": "Unity Catalog name (optional)",
+      "placeholder": "main",
+      "condition": {
+        "destination": "databricks"
+      }
+    },
+    "databricks_schema": {
+      "type": "string",
+      "required": false,
+      "label": "Schema",
+      "description": "Databricks schema name",
+      "default": "default",
+      "placeholder": "raw_data",
+      "condition": {
+        "destination": "databricks"
+      }
+    },
+    "persist_and_return": {
+      "type": "boolean",
+      "required": false,
+      "label": "Persist and Return DataFrame",
+      "description": "When destination is set: persist to database AND return DataFrame (vs. persist only)",
+      "default": false
     }
   },
   "dependencies": {
-    "pip": ["dlt[slack]>=0.4.0", "pandas>=1.5.0"]
+    "pip": [
+      "dlt[slack]>=0.4.0",
+      "pandas>=1.5.0"
+    ]
   },
-  "tags": ["cdp", "collaboration", "slack", "messages", "team-chat", "dlt", "ingestion"]
+  "tags": [
+    "cdp",
+    "collaboration",
+    "slack",
+    "messages",
+    "team-chat",
+    "dlt",
+    "ingestion"
+  ]
 }

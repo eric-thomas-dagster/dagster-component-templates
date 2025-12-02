@@ -107,7 +107,80 @@ class HubSpotIngestionComponent(Component, Model, Resolvable):
         description="If True with destination set: persist to database AND return DataFrame. If False: only persist to database."
     )
 
-    def build_defs(self, context: ComponentLoadContext) -> Definitions:
+    def _build_destination_config(self) -> dict:
+        """Build dlt destination config from structured fields."""
+        if not self.destination:
+            return {}
+
+        if self.destination == "snowflake":
+            return {
+                "credentials": {
+                    "database": self.snowflake_database,
+                    "username": self.snowflake_username,
+                    "password": self.snowflake_password,
+                    "host": self.snowflake_account,
+                    "warehouse": self.snowflake_warehouse,
+                    "role": self.snowflake_role if self.snowflake_role else None,
+                }
+            }
+        elif self.destination == "bigquery":
+            config = {
+                "project_id": self.bigquery_project_id,
+                "dataset": self.bigquery_dataset,
+            }
+            if self.bigquery_credentials_path:
+                config["credentials"] = self.bigquery_credentials_path
+            if self.bigquery_location:
+                config["location"] = self.bigquery_location
+            return config
+        elif self.destination == "postgres":
+            return {
+                "credentials": {
+                    "database": self.postgres_database,
+                    "username": self.postgres_username,
+                    "password": self.postgres_password,
+                    "host": self.postgres_host,
+                    "port": self.postgres_port,
+                }
+            }
+        elif self.destination == "redshift":
+            return {
+                "credentials": {
+                    "database": self.redshift_database,
+                    "username": self.redshift_username,
+                    "password": self.redshift_password,
+                    "host": self.redshift_host,
+                    "port": self.redshift_port,
+                }
+            }
+        elif self.destination == "duckdb":
+            return {
+                "credentials": self.duckdb_database_path if self.duckdb_database_path else ":memory:"
+            }
+        elif self.destination == "motherduck":
+            return {
+                "credentials": {
+                    "database": self.motherduck_database,
+                    "token": self.motherduck_token,
+                }
+            }
+        elif self.destination == "databricks":
+            config = {
+                "credentials": {
+                    "server_hostname": self.databricks_server_hostname,
+                    "http_path": self.databricks_http_path,
+                    "access_token": self.databricks_access_token,
+                }
+            }
+            if self.databricks_catalog:
+                config["credentials"]["catalog"] = self.databricks_catalog
+            if self.databricks_schema:
+                config["credentials"]["schema"] = self.databricks_schema
+            return config
+        else:
+            return {}
+
+def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         api_key = self.api_key
         resources_list = self.resources
@@ -117,7 +190,6 @@ class HubSpotIngestionComponent(Component, Model, Resolvable):
         group_name = self.group_name
         include_sample = self.include_sample_metadata
         destination = self.destination
-        destination_config = self.destination_config
         persist_and_return = self.persist_and_return
 
         @asset(
@@ -131,18 +203,47 @@ class HubSpotIngestionComponent(Component, Model, Resolvable):
 
             context.log.info(f"Starting HubSpot ingestion for resources: {resources_list}")
             # Determine destination
+
             use_destination = destination if destination else "duckdb"
-            if destination and not destination_config:
-                raise ValueError(f"destination_config is required when destination is set to '{destination}'")
+
+            destination_config = self._build_destination_config() if destination else {}
 
             context.log.info(f"Using destination: {use_destination}")
 
+
             # Create pipeline (in-memory DuckDB or specified destination)
-            pipeline = dlt.pipeline(
-                pipeline_name=f"{asset_name}_pipeline",
-                destination=use_destination,
-                dataset_name=asset_name if destination else f"{asset_name}_temp"
-            )
+
+            pipeline_kwargs = {
+
+                "pipeline_name": f"{asset_name}_pipeline",
+
+                "destination": use_destination,
+
+                "dataset_name": asset_name if destination else f"{asset_name}_temp"
+
+            }
+
+
+            # Add credentials if destination is configured
+
+            if destination_config:
+
+                if "credentials" in destination_config:
+
+                    pipeline_kwargs["credentials"] = destination_config["credentials"]
+
+                # For BigQuery, project_id goes at root level
+
+                if use_destination == "bigquery" and "project_id" in destination_config:
+
+                    pipeline_kwargs["project_id"] = destination_config["project_id"]
+
+                    if "location" in destination_config:
+
+                        pipeline_kwargs["location"] = destination_config["location"]
+
+
+            pipeline = dlt.pipeline(**pipeline_kwargs)
 
             # Create HubSpot source
             source = hubspot(

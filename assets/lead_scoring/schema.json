@@ -1,0 +1,247 @@
+{
+  "type": "dagster_component_templates.LeadScoringComponent",
+  "name": "Lead Scoring",
+  "category": "cdp",
+  "description": "Score and qualify leads based on firmographic fit and behavioral intent to prioritize sales efforts and optimize marketing-to-sales handoff.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Target",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "accepts_multiple": true,
+      "description": "Connect lead data, behavioral data, or company data"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Lead scores with MQL/SQL qualification and temperature classification"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the lead scoring output asset",
+      "placeholder": "lead_scores"
+    },
+    "lead_data_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Lead Data Asset",
+      "description": "Lead/contact data from CRM (automatically set via lineage)",
+      "default": ""
+    },
+    "behavioral_data_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Behavioral Data Asset",
+      "description": "Behavioral/activity data (automatically set via lineage)",
+      "default": ""
+    },
+    "company_data_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Company Data Asset",
+      "description": "Company/firmographic data (automatically set via lineage)",
+      "default": ""
+    },
+    "scoring_model": {
+      "type": "string",
+      "required": false,
+      "label": "Scoring Model",
+      "description": "Which scoring model to use",
+      "default": "combined",
+      "enum": ["fit_only", "intent_only", "combined"]
+    },
+    "fit_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Fit Weight",
+      "description": "Weight for fit score in combined model (0-1)",
+      "default": 0.4,
+      "minimum": 0,
+      "maximum": 1,
+      "condition": {
+        "scoring_model": "combined"
+      }
+    },
+    "intent_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Intent Weight",
+      "description": "Weight for intent score in combined model (0-1)",
+      "default": 0.6,
+      "minimum": 0,
+      "maximum": 1,
+      "condition": {
+        "scoring_model": "combined"
+      }
+    },
+    "company_size_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Company Size Weight",
+      "description": "Weight for company size in fit score",
+      "default": 0.25,
+      "minimum": 0,
+      "maximum": 1
+    },
+    "industry_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Industry Weight",
+      "description": "Weight for industry match in fit score",
+      "default": 0.25,
+      "minimum": 0,
+      "maximum": 1
+    },
+    "job_title_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Job Title Weight",
+      "description": "Weight for job title relevance in fit score",
+      "default": 0.25,
+      "minimum": 0,
+      "maximum": 1
+    },
+    "geography_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Geography Weight",
+      "description": "Weight for geography match in fit score",
+      "default": 0.15,
+      "minimum": 0,
+      "maximum": 1
+    },
+    "budget_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Budget Weight",
+      "description": "Weight for budget indicators in fit score",
+      "default": 0.1,
+      "minimum": 0,
+      "maximum": 1
+    },
+    "email_engagement_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Email Engagement Weight",
+      "description": "Weight for email engagement in intent score",
+      "default": 0.25,
+      "minimum": 0,
+      "maximum": 1
+    },
+    "website_activity_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Website Activity Weight",
+      "description": "Weight for website visits in intent score",
+      "default": 0.3,
+      "minimum": 0,
+      "maximum": 1
+    },
+    "content_consumption_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Content Consumption Weight",
+      "description": "Weight for content downloads in intent score",
+      "default": 0.2,
+      "minimum": 0,
+      "maximum": 1
+    },
+    "product_interest_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Product Interest Weight",
+      "description": "Weight for product page views in intent score",
+      "default": 0.25,
+      "minimum": 0,
+      "maximum": 1
+    },
+    "mql_threshold": {
+      "type": "number",
+      "required": false,
+      "label": "MQL Threshold",
+      "description": "Score threshold for Marketing Qualified Lead",
+      "default": 50,
+      "minimum": 0,
+      "maximum": 100
+    },
+    "sql_threshold": {
+      "type": "number",
+      "required": false,
+      "label": "SQL Threshold",
+      "description": "Score threshold for Sales Qualified Lead",
+      "default": 70,
+      "minimum": 0,
+      "maximum": 100
+    },
+    "hot_lead_threshold": {
+      "type": "number",
+      "required": false,
+      "label": "Hot Lead Threshold",
+      "description": "Score threshold for hot lead classification",
+      "default": 75,
+      "minimum": 0,
+      "maximum": 100
+    },
+    "warm_lead_threshold": {
+      "type": "number",
+      "required": false,
+      "label": "Warm Lead Threshold",
+      "description": "Score threshold for warm lead classification",
+      "default": 50,
+      "minimum": 0,
+      "maximum": 100
+    },
+    "include_score_breakdown": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Score Breakdown",
+      "description": "Include fit and intent score breakdown in output",
+      "default": true
+    },
+    "calculate_lead_grade": {
+      "type": "boolean",
+      "required": false,
+      "label": "Calculate Lead Grade",
+      "description": "Calculate letter grade (A-F) in addition to score",
+      "default": true
+    },
+    "apply_time_decay": {
+      "type": "boolean",
+      "required": false,
+      "label": "Apply Time Decay",
+      "description": "Apply time decay to behavioral signals",
+      "default": true
+    },
+    "time_decay_days": {
+      "type": "integer",
+      "required": false,
+      "label": "Time Decay Days",
+      "description": "Number of days for behavioral signals to decay to 50%",
+      "default": 30,
+      "minimum": 1,
+      "maximum": 365,
+      "condition": {
+        "apply_time_decay": true
+      }
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "default": ""
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group name",
+      "default": "analytics"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+type: dagster_component_templates.MatomoIngestionComponent
+attributes:
+  asset_name: matomo_analytics_data
+
+  # Authentication
+  api_url: "https://analytics.example.com"
+  api_token: "{{ env('MATOMO_API_TOKEN') }}"
+
+  # Site configuration
+  site_id: "1"
+
+  # Reports to extract
+  reports:
+    - "VisitsSummary"
+    - "Actions"
+
+  # Organization
+  description: "Matomo web analytics reports"
+  group_name: "matomo"
+  include_sample_metadata: true

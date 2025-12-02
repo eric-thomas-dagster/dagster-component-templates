@@ -1,0 +1,172 @@
+{
+  "type": "dagster_component_templates.EventDataStandardizerComponent",
+  "name": "Event Data Standardizer",
+  "category": "cdp",
+  "description": "Standardize event tracking data across platforms (Segment, Rudderstack, Snowplow, Custom) into a unified schema.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Zap",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Raw event tracking data from platform ingestion components",
+      "expected_columns": [
+        {
+          "name": "event",
+          "type": "string",
+          "required": true,
+          "alternatives": ["event_name", "event_type", "type"],
+          "description": "Event name or type"
+        },
+        {
+          "name": "timestamp",
+          "type": "datetime",
+          "required": true,
+          "alternatives": ["sent_at", "received_at", "event_time"],
+          "description": "Event timestamp"
+        },
+        {
+          "name": "user_id",
+          "type": "string",
+          "required": false,
+          "alternatives": ["userId", "customer_id", "anonymous_id"],
+          "description": "User identifier"
+        }
+      ],
+      "compatible_upstream": [
+        "google_analytics_4_ingestion",
+        "matomo_ingestion"
+      ]
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Standardized event data with unified schema",
+      "columns": [
+        {"name": "platform", "type": "string"},
+        {"name": "event_id", "type": "string"},
+        {"name": "event_name", "type": "string"},
+        {"name": "event_type", "type": "string"},
+        {"name": "user_id", "type": "string"},
+        {"name": "anonymous_id", "type": "string"},
+        {"name": "session_id", "type": "string"},
+        {"name": "timestamp", "type": "datetime"},
+        {"name": "page_url", "type": "string"},
+        {"name": "referrer", "type": "string"},
+        {"name": "device_type", "type": "string"},
+        {"name": "browser", "type": "string"},
+        {"name": "os", "type": "string"},
+        {"name": "country", "type": "string"},
+        {"name": "city", "type": "string"}
+      ]
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of standardized output asset",
+      "placeholder": "standardized_events"
+    },
+    "platform": {
+      "type": "string",
+      "required": true,
+      "label": "Source Platform",
+      "description": "Event tracking platform to standardize",
+      "enum": ["segment", "rudderstack", "custom", "snowplow"]
+    },
+    "source_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Source Asset",
+      "description": "Upstream asset with raw data (set automatically via lineage)",
+      "placeholder": "segment_events"
+    },
+    "event_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Event ID Field",
+      "description": "Custom field name for event ID (auto-detected if empty)",
+      "placeholder": "messageId"
+    },
+    "event_name_field": {
+      "type": "string",
+      "required": false,
+      "label": "Event Name Field",
+      "description": "Custom field name for event name (auto-detected if empty)",
+      "placeholder": "event"
+    },
+    "user_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "User ID Field",
+      "description": "Custom field name for user ID (auto-detected if empty)",
+      "placeholder": "userId"
+    },
+    "timestamp_field": {
+      "type": "string",
+      "required": false,
+      "label": "Timestamp Field",
+      "description": "Custom field name for timestamp (auto-detected if empty)",
+      "placeholder": "timestamp"
+    },
+    "filter_event_name": {
+      "type": "string",
+      "required": false,
+      "label": "Event Name Filter",
+      "description": "Filter by event name (comma-separated)",
+      "placeholder": "page_view,purchase,signup"
+    },
+    "filter_event_type": {
+      "type": "string",
+      "required": false,
+      "label": "Event Type Filter",
+      "description": "Filter by event type (comma-separated)",
+      "placeholder": "track,page"
+    },
+    "filter_date_from": {
+      "type": "string",
+      "required": false,
+      "label": "Filter Date From",
+      "description": "Start date filter (YYYY-MM-DD)",
+      "placeholder": "2024-01-01"
+    },
+    "filter_date_to": {
+      "type": "string",
+      "required": false,
+      "label": "Filter Date To",
+      "description": "End date filter (YYYY-MM-DD)",
+      "placeholder": "2024-12-31"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Standardized event tracking data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "events",
+      "placeholder": "events"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0"
+    ]
+  },
+  "tags": ["cdp", "events", "standardization", "tracking", "segment", "analytics"]
+}

@@ -1,0 +1,31 @@
+type: dagster_component_templates.GoogleAdsIngestionComponent
+attributes:
+  asset_name: google_ads_data
+
+  # Google Ads Customer Configuration
+  customer_id: "123-456-7890"
+
+  # OAuth Authentication
+  developer_token: "${GOOGLE_ADS_DEV_TOKEN}"
+  client_id: "${GOOGLE_ADS_CLIENT_ID}"
+  client_secret: "${GOOGLE_ADS_CLIENT_SECRET}"
+  refresh_token: "${GOOGLE_ADS_REFRESH_TOKEN}"
+  project_id: "${GOOGLE_CLOUD_PROJECT_ID}"
+
+  # Service Account Authentication (alternative to OAuth)
+  # use_service_account: true
+  # service_account_email: "service@project.iam.gserviceaccount.com"
+  # private_key: "${GOOGLE_ADS_PRIVATE_KEY}"
+  # impersonated_email: "admin@example.com"
+
+  # Resources to extract
+  resources: "customers,campaigns"
+
+  # Date range for performance metrics (optional)
+  # start_date: "2024-01-01"
+  # end_date: "2024-12-31"
+
+  # Organization
+  description: "Google Ads campaign and performance data"
+  group_name: "google_ads"
+  include_sample_metadata: true

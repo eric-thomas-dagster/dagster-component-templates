@@ -1,0 +1,72 @@
+{
+  "type": "dagster_component_templates.NotionIngestionComponent",
+  "name": "Notion Ingestion",
+  "category": "cdp",
+  "description": "Ingest Notion workspace databases using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "FileText",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Notion data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "notion_workspace_data"
+    },
+    "api_key": {
+      "type": "string",
+      "required": true,
+      "label": "API Key",
+      "description": "Notion Integration Token for API authentication",
+      "placeholder": "{{ env('NOTION_API_KEY') }}",
+      "secret": true
+    },
+    "database_ids": {
+      "type": "array",
+      "required": true,
+      "label": "Database IDs",
+      "description": "List of Notion database IDs to extract data from",
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Notion workspace databases"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "notion",
+      "placeholder": "notion"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["dlt[notion]>=0.4.0", "pandas>=1.5.0"]
+  },
+  "tags": ["cdp", "notion", "workspace", "databases", "documentation", "dlt", "ingestion"]
+}

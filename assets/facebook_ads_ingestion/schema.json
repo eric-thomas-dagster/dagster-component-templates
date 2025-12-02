@@ -1,0 +1,135 @@
+{
+  "type": "dagster_component_templates.FacebookAdsIngestionComponent",
+  "name": "Facebook Ads Ingestion",
+  "category": "cdp",
+  "description": "Ingest Facebook Ads data (campaigns, ads, insights) using dlt. Mimics Supermetrics and Funnel.io.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Facebook Ads data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "facebook_ads_data"
+    },
+    "account_id": {
+      "type": "string",
+      "required": true,
+      "label": "Facebook Ads Account ID",
+      "description": "Account ID from Facebook Ads Manager (format: act_123456789)",
+      "placeholder": "act_123456789"
+    },
+    "access_token": {
+      "type": "string",
+      "required": true,
+      "label": "Access Token",
+      "description": "Facebook Access Token with ads_read permission. Use ${FACEBOOK_ACCESS_TOKEN} for environment variables.",
+      "placeholder": "${FACEBOOK_ACCESS_TOKEN}",
+      "secret": true
+    },
+    "app_id": {
+      "type": "string",
+      "required": false,
+      "label": "App ID",
+      "description": "Facebook App ID (optional, for long-lived tokens)",
+      "placeholder": "${FACEBOOK_APP_ID}"
+    },
+    "app_secret": {
+      "type": "string",
+      "required": false,
+      "label": "App Secret",
+      "description": "Facebook App Secret (optional)",
+      "placeholder": "${FACEBOOK_APP_SECRET}",
+      "secret": true
+    },
+    "resources": {
+      "type": "string",
+      "required": false,
+      "label": "Resources to Extract",
+      "description": "Comma-separated list: campaigns, ad_sets, ads, creatives, ad_leads, insights",
+      "default": "campaigns,ads,insights",
+      "placeholder": "campaigns,ads,insights"
+    },
+    "initial_load_past_days": {
+      "type": "number",
+      "required": false,
+      "label": "Initial Load Past Days",
+      "description": "Days of historical data to load",
+      "default": 30,
+      "min": 1,
+      "max": 730
+    },
+    "ad_states": {
+      "type": "string",
+      "required": false,
+      "label": "Ad States Filter",
+      "description": "Comma-separated ad states: ACTIVE, PAUSED, DELETED, ARCHIVED",
+      "default": "ACTIVE,PAUSED",
+      "placeholder": "ACTIVE,PAUSED"
+    },
+    "insights_fields": {
+      "type": "string",
+      "required": false,
+      "label": "Insights Fields",
+      "description": "Comma-separated insights fields (leave empty for defaults)",
+      "placeholder": "impressions,clicks,spend,reach,cpm,ctr"
+    },
+    "insights_breakdown": {
+      "type": "string",
+      "required": false,
+      "label": "Insights Breakdown",
+      "description": "Breakdown dimension: age, gender, country, region, platform",
+      "placeholder": "age"
+    },
+    "time_increment_days": {
+      "type": "number",
+      "required": false,
+      "label": "Time Increment (Days)",
+      "description": "Time increment for insights: 1=daily, 7=weekly",
+      "default": 1,
+      "min": 1,
+      "max": 90
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Facebook Ads data ingestion"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "facebook_ads",
+      "placeholder": "facebook_ads"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dlt[facebook_ads]>=0.4.0",
+      "pandas>=1.5.0"
+    ]
+  },
+  "tags": ["cdp", "marketing", "facebook", "ads", "advertising", "dlt", "ingestion"]
+}

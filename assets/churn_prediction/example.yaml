@@ -1,0 +1,23 @@
+type: dagster_component_templates.ChurnPredictionComponent
+attributes:
+  asset_name: customer_churn_risk
+
+  # Source data (set via lineage in Dagster Designer)
+  source_asset: customer_metrics
+
+  # Churn Prediction Configuration
+  inactivity_threshold_days: 90  # Consider 90+ days inactive as high risk
+  lookback_days: 365  # Compare recent activity to last year
+  include_risk_factors: true  # Include detailed risk factor analysis
+
+  # Optional: Specify column names if auto-detection fails
+  # customer_id_field: customer_id
+  # last_activity_field: last_activity_date
+  # total_orders_field: total_orders
+  # total_revenue_field: total_revenue
+  # lifetime_days_field: lifetime_days
+
+  # Organization
+  description: "Customer churn risk prediction with actionable recommendations"
+  group_name: customer_analytics
+  include_sample_metadata: true

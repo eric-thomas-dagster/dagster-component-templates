@@ -1,0 +1,14 @@
+type: dagster_component_templates.SlackIngestionComponent
+attributes:
+  asset_name: slack_data
+
+  # Slack Configuration
+  api_token: "${SLACK_API_TOKEN}"
+
+  # Resources to extract
+  resources: ["messages", "channels", "users"]
+
+  # Organization
+  description: "Slack messages, channels, and user data"
+  group_name: "slack"
+  include_sample_metadata: true

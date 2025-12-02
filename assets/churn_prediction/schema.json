@@ -1,0 +1,168 @@
+{
+  "type": "dagster_component_templates.ChurnPredictionComponent",
+  "name": "Churn Prediction",
+  "category": "cdp",
+  "description": "Predict customer churn risk using heuristic scoring. Identifies customers at risk of churning with actionable recommendations.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Customer metrics with customer_id, last_activity_date, total_orders, total_revenue, lifetime_days",
+      "expected_columns": [
+        {
+          "name": "customer_id",
+          "type": "string",
+          "required": true,
+          "alternatives": ["user_id", "customerId", "userId", "id"]
+        },
+        {
+          "name": "last_activity_date",
+          "type": "datetime",
+          "required": true,
+          "alternatives": ["last_order_date", "last_purchase_date", "last_seen"]
+        },
+        {
+          "name": "total_orders",
+          "type": "number",
+          "required": true,
+          "alternatives": ["order_count", "num_orders", "orders"]
+        },
+        {
+          "name": "total_revenue",
+          "type": "number",
+          "required": true,
+          "alternatives": ["lifetime_value", "ltv", "total_spend", "revenue"]
+        },
+        {
+          "name": "lifetime_days",
+          "type": "number",
+          "required": true,
+          "alternatives": ["customer_age_days", "days_since_first_order", "tenure_days"]
+        }
+      ],
+      "compatible_upstream": [
+        "customer_360",
+        "rfm_segmentation"
+      ]
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Customer churn risk scores with risk levels and recommendations",
+      "columns": [
+        {"name": "customer_id", "type": "string"},
+        {"name": "days_inactive", "type": "number"},
+        {"name": "activity_trend", "type": "string"},
+        {"name": "churn_risk_score", "type": "number"},
+        {"name": "churn_risk_level", "type": "string"},
+        {"name": "recommended_action", "type": "string"},
+        {"name": "risk_factors", "type": "string", "optional": true}
+      ]
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the churn prediction asset",
+      "placeholder": "customer_churn_risk"
+    },
+    "source_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Source Asset",
+      "description": "Source asset with customer metrics (set via lineage)",
+      "placeholder": "customer_metrics"
+    },
+    "inactivity_threshold_days": {
+      "type": "number",
+      "required": false,
+      "label": "Inactivity Threshold Days",
+      "description": "Days of inactivity to consider high risk",
+      "default": 90,
+      "min": 1,
+      "max": 365
+    },
+    "lookback_days": {
+      "type": "number",
+      "required": false,
+      "label": "Lookback Days",
+      "description": "Days to look back for historical comparison",
+      "default": 365,
+      "min": 30,
+      "max": 3650
+    },
+    "include_risk_factors": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Risk Factors",
+      "description": "Include detailed risk factors in output",
+      "default": true
+    },
+    "customer_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Customer ID Field",
+      "description": "Customer ID column name (auto-detected if not specified)",
+      "placeholder": "customer_id"
+    },
+    "last_activity_field": {
+      "type": "string",
+      "required": false,
+      "label": "Last Activity Field",
+      "description": "Last activity date column (auto-detected if not specified)",
+      "placeholder": "last_activity_date"
+    },
+    "total_orders_field": {
+      "type": "string",
+      "required": false,
+      "label": "Total Orders Field",
+      "description": "Total orders column (auto-detected if not specified)",
+      "placeholder": "total_orders"
+    },
+    "total_revenue_field": {
+      "type": "string",
+      "required": false,
+      "label": "Total Revenue Field",
+      "description": "Total revenue column (auto-detected if not specified)",
+      "placeholder": "total_revenue"
+    },
+    "lifetime_days_field": {
+      "type": "string",
+      "required": false,
+      "label": "Lifetime Days Field",
+      "description": "Customer lifetime days column (auto-detected if not specified)",
+      "placeholder": "lifetime_days"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Customer churn risk prediction"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "customer_analytics",
+      "placeholder": "customer_analytics"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+  },
+  "tags": ["cdp", "churn", "prediction", "retention", "risk", "customer-analytics"],
+  "icon": "AlertTriangle"
+}

@@ -1,0 +1,87 @@
+{
+  "type": "dagster_component_templates.HubSpotIngestionComponent",
+  "name": "HubSpot Ingestion",
+  "category": "cdp",
+  "description": "Ingest HubSpot CRM and marketing data (contacts, companies, deals, tickets) using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "HubSpot data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "hubspot_crm_data"
+    },
+    "api_key": {
+      "type": "string",
+      "required": true,
+      "label": "API Key",
+      "description": "HubSpot Private App API key or access token",
+      "placeholder": "{{ env('HUBSPOT_API_KEY') }}",
+      "secret": true
+    },
+    "resources": {
+      "type": "array",
+      "required": false,
+      "label": "Resources",
+      "description": "HubSpot resources to extract",
+      "default": ["contacts", "companies", "deals", "tickets"],
+      "items": {
+        "type": "string",
+        "enum": ["contacts", "companies", "deals", "tickets", "products", "quotes", "hubspot_events_for_objects"]
+      }
+    },
+    "include_history": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include History",
+      "description": "Include property change history for CRM objects",
+      "default": false
+    },
+    "include_custom_props": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Custom Properties",
+      "description": "Extract custom CRM object properties",
+      "default": true
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "HubSpot CRM data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "hubspot",
+      "placeholder": "hubspot"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["dlt[hubspot]>=0.4.0", "pandas>=1.5.0"]
+  },
+  "tags": ["cdp", "crm", "hubspot", "marketing", "sales", "dlt", "ingestion"]
+}

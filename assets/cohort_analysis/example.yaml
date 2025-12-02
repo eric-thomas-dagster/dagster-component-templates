@@ -1,0 +1,22 @@
+type: dagster_component_templates.CohortAnalysisComponent
+attributes:
+  asset_name: customer_cohort_retention
+
+  # Source data (set via lineage in Dagster Designer)
+  source_asset: customer_activity
+
+  # Cohort Configuration
+  cohort_period: monthly  # daily, weekly, or monthly
+  retention_periods: 12  # Track 12 periods after acquisition
+  include_revenue: true  # Include average revenue per user
+
+  # Optional: Specify column names if auto-detection fails
+  # customer_id_field: customer_id
+  # first_date_field: first_order_date
+  # activity_date_field: activity_date
+  # revenue_field: revenue
+
+  # Organization
+  description: "Monthly cohort retention analysis with revenue tracking"
+  group_name: customer_analytics
+  include_sample_metadata: true

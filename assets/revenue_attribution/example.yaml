@@ -1,0 +1,18 @@
+type: dagster_component_templates.RevenueAttributionComponent
+attributes:
+  asset_name: revenue_attribution
+
+  # Data sources (set via visual lineage)
+  marketing_data_asset: "standardized_marketing_data"
+  revenue_data_asset: "stripe_data"
+  customer_360_asset: "customer_360"  # optional
+
+  # Attribution configuration
+  attribution_model: "last_touch"  # first_touch, last_touch, linear, time_decay
+  attribution_window_days: 30
+  join_key: "email"
+
+  # Organization
+  description: "Revenue attribution by marketing campaign"
+  group_name: "marketing_analytics"
+  include_sample_metadata: true

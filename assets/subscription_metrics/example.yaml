@@ -1,0 +1,17 @@
+type: dagster_component_templates.SubscriptionMetricsComponent
+attributes:
+  asset_name: subscription_metrics
+
+  # Data sources (set via visual lineage)
+  stripe_data_asset: "stripe_data"
+  revenue_data_asset: null  # optional
+
+  # Calculation configuration
+  calculation_period: "monthly"  # daily, weekly, monthly
+  ltv_method: "historical"  # historical, predictive
+  lookback_months: 12
+
+  # Organization
+  description: "Subscription and revenue metrics (MRR, ARR, churn, LTV)"
+  group_name: "subscription_analytics"
+  include_sample_metadata: true

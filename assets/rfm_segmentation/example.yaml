@@ -1,0 +1,21 @@
+type: dagster_component_templates.RFMSegmentationComponent
+attributes:
+  asset_name: customer_rfm_segments
+
+  # Source data (set via lineage in Dagster Designer)
+  source_asset: ecommerce_transactions
+
+  # RFM Configuration
+  scoring_method: quintile  # quintile (1-5) or quartile (1-4)
+  lookback_days: 365  # Analyze last year of transactions
+
+  # Optional: Specify column names if auto-detection fails
+  # customer_id_field: customer_id
+  # order_date_field: order_date
+  # order_id_field: order_id
+  # revenue_field: revenue
+
+  # Organization
+  description: "RFM customer segmentation - Champions, Loyal, At Risk, Lost"
+  group_name: customer_analytics
+  include_sample_metadata: true

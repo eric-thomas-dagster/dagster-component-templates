@@ -1,0 +1,14 @@
+type: dagster_component_templates.PipedriveIngestionComponent
+attributes:
+  asset_name: pipedrive_crm_data
+
+  # Pipedrive Configuration
+  api_token: "${PIPEDRIVE_API_TOKEN}"
+
+  # Resources to extract
+  resources: ["deals", "persons", "organizations", "activities"]
+
+  # Organization
+  description: "Pipedrive CRM and sales pipeline data"
+  group_name: "pipedrive"
+  include_sample_metadata: true

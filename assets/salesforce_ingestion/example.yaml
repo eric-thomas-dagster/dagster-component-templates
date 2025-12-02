@@ -1,0 +1,22 @@
+type: dagster_component_templates.SalesforceIngestionComponent
+attributes:
+  asset_name: salesforce_crm_data
+
+  # Authentication
+  username: "{{ env('SALESFORCE_USERNAME') }}"
+  password: "{{ env('SALESFORCE_PASSWORD') }}"
+  security_token: "{{ env('SALESFORCE_SECURITY_TOKEN') }}"
+
+  # Objects to extract
+  sf_objects:
+    - Account
+    - Opportunity
+    - Contact
+    - Lead
+    - Campaign
+    - Task
+
+  # Organization
+  description: "Salesforce CRM data"
+  group_name: "salesforce"
+  include_sample_metadata: true

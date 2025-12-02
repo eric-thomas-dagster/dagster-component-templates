@@ -1,0 +1,163 @@
+{
+  "type": "dagster_component_templates.CRMDataStandardizerComponent",
+  "name": "CRM Data Standardizer",
+  "category": "cdp",
+  "description": "Standardize CRM data across platforms (HubSpot, Salesforce, Pipedrive) into a unified schema.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Users",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Raw CRM data from platform ingestion components",
+      "expected_columns": [
+        {
+          "name": "_resource_type",
+          "type": "string",
+          "required": true,
+          "alternatives": ["resource_type", "object_type"],
+          "description": "CRM resource type (contacts, companies, deals, activities)"
+        },
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "alternatives": ["contact_id", "company_id", "deal_id"],
+          "description": "Record identifier"
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "required": false,
+          "alternatives": ["contact_email", "email_address"],
+          "description": "Contact email"
+        },
+        {
+          "name": "created_at",
+          "type": "datetime",
+          "required": false,
+          "alternatives": ["createdate", "created_date"],
+          "description": "Record creation date"
+        }
+      ],
+      "compatible_upstream": [
+        "hubspot_ingestion",
+        "salesforce_ingestion",
+        "pipedrive_ingestion"
+      ]
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Standardized CRM data with unified schema",
+      "columns": [
+        {"name": "resource_type", "type": "string"},
+        {"name": "platform", "type": "string"},
+        {"name": "id", "type": "string"},
+        {"name": "email", "type": "string"},
+        {"name": "name", "type": "string"},
+        {"name": "company", "type": "string"},
+        {"name": "owner", "type": "string"},
+        {"name": "status", "type": "string"},
+        {"name": "stage", "type": "string"},
+        {"name": "value", "type": "number"},
+        {"name": "created_at", "type": "datetime"},
+        {"name": "updated_at", "type": "datetime"}
+      ]
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of standardized output asset",
+      "placeholder": "standardized_crm_contacts"
+    },
+    "platform": {
+      "type": "string",
+      "required": true,
+      "label": "Source Platform",
+      "description": "CRM platform to standardize",
+      "enum": ["hubspot", "salesforce", "pipedrive"]
+    },
+    "resource_type": {
+      "type": "string",
+      "required": true,
+      "label": "Resource Type",
+      "description": "Type of CRM resource to standardize",
+      "enum": ["contacts", "companies", "deals", "activities"]
+    },
+    "source_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Source Asset",
+      "description": "Upstream asset with raw data (set automatically via lineage)",
+      "placeholder": "hubspot_contacts"
+    },
+    "record_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Record ID Field",
+      "description": "Custom field name for record ID (auto-detected if empty)",
+      "placeholder": "id"
+    },
+    "name_field": {
+      "type": "string",
+      "required": false,
+      "label": "Name Field",
+      "description": "Custom field name for name/title (auto-detected if empty)",
+      "placeholder": "name"
+    },
+    "email_field": {
+      "type": "string",
+      "required": false,
+      "label": "Email Field",
+      "description": "Custom field name for email (auto-detected if empty)",
+      "placeholder": "email"
+    },
+    "filter_status": {
+      "type": "string",
+      "required": false,
+      "label": "Status Filter",
+      "description": "Filter by status/stage (comma-separated)",
+      "placeholder": "open,qualified"
+    },
+    "filter_owner": {
+      "type": "string",
+      "required": false,
+      "label": "Owner Filter",
+      "description": "Filter by owner name or ID",
+      "placeholder": "12345"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Standardized CRM data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "crm",
+      "placeholder": "crm"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0"
+    ]
+  },
+  "tags": ["cdp", "crm", "standardization", "hubspot", "salesforce", "pipedrive"]
+}

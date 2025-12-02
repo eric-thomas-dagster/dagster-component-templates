@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2025-11-11T01:00:00Z",
+  "last_updated": "2025-12-01T12:00:00Z",
   "components": [
     {
       "id": "slack_notification_sensor",
@@ -510,6 +510,652 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_output_parser/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_output_parser/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_output_parser/requirements.txt"
+    },
+    {
+      "id": "facebook_ads_ingestion",
+      "name": "Facebook Ads Ingestion",
+      "category": "cdp",
+      "description": "Ingest Facebook Ads data (campaigns, ads, insights) using dlt. Mimics Supermetrics and Funnel.io.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/facebook_ads_ingestion",
+      "tags": ["cdp", "marketing", "facebook", "ads", "advertising", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[facebook_ads]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "TrendingUp",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/facebook_ads_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/facebook_ads_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/facebook_ads_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/facebook_ads_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/facebook_ads_ingestion/requirements.txt"
+    },
+    {
+      "id": "google_ads_ingestion",
+      "name": "Google Ads Ingestion",
+      "category": "cdp",
+      "description": "Ingest Google Ads data (customers, campaigns, ads, metrics) using dlt. Mimics Supermetrics and Funnel.io.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/google_ads_ingestion",
+      "tags": ["cdp", "marketing", "google", "ads", "advertising", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[google_ads]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "TrendingUp",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_ads_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_ads_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_ads_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_ads_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_ads_ingestion/requirements.txt"
+    },
+    {
+      "id": "marketing_data_standardizer",
+      "name": "Marketing Data Standardizer",
+      "category": "cdp",
+      "description": "Standardize marketing data across platforms into a unified schema. Similar to Supermetrics and Funnel.io.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/marketing_data_standardizer",
+      "tags": ["cdp", "marketing", "transformation", "standardization", "normalization"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0"]
+      },
+      "icon": "GitMerge",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/marketing_data_standardizer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/marketing_data_standardizer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/marketing_data_standardizer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/marketing_data_standardizer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/marketing_data_standardizer/requirements.txt"
+    },
+    {
+      "id": "google_analytics_ingestion",
+      "name": "Google Analytics 4 Ingestion",
+      "category": "cdp",
+      "description": "Ingest Google Analytics 4 data (sessions, users, events, conversions) using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/google_analytics_ingestion",
+      "tags": ["cdp", "analytics", "google", "ga4", "web-analytics", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[google_analytics]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "BarChart3",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_analytics_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_analytics_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_analytics_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_analytics_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_analytics_ingestion/requirements.txt"
+    },
+    {
+      "id": "stripe_ingestion",
+      "name": "Stripe Ingestion",
+      "category": "cdp",
+      "description": "Ingest Stripe payment and subscription data using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/stripe_ingestion",
+      "tags": ["cdp", "payments", "stripe", "subscriptions", "revenue", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[stripe]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "CreditCard",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/stripe_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/stripe_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/stripe_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/stripe_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/stripe_ingestion/requirements.txt"
+    },
+    {
+      "id": "customer_360",
+      "name": "Customer 360",
+      "category": "cdp",
+      "description": "Create unified customer profiles from multiple data sources (marketing, payments, analytics, CRM).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/customer_360",
+      "tags": ["cdp", "customer-360", "analytics", "unification", "profiles"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+      },
+      "icon": "Users",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_360/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_360/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_360/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_360/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_360/requirements.txt"
+    },
+    {
+      "id": "revenue_attribution",
+      "name": "Revenue Attribution",
+      "category": "cdp",
+      "description": "Connect marketing spend to revenue by attributing conversions and calculating ROI, ROAS, and CAC metrics.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/revenue_attribution",
+      "tags": ["cdp", "attribution", "roi", "roas", "cac", "marketing-analytics"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+      },
+      "icon": "DollarSign",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/revenue_attribution/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/revenue_attribution/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/revenue_attribution/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/revenue_attribution/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/revenue_attribution/requirements.txt"
+    },
+    {
+      "id": "subscription_metrics",
+      "name": "Subscription Metrics",
+      "category": "cdp",
+      "description": "Calculate SaaS subscription metrics including MRR, ARR, churn rate, and customer lifetime value (LTV) from Stripe data.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/subscription_metrics",
+      "tags": ["cdp", "saas", "mrr", "arr", "churn", "ltv", "subscription-analytics"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+      },
+      "icon": "TrendingUp",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/subscription_metrics/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/subscription_metrics/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/subscription_metrics/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/subscription_metrics/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/subscription_metrics/requirements.txt"
+    },
+    {
+      "id": "hubspot_ingestion",
+      "name": "HubSpot Ingestion",
+      "category": "cdp",
+      "description": "Ingest HubSpot CRM and marketing data (contacts, companies, deals, tickets) using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/hubspot_ingestion",
+      "tags": ["cdp", "crm", "hubspot", "marketing", "sales", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[hubspot]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "Users",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/hubspot_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/hubspot_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/hubspot_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/hubspot_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/hubspot_ingestion/requirements.txt"
+    },
+    {
+      "id": "salesforce_ingestion",
+      "name": "Salesforce Ingestion",
+      "category": "cdp",
+      "description": "Ingest Salesforce CRM data (accounts, opportunities, contacts, leads) using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/salesforce_ingestion",
+      "tags": ["cdp", "crm", "salesforce", "enterprise", "sales", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[salesforce]>=0.4.0", "pandas>=1.5.0", "simple-salesforce>=1.12.0"]
+      },
+      "icon": "Building",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/salesforce_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/salesforce_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/salesforce_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/salesforce_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/salesforce_ingestion/requirements.txt"
+    },
+    {
+      "id": "shopify_ingestion",
+      "name": "Shopify Ingestion",
+      "category": "cdp",
+      "description": "Ingest Shopify e-commerce data (customers, orders, products) using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/shopify_ingestion",
+      "tags": ["cdp", "e-commerce", "shopify", "orders", "customers", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[shopify]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "ShoppingCart",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/shopify_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/shopify_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/shopify_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/shopify_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/shopify_ingestion/requirements.txt"
+    },
+    {
+      "id": "zendesk_ingestion",
+      "name": "Zendesk Ingestion",
+      "category": "cdp",
+      "description": "Ingest Zendesk support tickets and customer service data using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/zendesk_ingestion",
+      "tags": ["cdp", "support", "zendesk", "tickets", "customer-service", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[zendesk]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "Headphones",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/zendesk_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/zendesk_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/zendesk_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/zendesk_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/zendesk_ingestion/requirements.txt"
+    },
+    {
+      "id": "mongodb_ingestion",
+      "name": "MongoDB Ingestion",
+      "category": "cdp",
+      "description": "Ingest data from MongoDB collections using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/mongodb_ingestion",
+      "tags": ["cdp", "database", "mongodb", "nosql", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[mongodb]>=0.4.0", "pandas>=1.5.0", "pymongo>=4.0.0"]
+      },
+      "icon": "Database",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/mongodb_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/mongodb_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/mongodb_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/mongodb_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/mongodb_ingestion/requirements.txt"
+    },
+    {
+      "id": "google_sheets_ingestion",
+      "name": "Google Sheets Ingestion",
+      "category": "cdp",
+      "description": "Ingest data from Google Sheets spreadsheets using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/google_sheets_ingestion",
+      "tags": ["cdp", "spreadsheet", "google-sheets", "data-import", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[google_sheets]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "Table",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_sheets_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_sheets_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_sheets_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_sheets_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_sheets_ingestion/requirements.txt"
+    },
+    {
+      "id": "airtable_ingestion",
+      "name": "Airtable Ingestion",
+      "category": "cdp",
+      "description": "Ingest data from Airtable bases and tables using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/airtable_ingestion",
+      "tags": ["cdp", "database", "airtable", "flexible-db", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[airtable]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "Grid",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/airtable_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/airtable_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/airtable_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/airtable_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/airtable_ingestion/requirements.txt"
+    },
+    {
+      "id": "pipedrive_ingestion",
+      "name": "Pipedrive Ingestion",
+      "category": "cdp",
+      "description": "Ingest Pipedrive CRM and sales pipeline data using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/pipedrive_ingestion",
+      "tags": ["cdp", "crm", "pipedrive", "sales", "pipeline", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[pipedrive]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "Target",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/pipedrive_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/pipedrive_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/pipedrive_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/pipedrive_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/pipedrive_ingestion/requirements.txt"
+    },
+    {
+      "id": "slack_ingestion",
+      "name": "Slack Ingestion",
+      "category": "cdp",
+      "description": "Ingest Slack messages, channels, and user data using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/slack_ingestion",
+      "tags": ["cdp", "collaboration", "slack", "messages", "team-chat", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[slack]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "MessageSquare",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/slack_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/slack_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/slack_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/slack_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/slack_ingestion/requirements.txt"
+    },
+    {
+      "id": "freshdesk_ingestion",
+      "name": "Freshdesk Ingestion",
+      "category": "cdp",
+      "description": "Ingest Freshdesk support tickets and customer service data using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/freshdesk_ingestion",
+      "tags": ["cdp", "support", "freshdesk", "tickets", "customer-service", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[freshdesk]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "LifeBuoy",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/freshdesk_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/freshdesk_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/freshdesk_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/freshdesk_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/freshdesk_ingestion/requirements.txt"
+    },
+    {
+      "id": "asana_ingestion",
+      "name": "Asana Ingestion",
+      "category": "cdp",
+      "description": "Ingest Asana project management data (projects, tasks, teams) using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/asana_ingestion",
+      "tags": ["cdp", "project-management", "asana", "tasks", "productivity", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[asana]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "CheckSquare",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/asana_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/asana_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/asana_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/asana_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/asana_ingestion/requirements.txt"
+    },
+    {
+      "id": "jira_ingestion",
+      "name": "Jira Ingestion",
+      "category": "cdp",
+      "description": "Ingest Jira issue tracking data (issues, projects, boards) using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/jira_ingestion",
+      "tags": ["cdp", "issue-tracking", "jira", "agile", "project-management", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[jira]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "GitBranch",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/jira_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/jira_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/jira_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/jira_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/jira_ingestion/requirements.txt"
+    },
+    {
+      "id": "github_ingestion",
+      "name": "GitHub Ingestion",
+      "category": "cdp",
+      "description": "Ingest GitHub repository data (issues, PRs, commits) using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/github_ingestion",
+      "tags": ["cdp", "github", "repositories", "issues", "pull-requests", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[github]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "Code",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/github_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/github_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/github_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/github_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/github_ingestion/requirements.txt"
+    },
+    {
+      "id": "notion_ingestion",
+      "name": "Notion Ingestion",
+      "category": "cdp",
+      "description": "Ingest Notion workspace databases using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/notion_ingestion",
+      "tags": ["cdp", "notion", "workspace", "databases", "documentation", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[notion]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "FileText",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/notion_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/notion_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/notion_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/notion_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/notion_ingestion/requirements.txt"
+    },
+    {
+      "id": "matomo_ingestion",
+      "name": "Matomo Ingestion",
+      "category": "cdp",
+      "description": "Ingest Matomo web analytics data using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/matomo_ingestion",
+      "tags": ["cdp", "analytics", "matomo", "web-analytics", "privacy", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[matomo]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "BarChart",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/matomo_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/matomo_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/matomo_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/matomo_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/matomo_ingestion/requirements.txt"
+    },
+    {
+      "id": "personio_ingestion",
+      "name": "Personio Ingestion",
+      "category": "cdp",
+      "description": "Ingest Personio HR management data (employees, absences) using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/personio_ingestion",
+      "tags": ["cdp", "hr", "personio", "employees", "recruitment", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[personio]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "Users",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/personio_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/personio_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/personio_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/personio_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/personio_ingestion/requirements.txt"
+    },
+    {
+      "id": "workable_ingestion",
+      "name": "Workable Ingestion",
+      "category": "cdp",
+      "description": "Ingest Workable recruitment pipeline data (jobs, candidates) using dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/workable_ingestion",
+      "tags": ["cdp", "recruitment", "workable", "jobs", "candidates", "hiring", "dlt", "ingestion"],
+      "dependencies": {
+        "pip": ["dlt[workable]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "Briefcase",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/workable_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/workable_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/workable_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/workable_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/workable_ingestion/requirements.txt"
+    },
+    {
+      "id": "product_analytics_standardizer",
+      "name": "Product Analytics Standardizer",
+      "category": "cdp",
+      "description": "Standardize product analytics data across platforms (GA4, Matomo, Mixpanel, Amplitude) into unified schema.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/product_analytics_standardizer",
+      "tags": ["cdp", "analytics", "standardization", "product-analytics", "ga4", "matomo"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+      },
+      "icon": "Activity",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_analytics_standardizer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_analytics_standardizer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_analytics_standardizer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_analytics_standardizer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_analytics_standardizer/requirements.txt"
+    },
+    {
+      "id": "crm_data_standardizer",
+      "name": "CRM Data Standardizer",
+      "category": "cdp",
+      "description": "Standardize CRM data across platforms (HubSpot, Salesforce, Pipedrive) into unified schema.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/crm_data_standardizer",
+      "tags": ["cdp", "crm", "standardization", "hubspot", "salesforce", "pipedrive"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0"]
+      },
+      "icon": "Users",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/crm_data_standardizer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/crm_data_standardizer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/crm_data_standardizer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/crm_data_standardizer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/crm_data_standardizer/requirements.txt"
+    },
+    {
+      "id": "ecommerce_standardizer",
+      "name": "E-commerce Standardizer",
+      "category": "cdp",
+      "description": "Standardize e-commerce data (orders, products, customers) across platforms (Shopify, Stripe, WooCommerce).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ecommerce_standardizer",
+      "tags": ["cdp", "ecommerce", "standardization", "shopify", "stripe", "orders"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+      },
+      "icon": "ShoppingCart",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ecommerce_standardizer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ecommerce_standardizer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ecommerce_standardizer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ecommerce_standardizer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ecommerce_standardizer/requirements.txt"
+    },
+    {
+      "id": "support_ticket_standardizer",
+      "name": "Support Ticket Standardizer",
+      "category": "cdp",
+      "description": "Standardize support ticket data across platforms (Zendesk, Freshdesk, Intercom) into unified schema.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/support_ticket_standardizer",
+      "tags": ["cdp", "support", "standardization", "zendesk", "freshdesk", "tickets"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+      },
+      "icon": "Headphones",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/support_ticket_standardizer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/support_ticket_standardizer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/support_ticket_standardizer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/support_ticket_standardizer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/support_ticket_standardizer/requirements.txt"
+    },
+    {
+      "id": "event_data_standardizer",
+      "name": "Event Data Standardizer",
+      "category": "cdp",
+      "description": "Standardize tracking events across platforms (Segment, Rudderstack, Snowplow, custom) into unified schema.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/event_data_standardizer",
+      "tags": ["cdp", "events", "standardization", "tracking", "segment", "analytics"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0"]
+      },
+      "icon": "Zap",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/event_data_standardizer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/event_data_standardizer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/event_data_standardizer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/event_data_standardizer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/event_data_standardizer/requirements.txt"
+    },
+    {
+      "id": "rfm_segmentation",
+      "name": "RFM Segmentation",
+      "category": "cdp",
+      "description": "Segment customers by Recency, Frequency, and Monetary value. Identifies Champions, Loyal Customers, At Risk, and Lost segments.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/rfm_segmentation",
+      "tags": ["cdp", "rfm", "segmentation", "customer-value", "customer-analytics"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+      },
+      "icon": "Users",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rfm_segmentation/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rfm_segmentation/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rfm_segmentation/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rfm_segmentation/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rfm_segmentation/requirements.txt"
+    },
+    {
+      "id": "cohort_analysis",
+      "name": "Cohort Analysis",
+      "category": "cdp",
+      "description": "Track customer retention by acquisition cohort over time. Analyzes how different customer cohorts retain and engage over their lifecycle.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/cohort_analysis",
+      "tags": ["cdp", "cohort-analysis", "retention", "customer-analytics", "lifecycle"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+      },
+      "icon": "TrendingUp",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/cohort_analysis/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/cohort_analysis/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/cohort_analysis/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/cohort_analysis/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/cohort_analysis/requirements.txt"
+    },
+    {
+      "id": "churn_prediction",
+      "name": "Churn Prediction",
+      "category": "cdp",
+      "description": "Predict customer churn risk using heuristic scoring. Identifies customers at risk of churning with actionable recommendations.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/churn_prediction",
+      "tags": ["cdp", "churn", "prediction", "retention", "risk", "customer-analytics"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+      },
+      "icon": "AlertTriangle",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/churn_prediction/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/churn_prediction/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/churn_prediction/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/churn_prediction/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/churn_prediction/requirements.txt"
+    },
+    {
+      "id": "funnel_analysis",
+      "name": "Funnel Analysis",
+      "category": "cdp",
+      "description": "Track conversion rates through multi-step user journeys. Analyzes drop-off rates and conversion optimization opportunities.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/funnel_analysis",
+      "tags": ["cdp", "funnel", "conversion", "product-analytics", "optimization"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+      },
+      "icon": "GitBranch",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/funnel_analysis/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/funnel_analysis/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/funnel_analysis/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/funnel_analysis/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/funnel_analysis/requirements.txt"
     }
   ]
 }

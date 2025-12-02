@@ -1,0 +1,162 @@
+{
+  "type": "dagster_component_templates.ProductAnalyticsStandardizerComponent",
+  "name": "Product Analytics Standardizer",
+  "category": "cdp",
+  "description": "Standardize product analytics data across platforms (GA4, Matomo, Mixpanel, Amplitude) into a unified schema.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Activity",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Raw product analytics data from platform ingestion components",
+      "expected_columns": [
+        {
+          "name": "date",
+          "type": "datetime",
+          "required": true,
+          "alternatives": ["event_date", "timestamp", "day"],
+          "description": "Event date"
+        },
+        {
+          "name": "user_id",
+          "type": "string",
+          "required": false,
+          "alternatives": ["visitor_id", "client_id", "userId"],
+          "description": "User identifier"
+        },
+        {
+          "name": "sessions",
+          "type": "number",
+          "required": false,
+          "alternatives": ["session_count", "visits"],
+          "description": "Number of sessions"
+        },
+        {
+          "name": "page_views",
+          "type": "number",
+          "required": false,
+          "alternatives": ["screenviews", "pageviews", "screen_page_views"],
+          "description": "Page or screen views"
+        }
+      ],
+      "compatible_upstream": [
+        "google_analytics_4_ingestion",
+        "matomo_ingestion"
+      ]
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Standardized product analytics data with unified schema",
+      "columns": [
+        {"name": "date", "type": "datetime"},
+        {"name": "platform", "type": "string"},
+        {"name": "user_id", "type": "string"},
+        {"name": "sessions", "type": "number"},
+        {"name": "users", "type": "number"},
+        {"name": "new_users", "type": "number"},
+        {"name": "page_views", "type": "number"},
+        {"name": "events", "type": "number"},
+        {"name": "bounce_rate", "type": "number"},
+        {"name": "avg_session_duration", "type": "number"},
+        {"name": "engagement_rate", "type": "number"}
+      ]
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of standardized output asset",
+      "placeholder": "standardized_product_analytics"
+    },
+    "platform": {
+      "type": "string",
+      "required": true,
+      "label": "Source Platform",
+      "description": "Product analytics platform to standardize",
+      "enum": ["google_analytics_4", "matomo", "mixpanel", "amplitude"]
+    },
+    "source_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Source Asset",
+      "description": "Upstream asset with raw data (set automatically via lineage)",
+      "placeholder": "ga4_events"
+    },
+    "date_field": {
+      "type": "string",
+      "required": false,
+      "label": "Date Field",
+      "description": "Custom field name for date (auto-detected if empty)",
+      "placeholder": "event_date"
+    },
+    "event_name_field": {
+      "type": "string",
+      "required": false,
+      "label": "Event Name Field",
+      "description": "Custom field name for event name (auto-detected if empty)",
+      "placeholder": "event_name"
+    },
+    "user_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "User ID Field",
+      "description": "Custom field name for user ID (auto-detected if empty)",
+      "placeholder": "user_pseudo_id"
+    },
+    "filter_date_from": {
+      "type": "string",
+      "required": false,
+      "label": "Filter Date From",
+      "description": "Start date filter (YYYY-MM-DD)",
+      "placeholder": "2024-01-01"
+    },
+    "filter_date_to": {
+      "type": "string",
+      "required": false,
+      "label": "Filter Date To",
+      "description": "End date filter (YYYY-MM-DD)",
+      "placeholder": "2024-12-31"
+    },
+    "filter_event_name": {
+      "type": "string",
+      "required": false,
+      "label": "Event Name Filter",
+      "description": "Filter by event name (comma-separated)",
+      "placeholder": "page_view,purchase"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Standardized product analytics data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "analytics",
+      "placeholder": "analytics"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "numpy>=1.24.0"
+    ]
+  },
+  "tags": ["cdp", "analytics", "standardization", "product-analytics", "ga4", "matomo"]
+}

@@ -1,0 +1,13 @@
+type: dagster_component_templates.GoogleSheetsIngestionComponent
+attributes:
+  asset_name: google_sheets_data
+
+  # Google Sheets Configuration
+  spreadsheet_id: "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
+  sheet_names: ["Sheet1", "Sheet2"]
+  credentials: "${GOOGLE_SHEETS_CREDENTIALS}"
+
+  # Organization
+  description: "Google Sheets data import"
+  group_name: "google_sheets"
+  include_sample_metadata: true

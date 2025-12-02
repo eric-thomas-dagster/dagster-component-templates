@@ -1,0 +1,80 @@
+{
+  "type": "dagster_component_templates.AirtableIngestionComponent",
+  "name": "Airtable Ingestion",
+  "category": "cdp",
+  "description": "Ingest data from Airtable bases and tables using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Grid",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Airtable data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "airtable_data"
+    },
+    "api_key": {
+      "type": "string",
+      "required": true,
+      "label": "API Key",
+      "description": "Airtable API key or personal access token",
+      "placeholder": "${AIRTABLE_API_KEY}",
+      "secret": true
+    },
+    "base_id": {
+      "type": "string",
+      "required": true,
+      "label": "Base ID",
+      "description": "Airtable base ID (found in the URL or API docs)",
+      "placeholder": "appXXXXXXXXXXXXXX"
+    },
+    "table_names": {
+      "type": "array",
+      "required": true,
+      "label": "Table Names",
+      "description": "List of table names to extract from the base",
+      "items": {
+        "type": "string"
+      },
+      "placeholder": ["Contacts", "Projects", "Tasks"]
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Airtable base data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "airtable",
+      "placeholder": "airtable"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["dlt[airtable]>=0.4.0", "pandas>=1.5.0"]
+  },
+  "tags": ["cdp", "database", "airtable", "flexible-db", "dlt", "ingestion"]
+}

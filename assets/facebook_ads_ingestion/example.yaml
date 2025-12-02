@@ -1,0 +1,30 @@
+type: dagster_component_templates.FacebookAdsIngestionComponent
+attributes:
+  asset_name: facebook_ads_data
+
+  # Facebook Ads Account Configuration
+  account_id: "act_123456789"
+  access_token: "${FACEBOOK_ACCESS_TOKEN}"
+
+  # Optional: For long-lived tokens
+  # app_id: "${FACEBOOK_APP_ID}"
+  # app_secret: "${FACEBOOK_APP_SECRET}"
+
+  # Resources to extract
+  resources: "campaigns,ads,insights"
+
+  # Historical data to load (days)
+  initial_load_past_days: 30
+
+  # Filter ads by state
+  ad_states: "ACTIVE,PAUSED"
+
+  # Insights configuration
+  # insights_fields: "impressions,clicks,spend,reach,cpm,ctr,conversions"
+  # insights_breakdown: "age"
+  time_increment_days: 1
+
+  # Organization
+  description: "Facebook Ads campaign and performance data"
+  group_name: "facebook_ads"
+  include_sample_metadata: true

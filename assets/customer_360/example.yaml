@@ -1,0 +1,14 @@
+type: dagster_component_templates.Customer360Component
+attributes:
+  asset_name: customer_360
+
+  # Join configuration
+  join_key: "email"
+
+  # Active threshold
+  active_days_threshold: 30
+
+  # Organization
+  description: "Unified customer 360 profiles"
+  group_name: "customer_analytics"
+  include_sample_metadata: true

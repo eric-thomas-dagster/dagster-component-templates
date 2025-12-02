@@ -1,0 +1,13 @@
+type: dagster_component_templates.MongoDBIngestionComponent
+attributes:
+  asset_name: mongodb_data
+
+  # MongoDB Configuration
+  connection_url: "${MONGODB_CONNECTION_URL}"
+  database: "my_database"
+  collection_names: ["users", "products", "orders"]
+
+  # Organization
+  description: "MongoDB collection data ingestion"
+  group_name: "mongodb"
+  include_sample_metadata: true

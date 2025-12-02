@@ -1,0 +1,153 @@
+{
+  "type": "dagster_component_templates.GoogleAdsIngestionComponent",
+  "name": "Google Ads Ingestion",
+  "category": "cdp",
+  "description": "Ingest Google Ads data (customers, campaigns, ads, metrics) using dlt. Mimics Supermetrics and Funnel.io.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Google Ads data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "google_ads_data"
+    },
+    "customer_id": {
+      "type": "string",
+      "required": true,
+      "label": "Google Ads Customer ID",
+      "description": "10-digit customer ID (format: XXX-XXX-XXXX)",
+      "placeholder": "123-456-7890"
+    },
+    "developer_token": {
+      "type": "string",
+      "required": true,
+      "label": "Developer Token",
+      "description": "Google Ads API developer token. Use ${GOOGLE_ADS_DEV_TOKEN} for env vars.",
+      "placeholder": "${GOOGLE_ADS_DEV_TOKEN}",
+      "secret": true
+    },
+    "client_id": {
+      "type": "string",
+      "required": true,
+      "label": "OAuth Client ID",
+      "description": "Google OAuth Client ID. Use ${GOOGLE_ADS_CLIENT_ID} for env vars.",
+      "placeholder": "${GOOGLE_ADS_CLIENT_ID}"
+    },
+    "client_secret": {
+      "type": "string",
+      "required": true,
+      "label": "OAuth Client Secret",
+      "description": "Google OAuth Client Secret. Use ${GOOGLE_ADS_CLIENT_SECRET} for env vars.",
+      "placeholder": "${GOOGLE_ADS_CLIENT_SECRET}",
+      "secret": true
+    },
+    "refresh_token": {
+      "type": "string",
+      "required": true,
+      "label": "OAuth Refresh Token",
+      "description": "Google OAuth Refresh Token. Use ${GOOGLE_ADS_REFRESH_TOKEN} for env vars.",
+      "placeholder": "${GOOGLE_ADS_REFRESH_TOKEN}",
+      "secret": true
+    },
+    "use_service_account": {
+      "type": "boolean",
+      "required": false,
+      "label": "Use Service Account",
+      "description": "Use service account authentication instead of OAuth",
+      "default": false
+    },
+    "project_id": {
+      "type": "string",
+      "required": false,
+      "label": "Google Cloud Project ID",
+      "description": "Project ID (for service account or OAuth)",
+      "placeholder": "${GOOGLE_CLOUD_PROJECT_ID}"
+    },
+    "service_account_email": {
+      "type": "string",
+      "required": false,
+      "label": "Service Account Email",
+      "description": "Service account email (if using service account)",
+      "placeholder": "service@project.iam.gserviceaccount.com"
+    },
+    "private_key": {
+      "type": "string",
+      "required": false,
+      "label": "Private Key",
+      "description": "Service account private key. Use ${GOOGLE_ADS_PRIVATE_KEY} for env vars.",
+      "placeholder": "${GOOGLE_ADS_PRIVATE_KEY}",
+      "secret": true
+    },
+    "impersonated_email": {
+      "type": "string",
+      "required": false,
+      "label": "Impersonated Email",
+      "description": "Email to impersonate (service account delegation)",
+      "placeholder": "admin@example.com"
+    },
+    "resources": {
+      "type": "string",
+      "required": false,
+      "label": "Resources to Extract",
+      "description": "Comma-separated list: customers, campaigns, ad_groups, ads, keywords, change_events",
+      "default": "customers,campaigns",
+      "placeholder": "customers,campaigns"
+    },
+    "start_date": {
+      "type": "string",
+      "required": false,
+      "label": "Start Date",
+      "description": "Start date for metrics (YYYY-MM-DD). Defaults to 30 days ago.",
+      "placeholder": "2024-01-01"
+    },
+    "end_date": {
+      "type": "string",
+      "required": false,
+      "label": "End Date",
+      "description": "End date for metrics (YYYY-MM-DD). Defaults to today.",
+      "placeholder": "2024-12-31"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Google Ads data ingestion"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "google_ads",
+      "placeholder": "google_ads"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dlt[google_ads]>=0.4.0",
+      "pandas>=1.5.0"
+    ]
+  },
+  "tags": ["cdp", "marketing", "google", "ads", "advertising", "dlt", "ingestion"]
+}

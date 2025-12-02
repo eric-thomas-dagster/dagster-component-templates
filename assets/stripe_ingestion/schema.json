@@ -1,0 +1,94 @@
+{
+  "type": "dagster_component_templates.StripeIngestionComponent",
+  "name": "Stripe Ingestion",
+  "category": "cdp",
+  "description": "Ingest Stripe payment and subscription data using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Stripe data as pandas DataFrame"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "stripe_data"
+    },
+    "api_key": {
+      "type": "string",
+      "required": true,
+      "label": "Stripe API Key",
+      "description": "Secret key from Stripe Dashboard. Use ${STRIPE_API_KEY}",
+      "placeholder": "${STRIPE_API_KEY}",
+      "secret": true
+    },
+    "resources": {
+      "type": "string",
+      "required": false,
+      "label": "Resources to Extract",
+      "description": "Comma-separated: customers, subscriptions, charges, invoices, products, prices",
+      "default": "customers,subscriptions,charges",
+      "placeholder": "customers,subscriptions,charges"
+    },
+    "start_date": {
+      "type": "string",
+      "required": false,
+      "label": "Start Date",
+      "description": "Start date (YYYY-MM-DD). Leave empty for all data.",
+      "placeholder": "2024-01-01"
+    },
+    "end_date": {
+      "type": "string",
+      "required": false,
+      "label": "End Date",
+      "description": "End date (YYYY-MM-DD). Defaults to today.",
+      "placeholder": "2024-12-31"
+    },
+    "incremental": {
+      "type": "boolean",
+      "required": false,
+      "label": "Incremental Loading",
+      "description": "Use incremental mode (append) vs full refresh",
+      "default": false
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Stripe payment and subscription data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "stripe",
+      "placeholder": "stripe"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dlt[stripe]>=0.4.0",
+      "pandas>=1.5.0"
+    ]
+  },
+  "tags": ["cdp", "payments", "stripe", "subscriptions", "revenue", "dlt", "ingestion"]
+}

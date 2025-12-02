@@ -1,0 +1,103 @@
+{
+  "type": "dagster_component_templates.GoogleAnalyticsIngestionComponent",
+  "name": "Google Analytics 4 Ingestion",
+  "category": "cdp",
+  "description": "Ingest Google Analytics 4 data (sessions, users, events, conversions) using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Google Analytics 4 data as pandas DataFrame"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "google_analytics_data"
+    },
+    "property_id": {
+      "type": "string",
+      "required": true,
+      "label": "GA4 Property ID",
+      "description": "Numeric property ID from GA4 Admin > Property Settings",
+      "placeholder": "123456789"
+    },
+    "credentials_json": {
+      "type": "string",
+      "required": false,
+      "label": "Service Account Credentials (JSON)",
+      "description": "Full service account JSON. Use ${GOOGLE_ANALYTICS_CREDENTIALS}",
+      "placeholder": "${GOOGLE_ANALYTICS_CREDENTIALS}",
+      "secret": true
+    },
+    "dimensions": {
+      "type": "string",
+      "required": false,
+      "label": "Dimensions",
+      "description": "Comma-separated dimensions: date,city,sessionSource,deviceCategory",
+      "default": "date,sessionSource,sessionMedium,deviceCategory",
+      "placeholder": "date,sessionSource,sessionMedium"
+    },
+    "metrics": {
+      "type": "string",
+      "required": false,
+      "label": "Metrics",
+      "description": "Comma-separated metrics: sessions,totalUsers,conversions",
+      "default": "sessions,totalUsers,screenPageViews,conversions",
+      "placeholder": "sessions,totalUsers,conversions"
+    },
+    "start_date": {
+      "type": "string",
+      "required": false,
+      "label": "Start Date",
+      "description": "Start date (YYYY-MM-DD)",
+      "default": "2024-01-01",
+      "placeholder": "2024-01-01"
+    },
+    "end_date": {
+      "type": "string",
+      "required": false,
+      "label": "End Date",
+      "description": "End date (YYYY-MM-DD). Defaults to today.",
+      "placeholder": "2024-12-31"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Google Analytics web analytics data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "google_analytics",
+      "placeholder": "google_analytics"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dlt[google_analytics]>=0.4.0",
+      "pandas>=1.5.0"
+    ]
+  },
+  "tags": ["cdp", "analytics", "google", "ga4", "web-analytics", "dlt", "ingestion"]
+}

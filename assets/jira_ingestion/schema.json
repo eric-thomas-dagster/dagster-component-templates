@@ -1,0 +1,89 @@
+{
+  "type": "dagster_component_templates.JiraIngestionComponent",
+  "name": "Jira Ingestion",
+  "category": "cdp",
+  "description": "Ingest Jira issue tracking data (issues, projects, boards) using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "GitBranch",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Jira data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "jira_issue_data"
+    },
+    "domain": {
+      "type": "string",
+      "required": true,
+      "label": "Domain",
+      "description": "Jira domain (e.g., your-company.atlassian.net)",
+      "placeholder": "your-company.atlassian.net"
+    },
+    "email": {
+      "type": "string",
+      "required": true,
+      "label": "Email",
+      "description": "Email address for Jira authentication",
+      "placeholder": "{{ env('JIRA_EMAIL') }}",
+      "secret": true
+    },
+    "api_token": {
+      "type": "string",
+      "required": true,
+      "label": "API Token",
+      "description": "Jira API token for authentication",
+      "placeholder": "{{ env('JIRA_API_TOKEN') }}",
+      "secret": true
+    },
+    "resources": {
+      "type": "array",
+      "required": false,
+      "label": "Resources",
+      "description": "Jira resources to extract",
+      "default": ["issues", "projects"],
+      "items": {
+        "type": "string",
+        "enum": ["issues", "users", "projects", "boards"]
+      }
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Jira issue tracking data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "jira",
+      "placeholder": "jira"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["dlt[jira]>=0.4.0", "pandas>=1.5.0"]
+  },
+  "tags": ["cdp", "issue-tracking", "jira", "agile", "project-management", "dlt", "ingestion"]
+}

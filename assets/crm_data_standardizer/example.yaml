@@ -1,0 +1,22 @@
+type: dagster_component_templates.CRMDataStandardizerComponent
+attributes:
+  asset_name: standardized_crm_contacts
+
+  # Platform and resource configuration
+  platform: "hubspot"
+  resource_type: "contacts"
+  source_asset: "hubspot_contacts"
+
+  # Custom field mappings (optional - auto-detected if not specified)
+  # record_id_field: "id"
+  # name_field: "firstname"
+  # email_field: "email"
+
+  # Optional filters
+  # filter_status: "qualified,customer"
+  # filter_owner: "12345"
+
+  # Organization
+  description: "Standardized CRM contact data with unified schema"
+  group_name: "crm"
+  include_sample_metadata: true

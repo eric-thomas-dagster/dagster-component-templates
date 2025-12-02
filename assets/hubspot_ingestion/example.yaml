@@ -1,0 +1,22 @@
+type: dagster_component_templates.HubSpotIngestionComponent
+attributes:
+  asset_name: hubspot_crm_data
+
+  # Authentication
+  api_key: "{{ env('HUBSPOT_API_KEY') }}"
+
+  # Resources to extract
+  resources:
+    - contacts
+    - companies
+    - deals
+    - tickets
+
+  # Options
+  include_history: false
+  include_custom_props: true
+
+  # Organization
+  description: "HubSpot CRM and marketing data"
+  group_name: "hubspot"
+  include_sample_metadata: true

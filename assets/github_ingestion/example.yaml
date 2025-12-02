@@ -1,0 +1,22 @@
+type: dagster_component_templates.GitHubIngestionComponent
+attributes:
+  asset_name: github_repo_data
+
+  # Authentication
+  access_token: "{{ env('GITHUB_ACCESS_TOKEN') }}"
+
+  # Repository configuration
+  owner: "my-org"
+  repositories:
+    - "repo-1"
+    - "repo-2"
+
+  # Resources to extract
+  resources:
+    - issues
+    - pull_requests
+
+  # Organization
+  description: "GitHub repository issues and pull requests"
+  group_name: "github"
+  include_sample_metadata: true

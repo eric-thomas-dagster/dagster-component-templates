@@ -1,0 +1,13 @@
+type: dagster_component_templates.AirtableIngestionComponent
+attributes:
+  asset_name: airtable_data
+
+  # Airtable Configuration
+  api_key: "${AIRTABLE_API_KEY}"
+  base_id: "appXXXXXXXXXXXXXX"
+  table_names: ["Contacts", "Projects", "Tasks"]
+
+  # Organization
+  description: "Airtable base data ingestion"
+  group_name: "airtable"
+  include_sample_metadata: true

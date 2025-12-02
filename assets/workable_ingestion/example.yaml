@@ -1,0 +1,17 @@
+type: dagster_component_templates.WorkableIngestionComponent
+attributes:
+  asset_name: workable_recruitment_data
+
+  # Authentication
+  api_token: "{{ env('WORKABLE_API_TOKEN') }}"
+  subdomain: "your-company"
+
+  # Resources to extract
+  resources:
+    - jobs
+    - candidates
+
+  # Organization
+  description: "Workable recruitment pipeline data"
+  group_name: "workable"
+  include_sample_metadata: true

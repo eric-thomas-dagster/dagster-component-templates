@@ -1,0 +1,21 @@
+type: dagster_component_templates.StripeIngestionComponent
+attributes:
+  asset_name: stripe_data
+
+  # Stripe Configuration
+  api_key: "${STRIPE_API_KEY}"
+
+  # Resources to extract
+  resources: "customers,subscriptions,charges,invoices"
+
+  # Date Range (optional)
+  # start_date: "2024-01-01"
+  # end_date: "2024-12-31"
+
+  # Loading mode
+  incremental: false
+
+  # Organization
+  description: "Stripe payment and subscription data"
+  group_name: "stripe"
+  include_sample_metadata: true

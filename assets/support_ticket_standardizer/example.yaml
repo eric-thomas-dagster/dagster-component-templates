@@ -1,0 +1,22 @@
+type: dagster_component_templates.SupportTicketStandardizerComponent
+attributes:
+  asset_name: standardized_support_tickets
+
+  # Platform configuration
+  platform: "zendesk"
+  source_asset: "zendesk_tickets"
+
+  # Custom field mappings (optional - auto-detected if not specified)
+  # ticket_id_field: "id"
+  # status_field: "status"
+
+  # Optional filters
+  # filter_status: "open,pending,solved"
+  # filter_priority: "high,urgent"
+  # filter_date_from: "2024-01-01"
+  # filter_date_to: "2024-12-31"
+
+  # Organization
+  description: "Standardized support ticket data with unified schema"
+  group_name: "support"
+  include_sample_metadata: true

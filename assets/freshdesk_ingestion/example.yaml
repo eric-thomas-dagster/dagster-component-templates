@@ -1,0 +1,15 @@
+type: dagster_component_templates.FreshdeskIngestionComponent
+attributes:
+  asset_name: freshdesk_support_data
+
+  # Freshdesk Configuration
+  api_key: "${FRESHDESK_API_KEY}"
+  domain: "yourcompany.freshdesk.com"
+
+  # Resources to extract
+  resources: ["tickets", "contacts", "companies", "agents"]
+
+  # Organization
+  description: "Freshdesk support tickets and customer service data"
+  group_name: "freshdesk"
+  include_sample_metadata: true

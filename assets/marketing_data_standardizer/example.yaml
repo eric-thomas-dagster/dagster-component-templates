@@ -1,0 +1,26 @@
+type: dagster_component_templates.MarketingDataStandardizerComponent
+attributes:
+  asset_name: standardized_marketing_data
+
+  # Platform configuration
+  platform: "facebook_ads"
+  source_asset: "facebook_ads_insights"
+
+  # Custom field mappings (optional - auto-detected if not specified)
+  # campaign_id_field: "campaign_id"
+  # campaign_name_field: "campaign_name"
+  # date_field: "date_start"
+  # spend_field: "spend"
+
+  # Spend multiplier (use 0.000001 for Google Ads and Twitter micros)
+  spend_multiplier: 1.0
+
+  # Optional filters
+  # filter_date_from: "2024-01-01"
+  # filter_date_to: "2024-12-31"
+  # filter_campaign_status: "ACTIVE,PAUSED"
+
+  # Organization
+  description: "Standardized marketing data with unified schema"
+  group_name: "marketing_standardized"
+  include_sample_metadata: true

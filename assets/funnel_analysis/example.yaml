@@ -1,0 +1,22 @@
+type: dagster_component_templates.FunnelAnalysisComponent
+attributes:
+  asset_name: checkout_funnel
+
+  # Source data (set via lineage in Dagster Designer)
+  source_asset: user_events
+
+  # Funnel Configuration
+  funnel_steps: "Landing,Product View,Add to Cart,Checkout,Purchase"
+  conversion_window_hours: 24  # Users must complete within 24 hours
+  require_sequential: true  # Steps must occur in order
+  allow_skips: false  # Don't allow skipping steps
+
+  # Optional: Specify column names if auto-detection fails
+  # user_id_field: user_id
+  # event_name_field: event_name
+  # timestamp_field: timestamp
+
+  # Organization
+  description: "E-commerce checkout funnel with conversion tracking"
+  group_name: product_analytics
+  include_sample_metadata: true

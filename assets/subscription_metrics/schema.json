@@ -1,0 +1,147 @@
+{
+  "type": "dagster_component_templates.SubscriptionMetricsComponent",
+  "name": "Subscription Metrics",
+  "category": "cdp",
+  "description": "Calculate SaaS subscription metrics including MRR, ARR, churn rate, and customer lifetime value (LTV) from Stripe data.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Subscription data with customer, plan, and billing information",
+      "expected_columns": [
+        {
+          "name": "customer_id",
+          "type": "string",
+          "required": true,
+          "alternatives": ["subscription_id", "customerId"],
+          "description": "Customer or subscription identifier"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "alternatives": ["subscription_status", "state"],
+          "description": "Subscription status (active, canceled, etc.)"
+        },
+        {
+          "name": "created",
+          "type": "datetime",
+          "required": true,
+          "alternatives": ["created_at", "start_date", "subscription_start"],
+          "description": "Subscription creation date"
+        },
+        {
+          "name": "plan_amount",
+          "type": "number",
+          "required": true,
+          "alternatives": ["amount", "price", "mrr"],
+          "description": "Monthly subscription amount"
+        },
+        {
+          "name": "canceled_at",
+          "type": "datetime",
+          "required": false,
+          "alternatives": ["cancellation_date", "ended_at"],
+          "description": "Subscription cancellation date"
+        }
+      ],
+      "compatible_upstream": [
+        "stripe_ingestion",
+        "shopify_ingestion"
+      ]
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Subscription metrics (MRR, ARR, churn, LTV)",
+      "columns": [
+        {"name": "metric_name", "type": "string"},
+        {"name": "metric_value", "type": "number"},
+        {"name": "calculation_date", "type": "datetime"},
+        {"name": "total_active_subscriptions", "type": "number"},
+        {"name": "total_mrr", "type": "number"},
+        {"name": "total_arr", "type": "number"},
+        {"name": "churn_rate", "type": "number"},
+        {"name": "avg_ltv", "type": "number"}
+      ]
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the subscription metrics output asset",
+      "placeholder": "subscription_metrics"
+    },
+    "stripe_data_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Stripe Data Asset",
+      "description": "Stripe data asset with subscriptions (automatically set via lineage)",
+      "placeholder": "stripe_data"
+    },
+    "revenue_data_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Revenue Data Asset",
+      "description": "Revenue data for enhanced LTV calculations (optional)",
+      "placeholder": "revenue_data"
+    },
+    "calculation_period": {
+      "type": "string",
+      "required": false,
+      "label": "Calculation Period",
+      "description": "Time period for metrics calculation",
+      "default": "monthly",
+      "enum": ["daily", "weekly", "monthly"],
+      "placeholder": "monthly"
+    },
+    "ltv_method": {
+      "type": "string",
+      "required": false,
+      "label": "LTV Calculation Method",
+      "description": "Method for calculating customer lifetime value",
+      "default": "historical",
+      "enum": ["historical", "predictive"],
+      "placeholder": "historical"
+    },
+    "lookback_months": {
+      "type": "number",
+      "required": false,
+      "label": "Lookback Period (Months)",
+      "description": "Months to look back for historical calculations",
+      "default": 12,
+      "min": 1,
+      "max": 60
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Subscription and revenue metrics"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "subscription_analytics",
+      "placeholder": "subscription_analytics"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+  },
+  "tags": ["cdp", "saas", "mrr", "arr", "churn", "ltv", "subscription-analytics"]
+}

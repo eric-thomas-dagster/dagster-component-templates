@@ -1,0 +1,81 @@
+{
+  "type": "dagster_component_templates.WorkableIngestionComponent",
+  "name": "Workable Ingestion",
+  "category": "cdp",
+  "description": "Ingest Workable recruitment pipeline data (jobs, candidates) using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Briefcase",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Workable data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "workable_recruitment_data"
+    },
+    "api_token": {
+      "type": "string",
+      "required": true,
+      "label": "API Token",
+      "description": "Workable API token for authentication",
+      "placeholder": "{{ env('WORKABLE_API_TOKEN') }}",
+      "secret": true
+    },
+    "subdomain": {
+      "type": "string",
+      "required": true,
+      "label": "Subdomain",
+      "description": "Workable subdomain (e.g., 'your-company' from your-company.workable.com)",
+      "placeholder": "your-company"
+    },
+    "resources": {
+      "type": "array",
+      "required": false,
+      "label": "Resources",
+      "description": "Workable resources to extract",
+      "default": ["jobs", "candidates"],
+      "items": {
+        "type": "string",
+        "enum": ["jobs", "candidates", "stages", "members"]
+      }
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Workable recruitment data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "workable",
+      "placeholder": "workable"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["dlt[workable]>=0.4.0", "pandas>=1.5.0"]
+  },
+  "tags": ["cdp", "recruitment", "workable", "jobs", "candidates", "hiring", "dlt", "ingestion"]
+}

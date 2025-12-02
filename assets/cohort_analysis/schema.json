@@ -1,0 +1,160 @@
+{
+  "type": "dagster_component_templates.CohortAnalysisComponent",
+  "name": "Cohort Analysis",
+  "category": "cdp",
+  "description": "Track customer retention by acquisition cohort over time. Analyzes how different customer cohorts retain and engage over their lifecycle.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Customer activity data with customer_id, first_order_date, activity_date",
+      "expected_columns": [
+        {
+          "name": "customer_id",
+          "type": "string",
+          "required": true,
+          "alternatives": ["user_id", "customerId", "userId", "id"]
+        },
+        {
+          "name": "first_order_date",
+          "type": "datetime",
+          "required": true,
+          "alternatives": ["first_activity_date", "signup_date", "created_at", "first_date"]
+        },
+        {
+          "name": "activity_date",
+          "type": "datetime",
+          "required": true,
+          "alternatives": ["order_date", "date", "transaction_date", "timestamp"]
+        },
+        {
+          "name": "revenue",
+          "type": "number",
+          "required": false,
+          "alternatives": ["amount", "total", "price", "value"]
+        }
+      ],
+      "compatible_upstream": [
+        "customer_360",
+        "shopify_ingestion",
+        "stripe_ingestion",
+        "ecommerce_standardizer"
+      ]
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Cohort retention matrix with retention percentages by period",
+      "columns": [
+        {"name": "cohort_period", "type": "string"},
+        {"name": "cohort_size", "type": "number"},
+        {"name": "period_0", "type": "number"},
+        {"name": "period_1", "type": "number"},
+        {"name": "period_2", "type": "number"},
+        {"name": "period_N", "type": "number", "description": "Additional period columns dynamically generated"}
+      ]
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the cohort analysis asset",
+      "placeholder": "customer_cohort_retention"
+    },
+    "source_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Source Asset",
+      "description": "Source asset with customer activity data (set via lineage)",
+      "placeholder": "customer_activity"
+    },
+    "cohort_period": {
+      "type": "string",
+      "required": false,
+      "label": "Cohort Period",
+      "description": "Time period for cohort grouping",
+      "default": "monthly",
+      "enum": ["daily", "weekly", "monthly"],
+      "enumLabels": {
+        "daily": "Daily cohorts",
+        "weekly": "Weekly cohorts",
+        "monthly": "Monthly cohorts"
+      }
+    },
+    "retention_periods": {
+      "type": "number",
+      "required": false,
+      "label": "Retention Periods",
+      "description": "Number of periods to track retention",
+      "default": 12,
+      "min": 1,
+      "max": 36
+    },
+    "include_revenue": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Revenue",
+      "description": "Include average revenue per user in analysis",
+      "default": false
+    },
+    "customer_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Customer ID Field",
+      "description": "Customer ID column name (auto-detected if not specified)",
+      "placeholder": "customer_id"
+    },
+    "first_date_field": {
+      "type": "string",
+      "required": false,
+      "label": "First Date Field",
+      "description": "First activity date column (auto-detected if not specified)",
+      "placeholder": "first_order_date"
+    },
+    "activity_date_field": {
+      "type": "string",
+      "required": false,
+      "label": "Activity Date Field",
+      "description": "Activity date column (auto-detected if not specified)",
+      "placeholder": "activity_date"
+    },
+    "revenue_field": {
+      "type": "string",
+      "required": false,
+      "label": "Revenue Field",
+      "description": "Revenue column name (required if include_revenue=True)",
+      "placeholder": "revenue"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Cohort retention analysis"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "customer_analytics",
+      "placeholder": "customer_analytics"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+  },
+  "tags": ["cdp", "cohort-analysis", "retention", "customer-analytics", "lifecycle"],
+  "icon": "TrendingUp"
+}

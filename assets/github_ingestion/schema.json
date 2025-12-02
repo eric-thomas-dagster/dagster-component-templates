@@ -1,0 +1,90 @@
+{
+  "type": "dagster_component_templates.GitHubIngestionComponent",
+  "name": "GitHub Ingestion",
+  "category": "cdp",
+  "description": "Ingest GitHub repository data (issues, PRs, commits) using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Code",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "GitHub data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "github_repo_data"
+    },
+    "access_token": {
+      "type": "string",
+      "required": true,
+      "label": "Access Token",
+      "description": "GitHub Personal Access Token for API authentication",
+      "placeholder": "{{ env('GITHUB_ACCESS_TOKEN') }}",
+      "secret": true
+    },
+    "owner": {
+      "type": "string",
+      "required": true,
+      "label": "Owner",
+      "description": "Repository owner (username or organization)",
+      "placeholder": "my-org"
+    },
+    "repositories": {
+      "type": "array",
+      "required": true,
+      "label": "Repositories",
+      "description": "List of repository names to extract data from",
+      "items": {
+        "type": "string"
+      }
+    },
+    "resources": {
+      "type": "array",
+      "required": false,
+      "label": "Resources",
+      "description": "GitHub resources to extract",
+      "default": ["issues", "pull_requests"],
+      "items": {
+        "type": "string",
+        "enum": ["issues", "pull_requests", "comments", "reactions"]
+      }
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "GitHub repository data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "github",
+      "placeholder": "github"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["dlt[github]>=0.4.0", "pandas>=1.5.0"]
+  },
+  "tags": ["cdp", "github", "repositories", "issues", "pull-requests", "dlt", "ingestion"]
+}

@@ -1,0 +1,157 @@
+{
+  "type": "dagster_component_templates.RFMSegmentationComponent",
+  "name": "RFM Segmentation",
+  "category": "cdp",
+  "description": "Segment customers by Recency, Frequency, and Monetary value. Identifies Champions, Loyal Customers, At Risk, and Lost segments.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Transaction data with customer_id, order_date, order_id, revenue",
+      "expected_columns": [
+        {
+          "name": "customer_id",
+          "type": "string",
+          "required": true,
+          "alternatives": ["user_id", "customerId", "userId", "id"]
+        },
+        {
+          "name": "order_date",
+          "type": "datetime",
+          "required": true,
+          "alternatives": ["date", "transaction_date", "created_at", "timestamp", "order_time"]
+        },
+        {
+          "name": "order_id",
+          "type": "string",
+          "required": true,
+          "alternatives": ["transaction_id", "orderId", "transactionId", "invoice_id"]
+        },
+        {
+          "name": "revenue",
+          "type": "number",
+          "required": true,
+          "alternatives": ["amount", "total", "price", "value", "order_amount", "spend"]
+        }
+      ],
+      "compatible_upstream": [
+        "shopify_ingestion",
+        "stripe_ingestion",
+        "ecommerce_standardizer",
+        "salesforce_ingestion",
+        "hubspot_ingestion"
+      ]
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Customer segments with RFM scores and labels",
+      "columns": [
+        {"name": "customer_id", "type": "string"},
+        {"name": "recency_days", "type": "number"},
+        {"name": "frequency", "type": "number"},
+        {"name": "monetary", "type": "number"},
+        {"name": "r_score", "type": "number"},
+        {"name": "f_score", "type": "number"},
+        {"name": "m_score", "type": "number"},
+        {"name": "rfm_score", "type": "string"},
+        {"name": "rfm_segment", "type": "string"},
+        {"name": "segment_label", "type": "string"}
+      ]
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the RFM segmentation asset",
+      "placeholder": "customer_rfm_segments"
+    },
+    "source_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Source Asset",
+      "description": "Source asset with transaction data (set via lineage)",
+      "placeholder": "transactions"
+    },
+    "scoring_method": {
+      "type": "string",
+      "required": false,
+      "label": "Scoring Method",
+      "description": "Scoring method for RFM metrics",
+      "default": "quintile",
+      "enum": ["quintile", "quartile"],
+      "enumLabels": {
+        "quintile": "Quintile (1-5 scale)",
+        "quartile": "Quartile (1-4 scale)"
+      }
+    },
+    "lookback_days": {
+      "type": "number",
+      "required": false,
+      "label": "Lookback Days",
+      "description": "Number of days to look back for transaction data",
+      "default": 365,
+      "min": 1,
+      "max": 3650
+    },
+    "customer_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Customer ID Field",
+      "description": "Customer ID column name (auto-detected if not specified)",
+      "placeholder": "customer_id"
+    },
+    "order_date_field": {
+      "type": "string",
+      "required": false,
+      "label": "Order Date Field",
+      "description": "Order date column name (auto-detected if not specified)",
+      "placeholder": "order_date"
+    },
+    "order_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Order ID Field",
+      "description": "Order ID column name (auto-detected if not specified)",
+      "placeholder": "order_id"
+    },
+    "revenue_field": {
+      "type": "string",
+      "required": false,
+      "label": "Revenue Field",
+      "description": "Revenue/amount column name (auto-detected if not specified)",
+      "placeholder": "revenue"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "RFM customer segmentation"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "customer_analytics",
+      "placeholder": "customer_analytics"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+  },
+  "tags": ["cdp", "rfm", "segmentation", "customer-value", "customer-analytics"],
+  "icon": "Users"
+}

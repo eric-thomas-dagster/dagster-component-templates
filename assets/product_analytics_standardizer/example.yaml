@@ -1,0 +1,22 @@
+type: dagster_component_templates.ProductAnalyticsStandardizerComponent
+attributes:
+  asset_name: standardized_product_analytics
+
+  # Platform configuration
+  platform: "google_analytics_4"
+  source_asset: "ga4_events"
+
+  # Custom field mappings (optional - auto-detected if not specified)
+  # date_field: "event_date"
+  # event_name_field: "event_name"
+  # user_id_field: "user_pseudo_id"
+
+  # Optional filters
+  # filter_date_from: "2024-01-01"
+  # filter_date_to: "2024-12-31"
+  # filter_event_name: "page_view,purchase,sign_up"
+
+  # Organization
+  description: "Standardized product analytics data with unified schema"
+  group_name: "analytics"
+  include_sample_metadata: true

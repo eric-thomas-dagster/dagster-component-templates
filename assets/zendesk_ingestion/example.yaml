@@ -1,0 +1,16 @@
+type: dagster_component_templates.ZendeskIngestionComponent
+attributes:
+  asset_name: zendesk_support_data
+
+  # Zendesk Configuration
+  subdomain: "mycompany"
+  email: "admin@company.com"
+  api_token: "${ZENDESK_API_TOKEN}"
+
+  # Resources to extract
+  resources: ["tickets", "users", "organizations", "groups"]
+
+  # Organization
+  description: "Zendesk support tickets and customer service data"
+  group_name: "zendesk"
+  include_sample_metadata: true

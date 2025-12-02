@@ -1,0 +1,17 @@
+type: dagster_component_templates.PersonioIngestionComponent
+attributes:
+  asset_name: personio_hr_data
+
+  # Authentication
+  client_id: "{{ env('PERSONIO_CLIENT_ID') }}"
+  client_secret: "{{ env('PERSONIO_CLIENT_SECRET') }}"
+
+  # Resources to extract
+  resources:
+    - employees
+    - absences
+
+  # Organization
+  description: "Personio HR and employee data"
+  group_name: "personio"
+  include_sample_metadata: true

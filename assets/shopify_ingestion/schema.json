@@ -1,0 +1,96 @@
+{
+  "type": "dagster_component_templates.ShopifyIngestionComponent",
+  "name": "Shopify Ingestion",
+  "category": "cdp",
+  "description": "Ingest Shopify e-commerce data (customers, orders, products) using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "ShoppingCart",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Shopify data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "shopify_data"
+    },
+    "shop_url": {
+      "type": "string",
+      "required": true,
+      "label": "Shop URL",
+      "description": "Your Shopify store URL (e.g., mystore.myshopify.com)",
+      "placeholder": "mystore.myshopify.com"
+    },
+    "private_app_password": {
+      "type": "string",
+      "required": true,
+      "label": "Private App Password",
+      "description": "Shopify Private App Password or Admin API access token",
+      "placeholder": "${SHOPIFY_PRIVATE_APP_PASSWORD}",
+      "secret": true
+    },
+    "resources": {
+      "type": "array",
+      "required": false,
+      "label": "Resources",
+      "description": "Shopify resources to extract",
+      "default": ["customers", "orders", "products"],
+      "items": {
+        "type": "string",
+        "enum": ["customers", "orders", "products"]
+      }
+    },
+    "start_date": {
+      "type": "string",
+      "required": false,
+      "label": "Start Date",
+      "description": "Start date for incremental loading (YYYY-MM-DD format)",
+      "placeholder": "2024-01-01"
+    },
+    "order_status": {
+      "type": "string",
+      "required": false,
+      "label": "Order Status Filter",
+      "description": "Filter orders by status",
+      "default": "any",
+      "enum": ["open", "closed", "cancelled", "any"]
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Shopify e-commerce data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "shopify",
+      "placeholder": "shopify"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["dlt[shopify]>=0.4.0", "pandas>=1.5.0"]
+  },
+  "tags": ["cdp", "e-commerce", "shopify", "orders", "customers", "dlt", "ingestion"]
+}

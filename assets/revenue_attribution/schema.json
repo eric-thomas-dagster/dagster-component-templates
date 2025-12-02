@@ -1,0 +1,150 @@
+{
+  "type": "dagster_component_templates.RevenueAttributionComponent",
+  "name": "Revenue Attribution",
+  "category": "cdp",
+  "description": "Connect marketing spend to revenue by attributing conversions and calculating ROI, ROAS, and CAC metrics.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Marketing data (spend, campaigns) and revenue data",
+      "expected_columns": [
+        {
+          "name": "campaign_id",
+          "type": "string",
+          "required": true,
+          "alternatives": ["campaign_name", "campaignId"],
+          "description": "Campaign identifier for attribution"
+        },
+        {
+          "name": "spend",
+          "type": "number",
+          "required": true,
+          "alternatives": ["cost", "amount_spent"],
+          "description": "Marketing spend amount"
+        },
+        {
+          "name": "date",
+          "type": "datetime",
+          "required": true,
+          "alternatives": ["campaign_date", "timestamp"],
+          "description": "Campaign date for time-based attribution"
+        },
+        {
+          "name": "revenue",
+          "type": "number",
+          "required": false,
+          "alternatives": ["amount", "total"],
+          "description": "Revenue from conversions (for order data)"
+        }
+      ],
+      "compatible_upstream": [
+        "marketing_data_standardizer",
+        "facebook_ads_ingestion",
+        "google_ads_ingestion",
+        "stripe_ingestion",
+        "customer_360"
+      ]
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Campaign attribution with ROI, ROAS, CAC metrics",
+      "columns": [
+        {"name": "campaign_id", "type": "string"},
+        {"name": "campaign_name", "type": "string"},
+        {"name": "spend", "type": "number"},
+        {"name": "attributed_revenue", "type": "number"},
+        {"name": "attributed_conversions", "type": "number"},
+        {"name": "roi", "type": "number"},
+        {"name": "roas", "type": "number"},
+        {"name": "cac", "type": "number"},
+        {"name": "conversion_rate", "type": "number"}
+      ]
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the revenue attribution output asset",
+      "placeholder": "revenue_attribution"
+    },
+    "marketing_data_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Marketing Data Asset",
+      "description": "Marketing data asset with spend and campaigns (automatically set via lineage)",
+      "placeholder": "standardized_marketing_data"
+    },
+    "revenue_data_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Revenue Data Asset",
+      "description": "Revenue data asset (Stripe charges/subscriptions) (automatically set via lineage)",
+      "placeholder": "stripe_data"
+    },
+    "customer_360_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Customer 360 Asset",
+      "description": "Customer 360 data for enhanced attribution (optional)",
+      "placeholder": "customer_360"
+    },
+    "attribution_model": {
+      "type": "string",
+      "required": false,
+      "label": "Attribution Model",
+      "description": "Attribution model to use",
+      "default": "last_touch",
+      "enum": ["first_touch", "last_touch", "linear", "time_decay"],
+      "placeholder": "last_touch"
+    },
+    "attribution_window_days": {
+      "type": "number",
+      "required": false,
+      "label": "Attribution Window (Days)",
+      "description": "Days to attribute revenue after campaign interaction",
+      "default": 30,
+      "min": 1,
+      "max": 365
+    },
+    "join_key": {
+      "type": "string",
+      "required": false,
+      "label": "Join Key",
+      "description": "Key to join marketing and revenue data",
+      "default": "email",
+      "placeholder": "email"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Revenue attribution by marketing campaign"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "marketing_analytics",
+      "placeholder": "marketing_analytics"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+  },
+  "tags": ["cdp", "attribution", "roi", "roas", "cac", "marketing-analytics"]
+}

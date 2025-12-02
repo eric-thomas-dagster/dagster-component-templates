@@ -1,0 +1,18 @@
+type: dagster_component_templates.JiraIngestionComponent
+attributes:
+  asset_name: jira_issue_data
+
+  # Authentication
+  domain: "your-company.atlassian.net"
+  email: "{{ env('JIRA_EMAIL') }}"
+  api_token: "{{ env('JIRA_API_TOKEN') }}"
+
+  # Resources to extract
+  resources:
+    - issues
+    - projects
+
+  # Organization
+  description: "Jira issue tracking and project data"
+  group_name: "jira"
+  include_sample_metadata: true

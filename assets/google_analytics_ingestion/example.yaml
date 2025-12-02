@@ -1,0 +1,20 @@
+type: dagster_component_templates.GoogleAnalyticsIngestionComponent
+attributes:
+  asset_name: google_analytics_data
+
+  # GA4 Property Configuration
+  property_id: "123456789"
+  credentials_json: "${GOOGLE_ANALYTICS_CREDENTIALS}"
+
+  # Dimensions and Metrics
+  dimensions: "date,sessionSource,sessionMedium,deviceCategory"
+  metrics: "sessions,totalUsers,screenPageViews,conversions"
+
+  # Date Range
+  start_date: "2024-01-01"
+  # end_date: "2024-12-31"
+
+  # Organization
+  description: "Google Analytics 4 web analytics data"
+  group_name: "google_analytics"
+  include_sample_metadata: true

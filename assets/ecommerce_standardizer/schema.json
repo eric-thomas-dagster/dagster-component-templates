@@ -1,0 +1,154 @@
+{
+  "type": "dagster_component_templates.EcommerceStandardizerComponent",
+  "name": "E-commerce Standardizer",
+  "category": "cdp",
+  "description": "Standardize e-commerce data across platforms (Shopify, Stripe, WooCommerce) into a unified schema.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "ShoppingCart",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Raw e-commerce data from platform ingestion components",
+      "expected_columns": [
+        {
+          "name": "_resource_type",
+          "type": "string",
+          "required": true,
+          "alternatives": ["resource_type", "object_type"],
+          "description": "Resource type (orders, products, customers)"
+        },
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "alternatives": ["order_id", "product_id", "customer_id"],
+          "description": "Record identifier"
+        },
+        {
+          "name": "created_at",
+          "type": "datetime",
+          "required": false,
+          "alternatives": ["order_date", "created", "date"],
+          "description": "Record creation date"
+        }
+      ],
+      "compatible_upstream": [
+        "shopify_ingestion",
+        "stripe_ingestion"
+      ]
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Standardized e-commerce data with unified schema",
+      "columns": [
+        {"name": "resource_type", "type": "string"},
+        {"name": "platform", "type": "string"},
+        {"name": "id", "type": "string"},
+        {"name": "customer_id", "type": "string"},
+        {"name": "email", "type": "string"},
+        {"name": "total", "type": "number"},
+        {"name": "status", "type": "string"},
+        {"name": "currency", "type": "string"},
+        {"name": "created_at", "type": "datetime"},
+        {"name": "updated_at", "type": "datetime"}
+      ]
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of standardized output asset",
+      "placeholder": "standardized_shopify_orders"
+    },
+    "platform": {
+      "type": "string",
+      "required": true,
+      "label": "Source Platform",
+      "description": "E-commerce platform to standardize",
+      "enum": ["shopify", "stripe", "woocommerce"]
+    },
+    "resource_type": {
+      "type": "string",
+      "required": true,
+      "label": "Resource Type",
+      "description": "Type of e-commerce resource to standardize",
+      "enum": ["orders", "products", "customers"]
+    },
+    "source_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Source Asset",
+      "description": "Upstream asset with raw data (set automatically via lineage)",
+      "placeholder": "shopify_orders"
+    },
+    "order_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Order ID Field",
+      "description": "Custom field name for order ID (auto-detected if empty)",
+      "placeholder": "id"
+    },
+    "customer_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Customer ID Field",
+      "description": "Custom field name for customer ID (auto-detected if empty)",
+      "placeholder": "customer_id"
+    },
+    "filter_status": {
+      "type": "string",
+      "required": false,
+      "label": "Status Filter",
+      "description": "Filter by order/payment status (comma-separated)",
+      "placeholder": "paid,fulfilled"
+    },
+    "filter_date_from": {
+      "type": "string",
+      "required": false,
+      "label": "Filter Date From",
+      "description": "Start date filter (YYYY-MM-DD)",
+      "placeholder": "2024-01-01"
+    },
+    "filter_date_to": {
+      "type": "string",
+      "required": false,
+      "label": "Filter Date To",
+      "description": "End date filter (YYYY-MM-DD)",
+      "placeholder": "2024-12-31"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Standardized e-commerce data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "ecommerce",
+      "placeholder": "ecommerce"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "numpy>=1.24.0"
+    ]
+  },
+  "tags": ["cdp", "ecommerce", "standardization", "shopify", "stripe", "orders"]
+}

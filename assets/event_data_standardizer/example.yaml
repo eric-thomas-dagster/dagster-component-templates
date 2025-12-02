@@ -1,0 +1,24 @@
+type: dagster_component_templates.EventDataStandardizerComponent
+attributes:
+  asset_name: standardized_events
+
+  # Platform configuration
+  platform: "segment"
+  source_asset: "segment_events"
+
+  # Custom field mappings (optional - auto-detected if not specified)
+  # event_id_field: "messageId"
+  # event_name_field: "event"
+  # user_id_field: "userId"
+  # timestamp_field: "timestamp"
+
+  # Optional filters
+  # filter_event_name: "page_view,purchase,signup"
+  # filter_event_type: "track,page"
+  # filter_date_from: "2024-01-01"
+  # filter_date_to: "2024-12-31"
+
+  # Organization
+  description: "Standardized event tracking data with unified schema"
+  group_name: "events"
+  include_sample_metadata: true

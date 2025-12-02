@@ -1,0 +1,82 @@
+{
+  "type": "dagster_component_templates.PersonioIngestionComponent",
+  "name": "Personio Ingestion",
+  "category": "cdp",
+  "description": "Ingest Personio HR management data (employees, absences) using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Users",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Personio data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "personio_hr_data"
+    },
+    "client_id": {
+      "type": "string",
+      "required": true,
+      "label": "Client ID",
+      "description": "Personio API client ID for authentication",
+      "placeholder": "{{ env('PERSONIO_CLIENT_ID') }}",
+      "secret": true
+    },
+    "client_secret": {
+      "type": "string",
+      "required": true,
+      "label": "Client Secret",
+      "description": "Personio API client secret for authentication",
+      "placeholder": "{{ env('PERSONIO_CLIENT_SECRET') }}",
+      "secret": true
+    },
+    "resources": {
+      "type": "array",
+      "required": false,
+      "label": "Resources",
+      "description": "Personio resources to extract",
+      "default": ["employees", "absences"],
+      "items": {
+        "type": "string",
+        "enum": ["employees", "absences", "attendances", "recruiting"]
+      }
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Personio HR management data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "personio",
+      "placeholder": "personio"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["dlt[personio]>=0.4.0", "pandas>=1.5.0"]
+  },
+  "tags": ["cdp", "hr", "personio", "employees", "recruitment", "dlt", "ingestion"]
+}

@@ -1,0 +1,87 @@
+{
+  "type": "dagster_component_templates.SalesforceIngestionComponent",
+  "name": "Salesforce Ingestion",
+  "category": "cdp",
+  "description": "Ingest Salesforce CRM data (accounts, opportunities, contacts, leads) using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Salesforce data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "salesforce_crm_data"
+    },
+    "username": {
+      "type": "string",
+      "required": true,
+      "label": "Username",
+      "description": "Salesforce username",
+      "placeholder": "{{ env('SALESFORCE_USERNAME') }}"
+    },
+    "password": {
+      "type": "string",
+      "required": true,
+      "label": "Password",
+      "description": "Salesforce password",
+      "placeholder": "{{ env('SALESFORCE_PASSWORD') }}",
+      "secret": true
+    },
+    "security_token": {
+      "type": "string",
+      "required": true,
+      "label": "Security Token",
+      "description": "Salesforce security token",
+      "placeholder": "{{ env('SALESFORCE_SECURITY_TOKEN') }}",
+      "secret": true
+    },
+    "sf_objects": {
+      "type": "array",
+      "required": false,
+      "label": "Salesforce Objects",
+      "description": "Salesforce objects to extract",
+      "default": ["Account", "Opportunity", "Contact", "Lead"],
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Salesforce CRM data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "salesforce",
+      "placeholder": "salesforce"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["dlt[salesforce]>=0.4.0", "pandas>=1.5.0", "simple-salesforce>=1.12.0"]
+  },
+  "tags": ["cdp", "crm", "salesforce", "enterprise", "sales", "dlt", "ingestion"]
+}

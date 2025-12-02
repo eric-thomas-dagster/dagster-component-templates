@@ -1,0 +1,163 @@
+{
+  "type": "dagster_component_templates.SupportTicketStandardizerComponent",
+  "name": "Support Ticket Standardizer",
+  "category": "cdp",
+  "description": "Standardize support ticket data across platforms (Zendesk, Freshdesk, Intercom) into a unified schema.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Headphones",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Raw support ticket data from platform ingestion components",
+      "expected_columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "alternatives": ["ticket_id", "ticketId"],
+          "description": "Ticket identifier"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "alternatives": ["ticket_status", "state"],
+          "description": "Ticket status"
+        },
+        {
+          "name": "created_at",
+          "type": "datetime",
+          "required": true,
+          "alternatives": ["created", "submitted_at"],
+          "description": "Ticket creation date"
+        },
+        {
+          "name": "subject",
+          "type": "string",
+          "required": false,
+          "alternatives": ["title", "summary"],
+          "description": "Ticket subject"
+        }
+      ],
+      "compatible_upstream": [
+        "zendesk_ingestion",
+        "freshdesk_ingestion"
+      ]
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Standardized support ticket data with unified schema",
+      "columns": [
+        {"name": "platform", "type": "string"},
+        {"name": "ticket_id", "type": "string"},
+        {"name": "subject", "type": "string"},
+        {"name": "status", "type": "string"},
+        {"name": "priority", "type": "string"},
+        {"name": "type", "type": "string"},
+        {"name": "requester_email", "type": "string"},
+        {"name": "assignee_email", "type": "string"},
+        {"name": "created_at", "type": "datetime"},
+        {"name": "updated_at", "type": "datetime"},
+        {"name": "resolved_at", "type": "datetime"},
+        {"name": "satisfaction_score", "type": "string"}
+      ]
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of standardized output asset",
+      "placeholder": "standardized_support_tickets"
+    },
+    "platform": {
+      "type": "string",
+      "required": true,
+      "label": "Source Platform",
+      "description": "Support platform to standardize",
+      "enum": ["zendesk", "freshdesk", "intercom"]
+    },
+    "source_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Source Asset",
+      "description": "Upstream asset with raw data (set automatically via lineage)",
+      "placeholder": "zendesk_tickets"
+    },
+    "ticket_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Ticket ID Field",
+      "description": "Custom field name for ticket ID (auto-detected if empty)",
+      "placeholder": "id"
+    },
+    "status_field": {
+      "type": "string",
+      "required": false,
+      "label": "Status Field",
+      "description": "Custom field name for status (auto-detected if empty)",
+      "placeholder": "status"
+    },
+    "filter_status": {
+      "type": "string",
+      "required": false,
+      "label": "Status Filter",
+      "description": "Filter by ticket status (comma-separated)",
+      "placeholder": "open,pending,solved"
+    },
+    "filter_priority": {
+      "type": "string",
+      "required": false,
+      "label": "Priority Filter",
+      "description": "Filter by priority level (comma-separated)",
+      "placeholder": "high,urgent"
+    },
+    "filter_date_from": {
+      "type": "string",
+      "required": false,
+      "label": "Filter Date From",
+      "description": "Start date filter (YYYY-MM-DD)",
+      "placeholder": "2024-01-01"
+    },
+    "filter_date_to": {
+      "type": "string",
+      "required": false,
+      "label": "Filter Date To",
+      "description": "End date filter (YYYY-MM-DD)",
+      "placeholder": "2024-12-31"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Standardized support ticket data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "support",
+      "placeholder": "support"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "numpy>=1.24.0"
+    ]
+  },
+  "tags": ["cdp", "support", "standardization", "zendesk", "freshdesk", "tickets"]
+}

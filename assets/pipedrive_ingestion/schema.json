@@ -1,0 +1,74 @@
+{
+  "type": "dagster_component_templates.PipedriveIngestionComponent",
+  "name": "Pipedrive Ingestion",
+  "category": "cdp",
+  "description": "Ingest Pipedrive CRM and sales pipeline data using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Target",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Pipedrive data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "pipedrive_crm_data"
+    },
+    "api_token": {
+      "type": "string",
+      "required": true,
+      "label": "API Token",
+      "description": "Pipedrive API token for authentication",
+      "placeholder": "${PIPEDRIVE_API_TOKEN}",
+      "secret": true
+    },
+    "resources": {
+      "type": "array",
+      "required": false,
+      "label": "Resources",
+      "description": "Pipedrive resources to extract",
+      "default": ["deals", "persons", "organizations", "activities"],
+      "items": {
+        "type": "string",
+        "enum": ["deals", "persons", "organizations", "activities"]
+      }
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Pipedrive CRM and sales pipeline data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "pipedrive",
+      "placeholder": "pipedrive"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["dlt[pipedrive]>=0.4.0", "pandas>=1.5.0"]
+  },
+  "tags": ["cdp", "crm", "pipedrive", "sales", "pipeline", "dlt", "ingestion"]
+}

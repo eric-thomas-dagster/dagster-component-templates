@@ -1,0 +1,178 @@
+"""Slack Ingestion Component.
+
+Ingest Slack workspace data using dlt (data load tool).
+Extracts messages, channels, and users.
+"""
+
+from typing import Optional, List
+import pandas as pd
+from dagster import (
+    AssetExecutionContext,
+    Component,
+    ComponentLoadContext,
+    Definitions,
+    Model,
+    Resolvable,
+    asset,
+    Output,
+    MetadataValue,
+)
+from pydantic import Field
+import dlt
+
+
+class SlackIngestionComponent(Component, Model, Resolvable):
+    """Component for ingesting Slack workspace data using dlt.
+
+    Slack is a popular business communication platform. This component extracts
+    data from Slack's API and returns it as a pandas DataFrame for downstream
+    transformation and analysis.
+
+    Available data resources:
+    - messages: Channel and direct messages
+    - channels: Public and private channels
+    - users: Workspace members and their profiles
+
+    The component uses dlt's verified Slack source to handle API pagination,
+    rate limiting, and data extraction automatically.
+
+    Example:
+        ```yaml
+        type: dagster_component_templates.SlackIngestionComponent
+        attributes:
+          asset_name: slack_workspace_data
+          api_token: "{{ env('SLACK_API_TOKEN') }}"
+          resources:
+            - messages
+            - channels
+            - users
+        ```
+    """
+
+    asset_name: str = Field(
+        description="Name of the asset to create"
+    )
+
+    api_token: str = Field(
+        description="Slack API token for authentication (Bot User OAuth Token)"
+    )
+
+    resources: List[str] = Field(
+        default=["messages", "channels", "users"],
+        description="Slack resources to extract (messages, channels, users)"
+    )
+
+    description: Optional[str] = Field(
+        default=None,
+        description="Asset description"
+    )
+
+    group_name: Optional[str] = Field(
+        default="slack",
+        description="Asset group for organization"
+    )
+
+    include_sample_metadata: bool = Field(
+        default=True,
+        description="Include sample data preview in metadata"
+    )
+
+    def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        asset_name = self.asset_name
+        api_token = self.api_token
+        resources_list = self.resources
+        description = self.description or f"Slack workspace data ({', '.join(resources_list)})"
+        group_name = self.group_name
+        include_sample = self.include_sample_metadata
+
+        @asset(
+            name=asset_name,
+            description=description,
+            group_name=group_name,
+        )
+        def slack_ingestion_asset(context: AssetExecutionContext) -> pd.DataFrame:
+            """Asset that ingests Slack data using dlt."""
+            from dlt.sources.slack import slack_source
+
+            context.log.info(f"Starting Slack ingestion for resources: {resources_list}")
+
+            # Create in-memory pipeline for data extraction
+            pipeline = dlt.pipeline(
+                pipeline_name=f"{asset_name}_pipeline",
+                destination="duckdb",  # Use DuckDB in-memory
+                dataset_name=f"{asset_name}_temp"
+            )
+
+            # Create Slack source
+            source = slack_source(
+                api_token=api_token,
+            )
+
+            # Filter to requested resources
+            if resources_list:
+                selected_resources = []
+                for resource_name in resources_list:
+                    if hasattr(source, resource_name):
+                        selected_resources.append(getattr(source, resource_name))
+                    else:
+                        context.log.warning(f"Resource {resource_name} not found in Slack source")
+
+                if not selected_resources:
+                    raise ValueError(f"No valid resources found. Available: messages, channels, users")
+
+                load_info = pipeline.run(selected_resources)
+            else:
+                load_info = pipeline.run(source)
+
+            context.log.info(f"Slack data loaded: {load_info}")
+
+            # Extract data from DuckDB to DataFrame
+            all_data = []
+            for resource_name in resources_list:
+                try:
+                    query = f"SELECT * FROM {asset_name}_temp.{resource_name}"
+                    with pipeline.sql_client() as client:
+                        with client.execute_query(query) as cursor:
+                            columns = [desc[0] for desc in cursor.description]
+                            rows = cursor.fetchall()
+                            if rows:
+                                df = pd.DataFrame(rows, columns=columns)
+                                df['_resource_type'] = resource_name
+                                all_data.append(df)
+                                context.log.info(f"Extracted {len(df)} rows from {resource_name}")
+                except Exception as e:
+                    context.log.warning(f"Could not extract {resource_name}: {e}")
+
+            if not all_data:
+                context.log.warning("No data extracted from Slack")
+                return pd.DataFrame()
+
+            # Combine all resources into single DataFrame
+            combined_df = pd.concat(all_data, ignore_index=True)
+
+            context.log.info(
+                f"Slack ingestion complete: {len(combined_df)} total rows from {len(all_data)} resources"
+            )
+
+            # Add metadata
+            metadata = {
+                "row_count": len(combined_df),
+                "resources_extracted": len(all_data),
+                "resource_types": list(combined_df['_resource_type'].unique()) if '_resource_type' in combined_df.columns else [],
+            }
+
+            # Return with metadata
+            if include_sample and len(combined_df) > 0:
+                return Output(
+                    value=combined_df,
+                    metadata={
+                        **metadata,
+                        "sample": MetadataValue.md(combined_df.head(10).to_markdown()),
+                        "preview": MetadataValue.dataframe(combined_df.head(10))
+                    }
+                )
+            else:
+                context.add_output_metadata(metadata)
+                return combined_df
+
+        return Definitions(assets=[slack_ingestion_asset])

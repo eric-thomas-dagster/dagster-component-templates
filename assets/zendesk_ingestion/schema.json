@@ -1,0 +1,88 @@
+{
+  "type": "dagster_component_templates.ZendeskIngestionComponent",
+  "name": "Zendesk Ingestion",
+  "category": "cdp",
+  "description": "Ingest Zendesk support tickets and customer service data using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Headphones",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Zendesk data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "zendesk_support_data"
+    },
+    "subdomain": {
+      "type": "string",
+      "required": true,
+      "label": "Zendesk Subdomain",
+      "description": "Your Zendesk subdomain (e.g., 'mycompany' from mycompany.zendesk.com)",
+      "placeholder": "mycompany"
+    },
+    "email": {
+      "type": "string",
+      "required": true,
+      "label": "Email",
+      "description": "Zendesk account email address",
+      "placeholder": "admin@company.com"
+    },
+    "api_token": {
+      "type": "string",
+      "required": true,
+      "label": "API Token",
+      "description": "Zendesk API token for authentication",
+      "placeholder": "${ZENDESK_API_TOKEN}",
+      "secret": true
+    },
+    "resources": {
+      "type": "array",
+      "required": false,
+      "label": "Resources",
+      "description": "Zendesk resources to extract",
+      "default": ["tickets", "users", "organizations", "groups"],
+      "items": {
+        "type": "string",
+        "enum": ["tickets", "users", "organizations", "groups"]
+      }
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Zendesk support tickets and customer service data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "zendesk",
+      "placeholder": "zendesk"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["dlt[zendesk]>=0.4.0", "pandas>=1.5.0"]
+  },
+  "tags": ["cdp", "support", "zendesk", "tickets", "customer-service", "dlt", "ingestion"]
+}

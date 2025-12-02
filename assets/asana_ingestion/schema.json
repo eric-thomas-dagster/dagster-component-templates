@@ -1,0 +1,74 @@
+{
+  "type": "dagster_component_templates.AsanaIngestionComponent",
+  "name": "Asana Ingestion",
+  "category": "cdp",
+  "description": "Ingest Asana project management data (projects, tasks, teams) using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "CheckSquare",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Asana data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "asana_project_data"
+    },
+    "access_token": {
+      "type": "string",
+      "required": true,
+      "label": "Access Token",
+      "description": "Asana Personal Access Token for API authentication",
+      "placeholder": "{{ env('ASANA_ACCESS_TOKEN') }}",
+      "secret": true
+    },
+    "resources": {
+      "type": "array",
+      "required": false,
+      "label": "Resources",
+      "description": "Asana resources to extract",
+      "default": ["projects", "tasks", "users"],
+      "items": {
+        "type": "string",
+        "enum": ["projects", "tasks", "users", "workspaces", "sections", "tags", "teams"]
+      }
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Asana project management data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "asana",
+      "placeholder": "asana"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["dlt[asana]>=0.4.0", "pandas>=1.5.0"]
+  },
+  "tags": ["cdp", "project-management", "asana", "tasks", "productivity", "dlt", "ingestion"]
+}

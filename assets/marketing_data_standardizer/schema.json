@@ -1,0 +1,185 @@
+{
+  "type": "dagster_component_templates.MarketingDataStandardizerComponent",
+  "name": "Marketing Data Standardizer",
+  "category": "cdp",
+  "description": "Standardize marketing data across platforms into a unified schema. Similar to Supermetrics and Funnel.io.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Raw marketing data from platform ingestion components",
+      "expected_columns": [
+        {
+          "name": "date",
+          "type": "datetime",
+          "required": true,
+          "alternatives": ["date_start", "created_time", "day", "timestamp"],
+          "description": "Campaign date"
+        },
+        {
+          "name": "campaign_id",
+          "type": "string",
+          "required": false,
+          "alternatives": ["campaign_name", "campaignId"],
+          "description": "Campaign identifier"
+        },
+        {
+          "name": "impressions",
+          "type": "number",
+          "required": false,
+          "alternatives": ["impr", "impressions_delivered"],
+          "description": "Ad impressions"
+        },
+        {
+          "name": "clicks",
+          "type": "number",
+          "required": false,
+          "alternatives": ["link_clicks", "clicks_all"],
+          "description": "Ad clicks"
+        },
+        {
+          "name": "spend",
+          "type": "number",
+          "required": false,
+          "alternatives": ["cost_micros", "cost", "amount_spent"],
+          "description": "Marketing spend"
+        }
+      ],
+      "compatible_upstream": [
+        "facebook_ads_ingestion",
+        "google_ads_ingestion",
+        "linkedin_ads_ingestion"
+      ]
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Standardized marketing data with unified schema",
+      "columns": [
+        {"name": "date", "type": "datetime"},
+        {"name": "platform", "type": "string"},
+        {"name": "campaign_id", "type": "string"},
+        {"name": "campaign_name", "type": "string"},
+        {"name": "impressions", "type": "number"},
+        {"name": "clicks", "type": "number"},
+        {"name": "spend", "type": "number"},
+        {"name": "conversions", "type": "number"},
+        {"name": "ctr", "type": "number"},
+        {"name": "cpc", "type": "number"},
+        {"name": "cpm", "type": "number"},
+        {"name": "cpa", "type": "number"},
+        {"name": "roas", "type": "number"}
+      ]
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of standardized output asset",
+      "placeholder": "standardized_marketing_data"
+    },
+    "platform": {
+      "type": "string",
+      "required": true,
+      "label": "Source Platform",
+      "description": "Marketing platform to standardize",
+      "enum": ["facebook_ads", "google_ads", "linkedin_ads", "tiktok_ads", "twitter_ads"]
+    },
+    "source_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Source Asset",
+      "description": "Upstream asset with raw data (set automatically via lineage)",
+      "placeholder": "facebook_ads_data"
+    },
+    "campaign_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Campaign ID Field",
+      "description": "Custom field name for campaign ID (auto-detected if empty)",
+      "placeholder": "campaign_id"
+    },
+    "campaign_name_field": {
+      "type": "string",
+      "required": false,
+      "label": "Campaign Name Field",
+      "description": "Custom field name for campaign name (auto-detected if empty)",
+      "placeholder": "campaign_name"
+    },
+    "date_field": {
+      "type": "string",
+      "required": false,
+      "label": "Date Field",
+      "description": "Custom field name for date (auto-detected if empty)",
+      "placeholder": "date_start"
+    },
+    "spend_field": {
+      "type": "string",
+      "required": false,
+      "label": "Spend Field",
+      "description": "Custom field name for spend/cost (auto-detected if empty)",
+      "placeholder": "spend"
+    },
+    "spend_multiplier": {
+      "type": "number",
+      "required": false,
+      "label": "Spend Multiplier",
+      "description": "Multiplier to convert spend (e.g., 0.000001 for micros)",
+      "default": 1.0,
+      "placeholder": "1.0"
+    },
+    "filter_date_from": {
+      "type": "string",
+      "required": false,
+      "label": "Filter Date From",
+      "description": "Start date filter (YYYY-MM-DD)",
+      "placeholder": "2024-01-01"
+    },
+    "filter_date_to": {
+      "type": "string",
+      "required": false,
+      "label": "Filter Date To",
+      "description": "End date filter (YYYY-MM-DD)",
+      "placeholder": "2024-12-31"
+    },
+    "filter_campaign_status": {
+      "type": "string",
+      "required": false,
+      "label": "Campaign Status Filter",
+      "description": "Filter by campaign status (comma-separated)",
+      "placeholder": "ACTIVE,PAUSED"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Standardized marketing data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "marketing_standardized",
+      "placeholder": "marketing_standardized"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0"
+    ]
+  },
+  "tags": ["cdp", "marketing", "transformation", "standardization", "normalization"]
+}

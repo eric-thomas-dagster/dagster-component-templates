@@ -1,0 +1,80 @@
+{
+  "type": "dagster_component_templates.GoogleSheetsIngestionComponent",
+  "name": "Google Sheets Ingestion",
+  "category": "cdp",
+  "description": "Ingest data from Google Sheets spreadsheets using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Table",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Google Sheets data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "google_sheets_data"
+    },
+    "spreadsheet_id": {
+      "type": "string",
+      "required": true,
+      "label": "Spreadsheet ID",
+      "description": "Google Sheets spreadsheet ID (found in the URL)",
+      "placeholder": "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
+    },
+    "sheet_names": {
+      "type": "array",
+      "required": true,
+      "label": "Sheet Names",
+      "description": "List of sheet names to extract from the spreadsheet",
+      "items": {
+        "type": "string"
+      },
+      "placeholder": ["Sheet1", "Sheet2"]
+    },
+    "credentials": {
+      "type": "string",
+      "required": true,
+      "label": "Service Account Credentials",
+      "description": "Google service account credentials as JSON string",
+      "placeholder": "${GOOGLE_SHEETS_CREDENTIALS}",
+      "secret": true
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Google Sheets data import"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "google_sheets",
+      "placeholder": "google_sheets"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["dlt[google_sheets]>=0.4.0", "pandas>=1.5.0"]
+  },
+  "tags": ["cdp", "spreadsheet", "google-sheets", "data-import", "dlt", "ingestion"]
+}

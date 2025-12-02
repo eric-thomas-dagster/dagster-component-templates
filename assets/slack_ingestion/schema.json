@@ -1,0 +1,74 @@
+{
+  "type": "dagster_component_templates.SlackIngestionComponent",
+  "name": "Slack Ingestion",
+  "category": "cdp",
+  "description": "Ingest Slack messages, channels, and user data using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "MessageSquare",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Slack data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "slack_data"
+    },
+    "api_token": {
+      "type": "string",
+      "required": true,
+      "label": "API Token",
+      "description": "Slack Bot User OAuth Token (starts with xoxb-)",
+      "placeholder": "${SLACK_API_TOKEN}",
+      "secret": true
+    },
+    "resources": {
+      "type": "array",
+      "required": false,
+      "label": "Resources",
+      "description": "Slack resources to extract",
+      "default": ["messages", "channels", "users"],
+      "items": {
+        "type": "string",
+        "enum": ["messages", "channels", "users"]
+      }
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Slack messages, channels, and user data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "slack",
+      "placeholder": "slack"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["dlt[slack]>=0.4.0", "pandas>=1.5.0"]
+  },
+  "tags": ["cdp", "collaboration", "slack", "messages", "team-chat", "dlt", "ingestion"]
+}

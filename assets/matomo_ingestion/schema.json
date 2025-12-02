@@ -1,0 +1,87 @@
+{
+  "type": "dagster_component_templates.MatomoIngestionComponent",
+  "name": "Matomo Ingestion",
+  "category": "cdp",
+  "description": "Ingest Matomo web analytics data using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "BarChart",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Matomo data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "matomo_analytics_data"
+    },
+    "api_url": {
+      "type": "string",
+      "required": true,
+      "label": "API URL",
+      "description": "Matomo instance URL",
+      "placeholder": "https://analytics.example.com"
+    },
+    "api_token": {
+      "type": "string",
+      "required": true,
+      "label": "API Token",
+      "description": "Matomo API token for authentication",
+      "placeholder": "{{ env('MATOMO_API_TOKEN') }}",
+      "secret": true
+    },
+    "site_id": {
+      "type": "string",
+      "required": true,
+      "label": "Site ID",
+      "description": "Matomo site ID to extract data from",
+      "placeholder": "1"
+    },
+    "reports": {
+      "type": "array",
+      "required": false,
+      "label": "Reports",
+      "description": "List of Matomo report types to extract",
+      "default": ["VisitsSummary", "Actions"],
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Matomo web analytics data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "matomo",
+      "placeholder": "matomo"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["dlt[matomo]>=0.4.0", "pandas>=1.5.0"]
+  },
+  "tags": ["cdp", "analytics", "matomo", "web-analytics", "privacy", "dlt", "ingestion"]
+}

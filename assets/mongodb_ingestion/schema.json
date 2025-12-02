@@ -1,0 +1,80 @@
+{
+  "type": "dagster_component_templates.MongoDBIngestionComponent",
+  "name": "MongoDB Ingestion",
+  "category": "cdp",
+  "description": "Ingest data from MongoDB collections using dlt.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Database",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "MongoDB data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "mongodb_data"
+    },
+    "connection_url": {
+      "type": "string",
+      "required": true,
+      "label": "Connection URL",
+      "description": "MongoDB connection URL (mongodb://... or mongodb+srv://...)",
+      "placeholder": "${MONGODB_CONNECTION_URL}",
+      "secret": true
+    },
+    "database": {
+      "type": "string",
+      "required": true,
+      "label": "Database Name",
+      "description": "MongoDB database name",
+      "placeholder": "my_database"
+    },
+    "collection_names": {
+      "type": "array",
+      "required": true,
+      "label": "Collection Names",
+      "description": "List of MongoDB collections to extract",
+      "items": {
+        "type": "string"
+      },
+      "placeholder": ["users", "products", "orders"]
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "MongoDB collection data"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "mongodb",
+      "placeholder": "mongodb"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": ["dlt[mongodb]>=0.4.0", "pandas>=1.5.0", "pymongo>=4.0.0"]
+  },
+  "tags": ["cdp", "database", "mongodb", "nosql", "dlt", "ingestion"]
+}

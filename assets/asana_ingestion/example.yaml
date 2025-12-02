@@ -1,0 +1,17 @@
+type: dagster_component_templates.AsanaIngestionComponent
+attributes:
+  asset_name: asana_project_data
+
+  # Authentication
+  access_token: "{{ env('ASANA_ACCESS_TOKEN') }}"
+
+  # Resources to extract
+  resources:
+    - projects
+    - tasks
+    - users
+
+  # Organization
+  description: "Asana project management and task data"
+  group_name: "asana"
+  include_sample_metadata: true

@@ -1,0 +1,22 @@
+type: dagster_component_templates.EcommerceStandardizerComponent
+attributes:
+  asset_name: standardized_shopify_orders
+
+  # Platform and resource configuration
+  platform: "shopify"
+  resource_type: "orders"
+  source_asset: "shopify_orders"
+
+  # Custom field mappings (optional - auto-detected if not specified)
+  # order_id_field: "id"
+  # customer_id_field: "customer_id"
+
+  # Optional filters
+  # filter_status: "paid,fulfilled"
+  # filter_date_from: "2024-01-01"
+  # filter_date_to: "2024-12-31"
+
+  # Organization
+  description: "Standardized Shopify order data with unified schema"
+  group_name: "ecommerce"
+  include_sample_metadata: true

@@ -1,0 +1,16 @@
+type: dagster_component_templates.NotionIngestionComponent
+attributes:
+  asset_name: notion_workspace_data
+
+  # Authentication
+  api_key: "{{ env('NOTION_API_KEY') }}"
+
+  # Database IDs to extract
+  database_ids:
+    - "abc123def456"
+    - "xyz789uvw012"
+
+  # Organization
+  description: "Notion workspace databases"
+  group_name: "notion"
+  include_sample_metadata: true

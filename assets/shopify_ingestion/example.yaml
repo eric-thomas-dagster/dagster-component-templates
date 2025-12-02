@@ -1,0 +1,21 @@
+type: dagster_component_templates.ShopifyIngestionComponent
+attributes:
+  asset_name: shopify_data
+
+  # Shopify Store Configuration
+  shop_url: "mystore.myshopify.com"
+  private_app_password: "${SHOPIFY_PRIVATE_APP_PASSWORD}"
+
+  # Resources to extract
+  resources: ["customers", "orders", "products"]
+
+  # Optional: Start date for incremental loading
+  # start_date: "2024-01-01"
+
+  # Optional: Filter orders by status
+  order_status: "any"
+
+  # Organization
+  description: "Shopify e-commerce data ingestion"
+  group_name: "shopify"
+  include_sample_metadata: true

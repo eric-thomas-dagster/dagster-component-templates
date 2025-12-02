@@ -91,6 +91,21 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
         description="Include sample data preview in metadata"
     )
 
+    destination: Optional[str] = Field(
+        default=None,
+        description="Optional dlt destination (e.g., 'snowflake', 'bigquery', 'postgres', 'redshift'). If not set, uses in-memory DuckDB and returns DataFrame."
+    )
+
+    destination_config: Optional[str] = Field(
+        default=None,
+        description="Optional destination configuration as connection string or JSON. Required if destination is set."
+    )
+
+    persist_and_return: bool = Field(
+        default=False,
+        description="If True with destination set: persist to database AND return DataFrame. If False: only persist to database."
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         shop_url = self.shop_url
@@ -101,6 +116,9 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
         description = self.description or f"Shopify e-commerce data ({', '.join(resources_list)})"
         group_name = self.group_name
         include_sample = self.include_sample_metadata
+        destination = self.destination
+        destination_config = self.destination_config
+        persist_and_return = self.persist_and_return
 
         @asset(
             name=asset_name,
@@ -113,11 +131,18 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
 
             context.log.info(f"Starting Shopify ingestion for resources: {resources_list}")
 
-            # Create in-memory pipeline for data extraction
+            # Determine destination
+            use_destination = destination if destination else "duckdb"
+            if destination and not destination_config:
+                raise ValueError(f"destination_config is required when destination is set to '{destination}'")
+
+            context.log.info(f"Using destination: {use_destination}")
+
+            # Create pipeline (in-memory DuckDB or specified destination)
             pipeline = dlt.pipeline(
                 pipeline_name=f"{asset_name}_pipeline",
-                destination="duckdb",  # Use DuckDB in-memory
-                dataset_name=f"{asset_name}_temp"
+                destination=use_destination,
+                dataset_name=asset_name if destination else f"{asset_name}_temp"
             )
 
             # Create Shopify source
@@ -146,11 +171,33 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
 
             context.log.info(f"Shopify data loaded: {load_info}")
 
-            # Extract data from DuckDB to DataFrame
+            # Handle based on destination mode
+            if destination and not persist_and_return:
+                # Persist only mode: data is in destination, return metadata only
+                context.log.info(f"Data persisted to {destination}. Not returning DataFrame (persist_and_return=False)")
+
+                # Get row counts from load_info
+                total_rows = sum(package.get('row_counts', {}).get(resource_name, 0)
+                               for package in load_info.load_packages
+                               for resource_name in resources_list)
+
+                metadata = {
+                    "destination": destination,
+                    "dataset_name": asset_name,
+                    "row_count": total_rows,
+                    "resources": resources_list,
+                }
+                context.add_output_metadata(metadata)
+
+                # Return empty DataFrame with metadata
+                return pd.DataFrame({"status": ["persisted"], "destination": [destination], "row_count": [total_rows]})
+
+            # DataFrame return mode: extract data from destination
+            dataset_name = asset_name if destination else f"{asset_name}_temp"
             all_data = []
             for resource_name in resources_list:
                 try:
-                    query = f"SELECT * FROM {asset_name}_temp.{resource_name}"
+                    query = f"SELECT * FROM {dataset_name}.{resource_name}"
                     with pipeline.sql_client() as client:
                         with client.execute_query(query) as cursor:
                             columns = [desc[0] for desc in cursor.description]
@@ -180,6 +227,12 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
                 "resources_extracted": len(all_data),
                 "resource_types": list(combined_df['_resource_type'].unique()) if '_resource_type' in combined_df.columns else [],
             }
+
+            # Add destination info if persisting
+            if destination:
+                metadata["destination"] = destination
+                metadata["dataset_name"] = asset_name
+                metadata["persist_and_return"] = persist_and_return
 
             # Return with metadata
             if include_sample and len(combined_df) > 0:

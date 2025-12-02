@@ -141,6 +141,22 @@ class GoogleAdsIngestionComponent(Component, Model, Resolvable):
         description="Include sample data preview in metadata"
     )
 
+    
+    destination: Optional[str] = Field(
+        default=None,
+        description="Optional dlt destination (e.g., 'snowflake', 'bigquery', 'postgres', 'redshift'). If not set, uses in-memory DuckDB and returns DataFrame."
+    )
+
+    destination_config: Optional[str] = Field(
+        default=None,
+        description="Optional destination configuration as connection string or JSON. Required if destination is set."
+    )
+
+    persist_and_return: bool = Field(
+        default=False,
+        description="If True with destination set: persist to database AND return DataFrame. If False: only persist to database."
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         customer_id = self.customer_id
@@ -159,6 +175,9 @@ class GoogleAdsIngestionComponent(Component, Model, Resolvable):
         description = self.description or "Google Ads data ingestion via dlt"
         group_name = self.group_name
         include_sample = self.include_sample_metadata
+        destination = self.destination
+        destination_config = self.destination_config
+        persist_and_return = self.persist_and_return
 
         @asset(
             name=asset_name,
@@ -182,12 +201,18 @@ class GoogleAdsIngestionComponent(Component, Model, Resolvable):
                 context.log.error(f"Failed to import dlt Google Ads source: {e}")
                 context.log.info("Install with: pip install 'dlt[google_ads]'")
                 raise
+            # Determine destination
+            use_destination = destination if destination else "duckdb"
+            if destination and not destination_config:
+                raise ValueError(f"destination_config is required when destination is set to '{destination}'")
 
-            # Create in-memory pipeline for data extraction
+            context.log.info(f"Using destination: {use_destination}")
+
+            # Create pipeline (in-memory DuckDB or specified destination)
             pipeline = dlt.pipeline(
                 pipeline_name=f"{asset_name}_pipeline",
-                destination="duckdb",  # Use DuckDB in-memory
-                dataset_name=f"{asset_name}_temp"
+                destination=use_destination,
+                dataset_name=asset_name if destination else f"{asset_name}_temp"
             )
 
             context.log.info("Created dlt pipeline for data extraction")
@@ -250,7 +275,7 @@ class GoogleAdsIngestionComponent(Component, Model, Resolvable):
             for resource_name in resources_list:
                 try:
                     # Query the loaded data
-                    query = f"SELECT * FROM {asset_name}_temp.{resource_name}"
+                    query = f"SELECT * FROM {dataset_name}.{resource_name}"
                     with pipeline.sql_client() as client:
                         df = client.execute_df(query)
 
@@ -282,6 +307,12 @@ class GoogleAdsIngestionComponent(Component, Model, Resolvable):
                 "total_rows": total_rows,
                 "columns": list(combined_df.columns),
             }
+
+            # Add destination info if persisting
+            if destination:
+                metadata["destination"] = destination
+                metadata["dataset_name"] = asset_name
+                metadata["persist_and_return"] = persist_and_return
 
             if start_date:
                 metadata["start_date"] = start_date

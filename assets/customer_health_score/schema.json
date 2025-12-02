@@ -1,0 +1,167 @@
+{
+  "type": "dagster_component_templates.CustomerHealthScoreComponent",
+  "name": "Customer Health Score",
+  "category": "cdp",
+  "description": "Calculate customer health scores from engagement, product usage, subscription, and support data to predict churn risk and identify expansion opportunities.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Activity",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "accepts_multiple": true,
+      "description": "Connect customer data, subscription data, product usage, or support tickets"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Customer health scores with risk categories and opportunity flags"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the customer health score output asset",
+      "placeholder": "customer_health_scores"
+    },
+    "customer_data_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Customer Data Asset",
+      "description": "Customer data asset (automatically set via lineage)",
+      "default": ""
+    },
+    "subscription_data_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Subscription Data Asset",
+      "description": "Subscription/billing data asset (automatically set via lineage)",
+      "default": ""
+    },
+    "product_usage_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Product Usage Asset",
+      "description": "Product usage/activity data asset (automatically set via lineage)",
+      "default": ""
+    },
+    "support_ticket_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Support Ticket Asset",
+      "description": "Support ticket data asset (automatically set via lineage)",
+      "default": ""
+    },
+    "analysis_period_days": {
+      "type": "integer",
+      "required": false,
+      "label": "Analysis Period (Days)",
+      "description": "Number of days to analyze for health calculation",
+      "default": 30,
+      "minimum": 1,
+      "maximum": 365
+    },
+    "engagement_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Engagement Weight",
+      "description": "Weight for engagement metrics (0-1)",
+      "default": 0.25,
+      "minimum": 0,
+      "maximum": 1
+    },
+    "product_usage_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Product Usage Weight",
+      "description": "Weight for product usage metrics (0-1)",
+      "default": 0.25,
+      "minimum": 0,
+      "maximum": 1
+    },
+    "payment_health_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Payment Health Weight",
+      "description": "Weight for payment/subscription health (0-1)",
+      "default": 0.25,
+      "minimum": 0,
+      "maximum": 1
+    },
+    "support_health_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Support Health Weight",
+      "description": "Weight for support interaction health (0-1)",
+      "default": 0.25,
+      "minimum": 0,
+      "maximum": 1
+    },
+    "min_health_score": {
+      "type": "number",
+      "required": false,
+      "label": "Minimum Health Score",
+      "description": "Minimum health score (0-100)",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 100
+    },
+    "max_health_score": {
+      "type": "number",
+      "required": false,
+      "label": "Maximum Health Score",
+      "description": "Maximum health score (0-100)",
+      "default": 100,
+      "minimum": 0,
+      "maximum": 100
+    },
+    "churn_risk_threshold": {
+      "type": "number",
+      "required": false,
+      "label": "Churn Risk Threshold",
+      "description": "Health score below this is considered churn risk",
+      "default": 40,
+      "minimum": 0,
+      "maximum": 100
+    },
+    "expansion_opportunity_threshold": {
+      "type": "number",
+      "required": false,
+      "label": "Expansion Opportunity Threshold",
+      "description": "Health score above this is considered expansion opportunity",
+      "default": 75,
+      "minimum": 0,
+      "maximum": 100
+    },
+    "include_factor_breakdown": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Factor Breakdown",
+      "description": "Include breakdown of contributing factors in output",
+      "default": true
+    },
+    "calculate_trend": {
+      "type": "boolean",
+      "required": false,
+      "label": "Calculate Trend",
+      "description": "Calculate health score trend (requires historical data)",
+      "default": true
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "default": ""
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group name",
+      "default": "analytics"
+    }
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "type": "dagster_component_templates.AdSpendStandardizerComponent",
+  "name": "Ad Spend Standardizer",
+  "category": "cdp",
+  "description": "Unifies advertising spend data from Google Ads, Facebook Ads, and other platforms into a standardized schema.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "TrendingUp",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "accepts_multiple": true,
+      "description": "Connect Google Ads, Facebook Ads, or other ad platform data"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Standardized ad spend data with unified schema"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the standardized ad spend output asset",
+      "placeholder": "standardized_ad_spend"
+    },
+    "google_ads_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Google Ads Asset",
+      "description": "Google Ads data asset (automatically set via lineage)",
+      "default": ""
+    },
+    "facebook_ads_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Facebook Ads Asset",
+      "description": "Facebook Ads data asset (automatically set via lineage)",
+      "default": ""
+    },
+    "other_ad_platform_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Other Ad Platform Asset",
+      "description": "Other ad platform data asset (automatically set via lineage)",
+      "default": ""
+    },
+    "currency_normalization": {
+      "type": "string",
+      "required": false,
+      "label": "Currency",
+      "description": "Normalize all spend to this currency",
+      "default": "USD",
+      "enum": ["USD", "EUR", "GBP", "CAD", "AUD"]
+    },
+    "date_column_name": {
+      "type": "string",
+      "required": false,
+      "label": "Date Column Name",
+      "description": "Name of the date column in source data",
+      "default": "date"
+    },
+    "aggregate_by_day": {
+      "type": "boolean",
+      "required": false,
+      "label": "Aggregate by Day",
+      "description": "Aggregate metrics by day for consistency",
+      "default": true
+    },
+    "include_zero_spend_days": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Zero Spend Days",
+      "description": "Include days with zero spend in output",
+      "default": false
+    },
+    "calculate_derived_metrics": {
+      "type": "boolean",
+      "required": false,
+      "label": "Calculate Derived Metrics",
+      "description": "Automatically calculate CTR, CPC, CPA, ROAS",
+      "default": true
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "default": ""
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group name",
+      "default": "standardizers"
+    }
+  }
+}

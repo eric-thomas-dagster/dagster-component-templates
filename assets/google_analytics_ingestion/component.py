@@ -163,7 +163,31 @@ class GoogleAnalyticsIngestionComponent(Component, Model, Resolvable):
         description="If True with destination set: persist to database AND return DataFrame. If False: only persist to database."
     )
 
-    def _build_destination_config(self) -> dict:
+    def _get_effective_destination(self) -> Optional[str]:
+        """Get destination based on environment routing if enabled."""
+        import os
+
+        if not self.use_environment_routing:
+            return self.destination
+
+        # Check Dagster Cloud environment variables
+        is_branch = os.getenv("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT", "").lower() == "true"
+        deployment_name = os.getenv("DAGSTER_CLOUD_DEPLOYMENT_NAME", "")
+
+        # Determine which destination to use
+        if is_branch and self.destination_branch:
+            return self.destination_branch
+        elif deployment_name and not is_branch and self.destination_prod:
+            # In Dagster Cloud but not a branch deployment = production
+            return self.destination_prod
+        elif not deployment_name and self.destination_local:
+            # Not in Dagster Cloud = local development
+            return self.destination_local
+        else:
+            # Fallback to main destination field
+            return self.destination
+
+(self) -> dict:
         """Build dlt destination config from structured fields."""
         if not self.destination:
             return {}
@@ -233,8 +257,63 @@ class GoogleAnalyticsIngestionComponent(Component, Model, Resolvable):
             if self.databricks_schema:
                 config["credentials"]["schema"] = self.databricks_schema
             return config
-        else:
-            return {}
+        elif self.destination == "clickhouse":
+            return {
+                "credentials": {
+                    "database": self.clickhouse_database,
+                    "username": self.clickhouse_username,
+                    "password": self.clickhouse_password,
+                    "host": self.clickhouse_host,
+                    "port": self.clickhouse_port,
+                }
+            }
+        elif self.destination == "mssql":
+            return {
+                "credentials": {
+                    "database": self.mssql_database,
+                    "username": self.mssql_username,
+                    "password": self.mssql_password,
+                    "host": self.mssql_host,
+                    "port": self.mssql_port,
+                }
+            }
+        elif self.destination == "athena":
+            return {
+                "credentials": {
+                    "query_result_bucket": self.athena_query_result_bucket,
+                    "database": self.athena_database,
+                    "aws_access_key_id": self.athena_aws_access_key_id,
+                    "aws_secret_access_key": self.athena_aws_secret_access_key,
+                    "region_name": self.athena_region,
+                }
+            }
+        elif self.destination == "mysql":
+            return {
+                "credentials": {
+                    "database": self.mysql_database,
+                    "username": self.mysql_username,
+                    "password": self.mysql_password,
+                    "host": self.mysql_host,
+                    "port": self.mysql_port,
+                }
+            }
+        elif self.destination == "filesystem":
+            config = {
+                "bucket_url": self.filesystem_bucket_path if self.filesystem_bucket_path else "/tmp/dlt_data",
+            }
+            if self.filesystem_format:
+                config["format"] = self.filesystem_format
+            return config
+        elif self.destination == "synapse":
+            return {
+                "credentials": {
+                    "database": self.synapse_database,
+                    "username": self.synapse_username,
+                    "password": self.synapse_password,
+                    "host": self.synapse_host,
+                }
+            }
+
 
 def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
@@ -283,11 +362,13 @@ class GoogleAnalyticsIngestionComponent(Component, Model, Resolvable):
                 context.log.error(f"Failed to import dlt Google Analytics source: {e}")
                 context.log.info("Install with: pip install 'dlt[google_analytics]'")
                 raise
-            # Determine destination
+            # Determine destination (with environment routing if enabled)
 
-            use_destination = destination if destination else "duckdb"
+            effective_destination = self._get_effective_destination() if hasattr(self, '_get_effective_destination') else destination
 
-            destination_config = self._build_destination_config() if destination else {}
+            use_destination = effective_destination if effective_destination else "duckdb"
+
+            destination_config = self._build_destination_config() if effective_destination else {}
 
             context.log.info(f"Using destination: {use_destination}")
 

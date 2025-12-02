@@ -94,7 +94,13 @@
         "redshift",
         "duckdb",
         "motherduck",
-        "databricks"
+        "databricks",
+        "clickhouse",
+        "mssql",
+        "athena",
+        "mysql",
+        "filesystem",
+        "synapse"
       ],
       "enumLabels": {
         "": "None (DataFrame only)",
@@ -104,7 +110,13 @@
         "redshift": "Amazon Redshift",
         "duckdb": "DuckDB (local file)",
         "motherduck": "MotherDuck (cloud DuckDB)",
-        "databricks": "Databricks"
+        "databricks": "Databricks",
+        "clickhouse": "ClickHouse",
+        "mssql": "Microsoft SQL Server",
+        "athena": "AWS Athena",
+        "mysql": "MySQL",
+        "filesystem": "Filesystem (Parquet/CSV)",
+        "synapse": "Azure Synapse"
       }
     },
     "snowflake_account": {
@@ -435,6 +447,338 @@
       "label": "Persist and Return DataFrame",
       "description": "When destination is set: persist to database AND return DataFrame (vs. persist only)",
       "default": false
+    },
+    "clickhouse_host": {
+      "type": "string",
+      "required": false,
+      "label": "Host",
+      "description": "ClickHouse server host",
+      "placeholder": "localhost",
+      "condition": {
+        "destination": "clickhouse"
+      }
+    },
+    "clickhouse_port": {
+      "type": "number",
+      "required": false,
+      "label": "Port",
+      "description": "ClickHouse server port",
+      "default": 9000,
+      "placeholder": "9000",
+      "condition": {
+        "destination": "clickhouse"
+      }
+    },
+    "clickhouse_database": {
+      "type": "string",
+      "required": false,
+      "label": "Database",
+      "description": "ClickHouse database name",
+      "placeholder": "default",
+      "condition": {
+        "destination": "clickhouse"
+      }
+    },
+    "clickhouse_username": {
+      "type": "string",
+      "required": false,
+      "label": "Username",
+      "description": "ClickHouse username",
+      "placeholder": "${CLICKHOUSE_USERNAME}",
+      "condition": {
+        "destination": "clickhouse"
+      }
+    },
+    "clickhouse_password": {
+      "type": "string",
+      "required": false,
+      "label": "Password",
+      "description": "ClickHouse password",
+      "placeholder": "${CLICKHOUSE_PASSWORD}",
+      "secret": true,
+      "condition": {
+        "destination": "clickhouse"
+      }
+    },
+    "mssql_host": {
+      "type": "string",
+      "required": false,
+      "label": "Host",
+      "description": "SQL Server host",
+      "placeholder": "localhost",
+      "condition": {
+        "destination": "mssql"
+      }
+    },
+    "mssql_port": {
+      "type": "number",
+      "required": false,
+      "label": "Port",
+      "description": "SQL Server port",
+      "default": 1433,
+      "placeholder": "1433",
+      "condition": {
+        "destination": "mssql"
+      }
+    },
+    "mssql_database": {
+      "type": "string",
+      "required": false,
+      "label": "Database",
+      "description": "SQL Server database name",
+      "placeholder": "analytics",
+      "condition": {
+        "destination": "mssql"
+      }
+    },
+    "mssql_username": {
+      "type": "string",
+      "required": false,
+      "label": "Username",
+      "description": "SQL Server username",
+      "placeholder": "${MSSQL_USERNAME}",
+      "condition": {
+        "destination": "mssql"
+      }
+    },
+    "mssql_password": {
+      "type": "string",
+      "required": false,
+      "label": "Password",
+      "description": "SQL Server password",
+      "placeholder": "${MSSQL_PASSWORD}",
+      "secret": true,
+      "condition": {
+        "destination": "mssql"
+      }
+    },
+    "athena_query_result_bucket": {
+      "type": "string",
+      "required": false,
+      "label": "Query Result Bucket",
+      "description": "S3 bucket for query results (s3://bucket-name)",
+      "placeholder": "s3://my-athena-results",
+      "condition": {
+        "destination": "athena"
+      }
+    },
+    "athena_database": {
+      "type": "string",
+      "required": false,
+      "label": "Database",
+      "description": "Athena database name",
+      "placeholder": "default",
+      "condition": {
+        "destination": "athena"
+      }
+    },
+    "athena_aws_access_key_id": {
+      "type": "string",
+      "required": false,
+      "label": "AWS Access Key ID",
+      "description": "AWS access key ID",
+      "placeholder": "${AWS_ACCESS_KEY_ID}",
+      "condition": {
+        "destination": "athena"
+      }
+    },
+    "athena_aws_secret_access_key": {
+      "type": "string",
+      "required": false,
+      "label": "AWS Secret Access Key",
+      "description": "AWS secret access key",
+      "placeholder": "${AWS_SECRET_ACCESS_KEY}",
+      "secret": true,
+      "condition": {
+        "destination": "athena"
+      }
+    },
+    "athena_region": {
+      "type": "string",
+      "required": false,
+      "label": "AWS Region",
+      "description": "AWS region",
+      "default": "us-east-1",
+      "placeholder": "us-east-1",
+      "condition": {
+        "destination": "athena"
+      }
+    },
+    "mysql_host": {
+      "type": "string",
+      "required": false,
+      "label": "Host",
+      "description": "MySQL server host",
+      "placeholder": "localhost",
+      "condition": {
+        "destination": "mysql"
+      }
+    },
+    "mysql_port": {
+      "type": "number",
+      "required": false,
+      "label": "Port",
+      "description": "MySQL server port",
+      "default": 3306,
+      "placeholder": "3306",
+      "condition": {
+        "destination": "mysql"
+      }
+    },
+    "mysql_database": {
+      "type": "string",
+      "required": false,
+      "label": "Database",
+      "description": "MySQL database name",
+      "placeholder": "analytics",
+      "condition": {
+        "destination": "mysql"
+      }
+    },
+    "mysql_username": {
+      "type": "string",
+      "required": false,
+      "label": "Username",
+      "description": "MySQL username",
+      "placeholder": "${MYSQL_USERNAME}",
+      "condition": {
+        "destination": "mysql"
+      }
+    },
+    "mysql_password": {
+      "type": "string",
+      "required": false,
+      "label": "Password",
+      "description": "MySQL password",
+      "placeholder": "${MYSQL_PASSWORD}",
+      "secret": true,
+      "condition": {
+        "destination": "mysql"
+      }
+    },
+    "filesystem_bucket_path": {
+      "type": "string",
+      "required": false,
+      "label": "Bucket Path",
+      "description": "Local or S3 path (e.g., /path/to/dir or s3://bucket/path)",
+      "placeholder": "/tmp/dlt_data",
+      "condition": {
+        "destination": "filesystem"
+      }
+    },
+    "filesystem_format": {
+      "type": "string",
+      "required": false,
+      "label": "File Format",
+      "description": "Output file format",
+      "default": "parquet",
+      "enum": [
+        "parquet",
+        "jsonl",
+        "csv"
+      ],
+      "condition": {
+        "destination": "filesystem"
+      }
+    },
+    "synapse_host": {
+      "type": "string",
+      "required": false,
+      "label": "Host",
+      "description": "Azure Synapse workspace hostname",
+      "placeholder": "myworkspace.sql.azuresynapse.net",
+      "condition": {
+        "destination": "synapse"
+      }
+    },
+    "synapse_database": {
+      "type": "string",
+      "required": false,
+      "label": "Database",
+      "description": "Synapse database name",
+      "placeholder": "analytics",
+      "condition": {
+        "destination": "synapse"
+      }
+    },
+    "synapse_username": {
+      "type": "string",
+      "required": false,
+      "label": "Username",
+      "description": "Synapse username",
+      "placeholder": "${SYNAPSE_USERNAME}",
+      "condition": {
+        "destination": "synapse"
+      }
+    },
+    "synapse_password": {
+      "type": "string",
+      "required": false,
+      "label": "Password",
+      "description": "Synapse password",
+      "placeholder": "${SYNAPSE_PASSWORD}",
+      "secret": true,
+      "condition": {
+        "destination": "synapse"
+      }
+    },
+    "use_environment_routing": {
+      "type": "boolean",
+      "required": false,
+      "label": "Use Environment-Based Routing",
+      "description": "Automatically select destination based on Dagster deployment environment",
+      "default": false
+    },
+    "destination_local": {
+      "type": "string",
+      "required": false,
+      "label": "Local Destination",
+      "description": "Destination for local development (when not in Dagster Cloud)",
+      "enum": [
+        "",
+        "duckdb",
+        "postgres",
+        "filesystem"
+      ],
+      "condition": {
+        "use_environment_routing": true
+      }
+    },
+    "destination_branch": {
+      "type": "string",
+      "required": false,
+      "label": "Branch Deployment Destination",
+      "description": "Destination for branch deployments (DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT=true)",
+      "enum": [
+        "",
+        "duckdb",
+        "snowflake",
+        "bigquery",
+        "postgres",
+        "redshift",
+        "databricks"
+      ],
+      "condition": {
+        "use_environment_routing": true
+      }
+    },
+    "destination_prod": {
+      "type": "string",
+      "required": false,
+      "label": "Production Destination",
+      "description": "Destination for production deployment (full deployment, not branch)",
+      "enum": [
+        "",
+        "snowflake",
+        "bigquery",
+        "postgres",
+        "redshift",
+        "databricks",
+        "synapse"
+      ],
+      "condition": {
+        "use_environment_routing": true
+      }
     }
   },
   "dependencies": {

@@ -142,12 +142,84 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
     databricks_catalog: Optional[str] = Field(default=None, description="Unity Catalog name")
     databricks_schema: Optional[str] = Field(default="default", description="Databricks schema name")
 
+    # ClickHouse fields
+    clickhouse_host: Optional[str] = Field(default="localhost", description="ClickHouse server host")
+    clickhouse_port: Optional[int] = Field(default=9000, description="ClickHouse server port")
+    clickhouse_database: Optional[str] = Field(default="default", description="ClickHouse database name")
+    clickhouse_username: Optional[str] = Field(default=None, description="ClickHouse username")
+    clickhouse_password: Optional[str] = Field(default=None, description="ClickHouse password")
+
+    # MSSQL fields
+    mssql_host: Optional[str] = Field(default="localhost", description="SQL Server host")
+    mssql_port: Optional[int] = Field(default=1433, description="SQL Server port")
+    mssql_database: Optional[str] = Field(default=None, description="SQL Server database name")
+    mssql_username: Optional[str] = Field(default=None, description="SQL Server username")
+    mssql_password: Optional[str] = Field(default=None, description="SQL Server password")
+
+    # Athena fields
+    athena_query_result_bucket: Optional[str] = Field(default=None, description="S3 bucket for query results")
+    athena_database: Optional[str] = Field(default="default", description="Athena database name")
+    athena_aws_access_key_id: Optional[str] = Field(default=None, description="AWS access key ID")
+    athena_aws_secret_access_key: Optional[str] = Field(default=None, description="AWS secret access key")
+    athena_region: Optional[str] = Field(default="us-east-1", description="AWS region")
+
+    # MySQL fields
+    mysql_host: Optional[str] = Field(default="localhost", description="MySQL server host")
+    mysql_port: Optional[int] = Field(default=3306, description="MySQL server port")
+    mysql_database: Optional[str] = Field(default=None, description="MySQL database name")
+    mysql_username: Optional[str] = Field(default=None, description="MySQL username")
+    mysql_password: Optional[str] = Field(default=None, description="MySQL password")
+
+    # Filesystem fields
+    filesystem_bucket_path: Optional[str] = Field(default=None, description="Local or S3 path")
+    filesystem_format: Optional[str] = Field(default="parquet", description="Output file format")
+
+    # Synapse fields
+    synapse_host: Optional[str] = Field(default=None, description="Azure Synapse workspace hostname")
+    synapse_database: Optional[str] = Field(default=None, description="Synapse database name")
+    synapse_username: Optional[str] = Field(default=None, description="Synapse username")
+    synapse_password: Optional[str] = Field(default=None, description="Synapse password")
+
+    # Environment-aware routing
+    use_environment_routing: bool = Field(
+        default=False,
+        description="Automatically select destination based on Dagster deployment environment"
+    )
+    destination_local: Optional[str] = Field(default=None, description="Destination for local development")
+    destination_branch: Optional[str] = Field(default=None, description="Destination for branch deployments")
+    destination_prod: Optional[str] = Field(default=None, description="Destination for production")
+
+
     persist_and_return: bool = Field(
         default=False,
         description="When destination is set: persist to database AND return DataFrame"
     )
 
-    def _build_destination_config(self) -> dict:
+    def _get_effective_destination(self) -> Optional[str]:
+        """Get destination based on environment routing if enabled."""
+        import os
+
+        if not self.use_environment_routing:
+            return self.destination
+
+        # Check Dagster Cloud environment variables
+        is_branch = os.getenv("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT", "").lower() == "true"
+        deployment_name = os.getenv("DAGSTER_CLOUD_DEPLOYMENT_NAME", "")
+
+        # Determine which destination to use
+        if is_branch and self.destination_branch:
+            return self.destination_branch
+        elif deployment_name and not is_branch and self.destination_prod:
+            # In Dagster Cloud but not a branch deployment = production
+            return self.destination_prod
+        elif not deployment_name and self.destination_local:
+            # Not in Dagster Cloud = local development
+            return self.destination_local
+        else:
+            # Fallback to main destination field
+            return self.destination
+
+(self) -> dict:
         """Build dlt destination config from structured fields."""
         if not self.destination:
             return {}
@@ -217,8 +289,63 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
             if self.databricks_schema:
                 config["credentials"]["schema"] = self.databricks_schema
             return config
-        else:
-            return {}
+        elif self.destination == "clickhouse":
+            return {
+                "credentials": {
+                    "database": self.clickhouse_database,
+                    "username": self.clickhouse_username,
+                    "password": self.clickhouse_password,
+                    "host": self.clickhouse_host,
+                    "port": self.clickhouse_port,
+                }
+            }
+        elif self.destination == "mssql":
+            return {
+                "credentials": {
+                    "database": self.mssql_database,
+                    "username": self.mssql_username,
+                    "password": self.mssql_password,
+                    "host": self.mssql_host,
+                    "port": self.mssql_port,
+                }
+            }
+        elif self.destination == "athena":
+            return {
+                "credentials": {
+                    "query_result_bucket": self.athena_query_result_bucket,
+                    "database": self.athena_database,
+                    "aws_access_key_id": self.athena_aws_access_key_id,
+                    "aws_secret_access_key": self.athena_aws_secret_access_key,
+                    "region_name": self.athena_region,
+                }
+            }
+        elif self.destination == "mysql":
+            return {
+                "credentials": {
+                    "database": self.mysql_database,
+                    "username": self.mysql_username,
+                    "password": self.mysql_password,
+                    "host": self.mysql_host,
+                    "port": self.mysql_port,
+                }
+            }
+        elif self.destination == "filesystem":
+            config = {
+                "bucket_url": self.filesystem_bucket_path if self.filesystem_bucket_path else "/tmp/dlt_data",
+            }
+            if self.filesystem_format:
+                config["format"] = self.filesystem_format
+            return config
+        elif self.destination == "synapse":
+            return {
+                "credentials": {
+                    "database": self.synapse_database,
+                    "username": self.synapse_username,
+                    "password": self.synapse_password,
+                    "host": self.synapse_host,
+                }
+            }
+
 
 def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
@@ -244,9 +371,14 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
 
             context.log.info(f"Starting Shopify ingestion for resources: {resources_list}")
 
-            # Determine destination
-            use_destination = destination if destination else "duckdb"
-            destination_config = self._build_destination_config() if destination else {}
+            # Determine destination (with environment routing if enabled)
+
+
+            effective_destination = self._get_effective_destination() if hasattr(self, '_get_effective_destination') else destination
+
+
+            use_destination = effective_destination if effective_destination else "duckdb"
+            destination_config = self._build_destination_config() if effective_destination else {}
             context.log.info(f"Using destination: {use_destination}")
 
             # Create pipeline (in-memory DuckDB or specified destination)
@@ -295,9 +427,9 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
             context.log.info(f"Shopify data loaded: {load_info}")
 
             # Handle based on destination mode
-            if destination and not persist_and_return:
+            if effective_destination and not persist_and_return:
                 # Persist only mode: data is in destination, return metadata only
-                context.log.info(f"Data persisted to {destination}. Not returning DataFrame (persist_and_return=False)")
+                context.log.info(f"Data persisted to {effective_destination}. Not returning DataFrame (persist_and_return=False)")
 
                 # Get row counts from load_info
                 total_rows = sum(package.get('row_counts', {}).get(resource_name, 0)
@@ -305,7 +437,7 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
                                for resource_name in resources_list)
 
                 metadata = {
-                    "destination": destination,
+                    "destination": effective_destination,
                     "dataset_name": asset_name,
                     "row_count": total_rows,
                     "resources": resources_list,
@@ -313,10 +445,10 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
                 context.add_output_metadata(metadata)
 
                 # Return empty DataFrame with metadata
-                return pd.DataFrame({"status": ["persisted"], "destination": [destination], "row_count": [total_rows]})
+                return pd.DataFrame({"status": ["persisted"], "destination": [effective_destination], "row_count": [total_rows]})
 
             # DataFrame return mode: extract data from destination
-            dataset_name = asset_name if destination else f"{asset_name}_temp"
+            dataset_name = asset_name if effective_destination else f"{asset_name}_temp"
             all_data = []
             for resource_name in resources_list:
                 try:

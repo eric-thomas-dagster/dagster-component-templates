@@ -20,9 +20,7 @@
           "instance_name": "shopify_orders",
           "config_mapping": {
             "asset_name": "shopify_orders",
-            "resource_type": "orders",
-            "description": "Ingest order data from Shopify",
-            "group_name": "ingestion"
+            "description": "Ingest order data from Shopify"
           },
           "depends_on": []
         },
@@ -31,44 +29,40 @@
           "instance_name": "standardized_orders",
           "config_mapping": {
             "asset_name": "standardized_orders",
-            "platform": "${ecommerce_platform}",
-            "resource_type": "orders",
-            "description": "Standardize orders to unified schema",
-            "group_name": "standardization"
+            "description": "Standardize Shopify orders to unified schema"
           },
-          "depends_on": ["shopify_orders"]
+          "depends_on": []
         },
         {
-          "component_id": "ltv_prediction",
+          "component_id": "ltvprediction",
           "instance_name": "customer_ltv",
           "config_mapping": {
             "asset_name": "customer_ltv",
-            "source_asset": "standardized_orders",
-            "prediction_period_months": "${prediction_period_months}",
-            "cohort_analysis": true,
-            "include_confidence_intervals": true,
-            "min_transactions_required": 2,
-            "description": "Predict customer lifetime value",
-            "group_name": "customer_analytics"
+            "description": "Predict customer lifetime value"
           },
-          "depends_on": ["standardized_orders"]
+          "depends_on": [
+            "standardized_orders"
+          ]
         },
         {
           "component_id": "customer_segmentation",
           "instance_name": "ltv_segments",
           "config_mapping": {
             "asset_name": "ltv_segments",
-            "transaction_data_asset": "standardized_orders",
-            "recency_weight": 1.0,
-            "frequency_weight": 1.0,
-            "monetary_weight": 2.0,
-            "analysis_period_days": 365,
-            "use_predefined_segments": true,
-            "include_recommendations": true,
-            "description": "Segment customers by lifetime value",
-            "group_name": "customer_analytics"
+            "description": "Segment customers by lifetime value"
           },
-          "depends_on": ["standardized_orders"]
+          "depends_on": []
+        },
+        {
+          "component_id": "dltdata_frame_writer",
+          "instance_name": "ltv_segments_output",
+          "config_mapping": {
+            "asset_name": "ltv_segments_output",
+            "description": "Write customer LTV segments to database"
+          },
+          "depends_on": [
+            "ltv_segments"
+          ]
         }
       ],
       "pipeline_params": {
@@ -99,56 +93,60 @@
       "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/marketing_attribution_pipeline.yaml",
       "components": [
         {
-          "component_id": "{source}_ads_ingestion",
-          "instance_name": "{source}_ads_data",
-          "instance_name_template": "{source}_ads_data",
-          "repeat_for": "${ad_sources}",
+          "component_id": "google_ads_ingestion",
+          "instance_name": "google_ads_data",
           "config_mapping": {
-            "asset_name": "{source}_ads_data",
-            "resource_type": "campaigns",
-            "description": "Ingest {source} Ads campaign data",
-            "group_name": "ingestion"
+            "asset_name": "google_ads_data",
+            "description": "Ingest Google Ads campaign data"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "facebook_ads_ingestion",
+          "instance_name": "facebook_ads_data",
+          "config_mapping": {
+            "asset_name": "facebook_ads_data",
+            "description": "Ingest Facebook Ads campaign data"
           },
           "depends_on": []
         },
         {
           "component_id": "marketing_data_standardizer",
-          "instance_name": "standardized_touchpoints",
+          "instance_name": "standardized_marketing_touchpoints",
           "config_mapping": {
-            "asset_name": "standardized_touchpoints",
-            "platform": "multi",
-            "resource_type": "touchpoints",
-            "source_assets": "${ad_sources:*_ads_data}",
-            "description": "Standardize marketing touchpoints from all sources",
-            "group_name": "standardization"
+            "asset_name": "standardized_marketing_touchpoints",
+            "description": "Standardize marketing touchpoints across all platforms"
           },
           "depends_on": []
         },
         {
           "component_id": "multi_touch_attribution",
-          "instance_name": "marketing_attribution",
+          "instance_name": "channel_attribution",
           "config_mapping": {
-            "asset_name": "marketing_attribution",
-            "touchpoint_data_asset": "standardized_touchpoints",
-            "attribution_model": "${attribution_model}",
-            "lookback_window_days": "${lookback_window_days}",
-            "description": "Multi-touch attribution analysis",
-            "group_name": "marketing_analytics"
+            "asset_name": "channel_attribution",
+            "description": "Multi-touch attribution with time decay model"
           },
-          "depends_on": ["standardized_touchpoints"]
+          "depends_on": []
         },
         {
           "component_id": "campaign_performance",
           "instance_name": "campaign_roi",
           "config_mapping": {
             "asset_name": "campaign_roi",
-            "campaign_data_asset": "standardized_touchpoints",
-            "target_roas": "${target_roas}",
-            "target_cpa": "${target_cpa}",
-            "description": "Campaign ROI analysis",
-            "group_name": "marketing_analytics"
+            "description": "Campaign performance with ROI calculations"
           },
-          "depends_on": ["standardized_touchpoints"]
+          "depends_on": []
+        },
+        {
+          "component_id": "dltdata_frame_writer",
+          "instance_name": "marketing_attribution_output",
+          "config_mapping": {
+            "asset_name": "marketing_attribution_output",
+            "description": "Write attribution results to database"
+          },
+          "depends_on": [
+            "campaign_roi"
+          ]
         }
       ],
       "pipeline_params": {
@@ -156,9 +154,19 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["google", "facebook", "linkedin", "tiktok", "twitter", "pinterest"]
+            "enum": [
+              "google",
+              "facebook",
+              "linkedin",
+              "tiktok",
+              "twitter",
+              "pinterest"
+            ]
           },
-          "default": ["google", "facebook"],
+          "default": [
+            "google",
+            "facebook"
+          ],
           "description": "Marketing ad platforms to ingest (select one or more)",
           "required": true
         },
@@ -201,52 +209,84 @@
       "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/churn_prevention_pipeline.yaml",
       "components": [
         {
-          "component_id": "crm_data_standardizer",
-          "instance_name": "standardized_crm",
+          "component_id": "hub_spot_ingestion",
+          "instance_name": "hubspot_contacts",
           "config_mapping": {
-            "asset_name": "standardized_crm",
-            "platform": "${crm_platform}",
-            "resource_type": "contacts",
-            "description": "Standardized CRM data",
-            "group_name": "standardization"
+            "asset_name": "hubspot_contacts",
+            "description": "Ingest contact data from HubSpot"
           },
           "depends_on": []
         },
         {
-          "component_id": "customer_360",
-          "instance_name": "customer_profiles",
+          "component_id": "product_analytics_standardizer",
+          "instance_name": "product_usage_events",
           "config_mapping": {
-            "asset_name": "customer_profiles",
-            "crm_data_asset": "standardized_crm",
-            "description": "Unified customer profiles",
-            "group_name": "customer_analytics"
+            "asset_name": "product_usage_events",
+            "description": "Product usage events"
           },
-          "depends_on": ["standardized_crm"]
+          "depends_on": []
+        },
+        {
+          "component_id": "support_ticket_standardizer",
+          "instance_name": "support_tickets",
+          "config_mapping": {
+            "asset_name": "support_tickets",
+            "description": "Customer support interactions"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "customer360",
+          "instance_name": "customer_360",
+          "config_mapping": {
+            "asset_name": "customer_360",
+            "description": "Unified customer profile"
+          },
+          "depends_on": []
         },
         {
           "component_id": "churn_prediction",
           "instance_name": "churn_risk_scores",
           "config_mapping": {
             "asset_name": "churn_risk_scores",
-            "source_asset": "customer_profiles",
-            "inactivity_threshold_days": "${inactivity_threshold_days}",
-            "lookback_days": 365,
-            "description": "Churn risk prediction",
-            "group_name": "customer_analytics"
+            "description": "Predict customer churn risk"
           },
-          "depends_on": ["customer_profiles"]
+          "depends_on": [
+            "customer_360"
+          ]
+        },
+        {
+          "component_id": "ltvprediction",
+          "instance_name": "customer_ltv_churn",
+          "config_mapping": {
+            "asset_name": "customer_ltv_churn",
+            "description": "Customer lifetime value for churn prioritization"
+          },
+          "depends_on": [
+            "product_usage_events"
+          ]
         },
         {
           "component_id": "propensity_scoring",
-          "instance_name": "retention_propensity",
+          "instance_name": "reengagement_propensity",
           "config_mapping": {
-            "asset_name": "retention_propensity",
-            "source_asset": "customer_profiles",
-            "propensity_type": "engagement",
-            "description": "Retention propensity scoring",
-            "group_name": "customer_analytics"
+            "asset_name": "reengagement_propensity",
+            "description": "Likelihood to re-engage with product"
           },
-          "depends_on": ["customer_profiles"]
+          "depends_on": [
+            "customer_360"
+          ]
+        },
+        {
+          "component_id": "dltdata_frame_writer",
+          "instance_name": "churn_analysis_output",
+          "config_mapping": {
+            "asset_name": "churn_analysis_output",
+            "description": "Write churn risk analysis to database"
+          },
+          "depends_on": [
+            "reengagement_propensity"
+          ]
         }
       ],
       "pipeline_params": {
@@ -277,44 +317,66 @@
       "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/product_recommendations_pipeline.yaml",
       "components": [
         {
-          "component_id": "ecommerce_standardizer",
-          "instance_name": "standardized_orders",
+          "component_id": "shopify_ingestion",
+          "instance_name": "shopify_order_items",
           "config_mapping": {
-            "asset_name": "standardized_orders",
-            "platform": "${ecommerce_platform}",
-            "resource_type": "orders",
-            "description": "Standardized order data",
-            "group_name": "standardization"
+            "asset_name": "shopify_order_items",
+            "description": "Ingest order line items from Shopify"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "ecommerce_standardizer",
+          "instance_name": "standardized_order_items",
+          "config_mapping": {
+            "asset_name": "standardized_order_items",
+            "description": "Standardize order items schema"
           },
           "depends_on": []
         },
         {
           "component_id": "product_recommendations",
-          "instance_name": "collaborative_recommendations",
+          "instance_name": "product_recommendations",
           "config_mapping": {
-            "asset_name": "collaborative_recommendations",
-            "source_asset": "standardized_orders",
-            "recommendation_type": "collaborative",
-            "num_recommendations": "${num_recommendations}",
-            "min_support": 5,
-            "description": "Collaborative filtering recommendations",
-            "group_name": "product_analytics"
+            "asset_name": "product_recommendations",
+            "description": "Customers who bought X also bought Y"
           },
-          "depends_on": ["standardized_orders"]
+          "depends_on": [
+            "standardized_order_items"
+          ]
         },
         {
           "component_id": "product_recommendations",
-          "instance_name": "bundle_recommendations",
+          "instance_name": "product_bundles",
           "config_mapping": {
-            "asset_name": "bundle_recommendations",
-            "source_asset": "standardized_orders",
-            "recommendation_type": "frequently_bought_together",
-            "num_recommendations": "${num_recommendations}",
-            "min_support": 3,
-            "description": "Frequently bought together recommendations",
-            "group_name": "product_analytics"
+            "asset_name": "product_bundles",
+            "description": "Product bundles for "
           },
-          "depends_on": ["standardized_orders"]
+          "depends_on": [
+            "standardized_order_items"
+          ]
+        },
+        {
+          "component_id": "product_recommendations",
+          "instance_name": "trending_products",
+          "config_mapping": {
+            "asset_name": "trending_products",
+            "description": "Popular and trending products"
+          },
+          "depends_on": [
+            "standardized_order_items"
+          ]
+        },
+        {
+          "component_id": "dltdata_frame_writer",
+          "instance_name": "recommendations_output",
+          "config_mapping": {
+            "asset_name": "recommendations_output",
+            "description": "Write product recommendations to database"
+          },
+          "depends_on": [
+            "trending_products"
+          ]
         }
       ],
       "pipeline_params": {
@@ -345,14 +407,29 @@
       "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/fraud_detection_pipeline.yaml",
       "components": [
         {
+          "component_id": "stripe_ingestion",
+          "instance_name": "stripe_transactions",
+          "config_mapping": {
+            "asset_name": "stripe_transactions",
+            "description": "Ingest payment transactions"
+          },
+          "depends_on": []
+        },
+        {
           "component_id": "ecommerce_standardizer",
           "instance_name": "standardized_transactions",
           "config_mapping": {
             "asset_name": "standardized_transactions",
-            "platform": "${ecommerce_platform}",
-            "resource_type": "transactions",
-            "description": "Standardized transaction data",
-            "group_name": "standardization"
+            "description": "Standardized transaction schema"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "customer360",
+          "instance_name": "customer_profiles",
+          "config_mapping": {
+            "asset_name": "customer_profiles",
+            "description": "Customer behavior patterns"
           },
           "depends_on": []
         },
@@ -361,31 +438,44 @@
           "instance_name": "amount_anomalies",
           "config_mapping": {
             "asset_name": "amount_anomalies",
-            "source_asset": "standardized_transactions",
-            "detection_method": "z_score",
-            "metric_column": "amount",
-            "threshold": "${anomaly_threshold}",
-            "group_by_field": "customer_id",
-            "description": "Detect unusual transaction amounts",
-            "group_name": "fraud_detection"
+            "description": "Detect unusual transaction amounts"
           },
-          "depends_on": ["standardized_transactions"]
+          "depends_on": [
+            "standardized_transactions"
+          ]
         },
         {
           "component_id": "anomaly_detection",
           "instance_name": "frequency_anomalies",
           "config_mapping": {
             "asset_name": "frequency_anomalies",
-            "source_asset": "standardized_transactions",
-            "detection_method": "moving_average",
-            "metric_column": "transaction_count",
-            "moving_average_window": 7,
-            "threshold": 3.0,
-            "group_by_field": "customer_id",
-            "description": "Detect unusual transaction frequency",
-            "group_name": "fraud_detection"
+            "description": "Detect unusual transaction frequency"
           },
-          "depends_on": ["standardized_transactions"]
+          "depends_on": [
+            "standardized_transactions"
+          ]
+        },
+        {
+          "component_id": "anomaly_detection",
+          "instance_name": "location_anomalies",
+          "config_mapping": {
+            "asset_name": "location_anomalies",
+            "description": "Detect transactions from unusual locations"
+          },
+          "depends_on": [
+            "standardized_transactions"
+          ]
+        },
+        {
+          "component_id": "dltdata_frame_writer",
+          "instance_name": "fraud_detection_output",
+          "config_mapping": {
+            "asset_name": "fraud_detection_output",
+            "description": "Write fraud detection results to database"
+          },
+          "depends_on": [
+            "location_anomalies"
+          ]
         }
       ],
       "pipeline_params": {
@@ -420,27 +510,31 @@
           "instance_name": "experiment_events",
           "config_mapping": {
             "asset_name": "experiment_events",
-            "platform": "${analytics_platform}",
-            "resource_type": "events",
-            "description": "A/B test experiment events",
-            "group_name": "experimentation"
+            "description": "A/B test assignment and conversion events"
           },
           "depends_on": []
         },
         {
-          "component_id": "ab_test_analysis",
+          "component_id": "abtest_analysis",
           "instance_name": "experiment_results",
           "config_mapping": {
             "asset_name": "experiment_results",
-            "source_asset": "experiment_events",
-            "confidence_level": "${confidence_level}",
-            "minimum_sample_size": "${minimum_sample_size}",
-            "minimum_runtime_hours": 168,
-            "minimum_detectable_effect": "${minimum_detectable_effect}",
-            "description": "Statistical analysis of A/B tests",
-            "group_name": "experimentation"
+            "description": "Statistical analysis of A/B tests"
           },
-          "depends_on": ["experiment_events"]
+          "depends_on": [
+            "experiment_events"
+          ]
+        },
+        {
+          "component_id": "dltdata_frame_writer",
+          "instance_name": "experiment_results_output",
+          "config_mapping": {
+            "asset_name": "experiment_results_output",
+            "description": "Write A/B test results to database"
+          },
+          "depends_on": [
+            "experiment_results"
+          ]
         }
       ],
       "pipeline_params": {
@@ -483,14 +577,65 @@
       "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/full_cdp_pipeline.yaml",
       "components": [
         {
-          "component_id": "crm_data_standardizer",
+          "component_id": "hub_spot_ingestion",
+          "instance_name": "hubspot_contacts",
+          "config_mapping": {
+            "asset_name": "hubspot_contacts",
+            "description": "CRM contact data"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "shopify_ingestion",
+          "instance_name": "shopify_orders",
+          "config_mapping": {
+            "asset_name": "shopify_orders",
+            "description": "E-commerce orders"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "google_ads_ingestion",
+          "instance_name": "google_ads_campaigns",
+          "config_mapping": {
+            "asset_name": "google_ads_campaigns",
+            "description": "Google Ads campaign data"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "facebook_ads_ingestion",
+          "instance_name": "facebook_ads_campaigns",
+          "config_mapping": {
+            "asset_name": "facebook_ads_campaigns",
+            "description": "Facebook Ads campaign data"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "event_data_standardizer",
+          "instance_name": "product_events",
+          "config_mapping": {
+            "asset_name": "product_events",
+            "description": "Product usage events"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "zendesk_ingestion",
+          "instance_name": "zendesk_tickets",
+          "config_mapping": {
+            "asset_name": "zendesk_tickets",
+            "description": "Customer support tickets"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "crmdata_standardizer",
           "instance_name": "standardized_crm",
           "config_mapping": {
             "asset_name": "standardized_crm",
-            "platform": "${crm_platform}",
-            "resource_type": "contacts",
-            "description": "Standardized CRM data",
-            "group_name": "standardization"
+            "description": "Standardized CRM contacts"
           },
           "depends_on": []
         },
@@ -499,77 +644,239 @@
           "instance_name": "standardized_orders",
           "config_mapping": {
             "asset_name": "standardized_orders",
-            "platform": "${ecommerce_platform}",
-            "resource_type": "orders",
-            "description": "Standardized order data",
-            "group_name": "standardization"
+            "description": "Standardized orders"
           },
           "depends_on": []
         },
         {
-          "component_id": "customer_360",
+          "component_id": "marketing_data_standardizer",
+          "instance_name": "standardized_marketing",
+          "config_mapping": {
+            "asset_name": "standardized_marketing",
+            "description": "Unified marketing touchpoints"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "support_ticket_standardizer",
+          "instance_name": "standardized_support",
+          "config_mapping": {
+            "asset_name": "standardized_support",
+            "description": "Standardized support tickets"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "customer360",
           "instance_name": "customer_360",
           "config_mapping": {
             "asset_name": "customer_360",
-            "crm_data_asset": "standardized_crm",
-            "transaction_data_asset": "standardized_orders",
-            "description": "Unified customer profile",
-            "group_name": "customer_analytics"
+            "description": "Unified customer profile"
           },
-          "depends_on": ["standardized_crm", "standardized_orders"]
+          "depends_on": []
         },
         {
           "component_id": "customer_segmentation",
           "instance_name": "rfm_segments",
           "config_mapping": {
             "asset_name": "rfm_segments",
-            "transaction_data_asset": "standardized_orders",
-            "analysis_period_days": 365,
-            "use_predefined_segments": true,
-            "description": "RFM customer segmentation",
-            "group_name": "customer_analytics"
+            "description": "RFM customer segmentation"
           },
-          "depends_on": ["standardized_orders"]
+          "depends_on": []
         },
         {
-          "component_id": "ltv_prediction",
+          "component_id": "ltvprediction",
           "instance_name": "customer_ltv",
           "config_mapping": {
             "asset_name": "customer_ltv",
-            "source_asset": "standardized_orders",
-            "prediction_period_months": 24,
-            "cohort_analysis": true,
-            "description": "Customer lifetime value prediction",
-            "group_name": "customer_analytics"
+            "description": "Customer lifetime value prediction"
           },
-          "depends_on": ["standardized_orders"]
+          "depends_on": [
+            "standardized_orders"
+          ]
         },
         {
           "component_id": "churn_prediction",
           "instance_name": "churn_risk",
           "config_mapping": {
             "asset_name": "churn_risk",
-            "source_asset": "customer_360",
-            "inactivity_threshold_days": 60,
-            "lookback_days": 365,
-            "description": "Customer churn risk prediction",
-            "group_name": "customer_analytics"
+            "description": "Customer churn risk prediction"
           },
-          "depends_on": ["customer_360"]
+          "depends_on": [
+            "customer_360"
+          ]
+        },
+        {
+          "component_id": "customer_health_score",
+          "instance_name": "health_scores",
+          "config_mapping": {
+            "asset_name": "health_scores",
+            "description": "Customer health scoring"
+          },
+          "depends_on": [
+            "customer_360"
+          ]
+        },
+        {
+          "component_id": "multi_touch_attribution",
+          "instance_name": "marketing_attribution",
+          "config_mapping": {
+            "asset_name": "marketing_attribution",
+            "description": "Marketing attribution analysis"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "product_recommendations",
+          "instance_name": "product_recommendations",
+          "config_mapping": {
+            "asset_name": "product_recommendations",
+            "description": "Product recommendations engine"
+          },
+          "depends_on": [
+            "standardized_orders"
+          ]
+        },
+        {
+          "component_id": "customer_journey_mapping",
+          "instance_name": "customer_journeys",
+          "config_mapping": {
+            "asset_name": "customer_journeys",
+            "description": "Customer journey analysis"
+          },
+          "depends_on": [
+            "product_events"
+          ]
+        },
+        {
+          "component_id": "funnel_analysis",
+          "instance_name": "conversion_funnels",
+          "config_mapping": {
+            "asset_name": "conversion_funnels",
+            "description": "Conversion funnel analysis"
+          },
+          "depends_on": [
+            "product_events"
+          ]
+        },
+        {
+          "component_id": "cohort_analysis",
+          "instance_name": "cohort_retention",
+          "config_mapping": {
+            "asset_name": "cohort_retention",
+            "description": "Cohort retention analysis"
+          },
+          "depends_on": [
+            "standardized_orders"
+          ]
+        },
+        {
+          "component_id": "propensity_scoring",
+          "instance_name": "purchase_propensity",
+          "config_mapping": {
+            "asset_name": "purchase_propensity",
+            "description": "Purchase propensity scoring"
+          },
+          "depends_on": [
+            "customer_360"
+          ]
+        },
+        {
+          "component_id": "propensity_scoring",
+          "instance_name": "upgrade_propensity",
+          "config_mapping": {
+            "asset_name": "upgrade_propensity",
+            "description": "Upgrade propensity scoring"
+          },
+          "depends_on": [
+            "customer_360"
+          ]
+        },
+        {
+          "component_id": "abtest_analysis",
+          "instance_name": "experiment_results",
+          "config_mapping": {
+            "asset_name": "experiment_results",
+            "description": "A/B test statistical analysis"
+          },
+          "depends_on": [
+            "product_events"
+          ]
+        },
+        {
+          "component_id": "campaign_performance",
+          "instance_name": "campaign_roi",
+          "config_mapping": {
+            "asset_name": "campaign_roi",
+            "description": "Marketing campaign ROI"
+          },
+          "depends_on": []
         },
         {
           "component_id": "anomaly_detection",
           "instance_name": "transaction_anomalies",
           "config_mapping": {
             "asset_name": "transaction_anomalies",
-            "source_asset": "standardized_orders",
-            "detection_method": "z_score",
-            "metric_column": "total_amount",
-            "threshold": 3.0,
-            "description": "Detect unusual transactions",
-            "group_name": "monitoring"
+            "description": "Detect unusual transactions"
           },
-          "depends_on": ["standardized_orders"]
+          "depends_on": [
+            "standardized_orders"
+          ]
+        },
+        {
+          "component_id": "anomaly_detection",
+          "instance_name": "engagement_anomalies",
+          "config_mapping": {
+            "asset_name": "engagement_anomalies",
+            "description": "Detect unusual engagement patterns"
+          },
+          "depends_on": [
+            "product_events"
+          ]
+        },
+        {
+          "component_id": "dltdata_frame_writer",
+          "instance_name": "customer_analytics_output",
+          "config_mapping": {
+            "asset_name": "customer_analytics_output",
+            "description": "Write customer analytics to database"
+          },
+          "depends_on": [
+            "health_scores"
+          ]
+        },
+        {
+          "component_id": "dltdata_frame_writer",
+          "instance_name": "marketing_analytics_output",
+          "config_mapping": {
+            "asset_name": "marketing_analytics_output",
+            "description": "Write marketing analytics to database"
+          },
+          "depends_on": [
+            "campaign_roi"
+          ]
+        },
+        {
+          "component_id": "dltdata_frame_writer",
+          "instance_name": "product_analytics_output",
+          "config_mapping": {
+            "asset_name": "product_analytics_output",
+            "description": "Write product analytics to database"
+          },
+          "depends_on": [
+            "product_recommendations"
+          ]
+        },
+        {
+          "component_id": "dltdata_frame_writer",
+          "instance_name": "monitoring_output",
+          "config_mapping": {
+            "asset_name": "monitoring_output",
+            "description": "Write monitoring results to database"
+          },
+          "depends_on": [
+            "engagement_anomalies"
+          ]
         }
       ],
       "pipeline_params": {
@@ -604,31 +911,42 @@
           "instance_name": "standardized_reviews",
           "config_mapping": {
             "asset_name": "standardized_reviews",
-            "platform": "${ecommerce_platform}",
-            "resource_type": "reviews"
-          }
+            "description": "Standardized review data"
+          },
+          "depends_on": []
         },
         {
           "component_id": "sentiment_analyzer",
           "instance_name": "review_sentiment",
           "config_mapping": {
             "asset_name": "review_sentiment",
-            "source_asset": "standardized_reviews",
-            "method": "${sentiment_method}",
-            "input_column": "review_text"
-          }
+            "description": "Sentiment analysis of customer reviews"
+          },
+          "depends_on": [
+            "standardized_reviews"
+          ]
         },
         {
           "component_id": "openai_llm",
           "instance_name": "review_entities",
           "config_mapping": {
             "asset_name": "review_entities",
-            "source_asset": "review_sentiment",
-            "model": "gpt-3.5-turbo",
-            "system_prompt": "Extract product features mentioned in reviews",
-            "input_column": "review_text",
-            "output_column": "entities_mentioned"
-          }
+            "description": "Extract entities from reviews"
+          },
+          "depends_on": [
+            "review_sentiment"
+          ]
+        },
+        {
+          "component_id": "dlt_dataframe_writer",
+          "instance_name": "sentiment_output",
+          "config_mapping": {
+            "asset_name": "sentiment_output",
+            "description": "Write sentiment analysis results to database"
+          },
+          "depends_on": [
+            "review_entities"
+          ]
         }
       ],
       "pipeline_params": {
@@ -659,33 +977,57 @@
       "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/document_qa_rag_pipeline.yaml",
       "components": [
         {
-          "component_id": "csv_file_ingestion",
+          "component_id": "document_ingestion",
           "instance_name": "raw_documents",
           "config_mapping": {
             "asset_name": "raw_documents",
-            "file_path": "${document_path}"
-          }
+            "description": "Raw document ingestion"
+          },
+          "depends_on": []
         },
         {
           "component_id": "document_chunker",
           "instance_name": "document_chunks",
           "config_mapping": {
             "asset_name": "document_chunks",
-            "source_asset": "raw_documents",
-            "strategy": "${chunking_strategy}",
-            "chunk_size": "${chunk_size}",
-            "chunk_overlap": "${chunk_overlap}"
-          }
+            "description": "Split documents into chunks"
+          },
+          "depends_on": [
+            "raw_documents"
+          ]
         },
         {
           "component_id": "embeddings_generator",
           "instance_name": "document_embeddings",
           "config_mapping": {
             "asset_name": "document_embeddings",
-            "source_asset": "document_chunks",
-            "provider": "${embedding_provider}",
-            "model": "${embedding_model}"
-          }
+            "description": "Generate embeddings for chunks"
+          },
+          "depends_on": [
+            "document_chunks"
+          ]
+        },
+        {
+          "component_id": "dlt_dataframe_writer",
+          "instance_name": "embeddings_backup",
+          "config_mapping": {
+            "asset_name": "embeddings_backup",
+            "description": "Write embeddings to warehouse for tracking (optional)"
+          },
+          "depends_on": [
+            "document_embeddings"
+          ]
+        },
+        {
+          "component_id": "vector_store_writer",
+          "instance_name": "vector_index",
+          "config_mapping": {
+            "asset_name": "vector_index",
+            "description": "Store embeddings in vector database"
+          },
+          "depends_on": [
+            "document_embeddings"
+          ]
         }
       ],
       "pipeline_params": {
@@ -740,35 +1082,143 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "pipelines/customer_support_automation_pipeline.yaml",
-      "tags": ["ai", "support", "automation", "customer-service", "classification"],
+      "tags": [
+        "ai",
+        "support",
+        "automation",
+        "customer-service",
+        "classification"
+      ],
       "icon": "Headphones",
-      "components": [],
+      "components": [
+        {
+          "component_id": "support_ticket_ingestion",
+          "instance_name": "raw_tickets",
+          "config_mapping": {
+            "asset_name": "raw_tickets",
+            "description": "Raw support ticket ingestion"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "entity_extractor",
+          "instance_name": "ticket_entities",
+          "config_mapping": {
+            "asset_name": "ticket_entities",
+            "description": "Extract key entities from tickets"
+          },
+          "depends_on": [
+            "raw_tickets"
+          ]
+        },
+        {
+          "component_id": "ticket_classifier",
+          "instance_name": "classified_tickets",
+          "config_mapping": {
+            "asset_name": "classified_tickets",
+            "description": "Classify tickets by category and urgency"
+          },
+          "depends_on": [
+            "ticket_entities"
+          ]
+        },
+        {
+          "component_id": "text_moderator",
+          "instance_name": "moderated_tickets",
+          "config_mapping": {
+            "asset_name": "moderated_tickets",
+            "description": "Moderate ticket content for safety"
+          },
+          "depends_on": [
+            "classified_tickets"
+          ]
+        },
+        {
+          "component_id": "priority_scorer",
+          "instance_name": "prioritized_tickets",
+          "config_mapping": {
+            "asset_name": "prioritized_tickets",
+            "description": "Score ticket priority and predict SLA breaches"
+          },
+          "depends_on": [
+            "moderated_tickets"
+          ]
+        },
+        {
+          "component_id": "openai_llm",
+          "instance_name": "response_suggestions",
+          "config_mapping": {
+            "asset_name": "response_suggestions",
+            "description": "Generate AI-powered response suggestions"
+          },
+          "depends_on": [
+            "prioritized_tickets"
+          ]
+        },
+        {
+          "component_id": "vector_store_query",
+          "instance_name": "kb_search_results",
+          "config_mapping": {
+            "asset_name": "kb_search_results",
+            "description": "Search knowledge base for relevant articles"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "dlt_dataframe_writer",
+          "instance_name": "tickets_output",
+          "config_mapping": {
+            "asset_name": "tickets_output",
+            "description": "Write processed tickets to database"
+          },
+          "depends_on": [
+            "kb_search_results"
+          ]
+        }
+      ],
       "pipeline_params": {
         "ticket_source": {
           "type": "string",
           "default": "zendesk",
-          "enum": ["zendesk", "intercom", "freshdesk", "csv", "database"],
+          "enum": [
+            "zendesk",
+            "intercom",
+            "freshdesk",
+            "csv",
+            "database"
+          ],
           "description": "Support ticket source system",
           "required": true
         },
         "classification_method": {
           "type": "string",
           "default": "llm",
-          "enum": ["llm", "transformer"],
+          "enum": [
+            "llm",
+            "transformer"
+          ],
           "description": "Classification method (llm=accurate, transformer=fast/free)",
           "required": true
         },
         "entity_method": {
           "type": "string",
           "default": "spacy",
-          "enum": ["spacy", "transformer", "llm"],
+          "enum": [
+            "spacy",
+            "transformer",
+            "llm"
+          ],
           "description": "Entity extraction method (spacy=recommended)",
           "required": true
         },
         "priority_method": {
           "type": "string",
           "default": "rules",
-          "enum": ["rules", "ml", "llm"],
+          "enum": [
+            "rules",
+            "ml",
+            "llm"
+          ],
           "description": "Priority scoring method",
           "required": true
         },
@@ -799,14 +1249,102 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "pipelines/content_moderation_pipeline.yaml",
-      "tags": ["ai", "moderation", "safety", "compliance", "ugc"],
+      "tags": [
+        "ai",
+        "moderation",
+        "safety",
+        "compliance",
+        "ugc"
+      ],
       "icon": "Shield",
-      "components": [],
+      "components": [
+        {
+          "component_id": "content_ingestion",
+          "instance_name": "raw_content",
+          "config_mapping": {
+            "asset_name": "raw_content",
+            "description": "Raw user-generated content ingestion"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "entity_extractor",
+          "instance_name": "content_entities",
+          "config_mapping": {
+            "asset_name": "content_entities",
+            "description": "Extract entities from content"
+          },
+          "depends_on": [
+            "raw_content"
+          ]
+        },
+        {
+          "component_id": "text_moderator",
+          "instance_name": "text_moderation_results",
+          "config_mapping": {
+            "asset_name": "text_moderation_results",
+            "description": "Moderate text content for policy violations"
+          },
+          "depends_on": [
+            "content_entities"
+          ]
+        },
+        {
+          "component_id": "vision_model",
+          "instance_name": "image_moderation_results",
+          "config_mapping": {
+            "asset_name": "image_moderation_results",
+            "description": "Moderate image content for policy violations"
+          },
+          "depends_on": [
+            "text_moderation_results"
+          ]
+        },
+        {
+          "component_id": "sentiment_analyzer",
+          "instance_name": "content_sentiment",
+          "config_mapping": {
+            "asset_name": "content_sentiment",
+            "description": "Analyze sentiment of content"
+          },
+          "depends_on": [
+            "image_moderation_results"
+          ]
+        },
+        {
+          "component_id": "moderation_scorer",
+          "instance_name": "moderation_decisions",
+          "config_mapping": {
+            "asset_name": "moderation_decisions",
+            "description": "Calculate violation scores and route actions"
+          },
+          "depends_on": [
+            "content_sentiment"
+          ]
+        },
+        {
+          "component_id": "dlt_dataframe_writer",
+          "instance_name": "moderation_output",
+          "config_mapping": {
+            "asset_name": "moderation_output",
+            "description": "Write moderation results to database"
+          },
+          "depends_on": [
+            "moderation_decisions"
+          ]
+        }
+      ],
       "pipeline_params": {
         "content_source": {
           "type": "string",
           "default": "database",
-          "enum": ["database", "api", "stream", "s3", "csv"],
+          "enum": [
+            "database",
+            "api",
+            "stream",
+            "s3",
+            "csv"
+          ],
           "description": "Source of user-generated content",
           "required": true
         },
@@ -814,23 +1352,39 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["text", "image", "both"]
+            "enum": [
+              "text",
+              "image",
+              "both"
+            ]
           },
-          "default": ["text", "image"],
+          "default": [
+            "text",
+            "image"
+          ],
           "description": "Types of content to moderate",
           "required": true
         },
         "text_moderation_method": {
           "type": "string",
           "default": "openai_moderation",
-          "enum": ["openai_moderation", "perspective_api", "transformer", "llm"],
+          "enum": [
+            "openai_moderation",
+            "perspective_api",
+            "transformer",
+            "llm"
+          ],
           "description": "Text moderation method (openai_moderation=free)",
           "required": true
         },
         "image_moderation_method": {
           "type": "string",
           "default": "gpt4_vision",
-          "enum": ["gpt4_vision", "claude3_vision", "aws_rekognition"],
+          "enum": [
+            "gpt4_vision",
+            "claude3_vision",
+            "aws_rekognition"
+          ],
           "description": "Image moderation method",
           "required": true
         },

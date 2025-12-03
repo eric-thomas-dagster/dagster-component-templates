@@ -119,29 +119,6 @@
           "description": "Table name for LTV segments output",
           "required": false
         },
-        "snowflake_account": {
-          "type": "string",
-          "default": "",
-          "description": "Snowflake account identifier",
-          "required": false,
-          "sensitive": false,
-          "show_if": {
-            "output_destination": "snowflake"
-          }
-        },
-        "database_connection_string": {
-          "type": "string",
-          "default": "",
-          "description": "Database connection string (for Postgres/Redshift)",
-          "required": false,
-          "sensitive": true,
-          "show_if": {
-            "output_destination": [
-              "postgres",
-              "redshift"
-            ]
-          }
-        },
         "output_write_mode": {
           "type": "string",
           "default": "replace",
@@ -152,6 +129,299 @@
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
+        },
+        "snowflake_account": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake account identifier (e.g., xy12345.us-east-1)",
+          "placeholder": "xy12345.us-east-1",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_user": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_password": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_database": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Snowflake schema name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_warehouse": {
+          "type": "string",
+          "default": "COMPUTE_WH",
+          "description": "Snowflake warehouse name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "bigquery_project_id": {
+          "type": "string",
+          "default": "",
+          "description": "Google Cloud project ID",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_dataset": {
+          "type": "string",
+          "default": "",
+          "description": "BigQuery dataset name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_credentials_json": {
+          "type": "string",
+          "default": "",
+          "description": "Service account credentials JSON (or path to file)",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "postgres_host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "PostgreSQL host",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_port": {
+          "type": "integer",
+          "default": 5432,
+          "description": "PostgreSQL port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_database": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_user": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_password": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "PostgreSQL schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "redshift_host": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift cluster endpoint",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_port": {
+          "type": "integer",
+          "default": 5439,
+          "description": "Redshift port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_database": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_user": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_password": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Redshift schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "databricks_host": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks workspace URL",
+          "placeholder": "https://dbc-12345678-90ab.cloud.databricks.com",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_token": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks personal access token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_http_path": {
+          "type": "string",
+          "default": "",
+          "description": "HTTP path for SQL warehouse",
+          "placeholder": "/sql/1.0/warehouses/abc123def456",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_catalog": {
+          "type": "string",
+          "default": "main",
+          "description": "Databricks catalog (Unity Catalog)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_schema": {
+          "type": "string",
+          "default": "default",
+          "description": "Databricks schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "motherduck_token": {
+          "type": "string",
+          "default": "",
+          "description": "MotherDuck service token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "motherduck_database": {
+          "type": "string",
+          "default": "my_db",
+          "description": "MotherDuck database name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "duckdb_path": {
+          "type": "string",
+          "default": ":memory:",
+          "description": "DuckDB file path (:memory: for in-memory database)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "duckdb"
+          }
         }
       }
     },
@@ -325,6 +595,299 @@
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
+        },
+        "snowflake_account": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake account identifier (e.g., xy12345.us-east-1)",
+          "placeholder": "xy12345.us-east-1",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_user": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_password": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_database": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Snowflake schema name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_warehouse": {
+          "type": "string",
+          "default": "COMPUTE_WH",
+          "description": "Snowflake warehouse name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "bigquery_project_id": {
+          "type": "string",
+          "default": "",
+          "description": "Google Cloud project ID",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_dataset": {
+          "type": "string",
+          "default": "",
+          "description": "BigQuery dataset name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_credentials_json": {
+          "type": "string",
+          "default": "",
+          "description": "Service account credentials JSON (or path to file)",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "postgres_host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "PostgreSQL host",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_port": {
+          "type": "integer",
+          "default": 5432,
+          "description": "PostgreSQL port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_database": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_user": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_password": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "PostgreSQL schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "redshift_host": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift cluster endpoint",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_port": {
+          "type": "integer",
+          "default": 5439,
+          "description": "Redshift port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_database": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_user": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_password": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Redshift schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "databricks_host": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks workspace URL",
+          "placeholder": "https://dbc-12345678-90ab.cloud.databricks.com",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_token": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks personal access token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_http_path": {
+          "type": "string",
+          "default": "",
+          "description": "HTTP path for SQL warehouse",
+          "placeholder": "/sql/1.0/warehouses/abc123def456",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_catalog": {
+          "type": "string",
+          "default": "main",
+          "description": "Databricks catalog (Unity Catalog)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_schema": {
+          "type": "string",
+          "default": "default",
+          "description": "Databricks schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "motherduck_token": {
+          "type": "string",
+          "default": "",
+          "description": "MotherDuck service token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "motherduck_database": {
+          "type": "string",
+          "default": "my_db",
+          "description": "MotherDuck database name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "duckdb_path": {
+          "type": "string",
+          "default": ":memory:",
+          "description": "DuckDB file path (:memory: for in-memory database)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "duckdb"
+          }
         }
       }
     },
@@ -489,6 +1052,299 @@
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
+        },
+        "snowflake_account": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake account identifier (e.g., xy12345.us-east-1)",
+          "placeholder": "xy12345.us-east-1",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_user": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_password": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_database": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Snowflake schema name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_warehouse": {
+          "type": "string",
+          "default": "COMPUTE_WH",
+          "description": "Snowflake warehouse name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "bigquery_project_id": {
+          "type": "string",
+          "default": "",
+          "description": "Google Cloud project ID",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_dataset": {
+          "type": "string",
+          "default": "",
+          "description": "BigQuery dataset name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_credentials_json": {
+          "type": "string",
+          "default": "",
+          "description": "Service account credentials JSON (or path to file)",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "postgres_host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "PostgreSQL host",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_port": {
+          "type": "integer",
+          "default": 5432,
+          "description": "PostgreSQL port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_database": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_user": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_password": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "PostgreSQL schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "redshift_host": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift cluster endpoint",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_port": {
+          "type": "integer",
+          "default": 5439,
+          "description": "Redshift port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_database": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_user": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_password": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Redshift schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "databricks_host": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks workspace URL",
+          "placeholder": "https://dbc-12345678-90ab.cloud.databricks.com",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_token": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks personal access token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_http_path": {
+          "type": "string",
+          "default": "",
+          "description": "HTTP path for SQL warehouse",
+          "placeholder": "/sql/1.0/warehouses/abc123def456",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_catalog": {
+          "type": "string",
+          "default": "main",
+          "description": "Databricks catalog (Unity Catalog)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_schema": {
+          "type": "string",
+          "default": "default",
+          "description": "Databricks schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "motherduck_token": {
+          "type": "string",
+          "default": "",
+          "description": "MotherDuck service token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "motherduck_database": {
+          "type": "string",
+          "default": "my_db",
+          "description": "MotherDuck database name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "duckdb_path": {
+          "type": "string",
+          "default": ":memory:",
+          "description": "DuckDB file path (:memory: for in-memory database)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "duckdb"
+          }
         }
       }
     },
@@ -628,6 +1484,299 @@
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
+        },
+        "snowflake_account": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake account identifier (e.g., xy12345.us-east-1)",
+          "placeholder": "xy12345.us-east-1",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_user": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_password": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_database": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Snowflake schema name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_warehouse": {
+          "type": "string",
+          "default": "COMPUTE_WH",
+          "description": "Snowflake warehouse name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "bigquery_project_id": {
+          "type": "string",
+          "default": "",
+          "description": "Google Cloud project ID",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_dataset": {
+          "type": "string",
+          "default": "",
+          "description": "BigQuery dataset name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_credentials_json": {
+          "type": "string",
+          "default": "",
+          "description": "Service account credentials JSON (or path to file)",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "postgres_host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "PostgreSQL host",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_port": {
+          "type": "integer",
+          "default": 5432,
+          "description": "PostgreSQL port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_database": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_user": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_password": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "PostgreSQL schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "redshift_host": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift cluster endpoint",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_port": {
+          "type": "integer",
+          "default": 5439,
+          "description": "Redshift port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_database": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_user": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_password": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Redshift schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "databricks_host": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks workspace URL",
+          "placeholder": "https://dbc-12345678-90ab.cloud.databricks.com",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_token": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks personal access token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_http_path": {
+          "type": "string",
+          "default": "",
+          "description": "HTTP path for SQL warehouse",
+          "placeholder": "/sql/1.0/warehouses/abc123def456",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_catalog": {
+          "type": "string",
+          "default": "main",
+          "description": "Databricks catalog (Unity Catalog)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_schema": {
+          "type": "string",
+          "default": "default",
+          "description": "Databricks schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "motherduck_token": {
+          "type": "string",
+          "default": "",
+          "description": "MotherDuck service token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "motherduck_database": {
+          "type": "string",
+          "default": "my_db",
+          "description": "MotherDuck database name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "duckdb_path": {
+          "type": "string",
+          "default": ":memory:",
+          "description": "DuckDB file path (:memory: for in-memory database)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "duckdb"
+          }
         }
       }
     },
@@ -768,6 +1917,299 @@
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
+        },
+        "snowflake_account": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake account identifier (e.g., xy12345.us-east-1)",
+          "placeholder": "xy12345.us-east-1",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_user": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_password": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_database": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Snowflake schema name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_warehouse": {
+          "type": "string",
+          "default": "COMPUTE_WH",
+          "description": "Snowflake warehouse name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "bigquery_project_id": {
+          "type": "string",
+          "default": "",
+          "description": "Google Cloud project ID",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_dataset": {
+          "type": "string",
+          "default": "",
+          "description": "BigQuery dataset name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_credentials_json": {
+          "type": "string",
+          "default": "",
+          "description": "Service account credentials JSON (or path to file)",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "postgres_host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "PostgreSQL host",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_port": {
+          "type": "integer",
+          "default": 5432,
+          "description": "PostgreSQL port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_database": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_user": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_password": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "PostgreSQL schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "redshift_host": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift cluster endpoint",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_port": {
+          "type": "integer",
+          "default": 5439,
+          "description": "Redshift port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_database": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_user": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_password": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Redshift schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "databricks_host": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks workspace URL",
+          "placeholder": "https://dbc-12345678-90ab.cloud.databricks.com",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_token": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks personal access token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_http_path": {
+          "type": "string",
+          "default": "",
+          "description": "HTTP path for SQL warehouse",
+          "placeholder": "/sql/1.0/warehouses/abc123def456",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_catalog": {
+          "type": "string",
+          "default": "main",
+          "description": "Databricks catalog (Unity Catalog)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_schema": {
+          "type": "string",
+          "default": "default",
+          "description": "Databricks schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "motherduck_token": {
+          "type": "string",
+          "default": "",
+          "description": "MotherDuck service token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "motherduck_database": {
+          "type": "string",
+          "default": "my_db",
+          "description": "MotherDuck database name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "duckdb_path": {
+          "type": "string",
+          "default": ":memory:",
+          "description": "DuckDB file path (:memory: for in-memory database)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "duckdb"
+          }
         }
       }
     },
@@ -866,6 +2308,299 @@
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
+        },
+        "snowflake_account": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake account identifier (e.g., xy12345.us-east-1)",
+          "placeholder": "xy12345.us-east-1",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_user": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_password": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_database": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Snowflake schema name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_warehouse": {
+          "type": "string",
+          "default": "COMPUTE_WH",
+          "description": "Snowflake warehouse name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "bigquery_project_id": {
+          "type": "string",
+          "default": "",
+          "description": "Google Cloud project ID",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_dataset": {
+          "type": "string",
+          "default": "",
+          "description": "BigQuery dataset name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_credentials_json": {
+          "type": "string",
+          "default": "",
+          "description": "Service account credentials JSON (or path to file)",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "postgres_host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "PostgreSQL host",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_port": {
+          "type": "integer",
+          "default": 5432,
+          "description": "PostgreSQL port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_database": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_user": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_password": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "PostgreSQL schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "redshift_host": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift cluster endpoint",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_port": {
+          "type": "integer",
+          "default": 5439,
+          "description": "Redshift port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_database": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_user": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_password": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Redshift schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "databricks_host": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks workspace URL",
+          "placeholder": "https://dbc-12345678-90ab.cloud.databricks.com",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_token": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks personal access token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_http_path": {
+          "type": "string",
+          "default": "",
+          "description": "HTTP path for SQL warehouse",
+          "placeholder": "/sql/1.0/warehouses/abc123def456",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_catalog": {
+          "type": "string",
+          "default": "main",
+          "description": "Databricks catalog (Unity Catalog)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_schema": {
+          "type": "string",
+          "default": "default",
+          "description": "Databricks schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "motherduck_token": {
+          "type": "string",
+          "default": "",
+          "description": "MotherDuck service token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "motherduck_database": {
+          "type": "string",
+          "default": "my_db",
+          "description": "MotherDuck database name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "duckdb_path": {
+          "type": "string",
+          "default": ":memory:",
+          "description": "DuckDB file path (:memory: for in-memory database)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "duckdb"
+          }
         }
       }
     },
@@ -1304,6 +3039,299 @@
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
+        },
+        "snowflake_account": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake account identifier (e.g., xy12345.us-east-1)",
+          "placeholder": "xy12345.us-east-1",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_user": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_password": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_database": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Snowflake schema name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_warehouse": {
+          "type": "string",
+          "default": "COMPUTE_WH",
+          "description": "Snowflake warehouse name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "bigquery_project_id": {
+          "type": "string",
+          "default": "",
+          "description": "Google Cloud project ID",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_dataset": {
+          "type": "string",
+          "default": "",
+          "description": "BigQuery dataset name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_credentials_json": {
+          "type": "string",
+          "default": "",
+          "description": "Service account credentials JSON (or path to file)",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "postgres_host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "PostgreSQL host",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_port": {
+          "type": "integer",
+          "default": 5432,
+          "description": "PostgreSQL port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_database": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_user": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_password": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "PostgreSQL schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "redshift_host": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift cluster endpoint",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_port": {
+          "type": "integer",
+          "default": 5439,
+          "description": "Redshift port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_database": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_user": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_password": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Redshift schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "databricks_host": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks workspace URL",
+          "placeholder": "https://dbc-12345678-90ab.cloud.databricks.com",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_token": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks personal access token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_http_path": {
+          "type": "string",
+          "default": "",
+          "description": "HTTP path for SQL warehouse",
+          "placeholder": "/sql/1.0/warehouses/abc123def456",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_catalog": {
+          "type": "string",
+          "default": "main",
+          "description": "Databricks catalog (Unity Catalog)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_schema": {
+          "type": "string",
+          "default": "default",
+          "description": "Databricks schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "motherduck_token": {
+          "type": "string",
+          "default": "",
+          "description": "MotherDuck service token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "motherduck_database": {
+          "type": "string",
+          "default": "my_db",
+          "description": "MotherDuck database name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "duckdb_path": {
+          "type": "string",
+          "default": ":memory:",
+          "description": "DuckDB file path (:memory: for in-memory database)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "duckdb"
+          }
         }
       }
     },
@@ -1427,6 +3455,299 @@
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
+        },
+        "snowflake_account": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake account identifier (e.g., xy12345.us-east-1)",
+          "placeholder": "xy12345.us-east-1",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_user": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_password": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_database": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Snowflake schema name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_warehouse": {
+          "type": "string",
+          "default": "COMPUTE_WH",
+          "description": "Snowflake warehouse name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "bigquery_project_id": {
+          "type": "string",
+          "default": "",
+          "description": "Google Cloud project ID",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_dataset": {
+          "type": "string",
+          "default": "",
+          "description": "BigQuery dataset name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_credentials_json": {
+          "type": "string",
+          "default": "",
+          "description": "Service account credentials JSON (or path to file)",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "postgres_host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "PostgreSQL host",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_port": {
+          "type": "integer",
+          "default": 5432,
+          "description": "PostgreSQL port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_database": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_user": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_password": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "PostgreSQL schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "redshift_host": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift cluster endpoint",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_port": {
+          "type": "integer",
+          "default": 5439,
+          "description": "Redshift port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_database": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_user": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_password": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Redshift schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "databricks_host": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks workspace URL",
+          "placeholder": "https://dbc-12345678-90ab.cloud.databricks.com",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_token": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks personal access token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_http_path": {
+          "type": "string",
+          "default": "",
+          "description": "HTTP path for SQL warehouse",
+          "placeholder": "/sql/1.0/warehouses/abc123def456",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_catalog": {
+          "type": "string",
+          "default": "main",
+          "description": "Databricks catalog (Unity Catalog)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_schema": {
+          "type": "string",
+          "default": "default",
+          "description": "Databricks schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "motherduck_token": {
+          "type": "string",
+          "default": "",
+          "description": "MotherDuck service token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "motherduck_database": {
+          "type": "string",
+          "default": "my_db",
+          "description": "MotherDuck database name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "duckdb_path": {
+          "type": "string",
+          "default": ":memory:",
+          "description": "DuckDB file path (:memory: for in-memory database)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "duckdb"
+          }
         }
       }
     },
@@ -1559,6 +3880,299 @@
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
+        },
+        "snowflake_account": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake account identifier (e.g., xy12345.us-east-1)",
+          "placeholder": "xy12345.us-east-1",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_user": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_password": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_database": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Snowflake schema name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_warehouse": {
+          "type": "string",
+          "default": "COMPUTE_WH",
+          "description": "Snowflake warehouse name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "bigquery_project_id": {
+          "type": "string",
+          "default": "",
+          "description": "Google Cloud project ID",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_dataset": {
+          "type": "string",
+          "default": "",
+          "description": "BigQuery dataset name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_credentials_json": {
+          "type": "string",
+          "default": "",
+          "description": "Service account credentials JSON (or path to file)",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "postgres_host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "PostgreSQL host",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_port": {
+          "type": "integer",
+          "default": 5432,
+          "description": "PostgreSQL port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_database": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_user": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_password": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "PostgreSQL schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "redshift_host": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift cluster endpoint",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_port": {
+          "type": "integer",
+          "default": 5439,
+          "description": "Redshift port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_database": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_user": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_password": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Redshift schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "databricks_host": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks workspace URL",
+          "placeholder": "https://dbc-12345678-90ab.cloud.databricks.com",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_token": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks personal access token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_http_path": {
+          "type": "string",
+          "default": "",
+          "description": "HTTP path for SQL warehouse",
+          "placeholder": "/sql/1.0/warehouses/abc123def456",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_catalog": {
+          "type": "string",
+          "default": "main",
+          "description": "Databricks catalog (Unity Catalog)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_schema": {
+          "type": "string",
+          "default": "default",
+          "description": "Databricks schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "motherduck_token": {
+          "type": "string",
+          "default": "",
+          "description": "MotherDuck service token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "motherduck_database": {
+          "type": "string",
+          "default": "my_db",
+          "description": "MotherDuck database name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "duckdb_path": {
+          "type": "string",
+          "default": ":memory:",
+          "description": "DuckDB file path (:memory: for in-memory database)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "duckdb"
+          }
         }
       }
     },
@@ -1775,6 +4389,299 @@
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
+        },
+        "snowflake_account": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake account identifier (e.g., xy12345.us-east-1)",
+          "placeholder": "xy12345.us-east-1",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_user": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_password": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_database": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Snowflake schema name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_warehouse": {
+          "type": "string",
+          "default": "COMPUTE_WH",
+          "description": "Snowflake warehouse name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "bigquery_project_id": {
+          "type": "string",
+          "default": "",
+          "description": "Google Cloud project ID",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_dataset": {
+          "type": "string",
+          "default": "",
+          "description": "BigQuery dataset name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_credentials_json": {
+          "type": "string",
+          "default": "",
+          "description": "Service account credentials JSON (or path to file)",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "postgres_host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "PostgreSQL host",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_port": {
+          "type": "integer",
+          "default": 5432,
+          "description": "PostgreSQL port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_database": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_user": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_password": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "PostgreSQL schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "redshift_host": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift cluster endpoint",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_port": {
+          "type": "integer",
+          "default": 5439,
+          "description": "Redshift port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_database": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_user": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_password": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Redshift schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "databricks_host": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks workspace URL",
+          "placeholder": "https://dbc-12345678-90ab.cloud.databricks.com",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_token": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks personal access token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_http_path": {
+          "type": "string",
+          "default": "",
+          "description": "HTTP path for SQL warehouse",
+          "placeholder": "/sql/1.0/warehouses/abc123def456",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_catalog": {
+          "type": "string",
+          "default": "main",
+          "description": "Databricks catalog (Unity Catalog)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_schema": {
+          "type": "string",
+          "default": "default",
+          "description": "Databricks schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "motherduck_token": {
+          "type": "string",
+          "default": "",
+          "description": "MotherDuck service token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "motherduck_database": {
+          "type": "string",
+          "default": "my_db",
+          "description": "MotherDuck database name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "duckdb_path": {
+          "type": "string",
+          "default": ":memory:",
+          "description": "DuckDB file path (:memory: for in-memory database)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "duckdb"
+          }
         }
       }
     },
@@ -1974,6 +4881,299 @@
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
+        },
+        "snowflake_account": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake account identifier (e.g., xy12345.us-east-1)",
+          "placeholder": "xy12345.us-east-1",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_user": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_password": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_database": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Snowflake schema name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "snowflake_warehouse": {
+          "type": "string",
+          "default": "COMPUTE_WH",
+          "description": "Snowflake warehouse name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "bigquery_project_id": {
+          "type": "string",
+          "default": "",
+          "description": "Google Cloud project ID",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_dataset": {
+          "type": "string",
+          "default": "",
+          "description": "BigQuery dataset name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "bigquery_credentials_json": {
+          "type": "string",
+          "default": "",
+          "description": "Service account credentials JSON (or path to file)",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "bigquery"
+          }
+        },
+        "postgres_host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "PostgreSQL host",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_port": {
+          "type": "integer",
+          "default": 5432,
+          "description": "PostgreSQL port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_database": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_user": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_password": {
+          "type": "string",
+          "default": "",
+          "description": "PostgreSQL password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "postgres_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "PostgreSQL schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "postgres"
+          }
+        },
+        "redshift_host": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift cluster endpoint",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_port": {
+          "type": "integer",
+          "default": 5439,
+          "description": "Redshift port",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_database": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift database name",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_user": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift username",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_password": {
+          "type": "string",
+          "default": "",
+          "description": "Redshift password",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "redshift_schema": {
+          "type": "string",
+          "default": "public",
+          "description": "Redshift schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "redshift"
+          }
+        },
+        "databricks_host": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks workspace URL",
+          "placeholder": "https://dbc-12345678-90ab.cloud.databricks.com",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_token": {
+          "type": "string",
+          "default": "",
+          "description": "Databricks personal access token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_http_path": {
+          "type": "string",
+          "default": "",
+          "description": "HTTP path for SQL warehouse",
+          "placeholder": "/sql/1.0/warehouses/abc123def456",
+          "required": true,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_catalog": {
+          "type": "string",
+          "default": "main",
+          "description": "Databricks catalog (Unity Catalog)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "databricks_schema": {
+          "type": "string",
+          "default": "default",
+          "description": "Databricks schema",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "databricks"
+          }
+        },
+        "motherduck_token": {
+          "type": "string",
+          "default": "",
+          "description": "MotherDuck service token",
+          "required": true,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "motherduck_database": {
+          "type": "string",
+          "default": "my_db",
+          "description": "MotherDuck database name",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "motherduck"
+          }
+        },
+        "duckdb_path": {
+          "type": "string",
+          "default": ":memory:",
+          "description": "DuckDB file path (:memory: for in-memory database)",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "duckdb"
+          }
         }
       }
     }

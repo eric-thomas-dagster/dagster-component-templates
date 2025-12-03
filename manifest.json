@@ -721,6 +721,44 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sentiment_analyzer/requirements.txt"
     },
     {
+      "id": "reranker",
+      "name": "Reranker",
+      "category": "ai",
+      "description": "Rerank search results for improved relevance using Cohere, cross-encoders, or BM25. Essential for RAG pipelines.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/reranker",
+      "tags": ["ai", "rag", "search", "ranking", "retrieval", "cohere"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0", "cohere>=4.0.0", "sentence-transformers>=2.2.0", "rank-bm25>=0.2.2"]
+      },
+      "icon": "ArrowUpDown",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reranker/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reranker/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reranker/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reranker/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reranker/requirements.txt"
+    },
+    {
+      "id": "vision_model",
+      "name": "Vision Model",
+      "category": "ai",
+      "description": "Image analysis with GPT-4 Vision and Claude 3. OCR, captioning, VQA, and content moderation.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/vision_model",
+      "tags": ["ai", "vision", "image", "ocr", "multimodal", "gpt-4", "claude"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0", "openai>=1.0.0", "anthropic>=0.18.0", "pillow>=10.0.0", "requests>=2.31.0"]
+      },
+      "icon": "Eye",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vision_model/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vision_model/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vision_model/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vision_model/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vision_model/requirements.txt"
+    },
+    {
       "id": "marketing_data_standardizer",
       "name": "Marketing Data Standardizer",
       "category": "cdp",

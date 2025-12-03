@@ -1,0 +1,203 @@
+{
+  "type": "dagster_component_templates.VisionModelComponent",
+  "name": "Vision Model",
+  "category": "ai",
+  "description": "Analyze images using GPT-4 Vision and Claude 3 for OCR, captioning, VQA, and content moderation",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame with image URLs or paths"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with vision analysis results added"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "image_analysis"
+    },
+    "source_asset": {
+      "type": "string",
+      "required": true,
+      "label": "Source Asset",
+      "description": "Upstream asset with images",
+      "placeholder": "images_df"
+    },
+    "provider": {
+      "type": "string",
+      "required": true,
+      "label": "Provider",
+      "description": "Vision model provider",
+      "enum": ["openai", "anthropic"],
+      "default": "openai",
+      "placeholder": "openai"
+    },
+    "model": {
+      "type": "string",
+      "required": true,
+      "label": "Model",
+      "description": "Model name",
+      "placeholder": "gpt-4o"
+    },
+    "api_key": {
+      "type": "string",
+      "required": true,
+      "label": "API Key",
+      "description": "API key. Use ${API_KEY_NAME} for env vars.",
+      "placeholder": "${OPENAI_API_KEY}",
+      "secret": true
+    },
+    "prompt": {
+      "type": "string",
+      "required": true,
+      "label": "Prompt",
+      "description": "Analysis prompt/instructions",
+      "placeholder": "Describe this image in detail..."
+    },
+    "image_column": {
+      "type": "string",
+      "required": false,
+      "label": "Image Column",
+      "description": "Column with image URLs or paths",
+      "default": "image_url",
+      "placeholder": "image_url"
+    },
+    "output_column": {
+      "type": "string",
+      "required": false,
+      "label": "Output Column",
+      "description": "Column for analysis results",
+      "default": "vision_analysis",
+      "placeholder": "vision_analysis"
+    },
+    "image_type": {
+      "type": "string",
+      "required": false,
+      "label": "Image Type",
+      "description": "Image input type",
+      "enum": ["url", "path", "base64"],
+      "default": "url",
+      "placeholder": "url"
+    },
+    "detail_level": {
+      "type": "string",
+      "required": false,
+      "label": "Detail Level",
+      "description": "Detail level for GPT-4 Vision",
+      "enum": ["low", "high", "auto"],
+      "default": "auto",
+      "placeholder": "auto"
+    },
+    "max_images_per_request": {
+      "type": "integer",
+      "required": false,
+      "label": "Max Images Per Request",
+      "description": "Max images per API request (1-10)",
+      "default": 1,
+      "placeholder": "1"
+    },
+    "temperature": {
+      "type": "number",
+      "required": false,
+      "label": "Temperature",
+      "description": "Response randomness (0.0-1.0)",
+      "default": 0.3,
+      "placeholder": "0.3"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "required": false,
+      "label": "Max Tokens",
+      "description": "Maximum tokens in response",
+      "default": 500,
+      "placeholder": "500"
+    },
+    "batch_size": {
+      "type": "integer",
+      "required": false,
+      "label": "Batch Size",
+      "description": "Images to process in parallel",
+      "default": 5,
+      "placeholder": "5"
+    },
+    "rate_limit_delay": {
+      "type": "number",
+      "required": false,
+      "label": "Rate Limit Delay",
+      "description": "Delay between API calls (seconds)",
+      "default": 0.5,
+      "placeholder": "0.5"
+    },
+    "max_retries": {
+      "type": "integer",
+      "required": false,
+      "label": "Max Retries",
+      "description": "Maximum retries for failed requests",
+      "default": 3,
+      "placeholder": "3"
+    },
+    "track_costs": {
+      "type": "boolean",
+      "required": false,
+      "label": "Track Costs",
+      "description": "Track token usage and costs",
+      "default": true
+    },
+    "include_image_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Image Metadata",
+      "description": "Include image dimensions, format, size",
+      "default": true
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Vision analysis"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "vision",
+      "placeholder": "vision"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "openai>=1.0.0",
+      "anthropic>=0.18.0",
+      "pillow>=10.0.0",
+      "pandas>=1.5.0",
+      "requests>=2.31.0"
+    ]
+  },
+  "tags": [
+    "ai",
+    "vision",
+    "image-analysis",
+    "ocr",
+    "multimodal",
+    "gpt-4-vision",
+    "claude-3"
+  ]
+}

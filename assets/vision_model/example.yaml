@@ -1,0 +1,39 @@
+type: dagster_component_templates.VisionModelComponent
+attributes:
+  asset_name: product_image_analysis
+
+  # Source Configuration
+  source_asset: product_images_df
+
+  # Provider Configuration
+  provider: "openai"  # Options: openai, anthropic
+  model: "gpt-4o"  # Options: gpt-4o, gpt-4-vision-preview, claude-3-opus-20240229
+  api_key: "${OPENAI_API_KEY}"
+
+  # Analysis Configuration
+  prompt: "Describe this product image in detail, including colors, materials, and notable features."
+
+  # Image Configuration
+  image_column: "image_url"
+  image_type: "url"  # Options: url, path, base64
+  detail_level: "high"  # For GPT-4: low, high, auto
+  max_images_per_request: 1
+
+  # Output Configuration
+  output_column: "image_description"
+
+  # Model Parameters
+  temperature: 0.3
+  max_tokens: 500
+
+  # Performance & Costs
+  batch_size: 5
+  rate_limit_delay: 0.5
+  max_retries: 3
+  track_costs: true
+  include_image_metadata: true
+
+  # Organization
+  description: "Product image analysis using GPT-4 Vision"
+  group_name: "vision"
+  include_sample_metadata: true

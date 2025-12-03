@@ -1,0 +1,40 @@
+type: dagster_component_templates.RerankerComponent
+attributes:
+  asset_name: reranked_search_results
+
+  # Source Configuration
+  source_asset: vector_search_results
+
+  # Reranking Configuration
+  method: "cohere"  # Options: cohere, cross_encoder, bm25
+  model: "rerank-english-v2.0"  # For Cohere or cross-encoder models
+  api_key: "${COHERE_API_KEY}"
+
+  # Column Mapping
+  query_column: "query"
+  text_column: "document_text"
+  score_column: "similarity_score"
+  output_score_column: "rerank_score"
+
+  # Filtering & Ranking
+  top_n: 10
+  rerank_threshold: 0.3
+
+  # Score Combination
+  normalize_scores: true
+  combine_scores: "weighted"
+  score_weight: 0.7  # 0.7 rerank + 0.3 original
+
+  # Performance
+  batch_size: 100
+  rate_limit_delay: 0.0
+  max_chunks_per_doc: 1000
+
+  # Cost & Metadata
+  track_costs: true
+  return_documents: true
+
+  # Organization
+  description: "Reranked search results using Cohere for improved relevance"
+  group_name: "reranking"
+  include_sample_metadata: true

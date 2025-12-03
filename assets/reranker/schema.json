@@ -1,0 +1,205 @@
+{
+  "type": "dagster_component_templates.RerankerComponent",
+  "name": "Reranker",
+  "category": "ai",
+  "description": "Rerank search results for improved relevance using Cohere, cross-encoders, or BM25",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame with search results containing query and document columns"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with reranked results sorted by relevance score"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "reranked_results"
+    },
+    "source_asset": {
+      "type": "string",
+      "required": true,
+      "label": "Source Asset",
+      "description": "Upstream asset with search results",
+      "placeholder": "vector_search_results"
+    },
+    "method": {
+      "type": "string",
+      "required": true,
+      "label": "Reranking Method",
+      "description": "Reranking algorithm",
+      "enum": ["cohere", "cross_encoder", "bm25"],
+      "default": "cohere",
+      "placeholder": "cohere"
+    },
+    "model": {
+      "type": "string",
+      "required": false,
+      "label": "Model",
+      "description": "Model name (Cohere: rerank-english-v2.0, Cross-encoder: ms-marco-MiniLM-L-12-v2)",
+      "placeholder": "rerank-english-v2.0"
+    },
+    "api_key": {
+      "type": "string",
+      "required": false,
+      "label": "API Key",
+      "description": "API key for Cohere. Use ${COHERE_API_KEY} for env vars.",
+      "placeholder": "${COHERE_API_KEY}",
+      "secret": true
+    },
+    "query_column": {
+      "type": "string",
+      "required": false,
+      "label": "Query Column",
+      "description": "Column containing search queries",
+      "default": "query",
+      "placeholder": "query"
+    },
+    "text_column": {
+      "type": "string",
+      "required": false,
+      "label": "Text Column",
+      "description": "Column containing document text",
+      "default": "text",
+      "placeholder": "text"
+    },
+    "score_column": {
+      "type": "string",
+      "required": false,
+      "label": "Score Column",
+      "description": "Column with original scores (optional)",
+      "default": "score",
+      "placeholder": "score"
+    },
+    "output_score_column": {
+      "type": "string",
+      "required": false,
+      "label": "Output Score Column",
+      "description": "Column name for rerank scores",
+      "default": "rerank_score",
+      "placeholder": "rerank_score"
+    },
+    "top_n": {
+      "type": "integer",
+      "required": false,
+      "label": "Top N",
+      "description": "Return top N results (null = all)",
+      "placeholder": "10"
+    },
+    "rerank_threshold": {
+      "type": "number",
+      "required": false,
+      "label": "Rerank Threshold",
+      "description": "Minimum rerank score (0.0-1.0)",
+      "placeholder": "0.3"
+    },
+    "batch_size": {
+      "type": "integer",
+      "required": false,
+      "label": "Batch Size",
+      "description": "Batch size for cross-encoder",
+      "default": 100,
+      "placeholder": "100"
+    },
+    "normalize_scores": {
+      "type": "boolean",
+      "required": false,
+      "label": "Normalize Scores",
+      "description": "Normalize scores to 0-1 range",
+      "default": true
+    },
+    "combine_scores": {
+      "type": "string",
+      "required": false,
+      "label": "Combine Scores",
+      "description": "Combine with original scores",
+      "enum": ["weighted", "multiply", null],
+      "placeholder": "weighted"
+    },
+    "score_weight": {
+      "type": "number",
+      "required": false,
+      "label": "Score Weight",
+      "description": "Weight for combining scores (0.0-1.0)",
+      "default": 0.5,
+      "placeholder": "0.5"
+    },
+    "return_documents": {
+      "type": "boolean",
+      "required": false,
+      "label": "Return Documents",
+      "description": "Return document text in results",
+      "default": true
+    },
+    "max_chunks_per_doc": {
+      "type": "integer",
+      "required": false,
+      "label": "Max Chunks Per Doc",
+      "description": "Max chunks to rerank per call",
+      "placeholder": "1000"
+    },
+    "rate_limit_delay": {
+      "type": "number",
+      "required": false,
+      "label": "Rate Limit Delay",
+      "description": "Delay between API calls (seconds)",
+      "default": 0.0,
+      "placeholder": "0.0"
+    },
+    "track_costs": {
+      "type": "boolean",
+      "required": false,
+      "label": "Track Costs",
+      "description": "Track API costs (Cohere)",
+      "default": true
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Reranked search results"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "reranking",
+      "placeholder": "reranking"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "cohere>=4.0.0",
+      "sentence-transformers>=2.2.0",
+      "rank-bm25>=0.2.2",
+      "pandas>=1.5.0",
+      "numpy>=1.24.0"
+    ]
+  },
+  "tags": [
+    "ai",
+    "reranking",
+    "search",
+    "nlp",
+    "rag",
+    "semantic-search"
+  ]
+}

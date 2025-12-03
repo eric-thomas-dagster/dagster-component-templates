@@ -146,12 +146,21 @@ pipeline:
         description: "Store embeddings in vector database"
         group_name: "document_rag"
 
+  # Query-time components (use these to build Q&A interface)
+  # These components are used separately when users ask questions:
+  query_components:
+    - vector_store_query: "Search vector index for relevant chunks"
+    - reranker: "Rerank results for better relevance (optional but recommended)"
+    - llm_chain_executor: "Chain prompts for context + question answering"
+    - openai_llm or anthropic_llm: "Generate final answer with citations"
+
   # Query configuration (for runtime Q&A)
   query_config:
     retrieval:
       top_k: 5
       similarity_threshold: 0.7
       rerank: true
+      rerank_method: "cohere"  # or cross_encoder, bm25
 
     llm_response:
       system_prompt: "You are a helpful assistant that answers questions based on the provided document context. Always cite your sources."

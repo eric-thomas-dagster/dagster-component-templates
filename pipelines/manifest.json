@@ -99,23 +99,14 @@
       "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/marketing_attribution_pipeline.yaml",
       "components": [
         {
-          "component_id": "google_ads_ingestion",
-          "instance_name": "google_ads_data",
+          "component_id": "{source}_ads_ingestion",
+          "instance_name": "{source}_ads_data",
+          "instance_name_template": "{source}_ads_data",
+          "repeat_for": "${ad_sources}",
           "config_mapping": {
-            "asset_name": "google_ads_data",
+            "asset_name": "{source}_ads_data",
             "resource_type": "campaigns",
-            "description": "Ingest Google Ads campaign data",
-            "group_name": "ingestion"
-          },
-          "depends_on": []
-        },
-        {
-          "component_id": "facebook_ads_ingestion",
-          "instance_name": "facebook_ads_data",
-          "config_mapping": {
-            "asset_name": "facebook_ads_data",
-            "resource_type": "campaigns",
-            "description": "Ingest Facebook Ads campaign data",
+            "description": "Ingest {source} Ads campaign data",
             "group_name": "ingestion"
           },
           "depends_on": []
@@ -127,10 +118,11 @@
             "asset_name": "standardized_touchpoints",
             "platform": "multi",
             "resource_type": "touchpoints",
-            "description": "Standardize marketing touchpoints",
+            "source_assets": "${ad_sources:*_ads_data}",
+            "description": "Standardize marketing touchpoints from all sources",
             "group_name": "standardization"
           },
-          "depends_on": ["google_ads_data", "facebook_ads_data"]
+          "depends_on": []
         },
         {
           "component_id": "multi_touch_attribution",
@@ -160,6 +152,16 @@
         }
       ],
       "pipeline_params": {
+        "ad_sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["google", "facebook", "linkedin", "tiktok", "twitter", "pinterest"]
+          },
+          "default": ["google", "facebook"],
+          "description": "Marketing ad platforms to ingest (select one or more)",
+          "required": true
+        },
         "attribution_model": {
           "type": "string",
           "default": "time_decay",

@@ -66,18 +66,6 @@
         }
       ],
       "pipeline_params": {
-        "environment": {
-          "type": "string",
-          "default": "local",
-          "enum": [
-            "local",
-            "branch",
-            "production"
-          ],
-          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
-          "required": true,
-          "order": 0
-        },
         "ecommerce_platform": {
           "type": "string",
           "default": "shopify",
@@ -89,20 +77,23 @@
             "magento",
             "bigcommerce",
             "stripe"
-          ]
+          ],
+          "environment_specific": false
         },
         "prediction_period_months": {
           "type": "integer",
           "default": 24,
           "description": "Number of months to predict forward for LTV",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "shopify_shop_domain": {
           "type": "string",
           "default": "",
           "description": "Your Shopify shop domain (e.g., mystore.myshopify.com)",
           "required": true,
-          "sensitive": false
+          "sensitive": false,
+          "environment_specific": true
         },
         "shopify_access_token": {
           "type": "string",
@@ -112,7 +103,8 @@
           "sensitive": true,
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "output_destination": {
           "type": "string",
@@ -131,13 +123,15 @@
             "local": "duckdb",
             "branch": "postgres",
             "production": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "output_table_name": {
           "type": "string",
           "default": "customer_ltv_segments",
           "description": "Table name for LTV segments output",
-          "required": false
+          "required": false,
+          "environment_specific": true
         },
         "output_write_mode": {
           "type": "string",
@@ -148,7 +142,13 @@
             "merge"
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
-          "required": false
+          "required": false,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": "replace",
+            "branch": "replace",
+            "production": "append"
+          }
         },
         "snowflake_account": {
           "type": "string",
@@ -159,7 +159,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_user": {
           "type": "string",
@@ -169,7 +170,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_password": {
           "type": "string",
@@ -182,7 +184,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "snowflake_database": {
           "type": "string",
@@ -192,7 +195,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_schema": {
           "type": "string",
@@ -202,7 +206,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_warehouse": {
           "type": "string",
@@ -212,7 +217,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_project_id": {
           "type": "string",
@@ -222,7 +228,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_dataset": {
           "type": "string",
@@ -232,7 +239,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_credentials_json": {
           "type": "string",
@@ -245,7 +253,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_host": {
           "type": "string",
@@ -255,7 +264,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_port": {
           "type": "integer",
@@ -265,7 +275,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_database": {
           "type": "string",
@@ -275,7 +286,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_user": {
           "type": "string",
@@ -285,7 +297,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_password": {
           "type": "string",
@@ -298,7 +311,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_schema": {
           "type": "string",
@@ -308,7 +322,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_host": {
           "type": "string",
@@ -318,7 +333,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_port": {
           "type": "integer",
@@ -328,7 +344,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_database": {
           "type": "string",
@@ -338,7 +355,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_user": {
           "type": "string",
@@ -348,7 +366,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_password": {
           "type": "string",
@@ -361,7 +380,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "redshift_schema": {
           "type": "string",
@@ -371,7 +391,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_host": {
           "type": "string",
@@ -382,7 +403,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_token": {
           "type": "string",
@@ -395,7 +417,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -406,7 +429,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_catalog": {
           "type": "string",
@@ -416,7 +440,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_schema": {
           "type": "string",
@@ -426,7 +451,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "motherduck_token": {
           "type": "string",
@@ -439,7 +465,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "motherduck_database": {
           "type": "string",
@@ -449,7 +476,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "environment_specific": true
         },
         "duckdb_path": {
           "type": "string",
@@ -459,7 +487,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "duckdb"
-          }
+          },
+          "environment_specific": true
         },
         "deployment_name": {
           "type": "string",
@@ -470,14 +499,21 @@
             "environment": "branch"
           },
           "placeholder": "feature-branch-name",
-          "order": 1
+          "order": 1,
+          "environment_specific": true
         },
         "enable_verbose_logging": {
           "type": "boolean",
           "default": true,
           "description": "Enable detailed logging (recommended for local/branch, optional for production)",
           "required": false,
-          "order": 99
+          "order": 99,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": true,
+            "branch": true,
+            "production": false
+          }
         }
       }
     },
@@ -551,18 +587,6 @@
         }
       ],
       "pipeline_params": {
-        "environment": {
-          "type": "string",
-          "default": "local",
-          "enum": [
-            "local",
-            "branch",
-            "production"
-          ],
-          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
-          "required": true,
-          "order": 0
-        },
         "ad_sources": {
           "type": "array",
           "items": {
@@ -581,31 +605,36 @@
             "facebook"
           ],
           "description": "Marketing ad platforms to ingest (select one or more)",
-          "required": true
+          "required": true,
+          "environment_specific": false
         },
         "attribution_model": {
           "type": "string",
           "default": "time_decay",
           "description": "Attribution model (first_touch, last_touch, linear, time_decay, u_shaped, w_shaped)",
-          "required": true
+          "required": true,
+          "environment_specific": false
         },
         "lookback_window_days": {
           "type": "integer",
           "default": 30,
           "description": "Days to look back for attribution",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "target_roas": {
           "type": "number",
           "default": 3.0,
           "description": "Target Return on Ad Spend",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "target_cpa": {
           "type": "number",
           "default": 50.0,
           "description": "Target Cost Per Acquisition",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "google_ads_customer_id": {
           "type": "string",
@@ -613,7 +642,8 @@
           "description": "Google Ads customer ID (without dashes)",
           "placeholder": "1234567890",
           "required": true,
-          "sensitive": false
+          "sensitive": false,
+          "environment_specific": true
         },
         "google_ads_developer_token": {
           "type": "string",
@@ -623,7 +653,8 @@
           "sensitive": true,
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "facebook_access_token": {
           "type": "string",
@@ -633,7 +664,8 @@
           "sensitive": true,
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "facebook_ad_account_id": {
           "type": "string",
@@ -641,7 +673,8 @@
           "description": "Facebook Ad Account ID",
           "placeholder": "act_123456789",
           "required": true,
-          "sensitive": false
+          "sensitive": false,
+          "environment_specific": true
         },
         "output_destination": {
           "type": "string",
@@ -662,7 +695,8 @@
             "local": "duckdb",
             "branch": "postgres",
             "production": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "output_write_mode": {
           "type": "string",
@@ -673,7 +707,13 @@
             "merge"
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
-          "required": false
+          "required": false,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": "replace",
+            "branch": "replace",
+            "production": "append"
+          }
         },
         "snowflake_account": {
           "type": "string",
@@ -684,7 +724,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_user": {
           "type": "string",
@@ -694,7 +735,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_password": {
           "type": "string",
@@ -707,7 +749,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "snowflake_database": {
           "type": "string",
@@ -717,7 +760,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_schema": {
           "type": "string",
@@ -727,7 +771,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_warehouse": {
           "type": "string",
@@ -737,7 +782,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_project_id": {
           "type": "string",
@@ -747,7 +793,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_dataset": {
           "type": "string",
@@ -757,7 +804,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_credentials_json": {
           "type": "string",
@@ -770,7 +818,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_host": {
           "type": "string",
@@ -780,7 +829,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_port": {
           "type": "integer",
@@ -790,7 +840,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_database": {
           "type": "string",
@@ -800,7 +851,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_user": {
           "type": "string",
@@ -810,7 +862,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_password": {
           "type": "string",
@@ -823,7 +876,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_schema": {
           "type": "string",
@@ -833,7 +887,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_host": {
           "type": "string",
@@ -843,7 +898,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_port": {
           "type": "integer",
@@ -853,7 +909,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_database": {
           "type": "string",
@@ -863,7 +920,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_user": {
           "type": "string",
@@ -873,7 +931,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_password": {
           "type": "string",
@@ -886,7 +945,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "redshift_schema": {
           "type": "string",
@@ -896,7 +956,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_host": {
           "type": "string",
@@ -907,7 +968,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_token": {
           "type": "string",
@@ -920,7 +982,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -931,7 +994,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_catalog": {
           "type": "string",
@@ -941,7 +1005,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_schema": {
           "type": "string",
@@ -951,7 +1016,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "motherduck_token": {
           "type": "string",
@@ -964,7 +1030,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "motherduck_database": {
           "type": "string",
@@ -974,7 +1041,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "environment_specific": true
         },
         "duckdb_path": {
           "type": "string",
@@ -984,7 +1052,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "duckdb"
-          }
+          },
+          "environment_specific": true
         },
         "deployment_name": {
           "type": "string",
@@ -995,14 +1064,21 @@
             "environment": "branch"
           },
           "placeholder": "feature-branch-name",
-          "order": 1
+          "order": 1,
+          "environment_specific": true
         },
         "enable_verbose_logging": {
           "type": "boolean",
           "default": true,
           "description": "Enable detailed logging (recommended for local/branch, optional for production)",
           "required": false,
-          "order": 99
+          "order": 99,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": true,
+            "branch": true,
+            "production": false
+          }
         }
       }
     },
@@ -1100,29 +1176,19 @@
         }
       ],
       "pipeline_params": {
-        "environment": {
-          "type": "string",
-          "default": "local",
-          "enum": [
-            "local",
-            "branch",
-            "production"
-          ],
-          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
-          "required": true,
-          "order": 0
-        },
         "crm_platform": {
           "type": "string",
           "default": "hubspot",
           "description": "CRM platform (hubspot, salesforce, pipedrive, etc.)",
-          "required": true
+          "required": true,
+          "environment_specific": false
         },
         "inactivity_threshold_days": {
           "type": "integer",
           "default": 60,
           "description": "Days of inactivity before considering at-risk",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "hubspot_api_key": {
           "type": "string",
@@ -1132,7 +1198,8 @@
           "sensitive": true,
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "zendesk_subdomain": {
           "type": "string",
@@ -1140,14 +1207,16 @@
           "description": "Zendesk subdomain (e.g., mycompany from mycompany.zendesk.com)",
           "placeholder": "mycompany",
           "required": true,
-          "sensitive": false
+          "sensitive": false,
+          "environment_specific": true
         },
         "zendesk_email": {
           "type": "string",
           "default": "",
           "description": "Zendesk admin email",
           "required": true,
-          "sensitive": false
+          "sensitive": false,
+          "environment_specific": true
         },
         "zendesk_api_token": {
           "type": "string",
@@ -1157,7 +1226,8 @@
           "sensitive": true,
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "output_destination": {
           "type": "string",
@@ -1178,7 +1248,8 @@
             "local": "duckdb",
             "branch": "postgres",
             "production": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "output_write_mode": {
           "type": "string",
@@ -1189,7 +1260,13 @@
             "merge"
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
-          "required": false
+          "required": false,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": "replace",
+            "branch": "replace",
+            "production": "append"
+          }
         },
         "snowflake_account": {
           "type": "string",
@@ -1200,7 +1277,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_user": {
           "type": "string",
@@ -1210,7 +1288,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_password": {
           "type": "string",
@@ -1223,7 +1302,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "snowflake_database": {
           "type": "string",
@@ -1233,7 +1313,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_schema": {
           "type": "string",
@@ -1243,7 +1324,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_warehouse": {
           "type": "string",
@@ -1253,7 +1335,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_project_id": {
           "type": "string",
@@ -1263,7 +1346,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_dataset": {
           "type": "string",
@@ -1273,7 +1357,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_credentials_json": {
           "type": "string",
@@ -1286,7 +1371,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_host": {
           "type": "string",
@@ -1296,7 +1382,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_port": {
           "type": "integer",
@@ -1306,7 +1393,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_database": {
           "type": "string",
@@ -1316,7 +1404,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_user": {
           "type": "string",
@@ -1326,7 +1415,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_password": {
           "type": "string",
@@ -1339,7 +1429,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_schema": {
           "type": "string",
@@ -1349,7 +1440,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_host": {
           "type": "string",
@@ -1359,7 +1451,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_port": {
           "type": "integer",
@@ -1369,7 +1462,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_database": {
           "type": "string",
@@ -1379,7 +1473,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_user": {
           "type": "string",
@@ -1389,7 +1484,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_password": {
           "type": "string",
@@ -1402,7 +1498,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "redshift_schema": {
           "type": "string",
@@ -1412,7 +1509,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_host": {
           "type": "string",
@@ -1423,7 +1521,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_token": {
           "type": "string",
@@ -1436,7 +1535,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -1447,7 +1547,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_catalog": {
           "type": "string",
@@ -1457,7 +1558,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_schema": {
           "type": "string",
@@ -1467,7 +1569,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "motherduck_token": {
           "type": "string",
@@ -1480,7 +1583,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "motherduck_database": {
           "type": "string",
@@ -1490,7 +1594,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "environment_specific": true
         },
         "duckdb_path": {
           "type": "string",
@@ -1500,7 +1605,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "duckdb"
-          }
+          },
+          "environment_specific": true
         },
         "deployment_name": {
           "type": "string",
@@ -1511,14 +1617,21 @@
             "environment": "branch"
           },
           "placeholder": "feature-branch-name",
-          "order": 1
+          "order": 1,
+          "environment_specific": true
         },
         "enable_verbose_logging": {
           "type": "boolean",
           "default": true,
           "description": "Enable detailed logging (recommended for local/branch, optional for production)",
           "required": false,
-          "order": 99
+          "order": 99,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": true,
+            "branch": true,
+            "production": false
+          }
         }
       }
     },
@@ -1598,18 +1711,6 @@
         }
       ],
       "pipeline_params": {
-        "environment": {
-          "type": "string",
-          "default": "local",
-          "enum": [
-            "local",
-            "branch",
-            "production"
-          ],
-          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
-          "required": true,
-          "order": 0
-        },
         "ecommerce_platform": {
           "type": "string",
           "default": "shopify",
@@ -1621,13 +1722,15 @@
             "magento",
             "bigcommerce",
             "stripe"
-          ]
+          ],
+          "environment_specific": false
         },
         "num_recommendations": {
           "type": "integer",
           "default": 10,
           "description": "Number of recommendations to generate per customer",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "shopify_shop_domain": {
           "type": "string",
@@ -1635,7 +1738,8 @@
           "description": "Your Shopify shop domain (e.g., mystore.myshopify.com)",
           "placeholder": "mystore.myshopify.com",
           "required": true,
-          "sensitive": false
+          "sensitive": false,
+          "environment_specific": true
         },
         "shopify_access_token": {
           "type": "string",
@@ -1645,7 +1749,8 @@
           "sensitive": true,
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "output_destination": {
           "type": "string",
@@ -1666,7 +1771,8 @@
             "local": "duckdb",
             "branch": "postgres",
             "production": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "output_write_mode": {
           "type": "string",
@@ -1677,7 +1783,13 @@
             "merge"
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
-          "required": false
+          "required": false,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": "replace",
+            "branch": "replace",
+            "production": "append"
+          }
         },
         "snowflake_account": {
           "type": "string",
@@ -1688,7 +1800,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_user": {
           "type": "string",
@@ -1698,7 +1811,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_password": {
           "type": "string",
@@ -1711,7 +1825,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "snowflake_database": {
           "type": "string",
@@ -1721,7 +1836,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_schema": {
           "type": "string",
@@ -1731,7 +1847,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_warehouse": {
           "type": "string",
@@ -1741,7 +1858,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_project_id": {
           "type": "string",
@@ -1751,7 +1869,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_dataset": {
           "type": "string",
@@ -1761,7 +1880,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_credentials_json": {
           "type": "string",
@@ -1774,7 +1894,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_host": {
           "type": "string",
@@ -1784,7 +1905,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_port": {
           "type": "integer",
@@ -1794,7 +1916,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_database": {
           "type": "string",
@@ -1804,7 +1927,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_user": {
           "type": "string",
@@ -1814,7 +1938,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_password": {
           "type": "string",
@@ -1827,7 +1952,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_schema": {
           "type": "string",
@@ -1837,7 +1963,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_host": {
           "type": "string",
@@ -1847,7 +1974,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_port": {
           "type": "integer",
@@ -1857,7 +1985,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_database": {
           "type": "string",
@@ -1867,7 +1996,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_user": {
           "type": "string",
@@ -1877,7 +2007,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_password": {
           "type": "string",
@@ -1890,7 +2021,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "redshift_schema": {
           "type": "string",
@@ -1900,7 +2032,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_host": {
           "type": "string",
@@ -1911,7 +2044,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_token": {
           "type": "string",
@@ -1924,7 +2058,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -1935,7 +2070,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_catalog": {
           "type": "string",
@@ -1945,7 +2081,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_schema": {
           "type": "string",
@@ -1955,7 +2092,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "motherduck_token": {
           "type": "string",
@@ -1968,7 +2106,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "motherduck_database": {
           "type": "string",
@@ -1978,7 +2117,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "environment_specific": true
         },
         "duckdb_path": {
           "type": "string",
@@ -1988,7 +2128,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "duckdb"
-          }
+          },
+          "environment_specific": true
         },
         "deployment_name": {
           "type": "string",
@@ -1999,14 +2140,21 @@
             "environment": "branch"
           },
           "placeholder": "feature-branch-name",
-          "order": 1
+          "order": 1,
+          "environment_specific": true
         },
         "enable_verbose_logging": {
           "type": "boolean",
           "default": true,
           "description": "Enable detailed logging (recommended for local/branch, optional for production)",
           "required": false,
-          "order": 99
+          "order": 99,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": true,
+            "branch": true,
+            "production": false
+          }
         }
       }
     },
@@ -2095,18 +2243,6 @@
         }
       ],
       "pipeline_params": {
-        "environment": {
-          "type": "string",
-          "default": "local",
-          "enum": [
-            "local",
-            "branch",
-            "production"
-          ],
-          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
-          "required": true,
-          "order": 0
-        },
         "ecommerce_platform": {
           "type": "string",
           "default": "stripe",
@@ -2118,13 +2254,15 @@
             "magento",
             "bigcommerce",
             "stripe"
-          ]
+          ],
+          "environment_specific": false
         },
         "anomaly_threshold": {
           "type": "number",
           "default": 3.5,
           "description": "Z-score threshold for anomaly detection (higher = stricter)",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "stripe_api_key": {
           "type": "string",
@@ -2134,7 +2272,8 @@
           "sensitive": true,
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "output_destination": {
           "type": "string",
@@ -2155,7 +2294,8 @@
             "local": "duckdb",
             "branch": "postgres",
             "production": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "output_write_mode": {
           "type": "string",
@@ -2166,7 +2306,13 @@
             "merge"
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
-          "required": false
+          "required": false,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": "replace",
+            "branch": "replace",
+            "production": "append"
+          }
         },
         "snowflake_account": {
           "type": "string",
@@ -2177,7 +2323,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_user": {
           "type": "string",
@@ -2187,7 +2334,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_password": {
           "type": "string",
@@ -2200,7 +2348,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "snowflake_database": {
           "type": "string",
@@ -2210,7 +2359,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_schema": {
           "type": "string",
@@ -2220,7 +2370,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_warehouse": {
           "type": "string",
@@ -2230,7 +2381,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_project_id": {
           "type": "string",
@@ -2240,7 +2392,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_dataset": {
           "type": "string",
@@ -2250,7 +2403,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_credentials_json": {
           "type": "string",
@@ -2263,7 +2417,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_host": {
           "type": "string",
@@ -2273,7 +2428,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_port": {
           "type": "integer",
@@ -2283,7 +2439,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_database": {
           "type": "string",
@@ -2293,7 +2450,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_user": {
           "type": "string",
@@ -2303,7 +2461,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_password": {
           "type": "string",
@@ -2316,7 +2475,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_schema": {
           "type": "string",
@@ -2326,7 +2486,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_host": {
           "type": "string",
@@ -2336,7 +2497,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_port": {
           "type": "integer",
@@ -2346,7 +2508,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_database": {
           "type": "string",
@@ -2356,7 +2519,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_user": {
           "type": "string",
@@ -2366,7 +2530,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_password": {
           "type": "string",
@@ -2379,7 +2544,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "redshift_schema": {
           "type": "string",
@@ -2389,7 +2555,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_host": {
           "type": "string",
@@ -2400,7 +2567,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_token": {
           "type": "string",
@@ -2413,7 +2581,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -2424,7 +2593,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_catalog": {
           "type": "string",
@@ -2434,7 +2604,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_schema": {
           "type": "string",
@@ -2444,7 +2615,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "motherduck_token": {
           "type": "string",
@@ -2457,7 +2629,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "motherduck_database": {
           "type": "string",
@@ -2467,7 +2640,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "environment_specific": true
         },
         "duckdb_path": {
           "type": "string",
@@ -2477,7 +2651,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "duckdb"
-          }
+          },
+          "environment_specific": true
         },
         "deployment_name": {
           "type": "string",
@@ -2488,14 +2663,21 @@
             "environment": "branch"
           },
           "placeholder": "feature-branch-name",
-          "order": 1
+          "order": 1,
+          "environment_specific": true
         },
         "enable_verbose_logging": {
           "type": "boolean",
           "default": true,
           "description": "Enable detailed logging (recommended for local/branch, optional for production)",
           "required": false,
-          "order": 99
+          "order": 99,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": true,
+            "branch": true,
+            "production": false
+          }
         }
       }
     },
@@ -2544,41 +2726,33 @@
         }
       ],
       "pipeline_params": {
-        "environment": {
-          "type": "string",
-          "default": "local",
-          "enum": [
-            "local",
-            "branch",
-            "production"
-          ],
-          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
-          "required": true,
-          "order": 0
-        },
         "analytics_platform": {
           "type": "string",
           "default": "segment",
           "description": "Analytics platform (segment, amplitude, mixpanel, etc.)",
-          "required": true
+          "required": true,
+          "environment_specific": false
         },
         "confidence_level": {
           "type": "number",
           "default": 0.95,
           "description": "Statistical confidence level (0.90, 0.95, or 0.99)",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "minimum_sample_size": {
           "type": "integer",
           "default": 1000,
           "description": "Minimum sample size per variant",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "minimum_detectable_effect": {
           "type": "number",
           "default": 0.05,
           "description": "Minimum effect size to detect (e.g., 0.05 = 5%)",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "output_destination": {
           "type": "string",
@@ -2599,7 +2773,8 @@
             "local": "duckdb",
             "branch": "postgres",
             "production": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "output_write_mode": {
           "type": "string",
@@ -2610,7 +2785,13 @@
             "merge"
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
-          "required": false
+          "required": false,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": "replace",
+            "branch": "replace",
+            "production": "append"
+          }
         },
         "snowflake_account": {
           "type": "string",
@@ -2621,7 +2802,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_user": {
           "type": "string",
@@ -2631,7 +2813,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_password": {
           "type": "string",
@@ -2644,7 +2827,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "snowflake_database": {
           "type": "string",
@@ -2654,7 +2838,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_schema": {
           "type": "string",
@@ -2664,7 +2849,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_warehouse": {
           "type": "string",
@@ -2674,7 +2860,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_project_id": {
           "type": "string",
@@ -2684,7 +2871,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_dataset": {
           "type": "string",
@@ -2694,7 +2882,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_credentials_json": {
           "type": "string",
@@ -2707,7 +2896,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_host": {
           "type": "string",
@@ -2717,7 +2907,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_port": {
           "type": "integer",
@@ -2727,7 +2918,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_database": {
           "type": "string",
@@ -2737,7 +2929,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_user": {
           "type": "string",
@@ -2747,7 +2940,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_password": {
           "type": "string",
@@ -2760,7 +2954,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_schema": {
           "type": "string",
@@ -2770,7 +2965,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_host": {
           "type": "string",
@@ -2780,7 +2976,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_port": {
           "type": "integer",
@@ -2790,7 +2987,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_database": {
           "type": "string",
@@ -2800,7 +2998,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_user": {
           "type": "string",
@@ -2810,7 +3009,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_password": {
           "type": "string",
@@ -2823,7 +3023,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "redshift_schema": {
           "type": "string",
@@ -2833,7 +3034,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_host": {
           "type": "string",
@@ -2844,7 +3046,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_token": {
           "type": "string",
@@ -2857,7 +3060,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -2868,7 +3072,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_catalog": {
           "type": "string",
@@ -2878,7 +3083,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_schema": {
           "type": "string",
@@ -2888,7 +3094,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "motherduck_token": {
           "type": "string",
@@ -2901,7 +3108,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "motherduck_database": {
           "type": "string",
@@ -2911,7 +3119,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "environment_specific": true
         },
         "duckdb_path": {
           "type": "string",
@@ -2921,7 +3130,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "duckdb"
-          }
+          },
+          "environment_specific": true
         },
         "deployment_name": {
           "type": "string",
@@ -2932,14 +3142,21 @@
             "environment": "branch"
           },
           "placeholder": "feature-branch-name",
-          "order": 1
+          "order": 1,
+          "environment_specific": true
         },
         "enable_verbose_logging": {
           "type": "boolean",
           "default": true,
           "description": "Enable detailed logging (recommended for local/branch, optional for production)",
           "required": false,
-          "order": 99
+          "order": 99,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": true,
+            "branch": true,
+            "production": false
+          }
         }
       }
     },
@@ -3259,23 +3476,12 @@
         }
       ],
       "pipeline_params": {
-        "environment": {
-          "type": "string",
-          "default": "local",
-          "enum": [
-            "local",
-            "branch",
-            "production"
-          ],
-          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
-          "required": true,
-          "order": 0
-        },
         "crm_platform": {
           "type": "string",
           "default": "hubspot",
           "description": "CRM platform (hubspot, salesforce, pipedrive, etc.)",
-          "required": true
+          "required": true,
+          "environment_specific": false
         },
         "ecommerce_platform": {
           "type": "string",
@@ -3288,7 +3494,8 @@
             "magento",
             "bigcommerce",
             "stripe"
-          ]
+          ],
+          "environment_specific": false
         },
         "hubspot_api_key": {
           "type": "string",
@@ -3298,7 +3505,8 @@
           "sensitive": true,
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "shopify_shop_domain": {
           "type": "string",
@@ -3306,7 +3514,8 @@
           "description": "Your Shopify shop domain (e.g., mystore.myshopify.com)",
           "placeholder": "mystore.myshopify.com",
           "required": true,
-          "sensitive": false
+          "sensitive": false,
+          "environment_specific": true
         },
         "shopify_access_token": {
           "type": "string",
@@ -3316,7 +3525,8 @@
           "sensitive": true,
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "google_ads_customer_id": {
           "type": "string",
@@ -3324,7 +3534,8 @@
           "description": "Google Ads customer ID (without dashes)",
           "placeholder": "1234567890",
           "required": true,
-          "sensitive": false
+          "sensitive": false,
+          "environment_specific": true
         },
         "google_ads_developer_token": {
           "type": "string",
@@ -3334,7 +3545,8 @@
           "sensitive": true,
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "facebook_access_token": {
           "type": "string",
@@ -3344,7 +3556,8 @@
           "sensitive": true,
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "facebook_ad_account_id": {
           "type": "string",
@@ -3352,7 +3565,8 @@
           "description": "Facebook Ad Account ID",
           "placeholder": "act_123456789",
           "required": true,
-          "sensitive": false
+          "sensitive": false,
+          "environment_specific": true
         },
         "zendesk_subdomain": {
           "type": "string",
@@ -3360,14 +3574,16 @@
           "description": "Zendesk subdomain (e.g., mycompany from mycompany.zendesk.com)",
           "placeholder": "mycompany",
           "required": true,
-          "sensitive": false
+          "sensitive": false,
+          "environment_specific": true
         },
         "zendesk_email": {
           "type": "string",
           "default": "",
           "description": "Zendesk admin email",
           "required": true,
-          "sensitive": false
+          "sensitive": false,
+          "environment_specific": true
         },
         "zendesk_api_token": {
           "type": "string",
@@ -3377,7 +3593,8 @@
           "sensitive": true,
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "output_destination": {
           "type": "string",
@@ -3398,7 +3615,8 @@
             "local": "duckdb",
             "branch": "postgres",
             "production": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "output_write_mode": {
           "type": "string",
@@ -3409,7 +3627,13 @@
             "merge"
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
-          "required": false
+          "required": false,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": "replace",
+            "branch": "replace",
+            "production": "append"
+          }
         },
         "snowflake_account": {
           "type": "string",
@@ -3420,7 +3644,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_user": {
           "type": "string",
@@ -3430,7 +3655,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_password": {
           "type": "string",
@@ -3443,7 +3669,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "snowflake_database": {
           "type": "string",
@@ -3453,7 +3680,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_schema": {
           "type": "string",
@@ -3463,7 +3691,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_warehouse": {
           "type": "string",
@@ -3473,7 +3702,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_project_id": {
           "type": "string",
@@ -3483,7 +3713,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_dataset": {
           "type": "string",
@@ -3493,7 +3724,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_credentials_json": {
           "type": "string",
@@ -3506,7 +3738,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_host": {
           "type": "string",
@@ -3516,7 +3749,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_port": {
           "type": "integer",
@@ -3526,7 +3760,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_database": {
           "type": "string",
@@ -3536,7 +3771,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_user": {
           "type": "string",
@@ -3546,7 +3782,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_password": {
           "type": "string",
@@ -3559,7 +3796,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_schema": {
           "type": "string",
@@ -3569,7 +3807,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_host": {
           "type": "string",
@@ -3579,7 +3818,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_port": {
           "type": "integer",
@@ -3589,7 +3829,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_database": {
           "type": "string",
@@ -3599,7 +3840,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_user": {
           "type": "string",
@@ -3609,7 +3851,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_password": {
           "type": "string",
@@ -3622,7 +3865,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "redshift_schema": {
           "type": "string",
@@ -3632,7 +3876,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_host": {
           "type": "string",
@@ -3643,7 +3888,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_token": {
           "type": "string",
@@ -3656,7 +3902,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -3667,7 +3914,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_catalog": {
           "type": "string",
@@ -3677,7 +3925,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_schema": {
           "type": "string",
@@ -3687,7 +3936,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "motherduck_token": {
           "type": "string",
@@ -3700,7 +3950,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "motherduck_database": {
           "type": "string",
@@ -3710,7 +3961,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "environment_specific": true
         },
         "duckdb_path": {
           "type": "string",
@@ -3720,7 +3972,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "duckdb"
-          }
+          },
+          "environment_specific": true
         },
         "deployment_name": {
           "type": "string",
@@ -3731,14 +3984,21 @@
             "environment": "branch"
           },
           "placeholder": "feature-branch-name",
-          "order": 1
+          "order": 1,
+          "environment_specific": true
         },
         "enable_verbose_logging": {
           "type": "boolean",
           "default": true,
           "description": "Enable detailed logging (recommended for local/branch, optional for production)",
           "required": false,
-          "order": 99
+          "order": 99,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": true,
+            "branch": true,
+            "production": false
+          }
         }
       }
     },
@@ -3798,18 +4058,6 @@
         }
       ],
       "pipeline_params": {
-        "environment": {
-          "type": "string",
-          "default": "local",
-          "enum": [
-            "local",
-            "branch",
-            "production"
-          ],
-          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
-          "required": true,
-          "order": 0
-        },
         "ecommerce_platform": {
           "type": "string",
           "default": "shopify",
@@ -3821,7 +4069,8 @@
             "magento",
             "bigcommerce",
             "stripe"
-          ]
+          ],
+          "environment_specific": false
         },
         "sentiment_method": {
           "type": "string",
@@ -3831,7 +4080,8 @@
           "enum": [
             "transformer",
             "llm"
-          ]
+          ],
+          "environment_specific": false
         },
         "shopify_shop_domain": {
           "type": "string",
@@ -3839,7 +4089,8 @@
           "description": "Your Shopify shop domain (e.g., mystore.myshopify.com)",
           "placeholder": "mystore.myshopify.com",
           "required": true,
-          "sensitive": false
+          "sensitive": false,
+          "environment_specific": true
         },
         "shopify_access_token": {
           "type": "string",
@@ -3849,7 +4100,8 @@
           "sensitive": true,
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "output_destination": {
           "type": "string",
@@ -3870,7 +4122,8 @@
             "local": "duckdb",
             "branch": "postgres",
             "production": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "output_write_mode": {
           "type": "string",
@@ -3881,7 +4134,13 @@
             "merge"
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
-          "required": false
+          "required": false,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": "replace",
+            "branch": "replace",
+            "production": "append"
+          }
         },
         "snowflake_account": {
           "type": "string",
@@ -3892,7 +4151,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_user": {
           "type": "string",
@@ -3902,7 +4162,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_password": {
           "type": "string",
@@ -3915,7 +4176,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "snowflake_database": {
           "type": "string",
@@ -3925,7 +4187,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_schema": {
           "type": "string",
@@ -3935,7 +4198,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_warehouse": {
           "type": "string",
@@ -3945,7 +4209,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_project_id": {
           "type": "string",
@@ -3955,7 +4220,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_dataset": {
           "type": "string",
@@ -3965,7 +4231,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_credentials_json": {
           "type": "string",
@@ -3978,7 +4245,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_host": {
           "type": "string",
@@ -3988,7 +4256,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_port": {
           "type": "integer",
@@ -3998,7 +4267,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_database": {
           "type": "string",
@@ -4008,7 +4278,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_user": {
           "type": "string",
@@ -4018,7 +4289,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_password": {
           "type": "string",
@@ -4031,7 +4303,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_schema": {
           "type": "string",
@@ -4041,7 +4314,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_host": {
           "type": "string",
@@ -4051,7 +4325,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_port": {
           "type": "integer",
@@ -4061,7 +4336,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_database": {
           "type": "string",
@@ -4071,7 +4347,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_user": {
           "type": "string",
@@ -4081,7 +4358,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_password": {
           "type": "string",
@@ -4094,7 +4372,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "redshift_schema": {
           "type": "string",
@@ -4104,7 +4383,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_host": {
           "type": "string",
@@ -4115,7 +4395,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_token": {
           "type": "string",
@@ -4128,7 +4409,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -4139,7 +4421,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_catalog": {
           "type": "string",
@@ -4149,7 +4432,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_schema": {
           "type": "string",
@@ -4159,7 +4443,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "motherduck_token": {
           "type": "string",
@@ -4172,7 +4457,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "motherduck_database": {
           "type": "string",
@@ -4182,7 +4468,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "environment_specific": true
         },
         "duckdb_path": {
           "type": "string",
@@ -4192,7 +4479,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "duckdb"
-          }
+          },
+          "environment_specific": true
         },
         "deployment_name": {
           "type": "string",
@@ -4203,14 +4491,21 @@
             "environment": "branch"
           },
           "placeholder": "feature-branch-name",
-          "order": 1
+          "order": 1,
+          "environment_specific": true
         },
         "enable_verbose_logging": {
           "type": "boolean",
           "default": true,
           "description": "Enable detailed logging (recommended for local/branch, optional for production)",
           "required": false,
-          "order": 99
+          "order": 99,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": true,
+            "branch": true,
+            "production": false
+          }
         }
       }
     },
@@ -4281,53 +4576,47 @@
         }
       ],
       "pipeline_params": {
-        "environment": {
-          "type": "string",
-          "default": "local",
-          "enum": [
-            "local",
-            "branch",
-            "production"
-          ],
-          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
-          "required": true,
-          "order": 0
-        },
         "document_path": {
           "type": "string",
           "default": "/path/to/documents.csv",
           "description": "Path to documents file",
-          "required": true
+          "required": true,
+          "environment_specific": false
         },
         "chunking_strategy": {
           "type": "string",
           "default": "recursive",
           "description": "How to split documents (fixed, semantic, recursive, sentence, token_aware)",
-          "required": true
+          "required": true,
+          "environment_specific": false
         },
         "chunk_size": {
           "type": "integer",
           "default": 1000,
           "description": "Target size of each chunk (characters)",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "chunk_overlap": {
           "type": "integer",
           "default": 200,
           "description": "Overlap between chunks for context",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "embedding_provider": {
           "type": "string",
           "default": "openai",
           "description": "Embeddings provider (openai, cohere, sentence_transformers, huggingface)",
-          "required": true
+          "required": true,
+          "environment_specific": false
         },
         "embedding_model": {
           "type": "string",
           "default": "text-embedding-3-small",
           "description": "Embedding model to use",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "output_destination": {
           "type": "string",
@@ -4348,7 +4637,8 @@
             "local": "duckdb",
             "branch": "postgres",
             "production": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "output_write_mode": {
           "type": "string",
@@ -4359,7 +4649,13 @@
             "merge"
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
-          "required": false
+          "required": false,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": "replace",
+            "branch": "replace",
+            "production": "append"
+          }
         },
         "snowflake_account": {
           "type": "string",
@@ -4370,7 +4666,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_user": {
           "type": "string",
@@ -4380,7 +4677,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_password": {
           "type": "string",
@@ -4393,7 +4691,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "snowflake_database": {
           "type": "string",
@@ -4403,7 +4702,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_schema": {
           "type": "string",
@@ -4413,7 +4713,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_warehouse": {
           "type": "string",
@@ -4423,7 +4724,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_project_id": {
           "type": "string",
@@ -4433,7 +4735,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_dataset": {
           "type": "string",
@@ -4443,7 +4746,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_credentials_json": {
           "type": "string",
@@ -4456,7 +4760,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_host": {
           "type": "string",
@@ -4466,7 +4771,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_port": {
           "type": "integer",
@@ -4476,7 +4782,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_database": {
           "type": "string",
@@ -4486,7 +4793,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_user": {
           "type": "string",
@@ -4496,7 +4804,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_password": {
           "type": "string",
@@ -4509,7 +4818,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_schema": {
           "type": "string",
@@ -4519,7 +4829,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_host": {
           "type": "string",
@@ -4529,7 +4840,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_port": {
           "type": "integer",
@@ -4539,7 +4851,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_database": {
           "type": "string",
@@ -4549,7 +4862,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_user": {
           "type": "string",
@@ -4559,7 +4873,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_password": {
           "type": "string",
@@ -4572,7 +4887,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "redshift_schema": {
           "type": "string",
@@ -4582,7 +4898,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_host": {
           "type": "string",
@@ -4593,7 +4910,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_token": {
           "type": "string",
@@ -4606,7 +4924,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -4617,7 +4936,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_catalog": {
           "type": "string",
@@ -4627,7 +4947,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_schema": {
           "type": "string",
@@ -4637,7 +4958,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "motherduck_token": {
           "type": "string",
@@ -4650,7 +4972,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "motherduck_database": {
           "type": "string",
@@ -4660,7 +4983,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "environment_specific": true
         },
         "duckdb_path": {
           "type": "string",
@@ -4670,7 +4994,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "duckdb"
-          }
+          },
+          "environment_specific": true
         },
         "deployment_name": {
           "type": "string",
@@ -4681,14 +5006,21 @@
             "environment": "branch"
           },
           "placeholder": "feature-branch-name",
-          "order": 1
+          "order": 1,
+          "environment_specific": true
         },
         "enable_verbose_logging": {
           "type": "boolean",
           "default": true,
           "description": "Enable detailed logging (recommended for local/branch, optional for production)",
           "required": false,
-          "order": 99
+          "order": 99,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": true,
+            "branch": true,
+            "production": false
+          }
         }
       }
     },
@@ -4800,18 +5132,6 @@
         }
       ],
       "pipeline_params": {
-        "environment": {
-          "type": "string",
-          "default": "local",
-          "enum": [
-            "local",
-            "branch",
-            "production"
-          ],
-          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
-          "required": true,
-          "order": 0
-        },
         "ticket_source": {
           "type": "string",
           "default": "zendesk",
@@ -4823,7 +5143,8 @@
             "database"
           ],
           "description": "Support ticket source system",
-          "required": true
+          "required": true,
+          "environment_specific": false
         },
         "classification_method": {
           "type": "string",
@@ -4833,7 +5154,8 @@
             "transformer"
           ],
           "description": "Classification method (llm=accurate, transformer=fast/free)",
-          "required": true
+          "required": true,
+          "environment_specific": false
         },
         "entity_method": {
           "type": "string",
@@ -4844,7 +5166,8 @@
             "llm"
           ],
           "description": "Entity extraction method (spacy=recommended)",
-          "required": true
+          "required": true,
+          "environment_specific": false
         },
         "priority_method": {
           "type": "string",
@@ -4855,19 +5178,22 @@
             "llm"
           ],
           "description": "Priority scoring method",
-          "required": true
+          "required": true,
+          "environment_specific": false
         },
         "enable_moderation": {
           "type": "boolean",
           "default": true,
           "description": "Enable content moderation",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "generate_responses": {
           "type": "boolean",
           "default": false,
           "description": "Generate AI-powered responses",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "zendesk_subdomain": {
           "type": "string",
@@ -4875,14 +5201,16 @@
           "description": "Zendesk subdomain (e.g., mycompany from mycompany.zendesk.com)",
           "placeholder": "mycompany",
           "required": true,
-          "sensitive": false
+          "sensitive": false,
+          "environment_specific": true
         },
         "zendesk_email": {
           "type": "string",
           "default": "",
           "description": "Zendesk admin email",
           "required": true,
-          "sensitive": false
+          "sensitive": false,
+          "environment_specific": true
         },
         "zendesk_api_token": {
           "type": "string",
@@ -4892,7 +5220,8 @@
           "sensitive": true,
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "output_destination": {
           "type": "string",
@@ -4913,7 +5242,8 @@
             "local": "duckdb",
             "branch": "postgres",
             "production": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "output_write_mode": {
           "type": "string",
@@ -4924,7 +5254,13 @@
             "merge"
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
-          "required": false
+          "required": false,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": "replace",
+            "branch": "replace",
+            "production": "append"
+          }
         },
         "snowflake_account": {
           "type": "string",
@@ -4935,7 +5271,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_user": {
           "type": "string",
@@ -4945,7 +5282,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_password": {
           "type": "string",
@@ -4958,7 +5296,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "snowflake_database": {
           "type": "string",
@@ -4968,7 +5307,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_schema": {
           "type": "string",
@@ -4978,7 +5318,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_warehouse": {
           "type": "string",
@@ -4988,7 +5329,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_project_id": {
           "type": "string",
@@ -4998,7 +5340,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_dataset": {
           "type": "string",
@@ -5008,7 +5351,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_credentials_json": {
           "type": "string",
@@ -5021,7 +5365,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_host": {
           "type": "string",
@@ -5031,7 +5376,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_port": {
           "type": "integer",
@@ -5041,7 +5387,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_database": {
           "type": "string",
@@ -5051,7 +5398,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_user": {
           "type": "string",
@@ -5061,7 +5409,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_password": {
           "type": "string",
@@ -5074,7 +5423,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_schema": {
           "type": "string",
@@ -5084,7 +5434,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_host": {
           "type": "string",
@@ -5094,7 +5445,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_port": {
           "type": "integer",
@@ -5104,7 +5456,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_database": {
           "type": "string",
@@ -5114,7 +5467,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_user": {
           "type": "string",
@@ -5124,7 +5478,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_password": {
           "type": "string",
@@ -5137,7 +5492,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "redshift_schema": {
           "type": "string",
@@ -5147,7 +5503,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_host": {
           "type": "string",
@@ -5158,7 +5515,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_token": {
           "type": "string",
@@ -5171,7 +5529,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -5182,7 +5541,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_catalog": {
           "type": "string",
@@ -5192,7 +5552,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_schema": {
           "type": "string",
@@ -5202,7 +5563,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "motherduck_token": {
           "type": "string",
@@ -5215,7 +5577,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "motherduck_database": {
           "type": "string",
@@ -5225,7 +5588,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "environment_specific": true
         },
         "duckdb_path": {
           "type": "string",
@@ -5235,7 +5599,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "duckdb"
-          }
+          },
+          "environment_specific": true
         },
         "deployment_name": {
           "type": "string",
@@ -5246,14 +5611,21 @@
             "environment": "branch"
           },
           "placeholder": "feature-branch-name",
-          "order": 1
+          "order": 1,
+          "environment_specific": true
         },
         "enable_verbose_logging": {
           "type": "boolean",
           "default": true,
           "description": "Enable detailed logging (recommended for local/branch, optional for production)",
           "required": false,
-          "order": 99
+          "order": 99,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": true,
+            "branch": true,
+            "production": false
+          }
         }
       }
     },
@@ -5356,18 +5728,6 @@
         }
       ],
       "pipeline_params": {
-        "environment": {
-          "type": "string",
-          "default": "local",
-          "enum": [
-            "local",
-            "branch",
-            "production"
-          ],
-          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
-          "required": true,
-          "order": 0
-        },
         "content_source": {
           "type": "string",
           "default": "database",
@@ -5379,7 +5739,8 @@
             "csv"
           ],
           "description": "Source of user-generated content",
-          "required": true
+          "required": true,
+          "environment_specific": false
         },
         "content_types": {
           "type": "array",
@@ -5396,7 +5757,8 @@
             "image"
           ],
           "description": "Types of content to moderate",
-          "required": true
+          "required": true,
+          "environment_specific": false
         },
         "text_moderation_method": {
           "type": "string",
@@ -5408,7 +5770,8 @@
             "llm"
           ],
           "description": "Text moderation method (openai_moderation=free)",
-          "required": true
+          "required": true,
+          "environment_specific": false
         },
         "image_moderation_method": {
           "type": "string",
@@ -5419,25 +5782,29 @@
             "aws_rekognition"
           ],
           "description": "Image moderation method",
-          "required": true
+          "required": true,
+          "environment_specific": false
         },
         "redact_pii": {
           "type": "boolean",
           "default": true,
           "description": "Automatically redact detected PII",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "auto_approve_threshold": {
           "type": "number",
           "default": 0.3,
           "description": "Max score for auto-approval (0.0-1.0)",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "auto_reject_threshold": {
           "type": "number",
           "default": 0.9,
           "description": "Min score for auto-rejection (0.0-1.0)",
-          "required": false
+          "required": false,
+          "environment_specific": false
         },
         "output_destination": {
           "type": "string",
@@ -5458,7 +5825,8 @@
             "local": "duckdb",
             "branch": "postgres",
             "production": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "output_write_mode": {
           "type": "string",
@@ -5469,7 +5837,13 @@
             "merge"
           ],
           "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
-          "required": false
+          "required": false,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": "replace",
+            "branch": "replace",
+            "production": "append"
+          }
         },
         "snowflake_account": {
           "type": "string",
@@ -5480,7 +5854,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_user": {
           "type": "string",
@@ -5490,7 +5865,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_password": {
           "type": "string",
@@ -5503,7 +5879,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "snowflake_database": {
           "type": "string",
@@ -5513,7 +5890,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_schema": {
           "type": "string",
@@ -5523,7 +5901,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "snowflake_warehouse": {
           "type": "string",
@@ -5533,7 +5912,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_project_id": {
           "type": "string",
@@ -5543,7 +5923,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_dataset": {
           "type": "string",
@@ -5553,7 +5934,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "environment_specific": true
         },
         "bigquery_credentials_json": {
           "type": "string",
@@ -5566,7 +5948,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_host": {
           "type": "string",
@@ -5576,7 +5959,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_port": {
           "type": "integer",
@@ -5586,7 +5970,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_database": {
           "type": "string",
@@ -5596,7 +5981,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_user": {
           "type": "string",
@@ -5606,7 +5992,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "postgres_password": {
           "type": "string",
@@ -5619,7 +6006,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "postgres_schema": {
           "type": "string",
@@ -5629,7 +6017,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_host": {
           "type": "string",
@@ -5639,7 +6028,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_port": {
           "type": "integer",
@@ -5649,7 +6039,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_database": {
           "type": "string",
@@ -5659,7 +6050,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_user": {
           "type": "string",
@@ -5669,7 +6061,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "redshift_password": {
           "type": "string",
@@ -5682,7 +6075,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "redshift_schema": {
           "type": "string",
@@ -5692,7 +6086,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_host": {
           "type": "string",
@@ -5703,7 +6098,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_token": {
           "type": "string",
@@ -5716,7 +6112,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -5727,7 +6124,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_catalog": {
           "type": "string",
@@ -5737,7 +6135,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "databricks_schema": {
           "type": "string",
@@ -5747,7 +6146,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "environment_specific": true
         },
         "motherduck_token": {
           "type": "string",
@@ -5760,7 +6160,8 @@
           },
           "required_in_local": false,
           "required_in_branch": true,
-          "required_in_production": true
+          "required_in_production": true,
+          "environment_specific": true
         },
         "motherduck_database": {
           "type": "string",
@@ -5770,7 +6171,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "environment_specific": true
         },
         "duckdb_path": {
           "type": "string",
@@ -5780,7 +6182,8 @@
           "sensitive": false,
           "show_if": {
             "output_destination": "duckdb"
-          }
+          },
+          "environment_specific": true
         },
         "deployment_name": {
           "type": "string",
@@ -5791,14 +6194,21 @@
             "environment": "branch"
           },
           "placeholder": "feature-branch-name",
-          "order": 1
+          "order": 1,
+          "environment_specific": true
         },
         "enable_verbose_logging": {
           "type": "boolean",
           "default": true,
           "description": "Enable detailed logging (recommended for local/branch, optional for production)",
           "required": false,
-          "order": 99
+          "order": 99,
+          "environment_specific": true,
+          "environment_defaults": {
+            "local": true,
+            "branch": true,
+            "production": false
+          }
         }
       }
     }

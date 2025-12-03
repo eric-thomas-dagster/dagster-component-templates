@@ -5618,7 +5618,10 @@
           "placeholder": "mycompany",
           "required": true,
           "sensitive": false,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ticket_source": "zendesk"
+          }
         },
         "zendesk_email": {
           "type": "string",
@@ -5626,7 +5629,10 @@
           "description": "Zendesk admin email",
           "required": true,
           "sensitive": false,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ticket_source": "zendesk"
+          }
         },
         "zendesk_api_token": {
           "type": "string",
@@ -5637,7 +5643,10 @@
           "required_in_local": false,
           "required_in_branch": true,
           "required_in_production": true,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ticket_source": "zendesk"
+          }
         },
         "output_destination": {
           "type": "string",
@@ -6041,6 +6050,48 @@
             "local": true,
             "branch": true,
             "production": false
+          }
+        },
+        "intercom_access_token": {
+          "type": "string",
+          "description": "Intercom API access token",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ticket_source": "intercom"
+          }
+        },
+        "intercom_app_id": {
+          "type": "string",
+          "description": "Intercom application ID",
+          "required": true,
+          "sensitive": false,
+          "placeholder": "abc123xyz",
+          "environment_specific": true,
+          "show_if": {
+            "ticket_source": "intercom"
+          }
+        },
+        "freshdesk_domain": {
+          "type": "string",
+          "description": "Freshdesk domain (e.g., yourcompany.freshdesk.com)",
+          "required": true,
+          "sensitive": false,
+          "placeholder": "yourcompany.freshdesk.com",
+          "environment_specific": true,
+          "show_if": {
+            "ticket_source": "freshdesk"
+          }
+        },
+        "freshdesk_api_key": {
+          "type": "string",
+          "description": "Freshdesk API key",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ticket_source": "freshdesk"
           }
         }
       }

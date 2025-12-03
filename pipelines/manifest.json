@@ -156,7 +156,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["google", "facebook", "linkedin", "tiktok", "twitter", "pinterest"]
+            "enum": ["google", "facebook"]
           },
           "default": ["google", "facebook"],
           "description": "Marketing ad platforms to ingest (select one or more)",

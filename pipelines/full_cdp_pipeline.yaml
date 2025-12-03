@@ -1,0 +1,396 @@
+# Complete Customer Data Platform (CDP) Pipeline
+#
+# Use Case: Full-stack CDP with all analytics capabilities
+# Business Outcome: Unified customer view with actionable insights across all touchpoints
+#
+# This is the "everything pipeline" - demonstrates the full power of the Dagster CDP toolkit.
+# Start with this and remove components you don't need, or use focused pipelines above.
+#
+# Pipeline Flow:
+#   1. INGESTION: Pull data from all sources (CRM, analytics, ads, support, commerce)
+#   2. STANDARDIZATION: Normalize to unified schemas
+#   3. CORE ANALYTICS: Customer 360, segmentation, LTV, churn
+#   4. ADVANCED ANALYTICS: Attribution, recommendations, propensity, journeys
+#   5. EXPERIMENTATION: A/B tests, campaign performance
+#   6. MONITORING: Anomaly detection, data quality
+#   7. ACTIVATION: Export to marketing tools, warehouses, APIs
+#
+# Schedule: Daily orchestrated refresh
+# Dependencies: All platform credentials
+
+# ============================================================================
+# INGESTION LAYER - Pull data from all sources
+# ============================================================================
+
+---
+# CRM Data
+type: dagster_component_templates.HubSpotIngestionComponent
+attributes:
+  asset_name: hubspot_contacts
+  resource_type: contacts
+  description: "CRM contact data"
+  group_name: ingestion
+
+---
+# E-commerce Orders
+type: dagster_component_templates.ShopifyIngestionComponent
+attributes:
+  asset_name: shopify_orders
+  resource_type: orders
+  description: "E-commerce orders"
+  group_name: ingestion
+
+---
+# Marketing - Google Ads
+type: dagster_component_templates.GoogleAdsIngestionComponent
+attributes:
+  asset_name: google_ads_campaigns
+  resource_type: campaigns
+  description: "Google Ads campaign data"
+  group_name: ingestion
+
+---
+# Marketing - Facebook Ads
+type: dagster_component_templates.FacebookAdsIngestionComponent
+attributes:
+  asset_name: facebook_ads_campaigns
+  resource_type: campaigns
+  description: "Facebook Ads campaign data"
+  group_name: ingestion
+
+---
+# Product Analytics Events
+type: dagster_component_templates.EventDataStandardizerComponent
+attributes:
+  asset_name: product_events
+  platform: segment
+  resource_type: events
+  description: "Product usage events"
+  group_name: ingestion
+
+---
+# Support Tickets
+type: dagster_component_templates.ZendeskIngestionComponent
+attributes:
+  asset_name: zendesk_tickets
+  resource_type: tickets
+  description: "Customer support tickets"
+  group_name: ingestion
+
+# ============================================================================
+# STANDARDIZATION LAYER - Normalize all data sources
+# ============================================================================
+
+---
+# Standardize CRM Data
+type: dagster_component_templates.CRMDataStandardizerComponent
+attributes:
+  asset_name: standardized_crm
+  platform: hubspot
+  resource_type: contacts
+  description: "Standardized CRM contacts"
+  group_name: standardization
+
+---
+# Standardize E-commerce Data
+type: dagster_component_templates.EcommerceStandardizerComponent
+attributes:
+  asset_name: standardized_orders
+  platform: shopify
+  resource_type: orders
+  description: "Standardized orders"
+  group_name: standardization
+
+---
+# Standardize Marketing Touchpoints
+type: dagster_component_templates.MarketingDataStandardizerComponent
+attributes:
+  asset_name: standardized_marketing
+  platform: multi
+  resource_type: touchpoints
+  description: "Unified marketing touchpoints"
+  group_name: standardization
+
+---
+# Standardize Support Tickets
+type: dagster_component_templates.SupportTicketStandardizerComponent
+attributes:
+  asset_name: standardized_support
+  platform: zendesk
+  resource_type: tickets
+  description: "Standardized support tickets"
+  group_name: standardization
+
+# ============================================================================
+# CORE ANALYTICS - Foundation metrics
+# ============================================================================
+
+---
+# Customer 360 Profile
+type: dagster_component_templates.Customer360Component
+attributes:
+  asset_name: customer_360
+  crm_data_asset: standardized_crm
+  transaction_data_asset: standardized_orders
+  support_data_asset: standardized_support
+  description: "Unified customer profile"
+  group_name: customer_analytics
+
+---
+# RFM Segmentation
+type: dagster_component_templates.CustomerSegmentationComponent
+attributes:
+  asset_name: rfm_segments
+  transaction_data_asset: standardized_orders
+  analysis_period_days: 365
+  use_predefined_segments: true
+  description: "RFM customer segmentation"
+  group_name: customer_analytics
+
+---
+# Lifetime Value Prediction
+type: dagster_component_templates.LTVPredictionComponent
+attributes:
+  asset_name: customer_ltv
+  source_asset: standardized_orders
+  prediction_period_months: 24
+  cohort_analysis: true
+  description: "Customer lifetime value prediction"
+  group_name: customer_analytics
+
+---
+# Churn Risk Scoring
+type: dagster_component_templates.ChurnPredictionComponent
+attributes:
+  asset_name: churn_risk
+  source_asset: customer_360
+  inactivity_threshold_days: 60
+  lookback_days: 365
+  description: "Customer churn risk prediction"
+  group_name: customer_analytics
+
+---
+# Customer Health Score
+type: dagster_component_templates.CustomerHealthScoreComponent
+attributes:
+  asset_name: health_scores
+  source_asset: customer_360
+  description: "Customer health scoring"
+  group_name: customer_analytics
+
+# ============================================================================
+# ADVANCED ANALYTICS - Deep insights
+# ============================================================================
+
+---
+# Multi-Touch Attribution
+type: dagster_component_templates.MultiTouchAttributionComponent
+attributes:
+  asset_name: marketing_attribution
+  touchpoint_data_asset: standardized_marketing
+  attribution_model: time_decay
+  lookback_window_days: 30
+  description: "Marketing attribution analysis"
+  group_name: marketing_analytics
+
+---
+# Product Recommendations
+type: dagster_component_templates.ProductRecommendationsComponent
+attributes:
+  asset_name: product_recommendations
+  source_asset: standardized_orders
+  recommendation_type: collaborative
+  num_recommendations: 10
+  description: "Product recommendations engine"
+  group_name: product_analytics
+
+---
+# Customer Journey Mapping
+type: dagster_component_templates.CustomerJourneyMappingComponent
+attributes:
+  asset_name: customer_journeys
+  source_asset: product_events
+  conversion_event: "purchase"
+  max_journey_length: 20
+  description: "Customer journey analysis"
+  group_name: customer_analytics
+
+---
+# Funnel Analysis
+type: dagster_component_templates.FunnelAnalysisComponent
+attributes:
+  asset_name: conversion_funnels
+  source_asset: product_events
+  description: "Conversion funnel analysis"
+  group_name: product_analytics
+
+---
+# Cohort Analysis
+type: dagster_component_templates.CohortAnalysisComponent
+attributes:
+  asset_name: cohort_retention
+  source_asset: standardized_orders
+  description: "Cohort retention analysis"
+  group_name: customer_analytics
+
+---
+# Purchase Propensity
+type: dagster_component_templates.PropensityScoringComponent
+attributes:
+  asset_name: purchase_propensity
+  source_asset: customer_360
+  propensity_type: purchase
+  description: "Purchase propensity scoring"
+  group_name: customer_analytics
+
+---
+# Upgrade Propensity
+type: dagster_component_templates.PropensityScoringComponent
+attributes:
+  asset_name: upgrade_propensity
+  source_asset: customer_360
+  propensity_type: upgrade
+  description: "Upgrade propensity scoring"
+  group_name: customer_analytics
+
+# ============================================================================
+# EXPERIMENTATION & OPTIMIZATION
+# ============================================================================
+
+---
+# A/B Test Analysis
+type: dagster_component_templates.ABTestAnalysisComponent
+attributes:
+  asset_name: experiment_results
+  source_asset: product_events
+  confidence_level: 0.95
+  minimum_sample_size: 1000
+  description: "A/B test statistical analysis"
+  group_name: experimentation
+
+---
+# Campaign Performance
+type: dagster_component_templates.CampaignPerformanceComponent
+attributes:
+  asset_name: campaign_roi
+  campaign_data_asset: standardized_marketing
+  target_roas: 3.0
+  target_cpa: 50.0
+  description: "Marketing campaign ROI"
+  group_name: marketing_analytics
+
+# ============================================================================
+# MONITORING & DATA QUALITY
+# ============================================================================
+
+---
+# Transaction Anomaly Detection
+type: dagster_component_templates.AnomalyDetectionComponent
+attributes:
+  asset_name: transaction_anomalies
+  source_asset: standardized_orders
+  detection_method: z_score
+  metric_column: total_amount
+  threshold: 3.0
+  description: "Detect unusual transactions"
+  group_name: monitoring
+
+---
+# Engagement Anomaly Detection
+type: dagster_component_templates.AnomalyDetectionComponent
+attributes:
+  asset_name: engagement_anomalies
+  source_asset: product_events
+  detection_method: moving_average
+  metric_column: event_count
+  moving_average_window: 7
+  description: "Detect unusual engagement patterns"
+  group_name: monitoring
+
+# ============================================================================
+# SCHEDULE & ORCHESTRATION
+# ============================================================================
+
+# Master Schedule: Orchestrated refresh
+# schedule:
+#   # Ingestion: Every 6 hours
+#   - cron: "0 */6 * * *"
+#     timezone: "America/New_York"
+#     assets: [ingestion_group]
+#
+#   # Analytics: Daily at 3 AM (after ingestion completes)
+#   - cron: "0 3 * * *"
+#     timezone: "America/New_York"
+#     assets: [customer_analytics, marketing_analytics, product_analytics]
+#
+#   # Monitoring: Every hour
+#   - cron: "0 * * * *"
+#     timezone: "America/New_York"
+#     assets: [monitoring_group]
+
+# ============================================================================
+# OUTPUT & ACTIVATION
+# ============================================================================
+
+# Key Output Assets:
+#
+#   Customer Profiles:
+#     - customer_360: Complete unified profile
+#     - rfm_segments: Customer segmentation
+#     - customer_ltv: Lifetime value predictions
+#     - churn_risk: Churn probability scores
+#     - health_scores: Overall customer health
+#     - purchase_propensity: Purchase likelihood
+#     - upgrade_propensity: Upgrade likelihood
+#
+#   Marketing Intelligence:
+#     - marketing_attribution: Channel attribution
+#     - campaign_roi: Campaign performance
+#     - customer_journeys: Journey paths
+#     - conversion_funnels: Funnel metrics
+#
+#   Product Intelligence:
+#     - product_recommendations: Recommendation engine
+#     - experiment_results: A/B test results
+#     - cohort_retention: Cohort analysis
+#
+#   Monitoring:
+#     - transaction_anomalies: Fraud detection
+#     - engagement_anomalies: Unusual patterns
+#
+# Activation Integrations (add these):
+#   - Export to data warehouse (Snowflake, BigQuery, Redshift)
+#   - Sync to CRM (HubSpot, Salesforce)
+#   - Marketing automation (Braze, Iterable, Customer.io)
+#   - Reverse ETL (Hightouch, Census)
+#   - BI tools (Looker, Tableau, Metabase)
+#   - Real-time APIs for product features
+
+# ============================================================================
+# DEPLOYMENT & USAGE
+# ============================================================================
+
+# How to deploy this full CDP:
+#
+#   1. Configure all source credentials in Dagster secrets
+#   2. Import this pipeline to Dagster Designer
+#   3. Remove components you don't need (start focused, expand later)
+#   4. Set up schedules for different refresh cadences
+#   5. Deploy to your Dagster instance
+#   6. Monitor with Dagster UI
+#   7. Connect activation destinations
+#
+# Cost optimization:
+#   - Use incremental materialization for large tables
+#   - Partition by date for time-series data
+#   - Cache expensive computations
+#   - Run heavy analytics off-peak hours
+#
+# This is your complete CDP in ~100 lines of YAML vs:
+#   - Segment: $120,000/year for enterprise
+#   - mParticle: $100,000/year
+#   - Amplitude CDP: $80,000/year
+#   - Adobe CDP: $150,000/year
+#
+# With Dagster: Pay only for compute (typically $2-5k/year)
+# Plus: Full customization, no vendor lock-in, open source

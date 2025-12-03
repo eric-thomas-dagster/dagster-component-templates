@@ -1,0 +1,88 @@
+# Customer Lifetime Value & Segmentation Pipeline
+#
+# Use Case: Identify high-value customers and optimize acquisition spend
+# Business Outcome: Maximize ROI by focusing on customers with highest lifetime value
+#
+# Pipeline Flow:
+#   1. Ingest order data from Shopify
+#   2. Predict customer lifetime value
+#   3. Segment customers by value tier
+#   4. Output actionable customer segments
+#
+# Schedule: Daily at 2 AM
+# Dependencies: Shopify credentials required
+
+---
+# Component 1: Shopify Order Ingestion
+type: dagster_component_templates.ShopifyIngestionComponent
+attributes:
+  asset_name: shopify_orders
+  resource_type: orders
+  description: "Ingest order data from Shopify"
+  group_name: ingestion
+  include_sample_metadata: true
+
+---
+# Component 2: E-commerce Data Standardization
+type: dagster_component_templates.EcommerceStandardizerComponent
+attributes:
+  asset_name: standardized_orders
+  platform: shopify
+  resource_type: orders
+  description: "Standardize Shopify orders to unified schema"
+  group_name: standardization
+  # Automatically connects to shopify_orders via lineage
+
+---
+# Component 3: Lifetime Value Prediction
+type: dagster_component_templates.LTVPredictionComponent
+attributes:
+  asset_name: customer_ltv
+  source_asset: standardized_orders
+  prediction_period_months: 24
+  cohort_analysis: true
+  include_confidence_intervals: true
+  min_transactions_required: 2
+  description: "Predict customer lifetime value"
+  group_name: customer_analytics
+
+---
+# Component 4: Customer Segmentation by LTV
+type: dagster_component_templates.CustomerSegmentationComponent
+attributes:
+  asset_name: ltv_segments
+  transaction_data_asset: standardized_orders
+  recency_weight: 1.0
+  frequency_weight: 1.0
+  monetary_weight: 2.0  # Weight LTV higher
+  analysis_period_days: 365
+  use_predefined_segments: true
+  include_recommendations: true
+  description: "Segment customers by lifetime value"
+  group_name: customer_analytics
+
+---
+# Component 5: High-Value Customer Export
+# (You would add a custom export component here or use existing integrations)
+# For example: Export to CRM, email platform, or data warehouse
+
+# Schedule: Run daily at 2 AM
+# schedule:
+#   cron: "0 2 * * *"
+#   timezone: "America/New_York"
+
+# Output Assets:
+#   - customer_ltv: LTV predictions with confidence intervals
+#   - ltv_segments: Customer segments (Champions, Loyal, At-Risk, etc.)
+#
+# How to use:
+#   1. Configure Shopify credentials in your Dagster instance
+#   2. Import this pipeline to Dagster Designer
+#   3. Adjust parameters (prediction_period_months, weights, etc.)
+#   4. Deploy and run on schedule
+#
+# Next steps:
+#   - Connect to marketing automation platform
+#   - Create VIP program for Platinum tier customers
+#   - Calculate maximum acceptable CAC (LTV / 3)
+#   - Build retention campaigns for at-risk high-LTV customers

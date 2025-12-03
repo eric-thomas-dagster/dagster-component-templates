@@ -1,0 +1,104 @@
+# Experimentation Platform Pipeline
+#
+# Use Case: Data-driven product decisions through rigorous A/B testing
+# Business Outcome: Ship features with confidence, avoid costly mistakes
+#
+# Pipeline Flow:
+#   1. Collect experiment assignment and conversion events
+#   2. Standardize experiment data
+#   3. Perform statistical analysis (significance testing)
+#   4. Generate recommendations (ship, continue, stop)
+#   5. Track experiment velocity and learnings
+#
+# Schedule: Real-time or hourly analysis
+# Dependencies: Product analytics platform
+
+---
+# Component 1: Experiment Events Ingestion
+type: dagster_component_templates.EventDataStandardizerComponent
+attributes:
+  asset_name: experiment_events
+  platform: segment  # or your analytics platform
+  resource_type: events
+  event_filter: "experiment_"  # Only events starting with experiment_
+  description: "A/B test assignment and conversion events"
+  group_name: experimentation
+
+---
+# Component 2: A/B Test Statistical Analysis
+type: dagster_component_templates.ABTestAnalysisComponent
+attributes:
+  asset_name: experiment_results
+  source_asset: experiment_events
+  confidence_level: 0.95  # 95% confidence for most tests
+  minimum_sample_size: 1000  # Per variant
+  minimum_runtime_hours: 168  # 7 days minimum
+  minimum_detectable_effect: 0.05  # 5% minimum effect size
+  description: "Statistical analysis of A/B tests"
+  group_name: experimentation
+
+---
+# Component 3: Experiment Velocity Tracker
+# (Custom component)
+# Tracks:
+#   - Experiments run per week
+#   - Average time to significance
+#   - Win rate (% of tests with positive results)
+#   - Cumulative impact of all experiments
+
+# Schedule: Update every hour for real-time decision making
+# schedule:
+#   cron: "0 * * * *"
+#   timezone: "America/New_York"
+
+# Output Assets:
+#   - experiment_results: Statistical analysis with recommendations
+#
+# Experimentation Best Practices:
+#
+#   Before launching:
+#     ✓ Define success metric (primary)
+#     ✓ Calculate required sample size
+#     ✓ Set minimum runtime (1-2 weeks typical)
+#     ✓ Document hypothesis and expected impact
+#
+#   During test:
+#     ✓ Monitor for bugs/implementation issues
+#     ✓ Check for sample ratio mismatch
+#     ✓ Avoid peeking at results (wait for significance)
+#     ✓ Monitor guardrail metrics
+#
+#   After test:
+#     ✓ Wait for statistical significance
+#     ✓ Check practical significance (> MDE)
+#     ✓ Analyze segment-level results
+#     ✓ Document learnings
+#
+# Common Experiments:
+#
+#   Product Changes:
+#     - New features (ship/kill decisions)
+#     - UI/UX variations
+#     - Onboarding flows
+#     - Pricing experiments
+#
+#   Marketing:
+#     - Email subject lines
+#     - Landing page copy
+#     - CTA buttons
+#     - Ad creative
+#
+#   Recommendation: Run 2-4 experiments per week for optimal learning velocity
+#
+# How to use:
+#   1. Instrument experiments in your app (user assignment + conversion tracking)
+#   2. Send events to analytics platform
+#   3. Import this pipeline
+#   4. Set confidence_level and MDE for your risk tolerance
+#   5. Review results when test completes
+#
+# Success metrics:
+#   - Experiment velocity: 8-15 tests/quarter
+#   - Significant results: 20-30%
+#   - False positive rate: < 5%
+#   - Time to decision: 7-14 days

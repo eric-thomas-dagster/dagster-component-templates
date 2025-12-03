@@ -1,0 +1,137 @@
+# Churn Prevention Pipeline
+#
+# Use Case: Identify and save at-risk customers before they churn
+# Business Outcome: Reduce churn rate by 20-30% through proactive intervention
+#
+# Pipeline Flow:
+#   1. Aggregate customer data from multiple sources (CRM, product usage, support)
+#   2. Build unified customer 360 profile
+#   3. Calculate churn risk scores
+#   4. Combine with LTV to prioritize high-value at-risk customers
+#   5. Generate targeted retention campaigns
+#
+# Schedule: Daily at 4 AM
+# Dependencies: CRM, product analytics, support ticket data
+
+---
+# Component 1: CRM Data Ingestion
+type: dagster_component_templates.HubSpotIngestionComponent
+attributes:
+  asset_name: hubspot_contacts
+  resource_type: contacts
+  description: "Ingest contact data from HubSpot"
+  group_name: ingestion
+
+---
+# Component 2: Product Analytics Events
+type: dagster_component_templates.ProductAnalyticsStandardizerComponent
+attributes:
+  asset_name: product_usage_events
+  platform: mixpanel  # or amplitude, segment, etc.
+  resource_type: events
+  description: "Product usage events"
+  group_name: standardization
+
+---
+# Component 3: Support Ticket Data
+type: dagster_component_templates.SupportTicketStandardizerComponent
+attributes:
+  asset_name: support_tickets
+  platform: zendesk
+  resource_type: tickets
+  description: "Customer support interactions"
+  group_name: standardization
+
+---
+# Component 4: Customer 360 Profile
+type: dagster_component_templates.Customer360Component
+attributes:
+  asset_name: customer_360
+  crm_data_asset: hubspot_contacts
+  transaction_data_asset: product_usage_events
+  support_data_asset: support_tickets
+  description: "Unified customer profile"
+  group_name: customer_analytics
+
+---
+# Component 5: Churn Risk Prediction
+type: dagster_component_templates.ChurnPredictionComponent
+attributes:
+  asset_name: churn_risk_scores
+  source_asset: customer_360
+  inactivity_threshold_days: 30  # Adjust for your product
+  lookback_days: 90
+  include_risk_factors: true
+  description: "Predict customer churn risk"
+  group_name: customer_analytics
+
+---
+# Component 6: Customer LTV (for prioritization)
+type: dagster_component_templates.LTVPredictionComponent
+attributes:
+  asset_name: customer_ltv_churn
+  source_asset: product_usage_events
+  prediction_period_months: 12
+  min_transactions_required: 1
+  description: "Customer lifetime value for churn prioritization"
+  group_name: customer_analytics
+
+---
+# Component 7: Propensity to Re-Engage
+type: dagster_component_templates.PropensityScoringComponent
+attributes:
+  asset_name: reengagement_propensity
+  source_asset: customer_360
+  propensity_type: engagement
+  scoring_window_days: 90
+  description: "Likelihood to re-engage with product"
+  group_name: customer_analytics
+
+---
+# Component 8: High-Risk Customer Alerts
+# (Custom component or integration)
+# Combines churn_risk + ltv to identify:
+#   - High LTV + High Churn Risk = Immediate intervention
+#   - Medium LTV + High Churn Risk = Automated campaign
+#   - Low LTV + High Churn Risk = Light touch or let churn
+
+# Schedule: Run daily for fresh risk scores
+# schedule:
+#   cron: "0 4 * * *"
+#   timezone: "America/New_York"
+
+# Output Assets:
+#   - customer_360: Complete customer profile
+#   - churn_risk_scores: Churn probability (0-100)
+#   - customer_ltv_churn: Lifetime value estimates
+#   - reengagement_propensity: Re-engagement likelihood
+#
+# Churn Prevention Playbook:
+#
+#   Critical Risk (Score 75-100):
+#     - High LTV customers → Personal outreach call from CSM
+#     - Medium LTV → Email from founder + special offer
+#     - Low LTV → Automated win-back email
+#
+#   High Risk (Score 50-75):
+#     - Send feature education content
+#     - Offer free consultation/training
+#     - Highlight new features they haven't used
+#
+#   Medium Risk (Score 25-50):
+#     - Share success stories and case studies
+#     - Invite to webinar or community event
+#     - Check-in email from account team
+#
+# How to use:
+#   1. Connect your CRM, product analytics, and support systems
+#   2. Set inactivity_threshold_days based on your product usage patterns
+#   3. Run pipeline daily
+#   4. Set up alerts for Critical + High Risk customers
+#   5. Integrate with email/CRM for automated campaigns
+#
+# Success metrics:
+#   - % reduction in churn rate
+#   - Revenue saved from prevented churn
+#   - Time to intervention (should be < 24 hours)
+#   - Re-engagement rate by risk level

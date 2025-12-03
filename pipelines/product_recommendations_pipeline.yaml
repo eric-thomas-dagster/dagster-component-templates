@@ -1,0 +1,141 @@
+# Product Recommendations Engine Pipeline
+#
+# Use Case: Power personalized product recommendations across web, email, and mobile
+# Business Outcome: Increase average order value (AOV) and conversion rates
+#
+# Pipeline Flow:
+#   1. Ingest order/transaction data
+#   2. Generate collaborative filtering recommendations
+#   3. Generate product bundles (frequently bought together)
+#   4. Generate trending/popular products
+#   5. Serve via API for real-time recommendations
+#
+# Schedule: Update recommendations every 6 hours
+# Dependencies: E-commerce platform (Shopify, Stripe, etc.)
+
+---
+# Component 1: E-commerce Order Ingestion
+type: dagster_component_templates.ShopifyIngestionComponent
+attributes:
+  asset_name: shopify_order_items
+  resource_type: order_items  # Line items, not just orders
+  description: "Ingest order line items from Shopify"
+  group_name: ingestion
+
+---
+# Component 2: Standardize Order Items
+type: dagster_component_templates.EcommerceStandardizerComponent
+attributes:
+  asset_name: standardized_order_items
+  platform: shopify
+  resource_type: order_items
+  description: "Standardize order items schema"
+  group_name: standardization
+
+---
+# Component 3: Collaborative Filtering Recommendations
+type: dagster_component_templates.ProductRecommendationsComponent
+attributes:
+  asset_name: product_recommendations
+  source_asset: standardized_order_items
+  recommendation_type: collaborative
+  num_recommendations: 10
+  min_co_occurrence: 5
+  lookback_days: 180  # 6 months of data
+  description: "Customers who bought X also bought Y"
+  group_name: product_analytics
+
+---
+# Component 4: Product Bundles
+type: dagster_component_templates.ProductRecommendationsComponent
+attributes:
+  asset_name: product_bundles
+  source_asset: standardized_order_items
+  recommendation_type: frequently_bought_together
+  num_recommendations: 5
+  min_co_occurrence: 10  # Higher threshold for bundles
+  lookback_days: 180
+  description: "Product bundles for 'Buy these together' promotions"
+  group_name: product_analytics
+
+---
+# Component 5: Trending Products
+type: dagster_component_templates.ProductRecommendationsComponent
+attributes:
+  asset_name: trending_products
+  source_asset: standardized_order_items
+  recommendation_type: popular
+  num_recommendations: 20
+  lookback_days: 30  # Last 30 days for trending
+  description: "Popular and trending products"
+  group_name: product_analytics
+
+---
+# Component 6: Cold-Start Recommendations (New Products)
+# For products with no purchase history, recommend based on category similarity
+# (This would be a custom component or use category-based rules)
+
+---
+# Component 7: Recommendation API / Cache
+# (Custom component or integration)
+# Serves recommendations via:
+#   - REST API for web/mobile apps
+#   - Email template integration
+#   - Product page widgets
+#   - Shopping cart upsells
+
+# Schedule: Update every 6 hours to balance freshness and cost
+# schedule:
+#   cron: "0 */6 * * *"
+#   timezone: "America/New_York"
+
+# Output Assets:
+#   - product_recommendations: Collaborative filtering (10 per product)
+#   - product_bundles: Frequently bought together (5 per product)
+#   - trending_products: Top 20 trending items
+#
+# Recommendation Strategy by Context:
+#
+#   Product Detail Page:
+#     - Primary: Collaborative filtering (8 items)
+#     - Secondary: Bundles (4 items)
+#     - Fallback: Trending in same category
+#
+#   Shopping Cart:
+#     - Primary: Bundles for items in cart
+#     - Secondary: Collaborative filtering
+#     - Goal: Increase AOV by 15-25%
+#
+#   Homepage:
+#     - Primary: Trending products (personalized by browsing history)
+#     - Secondary: New arrivals
+#     - Seasonal/promotional items
+#
+#   Email Campaigns:
+#     - Primary: Collaborative based on past purchases
+#     - Segment by customer value (Champions get premium items)
+#     - Personalized subject lines with product names
+#
+#   Post-Purchase:
+#     - Day 7: Complementary products (bundles)
+#     - Day 30: Repeat purchase reminder
+#     - Day 90: Upgrade or new category suggestions
+#
+# How to use:
+#   1. Connect to your e-commerce platform
+#   2. Import pipeline to Dagster Designer
+#   3. Tune min_co_occurrence based on traffic volume
+#   4. Set up API endpoint or export to your platform
+#   5. A/B test recommendation slots
+#
+# Success Metrics:
+#   - Click-through rate on recommendations: Target 8-12%
+#   - Add-to-cart rate: Target 5-8%
+#   - AOV lift from recommendations: Target 15-25%
+#   - Recommendation coverage: % products with recs (target: 80%+)
+#
+# Next steps:
+#   - Implement personalized rankings based on browsing history
+#   - Add "You might also like" email series
+#   - Create bundle discounts based on lift scores
+#   - Track recommendation revenue in analytics

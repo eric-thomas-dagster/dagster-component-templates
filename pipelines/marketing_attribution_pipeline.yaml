@@ -1,0 +1,100 @@
+# Marketing Attribution & Campaign ROI Pipeline
+#
+# Use Case: Understand which marketing channels drive conversions and calculate true ROI
+# Business Outcome: Optimize marketing budget by investing in highest-performing channels
+#
+# Pipeline Flow:
+#   1. Ingest marketing touchpoints (Google Ads, Facebook Ads, Email, etc.)
+#   2. Standardize marketing data across platforms
+#   3. Perform multi-touch attribution analysis
+#   4. Calculate campaign performance metrics (ROAS, CPA)
+#   5. Generate budget allocation recommendations
+#
+# Schedule: Daily at 6 AM
+# Dependencies: Google Ads, Facebook Ads API credentials
+
+---
+# Component 1: Google Ads Ingestion
+type: dagster_component_templates.GoogleAdsIngestionComponent
+attributes:
+  asset_name: google_ads_data
+  resource_type: campaigns
+  description: "Ingest Google Ads campaign data"
+  group_name: ingestion
+
+---
+# Component 2: Facebook Ads Ingestion
+type: dagster_component_templates.FacebookAdsIngestionComponent
+attributes:
+  asset_name: facebook_ads_data
+  resource_type: campaigns
+  description: "Ingest Facebook Ads campaign data"
+  group_name: ingestion
+
+---
+# Component 3: Marketing Data Standardization
+type: dagster_component_templates.MarketingDataStandardizerComponent
+attributes:
+  asset_name: standardized_marketing_touchpoints
+  platform: multi  # Handles multiple platforms
+  resource_type: touchpoints
+  description: "Standardize marketing touchpoints across all platforms"
+  group_name: standardization
+
+---
+# Component 4: Multi-Touch Attribution Analysis
+type: dagster_component_templates.MultiTouchAttributionComponent
+attributes:
+  asset_name: channel_attribution
+  touchpoint_data_asset: standardized_marketing_touchpoints
+  attribution_model: time_decay  # Most common choice
+  lookback_window_days: 30
+  time_decay_half_life_days: 7
+  include_channel_performance: true
+  include_journey_details: true
+  description: "Multi-touch attribution with time decay model"
+  group_name: marketing_analytics
+
+---
+# Component 5: Campaign Performance Analytics
+type: dagster_component_templates.CampaignPerformanceComponent
+attributes:
+  asset_name: campaign_roi
+  campaign_data_asset: standardized_marketing_touchpoints
+  target_roas: 3.0  # Target 3x return on ad spend
+  target_cpa: 50.0  # Target $50 cost per acquisition
+  include_benchmarks: true
+  description: "Campaign performance with ROI calculations"
+  group_name: marketing_analytics
+
+---
+# Component 6: Budget Optimization (Optional - Custom Component)
+# This would analyze attribution + performance to recommend budget shifts
+# Example: Increase Google Ads budget by 20%, decrease Facebook by 10%
+
+# Schedule: Run daily after ads platforms sync
+# schedule:
+#   cron: "0 6 * * *"
+#   timezone: "America/New_York"
+
+# Output Assets:
+#   - channel_attribution: Attribution by channel with contribution %
+#   - campaign_roi: ROAS, CPA, ROI by campaign
+#
+# Key Metrics:
+#   - Attributed revenue by channel
+#   - ROAS by campaign (target: 3x+)
+#   - CPA by channel (target: < $50)
+#   - Top conversion paths
+#
+# How to use:
+#   1. Connect Google Ads and Facebook Ads APIs
+#   2. Import pipeline to Dagster Designer
+#   3. Set target_roas and target_cpa for your business
+#   4. Run daily and monitor performance dashboard
+#
+# Next steps:
+#   - Compare attribution models (linear vs time-decay vs U-shaped)
+#   - Build automated budget reallocation system
+#   - Create alerts for underperforming campaigns (ROAS < 2x)
+#   - A/B test different attribution models

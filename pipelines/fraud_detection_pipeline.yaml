@@ -1,0 +1,162 @@
+# Fraud Detection Pipeline
+#
+# Use Case: Detect and prevent fraudulent transactions in real-time
+# Business Outcome: Reduce fraud losses by 50-70%, minimize false positives
+#
+# Pipeline Flow:
+#   1. Ingest transaction data
+#   2. Standardize transaction records
+#   3. Calculate customer behavior baselines
+#   4. Detect anomalies in transaction amounts and patterns
+#   5. Score fraud risk and flag suspicious activity
+#   6. Alert for manual review or auto-block
+#
+# Schedule: Real-time or every 15 minutes
+# Dependencies: Transaction/payment system
+
+---
+# Component 1: Transaction Data Ingestion
+type: dagster_component_templates.StripeIngestionComponent
+attributes:
+  asset_name: stripe_transactions
+  resource_type: charges
+  description: "Ingest payment transactions"
+  group_name: ingestion
+
+---
+# Component 2: Transaction Standardization
+type: dagster_component_templates.EcommerceStandardizerComponent
+attributes:
+  asset_name: standardized_transactions
+  platform: stripe
+  resource_type: transactions
+  description: "Standardized transaction schema"
+  group_name: standardization
+
+---
+# Component 3: Customer Behavior Baseline
+# Calculate normal behavior patterns per customer
+type: dagster_component_templates.Customer360Component
+attributes:
+  asset_name: customer_profiles
+  transaction_data_asset: standardized_transactions
+  lookback_days: 90
+  description: "Customer behavior patterns"
+  group_name: fraud_detection
+
+---
+# Component 4: Transaction Amount Anomalies
+type: dagster_component_templates.AnomalyDetectionComponent
+attributes:
+  asset_name: amount_anomalies
+  source_asset: standardized_transactions
+  detection_method: z_score
+  metric_column: amount
+  threshold: 3.5  # Stricter for fraud
+  group_by_field: customer_id  # Detect per-customer anomalies
+  description: "Detect unusual transaction amounts"
+  group_name: fraud_detection
+
+---
+# Component 5: Transaction Frequency Anomalies
+type: dagster_component_templates.AnomalyDetectionComponent
+attributes:
+  asset_name: frequency_anomalies
+  source_asset: standardized_transactions
+  detection_method: moving_average
+  metric_column: transaction_count
+  moving_average_window: 7
+  threshold: 3.0
+  group_by_field: customer_id
+  description: "Detect unusual transaction frequency"
+  group_name: fraud_detection
+
+---
+# Component 6: Geographic Anomalies
+type: dagster_component_templates.AnomalyDetectionComponent
+attributes:
+  asset_name: location_anomalies
+  source_asset: standardized_transactions
+  detection_method: iqr  # Robust to outliers
+  metric_column: distance_from_usual_location
+  threshold: 2.0
+  description: "Detect transactions from unusual locations"
+  group_name: fraud_detection
+
+---
+# Component 7: Fraud Risk Scoring
+# (Custom component that combines all anomaly signals)
+# Calculates composite fraud score (0-100):
+#   - Amount anomaly: 40%
+#   - Frequency anomaly: 30%
+#   - Location anomaly: 20%
+#   - Time-of-day anomaly: 10%
+#
+# Risk Levels:
+#   - Critical (90-100): Auto-block, immediate investigation
+#   - High (70-89): Hold for manual review
+#   - Medium (50-69): Flag for monitoring
+#   - Low (0-49): Allow, log for analysis
+
+---
+# Component 8: False Positive Feedback Loop
+# Track which flagged transactions were legitimate
+# Improves thresholds over time
+
+# Schedule: Run every 15 minutes for near-real-time detection
+# schedule:
+#   cron: "*/15 * * * *"
+#   timezone: "America/New_York"
+
+# Output Assets:
+#   - amount_anomalies: Unusual transaction amounts
+#   - frequency_anomalies: Unusual purchase frequency
+#   - location_anomalies: Unusual locations
+#   - fraud_risk_scores: Composite risk scores
+#
+# Fraud Detection Rules:
+#
+#   Critical Risk (Auto-Block):
+#     - Transaction > $5,000 from new account (< 30 days old)
+#     - Multiple failed attempts + successful high-value transaction
+#     - Transaction from high-risk country
+#     - 3+ anomaly flags simultaneously
+#
+#   High Risk (Manual Review):
+#     - Transaction 5x higher than customer's average
+#     - Purchase from different country within 1 hour
+#     - Multiple transactions in rapid succession (< 5 min apart)
+#     - Shipping != billing address + high value
+#
+#   Medium Risk (Monitor):
+#     - First transaction > $500
+#     - Unusual time of day for customer
+#     - New payment method used
+#
+#   Legitimate Patterns (Don't Flag):
+#     - Holiday season spike in purchases
+#     - Gradual increase in spending over time
+#     - Business accounts with regular large transactions
+#     - Subscriptions and recurring charges
+#
+# How to use:
+#   1. Connect to payment processor (Stripe, PayPal, etc.)
+#   2. Import pipeline and tune thresholds
+#   3. Start with manual review (don't auto-block initially)
+#   4. Monitor false positive rate
+#   5. Gradually increase automation as confidence builds
+#   6. Track fraud catch rate and dollar amount saved
+#
+# Success Metrics:
+#   - Fraud detection rate: 70-90%
+#   - False positive rate: < 1%
+#   - Time to detection: < 5 minutes
+#   - Manual review time: < 2 hours
+#   - Fraud losses: < 0.1% of revenue
+#
+# Advanced Features:
+#   - Device fingerprinting
+#   - Email/phone verification
+#   - Behavioral biometrics (typing patterns)
+#   - Network analysis (connected fraud rings)
+#   - Machine learning models (after 6-12 months of data)

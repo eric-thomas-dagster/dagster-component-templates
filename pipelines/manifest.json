@@ -1,0 +1,589 @@
+{
+  "version": "1.0.0",
+  "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
+  "last_updated": "2024-12-02",
+  "pipelines": [
+    {
+      "id": "customer_ltv_pipeline",
+      "name": "Customer LTV & Segmentation",
+      "description": "Identify high-value customers and optimize acquisition spend",
+      "category": "customer_analytics",
+      "use_case": "Predict customer lifetime value and segment by value tier",
+      "business_outcome": "Maximize ROI by focusing on customers with highest lifetime value",
+      "estimated_savings": "$111,000/year vs traditional CDP",
+      "icon": "TrendingUp",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/README.md#customer-ltv-pipeline",
+      "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/customer_ltv_pipeline.yaml",
+      "components": [
+        {
+          "component_id": "shopify_ingestion",
+          "instance_name": "shopify_orders",
+          "config_mapping": {
+            "asset_name": "shopify_orders",
+            "resource_type": "orders",
+            "description": "Ingest order data from Shopify",
+            "group_name": "ingestion"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "ecommerce_standardizer",
+          "instance_name": "standardized_orders",
+          "config_mapping": {
+            "asset_name": "standardized_orders",
+            "platform": "${ecommerce_platform}",
+            "resource_type": "orders",
+            "description": "Standardize orders to unified schema",
+            "group_name": "standardization"
+          },
+          "depends_on": ["shopify_orders"]
+        },
+        {
+          "component_id": "ltv_prediction",
+          "instance_name": "customer_ltv",
+          "config_mapping": {
+            "asset_name": "customer_ltv",
+            "source_asset": "standardized_orders",
+            "prediction_period_months": "${prediction_period_months}",
+            "cohort_analysis": true,
+            "include_confidence_intervals": true,
+            "min_transactions_required": 2,
+            "description": "Predict customer lifetime value",
+            "group_name": "customer_analytics"
+          },
+          "depends_on": ["standardized_orders"]
+        },
+        {
+          "component_id": "customer_segmentation",
+          "instance_name": "ltv_segments",
+          "config_mapping": {
+            "asset_name": "ltv_segments",
+            "transaction_data_asset": "standardized_orders",
+            "recency_weight": 1.0,
+            "frequency_weight": 1.0,
+            "monetary_weight": 2.0,
+            "analysis_period_days": 365,
+            "use_predefined_segments": true,
+            "include_recommendations": true,
+            "description": "Segment customers by lifetime value",
+            "group_name": "customer_analytics"
+          },
+          "depends_on": ["standardized_orders"]
+        }
+      ],
+      "pipeline_params": {
+        "ecommerce_platform": {
+          "type": "string",
+          "default": "shopify",
+          "description": "E-commerce platform (shopify, woocommerce, magento, etc.)",
+          "required": true
+        },
+        "prediction_period_months": {
+          "type": "integer",
+          "default": 24,
+          "description": "Number of months to predict forward for LTV",
+          "required": false
+        }
+      }
+    },
+    {
+      "id": "marketing_attribution_pipeline",
+      "name": "Marketing Attribution & ROI",
+      "description": "Understand which marketing channels drive conversions and calculate true ROI",
+      "category": "marketing_analytics",
+      "use_case": "Multi-touch attribution across all marketing channels",
+      "business_outcome": "Optimize marketing spend by identifying high-ROI channels",
+      "estimated_savings": "$111,000/year vs traditional CDP",
+      "icon": "BarChart3",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/README.md#marketing-attribution-pipeline",
+      "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/marketing_attribution_pipeline.yaml",
+      "components": [
+        {
+          "component_id": "google_ads_ingestion",
+          "instance_name": "google_ads_data",
+          "config_mapping": {
+            "asset_name": "google_ads_data",
+            "resource_type": "campaigns",
+            "description": "Ingest Google Ads campaign data",
+            "group_name": "ingestion"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "facebook_ads_ingestion",
+          "instance_name": "facebook_ads_data",
+          "config_mapping": {
+            "asset_name": "facebook_ads_data",
+            "resource_type": "campaigns",
+            "description": "Ingest Facebook Ads campaign data",
+            "group_name": "ingestion"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "marketing_data_standardizer",
+          "instance_name": "standardized_touchpoints",
+          "config_mapping": {
+            "asset_name": "standardized_touchpoints",
+            "platform": "multi",
+            "resource_type": "touchpoints",
+            "description": "Standardize marketing touchpoints",
+            "group_name": "standardization"
+          },
+          "depends_on": ["google_ads_data", "facebook_ads_data"]
+        },
+        {
+          "component_id": "multi_touch_attribution",
+          "instance_name": "marketing_attribution",
+          "config_mapping": {
+            "asset_name": "marketing_attribution",
+            "touchpoint_data_asset": "standardized_touchpoints",
+            "attribution_model": "${attribution_model}",
+            "lookback_window_days": "${lookback_window_days}",
+            "description": "Multi-touch attribution analysis",
+            "group_name": "marketing_analytics"
+          },
+          "depends_on": ["standardized_touchpoints"]
+        },
+        {
+          "component_id": "campaign_performance",
+          "instance_name": "campaign_roi",
+          "config_mapping": {
+            "asset_name": "campaign_roi",
+            "campaign_data_asset": "standardized_touchpoints",
+            "target_roas": "${target_roas}",
+            "target_cpa": "${target_cpa}",
+            "description": "Campaign ROI analysis",
+            "group_name": "marketing_analytics"
+          },
+          "depends_on": ["standardized_touchpoints"]
+        }
+      ],
+      "pipeline_params": {
+        "attribution_model": {
+          "type": "string",
+          "default": "time_decay",
+          "description": "Attribution model (first_touch, last_touch, linear, time_decay, u_shaped, w_shaped)",
+          "required": true
+        },
+        "lookback_window_days": {
+          "type": "integer",
+          "default": 30,
+          "description": "Days to look back for attribution",
+          "required": false
+        },
+        "target_roas": {
+          "type": "number",
+          "default": 3.0,
+          "description": "Target Return on Ad Spend",
+          "required": false
+        },
+        "target_cpa": {
+          "type": "number",
+          "default": 50.0,
+          "description": "Target Cost Per Acquisition",
+          "required": false
+        }
+      }
+    },
+    {
+      "id": "churn_prevention_pipeline",
+      "name": "Churn Prevention & Retention",
+      "description": "Identify at-risk customers and take action before they churn",
+      "category": "customer_analytics",
+      "use_case": "Predict churn risk and prioritize retention efforts",
+      "business_outcome": "Reduce churn rate by 20-30% through proactive intervention",
+      "estimated_savings": "$91,000/year vs traditional CDP",
+      "icon": "AlertTriangle",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/README.md#churn-prevention-pipeline",
+      "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/churn_prevention_pipeline.yaml",
+      "components": [
+        {
+          "component_id": "crm_data_standardizer",
+          "instance_name": "standardized_crm",
+          "config_mapping": {
+            "asset_name": "standardized_crm",
+            "platform": "${crm_platform}",
+            "resource_type": "contacts",
+            "description": "Standardized CRM data",
+            "group_name": "standardization"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "customer_360",
+          "instance_name": "customer_profiles",
+          "config_mapping": {
+            "asset_name": "customer_profiles",
+            "crm_data_asset": "standardized_crm",
+            "description": "Unified customer profiles",
+            "group_name": "customer_analytics"
+          },
+          "depends_on": ["standardized_crm"]
+        },
+        {
+          "component_id": "churn_prediction",
+          "instance_name": "churn_risk_scores",
+          "config_mapping": {
+            "asset_name": "churn_risk_scores",
+            "source_asset": "customer_profiles",
+            "inactivity_threshold_days": "${inactivity_threshold_days}",
+            "lookback_days": 365,
+            "description": "Churn risk prediction",
+            "group_name": "customer_analytics"
+          },
+          "depends_on": ["customer_profiles"]
+        },
+        {
+          "component_id": "propensity_scoring",
+          "instance_name": "retention_propensity",
+          "config_mapping": {
+            "asset_name": "retention_propensity",
+            "source_asset": "customer_profiles",
+            "propensity_type": "engagement",
+            "description": "Retention propensity scoring",
+            "group_name": "customer_analytics"
+          },
+          "depends_on": ["customer_profiles"]
+        }
+      ],
+      "pipeline_params": {
+        "crm_platform": {
+          "type": "string",
+          "default": "hubspot",
+          "description": "CRM platform (hubspot, salesforce, pipedrive, etc.)",
+          "required": true
+        },
+        "inactivity_threshold_days": {
+          "type": "integer",
+          "default": 60,
+          "description": "Days of inactivity before considering at-risk",
+          "required": false
+        }
+      }
+    },
+    {
+      "id": "product_recommendations_pipeline",
+      "name": "Product Recommendations Engine",
+      "description": "Personalized product recommendations to increase AOV and conversion",
+      "category": "product_analytics",
+      "use_case": "Generate personalized product recommendations",
+      "business_outcome": "Increase average order value by 15-25% and conversion rate by 10-15%",
+      "estimated_savings": "$141,000/year vs traditional CDP",
+      "icon": "ShoppingCart",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/README.md#product-recommendations-pipeline",
+      "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/product_recommendations_pipeline.yaml",
+      "components": [
+        {
+          "component_id": "ecommerce_standardizer",
+          "instance_name": "standardized_orders",
+          "config_mapping": {
+            "asset_name": "standardized_orders",
+            "platform": "${ecommerce_platform}",
+            "resource_type": "orders",
+            "description": "Standardized order data",
+            "group_name": "standardization"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "product_recommendations",
+          "instance_name": "collaborative_recommendations",
+          "config_mapping": {
+            "asset_name": "collaborative_recommendations",
+            "source_asset": "standardized_orders",
+            "recommendation_type": "collaborative",
+            "num_recommendations": "${num_recommendations}",
+            "min_support": 5,
+            "description": "Collaborative filtering recommendations",
+            "group_name": "product_analytics"
+          },
+          "depends_on": ["standardized_orders"]
+        },
+        {
+          "component_id": "product_recommendations",
+          "instance_name": "bundle_recommendations",
+          "config_mapping": {
+            "asset_name": "bundle_recommendations",
+            "source_asset": "standardized_orders",
+            "recommendation_type": "frequently_bought_together",
+            "num_recommendations": "${num_recommendations}",
+            "min_support": 3,
+            "description": "Frequently bought together recommendations",
+            "group_name": "product_analytics"
+          },
+          "depends_on": ["standardized_orders"]
+        }
+      ],
+      "pipeline_params": {
+        "ecommerce_platform": {
+          "type": "string",
+          "default": "shopify",
+          "description": "E-commerce platform (shopify, woocommerce, magento, etc.)",
+          "required": true
+        },
+        "num_recommendations": {
+          "type": "integer",
+          "default": 10,
+          "description": "Number of recommendations to generate per customer",
+          "required": false
+        }
+      }
+    },
+    {
+      "id": "fraud_detection_pipeline",
+      "name": "Fraud Detection & Prevention",
+      "description": "Detect and prevent fraudulent transactions in real-time",
+      "category": "risk_management",
+      "use_case": "Real-time fraud detection using anomaly detection",
+      "business_outcome": "Reduce fraud losses by 50-70%, minimize false positives",
+      "estimated_savings": "$120,000/year vs traditional fraud detection",
+      "icon": "Shield",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/README.md#fraud-detection-pipeline",
+      "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/fraud_detection_pipeline.yaml",
+      "components": [
+        {
+          "component_id": "ecommerce_standardizer",
+          "instance_name": "standardized_transactions",
+          "config_mapping": {
+            "asset_name": "standardized_transactions",
+            "platform": "${ecommerce_platform}",
+            "resource_type": "transactions",
+            "description": "Standardized transaction data",
+            "group_name": "standardization"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "anomaly_detection",
+          "instance_name": "amount_anomalies",
+          "config_mapping": {
+            "asset_name": "amount_anomalies",
+            "source_asset": "standardized_transactions",
+            "detection_method": "z_score",
+            "metric_column": "amount",
+            "threshold": "${anomaly_threshold}",
+            "group_by_field": "customer_id",
+            "description": "Detect unusual transaction amounts",
+            "group_name": "fraud_detection"
+          },
+          "depends_on": ["standardized_transactions"]
+        },
+        {
+          "component_id": "anomaly_detection",
+          "instance_name": "frequency_anomalies",
+          "config_mapping": {
+            "asset_name": "frequency_anomalies",
+            "source_asset": "standardized_transactions",
+            "detection_method": "moving_average",
+            "metric_column": "transaction_count",
+            "moving_average_window": 7,
+            "threshold": 3.0,
+            "group_by_field": "customer_id",
+            "description": "Detect unusual transaction frequency",
+            "group_name": "fraud_detection"
+          },
+          "depends_on": ["standardized_transactions"]
+        }
+      ],
+      "pipeline_params": {
+        "ecommerce_platform": {
+          "type": "string",
+          "default": "stripe",
+          "description": "Payment platform (stripe, paypal, square, etc.)",
+          "required": true
+        },
+        "anomaly_threshold": {
+          "type": "number",
+          "default": 3.5,
+          "description": "Z-score threshold for anomaly detection (higher = stricter)",
+          "required": false
+        }
+      }
+    },
+    {
+      "id": "ab_testing_pipeline",
+      "name": "A/B Testing & Experimentation",
+      "description": "Data-driven product decisions through rigorous A/B testing",
+      "category": "experimentation",
+      "use_case": "Statistical analysis of A/B tests and experiments",
+      "business_outcome": "Ship features with confidence, avoid costly mistakes",
+      "estimated_savings": "$80,000/year vs traditional experimentation platforms",
+      "icon": "FlaskConical",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/README.md#ab-testing-pipeline",
+      "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/ab_testing_pipeline.yaml",
+      "components": [
+        {
+          "component_id": "event_data_standardizer",
+          "instance_name": "experiment_events",
+          "config_mapping": {
+            "asset_name": "experiment_events",
+            "platform": "${analytics_platform}",
+            "resource_type": "events",
+            "description": "A/B test experiment events",
+            "group_name": "experimentation"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "ab_test_analysis",
+          "instance_name": "experiment_results",
+          "config_mapping": {
+            "asset_name": "experiment_results",
+            "source_asset": "experiment_events",
+            "confidence_level": "${confidence_level}",
+            "minimum_sample_size": "${minimum_sample_size}",
+            "minimum_runtime_hours": 168,
+            "minimum_detectable_effect": "${minimum_detectable_effect}",
+            "description": "Statistical analysis of A/B tests",
+            "group_name": "experimentation"
+          },
+          "depends_on": ["experiment_events"]
+        }
+      ],
+      "pipeline_params": {
+        "analytics_platform": {
+          "type": "string",
+          "default": "segment",
+          "description": "Analytics platform (segment, amplitude, mixpanel, etc.)",
+          "required": true
+        },
+        "confidence_level": {
+          "type": "number",
+          "default": 0.95,
+          "description": "Statistical confidence level (0.90, 0.95, or 0.99)",
+          "required": false
+        },
+        "minimum_sample_size": {
+          "type": "integer",
+          "default": 1000,
+          "description": "Minimum sample size per variant",
+          "required": false
+        },
+        "minimum_detectable_effect": {
+          "type": "number",
+          "default": 0.05,
+          "description": "Minimum effect size to detect (e.g., 0.05 = 5%)",
+          "required": false
+        }
+      }
+    },
+    {
+      "id": "full_cdp_pipeline",
+      "name": "Complete CDP Platform",
+      "description": "Full-stack CDP with all analytics capabilities - the everything pipeline",
+      "category": "complete_platform",
+      "use_case": "Complete customer data platform with unified customer view",
+      "business_outcome": "Unified customer view with actionable insights across all touchpoints",
+      "estimated_savings": "$181,000/year vs traditional CDP platforms",
+      "icon": "Workflow",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/README.md#full-cdp-pipeline",
+      "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/full_cdp_pipeline.yaml",
+      "components": [
+        {
+          "component_id": "crm_data_standardizer",
+          "instance_name": "standardized_crm",
+          "config_mapping": {
+            "asset_name": "standardized_crm",
+            "platform": "${crm_platform}",
+            "resource_type": "contacts",
+            "description": "Standardized CRM data",
+            "group_name": "standardization"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "ecommerce_standardizer",
+          "instance_name": "standardized_orders",
+          "config_mapping": {
+            "asset_name": "standardized_orders",
+            "platform": "${ecommerce_platform}",
+            "resource_type": "orders",
+            "description": "Standardized order data",
+            "group_name": "standardization"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "customer_360",
+          "instance_name": "customer_360",
+          "config_mapping": {
+            "asset_name": "customer_360",
+            "crm_data_asset": "standardized_crm",
+            "transaction_data_asset": "standardized_orders",
+            "description": "Unified customer profile",
+            "group_name": "customer_analytics"
+          },
+          "depends_on": ["standardized_crm", "standardized_orders"]
+        },
+        {
+          "component_id": "customer_segmentation",
+          "instance_name": "rfm_segments",
+          "config_mapping": {
+            "asset_name": "rfm_segments",
+            "transaction_data_asset": "standardized_orders",
+            "analysis_period_days": 365,
+            "use_predefined_segments": true,
+            "description": "RFM customer segmentation",
+            "group_name": "customer_analytics"
+          },
+          "depends_on": ["standardized_orders"]
+        },
+        {
+          "component_id": "ltv_prediction",
+          "instance_name": "customer_ltv",
+          "config_mapping": {
+            "asset_name": "customer_ltv",
+            "source_asset": "standardized_orders",
+            "prediction_period_months": 24,
+            "cohort_analysis": true,
+            "description": "Customer lifetime value prediction",
+            "group_name": "customer_analytics"
+          },
+          "depends_on": ["standardized_orders"]
+        },
+        {
+          "component_id": "churn_prediction",
+          "instance_name": "churn_risk",
+          "config_mapping": {
+            "asset_name": "churn_risk",
+            "source_asset": "customer_360",
+            "inactivity_threshold_days": 60,
+            "lookback_days": 365,
+            "description": "Customer churn risk prediction",
+            "group_name": "customer_analytics"
+          },
+          "depends_on": ["customer_360"]
+        },
+        {
+          "component_id": "anomaly_detection",
+          "instance_name": "transaction_anomalies",
+          "config_mapping": {
+            "asset_name": "transaction_anomalies",
+            "source_asset": "standardized_orders",
+            "detection_method": "z_score",
+            "metric_column": "total_amount",
+            "threshold": 3.0,
+            "description": "Detect unusual transactions",
+            "group_name": "monitoring"
+          },
+          "depends_on": ["standardized_orders"]
+        }
+      ],
+      "pipeline_params": {
+        "crm_platform": {
+          "type": "string",
+          "default": "hubspot",
+          "description": "CRM platform (hubspot, salesforce, pipedrive, etc.)",
+          "required": true
+        },
+        "ecommerce_platform": {
+          "type": "string",
+          "default": "shopify",
+          "description": "E-commerce platform (shopify, woocommerce, magento, etc.)",
+          "required": true
+        }
+      }
+    }
+  ]
+}

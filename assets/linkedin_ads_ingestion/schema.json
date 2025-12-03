@@ -1,0 +1,141 @@
+{
+  "type": "dagster_component_templates.LinkedInAdsIngestionComponent",
+  "name": "LinkedIn Ads Ingestion",
+  "category": "cdp",
+  "description": "Ingest LinkedIn Ads data (campaigns, creatives, analytics) using dlt REST API. Mimics Supermetrics and Funnel.io.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "LinkedIn Ads data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "linkedin_ads_data"
+    },
+    "access_token": {
+      "type": "string",
+      "required": true,
+      "label": "Access Token",
+      "description": "LinkedIn OAuth 2.0 Access Token. Use ${LINKEDIN_ACCESS_TOKEN} for env vars.",
+      "placeholder": "${LINKEDIN_ACCESS_TOKEN}",
+      "secret": true
+    },
+    "account_ids": {
+      "type": "string",
+      "required": true,
+      "label": "Ad Account IDs",
+      "description": "Comma-separated LinkedIn Ad Account IDs",
+      "placeholder": "123456789,987654321"
+    },
+    "resources": {
+      "type": "string",
+      "required": false,
+      "label": "Resources to Extract",
+      "description": "Comma-separated: accounts, campaigns, creatives, campaign_groups, analytics, conversions",
+      "default": "campaigns,analytics",
+      "placeholder": "campaigns,analytics"
+    },
+    "start_date": {
+      "type": "string",
+      "required": false,
+      "label": "Start Date",
+      "description": "Start date for analytics (YYYY-MM-DD). Defaults to 30 days ago.",
+      "placeholder": "2024-01-01"
+    },
+    "end_date": {
+      "type": "string",
+      "required": false,
+      "label": "End Date",
+      "description": "End date for analytics (YYYY-MM-DD). Defaults to today.",
+      "placeholder": "2024-12-31"
+    },
+    "time_granularity": {
+      "type": "string",
+      "required": false,
+      "label": "Time Granularity",
+      "description": "Analytics time granularity",
+      "default": "DAILY",
+      "enum": ["DAILY", "MONTHLY", "ALL"],
+      "placeholder": "DAILY"
+    },
+    "pivot_by": {
+      "type": "string",
+      "required": false,
+      "label": "Pivot By",
+      "description": "Analytics pivot dimension (optional)",
+      "enum": ["", "CAMPAIGN", "CREATIVE", "ACCOUNT", "COMPANY"],
+      "placeholder": "CAMPAIGN"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "LinkedIn Ads data ingestion"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "linkedin_ads",
+      "placeholder": "linkedin_ads"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    },
+    "destination": {
+      "type": "string",
+      "required": false,
+      "label": "Destination",
+      "description": "Database destination (leave empty for DataFrame-only mode)",
+      "enum": ["", "snowflake", "bigquery", "postgres", "redshift", "duckdb"],
+      "placeholder": ""
+    },
+    "destination_config": {
+      "type": "string",
+      "required": false,
+      "label": "Destination Config",
+      "description": "Destination configuration (if destination is set)",
+      "placeholder": "{}"
+    },
+    "persist_and_return": {
+      "type": "boolean",
+      "required": false,
+      "label": "Persist and Return",
+      "description": "Persist to database AND return DataFrame",
+      "default": false
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dlt[rest_api]>=0.4.0",
+      "pandas>=1.5.0"
+    ]
+  },
+  "tags": [
+    "cdp",
+    "marketing",
+    "linkedin",
+    "ads",
+    "advertising",
+    "dlt",
+    "ingestion"
+  ]
+}

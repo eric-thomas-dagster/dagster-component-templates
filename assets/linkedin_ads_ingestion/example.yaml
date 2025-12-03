@@ -1,0 +1,23 @@
+type: dagster_component_templates.LinkedInAdsIngestionComponent
+attributes:
+  asset_name: linkedin_ads_data
+
+  # LinkedIn Authentication
+  access_token: "${LINKEDIN_ACCESS_TOKEN}"
+  account_ids: "123456789,987654321"
+
+  # Resources to extract
+  resources: "campaigns,analytics"
+
+  # Date range for analytics (optional)
+  # start_date: "2024-01-01"
+  # end_date: "2024-12-31"
+
+  # Analytics configuration
+  time_granularity: "DAILY"
+  # pivot_by: "CAMPAIGN"
+
+  # Organization
+  description: "LinkedIn Ads campaign and performance data"
+  group_name: "linkedin_ads"
+  include_sample_metadata: true

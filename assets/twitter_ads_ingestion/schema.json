@@ -1,0 +1,36 @@
+{
+  "type": "dagster_component_templates.TwitterAdsIngestionComponent",
+  "name": "Twitter/X Ads Ingestion",
+  "category": "cdp",
+  "description": "Ingest Twitter/X Ads data (campaigns, line items, analytics) using dlt REST API. Mimics Supermetrics and Funnel.io.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Twitter/X Ads data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {},
+  "dependencies": {
+    "pip": [
+      "dlt[rest_api]>=0.4.0",
+      "pandas>=1.5.0"
+    ]
+  },
+  "tags": [
+    "cdp",
+    "marketing",
+    "twitter",
+    "x",
+    "ads",
+    "advertising",
+    "dlt",
+    "ingestion"
+  ]
+}

@@ -1,0 +1,28 @@
+type: dagster_component_templates.PinterestAdsIngestionComponent
+attributes:
+  asset_name: pinterest_ads_data
+
+  # Pinterest Authentication
+  access_token: "${PINTEREST_ACCESS_TOKEN}"
+  ad_account_ids: "123456789,987654321"
+
+  # Optional app credentials
+  # app_id: "${PINTEREST_APP_ID}"
+  # app_secret: "${PINTEREST_APP_SECRET}"
+
+  # Resources to extract
+  resources: "campaigns,analytics"
+
+  # Date range for analytics (optional)
+  # start_date: "2024-01-01"
+  # end_date: "2024-12-31"
+
+  # Analytics configuration
+  granularity: "DAY"
+  level: "CAMPAIGN"
+  # columns: "SPEND_IN_DOLLAR,IMPRESSION_1,CLICKTHROUGH_1,TOTAL_CONVERSIONS"
+
+  # Organization
+  description: "Pinterest Ads campaign and performance data"
+  group_name: "pinterest_ads"
+  include_sample_metadata: true

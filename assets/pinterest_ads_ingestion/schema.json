@@ -1,0 +1,35 @@
+{
+  "type": "dagster_component_templates.PinterestAdsIngestionComponent",
+  "name": "Pinterest Ads Ingestion",
+  "category": "cdp",
+  "description": "Ingest Pinterest Ads data (campaigns, ad groups, ads, analytics) using dlt REST API. Mimics Supermetrics and Funnel.io.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Pinterest Ads data as pandas DataFrame for downstream transformation"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {},
+  "dependencies": {
+    "pip": [
+      "dlt[rest_api]>=0.4.0",
+      "pandas>=1.5.0"
+    ]
+  },
+  "tags": [
+    "cdp",
+    "marketing",
+    "pinterest",
+    "ads",
+    "advertising",
+    "dlt",
+    "ingestion"
+  ]
+}

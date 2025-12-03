@@ -1,0 +1,28 @@
+type: dagster_component_templates.TikTokAdsIngestionComponent
+attributes:
+  asset_name: tiktok_ads_data
+
+  # TikTok Authentication
+  access_token: "${TIKTOK_ACCESS_TOKEN}"
+  advertiser_ids: "1234567890,9876543210"
+
+  # Optional app credentials
+  # app_id: "${TIKTOK_APP_ID}"
+  # secret: "${TIKTOK_SECRET}"
+
+  # Resources to extract
+  resources: "campaigns,reports"
+
+  # Date range for reports (optional)
+  # start_date: "2024-01-01"
+  # end_date: "2024-12-31"
+
+  # Report configuration
+  report_type: "BASIC"
+  data_level: "AUCTION_CAMPAIGN"
+  # metrics: "spend,impressions,clicks,conversions"
+
+  # Organization
+  description: "TikTok Ads campaign and performance data"
+  group_name: "tiktok_ads"
+  include_sample_metadata: true

@@ -1,0 +1,30 @@
+type: dagster_component_templates.TwitterAdsIngestionComponent
+attributes:
+  asset_name: twitter_ads_data
+
+  # Twitter API Authentication (OAuth 1.0a)
+  consumer_key: "${TWITTER_CONSUMER_KEY}"
+  consumer_secret: "${TWITTER_CONSUMER_SECRET}"
+  access_token: "${TWITTER_ACCESS_TOKEN}"
+  access_token_secret: "${TWITTER_ACCESS_TOKEN_SECRET}"
+
+  # Twitter Ads Account IDs
+  account_ids: "abc123,xyz789"
+
+  # Resources to extract
+  resources: "campaigns,analytics"
+
+  # Date range for analytics (optional)
+  # start_date: "2024-01-01"
+  # end_date: "2024-12-31"
+
+  # Analytics configuration
+  entity_type: "CAMPAIGN"
+  granularity: "DAY"
+  metric_groups: "ENGAGEMENT,BILLING"
+  placement: "ALL_ON_TWITTER"
+
+  # Organization
+  description: "Twitter/X Ads campaign and performance data"
+  group_name: "twitter_ads"
+  include_sample_metadata: true

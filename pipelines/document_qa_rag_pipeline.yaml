@@ -133,6 +133,18 @@ pipeline:
         description: "Generate embeddings for chunks"
         group_name: "document_rag"
 
+    # Optional: Write embeddings to warehouse for auditing/tracking
+    - id: dlt_dataframe_writer
+      instance_name: embeddings_backup
+      config:
+        asset_name: "embeddings_backup"
+        source_asset: "document_embeddings"
+        table_name: "document_embeddings_log"
+        destination: ""  # Empty = in-memory DuckDB (configure for production)
+        write_mode: "append"
+        description: "Write embeddings to warehouse for tracking (optional)"
+        group_name: "document_rag"
+
     - id: vector_store_writer
       instance_name: vector_index
       config:

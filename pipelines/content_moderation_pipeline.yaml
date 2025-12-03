@@ -247,6 +247,18 @@ pipeline:
         description: "Calculate violation scores and route actions"
         group_name: "content_moderation"
 
+    # Step 7: Write moderated content results to database
+    - id: dlt_dataframe_writer
+      instance_name: moderation_output
+      config:
+        asset_name: "moderation_output"
+        source_asset: "moderation_decisions"
+        table_name: "content_moderation_results"
+        destination: ""  # Empty = in-memory DuckDB (configure for production)
+        write_mode: "append"
+        description: "Write moderation results to database"
+        group_name: "content_moderation"
+
   # Action routing rules
   action_rules:
     auto_approve:

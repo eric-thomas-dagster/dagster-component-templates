@@ -253,6 +253,18 @@ pipeline:
         description: "Search knowledge base for relevant articles"
         group_name: "support_automation"
 
+    # Step 8: Write processed tickets to database
+    - id: dlt_dataframe_writer
+      instance_name: tickets_output
+      config:
+        asset_name: "tickets_output"
+        source_asset: "kb_search_results"  # Will use last available asset
+        table_name: "support_tickets_processed"
+        destination: ""  # Empty = in-memory DuckDB (configure for production)
+        write_mode: "append"
+        description: "Write processed tickets to database"
+        group_name: "support_automation"
+
   # Automation actions (post-pipeline)
   automation_config:
     routing:

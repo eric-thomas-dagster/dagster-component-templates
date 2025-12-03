@@ -109,6 +109,18 @@ pipeline:
         description: "Extract entities from reviews"
         group_name: "sentiment_analysis"
 
+    # Final step: Write results to database
+    - id: dlt_dataframe_writer
+      instance_name: sentiment_output
+      config:
+        asset_name: "sentiment_output"
+        source_asset: "review_entities"
+        table_name: "review_sentiment_analysis"
+        destination: ""  # Empty = in-memory DuckDB (configure for production)
+        write_mode: "append"
+        description: "Write sentiment analysis results to database"
+        group_name: "sentiment_analysis"
+
   # Estimated costs
   costs:
     transformer_method: "$50-100/month for 10k reviews"

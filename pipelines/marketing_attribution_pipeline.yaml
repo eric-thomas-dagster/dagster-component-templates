@@ -68,7 +68,19 @@ attributes:
   group_name: marketing_analytics
 
 ---
-# Component 6: Budget Optimization (Optional - Custom Component)
+# Component 6: Write Results to Database
+type: dagster_component_templates.DLTDataFrameWriterComponent
+attributes:
+  asset_name: marketing_attribution_output
+  source_asset: campaign_roi
+  table_name: marketing_attribution_results
+  destination: ""  # Empty = in-memory DuckDB (configure for production)
+  write_mode: append
+  description: "Write attribution results to database"
+  group_name: marketing_analytics
+
+---
+# Component 7: Budget Optimization (Optional - Custom Component)
 # This would analyze attribution + performance to recommend budget shifts
 # Example: Increase Google Ads budget by 20%, decrease Facebook by 10%
 

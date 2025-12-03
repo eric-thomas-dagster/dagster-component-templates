@@ -191,6 +191,25 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_table_writer/requirements.txt"
     },
     {
+      "id": "dlt_dataframe_writer",
+      "name": "DLT DataFrame Writer",
+      "category": "assets",
+      "description": "Write DataFrames to any database (Snowflake, BigQuery, Postgres, Redshift, DuckDB, etc.) using dlt with automatic schema evolution",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/dlt_dataframe_writer",
+      "tags": ["dlt", "database", "storage", "persistence", "warehouse", "data-output"],
+      "dependencies": {
+        "pip": ["dlt[all]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "Database",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dlt_dataframe_writer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dlt_dataframe_writer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dlt_dataframe_writer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dlt_dataframe_writer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dlt_dataframe_writer/requirements.txt"
+    },
+    {
       "id": "time_series_generator",
       "name": "Time Series Generator",
       "category": "assets",

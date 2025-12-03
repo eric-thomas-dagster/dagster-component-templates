@@ -308,6 +308,58 @@ attributes:
   group_name: monitoring
 
 # ============================================================================
+# DATA PERSISTENCE - Write key outputs to database
+# ============================================================================
+
+---
+# Write Customer Analytics to Database
+type: dagster_component_templates.DLTDataFrameWriterComponent
+attributes:
+  asset_name: customer_analytics_output
+  source_asset: health_scores
+  table_name: customer_analytics
+  destination: ""  # Empty = in-memory DuckDB (configure for production)
+  write_mode: replace  # Replace to keep latest customer data
+  description: "Write customer analytics to database"
+  group_name: customer_analytics
+
+---
+# Write Marketing Analytics to Database
+type: dagster_component_templates.DLTDataFrameWriterComponent
+attributes:
+  asset_name: marketing_analytics_output
+  source_asset: campaign_roi
+  table_name: marketing_analytics
+  destination: ""  # Empty = in-memory DuckDB (configure for production)
+  write_mode: append  # Append for historical campaign data
+  description: "Write marketing analytics to database"
+  group_name: marketing_analytics
+
+---
+# Write Product Analytics to Database
+type: dagster_component_templates.DLTDataFrameWriterComponent
+attributes:
+  asset_name: product_analytics_output
+  source_asset: product_recommendations
+  table_name: product_analytics
+  destination: ""  # Empty = in-memory DuckDB (configure for production)
+  write_mode: replace  # Replace to keep fresh recommendations
+  description: "Write product analytics to database"
+  group_name: product_analytics
+
+---
+# Write Monitoring Results to Database
+type: dagster_component_templates.DLTDataFrameWriterComponent
+attributes:
+  asset_name: monitoring_output
+  source_asset: engagement_anomalies
+  table_name: anomaly_monitoring
+  destination: ""  # Empty = in-memory DuckDB (configure for production)
+  write_mode: append  # Append to keep anomaly history
+  description: "Write monitoring results to database"
+  group_name: monitoring
+
+# ============================================================================
 # SCHEDULE & ORCHESTRATION
 # ============================================================================
 

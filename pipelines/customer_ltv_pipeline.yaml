@@ -62,9 +62,16 @@ attributes:
   group_name: customer_analytics
 
 ---
-# Component 5: High-Value Customer Export
-# (You would add a custom export component here or use existing integrations)
-# For example: Export to CRM, email platform, or data warehouse
+# Component 5: Write LTV Segments to Database
+type: dagster_component_templates.DLTDataFrameWriterComponent
+attributes:
+  asset_name: ltv_segments_output
+  source_asset: ltv_segments
+  table_name: customer_ltv_segments
+  destination: ""  # Empty = in-memory DuckDB (configure for production)
+  write_mode: replace  # Replace to keep latest segments
+  description: "Write customer LTV segments to database"
+  group_name: customer_analytics
 
 # Schedule: Run daily at 2 AM
 # schedule:

@@ -71,9 +71,19 @@ attributes:
   group_name: product_analytics
 
 ---
-# Component 6: Cold-Start Recommendations (New Products)
-# For products with no purchase history, recommend based on category similarity
-# (This would be a custom component or use category-based rules)
+# Component 6: Write Recommendations to Database
+type: dagster_component_templates.DLTDataFrameWriterComponent
+attributes:
+  asset_name: recommendations_output
+  source_asset: trending_products
+  table_name: product_recommendations
+  destination: ""  # Empty = in-memory DuckDB (configure for production)
+  write_mode: replace  # Replace to keep recommendations fresh
+  description: "Write product recommendations to database"
+  group_name: product_analytics
+
+# Note: You can also write product_recommendations and product_bundles
+# to separate tables by adding more DLTDataFrameWriterComponent instances
 
 ---
 # Component 7: Recommendation API / Cache

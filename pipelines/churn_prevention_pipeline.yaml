@@ -88,12 +88,19 @@ attributes:
   group_name: customer_analytics
 
 ---
-# Component 8: High-Risk Customer Alerts
-# (Custom component or integration)
-# Combines churn_risk + ltv to identify:
-#   - High LTV + High Churn Risk = Immediate intervention
-#   - Medium LTV + High Churn Risk = Automated campaign
-#   - Low LTV + High Churn Risk = Light touch or let churn
+# Component 8: Write Churn Analysis to Database
+type: dagster_component_templates.DLTDataFrameWriterComponent
+attributes:
+  asset_name: churn_analysis_output
+  source_asset: reengagement_propensity
+  table_name: churn_risk_analysis
+  destination: ""  # Empty = in-memory DuckDB (configure for production)
+  write_mode: replace  # Replace to keep latest risk scores
+  description: "Write churn risk analysis to database"
+  group_name: customer_analytics
+
+# Note: You can also write customer_360, churn_risk_scores, and customer_ltv_churn
+# to separate tables by adding more DLTDataFrameWriterComponent instances
 
 # Schedule: Run daily for fresh risk scores
 # schedule:

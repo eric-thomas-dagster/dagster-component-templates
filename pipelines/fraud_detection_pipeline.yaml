@@ -84,19 +84,19 @@ attributes:
   group_name: fraud_detection
 
 ---
-# Component 7: Fraud Risk Scoring
-# (Custom component that combines all anomaly signals)
-# Calculates composite fraud score (0-100):
-#   - Amount anomaly: 40%
-#   - Frequency anomaly: 30%
-#   - Location anomaly: 20%
-#   - Time-of-day anomaly: 10%
-#
-# Risk Levels:
-#   - Critical (90-100): Auto-block, immediate investigation
-#   - High (70-89): Hold for manual review
-#   - Medium (50-69): Flag for monitoring
-#   - Low (0-49): Allow, log for analysis
+# Component 7: Write Fraud Detection Results to Database
+type: dagster_component_templates.DLTDataFrameWriterComponent
+attributes:
+  asset_name: fraud_detection_output
+  source_asset: location_anomalies
+  table_name: fraud_detection_results
+  destination: ""  # Empty = in-memory DuckDB (configure for production)
+  write_mode: append  # Append to keep historical fraud attempts
+  description: "Write fraud detection results to database"
+  group_name: fraud_detection
+
+# Note: You can also write amount_anomalies and frequency_anomalies
+# to separate tables by adding more DLTDataFrameWriterComponent instances
 
 ---
 # Component 8: False Positive Feedback Loop

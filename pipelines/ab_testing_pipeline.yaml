@@ -38,13 +38,16 @@ attributes:
   group_name: experimentation
 
 ---
-# Component 3: Experiment Velocity Tracker
-# (Custom component)
-# Tracks:
-#   - Experiments run per week
-#   - Average time to significance
-#   - Win rate (% of tests with positive results)
-#   - Cumulative impact of all experiments
+# Component 3: Write Experiment Results to Database
+type: dagster_component_templates.DLTDataFrameWriterComponent
+attributes:
+  asset_name: experiment_results_output
+  source_asset: experiment_results
+  table_name: ab_test_results
+  destination: ""  # Empty = in-memory DuckDB (configure for production)
+  write_mode: append  # Append to keep experiment history
+  description: "Write A/B test results to database"
+  group_name: experimentation
 
 # Schedule: Update every hour for real-time decision making
 # schedule:

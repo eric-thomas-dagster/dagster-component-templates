@@ -93,7 +93,10 @@
           "description": "Your Shopify shop domain (e.g., mystore.myshopify.com)",
           "required": true,
           "sensitive": false,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "shopify"
+          }
         },
         "shopify_access_token": {
           "type": "string",
@@ -104,7 +107,10 @@
           "required_in_local": false,
           "required_in_branch": true,
           "required_in_production": true,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "shopify"
+          }
         },
         "output_destination": {
           "type": "string",
@@ -513,6 +519,79 @@
             "local": true,
             "branch": true,
             "production": false
+          }
+        },
+        "woocommerce_url": {
+          "type": "string",
+          "description": "WooCommerce store URL (e.g., https://mystore.com)",
+          "required": true,
+          "sensitive": false,
+          "placeholder": "https://mystore.com",
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "woocommerce"
+          }
+        },
+        "woocommerce_consumer_key": {
+          "type": "string",
+          "description": "WooCommerce REST API consumer key",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "woocommerce"
+          }
+        },
+        "woocommerce_consumer_secret": {
+          "type": "string",
+          "description": "WooCommerce REST API consumer secret",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "woocommerce"
+          }
+        },
+        "magento_url": {
+          "type": "string",
+          "description": "Magento store URL (e.g., https://mystore.com)",
+          "required": true,
+          "sensitive": false,
+          "placeholder": "https://mystore.com",
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "magento"
+          }
+        },
+        "magento_access_token": {
+          "type": "string",
+          "description": "Magento REST API access token",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "magento"
+          }
+        },
+        "bigcommerce_store_hash": {
+          "type": "string",
+          "description": "BigCommerce store hash (found in API Path)",
+          "required": true,
+          "sensitive": false,
+          "placeholder": "abc123xyz",
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "bigcommerce"
+          }
+        },
+        "bigcommerce_access_token": {
+          "type": "string",
+          "description": "BigCommerce API access token",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "bigcommerce"
           }
         }
       }
@@ -1739,7 +1818,10 @@
           "placeholder": "mystore.myshopify.com",
           "required": true,
           "sensitive": false,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "shopify"
+          }
         },
         "shopify_access_token": {
           "type": "string",
@@ -1750,7 +1832,10 @@
           "required_in_local": false,
           "required_in_branch": true,
           "required_in_production": true,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "shopify"
+          }
         },
         "output_destination": {
           "type": "string",
@@ -2154,6 +2239,79 @@
             "local": true,
             "branch": true,
             "production": false
+          }
+        },
+        "woocommerce_url": {
+          "type": "string",
+          "description": "WooCommerce store URL (e.g., https://mystore.com)",
+          "required": true,
+          "sensitive": false,
+          "placeholder": "https://mystore.com",
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "woocommerce"
+          }
+        },
+        "woocommerce_consumer_key": {
+          "type": "string",
+          "description": "WooCommerce REST API consumer key",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "woocommerce"
+          }
+        },
+        "woocommerce_consumer_secret": {
+          "type": "string",
+          "description": "WooCommerce REST API consumer secret",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "woocommerce"
+          }
+        },
+        "magento_url": {
+          "type": "string",
+          "description": "Magento store URL (e.g., https://mystore.com)",
+          "required": true,
+          "sensitive": false,
+          "placeholder": "https://mystore.com",
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "magento"
+          }
+        },
+        "magento_access_token": {
+          "type": "string",
+          "description": "Magento REST API access token",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "magento"
+          }
+        },
+        "bigcommerce_store_hash": {
+          "type": "string",
+          "description": "BigCommerce store hash (found in API Path)",
+          "required": true,
+          "sensitive": false,
+          "placeholder": "abc123xyz",
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "bigcommerce"
+          }
+        },
+        "bigcommerce_access_token": {
+          "type": "string",
+          "description": "BigCommerce API access token",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "bigcommerce"
           }
         }
       }
@@ -2273,7 +2431,10 @@
           "required_in_local": false,
           "required_in_branch": true,
           "required_in_production": true,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "stripe"
+          }
         },
         "output_destination": {
           "type": "string",
@@ -2677,6 +2838,79 @@
             "local": true,
             "branch": true,
             "production": false
+          }
+        },
+        "woocommerce_url": {
+          "type": "string",
+          "description": "WooCommerce store URL (e.g., https://mystore.com)",
+          "required": true,
+          "sensitive": false,
+          "placeholder": "https://mystore.com",
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "woocommerce"
+          }
+        },
+        "woocommerce_consumer_key": {
+          "type": "string",
+          "description": "WooCommerce REST API consumer key",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "woocommerce"
+          }
+        },
+        "woocommerce_consumer_secret": {
+          "type": "string",
+          "description": "WooCommerce REST API consumer secret",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "woocommerce"
+          }
+        },
+        "magento_url": {
+          "type": "string",
+          "description": "Magento store URL (e.g., https://mystore.com)",
+          "required": true,
+          "sensitive": false,
+          "placeholder": "https://mystore.com",
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "magento"
+          }
+        },
+        "magento_access_token": {
+          "type": "string",
+          "description": "Magento REST API access token",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "magento"
+          }
+        },
+        "bigcommerce_store_hash": {
+          "type": "string",
+          "description": "BigCommerce store hash (found in API Path)",
+          "required": true,
+          "sensitive": false,
+          "placeholder": "abc123xyz",
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "bigcommerce"
+          }
+        },
+        "bigcommerce_access_token": {
+          "type": "string",
+          "description": "BigCommerce API access token",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "bigcommerce"
           }
         }
       }
@@ -3506,7 +3740,10 @@
           "required_in_local": false,
           "required_in_branch": true,
           "required_in_production": true,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "hubspot"
+          }
         },
         "shopify_shop_domain": {
           "type": "string",
@@ -3515,7 +3752,10 @@
           "placeholder": "mystore.myshopify.com",
           "required": true,
           "sensitive": false,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "shopify"
+          }
         },
         "shopify_access_token": {
           "type": "string",
@@ -3526,7 +3766,10 @@
           "required_in_local": false,
           "required_in_branch": true,
           "required_in_production": true,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "shopify"
+          }
         },
         "google_ads_customer_id": {
           "type": "string",
@@ -3535,7 +3778,10 @@
           "placeholder": "1234567890",
           "required": true,
           "sensitive": false,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "google_ads"
+          }
         },
         "google_ads_developer_token": {
           "type": "string",
@@ -3546,7 +3792,10 @@
           "required_in_local": false,
           "required_in_branch": true,
           "required_in_production": true,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "google_ads"
+          }
         },
         "facebook_access_token": {
           "type": "string",
@@ -3557,7 +3806,10 @@
           "required_in_local": false,
           "required_in_branch": true,
           "required_in_production": true,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "facebook_ads"
+          }
         },
         "facebook_ad_account_id": {
           "type": "string",
@@ -3566,7 +3818,10 @@
           "placeholder": "act_123456789",
           "required": true,
           "sensitive": false,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "facebook_ads"
+          }
         },
         "zendesk_subdomain": {
           "type": "string",
@@ -3575,7 +3830,10 @@
           "placeholder": "mycompany",
           "required": true,
           "sensitive": false,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "zendesk"
+          }
         },
         "zendesk_email": {
           "type": "string",
@@ -3583,7 +3841,10 @@
           "description": "Zendesk admin email",
           "required": true,
           "sensitive": false,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "zendesk"
+          }
         },
         "zendesk_api_token": {
           "type": "string",
@@ -3594,7 +3855,10 @@
           "required_in_local": false,
           "required_in_branch": true,
           "required_in_production": true,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "zendesk"
+          }
         },
         "output_destination": {
           "type": "string",
@@ -3998,6 +4262,79 @@
             "local": true,
             "branch": true,
             "production": false
+          }
+        },
+        "woocommerce_url": {
+          "type": "string",
+          "description": "WooCommerce store URL (e.g., https://mystore.com)",
+          "required": true,
+          "sensitive": false,
+          "placeholder": "https://mystore.com",
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "woocommerce"
+          }
+        },
+        "woocommerce_consumer_key": {
+          "type": "string",
+          "description": "WooCommerce REST API consumer key",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "woocommerce"
+          }
+        },
+        "woocommerce_consumer_secret": {
+          "type": "string",
+          "description": "WooCommerce REST API consumer secret",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "woocommerce"
+          }
+        },
+        "magento_url": {
+          "type": "string",
+          "description": "Magento store URL (e.g., https://mystore.com)",
+          "required": true,
+          "sensitive": false,
+          "placeholder": "https://mystore.com",
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "magento"
+          }
+        },
+        "magento_access_token": {
+          "type": "string",
+          "description": "Magento REST API access token",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "magento"
+          }
+        },
+        "bigcommerce_store_hash": {
+          "type": "string",
+          "description": "BigCommerce store hash (found in API Path)",
+          "required": true,
+          "sensitive": false,
+          "placeholder": "abc123xyz",
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "bigcommerce"
+          }
+        },
+        "bigcommerce_access_token": {
+          "type": "string",
+          "description": "BigCommerce API access token",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "bigcommerce"
           }
         }
       }
@@ -4090,7 +4427,10 @@
           "placeholder": "mystore.myshopify.com",
           "required": true,
           "sensitive": false,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "shopify"
+          }
         },
         "shopify_access_token": {
           "type": "string",
@@ -4101,7 +4441,10 @@
           "required_in_local": false,
           "required_in_branch": true,
           "required_in_production": true,
-          "environment_specific": true
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "shopify"
+          }
         },
         "output_destination": {
           "type": "string",
@@ -4505,6 +4848,79 @@
             "local": true,
             "branch": true,
             "production": false
+          }
+        },
+        "woocommerce_url": {
+          "type": "string",
+          "description": "WooCommerce store URL (e.g., https://mystore.com)",
+          "required": true,
+          "sensitive": false,
+          "placeholder": "https://mystore.com",
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "woocommerce"
+          }
+        },
+        "woocommerce_consumer_key": {
+          "type": "string",
+          "description": "WooCommerce REST API consumer key",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "woocommerce"
+          }
+        },
+        "woocommerce_consumer_secret": {
+          "type": "string",
+          "description": "WooCommerce REST API consumer secret",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "woocommerce"
+          }
+        },
+        "magento_url": {
+          "type": "string",
+          "description": "Magento store URL (e.g., https://mystore.com)",
+          "required": true,
+          "sensitive": false,
+          "placeholder": "https://mystore.com",
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "magento"
+          }
+        },
+        "magento_access_token": {
+          "type": "string",
+          "description": "Magento REST API access token",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "magento"
+          }
+        },
+        "bigcommerce_store_hash": {
+          "type": "string",
+          "description": "BigCommerce store hash (found in API Path)",
+          "required": true,
+          "sensitive": false,
+          "placeholder": "abc123xyz",
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "bigcommerce"
+          }
+        },
+        "bigcommerce_access_token": {
+          "type": "string",
+          "description": "BigCommerce API access token",
+          "required": true,
+          "sensitive": true,
+          "environment_specific": true,
+          "show_if": {
+            "ecommerce_platform": "bigcommerce"
           }
         }
       }

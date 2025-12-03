@@ -34,7 +34,7 @@
           "depends_on": []
         },
         {
-          "component_id": "ltvprediction",
+          "component_id": "ltv_prediction",
           "instance_name": "customer_ltv",
           "config_mapping": {
             "asset_name": "customer_ltv",
@@ -54,7 +54,7 @@
           "depends_on": []
         },
         {
-          "component_id": "dltdata_frame_writer",
+          "component_id": "dlt_dataframe_writer",
           "instance_name": "ltv_segments_output",
           "config_mapping": {
             "asset_name": "ltv_segments_output",
@@ -654,7 +654,7 @@
           "depends_on": []
         },
         {
-          "component_id": "dltdata_frame_writer",
+          "component_id": "dlt_dataframe_writer",
           "instance_name": "marketing_attribution_output",
           "config_mapping": {
             "asset_name": "marketing_attribution_output",
@@ -1221,7 +1221,7 @@
           ]
         },
         {
-          "component_id": "ltvprediction",
+          "component_id": "ltv_prediction",
           "instance_name": "customer_ltv_churn",
           "config_mapping": {
             "asset_name": "customer_ltv_churn",
@@ -1243,7 +1243,7 @@
           ]
         },
         {
-          "component_id": "dltdata_frame_writer",
+          "component_id": "dlt_dataframe_writer",
           "instance_name": "churn_analysis_output",
           "config_mapping": {
             "asset_name": "churn_analysis_output",
@@ -1778,7 +1778,7 @@
           ]
         },
         {
-          "component_id": "dltdata_frame_writer",
+          "component_id": "dlt_dataframe_writer",
           "instance_name": "recommendations_output",
           "config_mapping": {
             "asset_name": "recommendations_output",
@@ -2389,7 +2389,7 @@
           ]
         },
         {
-          "component_id": "dltdata_frame_writer",
+          "component_id": "dlt_dataframe_writer",
           "instance_name": "fraud_detection_output",
           "config_mapping": {
             "asset_name": "fraud_detection_output",
@@ -2948,7 +2948,7 @@
           ]
         },
         {
-          "component_id": "dltdata_frame_writer",
+          "component_id": "dlt_dataframe_writer",
           "instance_name": "experiment_results_output",
           "config_mapping": {
             "asset_name": "experiment_results_output",
@@ -3515,7 +3515,7 @@
           "depends_on": []
         },
         {
-          "component_id": "ltvprediction",
+          "component_id": "ltv_prediction",
           "instance_name": "customer_ltv",
           "config_mapping": {
             "asset_name": "customer_ltv",
@@ -3665,7 +3665,7 @@
           ]
         },
         {
-          "component_id": "dltdata_frame_writer",
+          "component_id": "dlt_dataframe_writer",
           "instance_name": "customer_analytics_output",
           "config_mapping": {
             "asset_name": "customer_analytics_output",
@@ -3676,7 +3676,7 @@
           ]
         },
         {
-          "component_id": "dltdata_frame_writer",
+          "component_id": "dlt_dataframe_writer",
           "instance_name": "marketing_analytics_output",
           "config_mapping": {
             "asset_name": "marketing_analytics_output",
@@ -3687,7 +3687,7 @@
           ]
         },
         {
-          "component_id": "dltdata_frame_writer",
+          "component_id": "dlt_dataframe_writer",
           "instance_name": "product_analytics_output",
           "config_mapping": {
             "asset_name": "product_analytics_output",
@@ -3698,7 +3698,7 @@
           ]
         },
         {
-          "component_id": "dltdata_frame_writer",
+          "component_id": "dlt_dataframe_writer",
           "instance_name": "monitoring_output",
           "config_mapping": {
             "asset_name": "monitoring_output",

@@ -1,0 +1,39 @@
+type: dagster_component_templates.EmbeddingsGeneratorComponent
+attributes:
+  asset_name: document_embeddings
+
+  # Provider Configuration
+  provider: "openai"  # openai, cohere, sentence_transformers, huggingface
+  model: "text-embedding-3-small"
+  api_key: "${OPENAI_API_KEY}"
+
+  # Input/Output
+  input_column: "chunk"
+  output_column: "embedding"
+
+  # Performance
+  batch_size: 100
+  rate_limit_delay: 0.0
+
+  # Embedding Options
+  normalize_embeddings: true
+
+  # Optional: Dimension Reduction
+  # dimension_reduction: "pca"
+  # target_dimensions: 256
+
+  # Optional: Similarity Computation
+  # compute_similarity: true
+  # similarity_threshold: 0.8
+
+  # Caching
+  cache_embeddings: false
+  # cache_path: "data/embeddings_cache.parquet"
+
+  # Cost Tracking
+  track_costs: true
+
+  # Organization
+  description: "Document embeddings for RAG"
+  group_name: "embeddings"
+  include_sample_metadata: true

@@ -1,0 +1,33 @@
+type: dagster_component_templates.AnthropicLLMComponent
+attributes:
+  asset_name: document_analysis
+
+  # Anthropic Configuration
+  api_key: "${ANTHROPIC_API_KEY}"
+  model: "claude-3-5-sonnet-20241022"
+
+  # Prompts
+  system_prompt: "You are an expert document analyst. Provide clear, concise analysis."
+  user_prompt_template: "Analyze this document and extract key insights:\n\n{document_text}"
+
+  # Input/Output
+  input_column: "document_text"
+  output_column: "analysis"
+
+  # Model Parameters
+  max_tokens: 2000
+  temperature: 0.7
+
+  # Prompt Caching (save 90% on repeated contexts)
+  enable_prompt_caching: true
+
+  # Performance & Costs
+  batch_size: 10
+  rate_limit_delay: 0.2
+  enable_caching: true
+  track_costs: true
+
+  # Organization
+  description: "Document analysis with Claude 3.5 Sonnet"
+  group_name: "anthropic_llm"
+  include_sample_metadata: true

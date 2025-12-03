@@ -1,0 +1,165 @@
+{
+  "type": "dagster_component_templates.SentimentAnalyzerComponent",
+  "name": "Sentiment Analyzer",
+  "category": "ai",
+  "description": "Analyze sentiment using LLMs or transformer models with aspect-based analysis and emotion detection",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame with text column"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with sentiment labels and scores added"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "sentiment_analysis"
+    },
+    "method": {
+      "type": "string",
+      "required": false,
+      "label": "Method",
+      "description": "Analysis method",
+      "default": "transformer",
+      "enum": ["transformer", "llm"],
+      "placeholder": "transformer"
+    },
+    "model": {
+      "type": "string",
+      "required": false,
+      "label": "Model",
+      "description": "Model name",
+      "placeholder": "distilbert-base-uncased-finetuned-sst-2-english"
+    },
+    "provider": {
+      "type": "string",
+      "required": false,
+      "label": "Provider (LLM only)",
+      "description": "LLM provider",
+      "enum": ["", "openai", "anthropic"],
+      "placeholder": "openai"
+    },
+    "api_key": {
+      "type": "string",
+      "required": false,
+      "label": "API Key (LLM only)",
+      "description": "API key for LLM",
+      "placeholder": "${OPENAI_API_KEY}",
+      "secret": true
+    },
+    "input_column": {
+      "type": "string",
+      "required": false,
+      "label": "Input Column",
+      "description": "Column with text",
+      "default": "text",
+      "placeholder": "text"
+    },
+    "sentiment_label_column": {
+      "type": "string",
+      "required": false,
+      "label": "Sentiment Label Column",
+      "description": "Column for sentiment label",
+      "default": "sentiment_label",
+      "placeholder": "sentiment_label"
+    },
+    "sentiment_score_column": {
+      "type": "string",
+      "required": false,
+      "label": "Sentiment Score Column",
+      "description": "Column for confidence score",
+      "default": "sentiment_score",
+      "placeholder": "sentiment_score"
+    },
+    "sentiment_categories": {
+      "type": "string",
+      "required": false,
+      "label": "Sentiment Categories",
+      "description": "Comma-separated categories",
+      "default": "positive,negative,neutral",
+      "placeholder": "positive,negative,neutral"
+    },
+    "aspect_based": {
+      "type": "boolean",
+      "required": false,
+      "label": "Aspect-Based Analysis",
+      "description": "Enable aspect-based sentiment (LLM only)",
+      "default": false
+    },
+    "aspects": {
+      "type": "string",
+      "required": false,
+      "label": "Aspects",
+      "description": "Comma-separated aspects to analyze",
+      "placeholder": "quality,price,service"
+    },
+    "detect_emotions": {
+      "type": "boolean",
+      "required": false,
+      "label": "Detect Emotions",
+      "description": "Detect specific emotions (LLM only)",
+      "default": false
+    },
+    "batch_size": {
+      "type": "integer",
+      "required": false,
+      "label": "Batch Size",
+      "description": "Processing batch size",
+      "default": 32,
+      "placeholder": "32"
+    },
+    "confidence_threshold": {
+      "type": "number",
+      "required": false,
+      "label": "Confidence Threshold",
+      "description": "Minimum confidence (0.0-1.0)",
+      "placeholder": "0.5"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Sentiment analysis"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group",
+      "default": "sentiment_analysis",
+      "placeholder": "sentiment_analysis"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include preview",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "transformers>=4.30.0",
+      "torch>=2.0.0"
+    ]
+  },
+  "tags": [
+    "ai",
+    "sentiment",
+    "nlp",
+    "analysis",
+    "text-processing"
+  ]
+}

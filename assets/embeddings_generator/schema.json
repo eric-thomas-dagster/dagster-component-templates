@@ -1,0 +1,135 @@
+{
+  "type": "dagster_component_templates.EmbeddingsGeneratorComponent",
+  "name": "Embeddings Generator",
+  "category": "ai",
+  "description": "Generate embeddings for text using OpenAI, Cohere, or local models with batch processing and caching",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame with text column"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with embeddings column added"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "embeddings"
+    },
+    "provider": {
+      "type": "string",
+      "required": true,
+      "label": "Provider",
+      "description": "Embedding provider",
+      "enum": ["openai", "cohere", "sentence_transformers", "huggingface"],
+      "placeholder": "openai"
+    },
+    "model": {
+      "type": "string",
+      "required": true,
+      "label": "Model",
+      "description": "Model name",
+      "placeholder": "text-embedding-3-small"
+    },
+    "api_key": {
+      "type": "string",
+      "required": false,
+      "label": "API Key",
+      "description": "API key (use ${VAR} for env vars)",
+      "placeholder": "${OPENAI_API_KEY}",
+      "secret": true
+    },
+    "input_column": {
+      "type": "string",
+      "required": false,
+      "label": "Input Column",
+      "description": "Column with text",
+      "default": "text",
+      "placeholder": "text"
+    },
+    "output_column": {
+      "type": "string",
+      "required": false,
+      "label": "Output Column",
+      "description": "Column for embeddings",
+      "default": "embedding",
+      "placeholder": "embedding"
+    },
+    "batch_size": {
+      "type": "integer",
+      "required": false,
+      "label": "Batch Size",
+      "description": "Batch size for processing",
+      "default": 100,
+      "placeholder": "100"
+    },
+    "normalize_embeddings": {
+      "type": "boolean",
+      "required": false,
+      "label": "Normalize Embeddings",
+      "description": "Normalize to unit length",
+      "default": true
+    },
+    "cache_embeddings": {
+      "type": "boolean",
+      "required": false,
+      "label": "Cache Embeddings",
+      "description": "Cache to file",
+      "default": false
+    },
+    "track_costs": {
+      "type": "boolean",
+      "required": false,
+      "label": "Track Costs",
+      "description": "Track API costs",
+      "default": true
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Text embeddings"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group",
+      "default": "embeddings",
+      "placeholder": "embeddings"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include preview",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "numpy>=1.20.0",
+      "openai>=1.0.0",
+      "sentence-transformers>=2.0.0"
+    ]
+  },
+  "tags": [
+    "ai",
+    "embeddings",
+    "vector",
+    "rag",
+    "nlp",
+    "semantic-search"
+  ]
+}

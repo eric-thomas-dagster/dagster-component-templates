@@ -626,6 +626,101 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/pinterest_ads_ingestion/requirements.txt"
     },
     {
+      "id": "openai_llm",
+      "name": "OpenAI LLM",
+      "category": "ai",
+      "description": "OpenAI GPT integration for text generation, analysis, and transformation. Supports GPT-4, GPT-3.5, and batch processing.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/openai_llm",
+      "tags": ["ai", "llm", "openai", "gpt", "nlp", "text-processing", "batch"],
+      "dependencies": {
+        "pip": ["openai>=1.0.0", "pandas>=1.5.0", "tiktoken>=0.5.0"]
+      },
+      "icon": "Brain",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/openai_llm/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/openai_llm/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/openai_llm/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/openai_llm/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/openai_llm/requirements.txt"
+    },
+    {
+      "id": "anthropic_llm",
+      "name": "Anthropic Claude LLM",
+      "category": "ai",
+      "description": "Anthropic Claude integration with prompt caching for 90% cost savings. Supports Claude 3.5 Sonnet, Opus, and Haiku.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/anthropic_llm",
+      "tags": ["ai", "llm", "anthropic", "claude", "nlp", "text-processing", "batch", "prompt-caching"],
+      "dependencies": {
+        "pip": ["anthropic>=0.18.0", "pandas>=1.5.0"]
+      },
+      "icon": "Brain",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/anthropic_llm/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/anthropic_llm/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/anthropic_llm/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/anthropic_llm/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/anthropic_llm/requirements.txt"
+    },
+    {
+      "id": "document_chunker",
+      "name": "Document Chunker",
+      "category": "ai",
+      "description": "Split documents into chunks for RAG and embeddings. 5 strategies: fixed, semantic, recursive, sentence, token-aware.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/document_chunker",
+      "tags": ["ai", "rag", "document-processing", "chunking", "text-processing", "nlp"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0", "nltk>=3.8", "tiktoken>=0.5.0"]
+      },
+      "icon": "FileText",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_chunker/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_chunker/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_chunker/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_chunker/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_chunker/requirements.txt"
+    },
+    {
+      "id": "embeddings_generator",
+      "name": "Embeddings Generator",
+      "category": "ai",
+      "description": "Generate embeddings for text using OpenAI, Cohere, or local models. Includes dimension reduction and similarity computation.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/embeddings_generator",
+      "tags": ["ai", "embeddings", "vector", "rag", "nlp", "semantic-search"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0", "openai>=1.0.0", "cohere>=4.0.0", "sentence-transformers>=2.2.0", "scikit-learn>=1.0.0"]
+      },
+      "icon": "Network",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/embeddings_generator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/embeddings_generator/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/embeddings_generator/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/embeddings_generator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/embeddings_generator/requirements.txt"
+    },
+    {
+      "id": "sentiment_analyzer",
+      "name": "Sentiment Analyzer",
+      "category": "ai",
+      "description": "AI-powered sentiment analysis using LLMs or transformers. Supports aspect-based sentiment and emotion detection.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sentiment_analyzer",
+      "tags": ["ai", "sentiment", "nlp", "analysis", "text-processing", "emotions"],
+      "dependencies": {
+        "pip": ["pandas>=1.5.0", "transformers>=4.30.0", "torch>=2.0.0", "openai>=1.0.0", "anthropic>=0.18.0"]
+      },
+      "icon": "MessageCircle",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sentiment_analyzer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sentiment_analyzer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sentiment_analyzer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sentiment_analyzer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sentiment_analyzer/requirements.txt"
+    },
+    {
       "id": "marketing_data_standardizer",
       "name": "Marketing Data Standardizer",
       "category": "cdp",

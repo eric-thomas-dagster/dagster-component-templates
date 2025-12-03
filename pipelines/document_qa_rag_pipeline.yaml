@@ -1,0 +1,178 @@
+# Document Q&A / RAG Pipeline
+#
+# Use Case: Build a chatbot that answers questions about your documents
+# Perfect for: Knowledge bases, technical docs, policy manuals, research papers
+#
+# This pipeline processes documents (PDFs, markdown, text files), chunks them
+# intelligently, generates embeddings, and stores them in a vector database
+# for semantic search and question answering.
+#
+# Business Outcomes:
+# - Enable instant Q&A over thousands of documents
+# - Reduce support ticket volume by 30-40%
+# - Onboard employees faster with instant documentation access
+# - Find relevant information in seconds vs hours of manual search
+# - Always up-to-date: reprocess docs as they change
+#
+# Cost Savings: $85,000/year vs traditional solutions
+# - Glean: $100k/year
+# - Guru: $80k/year
+# - Bloomfire: $90k/year
+# - This solution: ~$15k/year (embeddings + vector DB + LLM)
+#
+# Components:
+# 1. Document Ingestion: Load PDFs, markdown, text files
+# 2. Document Chunking: Split into semantic chunks
+# 3. Embeddings Generation: Create vector representations
+# 4. Vector Store: Store embeddings for search
+# 5. LLM Q&A: Answer questions with source citations
+
+pipeline:
+  name: "Document Q&A / RAG"
+  version: "1.0.0"
+
+  # High-level configuration
+  parameters:
+    document_source:
+      type: string
+      default: "s3"
+      enum: ["s3", "google_drive", "local", "github"]
+      description: "Where documents are stored"
+      required: true
+
+    chunking_strategy:
+      type: string
+      default: "recursive"
+      enum: ["fixed", "semantic", "recursive", "sentence", "token_aware"]
+      description: "How to split documents into chunks"
+      required: true
+
+    chunk_size:
+      type: integer
+      default: 1000
+      description: "Target size of each chunk (characters)"
+      required: false
+
+    chunk_overlap:
+      type: integer
+      default: 200
+      description: "Overlap between chunks for context preservation"
+      required: false
+
+    embedding_provider:
+      type: string
+      default: "openai"
+      enum: ["openai", "cohere", "sentence_transformers", "huggingface"]
+      description: "Embeddings provider"
+      required: true
+
+    embedding_model:
+      type: string
+      default: "text-embedding-3-small"
+      description: "Embedding model to use"
+      required: false
+
+    vector_store:
+      type: string
+      default: "pinecone"
+      enum: ["pinecone", "weaviate", "chroma", "faiss"]
+      description: "Vector database for storage"
+      required: true
+
+    llm_provider:
+      type: string
+      default: "openai"
+      enum: ["openai", "anthropic"]
+      description: "LLM for question answering"
+      required: true
+
+    llm_model:
+      type: string
+      default: "gpt-4-turbo"
+      description: "LLM model for responses"
+      required: false
+
+  # Components that make up the pipeline
+  components:
+    - id: document_ingestion
+      instance_name: raw_documents
+      config:
+        asset_name: "raw_documents"
+        source_type: "${document_source}"
+        file_patterns: ["*.pdf", "*.md", "*.txt"]
+        description: "Raw document ingestion"
+        group_name: "document_rag"
+
+    - id: document_chunker
+      instance_name: document_chunks
+      config:
+        asset_name: "document_chunks"
+        source_asset: "raw_documents"
+        strategy: "${chunking_strategy}"
+        chunk_size: ${chunk_size}
+        chunk_overlap: ${chunk_overlap}
+        preserve_metadata: true
+        merge_small_chunks: true
+        input_column: "document_text"
+        output_column: "chunk_text"
+        description: "Split documents into chunks"
+        group_name: "document_rag"
+
+    - id: embeddings_generator
+      instance_name: document_embeddings
+      config:
+        asset_name: "document_embeddings"
+        source_asset: "document_chunks"
+        provider: "${embedding_provider}"
+        model: "${embedding_model}"
+        input_column: "chunk_text"
+        output_column: "embedding"
+        batch_size: 100
+        normalize: true
+        enable_caching: true
+        description: "Generate embeddings for chunks"
+        group_name: "document_rag"
+
+    - id: vector_store_writer
+      instance_name: vector_index
+      config:
+        asset_name: "vector_index"
+        source_asset: "document_embeddings"
+        vector_store: "${vector_store}"
+        index_name: "documents"
+        embedding_column: "embedding"
+        metadata_columns: ["source", "page", "chunk_position"]
+        upsert_mode: true
+        description: "Store embeddings in vector database"
+        group_name: "document_rag"
+
+  # Query configuration (for runtime Q&A)
+  query_config:
+    retrieval:
+      top_k: 5
+      similarity_threshold: 0.7
+      rerank: true
+
+    llm_response:
+      system_prompt: "You are a helpful assistant that answers questions based on the provided document context. Always cite your sources."
+      temperature: 0.3
+      max_tokens: 500
+      include_citations: true
+
+  # Estimated costs (for 10k documents)
+  costs:
+    document_processing: "$50-100/month (one-time per doc)"
+    embeddings_openai: "$200-400/month"
+    embeddings_cohere: "$150-300/month"
+    embeddings_local: "$0 (self-hosted)"
+    vector_database_pinecone: "$70/month"
+    vector_database_weaviate: "$25/month (self-hosted)"
+    llm_queries: "$500-1000/month (depends on query volume)"
+
+  # Recommended optimizations
+  optimizations:
+    - "Use text-embedding-3-small for 5x cost savings vs ada-002"
+    - "Cache embeddings to avoid reprocessing unchanged documents"
+    - "Use gpt-3.5-turbo for simple queries, gpt-4 for complex"
+    - "Implement semantic caching for repeated questions"
+    - "Self-host vector DB (Chroma/Weaviate) to save 50%+"

@@ -1,0 +1,28 @@
+type: dagster_component_templates.DocumentChunkerComponent
+attributes:
+  asset_name: document_chunks
+
+  # Chunking Strategy
+  strategy: "recursive"  # fixed, recursive, sentence, token_aware, semantic
+
+  # Chunk Configuration
+  chunk_size: 1000
+  chunk_overlap: 200
+  min_chunk_size: 100
+
+  # Input/Output
+  source_column: "document_text"
+  output_column: "chunk"
+
+  # Metadata Preservation
+  metadata_columns: "doc_id,title,author,page_number"
+  add_chunk_metadata: true
+
+  # Advanced Options
+  preserve_sentences: true
+  merge_small_chunks: true
+
+  # Organization
+  description: "Document chunks for RAG pipeline"
+  group_name: "document_processing"
+  include_sample_metadata: true

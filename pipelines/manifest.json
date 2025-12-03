@@ -586,6 +586,146 @@
           "required": true
         }
       }
+    },
+    {
+      "id": "customer_review_sentiment_pipeline",
+      "name": "Customer Review Sentiment Analysis",
+      "description": "Analyze sentiment across thousands of customer reviews using AI - identify issues before they escalate",
+      "category": "ai_analytics",
+      "use_case": "AI-powered sentiment analysis of customer feedback at scale",
+      "business_outcome": "Identify product issues 50% faster and improve customer satisfaction by 25%",
+      "estimated_savings": "$45,000/year vs traditional sentiment analysis tools",
+      "icon": "MessageSquareText",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/README.md#customer-review-sentiment-pipeline",
+      "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/customer_review_sentiment_pipeline.yaml",
+      "components": [
+        {
+          "component_id": "ecommerce_standardizer",
+          "instance_name": "standardized_reviews",
+          "config_mapping": {
+            "asset_name": "standardized_reviews",
+            "platform": "${ecommerce_platform}",
+            "resource_type": "reviews"
+          }
+        },
+        {
+          "component_id": "sentiment_analyzer",
+          "instance_name": "review_sentiment",
+          "config_mapping": {
+            "asset_name": "review_sentiment",
+            "source_asset": "standardized_reviews",
+            "method": "${sentiment_method}",
+            "input_column": "review_text"
+          }
+        },
+        {
+          "component_id": "openai_llm",
+          "instance_name": "review_entities",
+          "config_mapping": {
+            "asset_name": "review_entities",
+            "source_asset": "review_sentiment",
+            "model": "gpt-3.5-turbo",
+            "system_prompt": "Extract product features mentioned in reviews",
+            "input_column": "review_text",
+            "output_column": "entities_mentioned"
+          }
+        }
+      ],
+      "pipeline_params": {
+        "ecommerce_platform": {
+          "type": "string",
+          "default": "shopify",
+          "description": "E-commerce platform (shopify, woocommerce, magento, etc.)",
+          "required": true
+        },
+        "sentiment_method": {
+          "type": "string",
+          "default": "transformer",
+          "description": "Sentiment analysis method (transformer=fast/cheap, llm=accurate/expensive)",
+          "required": true
+        }
+      }
+    },
+    {
+      "id": "document_qa_rag_pipeline",
+      "name": "Document Q&A / RAG",
+      "description": "Build a chatbot that answers questions about your documents - knowledge base in minutes",
+      "category": "ai_knowledge",
+      "use_case": "Semantic search and Q&A over document collections using RAG",
+      "business_outcome": "Reduce support tickets by 30-40% with instant document Q&A",
+      "estimated_savings": "$85,000/year vs traditional knowledge management platforms",
+      "icon": "FileSearch",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/README.md#document-qa-rag-pipeline",
+      "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/document_qa_rag_pipeline.yaml",
+      "components": [
+        {
+          "component_id": "csv_file_ingestion",
+          "instance_name": "raw_documents",
+          "config_mapping": {
+            "asset_name": "raw_documents",
+            "file_path": "${document_path}"
+          }
+        },
+        {
+          "component_id": "document_chunker",
+          "instance_name": "document_chunks",
+          "config_mapping": {
+            "asset_name": "document_chunks",
+            "source_asset": "raw_documents",
+            "strategy": "${chunking_strategy}",
+            "chunk_size": "${chunk_size}",
+            "chunk_overlap": "${chunk_overlap}"
+          }
+        },
+        {
+          "component_id": "embeddings_generator",
+          "instance_name": "document_embeddings",
+          "config_mapping": {
+            "asset_name": "document_embeddings",
+            "source_asset": "document_chunks",
+            "provider": "${embedding_provider}",
+            "model": "${embedding_model}"
+          }
+        }
+      ],
+      "pipeline_params": {
+        "document_path": {
+          "type": "string",
+          "default": "/path/to/documents.csv",
+          "description": "Path to documents file",
+          "required": true
+        },
+        "chunking_strategy": {
+          "type": "string",
+          "default": "recursive",
+          "description": "How to split documents (fixed, semantic, recursive, sentence, token_aware)",
+          "required": true
+        },
+        "chunk_size": {
+          "type": "integer",
+          "default": 1000,
+          "description": "Target size of each chunk (characters)",
+          "required": false
+        },
+        "chunk_overlap": {
+          "type": "integer",
+          "default": 200,
+          "description": "Overlap between chunks for context",
+          "required": false
+        },
+        "embedding_provider": {
+          "type": "string",
+          "default": "openai",
+          "description": "Embeddings provider (openai, cohere, sentence_transformers, huggingface)",
+          "required": true
+        },
+        "embedding_model": {
+          "type": "string",
+          "default": "text-embedding-3-small",
+          "description": "Embedding model to use",
+          "required": false
+        }
+      }
     }
   ]
 }

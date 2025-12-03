@@ -1,0 +1,164 @@
+{
+  "type": "dagster_component_templates.AnthropicLLMComponent",
+  "name": "Anthropic Claude LLM",
+  "category": "ai",
+  "description": "Process text using Anthropic's Claude models with prompt caching, tool use, and batch processing",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": false,
+      "description": "Optional DataFrame with text column for batch processing"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with Claude responses added as new column"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "claude_enriched_data"
+    },
+    "api_key": {
+      "type": "string",
+      "required": true,
+      "label": "API Key",
+      "description": "Anthropic API key. Use ${ANTHROPIC_API_KEY} for env vars.",
+      "placeholder": "${ANTHROPIC_API_KEY}",
+      "secret": true
+    },
+    "model": {
+      "type": "string",
+      "required": false,
+      "label": "Model",
+      "description": "Claude model to use",
+      "default": "claude-3-5-sonnet-20241022",
+      "enum": ["claude-3-5-sonnet-20241022", "claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"],
+      "placeholder": "claude-3-5-sonnet-20241022"
+    },
+    "system_prompt": {
+      "type": "string",
+      "required": false,
+      "label": "System Prompt",
+      "description": "System prompt to set context",
+      "placeholder": "You are a helpful assistant..."
+    },
+    "user_prompt_template": {
+      "type": "string",
+      "required": false,
+      "label": "User Prompt Template",
+      "description": "Template with {column_name} placeholders",
+      "placeholder": "Analyze this text: {text_column}"
+    },
+    "input_column": {
+      "type": "string",
+      "required": false,
+      "label": "Input Column",
+      "description": "Column containing input text",
+      "placeholder": "text"
+    },
+    "output_column": {
+      "type": "string",
+      "required": false,
+      "label": "Output Column",
+      "description": "Column name for Claude responses",
+      "default": "claude_response",
+      "placeholder": "claude_response"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "required": false,
+      "label": "Max Tokens",
+      "description": "Maximum tokens in response (required by API)",
+      "default": 1024,
+      "placeholder": "1024"
+    },
+    "temperature": {
+      "type": "number",
+      "required": false,
+      "label": "Temperature",
+      "description": "Response randomness (0.0-1.0)",
+      "default": 1.0,
+      "placeholder": "1.0"
+    },
+    "enable_prompt_caching": {
+      "type": "boolean",
+      "required": false,
+      "label": "Enable Prompt Caching",
+      "description": "Enable prompt caching for 90% cost savings on repeated contexts",
+      "default": false
+    },
+    "batch_size": {
+      "type": "integer",
+      "required": false,
+      "label": "Batch Size",
+      "description": "Rows to process in parallel",
+      "default": 10,
+      "placeholder": "10"
+    },
+    "rate_limit_delay": {
+      "type": "number",
+      "required": false,
+      "label": "Rate Limit Delay",
+      "description": "Delay between API calls (seconds)",
+      "default": 0.2,
+      "placeholder": "0.2"
+    },
+    "enable_caching": {
+      "type": "boolean",
+      "required": false,
+      "label": "Enable Caching",
+      "description": "Cache responses to reduce costs",
+      "default": true
+    },
+    "track_costs": {
+      "type": "boolean",
+      "required": false,
+      "label": "Track Costs",
+      "description": "Track token usage and costs",
+      "default": true
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Claude LLM processing"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "anthropic_llm",
+      "placeholder": "anthropic_llm"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "anthropic>=0.18.0",
+      "pandas>=1.5.0"
+    ]
+  },
+  "tags": [
+    "ai",
+    "llm",
+    "anthropic",
+    "claude",
+    "nlp",
+    "text-processing"
+  ]
+}

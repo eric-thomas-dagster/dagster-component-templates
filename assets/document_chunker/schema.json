@@ -1,0 +1,142 @@
+{
+  "type": "dagster_component_templates.DocumentChunkerComponent",
+  "name": "Document Chunker",
+  "category": "ai",
+  "description": "Split documents into chunks for RAG and embeddings with multiple strategies",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame with document text column"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with one row per chunk, metadata preserved"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "document_chunks"
+    },
+    "strategy": {
+      "type": "string",
+      "required": false,
+      "label": "Chunking Strategy",
+      "description": "Strategy for splitting text",
+      "default": "recursive",
+      "enum": ["fixed", "recursive", "sentence", "token_aware", "semantic"],
+      "placeholder": "recursive"
+    },
+    "chunk_size": {
+      "type": "integer",
+      "required": false,
+      "label": "Chunk Size",
+      "description": "Target chunk size in characters (or tokens)",
+      "default": 1000,
+      "placeholder": "1000"
+    },
+    "chunk_overlap": {
+      "type": "integer",
+      "required": false,
+      "label": "Chunk Overlap",
+      "description": "Overlap between chunks",
+      "default": 200,
+      "placeholder": "200"
+    },
+    "source_column": {
+      "type": "string",
+      "required": false,
+      "label": "Source Column",
+      "description": "Column containing document text",
+      "default": "text",
+      "placeholder": "text"
+    },
+    "output_column": {
+      "type": "string",
+      "required": false,
+      "label": "Output Column",
+      "description": "Column name for chunks",
+      "default": "chunk",
+      "placeholder": "chunk"
+    },
+    "metadata_columns": {
+      "type": "string",
+      "required": false,
+      "label": "Metadata Columns",
+      "description": "Comma-separated columns to preserve",
+      "placeholder": "doc_id,title,author"
+    },
+    "add_chunk_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Add Chunk Metadata",
+      "description": "Add chunk position and size metadata",
+      "default": true
+    },
+    "min_chunk_size": {
+      "type": "integer",
+      "required": false,
+      "label": "Min Chunk Size",
+      "description": "Minimum chunk size",
+      "default": 100,
+      "placeholder": "100"
+    },
+    "merge_small_chunks": {
+      "type": "boolean",
+      "required": false,
+      "label": "Merge Small Chunks",
+      "description": "Merge chunks smaller than minimum",
+      "default": true
+    },
+    "preserve_sentences": {
+      "type": "boolean",
+      "required": false,
+      "label": "Preserve Sentences",
+      "description": "Avoid splitting sentences",
+      "default": true
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "Document chunks for embeddings"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group",
+      "default": "document_processing",
+      "placeholder": "document_processing"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "tiktoken>=0.5.0"
+    ]
+  },
+  "tags": [
+    "ai",
+    "rag",
+    "document-processing",
+    "chunking",
+    "text-processing",
+    "nlp"
+  ]
+}

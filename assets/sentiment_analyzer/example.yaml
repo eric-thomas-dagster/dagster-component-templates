@@ -1,0 +1,41 @@
+type: dagster_component_templates.SentimentAnalyzerComponent
+attributes:
+  asset_name: sentiment_analyzed_reviews
+
+  # Analysis Method
+  method: "transformer"  # or "llm"
+
+  # For transformer method
+  model: "distilbert-base-uncased-finetuned-sst-2-english"
+
+  # For LLM method (uncomment if using)
+  # provider: "openai"
+  # model: "gpt-4-turbo"
+  # api_key: "${OPENAI_API_KEY}"
+  # temperature: 0.0
+  # max_tokens: 100
+
+  # Input/Output
+  input_column: "review_text"
+  sentiment_label_column: "sentiment"
+  sentiment_score_column: "confidence"
+
+  # Sentiment Configuration
+  sentiment_categories: "positive,negative,neutral"
+
+  # Optional: Aspect-based sentiment (LLM only)
+  # aspect_based: true
+  # aspects: "quality,price,service"
+
+  # Optional: Emotion detection (LLM only)
+  # detect_emotions: true
+  # emotion_categories: "joy,anger,sadness"
+
+  # Performance
+  batch_size: 32
+  confidence_threshold: 0.5
+
+  # Organization
+  description: "Sentiment analysis of customer reviews"
+  group_name: "sentiment_analysis"
+  include_sample_metadata: true

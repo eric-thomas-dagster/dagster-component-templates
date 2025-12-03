@@ -1,0 +1,123 @@
+# Customer Review Sentiment Analysis Pipeline
+#
+# Use Case: Analyze sentiment across thousands of customer reviews at scale
+# Perfect for: E-commerce, SaaS, marketplaces, customer support teams
+#
+# This pipeline extracts product reviews from your e-commerce platform,
+# analyzes sentiment using AI (LLM or transformer models), extracts key
+# entities and topics, and stores enriched reviews for analysis.
+#
+# Business Outcomes:
+# - Identify product issues before they escalate
+# - Understand customer satisfaction trends
+# - Prioritize product improvements based on sentiment
+# - Track sentiment over time by product/category
+# - Generate automated reports on customer feedback
+#
+# Cost Savings: $45,000/year vs traditional sentiment analysis tools
+# - Qualtrics Text iQ: $60k/year
+# - Lexalytics: $50k/year
+# - MonkeyLearn: $40k/year
+# - This solution: ~$15k/year (LLM API costs)
+#
+# Components:
+# 1. E-commerce Ingestion: Pull reviews from Shopify, WooCommerce, etc.
+# 2. Review Standardization: Normalize review data structure
+# 3. Sentiment Analysis: LLM or transformer-based sentiment
+# 4. Entity Extraction: Identify product features mentioned
+# 5. Storage: Load to warehouse for reporting
+
+pipeline:
+  name: "Customer Review Sentiment Analysis"
+  version: "1.0.0"
+
+  # High-level configuration
+  parameters:
+    ecommerce_platform:
+      type: string
+      default: "shopify"
+      description: "E-commerce platform (shopify, woocommerce, magento, etc.)"
+      required: true
+
+    sentiment_method:
+      type: string
+      default: "transformer"
+      enum: ["transformer", "llm"]
+      description: "Sentiment analysis method (transformer=fast/cheap, llm=accurate/expensive)"
+      required: true
+
+    llm_provider:
+      type: string
+      default: "openai"
+      enum: ["openai", "anthropic"]
+      description: "LLM provider for sentiment (if method=llm)"
+      required: false
+
+    extract_entities:
+      type: boolean
+      default: true
+      description: "Extract product features and entities mentioned in reviews"
+      required: false
+
+    analysis_period_days:
+      type: integer
+      default: 30
+      description: "Number of days of reviews to analyze"
+      required: false
+
+  # Components that make up the pipeline
+  components:
+    - id: ecommerce_standardizer
+      instance_name: standardized_reviews
+      config:
+        asset_name: "standardized_reviews"
+        platform: "${ecommerce_platform}"
+        resource_type: "reviews"
+        description: "Standardized review data"
+        group_name: "sentiment_analysis"
+
+    - id: sentiment_analyzer
+      instance_name: review_sentiment
+      config:
+        asset_name: "review_sentiment"
+        source_asset: "standardized_reviews"
+        method: "${sentiment_method}"
+        model: "distilbert-base-uncased-finetuned-sst-2-english"  # if transformer
+        llm_provider: "${llm_provider}"  # if llm
+        llm_model: "gpt-3.5-turbo"  # if llm + openai
+        input_column: "review_text"
+        sentiment_categories: ["positive", "negative", "neutral"]
+        include_score: true
+        batch_size: 100
+        description: "Sentiment analysis of customer reviews"
+        group_name: "sentiment_analysis"
+
+    - id: openai_llm
+      instance_name: review_entities
+      enabled: "${extract_entities}"
+      config:
+        asset_name: "review_entities"
+        source_asset: "review_sentiment"
+        model: "gpt-3.5-turbo"
+        system_prompt: "Extract product features, topics, and entities mentioned in customer reviews. Return as comma-separated list."
+        input_column: "review_text"
+        output_column: "entities_mentioned"
+        temperature: 0.3
+        max_tokens: 100
+        batch_size: 50
+        enable_caching: true
+        description: "Extract entities from reviews"
+        group_name: "sentiment_analysis"
+
+  # Estimated costs
+  costs:
+    transformer_method: "$50-100/month for 10k reviews"
+    llm_method: "$500-1000/month for 10k reviews"
+    entity_extraction: "+$300-500/month"
+
+  # Recommended downstream actions
+  recommendations:
+    - "Use Customer Segmentation to group customers by sentiment"
+    - "Create alerts for sudden drops in sentiment"
+    - "Track sentiment by product category over time"
+    - "Integrate with support tickets to correlate issues"

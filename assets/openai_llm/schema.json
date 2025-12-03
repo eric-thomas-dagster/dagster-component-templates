@@ -1,0 +1,156 @@
+{
+  "type": "dagster_component_templates.OpenAILLMComponent",
+  "name": "OpenAI LLM",
+  "category": "ai",
+  "description": "Process text using OpenAI's GPT models with batch processing, caching, and cost tracking",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": false,
+      "description": "Optional DataFrame with text column for batch processing"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with LLM responses added as new column"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "placeholder": "openai_enriched_data"
+    },
+    "api_key": {
+      "type": "string",
+      "required": true,
+      "label": "API Key",
+      "description": "OpenAI API key. Use ${OPENAI_API_KEY} for env vars.",
+      "placeholder": "${OPENAI_API_KEY}",
+      "secret": true
+    },
+    "model": {
+      "type": "string",
+      "required": false,
+      "label": "Model",
+      "description": "OpenAI model to use",
+      "default": "gpt-3.5-turbo",
+      "enum": ["gpt-4", "gpt-4-turbo", "gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"],
+      "placeholder": "gpt-3.5-turbo"
+    },
+    "system_prompt": {
+      "type": "string",
+      "required": false,
+      "label": "System Prompt",
+      "description": "System prompt to set context",
+      "placeholder": "You are a helpful assistant..."
+    },
+    "user_prompt_template": {
+      "type": "string",
+      "required": false,
+      "label": "User Prompt Template",
+      "description": "Template with {column_name} placeholders",
+      "placeholder": "Analyze this text: {text_column}"
+    },
+    "input_column": {
+      "type": "string",
+      "required": false,
+      "label": "Input Column",
+      "description": "Column containing input text",
+      "placeholder": "text"
+    },
+    "output_column": {
+      "type": "string",
+      "required": false,
+      "label": "Output Column",
+      "description": "Column name for LLM responses",
+      "default": "llm_response",
+      "placeholder": "llm_response"
+    },
+    "temperature": {
+      "type": "number",
+      "required": false,
+      "label": "Temperature",
+      "description": "Response randomness (0.0-2.0)",
+      "default": 0.7,
+      "placeholder": "0.7"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "required": false,
+      "label": "Max Tokens",
+      "description": "Maximum tokens in response",
+      "placeholder": "500"
+    },
+    "batch_size": {
+      "type": "integer",
+      "required": false,
+      "label": "Batch Size",
+      "description": "Rows to process in parallel",
+      "default": 10,
+      "placeholder": "10"
+    },
+    "rate_limit_delay": {
+      "type": "number",
+      "required": false,
+      "label": "Rate Limit Delay",
+      "description": "Delay between API calls (seconds)",
+      "default": 0.1,
+      "placeholder": "0.1"
+    },
+    "enable_caching": {
+      "type": "boolean",
+      "required": false,
+      "label": "Enable Caching",
+      "description": "Cache responses to reduce costs",
+      "default": true
+    },
+    "track_costs": {
+      "type": "boolean",
+      "required": false,
+      "label": "Track Costs",
+      "description": "Track token usage and costs",
+      "default": true
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description",
+      "placeholder": "OpenAI LLM processing"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "openai_llm",
+      "placeholder": "openai_llm"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "openai>=1.0.0",
+      "pandas>=1.5.0"
+    ]
+  },
+  "tags": [
+    "ai",
+    "llm",
+    "openai",
+    "gpt",
+    "nlp",
+    "text-processing"
+  ]
+}

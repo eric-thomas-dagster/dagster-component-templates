@@ -11,6 +11,18 @@ Ingest LinkedIn Ads data into your data warehouse using dlt's REST API source wi
 - **Pivot Dimensions**: Analyze by campaign, creative, account, or company
 - **Multiple Destinations**: Load to DuckDB, Snowflake, BigQuery, Postgres, or Redshift
 
+- **DataFrame Output**: Returns pandas DataFrame by default for flexible transformation
+
+## Output
+
+**By default (no destination set)**: Uses in-memory DuckDB and **returns a pandas DataFrame**. Perfect for:
+- Downstream transformation with DataFrame Transformer
+- Feeding into standardizer components
+- Direct Python/pandas manipulation
+- Chaining with other Dagster assets
+
+**With destination set**: Persists to your warehouse (Snowflake, BigQuery, etc.) and optionally returns DataFrame if `persist_and_return: true`
+
 ## Data Extracted
 
 ### Standard Resources

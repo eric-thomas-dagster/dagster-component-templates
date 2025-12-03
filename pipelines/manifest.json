@@ -70,12 +70,87 @@
           "type": "string",
           "default": "shopify",
           "description": "E-commerce platform (shopify, woocommerce, magento, etc.)",
-          "required": true
+          "required": true,
+          "enum": [
+            "shopify",
+            "woocommerce",
+            "magento",
+            "bigcommerce",
+            "stripe"
+          ]
         },
         "prediction_period_months": {
           "type": "integer",
           "default": 24,
           "description": "Number of months to predict forward for LTV",
+          "required": false
+        },
+        "shopify_shop_domain": {
+          "type": "string",
+          "default": "",
+          "description": "Your Shopify shop domain (e.g., mystore.myshopify.com)",
+          "required": true,
+          "sensitive": false
+        },
+        "shopify_access_token": {
+          "type": "string",
+          "default": "",
+          "description": "Shopify Admin API access token",
+          "required": true,
+          "sensitive": true
+        },
+        "output_destination": {
+          "type": "string",
+          "default": "duckdb",
+          "enum": [
+            "duckdb",
+            "snowflake",
+            "bigquery",
+            "postgres",
+            "redshift",
+            "databricks"
+          ],
+          "description": "Database destination for pipeline output",
+          "required": true
+        },
+        "output_table_name": {
+          "type": "string",
+          "default": "customer_ltv_segments",
+          "description": "Table name for LTV segments output",
+          "required": false
+        },
+        "snowflake_account": {
+          "type": "string",
+          "default": "",
+          "description": "Snowflake account identifier",
+          "required": false,
+          "sensitive": false,
+          "show_if": {
+            "output_destination": "snowflake"
+          }
+        },
+        "database_connection_string": {
+          "type": "string",
+          "default": "",
+          "description": "Database connection string (for Postgres/Redshift)",
+          "required": false,
+          "sensitive": true,
+          "show_if": {
+            "output_destination": [
+              "postgres",
+              "redshift"
+            ]
+          }
+        },
+        "output_write_mode": {
+          "type": "string",
+          "default": "replace",
+          "enum": [
+            "replace",
+            "append",
+            "merge"
+          ],
+          "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
         }
       }
@@ -193,6 +268,63 @@
           "default": 50.0,
           "description": "Target Cost Per Acquisition",
           "required": false
+        },
+        "google_ads_customer_id": {
+          "type": "string",
+          "default": "",
+          "description": "Google Ads customer ID (without dashes)",
+          "placeholder": "1234567890",
+          "required": true,
+          "sensitive": false
+        },
+        "google_ads_developer_token": {
+          "type": "string",
+          "default": "",
+          "description": "Google Ads developer token",
+          "required": true,
+          "sensitive": true
+        },
+        "facebook_access_token": {
+          "type": "string",
+          "default": "",
+          "description": "Facebook Ads API access token",
+          "required": true,
+          "sensitive": true
+        },
+        "facebook_ad_account_id": {
+          "type": "string",
+          "default": "",
+          "description": "Facebook Ad Account ID",
+          "placeholder": "act_123456789",
+          "required": true,
+          "sensitive": false
+        },
+        "output_destination": {
+          "type": "string",
+          "default": "duckdb",
+          "enum": [
+            "duckdb",
+            "snowflake",
+            "bigquery",
+            "postgres",
+            "redshift",
+            "databricks",
+            "clickhouse",
+            "motherduck"
+          ],
+          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
+          "required": true
+        },
+        "output_write_mode": {
+          "type": "string",
+          "default": "replace",
+          "enum": [
+            "replace",
+            "append",
+            "merge"
+          ],
+          "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
+          "required": false
         }
       }
     },
@@ -301,6 +433,62 @@
           "default": 60,
           "description": "Days of inactivity before considering at-risk",
           "required": false
+        },
+        "hubspot_api_key": {
+          "type": "string",
+          "default": "",
+          "description": "HubSpot API key or private app token",
+          "required": true,
+          "sensitive": true
+        },
+        "zendesk_subdomain": {
+          "type": "string",
+          "default": "",
+          "description": "Zendesk subdomain (e.g., mycompany from mycompany.zendesk.com)",
+          "placeholder": "mycompany",
+          "required": true,
+          "sensitive": false
+        },
+        "zendesk_email": {
+          "type": "string",
+          "default": "",
+          "description": "Zendesk admin email",
+          "required": true,
+          "sensitive": false
+        },
+        "zendesk_api_token": {
+          "type": "string",
+          "default": "",
+          "description": "Zendesk API token",
+          "required": true,
+          "sensitive": true
+        },
+        "output_destination": {
+          "type": "string",
+          "default": "duckdb",
+          "enum": [
+            "duckdb",
+            "snowflake",
+            "bigquery",
+            "postgres",
+            "redshift",
+            "databricks",
+            "clickhouse",
+            "motherduck"
+          ],
+          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
+          "required": true
+        },
+        "output_write_mode": {
+          "type": "string",
+          "default": "replace",
+          "enum": [
+            "replace",
+            "append",
+            "merge"
+          ],
+          "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
+          "required": false
         }
       }
     },
@@ -384,12 +572,61 @@
           "type": "string",
           "default": "shopify",
           "description": "E-commerce platform (shopify, woocommerce, magento, etc.)",
-          "required": true
+          "required": true,
+          "enum": [
+            "shopify",
+            "woocommerce",
+            "magento",
+            "bigcommerce",
+            "stripe"
+          ]
         },
         "num_recommendations": {
           "type": "integer",
           "default": 10,
           "description": "Number of recommendations to generate per customer",
+          "required": false
+        },
+        "shopify_shop_domain": {
+          "type": "string",
+          "default": "",
+          "description": "Your Shopify shop domain (e.g., mystore.myshopify.com)",
+          "placeholder": "mystore.myshopify.com",
+          "required": true,
+          "sensitive": false
+        },
+        "shopify_access_token": {
+          "type": "string",
+          "default": "",
+          "description": "Shopify Admin API access token",
+          "required": true,
+          "sensitive": true
+        },
+        "output_destination": {
+          "type": "string",
+          "default": "duckdb",
+          "enum": [
+            "duckdb",
+            "snowflake",
+            "bigquery",
+            "postgres",
+            "redshift",
+            "databricks",
+            "clickhouse",
+            "motherduck"
+          ],
+          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
+          "required": true
+        },
+        "output_write_mode": {
+          "type": "string",
+          "default": "replace",
+          "enum": [
+            "replace",
+            "append",
+            "merge"
+          ],
+          "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
         }
       }
@@ -483,12 +720,53 @@
           "type": "string",
           "default": "stripe",
           "description": "Payment platform (stripe, paypal, square, etc.)",
-          "required": true
+          "required": true,
+          "enum": [
+            "shopify",
+            "woocommerce",
+            "magento",
+            "bigcommerce",
+            "stripe"
+          ]
         },
         "anomaly_threshold": {
           "type": "number",
           "default": 3.5,
           "description": "Z-score threshold for anomaly detection (higher = stricter)",
+          "required": false
+        },
+        "stripe_api_key": {
+          "type": "string",
+          "default": "",
+          "description": "Stripe API secret key (starts with sk_)",
+          "required": true,
+          "sensitive": true
+        },
+        "output_destination": {
+          "type": "string",
+          "default": "duckdb",
+          "enum": [
+            "duckdb",
+            "snowflake",
+            "bigquery",
+            "postgres",
+            "redshift",
+            "databricks",
+            "clickhouse",
+            "motherduck"
+          ],
+          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
+          "required": true
+        },
+        "output_write_mode": {
+          "type": "string",
+          "default": "replace",
+          "enum": [
+            "replace",
+            "append",
+            "merge"
+          ],
+          "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
         }
       }
@@ -560,6 +838,33 @@
           "type": "number",
           "default": 0.05,
           "description": "Minimum effect size to detect (e.g., 0.05 = 5%)",
+          "required": false
+        },
+        "output_destination": {
+          "type": "string",
+          "default": "duckdb",
+          "enum": [
+            "duckdb",
+            "snowflake",
+            "bigquery",
+            "postgres",
+            "redshift",
+            "databricks",
+            "clickhouse",
+            "motherduck"
+          ],
+          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
+          "required": true
+        },
+        "output_write_mode": {
+          "type": "string",
+          "default": "replace",
+          "enum": [
+            "replace",
+            "append",
+            "merge"
+          ],
+          "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
         }
       }
@@ -890,7 +1195,115 @@
           "type": "string",
           "default": "shopify",
           "description": "E-commerce platform (shopify, woocommerce, magento, etc.)",
+          "required": true,
+          "enum": [
+            "shopify",
+            "woocommerce",
+            "magento",
+            "bigcommerce",
+            "stripe"
+          ]
+        },
+        "hubspot_api_key": {
+          "type": "string",
+          "default": "",
+          "description": "HubSpot API key or private app token",
+          "required": true,
+          "sensitive": true
+        },
+        "shopify_shop_domain": {
+          "type": "string",
+          "default": "",
+          "description": "Your Shopify shop domain (e.g., mystore.myshopify.com)",
+          "placeholder": "mystore.myshopify.com",
+          "required": true,
+          "sensitive": false
+        },
+        "shopify_access_token": {
+          "type": "string",
+          "default": "",
+          "description": "Shopify Admin API access token",
+          "required": true,
+          "sensitive": true
+        },
+        "google_ads_customer_id": {
+          "type": "string",
+          "default": "",
+          "description": "Google Ads customer ID (without dashes)",
+          "placeholder": "1234567890",
+          "required": true,
+          "sensitive": false
+        },
+        "google_ads_developer_token": {
+          "type": "string",
+          "default": "",
+          "description": "Google Ads developer token",
+          "required": true,
+          "sensitive": true
+        },
+        "facebook_access_token": {
+          "type": "string",
+          "default": "",
+          "description": "Facebook Ads API access token",
+          "required": true,
+          "sensitive": true
+        },
+        "facebook_ad_account_id": {
+          "type": "string",
+          "default": "",
+          "description": "Facebook Ad Account ID",
+          "placeholder": "act_123456789",
+          "required": true,
+          "sensitive": false
+        },
+        "zendesk_subdomain": {
+          "type": "string",
+          "default": "",
+          "description": "Zendesk subdomain (e.g., mycompany from mycompany.zendesk.com)",
+          "placeholder": "mycompany",
+          "required": true,
+          "sensitive": false
+        },
+        "zendesk_email": {
+          "type": "string",
+          "default": "",
+          "description": "Zendesk admin email",
+          "required": true,
+          "sensitive": false
+        },
+        "zendesk_api_token": {
+          "type": "string",
+          "default": "",
+          "description": "Zendesk API token",
+          "required": true,
+          "sensitive": true
+        },
+        "output_destination": {
+          "type": "string",
+          "default": "duckdb",
+          "enum": [
+            "duckdb",
+            "snowflake",
+            "bigquery",
+            "postgres",
+            "redshift",
+            "databricks",
+            "clickhouse",
+            "motherduck"
+          ],
+          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
           "required": true
+        },
+        "output_write_mode": {
+          "type": "string",
+          "default": "replace",
+          "enum": [
+            "replace",
+            "append",
+            "merge"
+          ],
+          "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
+          "required": false
         }
       }
     },
@@ -954,13 +1367,66 @@
           "type": "string",
           "default": "shopify",
           "description": "E-commerce platform (shopify, woocommerce, magento, etc.)",
-          "required": true
+          "required": true,
+          "enum": [
+            "shopify",
+            "woocommerce",
+            "magento",
+            "bigcommerce",
+            "stripe"
+          ]
         },
         "sentiment_method": {
           "type": "string",
           "default": "transformer",
           "description": "Sentiment analysis method (transformer=fast/cheap, llm=accurate/expensive)",
+          "required": true,
+          "enum": [
+            "transformer",
+            "llm"
+          ]
+        },
+        "shopify_shop_domain": {
+          "type": "string",
+          "default": "",
+          "description": "Your Shopify shop domain (e.g., mystore.myshopify.com)",
+          "placeholder": "mystore.myshopify.com",
+          "required": true,
+          "sensitive": false
+        },
+        "shopify_access_token": {
+          "type": "string",
+          "default": "",
+          "description": "Shopify Admin API access token",
+          "required": true,
+          "sensitive": true
+        },
+        "output_destination": {
+          "type": "string",
+          "default": "duckdb",
+          "enum": [
+            "duckdb",
+            "snowflake",
+            "bigquery",
+            "postgres",
+            "redshift",
+            "databricks",
+            "clickhouse",
+            "motherduck"
+          ],
+          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
           "required": true
+        },
+        "output_write_mode": {
+          "type": "string",
+          "default": "replace",
+          "enum": [
+            "replace",
+            "append",
+            "merge"
+          ],
+          "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
+          "required": false
         }
       }
     },
@@ -1065,6 +1531,33 @@
           "type": "string",
           "default": "text-embedding-3-small",
           "description": "Embedding model to use",
+          "required": false
+        },
+        "output_destination": {
+          "type": "string",
+          "default": "duckdb",
+          "enum": [
+            "duckdb",
+            "snowflake",
+            "bigquery",
+            "postgres",
+            "redshift",
+            "databricks",
+            "clickhouse",
+            "motherduck"
+          ],
+          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
+          "required": true
+        },
+        "output_write_mode": {
+          "type": "string",
+          "default": "replace",
+          "enum": [
+            "replace",
+            "append",
+            "merge"
+          ],
+          "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
         }
       }
@@ -1232,6 +1725,55 @@
           "type": "boolean",
           "default": false,
           "description": "Generate AI-powered responses",
+          "required": false
+        },
+        "zendesk_subdomain": {
+          "type": "string",
+          "default": "",
+          "description": "Zendesk subdomain (e.g., mycompany from mycompany.zendesk.com)",
+          "placeholder": "mycompany",
+          "required": true,
+          "sensitive": false
+        },
+        "zendesk_email": {
+          "type": "string",
+          "default": "",
+          "description": "Zendesk admin email",
+          "required": true,
+          "sensitive": false
+        },
+        "zendesk_api_token": {
+          "type": "string",
+          "default": "",
+          "description": "Zendesk API token",
+          "required": true,
+          "sensitive": true
+        },
+        "output_destination": {
+          "type": "string",
+          "default": "duckdb",
+          "enum": [
+            "duckdb",
+            "snowflake",
+            "bigquery",
+            "postgres",
+            "redshift",
+            "databricks",
+            "clickhouse",
+            "motherduck"
+          ],
+          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
+          "required": true
+        },
+        "output_write_mode": {
+          "type": "string",
+          "default": "replace",
+          "enum": [
+            "replace",
+            "append",
+            "merge"
+          ],
+          "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
         }
       }
@@ -1404,6 +1946,33 @@
           "type": "number",
           "default": 0.9,
           "description": "Min score for auto-rejection (0.0-1.0)",
+          "required": false
+        },
+        "output_destination": {
+          "type": "string",
+          "default": "duckdb",
+          "enum": [
+            "duckdb",
+            "snowflake",
+            "bigquery",
+            "postgres",
+            "redshift",
+            "databricks",
+            "clickhouse",
+            "motherduck"
+          ],
+          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
+          "required": true
+        },
+        "output_write_mode": {
+          "type": "string",
+          "default": "replace",
+          "enum": [
+            "replace",
+            "append",
+            "merge"
+          ],
+          "description": "Write mode: replace (drop/recreate), append (add rows), merge (upsert)",
           "required": false
         }
       }

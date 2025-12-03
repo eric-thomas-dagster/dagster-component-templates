@@ -550,6 +550,82 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_ads_ingestion/requirements.txt"
     },
     {
+      "id": "linkedin_ads_ingestion",
+      "name": "LinkedIn Ads Ingestion",
+      "category": "cdp",
+      "description": "Ingest LinkedIn Ads data (campaigns, analytics, conversions) using dlt. Mimics Supermetrics and Funnel.io.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/linkedin_ads_ingestion",
+      "tags": ["cdp", "marketing", "linkedin", "ads", "advertising", "dlt", "ingestion", "b2b"],
+      "dependencies": {
+        "pip": ["dlt[rest_api]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "TrendingUp",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/linkedin_ads_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/linkedin_ads_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/linkedin_ads_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/linkedin_ads_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/linkedin_ads_ingestion/requirements.txt"
+    },
+    {
+      "id": "tiktok_ads_ingestion",
+      "name": "TikTok Ads Ingestion",
+      "category": "cdp",
+      "description": "Ingest TikTok Ads data (campaigns, ad groups, videos, performance) using dlt. Mimics Supermetrics and Funnel.io.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/tiktok_ads_ingestion",
+      "tags": ["cdp", "marketing", "tiktok", "ads", "advertising", "dlt", "ingestion", "social"],
+      "dependencies": {
+        "pip": ["dlt[rest_api]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "TrendingUp",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/tiktok_ads_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/tiktok_ads_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/tiktok_ads_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/tiktok_ads_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/tiktok_ads_ingestion/requirements.txt"
+    },
+    {
+      "id": "twitter_ads_ingestion",
+      "name": "Twitter Ads Ingestion",
+      "category": "cdp",
+      "description": "Ingest Twitter/X Ads data (campaigns, promoted tweets, analytics) using dlt. Mimics Supermetrics and Funnel.io.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/twitter_ads_ingestion",
+      "tags": ["cdp", "marketing", "twitter", "x", "ads", "advertising", "dlt", "ingestion", "social"],
+      "dependencies": {
+        "pip": ["dlt[rest_api]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "TrendingUp",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/twitter_ads_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/twitter_ads_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/twitter_ads_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/twitter_ads_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/twitter_ads_ingestion/requirements.txt"
+    },
+    {
+      "id": "pinterest_ads_ingestion",
+      "name": "Pinterest Ads Ingestion",
+      "category": "cdp",
+      "description": "Ingest Pinterest Ads data (campaigns, pins, keywords, analytics) using dlt. Mimics Supermetrics and Funnel.io.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/pinterest_ads_ingestion",
+      "tags": ["cdp", "marketing", "pinterest", "ads", "advertising", "dlt", "ingestion", "visual", "ecommerce"],
+      "dependencies": {
+        "pip": ["dlt[rest_api]>=0.4.0", "pandas>=1.5.0"]
+      },
+      "icon": "TrendingUp",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/pinterest_ads_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/pinterest_ads_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/pinterest_ads_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/pinterest_ads_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/pinterest_ads_ingestion/requirements.txt"
+    },
+    {
       "id": "marketing_data_standardizer",
       "name": "Marketing Data Standardizer",
       "category": "cdp",

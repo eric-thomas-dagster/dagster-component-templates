@@ -66,6 +66,18 @@
         }
       ],
       "pipeline_params": {
+        "environment": {
+          "type": "string",
+          "default": "local",
+          "enum": [
+            "local",
+            "branch",
+            "production"
+          ],
+          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
+          "required": true,
+          "order": 0
+        },
         "ecommerce_platform": {
           "type": "string",
           "default": "shopify",
@@ -95,9 +107,12 @@
         "shopify_access_token": {
           "type": "string",
           "default": "",
-          "description": "Shopify Admin API access token",
+          "description": "Shopify Admin API access token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
-          "sensitive": true
+          "sensitive": true,
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "output_destination": {
           "type": "string",
@@ -110,8 +125,13 @@
             "redshift",
             "databricks"
           ],
-          "description": "Database destination for pipeline output",
-          "required": true
+          "description": "Database destination for pipeline output. Recommended: DuckDB for local, Postgres/Snowflake for branch/production",
+          "required": true,
+          "environment_defaults": {
+            "local": "duckdb",
+            "branch": "postgres",
+            "production": "snowflake"
+          }
         },
         "output_table_name": {
           "type": "string",
@@ -154,12 +174,15 @@
         "snowflake_password": {
           "type": "string",
           "default": "",
-          "description": "Snowflake password",
+          "description": "Snowflake password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "snowflake_database": {
           "type": "string",
@@ -214,12 +237,15 @@
         "bigquery_credentials_json": {
           "type": "string",
           "default": "",
-          "description": "Service account credentials JSON (or path to file)",
+          "description": "Service account credentials JSON (or path to file) (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_host": {
           "type": "string",
@@ -264,12 +290,15 @@
         "postgres_password": {
           "type": "string",
           "default": "",
-          "description": "PostgreSQL password",
+          "description": "PostgreSQL password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_schema": {
           "type": "string",
@@ -324,12 +353,15 @@
         "redshift_password": {
           "type": "string",
           "default": "",
-          "description": "Redshift password",
+          "description": "Redshift password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "redshift_schema": {
           "type": "string",
@@ -355,12 +387,15 @@
         "databricks_token": {
           "type": "string",
           "default": "",
-          "description": "Databricks personal access token",
+          "description": "Databricks personal access token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -396,12 +431,15 @@
         "motherduck_token": {
           "type": "string",
           "default": "",
-          "description": "MotherDuck service token",
+          "description": "MotherDuck service token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "motherduck_database": {
           "type": "string",
@@ -422,6 +460,24 @@
           "show_if": {
             "output_destination": "duckdb"
           }
+        },
+        "deployment_name": {
+          "type": "string",
+          "default": "",
+          "description": "Deployment name (for branch deployments, e.g., 'feature-new-pipeline'). Leave empty for local/production.",
+          "required": false,
+          "show_if": {
+            "environment": "branch"
+          },
+          "placeholder": "feature-branch-name",
+          "order": 1
+        },
+        "enable_verbose_logging": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable detailed logging (recommended for local/branch, optional for production)",
+          "required": false,
+          "order": 99
         }
       }
     },
@@ -495,6 +551,18 @@
         }
       ],
       "pipeline_params": {
+        "environment": {
+          "type": "string",
+          "default": "local",
+          "enum": [
+            "local",
+            "branch",
+            "production"
+          ],
+          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
+          "required": true,
+          "order": 0
+        },
         "ad_sources": {
           "type": "array",
           "items": {
@@ -550,16 +618,22 @@
         "google_ads_developer_token": {
           "type": "string",
           "default": "",
-          "description": "Google Ads developer token",
+          "description": "Google Ads developer token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
-          "sensitive": true
+          "sensitive": true,
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "facebook_access_token": {
           "type": "string",
           "default": "",
-          "description": "Facebook Ads API access token",
+          "description": "Facebook Ads API access token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
-          "sensitive": true
+          "sensitive": true,
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "facebook_ad_account_id": {
           "type": "string",
@@ -582,8 +656,13 @@
             "clickhouse",
             "motherduck"
           ],
-          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
-          "required": true
+          "description": "Database destination for pipeline output. Recommended: DuckDB for local, Postgres/Snowflake for branch/production",
+          "required": true,
+          "environment_defaults": {
+            "local": "duckdb",
+            "branch": "postgres",
+            "production": "snowflake"
+          }
         },
         "output_write_mode": {
           "type": "string",
@@ -620,12 +699,15 @@
         "snowflake_password": {
           "type": "string",
           "default": "",
-          "description": "Snowflake password",
+          "description": "Snowflake password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "snowflake_database": {
           "type": "string",
@@ -680,12 +762,15 @@
         "bigquery_credentials_json": {
           "type": "string",
           "default": "",
-          "description": "Service account credentials JSON (or path to file)",
+          "description": "Service account credentials JSON (or path to file) (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_host": {
           "type": "string",
@@ -730,12 +815,15 @@
         "postgres_password": {
           "type": "string",
           "default": "",
-          "description": "PostgreSQL password",
+          "description": "PostgreSQL password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_schema": {
           "type": "string",
@@ -790,12 +878,15 @@
         "redshift_password": {
           "type": "string",
           "default": "",
-          "description": "Redshift password",
+          "description": "Redshift password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "redshift_schema": {
           "type": "string",
@@ -821,12 +912,15 @@
         "databricks_token": {
           "type": "string",
           "default": "",
-          "description": "Databricks personal access token",
+          "description": "Databricks personal access token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -862,12 +956,15 @@
         "motherduck_token": {
           "type": "string",
           "default": "",
-          "description": "MotherDuck service token",
+          "description": "MotherDuck service token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "motherduck_database": {
           "type": "string",
@@ -888,6 +985,24 @@
           "show_if": {
             "output_destination": "duckdb"
           }
+        },
+        "deployment_name": {
+          "type": "string",
+          "default": "",
+          "description": "Deployment name (for branch deployments, e.g., 'feature-new-pipeline'). Leave empty for local/production.",
+          "required": false,
+          "show_if": {
+            "environment": "branch"
+          },
+          "placeholder": "feature-branch-name",
+          "order": 1
+        },
+        "enable_verbose_logging": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable detailed logging (recommended for local/branch, optional for production)",
+          "required": false,
+          "order": 99
         }
       }
     },
@@ -985,6 +1100,18 @@
         }
       ],
       "pipeline_params": {
+        "environment": {
+          "type": "string",
+          "default": "local",
+          "enum": [
+            "local",
+            "branch",
+            "production"
+          ],
+          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
+          "required": true,
+          "order": 0
+        },
         "crm_platform": {
           "type": "string",
           "default": "hubspot",
@@ -1000,9 +1127,12 @@
         "hubspot_api_key": {
           "type": "string",
           "default": "",
-          "description": "HubSpot API key or private app token",
+          "description": "HubSpot API key or private app token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
-          "sensitive": true
+          "sensitive": true,
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "zendesk_subdomain": {
           "type": "string",
@@ -1022,9 +1152,12 @@
         "zendesk_api_token": {
           "type": "string",
           "default": "",
-          "description": "Zendesk API token",
+          "description": "Zendesk API token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
-          "sensitive": true
+          "sensitive": true,
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "output_destination": {
           "type": "string",
@@ -1039,8 +1172,13 @@
             "clickhouse",
             "motherduck"
           ],
-          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
-          "required": true
+          "description": "Database destination for pipeline output. Recommended: DuckDB for local, Postgres/Snowflake for branch/production",
+          "required": true,
+          "environment_defaults": {
+            "local": "duckdb",
+            "branch": "postgres",
+            "production": "snowflake"
+          }
         },
         "output_write_mode": {
           "type": "string",
@@ -1077,12 +1215,15 @@
         "snowflake_password": {
           "type": "string",
           "default": "",
-          "description": "Snowflake password",
+          "description": "Snowflake password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "snowflake_database": {
           "type": "string",
@@ -1137,12 +1278,15 @@
         "bigquery_credentials_json": {
           "type": "string",
           "default": "",
-          "description": "Service account credentials JSON (or path to file)",
+          "description": "Service account credentials JSON (or path to file) (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_host": {
           "type": "string",
@@ -1187,12 +1331,15 @@
         "postgres_password": {
           "type": "string",
           "default": "",
-          "description": "PostgreSQL password",
+          "description": "PostgreSQL password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_schema": {
           "type": "string",
@@ -1247,12 +1394,15 @@
         "redshift_password": {
           "type": "string",
           "default": "",
-          "description": "Redshift password",
+          "description": "Redshift password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "redshift_schema": {
           "type": "string",
@@ -1278,12 +1428,15 @@
         "databricks_token": {
           "type": "string",
           "default": "",
-          "description": "Databricks personal access token",
+          "description": "Databricks personal access token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -1319,12 +1472,15 @@
         "motherduck_token": {
           "type": "string",
           "default": "",
-          "description": "MotherDuck service token",
+          "description": "MotherDuck service token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "motherduck_database": {
           "type": "string",
@@ -1345,6 +1501,24 @@
           "show_if": {
             "output_destination": "duckdb"
           }
+        },
+        "deployment_name": {
+          "type": "string",
+          "default": "",
+          "description": "Deployment name (for branch deployments, e.g., 'feature-new-pipeline'). Leave empty for local/production.",
+          "required": false,
+          "show_if": {
+            "environment": "branch"
+          },
+          "placeholder": "feature-branch-name",
+          "order": 1
+        },
+        "enable_verbose_logging": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable detailed logging (recommended for local/branch, optional for production)",
+          "required": false,
+          "order": 99
         }
       }
     },
@@ -1424,6 +1598,18 @@
         }
       ],
       "pipeline_params": {
+        "environment": {
+          "type": "string",
+          "default": "local",
+          "enum": [
+            "local",
+            "branch",
+            "production"
+          ],
+          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
+          "required": true,
+          "order": 0
+        },
         "ecommerce_platform": {
           "type": "string",
           "default": "shopify",
@@ -1454,9 +1640,12 @@
         "shopify_access_token": {
           "type": "string",
           "default": "",
-          "description": "Shopify Admin API access token",
+          "description": "Shopify Admin API access token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
-          "sensitive": true
+          "sensitive": true,
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "output_destination": {
           "type": "string",
@@ -1471,8 +1660,13 @@
             "clickhouse",
             "motherduck"
           ],
-          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
-          "required": true
+          "description": "Database destination for pipeline output. Recommended: DuckDB for local, Postgres/Snowflake for branch/production",
+          "required": true,
+          "environment_defaults": {
+            "local": "duckdb",
+            "branch": "postgres",
+            "production": "snowflake"
+          }
         },
         "output_write_mode": {
           "type": "string",
@@ -1509,12 +1703,15 @@
         "snowflake_password": {
           "type": "string",
           "default": "",
-          "description": "Snowflake password",
+          "description": "Snowflake password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "snowflake_database": {
           "type": "string",
@@ -1569,12 +1766,15 @@
         "bigquery_credentials_json": {
           "type": "string",
           "default": "",
-          "description": "Service account credentials JSON (or path to file)",
+          "description": "Service account credentials JSON (or path to file) (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_host": {
           "type": "string",
@@ -1619,12 +1819,15 @@
         "postgres_password": {
           "type": "string",
           "default": "",
-          "description": "PostgreSQL password",
+          "description": "PostgreSQL password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_schema": {
           "type": "string",
@@ -1679,12 +1882,15 @@
         "redshift_password": {
           "type": "string",
           "default": "",
-          "description": "Redshift password",
+          "description": "Redshift password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "redshift_schema": {
           "type": "string",
@@ -1710,12 +1916,15 @@
         "databricks_token": {
           "type": "string",
           "default": "",
-          "description": "Databricks personal access token",
+          "description": "Databricks personal access token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -1751,12 +1960,15 @@
         "motherduck_token": {
           "type": "string",
           "default": "",
-          "description": "MotherDuck service token",
+          "description": "MotherDuck service token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "motherduck_database": {
           "type": "string",
@@ -1777,6 +1989,24 @@
           "show_if": {
             "output_destination": "duckdb"
           }
+        },
+        "deployment_name": {
+          "type": "string",
+          "default": "",
+          "description": "Deployment name (for branch deployments, e.g., 'feature-new-pipeline'). Leave empty for local/production.",
+          "required": false,
+          "show_if": {
+            "environment": "branch"
+          },
+          "placeholder": "feature-branch-name",
+          "order": 1
+        },
+        "enable_verbose_logging": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable detailed logging (recommended for local/branch, optional for production)",
+          "required": false,
+          "order": 99
         }
       }
     },
@@ -1865,6 +2095,18 @@
         }
       ],
       "pipeline_params": {
+        "environment": {
+          "type": "string",
+          "default": "local",
+          "enum": [
+            "local",
+            "branch",
+            "production"
+          ],
+          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
+          "required": true,
+          "order": 0
+        },
         "ecommerce_platform": {
           "type": "string",
           "default": "stripe",
@@ -1887,9 +2129,12 @@
         "stripe_api_key": {
           "type": "string",
           "default": "",
-          "description": "Stripe API secret key (starts with sk_)",
+          "description": "Stripe API secret key (starts with sk_) (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
-          "sensitive": true
+          "sensitive": true,
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "output_destination": {
           "type": "string",
@@ -1904,8 +2149,13 @@
             "clickhouse",
             "motherduck"
           ],
-          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
-          "required": true
+          "description": "Database destination for pipeline output. Recommended: DuckDB for local, Postgres/Snowflake for branch/production",
+          "required": true,
+          "environment_defaults": {
+            "local": "duckdb",
+            "branch": "postgres",
+            "production": "snowflake"
+          }
         },
         "output_write_mode": {
           "type": "string",
@@ -1942,12 +2192,15 @@
         "snowflake_password": {
           "type": "string",
           "default": "",
-          "description": "Snowflake password",
+          "description": "Snowflake password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "snowflake_database": {
           "type": "string",
@@ -2002,12 +2255,15 @@
         "bigquery_credentials_json": {
           "type": "string",
           "default": "",
-          "description": "Service account credentials JSON (or path to file)",
+          "description": "Service account credentials JSON (or path to file) (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_host": {
           "type": "string",
@@ -2052,12 +2308,15 @@
         "postgres_password": {
           "type": "string",
           "default": "",
-          "description": "PostgreSQL password",
+          "description": "PostgreSQL password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_schema": {
           "type": "string",
@@ -2112,12 +2371,15 @@
         "redshift_password": {
           "type": "string",
           "default": "",
-          "description": "Redshift password",
+          "description": "Redshift password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "redshift_schema": {
           "type": "string",
@@ -2143,12 +2405,15 @@
         "databricks_token": {
           "type": "string",
           "default": "",
-          "description": "Databricks personal access token",
+          "description": "Databricks personal access token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -2184,12 +2449,15 @@
         "motherduck_token": {
           "type": "string",
           "default": "",
-          "description": "MotherDuck service token",
+          "description": "MotherDuck service token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "motherduck_database": {
           "type": "string",
@@ -2210,6 +2478,24 @@
           "show_if": {
             "output_destination": "duckdb"
           }
+        },
+        "deployment_name": {
+          "type": "string",
+          "default": "",
+          "description": "Deployment name (for branch deployments, e.g., 'feature-new-pipeline'). Leave empty for local/production.",
+          "required": false,
+          "show_if": {
+            "environment": "branch"
+          },
+          "placeholder": "feature-branch-name",
+          "order": 1
+        },
+        "enable_verbose_logging": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable detailed logging (recommended for local/branch, optional for production)",
+          "required": false,
+          "order": 99
         }
       }
     },
@@ -2258,6 +2544,18 @@
         }
       ],
       "pipeline_params": {
+        "environment": {
+          "type": "string",
+          "default": "local",
+          "enum": [
+            "local",
+            "branch",
+            "production"
+          ],
+          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
+          "required": true,
+          "order": 0
+        },
         "analytics_platform": {
           "type": "string",
           "default": "segment",
@@ -2295,8 +2593,13 @@
             "clickhouse",
             "motherduck"
           ],
-          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
-          "required": true
+          "description": "Database destination for pipeline output. Recommended: DuckDB for local, Postgres/Snowflake for branch/production",
+          "required": true,
+          "environment_defaults": {
+            "local": "duckdb",
+            "branch": "postgres",
+            "production": "snowflake"
+          }
         },
         "output_write_mode": {
           "type": "string",
@@ -2333,12 +2636,15 @@
         "snowflake_password": {
           "type": "string",
           "default": "",
-          "description": "Snowflake password",
+          "description": "Snowflake password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "snowflake_database": {
           "type": "string",
@@ -2393,12 +2699,15 @@
         "bigquery_credentials_json": {
           "type": "string",
           "default": "",
-          "description": "Service account credentials JSON (or path to file)",
+          "description": "Service account credentials JSON (or path to file) (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_host": {
           "type": "string",
@@ -2443,12 +2752,15 @@
         "postgres_password": {
           "type": "string",
           "default": "",
-          "description": "PostgreSQL password",
+          "description": "PostgreSQL password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_schema": {
           "type": "string",
@@ -2503,12 +2815,15 @@
         "redshift_password": {
           "type": "string",
           "default": "",
-          "description": "Redshift password",
+          "description": "Redshift password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "redshift_schema": {
           "type": "string",
@@ -2534,12 +2849,15 @@
         "databricks_token": {
           "type": "string",
           "default": "",
-          "description": "Databricks personal access token",
+          "description": "Databricks personal access token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -2575,12 +2893,15 @@
         "motherduck_token": {
           "type": "string",
           "default": "",
-          "description": "MotherDuck service token",
+          "description": "MotherDuck service token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "motherduck_database": {
           "type": "string",
@@ -2601,6 +2922,24 @@
           "show_if": {
             "output_destination": "duckdb"
           }
+        },
+        "deployment_name": {
+          "type": "string",
+          "default": "",
+          "description": "Deployment name (for branch deployments, e.g., 'feature-new-pipeline'). Leave empty for local/production.",
+          "required": false,
+          "show_if": {
+            "environment": "branch"
+          },
+          "placeholder": "feature-branch-name",
+          "order": 1
+        },
+        "enable_verbose_logging": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable detailed logging (recommended for local/branch, optional for production)",
+          "required": false,
+          "order": 99
         }
       }
     },
@@ -2920,6 +3259,18 @@
         }
       ],
       "pipeline_params": {
+        "environment": {
+          "type": "string",
+          "default": "local",
+          "enum": [
+            "local",
+            "branch",
+            "production"
+          ],
+          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
+          "required": true,
+          "order": 0
+        },
         "crm_platform": {
           "type": "string",
           "default": "hubspot",
@@ -2942,9 +3293,12 @@
         "hubspot_api_key": {
           "type": "string",
           "default": "",
-          "description": "HubSpot API key or private app token",
+          "description": "HubSpot API key or private app token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
-          "sensitive": true
+          "sensitive": true,
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "shopify_shop_domain": {
           "type": "string",
@@ -2957,9 +3311,12 @@
         "shopify_access_token": {
           "type": "string",
           "default": "",
-          "description": "Shopify Admin API access token",
+          "description": "Shopify Admin API access token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
-          "sensitive": true
+          "sensitive": true,
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "google_ads_customer_id": {
           "type": "string",
@@ -2972,16 +3329,22 @@
         "google_ads_developer_token": {
           "type": "string",
           "default": "",
-          "description": "Google Ads developer token",
+          "description": "Google Ads developer token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
-          "sensitive": true
+          "sensitive": true,
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "facebook_access_token": {
           "type": "string",
           "default": "",
-          "description": "Facebook Ads API access token",
+          "description": "Facebook Ads API access token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
-          "sensitive": true
+          "sensitive": true,
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "facebook_ad_account_id": {
           "type": "string",
@@ -3009,9 +3372,12 @@
         "zendesk_api_token": {
           "type": "string",
           "default": "",
-          "description": "Zendesk API token",
+          "description": "Zendesk API token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
-          "sensitive": true
+          "sensitive": true,
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "output_destination": {
           "type": "string",
@@ -3026,8 +3392,13 @@
             "clickhouse",
             "motherduck"
           ],
-          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
-          "required": true
+          "description": "Database destination for pipeline output. Recommended: DuckDB for local, Postgres/Snowflake for branch/production",
+          "required": true,
+          "environment_defaults": {
+            "local": "duckdb",
+            "branch": "postgres",
+            "production": "snowflake"
+          }
         },
         "output_write_mode": {
           "type": "string",
@@ -3064,12 +3435,15 @@
         "snowflake_password": {
           "type": "string",
           "default": "",
-          "description": "Snowflake password",
+          "description": "Snowflake password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "snowflake_database": {
           "type": "string",
@@ -3124,12 +3498,15 @@
         "bigquery_credentials_json": {
           "type": "string",
           "default": "",
-          "description": "Service account credentials JSON (or path to file)",
+          "description": "Service account credentials JSON (or path to file) (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_host": {
           "type": "string",
@@ -3174,12 +3551,15 @@
         "postgres_password": {
           "type": "string",
           "default": "",
-          "description": "PostgreSQL password",
+          "description": "PostgreSQL password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_schema": {
           "type": "string",
@@ -3234,12 +3614,15 @@
         "redshift_password": {
           "type": "string",
           "default": "",
-          "description": "Redshift password",
+          "description": "Redshift password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "redshift_schema": {
           "type": "string",
@@ -3265,12 +3648,15 @@
         "databricks_token": {
           "type": "string",
           "default": "",
-          "description": "Databricks personal access token",
+          "description": "Databricks personal access token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -3306,12 +3692,15 @@
         "motherduck_token": {
           "type": "string",
           "default": "",
-          "description": "MotherDuck service token",
+          "description": "MotherDuck service token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "motherduck_database": {
           "type": "string",
@@ -3332,6 +3721,24 @@
           "show_if": {
             "output_destination": "duckdb"
           }
+        },
+        "deployment_name": {
+          "type": "string",
+          "default": "",
+          "description": "Deployment name (for branch deployments, e.g., 'feature-new-pipeline'). Leave empty for local/production.",
+          "required": false,
+          "show_if": {
+            "environment": "branch"
+          },
+          "placeholder": "feature-branch-name",
+          "order": 1
+        },
+        "enable_verbose_logging": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable detailed logging (recommended for local/branch, optional for production)",
+          "required": false,
+          "order": 99
         }
       }
     },
@@ -3391,6 +3798,18 @@
         }
       ],
       "pipeline_params": {
+        "environment": {
+          "type": "string",
+          "default": "local",
+          "enum": [
+            "local",
+            "branch",
+            "production"
+          ],
+          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
+          "required": true,
+          "order": 0
+        },
         "ecommerce_platform": {
           "type": "string",
           "default": "shopify",
@@ -3425,9 +3844,12 @@
         "shopify_access_token": {
           "type": "string",
           "default": "",
-          "description": "Shopify Admin API access token",
+          "description": "Shopify Admin API access token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
-          "sensitive": true
+          "sensitive": true,
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "output_destination": {
           "type": "string",
@@ -3442,8 +3864,13 @@
             "clickhouse",
             "motherduck"
           ],
-          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
-          "required": true
+          "description": "Database destination for pipeline output. Recommended: DuckDB for local, Postgres/Snowflake for branch/production",
+          "required": true,
+          "environment_defaults": {
+            "local": "duckdb",
+            "branch": "postgres",
+            "production": "snowflake"
+          }
         },
         "output_write_mode": {
           "type": "string",
@@ -3480,12 +3907,15 @@
         "snowflake_password": {
           "type": "string",
           "default": "",
-          "description": "Snowflake password",
+          "description": "Snowflake password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "snowflake_database": {
           "type": "string",
@@ -3540,12 +3970,15 @@
         "bigquery_credentials_json": {
           "type": "string",
           "default": "",
-          "description": "Service account credentials JSON (or path to file)",
+          "description": "Service account credentials JSON (or path to file) (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_host": {
           "type": "string",
@@ -3590,12 +4023,15 @@
         "postgres_password": {
           "type": "string",
           "default": "",
-          "description": "PostgreSQL password",
+          "description": "PostgreSQL password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_schema": {
           "type": "string",
@@ -3650,12 +4086,15 @@
         "redshift_password": {
           "type": "string",
           "default": "",
-          "description": "Redshift password",
+          "description": "Redshift password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "redshift_schema": {
           "type": "string",
@@ -3681,12 +4120,15 @@
         "databricks_token": {
           "type": "string",
           "default": "",
-          "description": "Databricks personal access token",
+          "description": "Databricks personal access token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -3722,12 +4164,15 @@
         "motherduck_token": {
           "type": "string",
           "default": "",
-          "description": "MotherDuck service token",
+          "description": "MotherDuck service token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "motherduck_database": {
           "type": "string",
@@ -3748,6 +4193,24 @@
           "show_if": {
             "output_destination": "duckdb"
           }
+        },
+        "deployment_name": {
+          "type": "string",
+          "default": "",
+          "description": "Deployment name (for branch deployments, e.g., 'feature-new-pipeline'). Leave empty for local/production.",
+          "required": false,
+          "show_if": {
+            "environment": "branch"
+          },
+          "placeholder": "feature-branch-name",
+          "order": 1
+        },
+        "enable_verbose_logging": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable detailed logging (recommended for local/branch, optional for production)",
+          "required": false,
+          "order": 99
         }
       }
     },
@@ -3818,6 +4281,18 @@
         }
       ],
       "pipeline_params": {
+        "environment": {
+          "type": "string",
+          "default": "local",
+          "enum": [
+            "local",
+            "branch",
+            "production"
+          ],
+          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
+          "required": true,
+          "order": 0
+        },
         "document_path": {
           "type": "string",
           "default": "/path/to/documents.csv",
@@ -3867,8 +4342,13 @@
             "clickhouse",
             "motherduck"
           ],
-          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
-          "required": true
+          "description": "Database destination for pipeline output. Recommended: DuckDB for local, Postgres/Snowflake for branch/production",
+          "required": true,
+          "environment_defaults": {
+            "local": "duckdb",
+            "branch": "postgres",
+            "production": "snowflake"
+          }
         },
         "output_write_mode": {
           "type": "string",
@@ -3905,12 +4385,15 @@
         "snowflake_password": {
           "type": "string",
           "default": "",
-          "description": "Snowflake password",
+          "description": "Snowflake password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "snowflake_database": {
           "type": "string",
@@ -3965,12 +4448,15 @@
         "bigquery_credentials_json": {
           "type": "string",
           "default": "",
-          "description": "Service account credentials JSON (or path to file)",
+          "description": "Service account credentials JSON (or path to file) (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_host": {
           "type": "string",
@@ -4015,12 +4501,15 @@
         "postgres_password": {
           "type": "string",
           "default": "",
-          "description": "PostgreSQL password",
+          "description": "PostgreSQL password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_schema": {
           "type": "string",
@@ -4075,12 +4564,15 @@
         "redshift_password": {
           "type": "string",
           "default": "",
-          "description": "Redshift password",
+          "description": "Redshift password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "redshift_schema": {
           "type": "string",
@@ -4106,12 +4598,15 @@
         "databricks_token": {
           "type": "string",
           "default": "",
-          "description": "Databricks personal access token",
+          "description": "Databricks personal access token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -4147,12 +4642,15 @@
         "motherduck_token": {
           "type": "string",
           "default": "",
-          "description": "MotherDuck service token",
+          "description": "MotherDuck service token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "motherduck_database": {
           "type": "string",
@@ -4173,6 +4671,24 @@
           "show_if": {
             "output_destination": "duckdb"
           }
+        },
+        "deployment_name": {
+          "type": "string",
+          "default": "",
+          "description": "Deployment name (for branch deployments, e.g., 'feature-new-pipeline'). Leave empty for local/production.",
+          "required": false,
+          "show_if": {
+            "environment": "branch"
+          },
+          "placeholder": "feature-branch-name",
+          "order": 1
+        },
+        "enable_verbose_logging": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable detailed logging (recommended for local/branch, optional for production)",
+          "required": false,
+          "order": 99
         }
       }
     },
@@ -4284,6 +4800,18 @@
         }
       ],
       "pipeline_params": {
+        "environment": {
+          "type": "string",
+          "default": "local",
+          "enum": [
+            "local",
+            "branch",
+            "production"
+          ],
+          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
+          "required": true,
+          "order": 0
+        },
         "ticket_source": {
           "type": "string",
           "default": "zendesk",
@@ -4359,9 +4887,12 @@
         "zendesk_api_token": {
           "type": "string",
           "default": "",
-          "description": "Zendesk API token",
+          "description": "Zendesk API token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
-          "sensitive": true
+          "sensitive": true,
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "output_destination": {
           "type": "string",
@@ -4376,8 +4907,13 @@
             "clickhouse",
             "motherduck"
           ],
-          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
-          "required": true
+          "description": "Database destination for pipeline output. Recommended: DuckDB for local, Postgres/Snowflake for branch/production",
+          "required": true,
+          "environment_defaults": {
+            "local": "duckdb",
+            "branch": "postgres",
+            "production": "snowflake"
+          }
         },
         "output_write_mode": {
           "type": "string",
@@ -4414,12 +4950,15 @@
         "snowflake_password": {
           "type": "string",
           "default": "",
-          "description": "Snowflake password",
+          "description": "Snowflake password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "snowflake_database": {
           "type": "string",
@@ -4474,12 +5013,15 @@
         "bigquery_credentials_json": {
           "type": "string",
           "default": "",
-          "description": "Service account credentials JSON (or path to file)",
+          "description": "Service account credentials JSON (or path to file) (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_host": {
           "type": "string",
@@ -4524,12 +5066,15 @@
         "postgres_password": {
           "type": "string",
           "default": "",
-          "description": "PostgreSQL password",
+          "description": "PostgreSQL password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_schema": {
           "type": "string",
@@ -4584,12 +5129,15 @@
         "redshift_password": {
           "type": "string",
           "default": "",
-          "description": "Redshift password",
+          "description": "Redshift password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "redshift_schema": {
           "type": "string",
@@ -4615,12 +5163,15 @@
         "databricks_token": {
           "type": "string",
           "default": "",
-          "description": "Databricks personal access token",
+          "description": "Databricks personal access token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -4656,12 +5207,15 @@
         "motherduck_token": {
           "type": "string",
           "default": "",
-          "description": "MotherDuck service token",
+          "description": "MotherDuck service token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "motherduck_database": {
           "type": "string",
@@ -4682,6 +5236,24 @@
           "show_if": {
             "output_destination": "duckdb"
           }
+        },
+        "deployment_name": {
+          "type": "string",
+          "default": "",
+          "description": "Deployment name (for branch deployments, e.g., 'feature-new-pipeline'). Leave empty for local/production.",
+          "required": false,
+          "show_if": {
+            "environment": "branch"
+          },
+          "placeholder": "feature-branch-name",
+          "order": 1
+        },
+        "enable_verbose_logging": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable detailed logging (recommended for local/branch, optional for production)",
+          "required": false,
+          "order": 99
         }
       }
     },
@@ -4784,6 +5356,18 @@
         }
       ],
       "pipeline_params": {
+        "environment": {
+          "type": "string",
+          "default": "local",
+          "enum": [
+            "local",
+            "branch",
+            "production"
+          ],
+          "description": "Deployment environment (local=dev/testing, branch=staging, production=live)",
+          "required": true,
+          "order": 0
+        },
         "content_source": {
           "type": "string",
           "default": "database",
@@ -4868,8 +5452,13 @@
             "clickhouse",
             "motherduck"
           ],
-          "description": "Database destination for pipeline output (DuckDB for local development, production databases for deployment)",
-          "required": true
+          "description": "Database destination for pipeline output. Recommended: DuckDB for local, Postgres/Snowflake for branch/production",
+          "required": true,
+          "environment_defaults": {
+            "local": "duckdb",
+            "branch": "postgres",
+            "production": "snowflake"
+          }
         },
         "output_write_mode": {
           "type": "string",
@@ -4906,12 +5495,15 @@
         "snowflake_password": {
           "type": "string",
           "default": "",
-          "description": "Snowflake password",
+          "description": "Snowflake password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "snowflake"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "snowflake_database": {
           "type": "string",
@@ -4966,12 +5558,15 @@
         "bigquery_credentials_json": {
           "type": "string",
           "default": "",
-          "description": "Service account credentials JSON (or path to file)",
+          "description": "Service account credentials JSON (or path to file) (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "bigquery"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_host": {
           "type": "string",
@@ -5016,12 +5611,15 @@
         "postgres_password": {
           "type": "string",
           "default": "",
-          "description": "PostgreSQL password",
+          "description": "PostgreSQL password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "postgres"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "postgres_schema": {
           "type": "string",
@@ -5076,12 +5674,15 @@
         "redshift_password": {
           "type": "string",
           "default": "",
-          "description": "Redshift password",
+          "description": "Redshift password (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "redshift"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "redshift_schema": {
           "type": "string",
@@ -5107,12 +5708,15 @@
         "databricks_token": {
           "type": "string",
           "default": "",
-          "description": "Databricks personal access token",
+          "description": "Databricks personal access token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "databricks"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "databricks_http_path": {
           "type": "string",
@@ -5148,12 +5752,15 @@
         "motherduck_token": {
           "type": "string",
           "default": "",
-          "description": "MotherDuck service token",
+          "description": "MotherDuck service token (Use test credentials for local, staging credentials for branch, production credentials for production)",
           "required": true,
           "sensitive": true,
           "show_if": {
             "output_destination": "motherduck"
-          }
+          },
+          "required_in_local": false,
+          "required_in_branch": true,
+          "required_in_production": true
         },
         "motherduck_database": {
           "type": "string",
@@ -5174,6 +5781,24 @@
           "show_if": {
             "output_destination": "duckdb"
           }
+        },
+        "deployment_name": {
+          "type": "string",
+          "default": "",
+          "description": "Deployment name (for branch deployments, e.g., 'feature-new-pipeline'). Leave empty for local/production.",
+          "required": false,
+          "show_if": {
+            "environment": "branch"
+          },
+          "placeholder": "feature-branch-name",
+          "order": 1
+        },
+        "enable_verbose_logging": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable detailed logging (recommended for local/branch, optional for production)",
+          "required": false,
+          "order": 99
         }
       }
     }

@@ -1,0 +1,326 @@
+# Customer Support Automation Pipeline
+#
+# Use Case: Automatically classify, prioritize, and route support tickets
+# Perfect for: Support teams, help desks, customer success organizations
+#
+# This pipeline ingests support tickets, extracts key information, classifies
+# them by category and urgency, moderates content for safety, scores priority,
+# and generates AI-powered response suggestions.
+#
+# Business Outcomes:
+# - Reduce response time by 60% with automatic routing
+# - Handle 3x more tickets with same team size
+# - Improve customer satisfaction by 25% with faster resolution
+# - Identify escalations before SLA breaches
+# - Auto-flag toxic interactions for immediate attention
+#
+# Cost Savings: $120,000/year vs traditional solutions
+# - Zendesk AI: $180k/year ($15k/mo x 12)
+# - Intercom Resolution Bot: $120k/year ($10k/mo x 12)
+# - Freshdesk Freddy AI: $150k/year
+# - This solution: ~$60k/year (API costs + compute)
+#
+# Components:
+# 1. Ticket Ingestion: Load from Zendesk, Intercom, Freshdesk, or custom source
+# 2. Entity Extraction: Extract customer info, product names, order IDs
+# 3. Classification: Categorize by type, urgency, and department
+# 4. Content Moderation: Flag toxic/inappropriate content
+# 5. Priority Scoring: Calculate urgency score with SLA tracking
+# 6. Response Generation: AI-powered suggested responses (optional)
+# 7. Knowledge Base Search: Find relevant articles for context (optional)
+
+pipeline:
+  name: "Customer Support Automation"
+  version: "1.0.0"
+
+  # High-level configuration
+  parameters:
+    ticket_source:
+      type: string
+      default: "zendesk"
+      enum: ["zendesk", "intercom", "freshdesk", "csv", "database"]
+      description: "Support ticket source system"
+      required: true
+
+    # Classification configuration
+    classification_method:
+      type: string
+      default: "llm"
+      enum: ["llm", "transformer"]
+      description: "Ticket classification method (llm=accurate, transformer=fast/free)"
+      required: true
+
+    ticket_categories:
+      type: array
+      items:
+        type: string
+      default: ["technical", "billing", "account", "product", "feature_request", "other"]
+      description: "Custom ticket categories for your organization"
+      required: false
+
+    urgency_levels:
+      type: array
+      items:
+        type: string
+      default: ["low", "medium", "high", "critical"]
+      description: "Urgency level classifications"
+      required: false
+
+    departments:
+      type: array
+      items:
+        type: string
+      default: ["support", "engineering", "billing", "sales"]
+      description: "Departments for ticket routing"
+      required: false
+
+    # Entity extraction configuration
+    entity_method:
+      type: string
+      default: "spacy"
+      enum: ["spacy", "transformer", "llm"]
+      description: "Entity extraction method (spacy=recommended for production)"
+      required: true
+
+    # Priority scoring configuration
+    priority_method:
+      type: string
+      default: "rules"
+      enum: ["rules", "ml", "llm"]
+      description: "Priority scoring method (rules=fast/free, ml=balanced, llm=most accurate)"
+      required: true
+
+    customer_tiers:
+      type: array
+      items:
+        type: string
+      default: ["free", "basic", "pro", "enterprise"]
+      description: "Customer tier levels for priority weighting"
+      required: false
+
+    sla_hours:
+      type: object
+      default: {"free": 48, "basic": 24, "pro": 12, "enterprise": 4}
+      description: "SLA response time in hours per customer tier"
+      required: false
+
+    # Content moderation
+    enable_moderation:
+      type: boolean
+      default: true
+      description: "Enable content moderation for toxic/inappropriate content"
+      required: false
+
+    moderation_method:
+      type: string
+      default: "openai_moderation"
+      enum: ["openai_moderation", "perspective_api", "transformer", "llm"]
+      description: "Content moderation method (openai_moderation=recommended, free)"
+      required: false
+
+    # Response generation (optional)
+    generate_responses:
+      type: boolean
+      default: false
+      description: "Generate AI-powered response suggestions"
+      required: false
+
+    response_llm_provider:
+      type: string
+      default: "openai"
+      enum: ["openai", "anthropic"]
+      description: "LLM provider for response generation"
+      required: false
+
+    response_llm_model:
+      type: string
+      default: "gpt-4o-mini"
+      description: "LLM model for response generation"
+      required: false
+
+    # Knowledge base search (optional)
+    enable_kb_search:
+      type: boolean
+      default: false
+      description: "Search knowledge base for relevant articles"
+      required: false
+
+  # Components that make up the pipeline
+  components:
+    # Step 1: Ingest tickets from source system
+    - id: support_ticket_ingestion
+      instance_name: raw_tickets
+      config:
+        asset_name: "raw_tickets"
+        source_type: "${ticket_source}"
+        description: "Raw support ticket ingestion"
+        group_name: "support_automation"
+
+    # Step 2: Extract entities from ticket text
+    - id: entity_extractor
+      instance_name: ticket_entities
+      config:
+        asset_name: "ticket_entities"
+        source_asset: "raw_tickets"
+        method: "${entity_method}"
+        entity_types: ["person", "email", "phone", "product", "order_id", "date", "money"]
+        input_column: "ticket_text"
+        output_format: "structured"
+        description: "Extract key entities from tickets"
+        group_name: "support_automation"
+
+    # Step 3: Classify tickets by category, urgency, department
+    - id: ticket_classifier
+      instance_name: classified_tickets
+      config:
+        asset_name: "classified_tickets"
+        source_asset: "ticket_entities"
+        method: "${classification_method}"
+        llm_provider: "openai"
+        llm_model: "gpt-4o-mini"
+        categories: ${ticket_categories}
+        urgency_levels: ${urgency_levels}
+        departments: ${departments}
+        input_column: "ticket_text"
+        include_confidence: true
+        batch_size: 50
+        description: "Classify tickets by category and urgency"
+        group_name: "support_automation"
+
+    # Step 4: Moderate content for toxicity/inappropriate content
+    - id: text_moderator
+      instance_name: moderated_tickets
+      enabled: "${enable_moderation}"
+      config:
+        asset_name: "moderated_tickets"
+        source_asset: "classified_tickets"
+        method: "${moderation_method}"
+        categories: ["toxicity", "hate_speech", "pii", "profanity"]
+        threshold: 0.7
+        redact_pii: true
+        include_scores: true
+        input_column: "ticket_text"
+        description: "Moderate ticket content for safety"
+        group_name: "support_automation"
+
+    # Step 5: Score ticket priority with SLA tracking
+    - id: priority_scorer
+      instance_name: prioritized_tickets
+      config:
+        asset_name: "prioritized_tickets"
+        source_asset: "moderated_tickets"
+        method: "${priority_method}"
+        input_columns: ["ticket_text", "customer_tier", "urgency", "sentiment_score"]
+        priority_levels: ["P1", "P2", "P3", "P4"]
+        sla_hours: ${sla_hours}
+        escalation_threshold: 80
+        include_explanation: true
+        description: "Score ticket priority and predict SLA breaches"
+        group_name: "support_automation"
+
+    # Step 6: Generate AI-powered response suggestions (optional)
+    - id: openai_llm
+      instance_name: response_suggestions
+      enabled: "${generate_responses}"
+      config:
+        asset_name: "response_suggestions"
+        source_asset: "prioritized_tickets"
+        model: "${response_llm_model}"
+        system_prompt: "You are a helpful customer support agent. Generate a professional, empathetic response to the customer's ticket. Use the extracted entities and classification to personalize the response. Keep it concise (2-3 paragraphs)."
+        input_column: "ticket_text"
+        output_column: "suggested_response"
+        temperature: 0.7
+        max_tokens: 300
+        batch_size: 20
+        enable_caching: true
+        description: "Generate AI-powered response suggestions"
+        group_name: "support_automation"
+
+    # Step 7: Search knowledge base for relevant articles (optional)
+    - id: vector_store_query
+      instance_name: kb_search_results
+      enabled: "${enable_kb_search}"
+      config:
+        asset_name: "kb_search_results"
+        query_asset: "prioritized_tickets"
+        vector_store: "pinecone"
+        index_name: "knowledge_base"
+        embedding_provider: "openai"
+        embedding_model: "text-embedding-3-small"
+        query_column: "ticket_text"
+        top_k: 3
+        similarity_threshold: 0.75
+        description: "Search knowledge base for relevant articles"
+        group_name: "support_automation"
+
+  # Automation actions (post-pipeline)
+  automation_config:
+    routing:
+      - condition: "priority == 'P1' or urgency == 'critical'"
+        action: "escalate_to_manager"
+      - condition: "moderation_flags.toxicity > 0.8"
+        action: "escalate_to_supervisor"
+      - condition: "department == 'billing'"
+        action: "route_to_billing_team"
+      - condition: "department == 'technical'"
+        action: "route_to_engineering"
+
+    notifications:
+      - condition: "priority == 'P1'"
+        channels: ["slack", "pagerduty"]
+        message: "🚨 P1 ticket requires immediate attention"
+      - condition: "sla_breach_predicted == true"
+        channels: ["email", "slack"]
+        message: "⚠️ Ticket approaching SLA breach"
+
+  # Estimated costs (for 10k tickets/day = 300k/month)
+  costs:
+    entity_extraction_spacy: "$0/month (local)"
+    classification_llm: "$4,050/month (gpt-4o-mini)"
+    classification_transformer: "$0/month (local)"
+    moderation_openai: "$0/month (free)"
+    priority_rules: "$0/month (local)"
+    response_generation_optional: "+$6,075/month (gpt-4o-mini)"
+    kb_search_optional: "+$405/month (embeddings + vector DB)"
+    total_minimal: "~$4,050/month ($48k/year)"
+    total_full: "~$10,530/month ($126k/year)"
+
+  # Recommended configuration for different scales
+  configurations:
+    startup:
+      classification_method: "transformer"
+      entity_method: "spacy"
+      priority_method: "rules"
+      moderation_method: "openai_moderation"
+      generate_responses: false
+      enable_kb_search: false
+      estimated_cost: "$0/month"
+
+    small_team:
+      classification_method: "llm"
+      entity_method: "spacy"
+      priority_method: "rules"
+      moderation_method: "openai_moderation"
+      generate_responses: false
+      enable_kb_search: false
+      estimated_cost: "$4,050/month"
+
+    enterprise:
+      classification_method: "llm"
+      entity_method: "spacy"
+      priority_method: "ml"
+      moderation_method: "openai_moderation"
+      generate_responses: true
+      enable_kb_search: true
+      estimated_cost: "$10,530/month"
+
+  # Key metrics to track
+  metrics:
+    - "Average response time"
+    - "First contact resolution rate"
+    - "Ticket volume by category"
+    - "SLA compliance rate"
+    - "Customer satisfaction score"
+    - "Escalation rate"
+    - "Auto-resolution rate"
+    - "Priority score accuracy"

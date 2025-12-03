@@ -1,0 +1,56 @@
+type: dagster_component_templates.TextModeratorComponent
+attributes:
+  asset_name: moderated_content
+
+  # Moderation Method
+  method: openai_moderation  # Options: openai_moderation, perspective_api, transformer, llm
+
+  # API Configuration
+  # For OpenAI Moderation (same key as GPT)
+  api_key: "${OPENAI_API_KEY}"
+
+  # For Perspective API
+  # method: perspective_api
+  # api_key: "${PERSPECTIVE_API_KEY}"
+
+  # For Transformer (local, no API)
+  # method: transformer
+  # transformer_model: unitary/toxic-bert
+
+  # For LLM-based (custom logic)
+  # method: llm
+  # llm_provider: openai
+  # llm_model: gpt-4o-mini
+  # api_key: "${OPENAI_API_KEY}"
+
+  # Input Configuration
+  input_column: user_comment
+
+  # Moderation Categories
+  categories: "toxicity,hate_speech,pii,profanity,sexual,violence"
+
+  # Threshold for flagging (0.0-1.0)
+  threshold: 0.7
+
+  # Features
+  redact_pii: true
+  include_scores: true
+  flag_column: flagged
+
+  # Optional: Custom profanity list
+  # custom_profanity_list: "badword1,badword2,badword3"
+
+  # Processing Configuration
+  batch_size: 32
+  temperature: 0.0
+  max_tokens: 300
+
+  # Performance & Costs
+  rate_limit_delay: 0.1
+  max_retries: 3
+  track_costs: true
+
+  # Organization
+  description: "Content moderation and safety detection"
+  group_name: "content_moderation"
+  include_sample_metadata: true

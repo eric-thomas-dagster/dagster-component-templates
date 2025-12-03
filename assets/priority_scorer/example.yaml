@@ -1,0 +1,52 @@
+type: dagster_component_templates.PriorityScorerComponent
+attributes:
+  asset_name: prioritized_tickets
+
+  # Scoring Method
+  method: rules  # Options: llm, ml, rules
+
+  # LLM Configuration (for method=llm)
+  # llm_provider: openai
+  # llm_model: gpt-4o-mini
+  # api_key: "${OPENAI_API_KEY}"
+
+  # ML Configuration (for method=ml)
+  # ml_model: logistic_regression  # Options: logistic_regression, xgboost, random_forest
+
+  # Input Configuration
+  input_columns: "ticket_text,ticket_category"
+  customer_tier_column: customer_tier
+  sentiment_score_column: sentiment_score
+  urgency_column: ticket_urgency
+
+  # Priority Configuration
+  priority_levels: "P1,P2,P3,P4"  # Or use "numeric" for 0-100 scores
+
+  # SLA Configuration
+  sla_hours: '{"enterprise": 4, "pro": 24, "basic": 72}'
+
+  # Weight Configuration
+  tier_weights: '{"enterprise": 1.5, "pro": 1.2, "basic": 1.0}'
+  urgency_weights: '{"critical": 2.0, "high": 1.5, "medium": 1.0, "low": 0.5}'
+
+  # Escalation
+  escalation_threshold: 80
+
+  # Features
+  predict_sla_breach: true
+  include_explanation: true
+
+  # Processing Configuration
+  batch_size: 50
+  temperature: 0.0
+  max_tokens: 300
+
+  # Performance & Costs
+  rate_limit_delay: 0.1
+  max_retries: 3
+  track_costs: true
+
+  # Organization
+  description: "Priority scoring with SLA breach prediction"
+  group_name: "priority_scoring"
+  include_sample_metadata: true

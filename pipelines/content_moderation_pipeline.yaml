@@ -1,0 +1,388 @@
+# Content Moderation Pipeline
+#
+# Use Case: Moderate user-generated content (text + images) at scale
+# Perfect for: Social platforms, marketplaces, review sites, community forums
+#
+# This pipeline automatically detects and flags inappropriate content including
+# toxicity, hate speech, PII, profanity, NSFW images, and policy violations.
+# Ensures brand safety and regulatory compliance.
+#
+# Business Outcomes:
+# - Prevent brand damage from toxic/inappropriate content
+# - Ensure GDPR/COPPA compliance with PII detection
+# - Reduce manual moderation workload by 70-80%
+# - Respond to violations within seconds (vs hours/days)
+# - Scale moderation to millions of items without proportional headcount
+#
+# Cost Savings: $80,000/year vs traditional solutions
+# - Perspective API Enterprise: $100k/year
+# - AWS Content Moderation: $90k/year
+# - WebPurify: $80k/year
+# - This solution: ~$20k/year (mostly image moderation API costs)
+#
+# Components:
+# 1. Content Ingestion: Load UGC from database, API, or stream
+# 2. Text Moderation: Detect toxicity, hate speech, PII, profanity
+# 3. Image Moderation: Detect NSFW, violence, inappropriate content
+# 4. Entity Extraction: Extract user mentions, links, hashtags
+# 5. Sentiment Analysis: Measure overall sentiment
+# 6. Action Router: Auto-approve, flag for review, or auto-reject
+
+pipeline:
+  name: "Content Moderation"
+  version: "1.0.0"
+
+  # High-level configuration
+  parameters:
+    content_source:
+      type: string
+      default: "database"
+      enum: ["database", "api", "stream", "s3", "csv"]
+      description: "Source of user-generated content"
+      required: true
+
+    content_types:
+      type: array
+      items:
+        type: string
+        enum: ["text", "image", "both"]
+      default: ["text", "image"]
+      description: "Types of content to moderate"
+      required: true
+
+    # Text moderation configuration
+    text_moderation_method:
+      type: string
+      default: "openai_moderation"
+      enum: ["openai_moderation", "perspective_api", "transformer", "llm"]
+      description: "Text moderation method (openai_moderation=recommended, free)"
+      required: true
+
+    text_categories:
+      type: array
+      items:
+        type: string
+      default: ["toxicity", "hate_speech", "pii", "profanity", "sexual", "violence"]
+      description: "Text moderation categories to check"
+      required: false
+
+    text_threshold:
+      type: number
+      default: 0.7
+      description: "Confidence threshold for text moderation (0.0-1.0)"
+      required: false
+
+    redact_pii:
+      type: boolean
+      default: true
+      description: "Automatically redact detected PII (email, phone, SSN)"
+      required: false
+
+    # Image moderation configuration
+    image_moderation_method:
+      type: string
+      default: "gpt4_vision"
+      enum: ["gpt4_vision", "claude3_vision", "aws_rekognition"]
+      description: "Image moderation method"
+      required: true
+
+    image_categories:
+      type: array
+      items:
+        type: string
+      default: ["nudity", "violence", "graphic", "suggestive", "drugs", "hate_symbols"]
+      description: "Image moderation categories to check"
+      required: false
+
+    image_threshold:
+      type: number
+      default: 0.7
+      description: "Confidence threshold for image moderation (0.0-1.0)"
+      required: false
+
+    # Entity extraction (optional)
+    extract_entities:
+      type: boolean
+      default: true
+      description: "Extract mentions, hashtags, URLs from content"
+      required: false
+
+    entity_types:
+      type: array
+      items:
+        type: string
+      default: ["person", "url", "hashtag", "mention", "email", "phone"]
+      description: "Entity types to extract"
+      required: false
+
+    # Sentiment analysis (optional)
+    analyze_sentiment:
+      type: boolean
+      default: true
+      description: "Analyze sentiment of text content"
+      required: false
+
+    # Action routing configuration
+    auto_approve_threshold:
+      type: number
+      default: 0.3
+      description: "Max violation score for auto-approval"
+      required: false
+
+    auto_reject_threshold:
+      type: number
+      default: 0.9
+      description: "Min violation score for auto-rejection"
+      required: false
+
+    require_human_review:
+      type: boolean
+      default: true
+      description: "Flag mid-range scores for human review"
+      required: false
+
+    # Platform configuration
+    platform:
+      type: string
+      default: "generic"
+      enum: ["generic", "social_media", "marketplace", "forum", "reviews", "messaging"]
+      description: "Platform type for context-specific rules"
+      required: false
+
+  # Components that make up the pipeline
+  components:
+    # Step 1: Ingest user-generated content
+    - id: content_ingestion
+      instance_name: raw_content
+      config:
+        asset_name: "raw_content"
+        source_type: "${content_source}"
+        description: "Raw user-generated content ingestion"
+        group_name: "content_moderation"
+
+    # Step 2: Extract entities from text content (mentions, URLs, hashtags)
+    - id: entity_extractor
+      instance_name: content_entities
+      enabled: "${extract_entities}"
+      config:
+        asset_name: "content_entities"
+        source_asset: "raw_content"
+        method: "spacy"
+        entity_types: ${entity_types}
+        custom_entities:
+          hashtag: "#\\w+"
+          mention: "@\\w+"
+          url: "https?://[^\\s]+"
+        input_column: "content_text"
+        output_format: "structured"
+        description: "Extract entities from content"
+        group_name: "content_moderation"
+
+    # Step 3: Moderate text content for toxicity, hate speech, PII, profanity
+    - id: text_moderator
+      instance_name: text_moderation_results
+      config:
+        asset_name: "text_moderation_results"
+        source_asset: "content_entities"
+        method: "${text_moderation_method}"
+        categories: ${text_categories}
+        threshold: ${text_threshold}
+        redact_pii: ${redact_pii}
+        include_scores: true
+        input_column: "content_text"
+        description: "Moderate text content for policy violations"
+        group_name: "content_moderation"
+
+    # Step 4: Moderate image content for NSFW, violence, inappropriate content
+    - id: vision_model
+      instance_name: image_moderation_results
+      enabled: "text in ${content_types} or both in ${content_types}"
+      config:
+        asset_name: "image_moderation_results"
+        source_asset: "text_moderation_results"
+        provider: "openai"
+        model: "${image_moderation_method}"
+        prompt: "Analyze this image for inappropriate content. Check for: ${image_categories}. Return a JSON with scores 0-1 for each category and overall safety assessment."
+        image_column: "image_url"
+        output_column: "image_moderation"
+        detail_level: "low"
+        max_images_per_request: 1
+        description: "Moderate image content for policy violations"
+        group_name: "content_moderation"
+
+    # Step 5: Analyze sentiment of content (optional)
+    - id: sentiment_analyzer
+      instance_name: content_sentiment
+      enabled: "${analyze_sentiment}"
+      config:
+        asset_name: "content_sentiment"
+        source_asset: "image_moderation_results"
+        method: "transformer"
+        model: "distilbert-base-uncased-finetuned-sst-2-english"
+        input_column: "content_text"
+        sentiment_categories: ["positive", "negative", "neutral"]
+        include_score: true
+        batch_size: 100
+        description: "Analyze sentiment of content"
+        group_name: "content_moderation"
+
+    # Step 6: Calculate overall violation score and route actions
+    - id: moderation_scorer
+      instance_name: moderation_decisions
+      config:
+        asset_name: "moderation_decisions"
+        source_asset: "content_sentiment"
+        scoring_method: "weighted_average"
+        weights:
+          toxicity: 1.0
+          hate_speech: 1.5
+          pii: 0.8
+          profanity: 0.6
+          sexual: 1.2
+          violence: 1.5
+          image_unsafe: 1.3
+        auto_approve_threshold: ${auto_approve_threshold}
+        auto_reject_threshold: ${auto_reject_threshold}
+        require_human_review: ${require_human_review}
+        description: "Calculate violation scores and route actions"
+        group_name: "content_moderation"
+
+  # Action routing rules
+  action_rules:
+    auto_approve:
+      - condition: "violation_score < ${auto_approve_threshold}"
+        action: "publish"
+        notification: false
+
+    auto_reject:
+      - condition: "violation_score >= ${auto_reject_threshold}"
+        action: "reject"
+        notification: "email"
+        message: "Content rejected due to policy violations"
+
+      - condition: "text_moderation.pii == true and ${redact_pii} == false"
+        action: "reject"
+        notification: "email"
+        message: "Content contains PII and cannot be published"
+
+      - condition: "text_moderation.hate_speech > 0.85"
+        action: "reject_and_flag"
+        notification: "slack"
+        message: "🚨 Hate speech detected - account flagged for review"
+
+    human_review:
+      - condition: "violation_score >= ${auto_approve_threshold} and violation_score < ${auto_reject_threshold}"
+        action: "queue_for_review"
+        priority: "medium"
+
+      - condition: "image_moderation.nudity > 0.6"
+        action: "queue_for_review"
+        priority: "high"
+
+      - condition: "entities.url_count > 5"
+        action: "queue_for_review"
+        priority: "low"
+        reason: "Potential spam - multiple URLs"
+
+  # Platform-specific rules
+  platform_rules:
+    social_media:
+      - "Stricter hate speech detection (threshold: 0.6)"
+      - "Allow profanity in personal posts"
+      - "Flag coordinated inauthentic behavior"
+
+    marketplace:
+      - "Strict PII protection (no phone/email in listings)"
+      - "Product-specific prohibited items list"
+      - "Price manipulation detection"
+
+    forum:
+      - "Context-aware moderation (gaming vs professional)"
+      - "Allow technical/medical terminology"
+      - "Thread-level toxicity scoring"
+
+    reviews:
+      - "Detect fake/incentivized reviews"
+      - "Allow product critique (not hate speech)"
+      - "Competitor mention flagging"
+
+    messaging:
+      - "End-to-end encryption consideration"
+      - "Report-based moderation only"
+      - "Grooming/exploitation detection"
+
+  # Estimated costs (for 100k items/day = 3M/month)
+  costs:
+    text_moderation_openai: "$0/month (free)"
+    text_moderation_perspective: "$0/month (free, requires approval)"
+    text_moderation_transformer: "$0/month (local)"
+    entity_extraction_spacy: "$0/month (local)"
+    sentiment_analysis_transformer: "$0/month (local)"
+    image_moderation_gpt4v: "$15,000/month (3M images at $0.005/image)"
+    image_moderation_claude3: "$12,000/month (3M images at $0.004/image)"
+    image_moderation_aws: "$3,000/month (3M images at $0.001/image)"
+    total_text_only: "$0/month"
+    total_with_images_gpt4v: "$15,000/month ($180k/year)"
+    total_with_images_claude3: "$12,000/month ($144k/year)"
+    total_with_images_aws: "$3,000/month ($36k/year)"
+
+  # Recommended configuration by scale
+  configurations:
+    startup:
+      text_moderation_method: "openai_moderation"
+      image_moderation_method: "aws_rekognition"
+      extract_entities: false
+      analyze_sentiment: false
+      require_human_review: true
+      estimated_cost: "$100-500/month"
+
+    growth:
+      text_moderation_method: "openai_moderation"
+      image_moderation_method: "gpt4_vision"
+      extract_entities: true
+      analyze_sentiment: true
+      require_human_review: true
+      estimated_cost: "$5,000-15,000/month"
+
+    enterprise:
+      text_moderation_method: "perspective_api"
+      image_moderation_method: "claude3_vision"
+      extract_entities: true
+      analyze_sentiment: true
+      require_human_review: false
+      estimated_cost: "$10,000-20,000/month"
+
+  # Compliance & Safety
+  compliance:
+    gdpr:
+      - "Automatic PII detection and redaction"
+      - "Right to deletion support"
+      - "Data minimization (no unnecessary storage)"
+
+    coppa:
+      - "Age-inappropriate content detection"
+      - "No collection of children's data"
+      - "Parental consent verification"
+
+    dmca:
+      - "Copyright violation detection (images)"
+      - "Takedown request processing"
+      - "Counter-notification workflow"
+
+    platform_policies:
+      - "Customizable policy rule engine"
+      - "A/B testing of thresholds"
+      - "Appeal process integration"
+
+  # Key metrics to track
+  metrics:
+    - "Items moderated per day"
+    - "Auto-approval rate"
+    - "Auto-rejection rate"
+    - "Human review queue size"
+    - "Average review time"
+    - "False positive rate"
+    - "False negative rate"
+    - "User appeal rate"
+    - "Policy violation breakdown"
+    - "Cost per moderated item"

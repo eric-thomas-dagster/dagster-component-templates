@@ -1,0 +1,144 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PriorityScorerComponent",
+  "description": "Score ticket priority/urgency using LLM, ML, or rule-based methods",
+  "type": "object",
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "description": "Name of the asset that will hold prioritized ticket data",
+      "examples": ["prioritized_tickets", "ticket_scores"]
+    },
+    "method": {
+      "type": "string",
+      "enum": ["llm", "ml", "rules"],
+      "default": "rules",
+      "description": "Scoring method"
+    },
+    "llm_provider": {
+      "type": "string",
+      "enum": ["openai", "anthropic"],
+      "description": "LLM provider (required for method=llm)"
+    },
+    "llm_model": {
+      "type": "string",
+      "description": "LLM model name (required for method=llm)",
+      "examples": ["gpt-4o-mini", "gpt-4", "claude-3-haiku-20240307"]
+    },
+    "ml_model": {
+      "type": "string",
+      "enum": ["logistic_regression", "xgboost", "random_forest"],
+      "description": "ML model type (for method=ml)"
+    },
+    "api_key": {
+      "type": "string",
+      "description": "API key for LLM method",
+      "examples": ["${OPENAI_API_KEY}", "${ANTHROPIC_API_KEY}"]
+    },
+    "input_columns": {
+      "type": "string",
+      "default": "ticket_text",
+      "description": "Comma-separated list of columns to use for scoring"
+    },
+    "priority_levels": {
+      "type": "string",
+      "default": "P1,P2,P3,P4",
+      "description": "Comma-separated priority levels or 'numeric' for 0-100 scores"
+    },
+    "sla_hours": {
+      "type": "string",
+      "description": "JSON dict mapping customer tier to SLA hours",
+      "examples": ["{\"enterprise\": 4, \"pro\": 24, \"basic\": 72}"]
+    },
+    "customer_tier_column": {
+      "type": "string",
+      "description": "Column name for customer tier"
+    },
+    "sentiment_score_column": {
+      "type": "string",
+      "description": "Column name for sentiment score"
+    },
+    "urgency_column": {
+      "type": "string",
+      "description": "Column name for urgency level"
+    },
+    "escalation_threshold": {
+      "type": "number",
+      "default": 80.0,
+      "minimum": 0.0,
+      "maximum": 100.0,
+      "description": "Priority score threshold for escalation"
+    },
+    "predict_sla_breach": {
+      "type": "boolean",
+      "default": true,
+      "description": "Predict if ticket will breach SLA"
+    },
+    "include_explanation": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include explanation of priority score factors"
+    },
+    "tier_weights": {
+      "type": "string",
+      "description": "JSON dict of tier weight multipliers",
+      "examples": ["{\"enterprise\": 1.5, \"pro\": 1.2, \"basic\": 1.0}"]
+    },
+    "urgency_weights": {
+      "type": "string",
+      "description": "JSON dict of urgency weight multipliers",
+      "examples": ["{\"critical\": 2.0, \"high\": 1.5, \"medium\": 1.0, \"low\": 0.5}"]
+    },
+    "batch_size": {
+      "type": "integer",
+      "default": 50,
+      "minimum": 1,
+      "description": "Batch size for processing"
+    },
+    "temperature": {
+      "type": "number",
+      "default": 0.0,
+      "minimum": 0.0,
+      "maximum": 2.0,
+      "description": "Temperature for LLM"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "default": 300,
+      "description": "Max tokens for LLM response"
+    },
+    "rate_limit_delay": {
+      "type": "number",
+      "default": 0.1,
+      "minimum": 0.0,
+      "description": "Delay in seconds between API calls"
+    },
+    "max_retries": {
+      "type": "integer",
+      "default": 3,
+      "minimum": 0,
+      "description": "Maximum retries for failed API calls"
+    },
+    "track_costs": {
+      "type": "boolean",
+      "default": true,
+      "description": "Track token usage and costs (LLM only)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "default": "priority_scoring",
+      "description": "Asset group for organization"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include sample data preview in metadata"
+    }
+  },
+  "required": ["asset_name"],
+  "additionalProperties": false
+}

@@ -1,0 +1,50 @@
+type: dagster_component_templates.EntityExtractorComponent
+attributes:
+  asset_name: extracted_ticket_entities
+
+  # Extraction Method
+  method: spacy  # Options: llm, spacy, transformer
+
+  # LLM Configuration (for method=llm)
+  # llm_provider: openai
+  # llm_model: gpt-4o-mini
+  # api_key: "${OPENAI_API_KEY}"
+
+  # spaCy Configuration (for method=spacy) - Recommended for speed
+  spacy_model: en_core_web_lg  # Options: en_core_web_sm, en_core_web_md, en_core_web_lg
+
+  # Transformer Configuration (for method=transformer)
+  # transformer_model: dslim/bert-base-NER
+
+  # Input Configuration
+  input_column: ticket_text
+
+  # Entity Types to Extract
+  entity_types: "person,organization,location,email,phone,product,order_id,date,money"
+
+  # Custom Entity Patterns (optional)
+  # custom_entities: '{"ticket_id": ["TICKET-\\d+"], "account_id": ["ACC\\d{6}"]}'
+
+  # Output Configuration
+  output_format: structured  # Options: structured (JSON), flat (separate columns)
+
+  # Optional Features
+  link_entities: false
+  include_confidence: true
+  include_spans: false
+  deduplicate: true
+
+  # Processing Configuration
+  batch_size: 32
+  temperature: 0.0
+  max_tokens: 500
+
+  # Performance & Costs
+  rate_limit_delay: 0.1
+  max_retries: 3
+  track_costs: true
+
+  # Organization
+  description: "Named entity extraction from support tickets"
+  group_name: "entity_extraction"
+  include_sample_metadata: true

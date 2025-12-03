@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EntityExtractorComponent",
+  "description": "Extract named entities from text using NER (Named Entity Recognition)",
+  "type": "object",
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "description": "Name of the asset that will hold extracted entities",
+      "examples": ["extracted_entities", "ticket_entities"]
+    },
+    "method": {
+      "type": "string",
+      "enum": ["llm", "spacy", "transformer"],
+      "default": "spacy",
+      "description": "Extraction method"
+    },
+    "llm_provider": {
+      "type": "string",
+      "enum": ["openai", "anthropic"],
+      "description": "LLM provider (required for method=llm)"
+    },
+    "llm_model": {
+      "type": "string",
+      "description": "LLM model name (required for method=llm)",
+      "examples": ["gpt-4o-mini", "gpt-4", "claude-3-haiku-20240307"]
+    },
+    "spacy_model": {
+      "type": "string",
+      "description": "spaCy model name (for method=spacy)",
+      "examples": ["en_core_web_sm", "en_core_web_md", "en_core_web_lg"]
+    },
+    "transformer_model": {
+      "type": "string",
+      "description": "Transformer NER model (for method=transformer)",
+      "examples": ["dslim/bert-base-NER", "dbmdz/bert-large-cased-finetuned-conll03-english"]
+    },
+    "api_key": {
+      "type": "string",
+      "description": "API key for LLM method",
+      "examples": ["${OPENAI_API_KEY}", "${ANTHROPIC_API_KEY}"]
+    },
+    "input_column": {
+      "type": "string",
+      "default": "text",
+      "description": "Column name containing text to extract entities from"
+    },
+    "entity_types": {
+      "type": "string",
+      "default": "person,organization,location,email,phone,product,order_id,date,money",
+      "description": "Comma-separated list of entity types to extract"
+    },
+    "custom_entities": {
+      "type": "string",
+      "description": "JSON string of custom entity patterns: {\"type\": [\"pattern1\", \"pattern2\"]}"
+    },
+    "output_format": {
+      "type": "string",
+      "enum": ["structured", "flat"],
+      "default": "structured",
+      "description": "Output format: structured (dict per row) or flat (one column per entity type)"
+    },
+    "link_entities": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable entity linking/resolution (LLM only)"
+    },
+    "include_confidence": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include confidence scores for entities"
+    },
+    "include_spans": {
+      "type": "boolean",
+      "default": false,
+      "description": "Include character span positions (start, end)"
+    },
+    "deduplicate": {
+      "type": "boolean",
+      "default": true,
+      "description": "Remove duplicate entities within the same text"
+    },
+    "batch_size": {
+      "type": "integer",
+      "default": 32,
+      "minimum": 1,
+      "description": "Batch size for processing"
+    },
+    "temperature": {
+      "type": "number",
+      "default": 0.0,
+      "minimum": 0.0,
+      "maximum": 2.0,
+      "description": "Temperature for LLM (0.0 = deterministic)"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "default": 500,
+      "description": "Max tokens for LLM response"
+    },
+    "rate_limit_delay": {
+      "type": "number",
+      "default": 0.1,
+      "minimum": 0.0,
+      "description": "Delay in seconds between API calls"
+    },
+    "max_retries": {
+      "type": "integer",
+      "default": 3,
+      "minimum": 0,
+      "description": "Maximum retries for failed API calls"
+    },
+    "track_costs": {
+      "type": "boolean",
+      "default": true,
+      "description": "Track token usage and costs (LLM only)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "default": "entity_extraction",
+      "description": "Asset group for organization"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include sample data preview in metadata"
+    }
+  },
+  "required": ["asset_name"],
+  "additionalProperties": false
+}

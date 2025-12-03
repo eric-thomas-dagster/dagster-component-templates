@@ -726,6 +726,127 @@
           "required": false
         }
       }
+    },
+    {
+      "id": "customer_support_automation",
+      "name": "Customer Support Automation",
+      "category": "ai",
+      "description": "Automate support ticket classification, prioritization, and routing. Reduce response time by 60%.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "pipelines/customer_support_automation_pipeline.yaml",
+      "tags": ["ai", "support", "automation", "customer-service", "classification"],
+      "icon": "Headphones",
+      "use_cases": ["Support teams", "Help desks", "Customer success organizations"],
+      "business_outcomes": ["60% faster response times", "3x ticket handling capacity", "25% improved CSAT"],
+      "cost_savings": "$120k/year vs Zendesk AI or Intercom Resolution Bot",
+      "pipeline_params": {
+        "ticket_source": {
+          "type": "string",
+          "default": "zendesk",
+          "enum": ["zendesk", "intercom", "freshdesk", "csv", "database"],
+          "description": "Support ticket source system",
+          "required": true
+        },
+        "classification_method": {
+          "type": "string",
+          "default": "llm",
+          "enum": ["llm", "transformer"],
+          "description": "Classification method (llm=accurate, transformer=fast/free)",
+          "required": true
+        },
+        "entity_method": {
+          "type": "string",
+          "default": "spacy",
+          "enum": ["spacy", "transformer", "llm"],
+          "description": "Entity extraction method (spacy=recommended)",
+          "required": true
+        },
+        "priority_method": {
+          "type": "string",
+          "default": "rules",
+          "enum": ["rules", "ml", "llm"],
+          "description": "Priority scoring method",
+          "required": true
+        },
+        "enable_moderation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable content moderation",
+          "required": false
+        },
+        "generate_responses": {
+          "type": "boolean",
+          "default": false,
+          "description": "Generate AI-powered responses",
+          "required": false
+        }
+      }
+    },
+    {
+      "id": "content_moderation",
+      "name": "Content Moderation",
+      "category": "ai",
+      "description": "Moderate user-generated content (text + images) at scale. Detect toxicity, PII, NSFW content.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "pipelines/content_moderation_pipeline.yaml",
+      "tags": ["ai", "moderation", "safety", "compliance", "ugc"],
+      "icon": "Shield",
+      "use_cases": ["Social platforms", "Marketplaces", "Review sites", "Community forums"],
+      "business_outcomes": ["Prevent brand damage", "GDPR/COPPA compliance", "70-80% reduced manual work"],
+      "cost_savings": "$80k/year vs Perspective API Enterprise or AWS Content Moderation",
+      "pipeline_params": {
+        "content_source": {
+          "type": "string",
+          "default": "database",
+          "enum": ["database", "api", "stream", "s3", "csv"],
+          "description": "Source of user-generated content",
+          "required": true
+        },
+        "content_types": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["text", "image", "both"]
+          },
+          "default": ["text", "image"],
+          "description": "Types of content to moderate",
+          "required": true
+        },
+        "text_moderation_method": {
+          "type": "string",
+          "default": "openai_moderation",
+          "enum": ["openai_moderation", "perspective_api", "transformer", "llm"],
+          "description": "Text moderation method (openai_moderation=free)",
+          "required": true
+        },
+        "image_moderation_method": {
+          "type": "string",
+          "default": "gpt4_vision",
+          "enum": ["gpt4_vision", "claude3_vision", "aws_rekognition"],
+          "description": "Image moderation method",
+          "required": true
+        },
+        "redact_pii": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically redact detected PII",
+          "required": false
+        },
+        "auto_approve_threshold": {
+          "type": "number",
+          "default": 0.3,
+          "description": "Max score for auto-approval (0.0-1.0)",
+          "required": false
+        },
+        "auto_reject_threshold": {
+          "type": "number",
+          "default": 0.9,
+          "description": "Min score for auto-rejection (0.0-1.0)",
+          "required": false
+        }
+      }
     }
   ]
 }

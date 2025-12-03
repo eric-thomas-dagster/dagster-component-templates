@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TextModeratorComponent",
+  "description": "Detect toxic content, hate speech, PII, profanity, and inappropriate content",
+  "type": "object",
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "description": "Name of the asset that will hold moderated content",
+      "examples": ["moderated_content", "safe_comments"]
+    },
+    "method": {
+      "type": "string",
+      "enum": ["openai_moderation", "perspective_api", "transformer", "llm"],
+      "default": "openai_moderation",
+      "description": "Moderation method"
+    },
+    "llm_provider": {
+      "type": "string",
+      "enum": ["openai", "anthropic"],
+      "description": "LLM provider (required for method=llm)"
+    },
+    "llm_model": {
+      "type": "string",
+      "description": "LLM model name (required for method=llm)",
+      "examples": ["gpt-4o-mini", "gpt-4", "claude-3-haiku-20240307"]
+    },
+    "transformer_model": {
+      "type": "string",
+      "description": "Transformer model (for method=transformer)",
+      "examples": ["unitary/toxic-bert", "s-nlp/roberta-toxicity-classifier"]
+    },
+    "api_key": {
+      "type": "string",
+      "description": "API key for OpenAI, Anthropic, or Perspective API",
+      "examples": ["${OPENAI_API_KEY}", "${ANTHROPIC_API_KEY}", "${PERSPECTIVE_API_KEY}"]
+    },
+    "input_column": {
+      "type": "string",
+      "default": "text",
+      "description": "Column name containing text to moderate"
+    },
+    "categories": {
+      "type": "string",
+      "default": "toxicity,hate_speech,pii,profanity,sexual,violence",
+      "description": "Comma-separated moderation categories to check"
+    },
+    "threshold": {
+      "type": "number",
+      "default": 0.7,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Confidence threshold for flagging content"
+    },
+    "redact_pii": {
+      "type": "boolean",
+      "default": false,
+      "description": "Redact/mask detected PII in output"
+    },
+    "include_scores": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include confidence scores for each category"
+    },
+    "flag_column": {
+      "type": "string",
+      "default": "flagged",
+      "description": "Column name for overall flag"
+    },
+    "batch_size": {
+      "type": "integer",
+      "default": 32,
+      "minimum": 1,
+      "description": "Batch size for processing"
+    },
+    "temperature": {
+      "type": "number",
+      "default": 0.0,
+      "minimum": 0.0,
+      "maximum": 2.0,
+      "description": "Temperature for LLM"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "default": 300,
+      "description": "Max tokens for LLM response"
+    },
+    "rate_limit_delay": {
+      "type": "number",
+      "default": 0.1,
+      "minimum": 0.0,
+      "description": "Delay in seconds between API calls"
+    },
+    "max_retries": {
+      "type": "integer",
+      "default": 3,
+      "minimum": 0,
+      "description": "Maximum retries for failed API calls"
+    },
+    "track_costs": {
+      "type": "boolean",
+      "default": true,
+      "description": "Track API costs"
+    },
+    "custom_profanity_list": {
+      "type": "string",
+      "description": "Comma-separated list of custom profanity words"
+    },
+    "description": {
+      "type": "string",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "default": "content_moderation",
+      "description": "Asset group for organization"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include sample data preview in metadata"
+    }
+  },
+  "required": ["asset_name"],
+  "additionalProperties": false
+}

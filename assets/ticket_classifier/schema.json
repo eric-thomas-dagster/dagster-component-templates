@@ -1,0 +1,152 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TicketClassifierComponent",
+  "description": "Classify support tickets by category, urgency, department, and sentiment",
+  "type": "object",
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "description": "Name of the asset that will hold classified ticket data",
+      "examples": ["classified_tickets", "ticket_classification"]
+    },
+    "method": {
+      "type": "string",
+      "enum": ["llm", "transformer"],
+      "default": "llm",
+      "description": "Classification method: llm (GPT/Claude) or transformer (BERT, RoBERTa)"
+    },
+    "llm_provider": {
+      "type": "string",
+      "enum": ["openai", "anthropic"],
+      "description": "LLM provider (required for method=llm)"
+    },
+    "llm_model": {
+      "type": "string",
+      "description": "LLM model name (required for method=llm)",
+      "examples": ["gpt-4o-mini", "gpt-4", "gpt-4-turbo", "claude-3-haiku-20240307", "claude-3-5-sonnet-20241022"]
+    },
+    "transformer_model": {
+      "type": "string",
+      "description": "Transformer model name (for method=transformer)",
+      "examples": ["bert-base-uncased", "distilbert-base-uncased", "roberta-base", "facebook/bart-large-mnli"]
+    },
+    "api_key": {
+      "type": "string",
+      "description": "API key for LLM method. Use ${OPENAI_API_KEY} or ${ANTHROPIC_API_KEY} for environment variables",
+      "examples": ["${OPENAI_API_KEY}", "${ANTHROPIC_API_KEY}"]
+    },
+    "input_column": {
+      "type": "string",
+      "default": "ticket_text",
+      "description": "Column name containing ticket text"
+    },
+    "categories": {
+      "type": "string",
+      "default": "technical,billing,account,product,general,other",
+      "description": "Comma-separated list of ticket categories"
+    },
+    "urgency_levels": {
+      "type": "string",
+      "default": "low,medium,high,critical",
+      "description": "Comma-separated list of urgency levels"
+    },
+    "departments": {
+      "type": "string",
+      "description": "Comma-separated list of departments for routing (optional)",
+      "examples": ["engineering,finance,customer_success,sales"]
+    },
+    "classify_sentiment": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include sentiment classification (positive, neutral, negative)"
+    },
+    "include_confidence": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include confidence scores for classifications"
+    },
+    "include_reasoning": {
+      "type": "boolean",
+      "default": false,
+      "description": "Include reasoning/explanation for classifications (LLM only)"
+    },
+    "multi_label": {
+      "type": "boolean",
+      "default": false,
+      "description": "Allow multiple categories per ticket"
+    },
+    "confidence_threshold": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Minimum confidence threshold. Below this = 'uncertain'"
+    },
+    "batch_size": {
+      "type": "integer",
+      "default": 50,
+      "minimum": 1,
+      "description": "Batch size for processing"
+    },
+    "temperature": {
+      "type": "number",
+      "default": 0.0,
+      "minimum": 0.0,
+      "maximum": 2.0,
+      "description": "Temperature for LLM (0.0 = deterministic)"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "default": 200,
+      "description": "Max tokens for LLM response"
+    },
+    "rate_limit_delay": {
+      "type": "number",
+      "default": 0.1,
+      "minimum": 0.0,
+      "description": "Delay in seconds between API calls"
+    },
+    "max_retries": {
+      "type": "integer",
+      "default": 3,
+      "minimum": 0,
+      "description": "Maximum retries for failed API calls"
+    },
+    "enable_caching": {
+      "type": "boolean",
+      "default": true,
+      "description": "Cache API responses to avoid redundant calls"
+    },
+    "track_costs": {
+      "type": "boolean",
+      "default": true,
+      "description": "Track token usage and costs (LLM only)"
+    },
+    "include_metadata_fields": {
+      "type": "string",
+      "description": "Comma-separated list of metadata fields to include in classification",
+      "examples": ["customer_tier,channel", "priority,tags,source"]
+    },
+    "description": {
+      "type": "string",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "default": "ticket_classification",
+      "description": "Asset group for organization"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "default": true,
+      "description": "Include sample data preview in metadata"
+    }
+  },
+  "required": ["asset_name"],
+  "additionalProperties": false,
+  "if": {
+    "properties": { "method": { "const": "llm" } }
+  },
+  "then": {
+    "required": ["llm_provider", "llm_model"]
+  }
+}

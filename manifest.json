@@ -2349,6 +2349,240 @@
           "numpy>=1.24.0"
         ]
       }
+    },
+    {
+      "id": "ab_test_analysis",
+      "name": "A/B Test Analysis",
+      "category": "analytics",
+      "description": "Analyze A/B test results with statistical significance testing",
+      "path": "assets/ab_test_analysis",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ab_test_analysis/component.py",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ab_test_analysis/README.md",
+      "tags": [
+        "analytics",
+        "ab-testing",
+        "statistics",
+        "experimentation"
+      ],
+      "icon": "Package",
+      "dependencies": {
+        "pip": [
+          "pandas>=1.5.0"
+        ]
+      }
+    },
+    {
+      "id": "ad_spend_standardizer",
+      "name": "Ad Spend Standardizer",
+      "category": "transformation",
+      "description": "Standardize advertising spend data from multiple platforms",
+      "path": "assets/ad_spend_standardizer",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ad_spend_standardizer/component.py",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ad_spend_standardizer/README.md",
+      "tags": [
+        "transformation",
+        "advertising",
+        "marketing",
+        "standardization"
+      ],
+      "icon": "Package",
+      "dependencies": {
+        "pip": [
+          "pandas>=1.5.0"
+        ]
+      },
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ad_spend_standardizer/schema.json"
+    },
+    {
+      "id": "anomaly_detection",
+      "name": "Anomaly Detection",
+      "category": "analytics",
+      "description": "Detect anomalies in time series and transactional data",
+      "path": "assets/anomaly_detection",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/anomaly_detection/component.py",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/anomaly_detection/README.md",
+      "tags": [
+        "ml",
+        "analytics",
+        "anomaly-detection",
+        "monitoring"
+      ],
+      "icon": "Package",
+      "dependencies": {
+        "pip": [
+          "pandas>=1.5.0"
+        ]
+      }
+    },
+    {
+      "id": "campaign_performance",
+      "name": "Campaign Performance",
+      "category": "analytics",
+      "description": "Analyze marketing campaign performance across channels",
+      "path": "assets/campaign_performance",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/campaign_performance/component.py",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/campaign_performance/README.md",
+      "tags": [
+        "analytics",
+        "marketing",
+        "campaigns",
+        "performance"
+      ],
+      "icon": "Package",
+      "dependencies": {
+        "pip": [
+          "pandas>=1.5.0"
+        ]
+      }
+    },
+    {
+      "id": "customer_health_score",
+      "name": "Customer Health Score",
+      "category": "analytics",
+      "description": "Calculate customer health scores for proactive retention",
+      "path": "assets/customer_health_score",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_health_score/component.py",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_health_score/README.md",
+      "tags": [
+        "analytics",
+        "customer-success",
+        "retention",
+        "scoring"
+      ],
+      "icon": "Package",
+      "dependencies": {
+        "pip": [
+          "pandas>=1.5.0"
+        ]
+      },
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_health_score/schema.json"
+    },
+    {
+      "id": "customer_journey_mapping",
+      "name": "Customer Journey Mapping",
+      "category": "analytics",
+      "description": "Map and analyze customer journeys across touchpoints",
+      "path": "assets/customer_journey_mapping",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_journey_mapping/component.py",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_journey_mapping/README.md",
+      "tags": [
+        "analytics",
+        "journey-mapping",
+        "customer-analytics"
+      ],
+      "icon": "Package",
+      "dependencies": {
+        "pip": [
+          "pandas>=1.5.0"
+        ]
+      }
+    },
+    {
+      "id": "lead_scoring",
+      "name": "Lead Scoring",
+      "category": "analytics",
+      "description": "Score leads based on behavior and demographics for sales prioritization",
+      "path": "assets/lead_scoring",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/lead_scoring/component.py",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/lead_scoring/README.md",
+      "tags": [
+        "ml",
+        "analytics",
+        "lead-scoring",
+        "sales"
+      ],
+      "icon": "Package",
+      "dependencies": {
+        "pip": [
+          "pandas>=1.5.0"
+        ]
+      },
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/lead_scoring/schema.json"
+    },
+    {
+      "id": "multi_touch_attribution",
+      "name": "Multi-Touch Attribution",
+      "category": "analytics",
+      "description": "Attribute conversions across multiple marketing touchpoints",
+      "path": "assets/multi_touch_attribution",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/multi_touch_attribution/component.py",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/multi_touch_attribution/README.md",
+      "tags": [
+        "analytics",
+        "attribution",
+        "marketing",
+        "conversions"
+      ],
+      "icon": "Package",
+      "dependencies": {
+        "pip": [
+          "pandas>=1.5.0"
+        ]
+      }
+    },
+    {
+      "id": "product_recommendations",
+      "name": "Product Recommendations",
+      "category": "ml",
+      "description": "Generate personalized product recommendations",
+      "path": "assets/product_recommendations",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_recommendations/component.py",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_recommendations/README.md",
+      "tags": [
+        "ml",
+        "recommendations",
+        "personalization",
+        "ecommerce"
+      ],
+      "icon": "Package",
+      "dependencies": {
+        "pip": [
+          "pandas>=1.5.0"
+        ]
+      }
+    },
+    {
+      "id": "propensity_scoring",
+      "name": "Propensity Scoring",
+      "category": "ml",
+      "description": "Score propensity for actions like purchase, churn, or upgrade",
+      "path": "assets/propensity_scoring",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/propensity_scoring/component.py",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/propensity_scoring/README.md",
+      "tags": [
+        "ml",
+        "analytics",
+        "propensity",
+        "prediction"
+      ],
+      "icon": "Package",
+      "dependencies": {
+        "pip": [
+          "pandas>=1.5.0"
+        ]
+      }
+    },
+    {
+      "id": "s3_to_database_asset",
+      "name": "S3 to Database Asset",
+      "category": "ingestion",
+      "description": "Load files from S3 into database tables",
+      "path": "assets/s3_to_database_asset",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/s3_to_database_asset/component.py",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/s3_to_database_asset/README.md",
+      "tags": [
+        "ingestion",
+        "s3",
+        "database",
+        "etl"
+      ],
+      "icon": "Package",
+      "dependencies": {
+        "pip": [
+          "pandas>=1.5.0"
+        ]
+      },
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/s3_to_database_asset/schema.json"
     }
   ]
 }

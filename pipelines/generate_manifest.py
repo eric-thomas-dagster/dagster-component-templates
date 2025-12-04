@@ -51,36 +51,65 @@ def parse_pipeline_yaml(file_path: Path) -> Dict[str, Any]:
     # Extract metadata from comments
     metadata = extract_metadata_from_comments(content)
 
-    # Parse YAML documents (multi-doc YAML with --- separators)
+    # Parse YAML - try to detect format
     documents = list(yaml.safe_load_all(content))
     components = []
     pipeline_params = {}
 
-    for doc in documents:
-        if doc and isinstance(doc, dict):
-            if 'type' in doc:
-                # This is a component
-                component_type = doc['type'].split('.')[-1]
-                component_id = _type_to_id(component_type)
+    # Check if this is a structured pipeline format (has 'pipeline:' key)
+    if len(documents) == 1 and 'pipeline' in documents[0]:
+        doc = documents[0]
+        pipeline_def = doc['pipeline']
 
-                attributes = doc.get('attributes', {})
-                asset_name = attributes.get('asset_name', 'unknown')
+        # Extract name from pipeline definition
+        if 'name' in pipeline_def:
+            metadata['name'] = pipeline_def['name']
 
-                # Try to find dependencies from source_asset or similar fields
-                depends_on = []
-                for key in ['source_asset', 'input_asset', 'transaction_data_asset', 'event_data_asset']:
-                    if key in attributes and attributes[key]:
-                        depends_on.append(attributes[key])
+        # Extract parameters
+        if 'parameters' in pipeline_def:
+            pipeline_params = pipeline_def['parameters']
+
+        # Extract components
+        if 'components' in pipeline_def:
+            for comp_def in pipeline_def['components']:
+                component_id = comp_def.get('id', 'unknown')
+                instance_name = comp_def.get('instance_name', component_id)
+                config = comp_def.get('config', {})
+                depends_on = comp_def.get('depends_on', [])
 
                 components.append({
                     'component_id': component_id,
-                    'instance_name': asset_name,
-                    'config_mapping': {
-                        'asset_name': asset_name,
-                        'description': attributes.get('description', '')
-                    },
-                    'depends_on': depends_on[:1] if depends_on else []  # Take first dependency only
+                    'instance_name': instance_name,
+                    'config_mapping': config,
+                    'depends_on': depends_on if isinstance(depends_on, list) else [depends_on]
                 })
+    else:
+        # Multi-document YAML format (old format)
+        for doc in documents:
+            if doc and isinstance(doc, dict):
+                if 'type' in doc:
+                    # This is a component
+                    component_type = doc['type'].split('.')[-1]
+                    component_id = _type_to_id(component_type)
+
+                    attributes = doc.get('attributes', {})
+                    asset_name = attributes.get('asset_name', 'unknown')
+
+                    # Try to find dependencies from source_asset or similar fields
+                    depends_on = []
+                    for key in ['source_asset', 'input_asset', 'transaction_data_asset', 'event_data_asset']:
+                        if key in attributes and attributes[key]:
+                            depends_on.append(attributes[key])
+
+                    components.append({
+                        'component_id': component_id,
+                        'instance_name': asset_name,
+                        'config_mapping': {
+                            'asset_name': asset_name,
+                            'description': attributes.get('description', '')
+                        },
+                        'depends_on': depends_on[:1] if depends_on else []  # Take first dependency only
+                    })
 
     # Derive pipeline ID from filename
     pipeline_id = file_path.stem
@@ -170,18 +199,43 @@ def generate_manifest():
         except Exception as e:
             print(f"  ✗ Error: {e}")
 
-    # Load existing manifest to preserve pipeline_params
+    # Load existing manifest to preserve environment-specific pipeline_params
+    # (These are not in the YAML files - they're added via manifest maintenance)
     manifest_path = pipelines_dir / 'manifest.json'
     existing_manifest = {}
     if manifest_path.exists():
         with open(manifest_path, 'r') as f:
             existing_manifest = json.load(f)
 
-        # Merge pipeline_params from existing manifest
+        # Merge environment-specific params and show_if conditions from existing manifest
+        # (pipeline_params from YAML are already parsed, we just need to add env-specific metadata)
         existing_params = {p['id']: p.get('pipeline_params', {}) for p in existing_manifest.get('pipelines', [])}
         for pipeline in pipelines:
             if pipeline['id'] in existing_params:
-                pipeline['pipeline_params'] = existing_params[pipeline['id']]
+                # Merge: keep YAML params structure, add environment_specific/show_if from existing
+                yaml_params = pipeline.get('pipeline_params', {})
+                existing_pipe_params = existing_params[pipeline['id']]
+
+                # Merge each parameter
+                for param_key, param_value in yaml_params.items():
+                    if param_key in existing_pipe_params:
+                        # Preserve environment_specific, show_if, sensitive flags
+                        existing_param = existing_pipe_params[param_key]
+                        if 'environment_specific' in existing_param:
+                            param_value['environment_specific'] = existing_param['environment_specific']
+                        if 'show_if' in existing_param:
+                            param_value['show_if'] = existing_param['show_if']
+                        if 'sensitive' in existing_param:
+                            param_value['sensitive'] = existing_param['sensitive']
+                        if 'environment_defaults' in existing_param:
+                            param_value['environment_defaults'] = existing_param['environment_defaults']
+
+                # Also add params that exist in existing but not in YAML (like auth credentials)
+                for param_key, param_value in existing_pipe_params.items():
+                    if param_key not in yaml_params:
+                        yaml_params[param_key] = param_value
+
+                pipeline['pipeline_params'] = yaml_params
 
     manifest = {
         'version': '1.0.0',

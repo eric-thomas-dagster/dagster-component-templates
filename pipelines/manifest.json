@@ -1045,8 +1045,298 @@
       "use_case": "Moderate user-generated content (text + images) at scale",
       "business_outcome": "",
       "estimated_savings": null,
-      "components": [],
-      "pipeline_params": {},
+      "components": [
+        {
+          "component_id": "content_ingestion",
+          "instance_name": "raw_content",
+          "config_mapping": {
+            "asset_name": "raw_content",
+            "source_type": "${content_source}",
+            "description": "Raw user-generated content ingestion",
+            "group_name": "content_moderation"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "entity_extractor",
+          "instance_name": "content_entities",
+          "config_mapping": {
+            "asset_name": "content_entities",
+            "source_asset": "raw_content",
+            "method": "spacy",
+            "entity_types": "${entity_types}",
+            "custom_entities": {
+              "hashtag": "#\\w+",
+              "mention": "@\\w+",
+              "url": "https?://[^\\s]+"
+            },
+            "input_column": "content_text",
+            "output_format": "structured",
+            "description": "Extract entities from content",
+            "group_name": "content_moderation"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "text_moderator",
+          "instance_name": "text_moderation_results",
+          "config_mapping": {
+            "asset_name": "text_moderation_results",
+            "source_asset": "content_entities",
+            "method": "${text_moderation_method}",
+            "categories": "${text_categories}",
+            "threshold": "${text_threshold}",
+            "redact_pii": "${redact_pii}",
+            "include_scores": true,
+            "input_column": "content_text",
+            "description": "Moderate text content for policy violations",
+            "group_name": "content_moderation"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "vision_model",
+          "instance_name": "image_moderation_results",
+          "config_mapping": {
+            "asset_name": "image_moderation_results",
+            "source_asset": "text_moderation_results",
+            "provider": "openai",
+            "model": "${image_moderation_method}",
+            "prompt": "Analyze this image for inappropriate content. Check for: ${image_categories}. Return a JSON with scores 0-1 for each category and overall safety assessment.",
+            "image_column": "image_url",
+            "output_column": "image_moderation",
+            "detail_level": "low",
+            "max_images_per_request": 1,
+            "description": "Moderate image content for policy violations",
+            "group_name": "content_moderation"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "sentiment_analyzer",
+          "instance_name": "content_sentiment",
+          "config_mapping": {
+            "asset_name": "content_sentiment",
+            "source_asset": "image_moderation_results",
+            "method": "transformer",
+            "model": "distilbert-base-uncased-finetuned-sst-2-english",
+            "input_column": "content_text",
+            "sentiment_categories": [
+              "positive",
+              "negative",
+              "neutral"
+            ],
+            "include_score": true,
+            "batch_size": 100,
+            "description": "Analyze sentiment of content",
+            "group_name": "content_moderation"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "moderation_scorer",
+          "instance_name": "moderation_decisions",
+          "config_mapping": {
+            "asset_name": "moderation_decisions",
+            "source_asset": "content_sentiment",
+            "scoring_method": "weighted_average",
+            "weights": {
+              "toxicity": 1.0,
+              "hate_speech": 1.5,
+              "pii": 0.8,
+              "profanity": 0.6,
+              "sexual": 1.2,
+              "violence": 1.5,
+              "image_unsafe": 1.3
+            },
+            "auto_approve_threshold": "${auto_approve_threshold}",
+            "auto_reject_threshold": "${auto_reject_threshold}",
+            "require_human_review": "${require_human_review}",
+            "description": "Calculate violation scores and route actions",
+            "group_name": "content_moderation"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "dlt_dataframe_writer",
+          "instance_name": "moderation_output",
+          "config_mapping": {
+            "asset_name": "moderation_output",
+            "source_asset": "moderation_decisions",
+            "table_name": "content_moderation_results",
+            "destination": "",
+            "write_mode": "append",
+            "description": "Write moderation results to database",
+            "group_name": "content_moderation"
+          },
+          "depends_on": []
+        }
+      ],
+      "pipeline_params": {
+        "content_source": {
+          "type": "string",
+          "default": "database",
+          "enum": [
+            "database",
+            "api",
+            "stream",
+            "s3",
+            "csv"
+          ],
+          "description": "Source of user-generated content",
+          "required": true
+        },
+        "content_types": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "text",
+              "image",
+              "both"
+            ]
+          },
+          "default": [
+            "text",
+            "image"
+          ],
+          "description": "Types of content to moderate",
+          "required": true
+        },
+        "text_moderation_method": {
+          "type": "string",
+          "default": "openai_moderation",
+          "enum": [
+            "openai_moderation",
+            "perspective_api",
+            "transformer",
+            "llm"
+          ],
+          "description": "Text moderation method (openai_moderation=recommended, free)",
+          "required": true
+        },
+        "text_categories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "toxicity",
+            "hate_speech",
+            "pii",
+            "profanity",
+            "sexual",
+            "violence"
+          ],
+          "description": "Text moderation categories to check",
+          "required": false
+        },
+        "text_threshold": {
+          "type": "number",
+          "default": 0.7,
+          "description": "Confidence threshold for text moderation (0.0-1.0)",
+          "required": false
+        },
+        "redact_pii": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically redact detected PII (email, phone, SSN)",
+          "required": false
+        },
+        "image_moderation_method": {
+          "type": "string",
+          "default": "gpt4_vision",
+          "enum": [
+            "gpt4_vision",
+            "claude3_vision",
+            "aws_rekognition"
+          ],
+          "description": "Image moderation method",
+          "required": true
+        },
+        "image_categories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "nudity",
+            "violence",
+            "graphic",
+            "suggestive",
+            "drugs",
+            "hate_symbols"
+          ],
+          "description": "Image moderation categories to check",
+          "required": false
+        },
+        "image_threshold": {
+          "type": "number",
+          "default": 0.7,
+          "description": "Confidence threshold for image moderation (0.0-1.0)",
+          "required": false
+        },
+        "extract_entities": {
+          "type": "boolean",
+          "default": true,
+          "description": "Extract mentions, hashtags, URLs from content",
+          "required": false
+        },
+        "entity_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "person",
+            "url",
+            "hashtag",
+            "mention",
+            "email",
+            "phone"
+          ],
+          "description": "Entity types to extract",
+          "required": false
+        },
+        "analyze_sentiment": {
+          "type": "boolean",
+          "default": true,
+          "description": "Analyze sentiment of text content",
+          "required": false
+        },
+        "auto_approve_threshold": {
+          "type": "number",
+          "default": 0.3,
+          "description": "Max violation score for auto-approval",
+          "required": false
+        },
+        "auto_reject_threshold": {
+          "type": "number",
+          "default": 0.9,
+          "description": "Min violation score for auto-rejection",
+          "required": false
+        },
+        "require_human_review": {
+          "type": "boolean",
+          "default": true,
+          "description": "Flag mid-range scores for human review",
+          "required": false
+        },
+        "platform": {
+          "type": "string",
+          "default": "generic",
+          "enum": [
+            "generic",
+            "social_media",
+            "marketplace",
+            "forum",
+            "reviews",
+            "messaging"
+          ],
+          "description": "Platform type for context-specific rules",
+          "required": false
+        }
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/content_moderation_pipeline.yaml",
       "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/content_moderation_pipeline.yaml",
       "icon": "FileText"
@@ -1654,32 +1944,116 @@
       "use_case": "Analyze sentiment across thousands of customer reviews at scale",
       "business_outcome": "",
       "estimated_savings": null,
-      "components": [],
+      "components": [
+        {
+          "component_id": "ecommerce_standardizer",
+          "instance_name": "standardized_reviews",
+          "config_mapping": {
+            "asset_name": "standardized_reviews",
+            "platform": "${ecommerce_platform}",
+            "resource_type": "reviews",
+            "description": "Standardized review data",
+            "group_name": "sentiment_analysis"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "sentiment_analyzer",
+          "instance_name": "review_sentiment",
+          "config_mapping": {
+            "asset_name": "review_sentiment",
+            "source_asset": "standardized_reviews",
+            "method": "${sentiment_method}",
+            "model": "distilbert-base-uncased-finetuned-sst-2-english",
+            "llm_provider": "${llm_provider}",
+            "llm_model": "gpt-3.5-turbo",
+            "input_column": "review_text",
+            "sentiment_categories": [
+              "positive",
+              "negative",
+              "neutral"
+            ],
+            "include_score": true,
+            "batch_size": 100,
+            "description": "Sentiment analysis of customer reviews",
+            "group_name": "sentiment_analysis"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "openai_llm",
+          "instance_name": "review_entities",
+          "config_mapping": {
+            "asset_name": "review_entities",
+            "source_asset": "review_sentiment",
+            "model": "gpt-3.5-turbo",
+            "system_prompt": "Extract product features, topics, and entities mentioned in customer reviews. Return as comma-separated list.",
+            "input_column": "review_text",
+            "output_column": "entities_mentioned",
+            "temperature": 0.3,
+            "max_tokens": 100,
+            "batch_size": 50,
+            "enable_caching": true,
+            "description": "Extract entities from reviews",
+            "group_name": "sentiment_analysis"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "dlt_dataframe_writer",
+          "instance_name": "sentiment_output",
+          "config_mapping": {
+            "asset_name": "sentiment_output",
+            "source_asset": "review_entities",
+            "table_name": "review_sentiment_analysis",
+            "destination": "",
+            "write_mode": "append",
+            "description": "Write sentiment analysis results to database",
+            "group_name": "sentiment_analysis"
+          },
+          "depends_on": []
+        }
+      ],
       "pipeline_params": {
         "ecommerce_platform": {
           "type": "string",
           "default": "shopify",
           "description": "E-commerce platform (shopify, woocommerce, magento, etc.)",
           "required": true,
-          "enum": [
-            "shopify",
-            "woocommerce",
-            "magento",
-            "bigcommerce",
-            "stripe"
-          ],
           "environment_specific": false
         },
         "sentiment_method": {
           "type": "string",
           "default": "transformer",
-          "description": "Sentiment analysis method (transformer=fast/cheap, llm=accurate/expensive)",
-          "required": true,
           "enum": [
             "transformer",
             "llm"
           ],
+          "description": "Sentiment analysis method (transformer=fast/cheap, llm=accurate/expensive)",
+          "required": true,
           "environment_specific": false
+        },
+        "llm_provider": {
+          "type": "string",
+          "default": "openai",
+          "enum": [
+            "openai",
+            "anthropic"
+          ],
+          "description": "LLM provider for sentiment (if method=llm)",
+          "required": false
+        },
+        "extract_entities": {
+          "type": "boolean",
+          "default": true,
+          "description": "Extract product features and entities mentioned in reviews",
+          "required": false
+        },
+        "analysis_period_days": {
+          "type": "integer",
+          "default": 30,
+          "description": "Number of days of reviews to analyze",
+          "required": false
         },
         "shopify_shop_domain": {
           "type": "string",
@@ -2197,8 +2571,324 @@
       "use_case": "Automatically classify, prioritize, and route support tickets",
       "business_outcome": "",
       "estimated_savings": null,
-      "components": [],
-      "pipeline_params": {},
+      "components": [
+        {
+          "component_id": "support_ticket_ingestion",
+          "instance_name": "raw_tickets",
+          "config_mapping": {
+            "asset_name": "raw_tickets",
+            "source_type": "${ticket_source}",
+            "description": "Raw support ticket ingestion",
+            "group_name": "support_automation"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "entity_extractor",
+          "instance_name": "ticket_entities",
+          "config_mapping": {
+            "asset_name": "ticket_entities",
+            "source_asset": "raw_tickets",
+            "method": "${entity_method}",
+            "entity_types": [
+              "person",
+              "email",
+              "phone",
+              "product",
+              "order_id",
+              "date",
+              "money"
+            ],
+            "input_column": "ticket_text",
+            "output_format": "structured",
+            "description": "Extract key entities from tickets",
+            "group_name": "support_automation"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "ticket_classifier",
+          "instance_name": "classified_tickets",
+          "config_mapping": {
+            "asset_name": "classified_tickets",
+            "source_asset": "ticket_entities",
+            "method": "${classification_method}",
+            "llm_provider": "openai",
+            "llm_model": "gpt-4o-mini",
+            "categories": "${ticket_categories}",
+            "urgency_levels": "${urgency_levels}",
+            "departments": "${departments}",
+            "input_column": "ticket_text",
+            "include_confidence": true,
+            "batch_size": 50,
+            "description": "Classify tickets by category and urgency",
+            "group_name": "support_automation"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "text_moderator",
+          "instance_name": "moderated_tickets",
+          "config_mapping": {
+            "asset_name": "moderated_tickets",
+            "source_asset": "classified_tickets",
+            "method": "${moderation_method}",
+            "categories": [
+              "toxicity",
+              "hate_speech",
+              "pii",
+              "profanity"
+            ],
+            "threshold": 0.7,
+            "redact_pii": true,
+            "include_scores": true,
+            "input_column": "ticket_text",
+            "description": "Moderate ticket content for safety",
+            "group_name": "support_automation"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "priority_scorer",
+          "instance_name": "prioritized_tickets",
+          "config_mapping": {
+            "asset_name": "prioritized_tickets",
+            "source_asset": "moderated_tickets",
+            "method": "${priority_method}",
+            "input_columns": [
+              "ticket_text",
+              "customer_tier",
+              "urgency",
+              "sentiment_score"
+            ],
+            "priority_levels": [
+              "P1",
+              "P2",
+              "P3",
+              "P4"
+            ],
+            "sla_hours": "${sla_hours}",
+            "escalation_threshold": 80,
+            "include_explanation": true,
+            "description": "Score ticket priority and predict SLA breaches",
+            "group_name": "support_automation"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "openai_llm",
+          "instance_name": "response_suggestions",
+          "config_mapping": {
+            "asset_name": "response_suggestions",
+            "source_asset": "prioritized_tickets",
+            "model": "${response_llm_model}",
+            "system_prompt": "You are a helpful customer support agent. Generate a professional, empathetic response to the customer's ticket. Use the extracted entities and classification to personalize the response. Keep it concise (2-3 paragraphs).",
+            "input_column": "ticket_text",
+            "output_column": "suggested_response",
+            "temperature": 0.7,
+            "max_tokens": 300,
+            "batch_size": 20,
+            "enable_caching": true,
+            "description": "Generate AI-powered response suggestions",
+            "group_name": "support_automation"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "vector_store_query",
+          "instance_name": "kb_search_results",
+          "config_mapping": {
+            "asset_name": "kb_search_results",
+            "query_asset": "prioritized_tickets",
+            "vector_store": "pinecone",
+            "index_name": "knowledge_base",
+            "embedding_provider": "openai",
+            "embedding_model": "text-embedding-3-small",
+            "query_column": "ticket_text",
+            "top_k": 3,
+            "similarity_threshold": 0.75,
+            "description": "Search knowledge base for relevant articles",
+            "group_name": "support_automation"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "dlt_dataframe_writer",
+          "instance_name": "tickets_output",
+          "config_mapping": {
+            "asset_name": "tickets_output",
+            "source_asset": "kb_search_results",
+            "table_name": "support_tickets_processed",
+            "destination": "",
+            "write_mode": "append",
+            "description": "Write processed tickets to database",
+            "group_name": "support_automation"
+          },
+          "depends_on": []
+        }
+      ],
+      "pipeline_params": {
+        "ticket_source": {
+          "type": "string",
+          "default": "zendesk",
+          "enum": [
+            "zendesk",
+            "intercom",
+            "freshdesk",
+            "csv",
+            "database"
+          ],
+          "description": "Support ticket source system",
+          "required": true
+        },
+        "classification_method": {
+          "type": "string",
+          "default": "llm",
+          "enum": [
+            "llm",
+            "transformer"
+          ],
+          "description": "Ticket classification method (llm=accurate, transformer=fast/free)",
+          "required": true
+        },
+        "ticket_categories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "technical",
+            "billing",
+            "account",
+            "product",
+            "feature_request",
+            "other"
+          ],
+          "description": "Custom ticket categories for your organization",
+          "required": false
+        },
+        "urgency_levels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ],
+          "description": "Urgency level classifications",
+          "required": false
+        },
+        "departments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "support",
+            "engineering",
+            "billing",
+            "sales"
+          ],
+          "description": "Departments for ticket routing",
+          "required": false
+        },
+        "entity_method": {
+          "type": "string",
+          "default": "spacy",
+          "enum": [
+            "spacy",
+            "transformer",
+            "llm"
+          ],
+          "description": "Entity extraction method (spacy=recommended for production)",
+          "required": true
+        },
+        "priority_method": {
+          "type": "string",
+          "default": "rules",
+          "enum": [
+            "rules",
+            "ml",
+            "llm"
+          ],
+          "description": "Priority scoring method (rules=fast/free, ml=balanced, llm=most accurate)",
+          "required": true
+        },
+        "customer_tiers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "free",
+            "basic",
+            "pro",
+            "enterprise"
+          ],
+          "description": "Customer tier levels for priority weighting",
+          "required": false
+        },
+        "sla_hours": {
+          "type": "object",
+          "default": {
+            "free": 48,
+            "basic": 24,
+            "pro": 12,
+            "enterprise": 4
+          },
+          "description": "SLA response time in hours per customer tier",
+          "required": false
+        },
+        "enable_moderation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable content moderation for toxic/inappropriate content",
+          "required": false
+        },
+        "moderation_method": {
+          "type": "string",
+          "default": "openai_moderation",
+          "enum": [
+            "openai_moderation",
+            "perspective_api",
+            "transformer",
+            "llm"
+          ],
+          "description": "Content moderation method (openai_moderation=recommended, free)",
+          "required": false
+        },
+        "generate_responses": {
+          "type": "boolean",
+          "default": false,
+          "description": "Generate AI-powered response suggestions",
+          "required": false
+        },
+        "response_llm_provider": {
+          "type": "string",
+          "default": "openai",
+          "enum": [
+            "openai",
+            "anthropic"
+          ],
+          "description": "LLM provider for response generation",
+          "required": false
+        },
+        "response_llm_model": {
+          "type": "string",
+          "default": "gpt-4o-mini",
+          "description": "LLM model for response generation",
+          "required": false
+        },
+        "enable_kb_search": {
+          "type": "boolean",
+          "default": false,
+          "description": "Search knowledge base for relevant articles",
+          "required": false
+        }
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/customer_support_automation_pipeline.yaml",
       "yaml_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/pipelines/customer_support_automation_pipeline.yaml",
       "icon": "TrendingUp"
@@ -2211,19 +2901,118 @@
       "use_case": "Build a chatbot that answers questions about your documents",
       "business_outcome": "",
       "estimated_savings": null,
-      "components": [],
+      "components": [
+        {
+          "component_id": "document_ingestion",
+          "instance_name": "raw_documents",
+          "config_mapping": {
+            "asset_name": "raw_documents",
+            "source_type": "${document_source}",
+            "file_patterns": [
+              "*.pdf",
+              "*.md",
+              "*.txt"
+            ],
+            "description": "Raw document ingestion",
+            "group_name": "document_rag"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "document_chunker",
+          "instance_name": "document_chunks",
+          "config_mapping": {
+            "asset_name": "document_chunks",
+            "source_asset": "raw_documents",
+            "strategy": "${chunking_strategy}",
+            "chunk_size": "${chunk_size}",
+            "chunk_overlap": "${chunk_overlap}",
+            "preserve_metadata": true,
+            "merge_small_chunks": true,
+            "input_column": "document_text",
+            "output_column": "chunk_text",
+            "description": "Split documents into chunks",
+            "group_name": "document_rag"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "embeddings_generator",
+          "instance_name": "document_embeddings",
+          "config_mapping": {
+            "asset_name": "document_embeddings",
+            "source_asset": "document_chunks",
+            "provider": "${embedding_provider}",
+            "model": "${embedding_model}",
+            "input_column": "chunk_text",
+            "output_column": "embedding",
+            "batch_size": 100,
+            "normalize": true,
+            "enable_caching": true,
+            "description": "Generate embeddings for chunks",
+            "group_name": "document_rag"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "dlt_dataframe_writer",
+          "instance_name": "embeddings_backup",
+          "config_mapping": {
+            "asset_name": "embeddings_backup",
+            "source_asset": "document_embeddings",
+            "table_name": "document_embeddings_log",
+            "destination": "",
+            "write_mode": "append",
+            "description": "Write embeddings to warehouse for tracking (optional)",
+            "group_name": "document_rag"
+          },
+          "depends_on": []
+        },
+        {
+          "component_id": "vector_store_writer",
+          "instance_name": "vector_index",
+          "config_mapping": {
+            "asset_name": "vector_index",
+            "source_asset": "document_embeddings",
+            "vector_store": "${vector_store}",
+            "index_name": "documents",
+            "embedding_column": "embedding",
+            "metadata_columns": [
+              "source",
+              "page",
+              "chunk_position"
+            ],
+            "upsert_mode": true,
+            "description": "Store embeddings in vector database",
+            "group_name": "document_rag"
+          },
+          "depends_on": []
+        }
+      ],
       "pipeline_params": {
-        "document_path": {
+        "document_source": {
           "type": "string",
-          "default": "/path/to/documents.csv",
-          "description": "Path to documents file",
-          "required": true,
-          "environment_specific": false
+          "default": "s3",
+          "enum": [
+            "s3",
+            "google_drive",
+            "local",
+            "github"
+          ],
+          "description": "Where documents are stored",
+          "required": true
         },
         "chunking_strategy": {
           "type": "string",
           "default": "recursive",
-          "description": "How to split documents (fixed, semantic, recursive, sentence, token_aware)",
+          "enum": [
+            "fixed",
+            "semantic",
+            "recursive",
+            "sentence",
+            "token_aware"
+          ],
+          "description": "How to split documents into chunks",
           "required": true,
           "environment_specific": false
         },
@@ -2237,14 +3026,20 @@
         "chunk_overlap": {
           "type": "integer",
           "default": 200,
-          "description": "Overlap between chunks for context",
+          "description": "Overlap between chunks for context preservation",
           "required": false,
           "environment_specific": false
         },
         "embedding_provider": {
           "type": "string",
           "default": "openai",
-          "description": "Embeddings provider (openai, cohere, sentence_transformers, huggingface)",
+          "enum": [
+            "openai",
+            "cohere",
+            "sentence_transformers",
+            "huggingface"
+          ],
+          "description": "Embeddings provider",
           "required": true,
           "environment_specific": false
         },
@@ -2253,6 +3048,41 @@
           "default": "text-embedding-3-small",
           "description": "Embedding model to use",
           "required": false,
+          "environment_specific": false
+        },
+        "vector_store": {
+          "type": "string",
+          "default": "pinecone",
+          "enum": [
+            "pinecone",
+            "weaviate",
+            "chroma",
+            "faiss"
+          ],
+          "description": "Vector database for storage",
+          "required": true
+        },
+        "llm_provider": {
+          "type": "string",
+          "default": "openai",
+          "enum": [
+            "openai",
+            "anthropic"
+          ],
+          "description": "LLM for question answering",
+          "required": true
+        },
+        "llm_model": {
+          "type": "string",
+          "default": "gpt-4-turbo",
+          "description": "LLM model for responses",
+          "required": false
+        },
+        "document_path": {
+          "type": "string",
+          "default": "/path/to/documents.csv",
+          "description": "Path to documents file",
+          "required": true,
           "environment_specific": false
         },
         "output_destination": {

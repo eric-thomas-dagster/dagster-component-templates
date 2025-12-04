@@ -159,6 +159,23 @@ Each pipeline includes:
 4. **Customize** for your data sources
 5. **Deploy & iterate**
 
+## Developing New Pipelines
+
+Want to create your own pipeline template? See our comprehensive guide:
+
+**📚 [Pipeline Development Guide](./PIPELINE_DEVELOPMENT.md)**
+
+Covers:
+- YAML formats and structure
+- Parameter configuration
+- Component dependencies
+- Conditional logic
+- Environment-specific configuration
+- Testing and publishing
+- Complete examples
+
 ## Contributing
 
 Have a great pipeline template? Submit a PR! We're building the world's best open-source CDP.
+
+See [PIPELINE_DEVELOPMENT.md](./PIPELINE_DEVELOPMENT.md) for detailed contribution guidelines.

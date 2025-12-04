@@ -2583,6 +2583,30 @@
         ]
       },
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/s3_to_database_asset/schema.json"
+    },
+    {
+      "id": "product_usage_analytics",
+      "name": "Product Usage Analytics",
+      "category": "cdp",
+      "description": "Analyze product feature usage to measure adoption, engagement, and identify power users for product-led growth strategies",
+      "path": "assets/product_usage_analytics",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_usage_analytics/component.py",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_usage_analytics/README.md",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_usage_analytics/schema.json",
+      "tags": [
+        "cdp",
+        "analytics",
+        "product",
+        "engagement",
+        "power-users"
+      ],
+      "icon": "Activity",
+      "dependencies": {
+        "pip": [
+          "pandas>=1.5.0",
+          "numpy>=1.24.0"
+        ]
+      }
     }
   ]
 }

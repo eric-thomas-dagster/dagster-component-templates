@@ -11,9 +11,16 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "sensors/slack_notification",
-      "tags": ["slack", "notification", "webhook", "chat"],
+      "tags": [
+        "slack",
+        "notification",
+        "webhook",
+        "chat"
+      ],
       "dependencies": {
-        "pip": ["slack-sdk>=3.19.0"]
+        "pip": [
+          "slack-sdk>=3.19.0"
+        ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/component.py",
@@ -29,7 +36,13 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "sensors/filesystem_monitor",
-      "tags": ["filesystem", "files", "monitoring", "run-config", "local"],
+      "tags": [
+        "filesystem",
+        "files",
+        "monitoring",
+        "run-config",
+        "local"
+      ],
       "dependencies": {
         "pip": []
       },
@@ -47,9 +60,18 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/csv_file_ingestion",
-      "tags": ["csv", "ingestion", "pandas", "data-loading", "file"],
+      "tags": [
+        "csv",
+        "ingestion",
+        "pandas",
+        "data-loading",
+        "file"
+      ],
       "dependencies": {
-        "pip": ["pandas>=2.0.0", "pyarrow>=10.0.0"]
+        "pip": [
+          "pandas>=2.0.0",
+          "pyarrow>=10.0.0"
+        ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/csv_file_ingestion/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/csv_file_ingestion/component.py",
@@ -65,9 +87,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/s3_to_database",
-      "tags": ["s3", "database", "ingestion", "etl", "run-config"],
+      "tags": [
+        "s3",
+        "database",
+        "ingestion",
+        "etl",
+        "run-config"
+      ],
       "dependencies": {
-        "pip": ["boto3>=1.26.0", "pandas>=2.0.0", "sqlalchemy>=2.0.0", "pyarrow>=10.0.0"]
+        "pip": [
+          "boto3>=1.26.0",
+          "pandas>=2.0.0",
+          "sqlalchemy>=2.0.0",
+          "pyarrow>=10.0.0"
+        ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/s3_to_database/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/s3_to_database/component.py",
@@ -83,9 +116,19 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/rest_api_fetcher",
-      "tags": ["api", "rest", "http", "ingestion", "external-data"],
+      "tags": [
+        "api",
+        "rest",
+        "http",
+        "ingestion",
+        "external-data"
+      ],
       "dependencies": {
-        "pip": ["requests>=2.28.0", "pandas>=2.0.0", "pyarrow>=10.0.0"]
+        "pip": [
+          "requests>=2.28.0",
+          "pandas>=2.0.0",
+          "pyarrow>=10.0.0"
+        ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rest_api_fetcher/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rest_api_fetcher/component.py",
@@ -101,9 +144,21 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/file_transformer",
-      "tags": ["transformation", "files", "csv", "json", "parquet", "excel", "run-config"],
+      "tags": [
+        "transformation",
+        "files",
+        "csv",
+        "json",
+        "parquet",
+        "excel",
+        "run-config"
+      ],
       "dependencies": {
-        "pip": ["pandas>=2.0.0", "pyarrow>=10.0.0", "openpyxl>=3.0.0"]
+        "pip": [
+          "pandas>=2.0.0",
+          "pyarrow>=10.0.0",
+          "openpyxl>=3.0.0"
+        ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/file_transformer/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/file_transformer/component.py",
@@ -119,12 +174,28 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/database_query",
-      "tags": ["database", "sql", "query", "data-extraction", "analytics"],
+      "tags": [
+        "database",
+        "sql",
+        "query",
+        "data-extraction",
+        "analytics"
+      ],
       "dependencies": {
-        "pip": ["pandas>=2.0.0", "sqlalchemy>=2.0.0", "pyarrow>=10.0.0"]
+        "pip": [
+          "pandas>=2.0.0",
+          "sqlalchemy>=2.0.0",
+          "pyarrow>=10.0.0"
+        ]
       },
       "supports_partitions": true,
-      "supported_partition_types": ["daily", "weekly", "monthly", "hourly", "static"],
+      "supported_partition_types": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static"
+      ],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/database_query/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/database_query/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/database_query/schema.json",
@@ -139,9 +210,18 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/dataframe_transformer",
-      "tags": ["dataframe", "transformation", "io-manager", "dependencies", "pandas"],
+      "tags": [
+        "dataframe",
+        "transformation",
+        "io-manager",
+        "dependencies",
+        "pandas"
+      ],
       "dependencies": {
-        "pip": ["pandas>=2.0.0", "pyarrow>=10.0.0"]
+        "pip": [
+          "pandas>=2.0.0",
+          "pyarrow>=10.0.0"
+        ]
       },
       "icon": "GitBranch",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dataframe_transformer/README.md",
@@ -158,13 +238,27 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/synthetic_data_generator",
-      "tags": ["synthetic", "mock-data", "demo", "testing", "faker", "data-generation"],
+      "tags": [
+        "synthetic",
+        "mock-data",
+        "demo",
+        "testing",
+        "faker",
+        "data-generation"
+      ],
       "dependencies": {
-        "pip": ["pandas>=2.0.0"]
+        "pip": [
+          "pandas>=2.0.0"
+        ]
       },
       "icon": "Wand2",
       "supports_partitions": true,
-      "supported_partition_types": ["daily", "weekly", "monthly", "hourly"],
+      "supported_partition_types": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly"
+      ],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/synthetic_data_generator/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/synthetic_data_generator/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/synthetic_data_generator/schema.json",
@@ -179,9 +273,18 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/duckdb_table_writer",
-      "tags": ["duckdb", "database", "storage", "persistence", "local-db"],
+      "tags": [
+        "duckdb",
+        "database",
+        "storage",
+        "persistence",
+        "local-db"
+      ],
       "dependencies": {
-        "pip": ["duckdb>=0.9.0", "pandas>=2.0.0"]
+        "pip": [
+          "duckdb>=0.9.0",
+          "pandas>=2.0.0"
+        ]
       },
       "icon": "Database",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_table_writer/README.md",
@@ -198,9 +301,19 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/dlt_dataframe_writer",
-      "tags": ["dlt", "database", "storage", "persistence", "warehouse", "data-output"],
+      "tags": [
+        "dlt",
+        "database",
+        "storage",
+        "persistence",
+        "warehouse",
+        "data-output"
+      ],
       "dependencies": {
-        "pip": ["dlt[all]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[all]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "Database",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dlt_dataframe_writer/README.md",
@@ -217,12 +330,26 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/time_series_generator",
-      "tags": ["time-series", "synthetic", "patterns", "analytics", "forecasting"],
+      "tags": [
+        "time-series",
+        "synthetic",
+        "patterns",
+        "analytics",
+        "forecasting"
+      ],
       "dependencies": {
-        "pip": ["pandas>=2.0.0", "numpy>=1.24.0"]
+        "pip": [
+          "pandas>=2.0.0",
+          "numpy>=1.24.0"
+        ]
       },
       "supports_partitions": true,
-      "supported_partition_types": ["daily", "weekly", "monthly", "hourly"],
+      "supported_partition_types": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly"
+      ],
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/time_series_generator/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/time_series_generator/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/time_series_generator/schema.json",
@@ -237,9 +364,18 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/duckdb_query_reader",
-      "tags": ["duckdb", "sql", "query", "analytics", "transformation"],
+      "tags": [
+        "duckdb",
+        "sql",
+        "query",
+        "analytics",
+        "transformation"
+      ],
       "dependencies": {
-        "pip": ["duckdb>=0.9.0", "pandas>=2.0.0"]
+        "pip": [
+          "duckdb>=0.9.0",
+          "pandas>=2.0.0"
+        ]
       },
       "icon": "Search",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/duckdb_query_reader/README.md",
@@ -256,7 +392,13 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "core/dependency_graph",
-      "tags": ["core", "dependencies", "graph", "wiring", "yaml"],
+      "tags": [
+        "core",
+        "dependencies",
+        "graph",
+        "wiring",
+        "yaml"
+      ],
       "dependencies": {
         "pip": []
       },
@@ -274,7 +416,14 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "core/asset_reference",
-      "tags": ["core", "reference", "existing-asset", "import", "dbt", "python"],
+      "tags": [
+        "core",
+        "reference",
+        "existing-asset",
+        "import",
+        "dbt",
+        "python"
+      ],
       "dependencies": {
         "pip": []
       },
@@ -292,9 +441,21 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "asset_checks/enhanced_data_quality_checks",
-      "tags": ["data-quality", "validation", "checks", "monitoring", "anomaly-detection", "data-testing", "asset-checks"],
+      "tags": [
+        "data-quality",
+        "validation",
+        "checks",
+        "monitoring",
+        "anomaly-detection",
+        "data-testing",
+        "asset-checks"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.3.0", "numpy>=1.21.0", "scipy>=1.7.0"]
+        "pip": [
+          "pandas>=1.3.0",
+          "numpy>=1.21.0",
+          "scipy>=1.7.0"
+        ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/enhanced_data_quality_checks/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/enhanced_data_quality_checks/component.py",
@@ -310,9 +471,22 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/llm_prompt_executor",
-      "tags": ["llm", "ai", "openai", "anthropic", "prompts", "generation", "agentic"],
+      "tags": [
+        "llm",
+        "ai",
+        "openai",
+        "anthropic",
+        "prompts",
+        "generation",
+        "agentic"
+      ],
       "dependencies": {
-        "pip": ["openai>=1.0.0", "anthropic>=0.18.0", "cohere>=4.0.0", "huggingface-hub>=0.20.0"]
+        "pip": [
+          "openai>=1.0.0",
+          "anthropic>=0.18.0",
+          "cohere>=4.0.0",
+          "huggingface-hub>=0.20.0"
+        ]
       },
       "icon": "Bot",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_prompt_executor/README.md",
@@ -329,9 +503,24 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/document_text_extractor",
-      "tags": ["pdf", "document", "extraction", "ocr", "text", "agentic"],
+      "tags": [
+        "pdf",
+        "document",
+        "extraction",
+        "ocr",
+        "text",
+        "agentic"
+      ],
       "dependencies": {
-        "pip": ["pypdf>=3.0.0", "pdfplumber>=0.9.0", "python-docx>=0.8.11", "beautifulsoup4>=4.11.0", "pytesseract>=0.3.10", "pdf2image>=1.16.0", "Pillow>=9.0.0"]
+        "pip": [
+          "pypdf>=3.0.0",
+          "pdfplumber>=0.9.0",
+          "python-docx>=0.8.11",
+          "beautifulsoup4>=4.11.0",
+          "pytesseract>=0.3.10",
+          "pdf2image>=1.16.0",
+          "Pillow>=9.0.0"
+        ]
       },
       "icon": "FileText",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_text_extractor/README.md",
@@ -348,9 +537,18 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/text_chunker",
-      "tags": ["text", "chunking", "nlp", "embeddings", "preprocessing", "agentic"],
+      "tags": [
+        "text",
+        "chunking",
+        "nlp",
+        "embeddings",
+        "preprocessing",
+        "agentic"
+      ],
       "dependencies": {
-        "pip": ["pandas>=2.0.0"]
+        "pip": [
+          "pandas>=2.0.0"
+        ]
       },
       "icon": "Scissors",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/text_chunker/README.md",
@@ -367,9 +565,24 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/embedding_generator",
-      "tags": ["embeddings", "vector", "ai", "ml", "openai", "sentence-transformers", "agentic"],
+      "tags": [
+        "embeddings",
+        "vector",
+        "ai",
+        "ml",
+        "openai",
+        "sentence-transformers",
+        "agentic"
+      ],
       "dependencies": {
-        "pip": ["openai>=1.0.0", "sentence-transformers>=2.0.0", "cohere>=4.0.0", "huggingface-hub>=0.20.0", "pandas>=2.0.0", "numpy>=1.24.0"]
+        "pip": [
+          "openai>=1.0.0",
+          "sentence-transformers>=2.0.0",
+          "cohere>=4.0.0",
+          "huggingface-hub>=0.20.0",
+          "pandas>=2.0.0",
+          "numpy>=1.24.0"
+        ]
       },
       "icon": "Zap",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/embedding_generator/README.md",
@@ -386,9 +599,24 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/vector_store_writer",
-      "tags": ["vector-db", "embeddings", "storage", "pinecone", "chromadb", "qdrant", "agentic"],
+      "tags": [
+        "vector-db",
+        "embeddings",
+        "storage",
+        "pinecone",
+        "chromadb",
+        "qdrant",
+        "agentic"
+      ],
       "dependencies": {
-        "pip": ["chromadb>=0.4.0", "pinecone-client>=3.0.0", "qdrant-client>=1.7.0", "faiss-cpu>=1.7.4", "pandas>=2.0.0", "numpy>=1.24.0"]
+        "pip": [
+          "chromadb>=0.4.0",
+          "pinecone-client>=3.0.0",
+          "qdrant-client>=1.7.0",
+          "faiss-cpu>=1.7.4",
+          "pandas>=2.0.0",
+          "numpy>=1.24.0"
+        ]
       },
       "icon": "Database",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vector_store_writer/README.md",
@@ -405,9 +633,21 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/vector_store_query",
-      "tags": ["vector-db", "search", "retrieval", "semantic-search", "agentic"],
+      "tags": [
+        "vector-db",
+        "search",
+        "retrieval",
+        "semantic-search",
+        "agentic"
+      ],
       "dependencies": {
-        "pip": ["chromadb>=0.4.0", "pinecone-client>=3.0.0", "qdrant-client>=1.7.0", "faiss-cpu>=1.7.4", "pandas>=2.0.0"]
+        "pip": [
+          "chromadb>=0.4.0",
+          "pinecone-client>=3.0.0",
+          "qdrant-client>=1.7.0",
+          "faiss-cpu>=1.7.4",
+          "pandas>=2.0.0"
+        ]
       },
       "icon": "Search",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vector_store_query/README.md",
@@ -424,9 +664,18 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/llm_chain_executor",
-      "tags": ["llm", "chains", "reasoning", "multi-step", "agentic"],
+      "tags": [
+        "llm",
+        "chains",
+        "reasoning",
+        "multi-step",
+        "agentic"
+      ],
       "dependencies": {
-        "pip": ["openai>=1.0.0", "anthropic>=0.18.0"]
+        "pip": [
+          "openai>=1.0.0",
+          "anthropic>=0.18.0"
+        ]
       },
       "icon": "Link",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_chain_executor/README.md",
@@ -443,9 +692,18 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/document_summarizer",
-      "tags": ["llm", "summarization", "nlp", "document-processing", "agentic"],
+      "tags": [
+        "llm",
+        "summarization",
+        "nlp",
+        "document-processing",
+        "agentic"
+      ],
       "dependencies": {
-        "pip": ["openai>=1.0.0", "anthropic>=0.18.0"]
+        "pip": [
+          "openai>=1.0.0",
+          "anthropic>=0.18.0"
+        ]
       },
       "icon": "FileText",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_summarizer/README.md",
@@ -462,9 +720,18 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/text_classifier",
-      "tags": ["llm", "classification", "nlp", "sentiment", "agentic"],
+      "tags": [
+        "llm",
+        "classification",
+        "nlp",
+        "sentiment",
+        "agentic"
+      ],
       "dependencies": {
-        "pip": ["openai>=1.0.0", "anthropic>=0.18.0"]
+        "pip": [
+          "openai>=1.0.0",
+          "anthropic>=0.18.0"
+        ]
       },
       "icon": "Tag",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/text_classifier/README.md",
@@ -481,7 +748,14 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/conversation_memory",
-      "tags": ["llm", "conversation", "memory", "context", "chatbot", "agentic"],
+      "tags": [
+        "llm",
+        "conversation",
+        "memory",
+        "context",
+        "chatbot",
+        "agentic"
+      ],
       "dependencies": {
         "pip": []
       },
@@ -500,9 +774,23 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/rag_pipeline",
-      "tags": ["rag", "retrieval", "llm", "vector-search", "qa", "agentic"],
+      "tags": [
+        "rag",
+        "retrieval",
+        "llm",
+        "vector-search",
+        "qa",
+        "agentic"
+      ],
       "dependencies": {
-        "pip": ["openai>=1.0.0", "anthropic>=0.18.0", "chromadb>=0.4.0", "pinecone-client>=3.0.0", "qdrant-client>=1.7.0", "sentence-transformers>=2.0.0"]
+        "pip": [
+          "openai>=1.0.0",
+          "anthropic>=0.18.0",
+          "chromadb>=0.4.0",
+          "pinecone-client>=3.0.0",
+          "qdrant-client>=1.7.0",
+          "sentence-transformers>=2.0.0"
+        ]
       },
       "icon": "Workflow",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rag_pipeline/README.md",
@@ -519,9 +807,18 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/llm_output_parser",
-      "tags": ["llm", "parsing", "validation", "structured-output", "agentic"],
+      "tags": [
+        "llm",
+        "parsing",
+        "validation",
+        "structured-output",
+        "agentic"
+      ],
       "dependencies": {
-        "pip": ["pandas>=2.0.0", "jsonschema>=4.0.0"]
+        "pip": [
+          "pandas>=2.0.0",
+          "jsonschema>=4.0.0"
+        ]
       },
       "icon": "Code",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_output_parser/README.md",
@@ -538,9 +835,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/facebook_ads_ingestion",
-      "tags": ["cdp", "marketing", "facebook", "ads", "advertising", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "marketing",
+        "facebook",
+        "ads",
+        "advertising",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[facebook_ads]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[facebook_ads]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "TrendingUp",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/facebook_ads_ingestion/README.md",
@@ -557,9 +865,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/google_ads_ingestion",
-      "tags": ["cdp", "marketing", "google", "ads", "advertising", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "marketing",
+        "google",
+        "ads",
+        "advertising",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[google_ads]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[google_ads]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "TrendingUp",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_ads_ingestion/README.md",
@@ -576,9 +895,21 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/linkedin_ads_ingestion",
-      "tags": ["cdp", "marketing", "linkedin", "ads", "advertising", "dlt", "ingestion", "b2b"],
+      "tags": [
+        "cdp",
+        "marketing",
+        "linkedin",
+        "ads",
+        "advertising",
+        "dlt",
+        "ingestion",
+        "b2b"
+      ],
       "dependencies": {
-        "pip": ["dlt[rest_api]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[rest_api]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "TrendingUp",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/linkedin_ads_ingestion/README.md",
@@ -595,9 +926,21 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/tiktok_ads_ingestion",
-      "tags": ["cdp", "marketing", "tiktok", "ads", "advertising", "dlt", "ingestion", "social"],
+      "tags": [
+        "cdp",
+        "marketing",
+        "tiktok",
+        "ads",
+        "advertising",
+        "dlt",
+        "ingestion",
+        "social"
+      ],
       "dependencies": {
-        "pip": ["dlt[rest_api]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[rest_api]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "TrendingUp",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/tiktok_ads_ingestion/README.md",
@@ -614,9 +957,22 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/twitter_ads_ingestion",
-      "tags": ["cdp", "marketing", "twitter", "x", "ads", "advertising", "dlt", "ingestion", "social"],
+      "tags": [
+        "cdp",
+        "marketing",
+        "twitter",
+        "x",
+        "ads",
+        "advertising",
+        "dlt",
+        "ingestion",
+        "social"
+      ],
       "dependencies": {
-        "pip": ["dlt[rest_api]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[rest_api]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "TrendingUp",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/twitter_ads_ingestion/README.md",
@@ -633,9 +989,22 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/pinterest_ads_ingestion",
-      "tags": ["cdp", "marketing", "pinterest", "ads", "advertising", "dlt", "ingestion", "visual", "ecommerce"],
+      "tags": [
+        "cdp",
+        "marketing",
+        "pinterest",
+        "ads",
+        "advertising",
+        "dlt",
+        "ingestion",
+        "visual",
+        "ecommerce"
+      ],
       "dependencies": {
-        "pip": ["dlt[rest_api]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[rest_api]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "TrendingUp",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/pinterest_ads_ingestion/README.md",
@@ -652,9 +1021,21 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/openai_llm",
-      "tags": ["ai", "llm", "openai", "gpt", "nlp", "text-processing", "batch"],
+      "tags": [
+        "ai",
+        "llm",
+        "openai",
+        "gpt",
+        "nlp",
+        "text-processing",
+        "batch"
+      ],
       "dependencies": {
-        "pip": ["openai>=1.0.0", "pandas>=1.5.0", "tiktoken>=0.5.0"]
+        "pip": [
+          "openai>=1.0.0",
+          "pandas>=1.5.0",
+          "tiktoken>=0.5.0"
+        ]
       },
       "icon": "Brain",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/openai_llm/README.md",
@@ -671,9 +1052,21 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/anthropic_llm",
-      "tags": ["ai", "llm", "anthropic", "claude", "nlp", "text-processing", "batch", "prompt-caching"],
+      "tags": [
+        "ai",
+        "llm",
+        "anthropic",
+        "claude",
+        "nlp",
+        "text-processing",
+        "batch",
+        "prompt-caching"
+      ],
       "dependencies": {
-        "pip": ["anthropic>=0.18.0", "pandas>=1.5.0"]
+        "pip": [
+          "anthropic>=0.18.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "Brain",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/anthropic_llm/README.md",
@@ -690,9 +1083,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/document_chunker",
-      "tags": ["ai", "rag", "document-processing", "chunking", "text-processing", "nlp"],
+      "tags": [
+        "ai",
+        "rag",
+        "document-processing",
+        "chunking",
+        "text-processing",
+        "nlp"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "nltk>=3.8", "tiktoken>=0.5.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "nltk>=3.8",
+          "tiktoken>=0.5.0"
+        ]
       },
       "icon": "FileText",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/document_chunker/README.md",
@@ -709,9 +1113,22 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/embeddings_generator",
-      "tags": ["ai", "embeddings", "vector", "rag", "nlp", "semantic-search"],
+      "tags": [
+        "ai",
+        "embeddings",
+        "vector",
+        "rag",
+        "nlp",
+        "semantic-search"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "openai>=1.0.0", "cohere>=4.0.0", "sentence-transformers>=2.2.0", "scikit-learn>=1.0.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "openai>=1.0.0",
+          "cohere>=4.0.0",
+          "sentence-transformers>=2.2.0",
+          "scikit-learn>=1.0.0"
+        ]
       },
       "icon": "Network",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/embeddings_generator/README.md",
@@ -728,9 +1145,22 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/sentiment_analyzer",
-      "tags": ["ai", "sentiment", "nlp", "analysis", "text-processing", "emotions"],
+      "tags": [
+        "ai",
+        "sentiment",
+        "nlp",
+        "analysis",
+        "text-processing",
+        "emotions"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "transformers>=4.30.0", "torch>=2.0.0", "openai>=1.0.0", "anthropic>=0.18.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "transformers>=4.30.0",
+          "torch>=2.0.0",
+          "openai>=1.0.0",
+          "anthropic>=0.18.0"
+        ]
       },
       "icon": "MessageCircle",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sentiment_analyzer/README.md",
@@ -747,9 +1177,21 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/reranker",
-      "tags": ["ai", "rag", "search", "ranking", "retrieval", "cohere"],
+      "tags": [
+        "ai",
+        "rag",
+        "search",
+        "ranking",
+        "retrieval",
+        "cohere"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "cohere>=4.0.0", "sentence-transformers>=2.2.0", "rank-bm25>=0.2.2"]
+        "pip": [
+          "pandas>=1.5.0",
+          "cohere>=4.0.0",
+          "sentence-transformers>=2.2.0",
+          "rank-bm25>=0.2.2"
+        ]
       },
       "icon": "ArrowUpDown",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reranker/README.md",
@@ -766,9 +1208,23 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/vision_model",
-      "tags": ["ai", "vision", "image", "ocr", "multimodal", "gpt-4", "claude"],
+      "tags": [
+        "ai",
+        "vision",
+        "image",
+        "ocr",
+        "multimodal",
+        "gpt-4",
+        "claude"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "openai>=1.0.0", "anthropic>=0.18.0", "pillow>=10.0.0", "requests>=2.31.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "openai>=1.0.0",
+          "anthropic>=0.18.0",
+          "pillow>=10.0.0",
+          "requests>=2.31.0"
+        ]
       },
       "icon": "Eye",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/vision_model/README.md",
@@ -785,9 +1241,22 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ticket_classifier",
-      "tags": ["ai", "support", "classification", "automation", "customer-service"],
+      "tags": [
+        "ai",
+        "support",
+        "classification",
+        "automation",
+        "customer-service"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "openai>=1.0.0", "anthropic>=0.18.0", "transformers>=4.30.0", "torch>=2.0.0", "scikit-learn>=1.0.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "openai>=1.0.0",
+          "anthropic>=0.18.0",
+          "transformers>=4.30.0",
+          "torch>=2.0.0",
+          "scikit-learn>=1.0.0"
+        ]
       },
       "icon": "Tag",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ticket_classifier/README.md",
@@ -804,9 +1273,22 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/entity_extractor",
-      "tags": ["ai", "ner", "nlp", "extraction", "entities"],
+      "tags": [
+        "ai",
+        "ner",
+        "nlp",
+        "extraction",
+        "entities"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "openai>=1.0.0", "anthropic>=0.18.0", "spacy>=3.5.0", "transformers>=4.30.0", "torch>=2.0.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "openai>=1.0.0",
+          "anthropic>=0.18.0",
+          "spacy>=3.5.0",
+          "transformers>=4.30.0",
+          "torch>=2.0.0"
+        ]
       },
       "icon": "Hash",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/entity_extractor/README.md",
@@ -823,9 +1305,21 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/priority_scorer",
-      "tags": ["ai", "support", "prioritization", "sla", "automation"],
+      "tags": [
+        "ai",
+        "support",
+        "prioritization",
+        "sla",
+        "automation"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "openai>=1.0.0", "anthropic>=0.18.0", "scikit-learn>=1.0.0", "xgboost>=1.7.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "openai>=1.0.0",
+          "anthropic>=0.18.0",
+          "scikit-learn>=1.0.0",
+          "xgboost>=1.7.0"
+        ]
       },
       "icon": "AlertCircle",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/priority_scorer/README.md",
@@ -842,9 +1336,25 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/text_moderator",
-      "tags": ["ai", "moderation", "safety", "compliance", "toxicity", "pii"],
+      "tags": [
+        "ai",
+        "moderation",
+        "safety",
+        "compliance",
+        "toxicity",
+        "pii"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "openai>=1.0.0", "anthropic>=0.18.0", "transformers>=4.30.0", "torch>=2.0.0", "requests>=2.31.0", "presidio-analyzer>=2.2.0", "presidio-anonymizer>=2.2.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "openai>=1.0.0",
+          "anthropic>=0.18.0",
+          "transformers>=4.30.0",
+          "torch>=2.0.0",
+          "requests>=2.31.0",
+          "presidio-analyzer>=2.2.0",
+          "presidio-anonymizer>=2.2.0"
+        ]
       },
       "icon": "Shield",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/text_moderator/README.md",
@@ -861,9 +1371,17 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/marketing_data_standardizer",
-      "tags": ["cdp", "marketing", "transformation", "standardization", "normalization"],
+      "tags": [
+        "cdp",
+        "marketing",
+        "transformation",
+        "standardization",
+        "normalization"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0"]
+        "pip": [
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "GitMerge",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/marketing_data_standardizer/README.md",
@@ -880,9 +1398,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/google_analytics_ingestion",
-      "tags": ["cdp", "analytics", "google", "ga4", "web-analytics", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "analytics",
+        "google",
+        "ga4",
+        "web-analytics",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[google_analytics]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[google_analytics]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "BarChart3",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_analytics_ingestion/README.md",
@@ -899,9 +1428,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/stripe_ingestion",
-      "tags": ["cdp", "payments", "stripe", "subscriptions", "revenue", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "payments",
+        "stripe",
+        "subscriptions",
+        "revenue",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[stripe]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[stripe]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "CreditCard",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/stripe_ingestion/README.md",
@@ -918,9 +1458,18 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/customer_360",
-      "tags": ["cdp", "customer-360", "analytics", "unification", "profiles"],
+      "tags": [
+        "cdp",
+        "customer-360",
+        "analytics",
+        "unification",
+        "profiles"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "numpy>=1.24.0"
+        ]
       },
       "icon": "Users",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_360/README.md",
@@ -937,9 +1486,19 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/revenue_attribution",
-      "tags": ["cdp", "attribution", "roi", "roas", "cac", "marketing-analytics"],
+      "tags": [
+        "cdp",
+        "attribution",
+        "roi",
+        "roas",
+        "cac",
+        "marketing-analytics"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "numpy>=1.24.0"
+        ]
       },
       "icon": "DollarSign",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/revenue_attribution/README.md",
@@ -956,9 +1515,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/subscription_metrics",
-      "tags": ["cdp", "saas", "mrr", "arr", "churn", "ltv", "subscription-analytics"],
+      "tags": [
+        "cdp",
+        "saas",
+        "mrr",
+        "arr",
+        "churn",
+        "ltv",
+        "subscription-analytics"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "numpy>=1.24.0"
+        ]
       },
       "icon": "TrendingUp",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/subscription_metrics/README.md",
@@ -975,9 +1545,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/hubspot_ingestion",
-      "tags": ["cdp", "crm", "hubspot", "marketing", "sales", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "crm",
+        "hubspot",
+        "marketing",
+        "sales",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[hubspot]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[hubspot]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "Users",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/hubspot_ingestion/README.md",
@@ -994,9 +1575,21 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/salesforce_ingestion",
-      "tags": ["cdp", "crm", "salesforce", "enterprise", "sales", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "crm",
+        "salesforce",
+        "enterprise",
+        "sales",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[salesforce]>=0.4.0", "pandas>=1.5.0", "simple-salesforce>=1.12.0"]
+        "pip": [
+          "dlt[salesforce]>=0.4.0",
+          "pandas>=1.5.0",
+          "simple-salesforce>=1.12.0"
+        ]
       },
       "icon": "Building",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/salesforce_ingestion/README.md",
@@ -1013,9 +1606,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/shopify_ingestion",
-      "tags": ["cdp", "e-commerce", "shopify", "orders", "customers", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "e-commerce",
+        "shopify",
+        "orders",
+        "customers",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[shopify]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[shopify]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "ShoppingCart",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/shopify_ingestion/README.md",
@@ -1032,9 +1636,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/zendesk_ingestion",
-      "tags": ["cdp", "support", "zendesk", "tickets", "customer-service", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "support",
+        "zendesk",
+        "tickets",
+        "customer-service",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[zendesk]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[zendesk]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "Headphones",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/zendesk_ingestion/README.md",
@@ -1051,9 +1666,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/mongodb_ingestion",
-      "tags": ["cdp", "database", "mongodb", "nosql", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "database",
+        "mongodb",
+        "nosql",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[mongodb]>=0.4.0", "pandas>=1.5.0", "pymongo>=4.0.0"]
+        "pip": [
+          "dlt[mongodb]>=0.4.0",
+          "pandas>=1.5.0",
+          "pymongo>=4.0.0"
+        ]
       },
       "icon": "Database",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/mongodb_ingestion/README.md",
@@ -1070,9 +1696,19 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/google_sheets_ingestion",
-      "tags": ["cdp", "spreadsheet", "google-sheets", "data-import", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "spreadsheet",
+        "google-sheets",
+        "data-import",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[google_sheets]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[google_sheets]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "Table",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/google_sheets_ingestion/README.md",
@@ -1089,9 +1725,19 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/airtable_ingestion",
-      "tags": ["cdp", "database", "airtable", "flexible-db", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "database",
+        "airtable",
+        "flexible-db",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[airtable]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[airtable]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "Grid",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/airtable_ingestion/README.md",
@@ -1108,9 +1754,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/pipedrive_ingestion",
-      "tags": ["cdp", "crm", "pipedrive", "sales", "pipeline", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "crm",
+        "pipedrive",
+        "sales",
+        "pipeline",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[pipedrive]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[pipedrive]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "Target",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/pipedrive_ingestion/README.md",
@@ -1127,9 +1784,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/slack_ingestion",
-      "tags": ["cdp", "collaboration", "slack", "messages", "team-chat", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "collaboration",
+        "slack",
+        "messages",
+        "team-chat",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[slack]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[slack]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "MessageSquare",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/slack_ingestion/README.md",
@@ -1146,9 +1814,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/freshdesk_ingestion",
-      "tags": ["cdp", "support", "freshdesk", "tickets", "customer-service", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "support",
+        "freshdesk",
+        "tickets",
+        "customer-service",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[freshdesk]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[freshdesk]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "LifeBuoy",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/freshdesk_ingestion/README.md",
@@ -1165,9 +1844,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/asana_ingestion",
-      "tags": ["cdp", "project-management", "asana", "tasks", "productivity", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "project-management",
+        "asana",
+        "tasks",
+        "productivity",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[asana]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[asana]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "CheckSquare",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/asana_ingestion/README.md",
@@ -1184,9 +1874,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/jira_ingestion",
-      "tags": ["cdp", "issue-tracking", "jira", "agile", "project-management", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "issue-tracking",
+        "jira",
+        "agile",
+        "project-management",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[jira]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[jira]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "GitBranch",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/jira_ingestion/README.md",
@@ -1203,9 +1904,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/github_ingestion",
-      "tags": ["cdp", "github", "repositories", "issues", "pull-requests", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "github",
+        "repositories",
+        "issues",
+        "pull-requests",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[github]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[github]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "Code",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/github_ingestion/README.md",
@@ -1222,9 +1934,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/notion_ingestion",
-      "tags": ["cdp", "notion", "workspace", "databases", "documentation", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "notion",
+        "workspace",
+        "databases",
+        "documentation",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[notion]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[notion]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "FileText",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/notion_ingestion/README.md",
@@ -1241,9 +1964,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/matomo_ingestion",
-      "tags": ["cdp", "analytics", "matomo", "web-analytics", "privacy", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "analytics",
+        "matomo",
+        "web-analytics",
+        "privacy",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[matomo]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[matomo]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "BarChart",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/matomo_ingestion/README.md",
@@ -1260,9 +1994,20 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/personio_ingestion",
-      "tags": ["cdp", "hr", "personio", "employees", "recruitment", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "hr",
+        "personio",
+        "employees",
+        "recruitment",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[personio]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[personio]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "Users",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/personio_ingestion/README.md",
@@ -1279,9 +2024,21 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/workable_ingestion",
-      "tags": ["cdp", "recruitment", "workable", "jobs", "candidates", "hiring", "dlt", "ingestion"],
+      "tags": [
+        "cdp",
+        "recruitment",
+        "workable",
+        "jobs",
+        "candidates",
+        "hiring",
+        "dlt",
+        "ingestion"
+      ],
       "dependencies": {
-        "pip": ["dlt[workable]>=0.4.0", "pandas>=1.5.0"]
+        "pip": [
+          "dlt[workable]>=0.4.0",
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "Briefcase",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/workable_ingestion/README.md",
@@ -1298,9 +2055,19 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/product_analytics_standardizer",
-      "tags": ["cdp", "analytics", "standardization", "product-analytics", "ga4", "matomo"],
+      "tags": [
+        "cdp",
+        "analytics",
+        "standardization",
+        "product-analytics",
+        "ga4",
+        "matomo"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "numpy>=1.24.0"
+        ]
       },
       "icon": "Activity",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_analytics_standardizer/README.md",
@@ -1317,9 +2084,18 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/crm_data_standardizer",
-      "tags": ["cdp", "crm", "standardization", "hubspot", "salesforce", "pipedrive"],
+      "tags": [
+        "cdp",
+        "crm",
+        "standardization",
+        "hubspot",
+        "salesforce",
+        "pipedrive"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0"]
+        "pip": [
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "Users",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/crm_data_standardizer/README.md",
@@ -1336,9 +2112,19 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ecommerce_standardizer",
-      "tags": ["cdp", "ecommerce", "standardization", "shopify", "stripe", "orders"],
+      "tags": [
+        "cdp",
+        "ecommerce",
+        "standardization",
+        "shopify",
+        "stripe",
+        "orders"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "numpy>=1.24.0"
+        ]
       },
       "icon": "ShoppingCart",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ecommerce_standardizer/README.md",
@@ -1355,9 +2141,19 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/support_ticket_standardizer",
-      "tags": ["cdp", "support", "standardization", "zendesk", "freshdesk", "tickets"],
+      "tags": [
+        "cdp",
+        "support",
+        "standardization",
+        "zendesk",
+        "freshdesk",
+        "tickets"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "numpy>=1.24.0"
+        ]
       },
       "icon": "Headphones",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/support_ticket_standardizer/README.md",
@@ -1374,9 +2170,18 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/event_data_standardizer",
-      "tags": ["cdp", "events", "standardization", "tracking", "segment", "analytics"],
+      "tags": [
+        "cdp",
+        "events",
+        "standardization",
+        "tracking",
+        "segment",
+        "analytics"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0"]
+        "pip": [
+          "pandas>=1.5.0"
+        ]
       },
       "icon": "Zap",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/event_data_standardizer/README.md",
@@ -1393,9 +2198,18 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/rfm_segmentation",
-      "tags": ["cdp", "rfm", "segmentation", "customer-value", "customer-analytics"],
+      "tags": [
+        "cdp",
+        "rfm",
+        "segmentation",
+        "customer-value",
+        "customer-analytics"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "numpy>=1.24.0"
+        ]
       },
       "icon": "Users",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rfm_segmentation/README.md",
@@ -1412,9 +2226,18 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/cohort_analysis",
-      "tags": ["cdp", "cohort-analysis", "retention", "customer-analytics", "lifecycle"],
+      "tags": [
+        "cdp",
+        "cohort-analysis",
+        "retention",
+        "customer-analytics",
+        "lifecycle"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "numpy>=1.24.0"
+        ]
       },
       "icon": "TrendingUp",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/cohort_analysis/README.md",
@@ -1431,9 +2254,19 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/churn_prediction",
-      "tags": ["cdp", "churn", "prediction", "retention", "risk", "customer-analytics"],
+      "tags": [
+        "cdp",
+        "churn",
+        "prediction",
+        "retention",
+        "risk",
+        "customer-analytics"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "numpy>=1.24.0"
+        ]
       },
       "icon": "AlertTriangle",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/churn_prediction/README.md",
@@ -1450,9 +2283,18 @@
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/funnel_analysis",
-      "tags": ["cdp", "funnel", "conversion", "product-analytics", "optimization"],
+      "tags": [
+        "cdp",
+        "funnel",
+        "conversion",
+        "product-analytics",
+        "optimization"
+      ],
       "dependencies": {
-        "pip": ["pandas>=1.5.0", "numpy>=1.24.0"]
+        "pip": [
+          "pandas>=1.5.0",
+          "numpy>=1.24.0"
+        ]
       },
       "icon": "GitBranch",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/funnel_analysis/README.md",
@@ -1460,6 +2302,53 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/funnel_analysis/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/funnel_analysis/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/funnel_analysis/requirements.txt"
+    },
+    {
+      "id": "ltv_prediction",
+      "name": "LTV Prediction",
+      "category": "analytics",
+      "description": "Predict customer lifetime value using historical transaction data with cohort analysis",
+      "path": "assets/ltv_prediction",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ltv_prediction/component.py",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ltv_prediction/README.md",
+      "tags": [
+        "ml",
+        "analytics",
+        "prediction",
+        "ltv",
+        "customer-analytics"
+      ],
+      "icon": "TrendingUp",
+      "dependencies": {
+        "pip": [
+          "pandas>=1.5.0",
+          "numpy>=1.24.0"
+        ]
+      }
+    },
+    {
+      "id": "customer_segmentation",
+      "name": "Customer Segmentation",
+      "category": "analytics",
+      "description": "Segment customers using RFM analysis and custom weighting for targeted marketing campaigns",
+      "path": "assets/customer_segmentation",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_segmentation/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_segmentation/schema.json",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_segmentation/README.md",
+      "tags": [
+        "analytics",
+        "segmentation",
+        "rfm",
+        "customer-analytics",
+        "marketing"
+      ],
+      "icon": "Users",
+      "dependencies": {
+        "pip": [
+          "pandas>=1.5.0",
+          "numpy>=1.24.0"
+        ]
+      }
     }
   ]
 }

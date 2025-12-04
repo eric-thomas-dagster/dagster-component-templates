@@ -2324,7 +2324,10 @@
           "pandas>=1.5.0",
           "numpy>=1.24.0"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ltv_prediction/component.py"
     },
     {
       "id": "customer_segmentation",
@@ -2348,7 +2351,10 @@
           "pandas>=1.5.0",
           "numpy>=1.24.0"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_segmentation/component.py"
     },
     {
       "id": "ab_test_analysis",
@@ -2369,7 +2375,10 @@
         "pip": [
           "pandas>=1.5.0"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ab_test_analysis/component.py"
     },
     {
       "id": "ad_spend_standardizer",
@@ -2391,7 +2400,10 @@
           "pandas>=1.5.0"
         ]
       },
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ad_spend_standardizer/schema.json"
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ad_spend_standardizer/schema.json",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ad_spend_standardizer/component.py"
     },
     {
       "id": "anomaly_detection",
@@ -2412,7 +2424,10 @@
         "pip": [
           "pandas>=1.5.0"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/anomaly_detection/component.py"
     },
     {
       "id": "campaign_performance",
@@ -2433,7 +2448,10 @@
         "pip": [
           "pandas>=1.5.0"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/campaign_performance/component.py"
     },
     {
       "id": "customer_health_score",
@@ -2455,7 +2473,10 @@
           "pandas>=1.5.0"
         ]
       },
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_health_score/schema.json"
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_health_score/schema.json",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_health_score/component.py"
     },
     {
       "id": "customer_journey_mapping",
@@ -2475,7 +2496,10 @@
         "pip": [
           "pandas>=1.5.0"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_journey_mapping/component.py"
     },
     {
       "id": "lead_scoring",
@@ -2497,7 +2521,10 @@
           "pandas>=1.5.0"
         ]
       },
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/lead_scoring/schema.json"
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/lead_scoring/schema.json",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/lead_scoring/component.py"
     },
     {
       "id": "multi_touch_attribution",
@@ -2518,7 +2545,10 @@
         "pip": [
           "pandas>=1.5.0"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/multi_touch_attribution/component.py"
     },
     {
       "id": "product_recommendations",
@@ -2539,7 +2569,10 @@
         "pip": [
           "pandas>=1.5.0"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_recommendations/component.py"
     },
     {
       "id": "propensity_scoring",
@@ -2560,7 +2593,10 @@
         "pip": [
           "pandas>=1.5.0"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/propensity_scoring/component.py"
     },
     {
       "id": "s3_to_database_asset",
@@ -2582,7 +2618,10 @@
           "pandas>=1.5.0"
         ]
       },
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/s3_to_database_asset/schema.json"
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/s3_to_database_asset/schema.json",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/s3_to_database_asset/example.yaml"
     },
     {
       "id": "product_usage_analytics",
@@ -2606,7 +2645,10 @@
           "pandas>=1.5.0",
           "numpy>=1.24.0"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_usage_analytics/component.py"
     }
   ]
 }

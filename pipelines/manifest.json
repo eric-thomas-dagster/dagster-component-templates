@@ -46,16 +46,14 @@
           "instance_name": "experiment_results_output",
           "config_mapping": {
             "asset_name": "experiment_results_output",
-            "source_asset": "experiment_results",
+            "upstream_asset_keys": "experiment_results",
             "table_name": "ab_test_results",
             "destination": "",
-            "write_mode": "append",
+            "write_disposition": "append",
             "description": "Write A/B test results to database",
             "group_name": "experimentation"
           },
-          "depends_on": [
-            "experiment_results"
-          ]
+          "depends_on": []
         }
       ],
       "pipeline_params": {

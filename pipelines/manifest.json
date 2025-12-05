@@ -17,7 +17,8 @@
           "instance_name": "experiment_events",
           "config_mapping": {
             "asset_name": "experiment_events",
-            "description": "A/B test assignment and conversion events"
+            "description": "A/B test assignment and conversion events",
+            "platform": "${analytics_platform}"
           },
           "depends_on": []
         },
@@ -26,7 +27,8 @@
           "instance_name": "experiment_results",
           "config_mapping": {
             "asset_name": "experiment_results",
-            "description": "Statistical analysis of A/B tests"
+            "description": "Statistical analysis of A/B tests",
+            "source_asset": "experiment_events"
           },
           "depends_on": [
             "experiment_events"
@@ -505,7 +507,8 @@
           "instance_name": "product_usage_events",
           "config_mapping": {
             "asset_name": "product_usage_events",
-            "description": "Product usage events"
+            "description": "Product usage events",
+            "platform": "${crm_platform}"
           },
           "depends_on": []
         },
@@ -514,7 +517,8 @@
           "instance_name": "support_tickets",
           "config_mapping": {
             "asset_name": "support_tickets",
-            "description": "Customer support interactions"
+            "description": "Customer support interactions",
+            "platform": "${crm_platform}"
           },
           "depends_on": []
         },
@@ -534,7 +538,8 @@
           "instance_name": "churn_risk_scores",
           "config_mapping": {
             "asset_name": "churn_risk_scores",
-            "description": "Predict customer churn risk"
+            "description": "Predict customer churn risk",
+            "source_asset": "customer_360"
           },
           "depends_on": [
             "customer_360"
@@ -545,7 +550,8 @@
           "instance_name": "customer_ltv_churn",
           "config_mapping": {
             "asset_name": "customer_ltv_churn",
-            "description": "Customer lifetime value for churn prioritization"
+            "description": "Customer lifetime value for churn prioritization",
+            "source_asset": "product_usage_events"
           },
           "depends_on": [
             "product_usage_events"
@@ -1355,7 +1361,9 @@
           "instance_name": "shopify_orders",
           "config_mapping": {
             "asset_name": "shopify_orders",
-            "description": "Ingest order data from Shopify"
+            "description": "Ingest order data from Shopify",
+            "shop_url": "${shopify_shop_domain}",
+            "private_app_password": "${shopify_access_token}"
           },
           "depends_on": []
         },
@@ -1364,7 +1372,9 @@
           "instance_name": "standardized_orders",
           "config_mapping": {
             "asset_name": "standardized_orders",
-            "description": "Standardize Shopify orders to unified schema"
+            "description": "Standardize Shopify orders to unified schema",
+            "platform": "${ecommerce_platform}",
+            "resource_type": "orders"
           },
           "depends_on": []
         },
@@ -1373,7 +1383,8 @@
           "instance_name": "customer_ltv",
           "config_mapping": {
             "asset_name": "customer_ltv",
-            "description": "Predict customer lifetime value"
+            "description": "Predict customer lifetime value",
+            "source_asset": "standardized_orders"
           },
           "depends_on": [
             "standardized_orders"
@@ -1384,7 +1395,8 @@
           "instance_name": "ltv_segments",
           "config_mapping": {
             "asset_name": "ltv_segments",
-            "description": "Segment customers by lifetime value"
+            "description": "Segment customers by lifetime value",
+            "transaction_data_asset": "standardized_orders"
           },
           "depends_on": [
             "standardized_orders"
@@ -1395,7 +1407,8 @@
           "instance_name": "ltv_segments_output",
           "config_mapping": {
             "asset_name": "ltv_segments_output",
-            "description": "Write customer LTV segments to database"
+            "description": "Write customer LTV segments to database",
+            "table_name": "${output_table_name}"
           },
           "depends_on": [
             "ltv_segments"
@@ -3508,7 +3521,8 @@
           "instance_name": "stripe_transactions",
           "config_mapping": {
             "asset_name": "stripe_transactions",
-            "description": "Ingest payment transactions"
+            "description": "Ingest payment transactions",
+            "api_key": "${stripe_api_key}"
           },
           "depends_on": []
         },
@@ -3517,7 +3531,9 @@
           "instance_name": "standardized_transactions",
           "config_mapping": {
             "asset_name": "standardized_transactions",
-            "description": "Standardized transaction schema"
+            "description": "Standardized transaction schema",
+            "platform": "${ecommerce_platform}",
+            "resource_type": "orders"
           },
           "depends_on": []
         },
@@ -4118,7 +4134,9 @@
           "instance_name": "shopify_orders",
           "config_mapping": {
             "asset_name": "shopify_orders",
-            "description": "E-commerce orders"
+            "description": "E-commerce orders",
+            "shop_url": "${shopify_shop_domain}",
+            "private_app_password": "${shopify_access_token}"
           },
           "depends_on": []
         },
@@ -4145,7 +4163,8 @@
           "instance_name": "product_events",
           "config_mapping": {
             "asset_name": "product_events",
-            "description": "Product usage events"
+            "description": "Product usage events",
+            "platform": "${crm_platform}"
           },
           "depends_on": []
         },
@@ -4172,7 +4191,9 @@
           "instance_name": "standardized_orders",
           "config_mapping": {
             "asset_name": "standardized_orders",
-            "description": "Standardized orders"
+            "description": "Standardized orders",
+            "platform": "${crm_platform}",
+            "resource_type": "orders"
           },
           "depends_on": []
         },
@@ -4190,7 +4211,8 @@
           "instance_name": "standardized_support",
           "config_mapping": {
             "asset_name": "standardized_support",
-            "description": "Standardized support tickets"
+            "description": "Standardized support tickets",
+            "platform": "${crm_platform}"
           },
           "depends_on": []
         },
@@ -4210,7 +4232,8 @@
           "instance_name": "rfm_segments",
           "config_mapping": {
             "asset_name": "rfm_segments",
-            "description": "RFM customer segmentation"
+            "description": "RFM customer segmentation",
+            "transaction_data_asset": "standardized_orders"
           },
           "depends_on": [
             "standardized_orders"
@@ -4221,7 +4244,8 @@
           "instance_name": "customer_ltv",
           "config_mapping": {
             "asset_name": "customer_ltv",
-            "description": "Customer lifetime value prediction"
+            "description": "Customer lifetime value prediction",
+            "source_asset": "standardized_orders"
           },
           "depends_on": [
             "standardized_orders"
@@ -4232,7 +4256,8 @@
           "instance_name": "churn_risk",
           "config_mapping": {
             "asset_name": "churn_risk",
-            "description": "Customer churn risk prediction"
+            "description": "Customer churn risk prediction",
+            "source_asset": "customer_360"
           },
           "depends_on": [
             "customer_360"
@@ -4329,7 +4354,8 @@
           "instance_name": "experiment_results",
           "config_mapping": {
             "asset_name": "experiment_results",
-            "description": "A/B test statistical analysis"
+            "description": "A/B test statistical analysis",
+            "source_asset": "product_events"
           },
           "depends_on": [
             "product_events"
@@ -5623,7 +5649,9 @@
           "instance_name": "shopify_order_items",
           "config_mapping": {
             "asset_name": "shopify_order_items",
-            "description": "Ingest order line items from Shopify"
+            "description": "Ingest order line items from Shopify",
+            "shop_url": "${shopify_shop_domain}",
+            "private_app_password": "${shopify_access_token}"
           },
           "depends_on": []
         },
@@ -5632,7 +5660,9 @@
           "instance_name": "standardized_order_items",
           "config_mapping": {
             "asset_name": "standardized_order_items",
-            "description": "Standardize order items schema"
+            "description": "Standardize order items schema",
+            "platform": "${ecommerce_platform}",
+            "resource_type": "orders"
           },
           "depends_on": []
         },

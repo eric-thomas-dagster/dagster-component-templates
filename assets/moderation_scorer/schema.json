@@ -1,0 +1,24 @@
+{
+  "type": "dagster_component_templates.ModerationScorerComponent",
+  "name": "Moderation Scorer",
+  "category": "ml",
+  "description": "Score content for moderation decisions",
+  "icon": "Shield",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name"
+    },
+    "source_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Source Asset"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  }
+}

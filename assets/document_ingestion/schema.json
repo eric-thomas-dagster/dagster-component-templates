@@ -1,0 +1,24 @@
+{
+  "type": "dagster_component_templates.DocumentIngestionComponent",
+  "name": "Document Ingestion",
+  "category": "ingestion",
+  "description": "Ingest documents for RAG/Q&A systems",
+  "icon": "FileText",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name"
+    },
+    "source_path": {
+      "type": "string",
+      "required": false,
+      "label": "Source Path"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  }
+}

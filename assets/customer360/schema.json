@@ -1,0 +1,19 @@
+{
+  "type": "dagster_component_templates.Customer360Component",
+  "name": "Customer 360",
+  "category": "transformation",
+  "description": "Create unified customer profile from multiple data sources",
+  "icon": "Users",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "type": "dagster_component_templates.HubSpotIngestionComponent",
+  "name": "HubSpot Ingestion",
+  "category": "cdp",
+  "description": "Ingest CRM data from HubSpot",
+  "icon": "Users",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name"
+    },
+    "api_key": {
+      "type": "string",
+      "required": true,
+      "label": "API Key",
+      "secret": true
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  }
+}

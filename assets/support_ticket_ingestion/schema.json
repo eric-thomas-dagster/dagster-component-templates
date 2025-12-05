@@ -1,0 +1,24 @@
+{
+  "type": "dagster_component_templates.SupportTicketIngestionComponent",
+  "name": "Support Ticket Ingestion",
+  "category": "cdp",
+  "description": "Ingest support tickets from help desk systems",
+  "icon": "MessageCircle",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name"
+    },
+    "platform": {
+      "type": "string",
+      "required": true,
+      "label": "Platform"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  }
+}

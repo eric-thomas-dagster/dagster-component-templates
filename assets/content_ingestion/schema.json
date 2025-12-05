@@ -1,0 +1,19 @@
+{
+  "type": "dagster_component_templates.ContentIngestionComponent",
+  "name": "Content Ingestion",
+  "category": "ingestion",
+  "description": "Ingest user-generated content for moderation",
+  "icon": "FileText",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  }
+}

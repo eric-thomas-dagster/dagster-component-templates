@@ -101,13 +101,13 @@ def parse_pipeline_yaml(file_path: Path) -> Dict[str, Any]:
                         if key in attributes and attributes[key]:
                             depends_on.append(attributes[key])
 
+                    # Copy ALL attributes to config_mapping (not just asset_name and description)
+                    config_mapping = dict(attributes)  # Copy all attributes
+
                     components.append({
                         'component_id': component_id,
                         'instance_name': asset_name,
-                        'config_mapping': {
-                            'asset_name': asset_name,
-                            'description': attributes.get('description', '')
-                        },
+                        'config_mapping': config_mapping,
                         'depends_on': depends_on[:1] if depends_on else []  # Take first dependency only
                     })
 

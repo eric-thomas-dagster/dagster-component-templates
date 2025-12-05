@@ -17,8 +17,11 @@
           "instance_name": "experiment_events",
           "config_mapping": {
             "asset_name": "experiment_events",
+            "platform": "segment",
+            "resource_type": "events",
+            "event_filter": "experiment_",
             "description": "A/B test assignment and conversion events",
-            "platform": "${analytics_platform}"
+            "group_name": "experimentation"
           },
           "depends_on": []
         },
@@ -27,8 +30,13 @@
           "instance_name": "experiment_results",
           "config_mapping": {
             "asset_name": "experiment_results",
+            "source_asset": "experiment_events",
+            "confidence_level": 0.95,
+            "minimum_sample_size": 1000,
+            "minimum_runtime_hours": 168,
+            "minimum_detectable_effect": 0.05,
             "description": "Statistical analysis of A/B tests",
-            "source_asset": "experiment_events"
+            "group_name": "experimentation"
           },
           "depends_on": [
             "experiment_events"
@@ -39,7 +47,12 @@
           "instance_name": "experiment_results_output",
           "config_mapping": {
             "asset_name": "experiment_results_output",
-            "description": "Write A/B test results to database"
+            "source_asset": "experiment_results",
+            "table_name": "ab_test_results",
+            "destination": "",
+            "write_mode": "append",
+            "description": "Write A/B test results to database",
+            "group_name": "experimentation"
           },
           "depends_on": [
             "experiment_results"
@@ -498,7 +511,9 @@
           "instance_name": "hubspot_contacts",
           "config_mapping": {
             "asset_name": "hubspot_contacts",
-            "description": "Ingest contact data from HubSpot"
+            "resource_type": "contacts",
+            "description": "Ingest contact data from HubSpot",
+            "group_name": "ingestion"
           },
           "depends_on": []
         },
@@ -507,8 +522,10 @@
           "instance_name": "product_usage_events",
           "config_mapping": {
             "asset_name": "product_usage_events",
+            "platform": "mixpanel",
+            "resource_type": "events",
             "description": "Product usage events",
-            "platform": "${crm_platform}"
+            "group_name": "standardization"
           },
           "depends_on": []
         },
@@ -517,8 +534,10 @@
           "instance_name": "support_tickets",
           "config_mapping": {
             "asset_name": "support_tickets",
+            "platform": "zendesk",
+            "resource_type": "tickets",
             "description": "Customer support interactions",
-            "platform": "${crm_platform}"
+            "group_name": "standardization"
           },
           "depends_on": []
         },
@@ -527,7 +546,11 @@
           "instance_name": "customer_360",
           "config_mapping": {
             "asset_name": "customer_360",
-            "description": "Unified customer profile"
+            "crm_data_asset": "hubspot_contacts",
+            "transaction_data_asset": "product_usage_events",
+            "support_data_asset": "support_tickets",
+            "description": "Unified customer profile",
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "product_usage_events"
@@ -538,8 +561,12 @@
           "instance_name": "churn_risk_scores",
           "config_mapping": {
             "asset_name": "churn_risk_scores",
+            "source_asset": "customer_360",
+            "inactivity_threshold_days": 30,
+            "lookback_days": 90,
+            "include_risk_factors": true,
             "description": "Predict customer churn risk",
-            "source_asset": "customer_360"
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "customer_360"
@@ -550,8 +577,11 @@
           "instance_name": "customer_ltv_churn",
           "config_mapping": {
             "asset_name": "customer_ltv_churn",
+            "source_asset": "product_usage_events",
+            "prediction_period_months": 12,
+            "min_transactions_required": 1,
             "description": "Customer lifetime value for churn prioritization",
-            "source_asset": "product_usage_events"
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "product_usage_events"
@@ -562,7 +592,11 @@
           "instance_name": "reengagement_propensity",
           "config_mapping": {
             "asset_name": "reengagement_propensity",
-            "description": "Likelihood to re-engage with product"
+            "source_asset": "customer_360",
+            "propensity_type": "engagement",
+            "scoring_window_days": 90,
+            "description": "Likelihood to re-engage with product",
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "customer_360"
@@ -573,7 +607,12 @@
           "instance_name": "churn_analysis_output",
           "config_mapping": {
             "asset_name": "churn_analysis_output",
-            "description": "Write churn risk analysis to database"
+            "source_asset": "reengagement_propensity",
+            "table_name": "churn_risk_analysis",
+            "destination": "",
+            "write_mode": "replace",
+            "description": "Write churn risk analysis to database",
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "reengagement_propensity"
@@ -1361,9 +1400,10 @@
           "instance_name": "shopify_orders",
           "config_mapping": {
             "asset_name": "shopify_orders",
+            "resource_type": "orders",
             "description": "Ingest order data from Shopify",
-            "shop_url": "${shopify_shop_domain}",
-            "private_app_password": "${shopify_access_token}"
+            "group_name": "ingestion",
+            "include_sample_metadata": true
           },
           "depends_on": []
         },
@@ -1372,9 +1412,10 @@
           "instance_name": "standardized_orders",
           "config_mapping": {
             "asset_name": "standardized_orders",
+            "platform": "shopify",
+            "resource_type": "orders",
             "description": "Standardize Shopify orders to unified schema",
-            "platform": "${ecommerce_platform}",
-            "resource_type": "orders"
+            "group_name": "standardization"
           },
           "depends_on": []
         },
@@ -1383,8 +1424,13 @@
           "instance_name": "customer_ltv",
           "config_mapping": {
             "asset_name": "customer_ltv",
+            "source_asset": "standardized_orders",
+            "prediction_period_months": 24,
+            "cohort_analysis": true,
+            "include_confidence_intervals": true,
+            "min_transactions_required": 2,
             "description": "Predict customer lifetime value",
-            "source_asset": "standardized_orders"
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "standardized_orders"
@@ -1395,8 +1441,15 @@
           "instance_name": "ltv_segments",
           "config_mapping": {
             "asset_name": "ltv_segments",
+            "transaction_data_asset": "standardized_orders",
+            "recency_weight": 1.0,
+            "frequency_weight": 1.0,
+            "monetary_weight": 2.0,
+            "analysis_period_days": 365,
+            "use_predefined_segments": true,
+            "include_recommendations": true,
             "description": "Segment customers by lifetime value",
-            "transaction_data_asset": "standardized_orders"
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "standardized_orders"
@@ -1407,8 +1460,12 @@
           "instance_name": "ltv_segments_output",
           "config_mapping": {
             "asset_name": "ltv_segments_output",
+            "source_asset": "ltv_segments",
+            "table_name": "customer_ltv_segments",
+            "destination": "",
+            "write_mode": "replace",
             "description": "Write customer LTV segments to database",
-            "table_name": "${output_table_name}"
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "ltv_segments"
@@ -3521,8 +3578,9 @@
           "instance_name": "stripe_transactions",
           "config_mapping": {
             "asset_name": "stripe_transactions",
+            "resource_type": "charges",
             "description": "Ingest payment transactions",
-            "api_key": "${stripe_api_key}"
+            "group_name": "ingestion"
           },
           "depends_on": []
         },
@@ -3531,9 +3589,10 @@
           "instance_name": "standardized_transactions",
           "config_mapping": {
             "asset_name": "standardized_transactions",
+            "platform": "stripe",
+            "resource_type": "transactions",
             "description": "Standardized transaction schema",
-            "platform": "${ecommerce_platform}",
-            "resource_type": "orders"
+            "group_name": "standardization"
           },
           "depends_on": []
         },
@@ -3542,7 +3601,10 @@
           "instance_name": "customer_profiles",
           "config_mapping": {
             "asset_name": "customer_profiles",
-            "description": "Customer behavior patterns"
+            "transaction_data_asset": "standardized_transactions",
+            "lookback_days": 90,
+            "description": "Customer behavior patterns",
+            "group_name": "fraud_detection"
           },
           "depends_on": [
             "standardized_transactions"
@@ -3553,7 +3615,13 @@
           "instance_name": "amount_anomalies",
           "config_mapping": {
             "asset_name": "amount_anomalies",
-            "description": "Detect unusual transaction amounts"
+            "source_asset": "standardized_transactions",
+            "detection_method": "z_score",
+            "metric_column": "amount",
+            "threshold": 3.5,
+            "group_by_field": "customer_id",
+            "description": "Detect unusual transaction amounts",
+            "group_name": "fraud_detection"
           },
           "depends_on": [
             "standardized_transactions"
@@ -3564,7 +3632,14 @@
           "instance_name": "frequency_anomalies",
           "config_mapping": {
             "asset_name": "frequency_anomalies",
-            "description": "Detect unusual transaction frequency"
+            "source_asset": "standardized_transactions",
+            "detection_method": "moving_average",
+            "metric_column": "transaction_count",
+            "moving_average_window": 7,
+            "threshold": 3.0,
+            "group_by_field": "customer_id",
+            "description": "Detect unusual transaction frequency",
+            "group_name": "fraud_detection"
           },
           "depends_on": [
             "standardized_transactions"
@@ -3575,7 +3650,12 @@
           "instance_name": "location_anomalies",
           "config_mapping": {
             "asset_name": "location_anomalies",
-            "description": "Detect transactions from unusual locations"
+            "source_asset": "standardized_transactions",
+            "detection_method": "iqr",
+            "metric_column": "distance_from_usual_location",
+            "threshold": 2.0,
+            "description": "Detect transactions from unusual locations",
+            "group_name": "fraud_detection"
           },
           "depends_on": [
             "standardized_transactions"
@@ -3586,7 +3666,12 @@
           "instance_name": "fraud_detection_output",
           "config_mapping": {
             "asset_name": "fraud_detection_output",
-            "description": "Write fraud detection results to database"
+            "source_asset": "location_anomalies",
+            "table_name": "fraud_detection_results",
+            "destination": "",
+            "write_mode": "append",
+            "description": "Write fraud detection results to database",
+            "group_name": "fraud_detection"
           },
           "depends_on": [
             "location_anomalies"
@@ -4125,7 +4210,9 @@
           "instance_name": "hubspot_contacts",
           "config_mapping": {
             "asset_name": "hubspot_contacts",
-            "description": "CRM contact data"
+            "resource_type": "contacts",
+            "description": "CRM contact data",
+            "group_name": "ingestion"
           },
           "depends_on": []
         },
@@ -4134,9 +4221,9 @@
           "instance_name": "shopify_orders",
           "config_mapping": {
             "asset_name": "shopify_orders",
+            "resource_type": "orders",
             "description": "E-commerce orders",
-            "shop_url": "${shopify_shop_domain}",
-            "private_app_password": "${shopify_access_token}"
+            "group_name": "ingestion"
           },
           "depends_on": []
         },
@@ -4145,7 +4232,9 @@
           "instance_name": "google_ads_campaigns",
           "config_mapping": {
             "asset_name": "google_ads_campaigns",
-            "description": "Google Ads campaign data"
+            "resource_type": "campaigns",
+            "description": "Google Ads campaign data",
+            "group_name": "ingestion"
           },
           "depends_on": []
         },
@@ -4154,7 +4243,9 @@
           "instance_name": "facebook_ads_campaigns",
           "config_mapping": {
             "asset_name": "facebook_ads_campaigns",
-            "description": "Facebook Ads campaign data"
+            "resource_type": "campaigns",
+            "description": "Facebook Ads campaign data",
+            "group_name": "ingestion"
           },
           "depends_on": []
         },
@@ -4163,8 +4254,10 @@
           "instance_name": "product_events",
           "config_mapping": {
             "asset_name": "product_events",
+            "platform": "segment",
+            "resource_type": "events",
             "description": "Product usage events",
-            "platform": "${crm_platform}"
+            "group_name": "ingestion"
           },
           "depends_on": []
         },
@@ -4173,7 +4266,9 @@
           "instance_name": "zendesk_tickets",
           "config_mapping": {
             "asset_name": "zendesk_tickets",
-            "description": "Customer support tickets"
+            "resource_type": "tickets",
+            "description": "Customer support tickets",
+            "group_name": "ingestion"
           },
           "depends_on": []
         },
@@ -4182,7 +4277,10 @@
           "instance_name": "standardized_crm",
           "config_mapping": {
             "asset_name": "standardized_crm",
-            "description": "Standardized CRM contacts"
+            "platform": "hubspot",
+            "resource_type": "contacts",
+            "description": "Standardized CRM contacts",
+            "group_name": "standardization"
           },
           "depends_on": []
         },
@@ -4191,9 +4289,10 @@
           "instance_name": "standardized_orders",
           "config_mapping": {
             "asset_name": "standardized_orders",
+            "platform": "shopify",
+            "resource_type": "orders",
             "description": "Standardized orders",
-            "platform": "${crm_platform}",
-            "resource_type": "orders"
+            "group_name": "standardization"
           },
           "depends_on": []
         },
@@ -4202,7 +4301,10 @@
           "instance_name": "standardized_marketing",
           "config_mapping": {
             "asset_name": "standardized_marketing",
-            "description": "Unified marketing touchpoints"
+            "platform": "multi",
+            "resource_type": "touchpoints",
+            "description": "Unified marketing touchpoints",
+            "group_name": "standardization"
           },
           "depends_on": []
         },
@@ -4211,8 +4313,10 @@
           "instance_name": "standardized_support",
           "config_mapping": {
             "asset_name": "standardized_support",
+            "platform": "zendesk",
+            "resource_type": "tickets",
             "description": "Standardized support tickets",
-            "platform": "${crm_platform}"
+            "group_name": "standardization"
           },
           "depends_on": []
         },
@@ -4221,7 +4325,11 @@
           "instance_name": "customer_360",
           "config_mapping": {
             "asset_name": "customer_360",
-            "description": "Unified customer profile"
+            "crm_data_asset": "standardized_crm",
+            "transaction_data_asset": "standardized_orders",
+            "support_data_asset": "standardized_support",
+            "description": "Unified customer profile",
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "standardized_orders"
@@ -4232,8 +4340,11 @@
           "instance_name": "rfm_segments",
           "config_mapping": {
             "asset_name": "rfm_segments",
+            "transaction_data_asset": "standardized_orders",
+            "analysis_period_days": 365,
+            "use_predefined_segments": true,
             "description": "RFM customer segmentation",
-            "transaction_data_asset": "standardized_orders"
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "standardized_orders"
@@ -4244,8 +4355,11 @@
           "instance_name": "customer_ltv",
           "config_mapping": {
             "asset_name": "customer_ltv",
+            "source_asset": "standardized_orders",
+            "prediction_period_months": 24,
+            "cohort_analysis": true,
             "description": "Customer lifetime value prediction",
-            "source_asset": "standardized_orders"
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "standardized_orders"
@@ -4256,8 +4370,11 @@
           "instance_name": "churn_risk",
           "config_mapping": {
             "asset_name": "churn_risk",
+            "source_asset": "customer_360",
+            "inactivity_threshold_days": 60,
+            "lookback_days": 365,
             "description": "Customer churn risk prediction",
-            "source_asset": "customer_360"
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "customer_360"
@@ -4268,7 +4385,9 @@
           "instance_name": "health_scores",
           "config_mapping": {
             "asset_name": "health_scores",
-            "description": "Customer health scoring"
+            "source_asset": "customer_360",
+            "description": "Customer health scoring",
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "customer_360"
@@ -4279,7 +4398,11 @@
           "instance_name": "marketing_attribution",
           "config_mapping": {
             "asset_name": "marketing_attribution",
-            "description": "Marketing attribution analysis"
+            "touchpoint_data_asset": "standardized_marketing",
+            "attribution_model": "time_decay",
+            "lookback_window_days": 30,
+            "description": "Marketing attribution analysis",
+            "group_name": "marketing_analytics"
           },
           "depends_on": []
         },
@@ -4288,7 +4411,11 @@
           "instance_name": "product_recommendations",
           "config_mapping": {
             "asset_name": "product_recommendations",
-            "description": "Product recommendations engine"
+            "source_asset": "standardized_orders",
+            "recommendation_type": "collaborative",
+            "num_recommendations": 10,
+            "description": "Product recommendations engine",
+            "group_name": "product_analytics"
           },
           "depends_on": [
             "standardized_orders"
@@ -4299,7 +4426,11 @@
           "instance_name": "customer_journeys",
           "config_mapping": {
             "asset_name": "customer_journeys",
-            "description": "Customer journey analysis"
+            "source_asset": "product_events",
+            "conversion_event": "purchase",
+            "max_journey_length": 20,
+            "description": "Customer journey analysis",
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "product_events"
@@ -4310,7 +4441,9 @@
           "instance_name": "conversion_funnels",
           "config_mapping": {
             "asset_name": "conversion_funnels",
-            "description": "Conversion funnel analysis"
+            "source_asset": "product_events",
+            "description": "Conversion funnel analysis",
+            "group_name": "product_analytics"
           },
           "depends_on": [
             "product_events"
@@ -4321,7 +4454,9 @@
           "instance_name": "cohort_retention",
           "config_mapping": {
             "asset_name": "cohort_retention",
-            "description": "Cohort retention analysis"
+            "source_asset": "standardized_orders",
+            "description": "Cohort retention analysis",
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "standardized_orders"
@@ -4332,7 +4467,10 @@
           "instance_name": "purchase_propensity",
           "config_mapping": {
             "asset_name": "purchase_propensity",
-            "description": "Purchase propensity scoring"
+            "source_asset": "customer_360",
+            "propensity_type": "purchase",
+            "description": "Purchase propensity scoring",
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "customer_360"
@@ -4343,7 +4481,10 @@
           "instance_name": "upgrade_propensity",
           "config_mapping": {
             "asset_name": "upgrade_propensity",
-            "description": "Upgrade propensity scoring"
+            "source_asset": "customer_360",
+            "propensity_type": "upgrade",
+            "description": "Upgrade propensity scoring",
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "customer_360"
@@ -4354,8 +4495,11 @@
           "instance_name": "experiment_results",
           "config_mapping": {
             "asset_name": "experiment_results",
+            "source_asset": "product_events",
+            "confidence_level": 0.95,
+            "minimum_sample_size": 1000,
             "description": "A/B test statistical analysis",
-            "source_asset": "product_events"
+            "group_name": "experimentation"
           },
           "depends_on": [
             "product_events"
@@ -4366,7 +4510,11 @@
           "instance_name": "campaign_roi",
           "config_mapping": {
             "asset_name": "campaign_roi",
-            "description": "Marketing campaign ROI"
+            "campaign_data_asset": "standardized_marketing",
+            "target_roas": 3.0,
+            "target_cpa": 50.0,
+            "description": "Marketing campaign ROI",
+            "group_name": "marketing_analytics"
           },
           "depends_on": []
         },
@@ -4375,7 +4523,12 @@
           "instance_name": "transaction_anomalies",
           "config_mapping": {
             "asset_name": "transaction_anomalies",
-            "description": "Detect unusual transactions"
+            "source_asset": "standardized_orders",
+            "detection_method": "z_score",
+            "metric_column": "total_amount",
+            "threshold": 3.0,
+            "description": "Detect unusual transactions",
+            "group_name": "monitoring"
           },
           "depends_on": [
             "standardized_orders"
@@ -4386,7 +4539,12 @@
           "instance_name": "engagement_anomalies",
           "config_mapping": {
             "asset_name": "engagement_anomalies",
-            "description": "Detect unusual engagement patterns"
+            "source_asset": "product_events",
+            "detection_method": "moving_average",
+            "metric_column": "event_count",
+            "moving_average_window": 7,
+            "description": "Detect unusual engagement patterns",
+            "group_name": "monitoring"
           },
           "depends_on": [
             "product_events"
@@ -4397,7 +4555,12 @@
           "instance_name": "customer_analytics_output",
           "config_mapping": {
             "asset_name": "customer_analytics_output",
-            "description": "Write customer analytics to database"
+            "source_asset": "health_scores",
+            "table_name": "customer_analytics",
+            "destination": "",
+            "write_mode": "replace",
+            "description": "Write customer analytics to database",
+            "group_name": "customer_analytics"
           },
           "depends_on": [
             "health_scores"
@@ -4408,7 +4571,12 @@
           "instance_name": "marketing_analytics_output",
           "config_mapping": {
             "asset_name": "marketing_analytics_output",
-            "description": "Write marketing analytics to database"
+            "source_asset": "campaign_roi",
+            "table_name": "marketing_analytics",
+            "destination": "",
+            "write_mode": "append",
+            "description": "Write marketing analytics to database",
+            "group_name": "marketing_analytics"
           },
           "depends_on": [
             "campaign_roi"
@@ -4419,7 +4587,12 @@
           "instance_name": "product_analytics_output",
           "config_mapping": {
             "asset_name": "product_analytics_output",
-            "description": "Write product analytics to database"
+            "source_asset": "product_recommendations",
+            "table_name": "product_analytics",
+            "destination": "",
+            "write_mode": "replace",
+            "description": "Write product analytics to database",
+            "group_name": "product_analytics"
           },
           "depends_on": [
             "product_recommendations"
@@ -4430,7 +4603,12 @@
           "instance_name": "monitoring_output",
           "config_mapping": {
             "asset_name": "monitoring_output",
-            "description": "Write monitoring results to database"
+            "source_asset": "engagement_anomalies",
+            "table_name": "anomaly_monitoring",
+            "destination": "",
+            "write_mode": "append",
+            "description": "Write monitoring results to database",
+            "group_name": "monitoring"
           },
           "depends_on": [
             "engagement_anomalies"
@@ -5084,7 +5262,9 @@
           "instance_name": "google_ads_data",
           "config_mapping": {
             "asset_name": "google_ads_data",
-            "description": "Ingest Google Ads campaign data"
+            "resource_type": "campaigns",
+            "description": "Ingest Google Ads campaign data",
+            "group_name": "ingestion"
           },
           "depends_on": []
         },
@@ -5093,7 +5273,9 @@
           "instance_name": "facebook_ads_data",
           "config_mapping": {
             "asset_name": "facebook_ads_data",
-            "description": "Ingest Facebook Ads campaign data"
+            "resource_type": "campaigns",
+            "description": "Ingest Facebook Ads campaign data",
+            "group_name": "ingestion"
           },
           "depends_on": []
         },
@@ -5102,7 +5284,10 @@
           "instance_name": "standardized_marketing_touchpoints",
           "config_mapping": {
             "asset_name": "standardized_marketing_touchpoints",
-            "description": "Standardize marketing touchpoints across all platforms"
+            "platform": "multi",
+            "resource_type": "touchpoints",
+            "description": "Standardize marketing touchpoints across all platforms",
+            "group_name": "standardization"
           },
           "depends_on": []
         },
@@ -5111,7 +5296,14 @@
           "instance_name": "channel_attribution",
           "config_mapping": {
             "asset_name": "channel_attribution",
-            "description": "Multi-touch attribution with time decay model"
+            "touchpoint_data_asset": "standardized_marketing_touchpoints",
+            "attribution_model": "time_decay",
+            "lookback_window_days": 30,
+            "time_decay_half_life_days": 7,
+            "include_channel_performance": true,
+            "include_journey_details": true,
+            "description": "Multi-touch attribution with time decay model",
+            "group_name": "marketing_analytics"
           },
           "depends_on": []
         },
@@ -5120,7 +5312,12 @@
           "instance_name": "campaign_roi",
           "config_mapping": {
             "asset_name": "campaign_roi",
-            "description": "Campaign performance with ROI calculations"
+            "campaign_data_asset": "standardized_marketing_touchpoints",
+            "target_roas": 3.0,
+            "target_cpa": 50.0,
+            "include_benchmarks": true,
+            "description": "Campaign performance with ROI calculations",
+            "group_name": "marketing_analytics"
           },
           "depends_on": []
         },
@@ -5129,7 +5326,12 @@
           "instance_name": "marketing_attribution_output",
           "config_mapping": {
             "asset_name": "marketing_attribution_output",
-            "description": "Write attribution results to database"
+            "source_asset": "campaign_roi",
+            "table_name": "marketing_attribution_results",
+            "destination": "",
+            "write_mode": "append",
+            "description": "Write attribution results to database",
+            "group_name": "marketing_analytics"
           },
           "depends_on": [
             "campaign_roi"
@@ -5649,9 +5851,9 @@
           "instance_name": "shopify_order_items",
           "config_mapping": {
             "asset_name": "shopify_order_items",
+            "resource_type": "order_items",
             "description": "Ingest order line items from Shopify",
-            "shop_url": "${shopify_shop_domain}",
-            "private_app_password": "${shopify_access_token}"
+            "group_name": "ingestion"
           },
           "depends_on": []
         },
@@ -5660,9 +5862,10 @@
           "instance_name": "standardized_order_items",
           "config_mapping": {
             "asset_name": "standardized_order_items",
+            "platform": "shopify",
+            "resource_type": "order_items",
             "description": "Standardize order items schema",
-            "platform": "${ecommerce_platform}",
-            "resource_type": "orders"
+            "group_name": "standardization"
           },
           "depends_on": []
         },
@@ -5671,7 +5874,13 @@
           "instance_name": "product_recommendations",
           "config_mapping": {
             "asset_name": "product_recommendations",
-            "description": "Customers who bought X also bought Y"
+            "source_asset": "standardized_order_items",
+            "recommendation_type": "collaborative",
+            "num_recommendations": 10,
+            "min_co_occurrence": 5,
+            "lookback_days": 180,
+            "description": "Customers who bought X also bought Y",
+            "group_name": "product_analytics"
           },
           "depends_on": [
             "standardized_order_items"
@@ -5682,7 +5891,13 @@
           "instance_name": "product_bundles",
           "config_mapping": {
             "asset_name": "product_bundles",
-            "description": "Product bundles for 'Buy these together' promotions"
+            "source_asset": "standardized_order_items",
+            "recommendation_type": "frequently_bought_together",
+            "num_recommendations": 5,
+            "min_co_occurrence": 10,
+            "lookback_days": 180,
+            "description": "Product bundles for 'Buy these together' promotions",
+            "group_name": "product_analytics"
           },
           "depends_on": [
             "standardized_order_items"
@@ -5693,7 +5908,12 @@
           "instance_name": "trending_products",
           "config_mapping": {
             "asset_name": "trending_products",
-            "description": "Popular and trending products"
+            "source_asset": "standardized_order_items",
+            "recommendation_type": "popular",
+            "num_recommendations": 20,
+            "lookback_days": 30,
+            "description": "Popular and trending products",
+            "group_name": "product_analytics"
           },
           "depends_on": [
             "standardized_order_items"
@@ -5704,7 +5924,12 @@
           "instance_name": "recommendations_output",
           "config_mapping": {
             "asset_name": "recommendations_output",
-            "description": "Write product recommendations to database"
+            "source_asset": "trending_products",
+            "table_name": "product_recommendations",
+            "destination": "",
+            "write_mode": "replace",
+            "description": "Write product recommendations to database",
+            "group_name": "product_analytics"
           },
           "depends_on": [
             "trending_products"

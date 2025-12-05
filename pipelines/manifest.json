@@ -18,8 +18,7 @@
           "config_mapping": {
             "asset_name": "experiment_events",
             "platform": "segment",
-            "resource_type": "events",
-            "event_filter": "experiment_",
+            "filter_event_name": "experiment_",
             "description": "A/B test assignment and conversion events",
             "group_name": "experimentation"
           },

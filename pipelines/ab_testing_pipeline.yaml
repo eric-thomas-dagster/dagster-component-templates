@@ -19,8 +19,7 @@ type: dagster_component_templates.EventDataStandardizerComponent
 attributes:
   asset_name: experiment_events
   platform: segment  # or your analytics platform
-  resource_type: events
-  event_filter: "experiment_"  # Only events starting with experiment_
+  filter_event_name: "experiment_"  # Only events starting with experiment_
   description: "A/B test assignment and conversion events"
   group_name: experimentation
 

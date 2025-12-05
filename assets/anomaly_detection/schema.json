@@ -1,0 +1,122 @@
+{
+  "type": "dagster_component_templates.AnomalyDetectionComponent",
+  "name": "Anomaly Detection",
+  "category": "ml",
+  "description": "Detect anomalies in customer behavior, metrics, and time-series data using statistical methods (Z-score, IQR, moving average)",
+  "icon": "AlertTriangle",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Data to analyze for anomalies"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Data with anomaly flags, scores, and reasons"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "placeholder": "transaction_anomalies"
+    },
+    "source_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Source Asset",
+      "description": "Source asset with data to analyze (set via lineage)"
+    },
+    "detection_method": {
+      "type": "string",
+      "required": false,
+      "label": "Detection Method",
+      "description": "Anomaly detection method to use",
+      "default": "z_score",
+      "enum": ["z_score", "iqr", "moving_average", "threshold"],
+      "enumLabels": {
+        "z_score": "Z-Score (standard deviations from mean)",
+        "iqr": "IQR (interquartile range outliers)",
+        "moving_average": "Moving Average (deviation from trend)",
+        "threshold": "Threshold (simple threshold-based)"
+      }
+    },
+    "metric_column": {
+      "type": "string",
+      "required": false,
+      "label": "Metric Column",
+      "description": "Column containing metric to analyze for anomalies (auto-detected if numeric)"
+    },
+    "threshold": {
+      "type": "number",
+      "required": false,
+      "label": "Threshold",
+      "description": "Detection threshold (Z-score stdevs, IQR multiplier, or absolute threshold)",
+      "default": 3.0,
+      "placeholder": "3.0"
+    },
+    "moving_average_window": {
+      "type": "number",
+      "required": false,
+      "label": "Moving Average Window",
+      "description": "Window size for moving average method (days/records)",
+      "default": 7,
+      "placeholder": "7"
+    },
+    "group_by_field": {
+      "type": "string",
+      "required": false,
+      "label": "Group By Field",
+      "description": "Group by field (e.g., customer_id) for per-group anomaly detection"
+    },
+    "timestamp_field": {
+      "type": "string",
+      "required": false,
+      "label": "Timestamp Field",
+      "description": "Timestamp field for time-series anomaly detection (optional)"
+    },
+    "id_field": {
+      "type": "string",
+      "required": false,
+      "label": "ID Field",
+      "description": "ID field for tracking individual records (auto-detected)"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "monitoring",
+      "placeholder": "monitoring"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "numpy>=1.20.0"
+    ]
+  },
+  "tags": [
+    "ml",
+    "anomaly-detection",
+    "monitoring",
+    "fraud",
+    "quality"
+  ]
+}

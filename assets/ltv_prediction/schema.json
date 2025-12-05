@@ -1,0 +1,116 @@
+{
+  "type": "dagster_component_templates.LTVPredictionComponent",
+  "name": "LTV Prediction",
+  "category": "ml",
+  "description": "Predict customer lifetime value using historical purchase patterns and cohort analysis",
+  "icon": "TrendingUp",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Transaction/order data with customer purchases"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Customer LTV predictions with value segments"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "placeholder": "customer_ltv"
+    },
+    "source_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Source Asset",
+      "description": "Source asset with transaction/order data (set via lineage)"
+    },
+    "prediction_period_months": {
+      "type": "number",
+      "required": false,
+      "label": "Prediction Period (Months)",
+      "description": "Months to project forward for LTV prediction",
+      "default": 24,
+      "placeholder": "24"
+    },
+    "cohort_analysis": {
+      "type": "boolean",
+      "required": false,
+      "label": "Cohort Analysis",
+      "description": "Include cohort-based analysis (by customer signup month)",
+      "default": true
+    },
+    "include_confidence_intervals": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Confidence Intervals",
+      "description": "Include confidence intervals for predictions",
+      "default": true
+    },
+    "min_transactions_required": {
+      "type": "number",
+      "required": false,
+      "label": "Minimum Transactions Required",
+      "description": "Minimum transactions required to calculate LTV (filters out one-time buyers)",
+      "default": 2,
+      "placeholder": "2"
+    },
+    "customer_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Customer ID Field",
+      "description": "Customer ID column name (auto-detected if not specified)"
+    },
+    "transaction_date_field": {
+      "type": "string",
+      "required": false,
+      "label": "Transaction Date Field",
+      "description": "Transaction date column (auto-detected if not specified)"
+    },
+    "amount_field": {
+      "type": "string",
+      "required": false,
+      "label": "Amount Field",
+      "description": "Transaction amount column (auto-detected if not specified)"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "customer_analytics",
+      "placeholder": "customer_analytics"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "numpy>=1.20.0"
+    ]
+  },
+  "tags": [
+    "ml",
+    "ltv",
+    "customer",
+    "prediction",
+    "analytics"
+  ]
+}

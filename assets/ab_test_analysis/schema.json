@@ -1,0 +1,128 @@
+{
+  "type": "dagster_component_templates.ABTestAnalysisComponent",
+  "name": "A/B Test Analysis",
+  "category": "experimentation",
+  "description": "Perform statistical analysis of A/B tests including significance testing, confidence intervals, and recommendations",
+  "icon": "TestTube",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Experiment data with user assignments and conversions"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "A/B test results with statistical significance and recommendations"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "placeholder": "ab_test_results"
+    },
+    "source_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Source Asset",
+      "description": "Source asset with experiment data (set via lineage)"
+    },
+    "confidence_level": {
+      "type": "number",
+      "required": false,
+      "label": "Confidence Level",
+      "description": "Confidence level for significance testing (0.95 = 95%)",
+      "default": 0.95,
+      "placeholder": "0.95"
+    },
+    "minimum_sample_size": {
+      "type": "number",
+      "required": false,
+      "label": "Minimum Sample Size",
+      "description": "Minimum sample size per variant to consider test valid",
+      "default": 1000,
+      "placeholder": "1000"
+    },
+    "minimum_runtime_hours": {
+      "type": "number",
+      "required": false,
+      "label": "Minimum Runtime (Hours)",
+      "description": "Minimum test runtime required in hours (optional)",
+      "placeholder": "168"
+    },
+    "minimum_detectable_effect": {
+      "type": "number",
+      "required": false,
+      "label": "Minimum Detectable Effect",
+      "description": "Minimum detectable effect (MDE) as decimal (e.g., 0.05 = 5%)",
+      "default": 0.05,
+      "placeholder": "0.05"
+    },
+    "experiment_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Experiment ID Field",
+      "description": "Experiment ID column (auto-detected)"
+    },
+    "variant_field": {
+      "type": "string",
+      "required": false,
+      "label": "Variant Field",
+      "description": "Variant column (control/treatment, A/B, etc.)"
+    },
+    "user_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "User ID Field",
+      "description": "User ID column (auto-detected)"
+    },
+    "converted_field": {
+      "type": "string",
+      "required": false,
+      "label": "Converted Field",
+      "description": "Conversion indicator column (auto-detected)"
+    },
+    "timestamp_field": {
+      "type": "string",
+      "required": false,
+      "label": "Timestamp Field",
+      "description": "Timestamp column for runtime validation (optional)"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "experimentation",
+      "placeholder": "experimentation"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "numpy>=1.20.0"
+    ]
+  },
+  "tags": [
+    "experimentation",
+    "ab-testing",
+    "statistics",
+    "analytics"
+  ]
+}

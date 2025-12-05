@@ -4,6 +4,28 @@
   "last_updated": "2025-12-05",
   "components": [
     {
+      "id": "ab_test_analysis",
+      "name": "A/B Test Analysis",
+      "category": "experimentation",
+      "description": "Perform statistical analysis of A/B tests including significance testing, confidence intervals, and recommendations",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ab_test_analysis",
+      "tags": [
+        "experimentation",
+        "ab-testing",
+        "statistics",
+        "analytics"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ab_test_analysis/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ab_test_analysis/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ab_test_analysis/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ab_test_analysis/example.yaml"
+    },
+    {
       "id": "ad_spend_standardizer",
       "name": "Ad Spend Standardizer",
       "category": "cdp",
@@ -47,6 +69,29 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/airtable_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/airtable_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/airtable_ingestion/requirements.txt"
+    },
+    {
+      "id": "anomaly_detection",
+      "name": "Anomaly Detection",
+      "category": "ml",
+      "description": "Detect anomalies in customer behavior, metrics, and time-series data using statistical methods (Z-score, IQR, moving average)",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/anomaly_detection",
+      "tags": [
+        "ml",
+        "anomaly-detection",
+        "monitoring",
+        "fraud",
+        "quality"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/anomaly_detection/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/anomaly_detection/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/anomaly_detection/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/anomaly_detection/example.yaml"
     },
     {
       "id": "anthropic_llm",
@@ -104,6 +149,29 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/asana_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/asana_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/asana_ingestion/requirements.txt"
+    },
+    {
+      "id": "campaign_performance",
+      "name": "Campaign Performance",
+      "category": "marketing",
+      "description": "Analyze marketing campaign performance calculating ROI, ROAS, conversion rates, and cost-per-acquisition metrics",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/campaign_performance",
+      "tags": [
+        "marketing",
+        "analytics",
+        "campaign",
+        "roas",
+        "roi"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/campaign_performance/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/campaign_performance/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/campaign_performance/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/campaign_performance/example.yaml"
     },
     {
       "id": "churn_prediction",
@@ -315,6 +383,28 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_health_score/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_health_score/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_health_score/example.yaml"
+    },
+    {
+      "id": "customer_journey_mapping",
+      "name": "Customer Journey Mapping",
+      "category": "analytics",
+      "description": "Map and analyze customer journeys from first touch to conversion, identifying common paths, drop-off points, and performance metrics",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/customer_journey_mapping",
+      "tags": [
+        "analytics",
+        "customer-journey",
+        "funnel",
+        "conversion"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_journey_mapping/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_journey_mapping/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_journey_mapping/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/customer_journey_mapping/example.yaml"
     },
     {
       "id": "customer_segmentation",
@@ -1072,6 +1162,29 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/llm_prompt_executor/requirements.txt"
     },
     {
+      "id": "ltv_prediction",
+      "name": "LTV Prediction",
+      "category": "ml",
+      "description": "Predict customer lifetime value using historical purchase patterns and cohort analysis",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ltv_prediction",
+      "tags": [
+        "ml",
+        "ltv",
+        "customer",
+        "prediction",
+        "analytics"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ltv_prediction/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ltv_prediction/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ltv_prediction/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ltv_prediction/example.yaml"
+    },
+    {
       "id": "marketing_data_standardizer",
       "name": "Marketing Data Standardizer",
       "category": "cdp",
@@ -1174,6 +1287,28 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/mongodb_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/mongodb_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/mongodb_ingestion/requirements.txt"
+    },
+    {
+      "id": "multi_touch_attribution",
+      "name": "Multi-Touch Attribution",
+      "category": "marketing",
+      "description": "Attribute revenue and conversions across multiple marketing touchpoints using first-touch, last-touch, linear, time-decay, U-shaped, or W-shaped models",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/multi_touch_attribution",
+      "tags": [
+        "marketing",
+        "attribution",
+        "analytics",
+        "touchpoint"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/multi_touch_attribution/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/multi_touch_attribution/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/multi_touch_attribution/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/multi_touch_attribution/example.yaml"
     },
     {
       "id": "notion_ingestion",
@@ -1373,6 +1508,29 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_analytics_standardizer/requirements.txt"
     },
     {
+      "id": "product_recommendations",
+      "name": "Product Recommendations",
+      "category": "ml",
+      "description": "Generate product recommendations using collaborative filtering, popularity, or frequently bought together algorithms",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/product_recommendations",
+      "tags": [
+        "ml",
+        "recommendations",
+        "product",
+        "ecommerce",
+        "personalization"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_recommendations/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_recommendations/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_recommendations/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_recommendations/example.yaml"
+    },
+    {
       "id": "product_usage_analytics",
       "name": "Product Usage Analytics",
       "category": "cdp",
@@ -1388,6 +1546,29 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_usage_analytics/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_usage_analytics/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/product_usage_analytics/example.yaml"
+    },
+    {
+      "id": "propensity_scoring",
+      "name": "Propensity Scoring",
+      "category": "ml",
+      "description": "Calculate propensity scores for customer actions (purchase, upgrade, churn, referral) using heuristic scoring based on behavior patterns",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/propensity_scoring",
+      "tags": [
+        "ml",
+        "propensity",
+        "customer",
+        "scoring",
+        "prediction"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/propensity_scoring/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/propensity_scoring/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/propensity_scoring/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/propensity_scoring/example.yaml"
     },
     {
       "id": "rag_pipeline",

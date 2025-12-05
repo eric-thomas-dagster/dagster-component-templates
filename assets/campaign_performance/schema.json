@@ -1,0 +1,143 @@
+{
+  "type": "dagster_component_templates.CampaignPerformanceComponent",
+  "name": "Campaign Performance",
+  "category": "marketing",
+  "description": "Analyze marketing campaign performance calculating ROI, ROAS, conversion rates, and cost-per-acquisition metrics",
+  "icon": "BarChart",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Campaign data with metrics (impressions, clicks, spend, conversions, revenue)"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Campaign performance analysis with calculated metrics"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "placeholder": "campaign_performance"
+    },
+    "campaign_data_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Campaign Data Asset",
+      "description": "Source asset with campaign metrics (impressions, clicks, spend)"
+    },
+    "conversion_data_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Conversion Data Asset",
+      "description": "Source asset with conversion/revenue data (optional, can be in same dataset)"
+    },
+    "target_roas": {
+      "type": "number",
+      "required": false,
+      "label": "Target ROAS",
+      "description": "Target ROAS for performance comparison (optional)",
+      "placeholder": "3.0"
+    },
+    "target_cpa": {
+      "type": "number",
+      "required": false,
+      "label": "Target CPA",
+      "description": "Target CPA for performance comparison (optional)",
+      "placeholder": "50.0"
+    },
+    "include_benchmarks": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Benchmarks",
+      "description": "Include industry benchmark comparisons",
+      "default": true
+    },
+    "campaign_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Campaign ID Field",
+      "description": "Campaign ID column (auto-detected)"
+    },
+    "campaign_name_field": {
+      "type": "string",
+      "required": false,
+      "label": "Campaign Name Field",
+      "description": "Campaign name column (auto-detected)"
+    },
+    "channel_field": {
+      "type": "string",
+      "required": false,
+      "label": "Channel Field",
+      "description": "Marketing channel column (auto-detected)"
+    },
+    "spend_field": {
+      "type": "string",
+      "required": false,
+      "label": "Spend Field",
+      "description": "Campaign spend column (auto-detected)"
+    },
+    "impressions_field": {
+      "type": "string",
+      "required": false,
+      "label": "Impressions Field",
+      "description": "Impressions column (auto-detected)"
+    },
+    "clicks_field": {
+      "type": "string",
+      "required": false,
+      "label": "Clicks Field",
+      "description": "Clicks column (auto-detected)"
+    },
+    "conversions_field": {
+      "type": "string",
+      "required": false,
+      "label": "Conversions Field",
+      "description": "Conversions column (auto-detected)"
+    },
+    "revenue_field": {
+      "type": "string",
+      "required": false,
+      "label": "Revenue Field",
+      "description": "Revenue column (auto-detected)"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "marketing_analytics",
+      "placeholder": "marketing_analytics"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "numpy>=1.20.0"
+    ]
+  },
+  "tags": [
+    "marketing",
+    "analytics",
+    "campaign",
+    "roas",
+    "roi"
+  ]
+}

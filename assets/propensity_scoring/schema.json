@@ -1,0 +1,130 @@
+{
+  "type": "dagster_component_templates.PropensityScoringComponent",
+  "name": "Propensity Scoring",
+  "category": "ml",
+  "description": "Calculate propensity scores for customer actions (purchase, upgrade, churn, referral) using heuristic scoring based on behavior patterns",
+  "icon": "TrendingUp",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Customer behavior data with activity metrics"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Customer propensity scores with classifications (High/Medium/Low)"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "placeholder": "customer_propensity_scores"
+    },
+    "source_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Source Asset",
+      "description": "Source asset with customer behavior data (set via lineage)"
+    },
+    "propensity_type": {
+      "type": "string",
+      "required": false,
+      "label": "Propensity Type",
+      "description": "Type of propensity to calculate",
+      "default": "purchase",
+      "enum": ["purchase", "upgrade", "referral", "engagement"],
+      "enumLabels": {
+        "purchase": "Purchase (likelihood to make next purchase)",
+        "upgrade": "Upgrade (likelihood to upgrade tier/plan)",
+        "referral": "Referral (likelihood to refer others)",
+        "engagement": "Engagement (likelihood to engage with content)"
+      }
+    },
+    "scoring_window_days": {
+      "type": "number",
+      "required": false,
+      "label": "Scoring Window (Days)",
+      "description": "Days of historical data to use for scoring",
+      "default": 90,
+      "placeholder": "90"
+    },
+    "score_threshold_high": {
+      "type": "number",
+      "required": false,
+      "label": "High Propensity Threshold",
+      "description": "Score threshold for 'high propensity' classification",
+      "default": 70.0,
+      "placeholder": "70.0"
+    },
+    "score_threshold_medium": {
+      "type": "number",
+      "required": false,
+      "label": "Medium Propensity Threshold",
+      "description": "Score threshold for 'medium propensity' classification",
+      "default": 40.0,
+      "placeholder": "40.0"
+    },
+    "customer_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Customer ID Field",
+      "description": "Customer ID column (auto-detected)"
+    },
+    "last_activity_field": {
+      "type": "string",
+      "required": false,
+      "label": "Last Activity Field",
+      "description": "Last activity date column (auto-detected)"
+    },
+    "activity_count_field": {
+      "type": "string",
+      "required": false,
+      "label": "Activity Count Field",
+      "description": "Activity count column (auto-detected)"
+    },
+    "engagement_score_field": {
+      "type": "string",
+      "required": false,
+      "label": "Engagement Score Field",
+      "description": "Engagement score column (optional)"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "customer_analytics",
+      "placeholder": "customer_analytics"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "numpy>=1.20.0"
+    ]
+  },
+  "tags": [
+    "ml",
+    "propensity",
+    "customer",
+    "scoring",
+    "prediction"
+  ]
+}

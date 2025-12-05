@@ -1,0 +1,146 @@
+{
+  "type": "dagster_component_templates.ProductRecommendationsComponent",
+  "name": "Product Recommendations",
+  "category": "ml",
+  "description": "Generate product recommendations using collaborative filtering, popularity, or frequently bought together algorithms",
+  "icon": "ShoppingCart",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Transaction/order data with product purchases"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Product recommendations with scores and rankings"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "placeholder": "product_recommendations"
+    },
+    "source_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Source Asset",
+      "description": "Source asset with order/transaction data (set via lineage)"
+    },
+    "recommendation_type": {
+      "type": "string",
+      "required": false,
+      "label": "Recommendation Type",
+      "description": "Type of recommendation algorithm",
+      "default": "collaborative",
+      "enum": ["collaborative", "popular", "frequently_bought_together"],
+      "enumLabels": {
+        "collaborative": "Collaborative Filtering (customers who bought X also bought Y)",
+        "popular": "Popular Products (bestsellers and trending items)",
+        "frequently_bought_together": "Frequently Bought Together (product bundles)"
+      }
+    },
+    "num_recommendations": {
+      "type": "number",
+      "required": false,
+      "label": "Number of Recommendations",
+      "description": "Number of recommendations to generate per product",
+      "default": 10,
+      "placeholder": "10"
+    },
+    "min_co_occurrence": {
+      "type": "number",
+      "required": false,
+      "label": "Minimum Co-occurrence",
+      "description": "Minimum times products must be purchased together (collaborative filtering)",
+      "default": 3,
+      "placeholder": "3"
+    },
+    "lookback_days": {
+      "type": "number",
+      "required": false,
+      "label": "Lookback Days",
+      "description": "Only consider purchases from last N days (optional)",
+      "placeholder": "90"
+    },
+    "customer_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Customer ID Field",
+      "description": "Customer ID column name (auto-detected if not specified)"
+    },
+    "product_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Product ID Field",
+      "description": "Product ID column name (auto-detected if not specified)"
+    },
+    "order_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Order ID Field",
+      "description": "Order ID column name (auto-detected if not specified)"
+    },
+    "date_field": {
+      "type": "string",
+      "required": false,
+      "label": "Date Field",
+      "description": "Transaction date column name (auto-detected if not specified)"
+    },
+    "quantity_field": {
+      "type": "string",
+      "required": false,
+      "label": "Quantity Field",
+      "description": "Quantity purchased column name (auto-detected if not specified)"
+    },
+    "product_name_field": {
+      "type": "string",
+      "required": false,
+      "label": "Product Name Field",
+      "description": "Product name column (optional, for readable output)"
+    },
+    "category_field": {
+      "type": "string",
+      "required": false,
+      "label": "Category Field",
+      "description": "Product category column (optional, for category-based recommendations)"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "product_analytics",
+      "placeholder": "product_analytics"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "numpy>=1.20.0"
+    ]
+  },
+  "tags": [
+    "ml",
+    "recommendations",
+    "product",
+    "ecommerce",
+    "personalization"
+  ]
+}

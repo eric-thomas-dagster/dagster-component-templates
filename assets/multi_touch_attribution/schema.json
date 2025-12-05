@@ -1,0 +1,149 @@
+{
+  "type": "dagster_component_templates.MultiTouchAttributionComponent",
+  "name": "Multi-Touch Attribution",
+  "category": "marketing",
+  "description": "Attribute revenue and conversions across multiple marketing touchpoints using first-touch, last-touch, linear, time-decay, U-shaped, or W-shaped models",
+  "icon": "Target",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Marketing touchpoint data with customer journeys and conversions"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Attributed touchpoints with credit distribution and channel performance"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "placeholder": "channel_attribution"
+    },
+    "touchpoint_data_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Touchpoint Data Asset",
+      "description": "Source asset with marketing touchpoint data (set via lineage)"
+    },
+    "conversion_data_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Conversion Data Asset",
+      "description": "Source asset with conversion events (optional, can be in same dataset)"
+    },
+    "attribution_model": {
+      "type": "string",
+      "required": false,
+      "label": "Attribution Model",
+      "description": "Attribution model to use",
+      "default": "linear",
+      "enum": ["first_touch", "last_touch", "linear", "time_decay", "u_shaped", "w_shaped"],
+      "enumLabels": {
+        "first_touch": "First Touch (100% credit to first interaction)",
+        "last_touch": "Last Touch (100% credit to last interaction)",
+        "linear": "Linear (equal credit to all touchpoints)",
+        "time_decay": "Time Decay (more credit to recent touchpoints)",
+        "u_shaped": "U-Shaped (40% first, 40% last, 20% middle)",
+        "w_shaped": "W-Shaped (30% first, 30% middle, 30% last, 10% others)"
+      }
+    },
+    "lookback_window_days": {
+      "type": "number",
+      "required": false,
+      "label": "Lookback Window (Days)",
+      "description": "Days to look back for touchpoints before conversion",
+      "default": 30,
+      "placeholder": "30"
+    },
+    "time_decay_half_life_days": {
+      "type": "number",
+      "required": false,
+      "label": "Time Decay Half-Life (Days)",
+      "description": "Half-life for time decay model (days)",
+      "default": 7.0,
+      "placeholder": "7.0"
+    },
+    "include_channel_performance": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Channel Performance",
+      "description": "Include aggregated channel performance metrics",
+      "default": true
+    },
+    "include_journey_details": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Journey Details",
+      "description": "Include detailed customer journey paths",
+      "default": true
+    },
+    "customer_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Customer ID Field",
+      "description": "Customer ID column name (auto-detected if not specified)"
+    },
+    "touchpoint_date_field": {
+      "type": "string",
+      "required": false,
+      "label": "Touchpoint Date Field",
+      "description": "Touchpoint timestamp column (auto-detected if not specified)"
+    },
+    "channel_field": {
+      "type": "string",
+      "required": false,
+      "label": "Channel Field",
+      "description": "Marketing channel column (auto-detected if not specified)"
+    },
+    "conversion_date_field": {
+      "type": "string",
+      "required": false,
+      "label": "Conversion Date Field",
+      "description": "Conversion timestamp column (auto-detected if not specified)"
+    },
+    "conversion_value_field": {
+      "type": "string",
+      "required": false,
+      "label": "Conversion Value Field",
+      "description": "Conversion value column (auto-detected if not specified)"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "marketing_analytics",
+      "placeholder": "marketing_analytics"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "numpy>=1.20.0"
+    ]
+  },
+  "tags": [
+    "marketing",
+    "attribution",
+    "analytics",
+    "touchpoint"
+  ]
+}

@@ -1,0 +1,124 @@
+{
+  "type": "dagster_component_templates.CustomerJourneyMappingComponent",
+  "name": "Customer Journey Mapping",
+  "category": "analytics",
+  "description": "Map and analyze customer journeys from first touch to conversion, identifying common paths, drop-off points, and performance metrics",
+  "icon": "GitBranch",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Customer event/touchpoint data with timestamps"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Customer journeys with paths, lengths, and conversion status"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "placeholder": "customer_journeys"
+    },
+    "source_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Source Asset",
+      "description": "Source asset with customer event/touchpoint data (set via lineage)"
+    },
+    "journey_stages": {
+      "type": "array",
+      "required": false,
+      "label": "Journey Stages",
+      "description": "Ordered list of journey stages to track (optional)",
+      "items": {
+        "type": "string"
+      }
+    },
+    "max_journey_length": {
+      "type": "number",
+      "required": false,
+      "label": "Max Journey Length",
+      "description": "Maximum events to include in a journey path",
+      "default": 20,
+      "placeholder": "20"
+    },
+    "conversion_event": {
+      "type": "string",
+      "required": false,
+      "label": "Conversion Event",
+      "description": "Event name that indicates conversion (e.g., 'purchase', 'signup')",
+      "placeholder": "purchase"
+    },
+    "time_window_hours": {
+      "type": "number",
+      "required": false,
+      "label": "Time Window (Hours)",
+      "description": "Maximum time between first and last event in a journey",
+      "default": 720,
+      "placeholder": "720"
+    },
+    "include_path_analysis": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Path Analysis",
+      "description": "Include detailed path analysis and visualization",
+      "default": true
+    },
+    "customer_id_field": {
+      "type": "string",
+      "required": false,
+      "label": "Customer ID Field",
+      "description": "Customer ID column (auto-detected if not specified)"
+    },
+    "event_field": {
+      "type": "string",
+      "required": false,
+      "label": "Event Field",
+      "description": "Event name/type column (auto-detected if not specified)"
+    },
+    "timestamp_field": {
+      "type": "string",
+      "required": false,
+      "label": "Timestamp Field",
+      "description": "Event timestamp column (auto-detected if not specified)"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Asset description"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "default": "customer_analytics",
+      "placeholder": "customer_analytics"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "required": false,
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "default": true
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "numpy>=1.20.0"
+    ]
+  },
+  "tags": [
+    "analytics",
+    "customer-journey",
+    "funnel",
+    "conversion"
+  ]
+}

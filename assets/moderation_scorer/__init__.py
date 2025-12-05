@@ -1,3 +1,3 @@
-from .moderation_scorer import ModerationScorerComponent
+from .component import ModerationScorerComponent
 
 __all__ = ['ModerationScorerComponent']

@@ -1,3 +1,3 @@
-from .document_ingestion import DocumentIngestionComponent
+from .component import DocumentIngestionComponent
 
 __all__ = ['DocumentIngestionComponent']

@@ -1,3 +1,3 @@
-from .hub_spot_ingestion import HubSpotIngestionComponent
+from .component import HubSpotIngestionComponent
 
 __all__ = ['HubSpotIngestionComponent']

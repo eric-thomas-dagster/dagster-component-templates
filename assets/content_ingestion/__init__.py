@@ -1,3 +1,3 @@
-from .content_ingestion import ContentIngestionComponent
+from .component import ContentIngestionComponent
 
 __all__ = ['ContentIngestionComponent']

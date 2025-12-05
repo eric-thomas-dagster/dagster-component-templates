@@ -1,51 +1,86 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
+  "type": "dagster_component_templates.FilesystemMonitorSensorComponent",
+  "name": "Filesystem Monitor",
+  "category": "sensors",
+  "description": "Monitor a directory for new files and trigger jobs when files matching a pattern are detected",
+  "icon": "FolderSearch",
+  "x-dagster-io": {
+    "component_type": "sensor",
+    "triggers": {
+      "type": "filesystem",
+      "description": "Triggers when new files are detected in the monitored directory"
+    },
+    "outputs": {
+      "type": "run_config",
+      "description": "Passes file information (path, name, size, modified time) to triggered jobs via run_config"
+    }
+  },
+  "attributes": {
     "sensor_name": {
       "type": "string",
-      "title": "Sensor Name",
+      "required": true,
+      "label": "Sensor Name",
       "description": "Unique name for this sensor",
-      "default": "filesystem_sensor"
+      "placeholder": "filesystem_sensor"
     },
     "directory_path": {
       "type": "string",
-      "title": "Directory Path",
+      "required": true,
+      "label": "Directory Path",
       "description": "Path to the directory to monitor for new files",
-      "default": "/data/incoming"
+      "placeholder": "/data/incoming"
     },
     "file_pattern": {
       "type": "string",
-      "title": "File Pattern",
+      "required": false,
+      "label": "File Pattern",
       "description": "Regex pattern to match files (e.g., '.*\\.csv$' for CSV files)",
-      "default": ".*"
+      "default": ".*",
+      "placeholder": ".*\\.csv$"
     },
     "job_name": {
       "type": "string",
-      "title": "Job Name",
+      "required": true,
+      "label": "Job Name",
       "description": "Name of the job to trigger when files are detected",
-      "default": "process_files_job"
+      "placeholder": "process_files_job"
     },
     "minimum_interval_seconds": {
-      "type": "integer",
-      "title": "Minimum Interval (seconds)",
+      "type": "number",
+      "required": false,
+      "label": "Minimum Interval (seconds)",
       "description": "Minimum time between sensor evaluations",
       "default": 30,
-      "minimum": 1
+      "minimum": 1,
+      "placeholder": "30"
     },
     "recursive": {
       "type": "boolean",
-      "title": "Recursive",
+      "required": false,
+      "label": "Recursive",
       "description": "Whether to recursively search subdirectories",
       "default": false
     },
     "default_status": {
       "type": "string",
-      "title": "Default Status",
+      "required": false,
+      "label": "Default Status",
       "description": "Default status of the sensor",
+      "default": "running",
       "enum": ["running", "stopped"],
-      "default": "running"
+      "enumLabels": {
+        "running": "Running (sensor actively monitors)",
+        "stopped": "Stopped (sensor is paused)"
+      }
     }
   },
-  "required": ["sensor_name", "directory_path", "job_name"]
+  "dependencies": {
+    "pip": []
+  },
+  "tags": [
+    "sensors",
+    "filesystem",
+    "monitoring",
+    "automation"
+  ]
 }

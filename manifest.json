@@ -2377,13 +2377,18 @@
     },
     {
       "id": "filesystem_monitor",
-      "name": "filesystem_monitor",
+      "name": "Filesystem Monitor",
       "category": "sensors",
-      "description": "",
+      "description": "Monitor a directory for new files and trigger jobs when files matching a pattern are detected",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "sensors/filesystem_monitor",
-      "tags": [],
+      "tags": [
+        "sensors",
+        "filesystem",
+        "monitoring",
+        "automation"
+      ],
       "dependencies": {
         "pip": []
       },

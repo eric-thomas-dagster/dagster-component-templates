@@ -18,12 +18,16 @@
         "analytics"
       ],
       "dependencies": {
-        "pip": []
+        "pip": [
+          "pandas>=1.5.0",
+          "numpy>=1.20.0"
+        ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ab_test_analysis/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ab_test_analysis/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ab_test_analysis/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ab_test_analysis/example.yaml"
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ab_test_analysis/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ab_test_analysis/requirements.txt"
     },
     {
       "id": "ad_spend_standardizer",
@@ -487,12 +491,16 @@
       "path": "assets/dlt_dataframe_writer",
       "tags": [],
       "dependencies": {
-        "pip": []
+        "pip": [
+          "pandas>=1.5.0",
+          "dlt[duckdb]>=0.4.0"
+        ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dlt_dataframe_writer/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dlt_dataframe_writer/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dlt_dataframe_writer/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dlt_dataframe_writer/example.yaml"
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dlt_dataframe_writer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dlt_dataframe_writer/requirements.txt"
     },
     {
       "id": "document_chunker",

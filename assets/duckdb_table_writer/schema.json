@@ -1,6 +1,9 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
+  "type": "dagster_component_templates.DuckDBTableWriterComponent",
+  "name": "DuckDB Writer",
+  "category": "loading",
+  "description": "Write DataFrames to DuckDB tables with create, append, or replace modes",
+  "icon": "Database",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",
@@ -13,48 +16,61 @@
       "description": "Writes DataFrame to DuckDB table (no output)"
     }
   },
-  "properties": {
+  "attributes": {
     "asset_name": {
       "type": "string",
-      "title": "Asset Name",
-      "description": "Name of the asset to create"
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "required": true
     },
     "database_path": {
       "type": "string",
-      "title": "Database Path",
+      "label": "Database Path",
       "description": "Path to the DuckDB database file (will be created if doesn't exist)",
-      "default": "data.duckdb"
+      "default": "data.duckdb",
+      "required": false
     },
     "table_name": {
       "type": "string",
-      "title": "Table Name",
-      "description": "Name of the table to write data to"
+      "label": "Table Name",
+      "description": "Name of the table to write data to",
+      "required": true
     },
     "write_mode": {
       "type": "string",
-      "title": "Write Mode",
+      "label": "Write Mode",
       "description": "Write mode: 'create' (fail if exists), 'replace' (drop and recreate), 'append' (add rows)",
-      "enum": ["create", "replace", "append"],
-      "default": "replace"
+      "default": "replace",
+      "enum": [
+        "create",
+        "replace",
+        "append"
+      ],
+      "required": false
     },
     "description": {
       "type": "string",
-      "title": "Description",
+      "label": "Description",
       "description": "Description of the asset",
-      "default": ""
+      "default": "",
+      "required": false
     },
     "group_name": {
       "type": "string",
-      "title": "Group Name",
+      "label": "Group Name",
       "description": "Asset group name for organization",
-      "default": ""
+      "default": "",
+      "required": false
     },
     "upstream_asset_keys": {
       "type": "string",
-      "title": "Upstream Asset Keys",
+      "label": "Upstream Asset Keys",
       "description": "Comma-separated list of upstream asset keys to load DataFrames from (automatically set by custom lineage)",
-      "default": ""
+      "default": "",
+      "required": false
     }
   },
-  "required": ["asset_name", "table_name"]
+  "tags": [
+    "loading"
+  ]
 }

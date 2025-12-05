@@ -1,6 +1,9 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
+  "type": "dagster_component_templates.DocumentSummarizerComponent",
+  "name": "Document Summarizer",
+  "category": "ai",
+  "description": "Summarize documents using LLMs with customizable prompts and chunking strategies",
+  "icon": "FileText",
   "x-dagster-io": {
     "inputs": {
       "type": "text",
@@ -12,50 +15,73 @@
       "description": "Produces summarized text string based on specified summary_type (concise, detailed, bullet_points, or executive). Output can be consumed by downstream text processing assets."
     }
   },
-  "properties": {
+  "attributes": {
     "asset_name": {
       "type": "string",
-      "default": "document_summary"
+      "default": "document_summary",
+      "required": true
     },
     "provider": {
       "type": "string",
-      "enum": ["openai", "anthropic"],
-      "default": "openai"
+      "default": "openai",
+      "enum": [
+        "openai",
+        "anthropic"
+      ],
+      "required": true
     },
     "model": {
       "type": "string",
-      "default": "gpt-4"
+      "default": "gpt-4",
+      "required": true
     },
     "summary_type": {
       "type": "string",
-      "enum": ["concise", "detailed", "bullet_points", "executive"],
-      "default": "concise"
+      "default": "concise",
+      "enum": [
+        "concise",
+        "detailed",
+        "bullet_points",
+        "executive"
+      ],
+      "required": false
     },
     "max_length": {
-      "type": "integer"
+      "type": "integer",
+      "required": false
     },
     "chunk_size": {
       "type": "integer",
-      "default": 3000
+      "default": 3000,
+      "required": false
     },
     "use_map_reduce": {
       "type": "boolean",
-      "default": true
+      "default": true,
+      "required": false
     },
     "api_key": {
       "type": "string",
-      "description": "API key (use ${VAR_NAME} for environment variable)"
+      "description": "API key (use ${VAR_NAME} for environment variable)",
+      "required": false
     },
     "temperature": {
       "type": "number",
-      "default": 0.3
+      "default": 0.3,
+      "required": false
     },
     "description": {
-      "type": "string"
+      "type": "string",
+      "required": false
     },
     "group_name": {
-      "type": "string"
+      "type": "string",
+      "required": false
     }
   },
-  "required": ["asset_name", "provider", "model"]
+  "tags": [
+    "ai",
+    "llm",
+    "nlp"
+  ]
 }

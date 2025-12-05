@@ -1,6 +1,9 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
+  "type": "dagster_component_templates.LLMChainExecutorComponent",
+  "name": "LLM Chain",
+  "category": "ai",
+  "description": "Execute multi-step LLM chains with memory and context passing",
+  "icon": "Workflow",
   "x-dagster-io": {
     "description": "This component receives context data from upstream assets via IO managers and outputs chain execution results",
     "inputs": {
@@ -30,42 +33,58 @@
       }
     }
   },
-  "properties": {
+  "attributes": {
     "asset_name": {
       "type": "string",
-      "default": "chain_output"
+      "default": "chain_output",
+      "required": true
     },
     "provider": {
       "type": "string",
-      "enum": ["openai", "anthropic"],
-      "default": "openai"
+      "default": "openai",
+      "enum": [
+        "openai",
+        "anthropic"
+      ],
+      "required": true
     },
     "model": {
       "type": "string",
-      "default": "gpt-4"
+      "default": "gpt-4",
+      "required": true
     },
     "chain_steps": {
       "type": "string",
-      "description": "JSON array of chain steps"
+      "description": "JSON array of chain steps",
+      "required": true
     },
     "initial_context": {
       "type": "string",
-      "description": "Initial context as JSON"
+      "description": "Initial context as JSON",
+      "required": false
     },
     "temperature": {
       "type": "number",
-      "default": 0.7
+      "default": 0.7,
+      "required": false
     },
     "api_key": {
       "type": "string",
-      "description": "API key (use ${VAR_NAME} for environment variable)"
+      "description": "API key (use ${VAR_NAME} for environment variable)",
+      "required": false
     },
     "description": {
-      "type": "string"
+      "type": "string",
+      "required": false
     },
     "group_name": {
-      "type": "string"
+      "type": "string",
+      "required": false
     }
   },
-  "required": ["asset_name", "provider", "model", "chain_steps"]
+  "tags": [
+    "ai",
+    "llm",
+    "nlp"
+  ]
 }

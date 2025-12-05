@@ -1,6 +1,9 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
+  "type": "dagster_component_templates.VectorStoreWriterComponent",
+  "name": "Vector Store Writer",
+  "category": "ai",
+  "description": "Write embeddings to vector stores (Pinecone, Weaviate, ChromaDB, Qdrant)",
+  "icon": "Database",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",
@@ -12,24 +15,83 @@
       "description": "Returns status dictionary with keys: 'status' (success/failure), 'vectors_written' (count), 'collection_name' (target collection)"
     }
   },
-  "properties": {
-    "asset_name": {"type": "string", "default": "vector_store_index"},
-    "provider": {"type": "string", "enum": ["pinecone", "weaviate", "chromadb", "faiss", "qdrant"], "default": "chromadb"},
-    "collection_name": {"type": "string", "default": "documents"},
-    "embedding_column": {"type": "string", "default": "embedding"},
-    "text_column": {"type": "string", "default": "text"},
-    "metadata_columns": {"type": "array", "items": {"type": "string"}},
-    "connection_string": {"type": "string"},
-    "api_key": {"type": "string", "description": "API key (use ${VAR_NAME} for environment variable)"},
-    "batch_size": {"type": "integer", "default": 100},
-    "upsert": {"type": "boolean", "default": true},
-    "description": {"type": "string"},
-    "group_name": {"type": "string"},
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "default": "vector_store_index",
+      "required": true
+    },
+    "provider": {
+      "type": "string",
+      "default": "chromadb",
+      "enum": [
+        "pinecone",
+        "weaviate",
+        "chromadb",
+        "faiss",
+        "qdrant"
+      ],
+      "required": true
+    },
+    "collection_name": {
+      "type": "string",
+      "default": "documents",
+      "required": true
+    },
+    "embedding_column": {
+      "type": "string",
+      "default": "embedding",
+      "required": false
+    },
+    "text_column": {
+      "type": "string",
+      "default": "text",
+      "required": false
+    },
+    "metadata_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false
+    },
+    "connection_string": {
+      "type": "string",
+      "required": false
+    },
+    "api_key": {
+      "type": "string",
+      "description": "API key (use ${VAR_NAME} for environment variable)",
+      "required": false
+    },
+    "batch_size": {
+      "type": "integer",
+      "default": 100,
+      "required": false
+    },
+    "upsert": {
+      "type": "boolean",
+      "default": true,
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "required": false
+    },
     "upstream_asset_keys": {
       "type": "string",
       "description": "Comma-separated list of upstream asset keys to load DataFrames from (automatically set by custom lineage)",
-      "default": ""
+      "default": "",
+      "required": false
     }
   },
-  "required": ["asset_name", "provider", "collection_name"]
+  "tags": [
+    "ai",
+    "llm",
+    "nlp"
+  ]
 }

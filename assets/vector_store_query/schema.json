@@ -1,6 +1,9 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
+  "type": "dagster_component_templates.VectorStoreQueryComponent",
+  "name": "Vector Store Query",
+  "category": "ai",
+  "description": "Query vector stores for semantic search and similarity matching",
+  "icon": "Search",
   "x-dagster-io": {
     "inputs": {
       "type": "array",
@@ -12,45 +15,64 @@
       "description": "Returns DataFrame with search results containing columns: 'id' (document identifier), 'score' (similarity score), 'text' (document content), and any additional metadata columns from the vector store"
     }
   },
-  "properties": {
+  "attributes": {
     "asset_name": {
       "type": "string",
-      "default": "search_results"
+      "default": "search_results",
+      "required": true
     },
     "provider": {
       "type": "string",
-      "enum": ["pinecone", "chromadb", "faiss", "qdrant"],
-      "default": "chromadb"
+      "default": "chromadb",
+      "enum": [
+        "pinecone",
+        "chromadb",
+        "faiss",
+        "qdrant"
+      ],
+      "required": true
     },
     "collection_name": {
       "type": "string",
-      "default": "documents"
+      "default": "documents",
+      "required": true
     },
     "query_text": {
       "type": "string",
-      "description": "Direct query text (alternative to embedding)"
+      "description": "Direct query text (alternative to embedding)",
+      "required": false
     },
     "top_k": {
       "type": "integer",
-      "default": 10
+      "default": 10,
+      "required": false
     },
     "connection_string": {
-      "type": "string"
+      "type": "string",
+      "required": false
     },
     "api_key": {
       "type": "string",
-      "description": "API key (use ${VAR_NAME} for environment variable)"
+      "description": "API key (use ${VAR_NAME} for environment variable)",
+      "required": false
     },
     "include_distances": {
       "type": "boolean",
-      "default": true
+      "default": true,
+      "required": false
     },
     "description": {
-      "type": "string"
+      "type": "string",
+      "required": false
     },
     "group_name": {
-      "type": "string"
+      "type": "string",
+      "required": false
     }
   },
-  "required": ["asset_name", "provider", "collection_name"]
+  "tags": [
+    "ai",
+    "llm",
+    "nlp"
+  ]
 }

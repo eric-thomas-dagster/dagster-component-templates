@@ -1,6 +1,9 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
+  "type": "dagster_component_templates.TextChunkerComponent",
+  "name": "Text Chunker",
+  "category": "ai",
+  "description": "Split text into chunks using fixed size, sentence, paragraph, or semantic strategies",
+  "icon": "Scissors",
   "x-dagster-io": {
     "inputs": {
       "type": "text",
@@ -13,79 +16,106 @@
       "conditional": "Based on output_format parameter"
     }
   },
-  "properties": {
+  "attributes": {
     "asset_name": {
       "type": "string",
-      "title": "Asset Name",
+      "label": "Asset Name",
       "description": "Name of the asset",
-      "default": "text_chunks"
+      "default": "text_chunks",
+      "required": true
     },
     "chunking_strategy": {
       "type": "string",
-      "title": "Chunking Strategy",
+      "label": "Chunking Strategy",
       "description": "Strategy for chunking",
-      "enum": ["fixed_chars", "fixed_tokens", "sentence", "paragraph", "semantic", "recursive"],
-      "default": "fixed_chars"
+      "default": "fixed_chars",
+      "enum": [
+        "fixed_chars",
+        "fixed_tokens",
+        "sentence",
+        "paragraph",
+        "semantic",
+        "recursive"
+      ],
+      "required": false
     },
     "chunk_size": {
       "type": "integer",
-      "title": "Chunk Size",
+      "label": "Chunk Size",
       "description": "Target size of each chunk",
       "default": 1000,
-      "minimum": 10
+      "minimum": 10,
+      "required": false
     },
     "chunk_overlap": {
       "type": "integer",
-      "title": "Chunk Overlap",
+      "label": "Chunk Overlap",
       "description": "Overlap between chunks",
       "default": 200,
-      "minimum": 0
+      "minimum": 0,
+      "required": false
     },
     "separator": {
       "type": "string",
-      "title": "Separator",
-      "description": "Custom separator for recursive strategy"
+      "label": "Separator",
+      "description": "Custom separator for recursive strategy",
+      "required": false
     },
     "preserve_sentences": {
       "type": "boolean",
-      "title": "Preserve Sentences",
+      "label": "Preserve Sentences",
       "description": "Try not to break sentences",
-      "default": true
+      "default": true,
+      "required": false
     },
     "add_metadata": {
       "type": "boolean",
-      "title": "Add Metadata",
+      "label": "Add Metadata",
       "description": "Add metadata to chunks",
-      "default": true
+      "default": true,
+      "required": false
     },
     "output_format": {
       "type": "string",
-      "title": "Output Format",
+      "label": "Output Format",
       "description": "Format of output",
-      "enum": ["list", "dataframe", "json"],
-      "default": "list"
+      "default": "list",
+      "enum": [
+        "list",
+        "dataframe",
+        "json"
+      ],
+      "required": false
     },
     "save_to_file": {
       "type": "boolean",
-      "title": "Save to File",
+      "label": "Save to File",
       "description": "Save chunks to file",
-      "default": false
+      "default": false,
+      "required": false
     },
     "output_path": {
       "type": "string",
-      "title": "Output Path",
-      "description": "Path to save chunks"
+      "label": "Output Path",
+      "description": "Path to save chunks",
+      "required": false
     },
     "description": {
       "type": "string",
-      "title": "Description",
-      "description": "Asset description"
+      "label": "Description",
+      "description": "Asset description",
+      "required": false
     },
     "group_name": {
       "type": "string",
-      "title": "Group Name",
-      "description": "Asset group for organization"
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false
     }
   },
-  "required": ["asset_name"]
+  "tags": [
+    "ai",
+    "llm",
+    "nlp"
+  ]
 }

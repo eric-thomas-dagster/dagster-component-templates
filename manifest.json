@@ -250,13 +250,17 @@
     },
     {
       "id": "conversation_memory",
-      "name": "conversation_memory",
-      "category": "other",
-      "description": "",
+      "name": "Conversation Memory",
+      "category": "ai",
+      "description": "Store and retrieve conversation history for AI agents and chatbots",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/conversation_memory",
-      "tags": [],
+      "tags": [
+        "ai",
+        "llm",
+        "nlp"
+      ],
       "dependencies": {
         "pip": []
       },
@@ -425,13 +429,17 @@
     },
     {
       "id": "database_query",
-      "name": "database_query",
-      "category": "other",
-      "description": "",
+      "name": "Database Query",
+      "category": "extraction",
+      "description": "Execute SQL queries against databases and return results as DataFrames",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/database_query",
-      "tags": [],
+      "tags": [
+        "extraction",
+        "ingestion",
+        "data-source"
+      ],
       "dependencies": {
         "pip": [
           "pandas>=2.0.0",
@@ -447,13 +455,16 @@
     },
     {
       "id": "dataframe_transformer",
-      "name": "dataframe_transformer",
-      "category": "other",
-      "description": "",
+      "name": "DataFrame Transformer",
+      "category": "transformation",
+      "description": "Transform pandas DataFrames using Python code, filters, aggregations, and joins",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/dataframe_transformer",
-      "tags": [],
+      "tags": [
+        "transformation",
+        "data-processing"
+      ],
       "dependencies": {
         "pip": [
           "pandas>=2.0.0",
@@ -533,13 +544,17 @@
     },
     {
       "id": "document_summarizer",
-      "name": "document_summarizer",
-      "category": "other",
-      "description": "",
+      "name": "Document Summarizer",
+      "category": "ai",
+      "description": "Summarize documents using LLMs with customizable prompts and chunking strategies",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/document_summarizer",
-      "tags": [],
+      "tags": [
+        "ai",
+        "llm",
+        "nlp"
+      ],
       "dependencies": {
         "pip": [
           "openai>=1.0.0",
@@ -554,13 +569,16 @@
     },
     {
       "id": "document_text_extractor",
-      "name": "document_text_extractor",
-      "category": "other",
-      "description": "",
+      "name": "Document Text Extractor",
+      "category": "transformation",
+      "description": "Extract text content from PDF, Word, HTML, and other document formats",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/document_text_extractor",
-      "tags": [],
+      "tags": [
+        "transformation",
+        "data-processing"
+      ],
       "dependencies": {
         "pip": [
           "pypdf>=3.0.0",
@@ -580,13 +598,17 @@
     },
     {
       "id": "duckdb_query_reader",
-      "name": "duckdb_query_reader",
-      "category": "other",
-      "description": "",
+      "name": "DuckDB Query",
+      "category": "extraction",
+      "description": "Query DuckDB databases and return results as DataFrames",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/duckdb_query_reader",
-      "tags": [],
+      "tags": [
+        "extraction",
+        "ingestion",
+        "data-source"
+      ],
       "dependencies": {
         "pip": [
           "duckdb>=0.9.0",
@@ -601,13 +623,15 @@
     },
     {
       "id": "duckdb_table_writer",
-      "name": "duckdb_table_writer",
-      "category": "other",
-      "description": "",
+      "name": "DuckDB Writer",
+      "category": "loading",
+      "description": "Write DataFrames to DuckDB tables with create, append, or replace modes",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/duckdb_table_writer",
-      "tags": [],
+      "tags": [
+        "loading"
+      ],
       "dependencies": {
         "pip": [
           "duckdb>=0.9.0",
@@ -650,13 +674,17 @@
     },
     {
       "id": "embedding_generator",
-      "name": "embedding_generator",
-      "category": "other",
-      "description": "",
+      "name": "Embedding Generator",
+      "category": "ai",
+      "description": "Generate vector embeddings for text using OpenAI, Anthropic, or HuggingFace models",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/embedding_generator",
-      "tags": [],
+      "tags": [
+        "ai",
+        "llm",
+        "nlp"
+      ],
       "dependencies": {
         "pip": [
           "openai>=1.0.0",
@@ -705,13 +733,17 @@
     },
     {
       "id": "entity_extractor",
-      "name": "entity_extractor",
-      "category": "other",
-      "description": "Extract named entities from text using NER (Named Entity Recognition)",
+      "name": "Entity Extractor",
+      "category": "ai",
+      "description": "Extract named entities (people, organizations, locations) from text using NLP",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/entity_extractor",
-      "tags": [],
+      "tags": [
+        "ai",
+        "llm",
+        "nlp"
+      ],
       "dependencies": {
         "pip": [
           "pandas>=1.5.0",
@@ -786,13 +818,16 @@
     },
     {
       "id": "file_transformer",
-      "name": "file_transformer",
-      "category": "other",
-      "description": "",
+      "name": "File Transformer",
+      "category": "transformation",
+      "description": "Transform files using custom Python code or built-in operations",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/file_transformer",
-      "tags": [],
+      "tags": [
+        "transformation",
+        "data-processing"
+      ],
       "dependencies": {
         "pip": [
           "pandas>=2.0.0",
@@ -1098,13 +1133,17 @@
     },
     {
       "id": "llm_chain_executor",
-      "name": "llm_chain_executor",
-      "category": "other",
-      "description": "",
+      "name": "LLM Chain",
+      "category": "ai",
+      "description": "Execute multi-step LLM chains with memory and context passing",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/llm_chain_executor",
-      "tags": [],
+      "tags": [
+        "ai",
+        "llm",
+        "nlp"
+      ],
       "dependencies": {
         "pip": [
           "openai>=1.0.0",
@@ -1119,13 +1158,17 @@
     },
     {
       "id": "llm_output_parser",
-      "name": "llm_output_parser",
-      "category": "other",
-      "description": "",
+      "name": "LLM Output Parser",
+      "category": "ai",
+      "description": "Parse and structure LLM outputs into JSON, CSV, lists, or DataFrames",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/llm_output_parser",
-      "tags": [],
+      "tags": [
+        "ai",
+        "llm",
+        "nlp"
+      ],
       "dependencies": {
         "pip": [
           "pandas>=2.0.0",
@@ -1140,13 +1183,17 @@
     },
     {
       "id": "llm_prompt_executor",
-      "name": "llm_prompt_executor",
-      "category": "other",
-      "description": "",
+      "name": "LLM Prompt",
+      "category": "ai",
+      "description": "Execute LLM prompts using OpenAI, Anthropic, or other providers",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/llm_prompt_executor",
-      "tags": [],
+      "tags": [
+        "ai",
+        "llm",
+        "nlp"
+      ],
       "dependencies": {
         "pip": [
           "openai>=1.0.0",
@@ -1456,13 +1503,15 @@
     },
     {
       "id": "priority_scorer",
-      "name": "priority_scorer",
-      "category": "other",
-      "description": "Score ticket priority/urgency using LLM, ML, or rule-based methods",
+      "name": "Priority Scorer",
+      "category": "ml",
+      "description": "Score and prioritize items using custom rules or ML models",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/priority_scorer",
-      "tags": [],
+      "tags": [
+        "ml"
+      ],
       "dependencies": {
         "pip": [
           "pandas>=1.5.0",
@@ -1572,13 +1621,17 @@
     },
     {
       "id": "rag_pipeline",
-      "name": "rag_pipeline",
-      "category": "other",
-      "description": "",
+      "name": "RAG Pipeline",
+      "category": "ai",
+      "description": "Retrieval-augmented generation pipeline for question answering with vector stores",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/rag_pipeline",
-      "tags": [],
+      "tags": [
+        "ai",
+        "llm",
+        "nlp"
+      ],
       "dependencies": {
         "pip": [
           "openai>=1.0.0",
@@ -1628,13 +1681,17 @@
     },
     {
       "id": "rest_api_fetcher",
-      "name": "rest_api_fetcher",
-      "category": "other",
-      "description": "",
+      "name": "REST API Fetcher",
+      "category": "extraction",
+      "description": "Fetch data from REST APIs with pagination, authentication, and retry logic",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/rest_api_fetcher",
-      "tags": [],
+      "tags": [
+        "extraction",
+        "ingestion",
+        "data-source"
+      ],
       "dependencies": {
         "pip": [
           "requests>=2.28.0",
@@ -1957,13 +2014,16 @@
     },
     {
       "id": "synthetic_data_generator",
-      "name": "synthetic_data_generator",
-      "category": "other",
-      "description": "",
+      "name": "Synthetic Data Generator",
+      "category": "transformation",
+      "description": "Generate realistic synthetic data for testing and development",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/synthetic_data_generator",
-      "tags": [],
+      "tags": [
+        "transformation",
+        "data-processing"
+      ],
       "dependencies": {
         "pip": [
           "pandas>=2.0.0"
@@ -1977,13 +2037,17 @@
     },
     {
       "id": "text_chunker",
-      "name": "text_chunker",
-      "category": "other",
-      "description": "",
+      "name": "Text Chunker",
+      "category": "ai",
+      "description": "Split text into chunks using fixed size, sentence, paragraph, or semantic strategies",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/text_chunker",
-      "tags": [],
+      "tags": [
+        "ai",
+        "llm",
+        "nlp"
+      ],
       "dependencies": {
         "pip": [
           "pandas>=2.0.0"
@@ -1997,13 +2061,17 @@
     },
     {
       "id": "text_classifier",
-      "name": "text_classifier",
-      "category": "other",
-      "description": "",
+      "name": "Text Classifier",
+      "category": "ai",
+      "description": "Classify text into categories using LLMs or ML models",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/text_classifier",
-      "tags": [],
+      "tags": [
+        "ai",
+        "llm",
+        "nlp"
+      ],
       "dependencies": {
         "pip": [
           "openai>=1.0.0",
@@ -2018,13 +2086,17 @@
     },
     {
       "id": "text_moderator",
-      "name": "text_moderator",
-      "category": "other",
-      "description": "Detect toxic content, hate speech, PII, profanity, and inappropriate content",
+      "name": "Text Moderator",
+      "category": "ai",
+      "description": "Moderate text content for inappropriate or harmful content",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/text_moderator",
-      "tags": [],
+      "tags": [
+        "ai",
+        "llm",
+        "nlp"
+      ],
       "dependencies": {
         "pip": [
           "pandas>=1.5.0",
@@ -2045,13 +2117,17 @@
     },
     {
       "id": "ticket_classifier",
-      "name": "ticket_classifier",
-      "category": "other",
-      "description": "Classify support tickets by category, urgency, department, and sentiment",
+      "name": "Ticket Classifier",
+      "category": "ai",
+      "description": "Classify support tickets by category, priority, and sentiment",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ticket_classifier",
-      "tags": [],
+      "tags": [
+        "ai",
+        "llm",
+        "nlp"
+      ],
       "dependencies": {
         "pip": [
           "pandas>=1.5.0",
@@ -2099,13 +2175,16 @@
     },
     {
       "id": "time_series_generator",
-      "name": "time_series_generator",
-      "category": "other",
-      "description": "",
+      "name": "Time Series Generator",
+      "category": "transformation",
+      "description": "Generate time series data with trends, seasonality, and noise",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/time_series_generator",
-      "tags": [],
+      "tags": [
+        "transformation",
+        "data-processing"
+      ],
       "dependencies": {
         "pip": [
           "pandas>=2.0.0",
@@ -2150,13 +2229,17 @@
     },
     {
       "id": "vector_store_query",
-      "name": "vector_store_query",
-      "category": "other",
-      "description": "",
+      "name": "Vector Store Query",
+      "category": "ai",
+      "description": "Query vector stores for semantic search and similarity matching",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/vector_store_query",
-      "tags": [],
+      "tags": [
+        "ai",
+        "llm",
+        "nlp"
+      ],
       "dependencies": {
         "pip": [
           "chromadb>=0.4.0",
@@ -2174,13 +2257,17 @@
     },
     {
       "id": "vector_store_writer",
-      "name": "vector_store_writer",
-      "category": "other",
-      "description": "",
+      "name": "Vector Store Writer",
+      "category": "ai",
+      "description": "Write embeddings to vector stores (Pinecone, Weaviate, ChromaDB, Qdrant)",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/vector_store_writer",
-      "tags": [],
+      "tags": [
+        "ai",
+        "llm",
+        "nlp"
+      ],
       "dependencies": {
         "pip": [
           "chromadb>=0.4.0",

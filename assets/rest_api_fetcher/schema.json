@@ -1,6 +1,9 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
+  "type": "dagster_component_templates.RestApiFetcherComponent",
+  "name": "REST API Fetcher",
+  "category": "extraction",
+  "description": "Fetch data from REST APIs with pagination, authentication, and retry logic",
+  "icon": "Cloud",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe",
@@ -9,113 +12,155 @@
       "description": "Produces DataFrame when output_format is set to 'dataframe'"
     },
     "supports_partitions": true,
-    "supported_partition_types": ["daily", "weekly", "monthly", "hourly"]
+    "supported_partition_types": [
+      "daily",
+      "weekly",
+      "monthly",
+      "hourly"
+    ]
   },
-  "properties": {
+  "attributes": {
     "asset_name": {
       "type": "string",
-      "title": "Asset Name",
+      "label": "Asset Name",
       "description": "Name of the asset",
-      "default": "api_data"
+      "default": "api_data",
+      "required": true
     },
     "api_url": {
       "type": "string",
-      "title": "API URL",
+      "label": "API URL",
       "description": "URL of the API endpoint to fetch data from",
-      "default": "https://api.example.com/data"
+      "default": "https://api.example.com/data",
+      "required": true
     },
     "method": {
       "type": "string",
-      "title": "HTTP Method",
+      "label": "HTTP Method",
       "description": "HTTP method to use",
-      "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"],
-      "default": "GET"
+      "default": "GET",
+      "enum": [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE",
+        "PATCH"
+      ],
+      "required": false
     },
     "headers": {
       "type": "string",
-      "title": "HTTP Headers",
+      "label": "HTTP Headers",
       "description": "JSON string of HTTP headers",
-      "default": "{}"
+      "default": "{}",
+      "required": false
     },
     "params": {
       "type": "string",
-      "title": "Query Parameters",
+      "label": "Query Parameters",
       "description": "JSON string of query parameters",
-      "default": "{}"
+      "default": "{}",
+      "required": false
     },
     "body": {
       "type": "string",
-      "title": "Request Body",
-      "description": "JSON string of request body for POST/PUT requests"
+      "label": "Request Body",
+      "description": "JSON string of request body for POST/PUT requests",
+      "required": false
     },
     "auth_type": {
       "type": "string",
-      "title": "Authentication Type",
+      "label": "Authentication Type",
       "description": "Type of authentication",
-      "enum": ["", "basic", "bearer"],
-      "default": ""
+      "default": "",
+      "enum": [
+        "",
+        "basic",
+        "bearer"
+      ],
+      "required": false
     },
     "auth_username": {
       "type": "string",
-      "title": "Auth Username",
-      "description": "Username for basic authentication"
+      "label": "Auth Username",
+      "description": "Username for basic authentication",
+      "required": false
     },
     "auth_password": {
       "type": "string",
-      "title": "Auth Password",
-      "description": "Password for basic authentication"
+      "label": "Auth Password",
+      "description": "Password for basic authentication",
+      "required": false
     },
     "auth_token": {
       "type": "string",
-      "title": "Bearer Token",
-      "description": "Bearer token for authentication"
+      "label": "Bearer Token",
+      "description": "Bearer token for authentication",
+      "required": false
     },
     "timeout": {
       "type": "integer",
-      "title": "Timeout (seconds)",
+      "label": "Timeout (seconds)",
       "description": "Request timeout in seconds",
       "default": 30,
-      "minimum": 1
+      "minimum": 1,
+      "required": false
     },
     "output_format": {
       "type": "string",
-      "title": "Output Format",
+      "label": "Output Format",
       "description": "Format of the output data",
-      "enum": ["json", "dataframe", "csv", "parquet"],
-      "default": "json"
+      "default": "json",
+      "enum": [
+        "json",
+        "dataframe",
+        "csv",
+        "parquet"
+      ],
+      "required": false
     },
     "json_path": {
       "type": "string",
-      "title": "JSON Path",
-      "description": "JSON path to extract data from response (e.g., 'data.results')"
+      "label": "JSON Path",
+      "description": "JSON path to extract data from response (e.g., 'data.results')",
+      "required": false
     },
     "cache_results": {
       "type": "boolean",
-      "title": "Cache Results",
+      "label": "Cache Results",
       "description": "Whether to cache results locally",
-      "default": false
+      "default": false,
+      "required": false
     },
     "cache_path": {
       "type": "string",
-      "title": "Cache Path",
-      "description": "Path to cache file"
+      "label": "Cache Path",
+      "description": "Path to cache file",
+      "required": false
     },
     "verify_ssl": {
       "type": "boolean",
-      "title": "Verify SSL",
+      "label": "Verify SSL",
       "description": "Whether to verify SSL certificates",
-      "default": true
+      "default": true,
+      "required": false
     },
     "description": {
       "type": "string",
-      "title": "Description",
-      "description": "Asset description"
+      "label": "Description",
+      "description": "Asset description",
+      "required": false
     },
     "group_name": {
       "type": "string",
-      "title": "Group Name",
-      "description": "Asset group for organization"
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false
     }
   },
-  "required": ["asset_name", "api_url"]
+  "tags": [
+    "extraction",
+    "ingestion",
+    "data-source"
+  ]
 }

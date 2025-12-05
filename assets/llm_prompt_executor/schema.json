@@ -1,92 +1,9 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "asset_name": {
-      "type": "string",
-      "title": "Asset Name",
-      "description": "Name of the asset",
-      "default": "llm_response"
-    },
-    "provider": {
-      "type": "string",
-      "title": "LLM Provider",
-      "description": "LLM provider to use",
-      "enum": ["openai", "anthropic", "cohere", "huggingface"],
-      "default": "openai"
-    },
-    "model": {
-      "type": "string",
-      "title": "Model Name",
-      "description": "Model to use (e.g., 'gpt-4', 'claude-3-5-sonnet-20241022')",
-      "default": "gpt-4"
-    },
-    "system_prompt": {
-      "type": "string",
-      "title": "System Prompt",
-      "description": "System prompt to set context"
-    },
-    "temperature": {
-      "type": "number",
-      "title": "Temperature",
-      "description": "Response randomness (0.0-2.0)",
-      "default": 0.7,
-      "minimum": 0.0,
-      "maximum": 2.0
-    },
-    "max_tokens": {
-      "type": "integer",
-      "title": "Max Tokens",
-      "description": "Maximum tokens in response",
-      "minimum": 1
-    },
-    "api_key": {
-      "type": "string",
-      "title": "API Key",
-      "description": "API key (use ${VAR_NAME} for environment variable)",
-      "default": "${OPENAI_API_KEY}"
-    },
-    "response_format": {
-      "type": "string",
-      "title": "Response Format",
-      "description": "Format of the response",
-      "enum": ["text", "json", "markdown"],
-      "default": "text"
-    },
-    "json_schema": {
-      "type": "string",
-      "title": "JSON Schema",
-      "description": "JSON schema for structured output"
-    },
-    "streaming": {
-      "type": "boolean",
-      "title": "Streaming",
-      "description": "Use streaming responses",
-      "default": false
-    },
-    "cache_responses": {
-      "type": "boolean",
-      "title": "Cache Responses",
-      "description": "Cache LLM responses",
-      "default": false
-    },
-    "cache_path": {
-      "type": "string",
-      "title": "Cache Path",
-      "description": "Path to cache file"
-    },
-    "description": {
-      "type": "string",
-      "title": "Description",
-      "description": "Asset description"
-    },
-    "group_name": {
-      "type": "string",
-      "title": "Group Name",
-      "description": "Asset group for organization"
-    }
-  },
-  "required": ["asset_name", "provider", "model"],
+  "type": "dagster_component_templates.LLMPromptExecutorComponent",
+  "name": "LLM Prompt",
+  "category": "ai",
+  "description": "Execute LLM prompts using OpenAI, Anthropic, or other providers",
+  "icon": "MessageCircle",
   "x-dagster-io": {
     "description": "This component receives prompt text from upstream assets via IO managers and outputs LLM responses",
     "inputs": {
@@ -113,5 +30,118 @@
         ]
       }
     }
-  }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "default": "llm_response",
+      "required": true
+    },
+    "provider": {
+      "type": "string",
+      "label": "LLM Provider",
+      "description": "LLM provider to use",
+      "default": "openai",
+      "enum": [
+        "openai",
+        "anthropic",
+        "cohere",
+        "huggingface"
+      ],
+      "required": true
+    },
+    "model": {
+      "type": "string",
+      "label": "Model Name",
+      "description": "Model to use (e.g., 'gpt-4', 'claude-3-5-sonnet-20241022')",
+      "default": "gpt-4",
+      "required": true
+    },
+    "system_prompt": {
+      "type": "string",
+      "label": "System Prompt",
+      "description": "System prompt to set context",
+      "required": false
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature",
+      "description": "Response randomness (0.0-2.0)",
+      "default": 0.7,
+      "minimum": 0.0,
+      "maximum": 2.0,
+      "required": false
+    },
+    "max_tokens": {
+      "type": "integer",
+      "label": "Max Tokens",
+      "description": "Maximum tokens in response",
+      "minimum": 1,
+      "required": false
+    },
+    "api_key": {
+      "type": "string",
+      "label": "API Key",
+      "description": "API key (use ${VAR_NAME} for environment variable)",
+      "default": "${OPENAI_API_KEY}",
+      "required": false
+    },
+    "response_format": {
+      "type": "string",
+      "label": "Response Format",
+      "description": "Format of the response",
+      "default": "text",
+      "enum": [
+        "text",
+        "json",
+        "markdown"
+      ],
+      "required": false
+    },
+    "json_schema": {
+      "type": "string",
+      "label": "JSON Schema",
+      "description": "JSON schema for structured output",
+      "required": false
+    },
+    "streaming": {
+      "type": "boolean",
+      "label": "Streaming",
+      "description": "Use streaming responses",
+      "default": false,
+      "required": false
+    },
+    "cache_responses": {
+      "type": "boolean",
+      "label": "Cache Responses",
+      "description": "Cache LLM responses",
+      "default": false,
+      "required": false
+    },
+    "cache_path": {
+      "type": "string",
+      "label": "Cache Path",
+      "description": "Path to cache file",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false
+    }
+  },
+  "tags": [
+    "ai",
+    "llm",
+    "nlp"
+  ]
 }

@@ -1,135 +1,168 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "EntityExtractorComponent",
-  "description": "Extract named entities from text using NER (Named Entity Recognition)",
-  "type": "object",
-  "properties": {
+  "type": "dagster_component_templates.EntityExtractorComponent",
+  "name": "Entity Extractor",
+  "category": "ai",
+  "description": "Extract named entities (people, organizations, locations) from text using NLP",
+  "icon": "Tag",
+  "attributes": {
     "asset_name": {
       "type": "string",
       "description": "Name of the asset that will hold extracted entities",
-      "examples": ["extracted_entities", "ticket_entities"]
+      "required": true
     },
     "method": {
       "type": "string",
-      "enum": ["llm", "spacy", "transformer"],
+      "description": "Extraction method",
       "default": "spacy",
-      "description": "Extraction method"
+      "enum": [
+        "llm",
+        "spacy",
+        "transformer"
+      ],
+      "required": false
     },
     "llm_provider": {
       "type": "string",
-      "enum": ["openai", "anthropic"],
-      "description": "LLM provider (required for method=llm)"
+      "description": "LLM provider (required for method=llm)",
+      "enum": [
+        "openai",
+        "anthropic"
+      ],
+      "required": false
     },
     "llm_model": {
       "type": "string",
       "description": "LLM model name (required for method=llm)",
-      "examples": ["gpt-4o-mini", "gpt-4", "claude-3-haiku-20240307"]
+      "required": false
     },
     "spacy_model": {
       "type": "string",
       "description": "spaCy model name (for method=spacy)",
-      "examples": ["en_core_web_sm", "en_core_web_md", "en_core_web_lg"]
+      "required": false
     },
     "transformer_model": {
       "type": "string",
       "description": "Transformer NER model (for method=transformer)",
-      "examples": ["dslim/bert-base-NER", "dbmdz/bert-large-cased-finetuned-conll03-english"]
+      "required": false
     },
     "api_key": {
       "type": "string",
       "description": "API key for LLM method",
-      "examples": ["${OPENAI_API_KEY}", "${ANTHROPIC_API_KEY}"]
+      "required": false
     },
     "input_column": {
       "type": "string",
+      "description": "Column name containing text to extract entities from",
       "default": "text",
-      "description": "Column name containing text to extract entities from"
+      "required": false
     },
     "entity_types": {
       "type": "string",
+      "description": "Comma-separated list of entity types to extract",
       "default": "person,organization,location,email,phone,product,order_id,date,money",
-      "description": "Comma-separated list of entity types to extract"
+      "required": false
     },
     "custom_entities": {
       "type": "string",
-      "description": "JSON string of custom entity patterns: {\"type\": [\"pattern1\", \"pattern2\"]}"
+      "description": "JSON string of custom entity patterns: {\"type\": [\"pattern1\", \"pattern2\"]}",
+      "required": false
     },
     "output_format": {
       "type": "string",
-      "enum": ["structured", "flat"],
+      "description": "Output format: structured (dict per row) or flat (one column per entity type)",
       "default": "structured",
-      "description": "Output format: structured (dict per row) or flat (one column per entity type)"
+      "enum": [
+        "structured",
+        "flat"
+      ],
+      "required": false
     },
     "link_entities": {
       "type": "boolean",
+      "description": "Enable entity linking/resolution (LLM only)",
       "default": false,
-      "description": "Enable entity linking/resolution (LLM only)"
+      "required": false
     },
     "include_confidence": {
       "type": "boolean",
+      "description": "Include confidence scores for entities",
       "default": true,
-      "description": "Include confidence scores for entities"
+      "required": false
     },
     "include_spans": {
       "type": "boolean",
+      "description": "Include character span positions (start, end)",
       "default": false,
-      "description": "Include character span positions (start, end)"
+      "required": false
     },
     "deduplicate": {
       "type": "boolean",
+      "description": "Remove duplicate entities within the same text",
       "default": true,
-      "description": "Remove duplicate entities within the same text"
+      "required": false
     },
     "batch_size": {
       "type": "integer",
+      "description": "Batch size for processing",
       "default": 32,
       "minimum": 1,
-      "description": "Batch size for processing"
+      "required": false
     },
     "temperature": {
       "type": "number",
+      "description": "Temperature for LLM (0.0 = deterministic)",
       "default": 0.0,
       "minimum": 0.0,
       "maximum": 2.0,
-      "description": "Temperature for LLM (0.0 = deterministic)"
+      "required": false
     },
     "max_tokens": {
       "type": "integer",
+      "description": "Max tokens for LLM response",
       "default": 500,
-      "description": "Max tokens for LLM response"
+      "required": false
     },
     "rate_limit_delay": {
       "type": "number",
+      "description": "Delay in seconds between API calls",
       "default": 0.1,
       "minimum": 0.0,
-      "description": "Delay in seconds between API calls"
+      "required": false
     },
     "max_retries": {
       "type": "integer",
+      "description": "Maximum retries for failed API calls",
       "default": 3,
       "minimum": 0,
-      "description": "Maximum retries for failed API calls"
+      "required": false
     },
     "track_costs": {
       "type": "boolean",
+      "description": "Track token usage and costs (LLM only)",
       "default": true,
-      "description": "Track token usage and costs (LLM only)"
+      "required": false
     },
     "description": {
       "type": "string",
-      "description": "Asset description"
+      "description": "Asset description",
+      "required": false
     },
     "group_name": {
       "type": "string",
+      "description": "Asset group for organization",
       "default": "entity_extraction",
-      "description": "Asset group for organization"
+      "required": false
     },
     "include_sample_metadata": {
       "type": "boolean",
+      "description": "Include sample data preview in metadata",
       "default": true,
-      "description": "Include sample data preview in metadata"
+      "required": false
     }
   },
-  "required": ["asset_name"],
-  "additionalProperties": false
+  "tags": [
+    "ai",
+    "llm",
+    "nlp"
+  ]
 }

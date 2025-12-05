@@ -1,80 +1,120 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
+  "type": "dagster_component_templates.TimeSeriesGeneratorComponent",
+  "name": "Time Series Generator",
+  "category": "transformation",
+  "description": "Generate time series data with trends, seasonality, and noise",
+  "icon": "TrendingUp",
   "x-dagster-io": {
     "supports_partitions": true,
-    "supported_partition_types": ["daily", "weekly", "monthly", "hourly"]
+    "supported_partition_types": [
+      "daily",
+      "weekly",
+      "monthly",
+      "hourly"
+    ]
   },
-  "properties": {
+  "attributes": {
     "asset_name": {
       "type": "string",
-      "title": "Asset Name",
-      "description": "Name of the asset"
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "required": true
     },
     "pattern_type": {
       "type": "string",
-      "title": "Pattern Type",
+      "label": "Pattern Type",
       "description": "Pattern to generate in the time series",
-      "enum": ["trend", "seasonal", "random_walk", "sine_wave", "step_function", "spike", "complex"],
-      "default": "complex"
+      "default": "complex",
+      "enum": [
+        "trend",
+        "seasonal",
+        "random_walk",
+        "sine_wave",
+        "step_function",
+        "spike",
+        "complex"
+      ],
+      "required": true
     },
     "start_date": {
       "type": "string",
-      "title": "Start Date",
+      "label": "Start Date",
       "description": "Start date (YYYY-MM-DD format)",
-      "default": ""
+      "default": "",
+      "required": false
     },
     "end_date": {
       "type": "string",
-      "title": "End Date",
+      "label": "End Date",
       "description": "End date (YYYY-MM-DD format)",
-      "default": ""
+      "default": "",
+      "required": false
     },
     "frequency": {
       "type": "string",
-      "title": "Frequency",
+      "label": "Frequency",
       "description": "Data point frequency",
-      "enum": ["1min", "5min", "15min", "30min", "1h", "1d"],
-      "default": "1h"
+      "default": "1h",
+      "enum": [
+        "1min",
+        "5min",
+        "15min",
+        "30min",
+        "1h",
+        "1d"
+      ],
+      "required": false
     },
     "base_value": {
       "type": "number",
-      "title": "Base Value",
+      "label": "Base Value",
       "description": "Starting/baseline value for the series",
-      "default": 100.0
+      "default": 100.0,
+      "required": false
     },
     "noise_level": {
       "type": "number",
-      "title": "Noise Level",
+      "label": "Noise Level",
       "description": "Amount of random noise to add (0.0 = none, 1.0 = high)",
       "default": 0.1,
       "minimum": 0.0,
-      "maximum": 1.0
+      "maximum": 1.0,
+      "required": false
     },
     "random_seed": {
-      "type": ["integer", "null"],
-      "title": "Random Seed",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "label": "Random Seed",
       "description": "Random seed for reproducible data generation (leave empty for random)",
-      "default": null
+      "default": null,
+      "required": false
     },
     "metric_name": {
       "type": "string",
-      "title": "Metric Name",
+      "label": "Metric Name",
       "description": "Name of the metric/value column",
-      "default": "value"
+      "default": "value",
+      "required": false
     },
     "description": {
       "type": "string",
-      "title": "Description",
+      "label": "Description",
       "description": "Description of the asset",
-      "default": ""
+      "default": "",
+      "required": false
     },
     "group_name": {
       "type": "string",
-      "title": "Group Name",
+      "label": "Group Name",
       "description": "Asset group name for organization",
-      "default": ""
+      "default": "",
+      "required": false
     }
   },
-  "required": ["asset_name", "pattern_type"]
+  "tags": [
+    "transformation",
+    "data-processing"
+  ]
 }

@@ -1,35 +1,9 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "asset_name": {
-      "type": "string",
-      "default": "conversation_state"
-    },
-    "memory_file": {
-      "type": "string",
-      "default": "./conversation_memory.json"
-    },
-    "max_messages": {
-      "type": "integer",
-      "default": 10
-    },
-    "include_system_prompt": {
-      "type": "boolean",
-      "default": true
-    },
-    "system_prompt": {
-      "type": "string",
-      "default": "You are a helpful assistant."
-    },
-    "description": {
-      "type": "string"
-    },
-    "group_name": {
-      "type": "string"
-    }
-  },
-  "required": ["asset_name", "memory_file"],
+  "type": "dagster_component_templates.ConversationMemoryComponent",
+  "name": "Conversation Memory",
+  "category": "ai",
+  "description": "Store and retrieve conversation history for AI agents and chatbots",
+  "icon": "MessageSquare",
   "x-dagster-io": {
     "description": "This component receives message data from upstream assets via IO managers and outputs complete conversation history",
     "inputs": {
@@ -58,5 +32,45 @@
         ]
       }
     }
-  }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "default": "conversation_state",
+      "required": true
+    },
+    "memory_file": {
+      "type": "string",
+      "default": "./conversation_memory.json",
+      "required": true
+    },
+    "max_messages": {
+      "type": "integer",
+      "default": 10,
+      "required": false
+    },
+    "include_system_prompt": {
+      "type": "boolean",
+      "default": true,
+      "required": false
+    },
+    "system_prompt": {
+      "type": "string",
+      "default": "You are a helpful assistant.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "required": false
+    }
+  },
+  "tags": [
+    "ai",
+    "llm",
+    "nlp"
+  ]
 }

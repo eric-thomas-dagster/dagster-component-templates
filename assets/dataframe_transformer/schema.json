@@ -1,6 +1,9 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
+  "type": "dagster_component_templates.DataFrameTransformerComponent",
+  "name": "DataFrame Transformer",
+  "category": "transformation",
+  "description": "Transform pandas DataFrames using Python code, filters, aggregations, and joins",
+  "icon": "Table",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",
@@ -13,113 +16,140 @@
       "description": "Transformed DataFrame"
     }
   },
-  "properties": {
+  "attributes": {
     "asset_name": {
       "type": "string",
-      "title": "Asset Name",
+      "label": "Asset Name",
       "description": "Name of this asset",
-      "default": "transformed_data"
+      "default": "transformed_data",
+      "required": true
     },
     "filter_columns": {
       "type": "string",
-      "title": "Filter Columns",
-      "description": "Comma-separated list of columns to keep (optional)"
+      "label": "Filter Columns",
+      "description": "Comma-separated list of columns to keep (optional)",
+      "required": false
     },
     "drop_columns": {
       "type": "string",
-      "title": "Drop Columns",
-      "description": "Comma-separated list of columns to drop (optional)"
+      "label": "Drop Columns",
+      "description": "Comma-separated list of columns to drop (optional)",
+      "required": false
     },
     "rename_columns": {
       "type": "string",
-      "title": "Rename Columns",
-      "description": "JSON mapping of column renames: {\"old\": \"new\"}"
+      "label": "Rename Columns",
+      "description": "JSON mapping of column renames: {\"old\": \"new\"}",
+      "required": false
     },
     "drop_duplicates": {
       "type": "boolean",
-      "title": "Drop Duplicates",
+      "label": "Drop Duplicates",
       "description": "Whether to drop duplicate rows",
-      "default": false
+      "default": false,
+      "required": false
     },
     "drop_na": {
       "type": "boolean",
-      "title": "Drop NA Rows",
+      "label": "Drop NA Rows",
       "description": "Whether to drop rows with NA values",
-      "default": false
+      "default": false,
+      "required": false
     },
     "fill_na_value": {
       "type": "string",
-      "title": "Fill NA Value",
-      "description": "Value to fill NA values with (optional)"
+      "label": "Fill NA Value",
+      "description": "Value to fill NA values with (optional)",
+      "required": false
     },
     "filter_expression": {
       "type": "string",
-      "title": "Filter Expression",
-      "description": "Pandas query expression: 'amount > 100 and status == \"active\"'"
+      "label": "Filter Expression",
+      "description": "Pandas query expression: 'amount > 100 and status == \"active\"'",
+      "required": false
     },
     "sort_by": {
       "type": "string",
-      "title": "Sort By",
-      "description": "Comma-separated columns to sort by (optional)"
+      "label": "Sort By",
+      "description": "Comma-separated columns to sort by (optional)",
+      "required": false
     },
     "sort_ascending": {
       "type": "boolean",
-      "title": "Sort Ascending",
+      "label": "Sort Ascending",
       "description": "Sort direction",
-      "default": true
+      "default": true,
+      "required": false
     },
     "group_by": {
       "type": "string",
-      "title": "Group By",
-      "description": "Comma-separated columns to group by (optional)"
+      "label": "Group By",
+      "description": "Comma-separated columns to group by (optional)",
+      "required": false
     },
     "agg_functions": {
       "type": "string",
-      "title": "Aggregation Functions",
-      "description": "JSON mapping: {\"amount\": \"sum\", \"id\": \"count\"}"
+      "label": "Aggregation Functions",
+      "description": "JSON mapping: {\"amount\": \"sum\", \"id\": \"count\"}",
+      "required": false
     },
     "combine_method": {
       "type": "string",
-      "title": "Combine Method",
+      "label": "Combine Method",
       "description": "How to combine multiple DataFrames",
-      "enum": ["concat", "merge", "first"],
-      "default": "concat"
+      "default": "concat",
+      "enum": [
+        "concat",
+        "merge",
+        "first"
+      ],
+      "required": false
     },
     "description": {
       "type": "string",
-      "title": "Description",
-      "description": "Asset description"
+      "label": "Description",
+      "description": "Asset description",
+      "required": false
     },
     "group_name": {
       "type": "string",
-      "title": "Group Name",
-      "description": "Asset group for organization"
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false
     },
     "string_operations": {
       "type": "string",
-      "title": "String Operations",
-      "description": "JSON list of operations: [{\"column\": \"name\", \"operation\": \"upper\"}]. Operations: upper, lower, trim, strip, title"
+      "label": "String Operations",
+      "description": "JSON list of operations: [{\"column\": \"name\", \"operation\": \"upper\"}]. Operations: upper, lower, trim, strip, title",
+      "required": false
     },
     "string_replace": {
       "type": "string",
-      "title": "String Replace",
-      "description": "JSON mapping: {\"column_name\": {\"old\": \"new\", \"pattern\": \"replacement\"}}"
+      "label": "String Replace",
+      "description": "JSON mapping: {\"column_name\": {\"old\": \"new\", \"pattern\": \"replacement\"}}",
+      "required": false
     },
     "calculated_columns": {
       "type": "string",
-      "title": "Calculated Columns",
-      "description": "JSON mapping: {\"new_col\": \"price * quantity\", \"full_name\": \"first_name + ' ' + last_name\"}"
+      "label": "Calculated Columns",
+      "description": "JSON mapping: {\"new_col\": \"price * quantity\", \"full_name\": \"first_name + ' ' + last_name\"}",
+      "required": false
     },
     "pivot_config": {
       "type": "string",
-      "title": "Pivot Configuration",
-      "description": "JSON config: {\"index\": \"date\", \"columns\": \"category\", \"values\": \"amount\", \"aggfunc\": \"sum\"}"
+      "label": "Pivot Configuration",
+      "description": "JSON config: {\"index\": \"date\", \"columns\": \"category\", \"values\": \"amount\", \"aggfunc\": \"sum\"}",
+      "required": false
     },
     "unpivot_config": {
       "type": "string",
-      "title": "Unpivot Configuration",
-      "description": "JSON config: {\"id_vars\": [\"id\", \"name\"], \"value_vars\": [\"q1\", \"q2\"], \"var_name\": \"quarter\", \"value_name\": \"sales\"}"
+      "label": "Unpivot Configuration",
+      "description": "JSON config: {\"id_vars\": [\"id\", \"name\"], \"value_vars\": [\"q1\", \"q2\"], \"var_name\": \"quarter\", \"value_name\": \"sales\"}",
+      "required": false
     }
   },
-  "required": ["asset_name"]
+  "tags": [
+    "transformation",
+    "data-processing"
+  ]
 }

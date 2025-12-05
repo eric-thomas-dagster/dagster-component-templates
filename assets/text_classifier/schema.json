@@ -1,6 +1,9 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
+  "type": "dagster_component_templates.TextClassifierComponent",
+  "name": "Text Classifier",
+  "category": "ai",
+  "description": "Classify text into categories using LLMs or ML models",
+  "icon": "Tag",
   "x-dagster-io": {
     "inputs": {
       "type": "text",
@@ -12,49 +15,67 @@
       "description": "Produces dict with classification results including 'category' (string), 'confidence' (float, if include_confidence=true), and 'reasoning' (string, if include_reasoning=true). Output can be consumed by downstream assets via IO manager."
     }
   },
-  "properties": {
+  "attributes": {
     "asset_name": {
       "type": "string",
-      "default": "text_classification"
+      "default": "text_classification",
+      "required": true
     },
     "provider": {
       "type": "string",
-      "enum": ["openai", "anthropic"],
-      "default": "openai"
+      "default": "openai",
+      "enum": [
+        "openai",
+        "anthropic"
+      ],
+      "required": true
     },
     "model": {
       "type": "string",
-      "default": "gpt-4"
+      "default": "gpt-4",
+      "required": true
     },
     "categories": {
-      "type": "string"
+      "type": "string",
+      "required": true
     },
     "classification_task": {
       "type": "string",
-      "default": "classification"
+      "default": "classification",
+      "required": false
     },
     "include_confidence": {
       "type": "boolean",
-      "default": true
+      "default": true,
+      "required": false
     },
     "include_reasoning": {
       "type": "boolean",
-      "default": false
+      "default": false,
+      "required": false
     },
     "api_key": {
       "type": "string",
-      "description": "Use ${ENV_VAR_NAME} syntax for environment variables"
+      "description": "Use ${ENV_VAR_NAME} syntax for environment variables",
+      "required": false
     },
     "temperature": {
       "type": "number",
-      "default": 0.1
+      "default": 0.1,
+      "required": false
     },
     "description": {
-      "type": "string"
+      "type": "string",
+      "required": false
     },
     "group_name": {
-      "type": "string"
+      "type": "string",
+      "required": false
     }
   },
-  "required": ["asset_name", "provider", "model", "categories"]
+  "tags": [
+    "ai",
+    "llm",
+    "nlp"
+  ]
 }

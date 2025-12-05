@@ -1,0 +1,92 @@
+{
+  "type": "dagster_component_templates.ProductUsageAnalyticsComponent",
+  "name": "Product Usage Analytics",
+  "category": "cdp",
+  "description": "Analyze product feature usage to measure adoption, engagement, and identify power users for product-led growth strategies.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Activity",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Connect product usage events with user_id, event_name, timestamp"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "User engagement metrics with power user identification"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "placeholder": "product_usage_metrics"
+    },
+    "event_data_asset": {
+      "type": "string",
+      "required": false,
+      "label": "Event Data Asset",
+      "default": ""
+    },
+    "user_data_asset": {
+      "type": "string",
+      "required": false,
+      "label": "User Data Asset",
+      "default": ""
+    },
+    "analysis_period_days": {
+      "type": "integer",
+      "required": false,
+      "label": "Analysis Period (Days)",
+      "default": 30,
+      "minimum": 7,
+      "maximum": 365
+    },
+    "core_feature_events": {
+      "type": "string",
+      "required": false,
+      "label": "Core Feature Events",
+      "placeholder": "export_data,share_report,create_dashboard"
+    },
+    "calculate_dau_mau": {
+      "type": "boolean",
+      "required": false,
+      "label": "Calculate DAU/MAU",
+      "default": true
+    },
+    "calculate_feature_adoption": {
+      "type": "boolean",
+      "required": false,
+      "label": "Calculate Feature Adoption",
+      "default": true
+    },
+    "identify_power_users": {
+      "type": "boolean",
+      "required": false,
+      "label": "Identify Power Users",
+      "default": true
+    },
+    "power_user_threshold": {
+      "type": "integer",
+      "required": false,
+      "label": "Power User Threshold",
+      "default": 20,
+      "minimum": 5,
+      "maximum": 1000
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "default": ""
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "default": "analytics"
+    }
+  }
+}

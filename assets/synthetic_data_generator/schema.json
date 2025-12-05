@@ -1,51 +1,74 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
+  "type": "dagster_component_templates.SyntheticDataGeneratorComponent",
+  "name": "Synthetic Data Generator",
+  "category": "transformation",
+  "description": "Generate realistic synthetic data for testing and development",
+  "icon": "Wand",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe",
       "description": "Generated synthetic data as DataFrame"
     }
   },
-  "properties": {
+  "attributes": {
     "asset_name": {
       "type": "string",
-      "title": "Asset Name",
-      "description": "Name of the asset"
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "required": true
     },
     "schema_type": {
       "type": "string",
-      "title": "Schema Type",
+      "label": "Schema Type",
       "description": "Type of data schema to generate",
-      "enum": ["customers", "orders", "products", "transactions", "events", "sensors", "users"],
-      "default": "customers"
+      "default": "customers",
+      "enum": [
+        "customers",
+        "orders",
+        "products",
+        "transactions",
+        "events",
+        "sensors",
+        "users"
+      ],
+      "required": true
     },
     "row_count": {
       "type": "integer",
-      "title": "Row Count",
+      "label": "Row Count",
       "description": "Number of rows to generate",
       "default": 100,
       "minimum": 1,
-      "maximum": 100000
+      "maximum": 100000,
+      "required": true
     },
     "random_seed": {
-      "type": ["integer", "null"],
-      "title": "Random Seed",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "label": "Random Seed",
       "description": "Random seed for reproducible data generation (leave empty for random)",
-      "default": null
+      "default": null,
+      "required": false
     },
     "description": {
       "type": "string",
-      "title": "Description",
+      "label": "Description",
       "description": "Description of the asset",
-      "default": ""
+      "default": "",
+      "required": false
     },
     "group_name": {
       "type": "string",
-      "title": "Group Name",
+      "label": "Group Name",
       "description": "Asset group name for organization",
-      "default": ""
+      "default": "",
+      "required": false
     }
   },
-  "required": ["asset_name", "schema_type", "row_count"]
+  "tags": [
+    "transformation",
+    "data-processing"
+  ]
 }

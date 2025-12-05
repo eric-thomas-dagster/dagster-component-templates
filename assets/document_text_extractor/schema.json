@@ -1,6 +1,9 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
+  "type": "dagster_component_templates.DocumentTextExtractorComponent",
+  "name": "Document Text Extractor",
+  "category": "transformation",
+  "description": "Extract text content from PDF, Word, HTML, and other document formats",
+  "icon": "FileSearch",
   "x-dagster-io": {
     "inputs": {
       "type": "run_config",
@@ -16,71 +19,98 @@
       "condition": "Based on output_format parameter"
     }
   },
-  "properties": {
+  "attributes": {
     "asset_name": {
       "type": "string",
-      "title": "Asset Name",
+      "label": "Asset Name",
       "description": "Name of the asset",
-      "default": "extracted_text"
+      "default": "extracted_text",
+      "required": true
     },
     "extraction_method": {
       "type": "string",
-      "title": "Extraction Method",
+      "label": "Extraction Method",
       "description": "Method to use for extraction",
-      "enum": ["auto", "pypdf", "pdfplumber", "pytesseract", "docx", "html", "markdown", "text"],
-      "default": "auto"
+      "default": "auto",
+      "enum": [
+        "auto",
+        "pypdf",
+        "pdfplumber",
+        "pytesseract",
+        "docx",
+        "html",
+        "markdown",
+        "text"
+      ],
+      "required": false
     },
     "ocr_enabled": {
       "type": "boolean",
-      "title": "Enable OCR",
+      "label": "Enable OCR",
       "description": "Enable OCR for scanned documents",
-      "default": false
+      "default": false,
+      "required": false
     },
     "preserve_formatting": {
       "type": "boolean",
-      "title": "Preserve Formatting",
+      "label": "Preserve Formatting",
       "description": "Preserve document formatting",
-      "default": false
+      "default": false,
+      "required": false
     },
     "extract_metadata": {
       "type": "boolean",
-      "title": "Extract Metadata",
+      "label": "Extract Metadata",
       "description": "Extract document metadata",
-      "default": true
+      "default": true,
+      "required": false
     },
     "page_range": {
       "type": "string",
-      "title": "Page Range",
-      "description": "Page range for PDFs (e.g., '1-5')"
+      "label": "Page Range",
+      "description": "Page range for PDFs (e.g., '1-5')",
+      "required": false
     },
     "output_format": {
       "type": "string",
-      "title": "Output Format",
+      "label": "Output Format",
       "description": "Format of extracted text",
-      "enum": ["text", "json", "markdown"],
-      "default": "text"
+      "default": "text",
+      "enum": [
+        "text",
+        "json",
+        "markdown"
+      ],
+      "required": false
     },
     "save_to_file": {
       "type": "boolean",
-      "title": "Save to File",
+      "label": "Save to File",
       "description": "Save extracted text to file",
-      "default": false
+      "default": false,
+      "required": false
     },
     "output_path": {
       "type": "string",
-      "title": "Output Path",
-      "description": "Path to save extracted text"
+      "label": "Output Path",
+      "description": "Path to save extracted text",
+      "required": false
     },
     "description": {
       "type": "string",
-      "title": "Description",
-      "description": "Asset description"
+      "label": "Description",
+      "description": "Asset description",
+      "required": false
     },
     "group_name": {
       "type": "string",
-      "title": "Group Name",
-      "description": "Asset group for organization"
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false
     }
   },
-  "required": ["asset_name"]
+  "tags": [
+    "transformation",
+    "data-processing"
+  ]
 }

@@ -1,54 +1,73 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
+  "type": "dagster_component_templates.DatabaseQueryComponent",
+  "name": "Database Query",
+  "category": "extraction",
+  "description": "Execute SQL queries against databases and return results as DataFrames",
+  "icon": "Database",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe",
       "description": "Always produces a DataFrame from SQL query results"
     },
     "supports_partitions": true,
-    "supported_partition_types": ["daily", "weekly", "monthly", "hourly"]
+    "supported_partition_types": [
+      "daily",
+      "weekly",
+      "monthly",
+      "hourly"
+    ]
   },
-  "properties": {
+  "attributes": {
     "asset_name": {
       "type": "string",
-      "title": "Asset Name",
+      "label": "Asset Name",
       "description": "Name of the asset",
-      "default": "query_result"
+      "default": "query_result",
+      "required": true
     },
     "database_url": {
       "type": "string",
-      "title": "Database URL",
+      "label": "Database URL",
       "description": "Database connection URL",
-      "default": "${DATABASE_URL}"
+      "default": "${DATABASE_URL}",
+      "required": true
     },
     "query": {
       "type": "string",
-      "title": "SQL Query",
+      "label": "SQL Query",
       "description": "SQL query to execute",
-      "default": "SELECT * FROM table_name"
+      "default": "SELECT * FROM table_name",
+      "required": true
     },
     "cache_to_parquet": {
       "type": "boolean",
-      "title": "Cache to Parquet",
+      "label": "Cache to Parquet",
       "description": "Whether to cache results to parquet file",
-      "default": false
+      "default": false,
+      "required": false
     },
     "cache_path": {
       "type": "string",
-      "title": "Cache Path",
-      "description": "Path to parquet cache file"
+      "label": "Cache Path",
+      "description": "Path to parquet cache file",
+      "required": false
     },
     "description": {
       "type": "string",
-      "title": "Description",
-      "description": "Asset description"
+      "label": "Description",
+      "description": "Asset description",
+      "required": false
     },
     "group_name": {
       "type": "string",
-      "title": "Group Name",
-      "description": "Asset group for organization"
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false
     }
   },
-  "required": ["asset_name", "database_url", "query"]
+  "tags": [
+    "extraction",
+    "ingestion",
+    "data-source"
+  ]
 }

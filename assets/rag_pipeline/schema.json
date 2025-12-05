@@ -1,6 +1,9 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
+  "type": "dagster_component_templates.RAGPipelineComponent",
+  "name": "RAG Pipeline",
+  "category": "ai",
+  "description": "Retrieval-augmented generation pipeline for question answering with vector stores",
+  "icon": "BookOpen",
   "x-dagster-io": {
     "inputs": {
       "type": "any",
@@ -12,66 +15,92 @@
       "description": "Returns dict with keys: 'response' (generated answer), 'query' (original query text), 'num_sources' (count of retrieved documents), and optionally 'sources' (list of source documents with text and metadata if include_sources is true)"
     }
   },
-  "properties": {
+  "attributes": {
     "asset_name": {
       "type": "string",
-      "default": "rag_response"
+      "default": "rag_response",
+      "required": true
     },
     "vector_store_provider": {
       "type": "string",
-      "enum": ["chromadb", "pinecone", "qdrant"],
-      "default": "chromadb"
+      "default": "chromadb",
+      "enum": [
+        "chromadb",
+        "pinecone",
+        "qdrant"
+      ],
+      "required": true
     },
     "collection_name": {
       "type": "string",
-      "default": "documents"
+      "default": "documents",
+      "required": true
     },
     "llm_provider": {
       "type": "string",
-      "enum": ["openai", "anthropic"],
-      "default": "openai"
+      "default": "openai",
+      "enum": [
+        "openai",
+        "anthropic"
+      ],
+      "required": true
     },
     "llm_model": {
       "type": "string",
-      "default": "gpt-4"
+      "default": "gpt-4",
+      "required": true
     },
     "embedding_provider": {
       "type": "string",
-      "default": "openai"
+      "default": "openai",
+      "required": false
     },
     "embedding_model": {
       "type": "string",
-      "default": "text-embedding-3-small"
+      "default": "text-embedding-3-small",
+      "required": false
     },
     "top_k": {
       "type": "integer",
-      "default": 5
+      "default": 5,
+      "required": false
     },
     "vector_store_connection": {
-      "type": "string"
+      "type": "string",
+      "required": false
     },
     "llm_api_key": {
       "type": "string",
-      "description": "LLM API key (use ${VAR_NAME} for environment variable)"
+      "description": "LLM API key (use ${VAR_NAME} for environment variable)",
+      "required": false
     },
     "embedding_api_key": {
       "type": "string",
-      "description": "Embedding API key (use ${VAR_NAME} for environment variable)"
+      "description": "Embedding API key (use ${VAR_NAME} for environment variable)",
+      "required": false
     },
     "include_sources": {
       "type": "boolean",
-      "default": true
+      "default": true,
+      "required": false
     },
     "temperature": {
       "type": "number",
-      "default": 0.7
+      "default": 0.7,
+      "required": false
     },
     "description": {
-      "type": "string"
+      "type": "string",
+      "required": false
     },
     "group_name": {
-      "type": "string"
+      "type": "string",
+      "required": false
     }
   },
-  "required": ["asset_name", "vector_store_provider", "collection_name", "llm_provider", "llm_model"]
+  "tags": [
+    "ai",
+    "llm",
+    "nlp"
+  ]
 }

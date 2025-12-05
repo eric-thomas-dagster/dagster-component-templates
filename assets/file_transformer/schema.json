@@ -1,101 +1,145 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
+  "type": "dagster_component_templates.FileTransformerComponent",
+  "name": "File Transformer",
+  "category": "transformation",
+  "description": "Transform files using custom Python code or built-in operations",
+  "icon": "FileCode",
+  "attributes": {
     "asset_name": {
       "type": "string",
-      "title": "Asset Name",
+      "label": "Asset Name",
       "description": "Name of the asset",
-      "default": "transform_file"
+      "default": "transform_file",
+      "required": true
     },
     "input_file_path": {
       "type": "string",
-      "title": "Input File Path",
-      "description": "Fixed input file path (optional, can use run_config instead)"
+      "label": "Input File Path",
+      "description": "Fixed input file path (optional, can use run_config instead)",
+      "required": false
     },
     "input_format": {
       "type": "string",
-      "title": "Input Format",
+      "label": "Input Format",
       "description": "Input file format",
-      "enum": ["auto", "csv", "json", "parquet", "excel"],
-      "default": "auto"
+      "default": "auto",
+      "enum": [
+        "auto",
+        "csv",
+        "json",
+        "parquet",
+        "excel"
+      ],
+      "required": false
     },
     "output_format": {
       "type": "string",
-      "title": "Output Format",
+      "label": "Output Format",
       "description": "Output file format",
-      "enum": ["csv", "json", "parquet", "excel"],
-      "default": "parquet"
+      "default": "parquet",
+      "enum": [
+        "csv",
+        "json",
+        "parquet",
+        "excel"
+      ],
+      "required": true
     },
     "output_directory": {
       "type": "string",
-      "title": "Output Directory",
+      "label": "Output Directory",
       "description": "Directory to write transformed files",
-      "default": "/data/processed"
+      "default": "/data/processed",
+      "required": true
     },
     "output_filename": {
       "type": "string",
-      "title": "Output Filename",
-      "description": "Output filename (optional)"
+      "label": "Output Filename",
+      "description": "Output filename (optional)",
+      "required": false
     },
     "csv_delimiter": {
       "type": "string",
-      "title": "CSV Delimiter",
+      "label": "CSV Delimiter",
       "description": "CSV delimiter character",
-      "default": ","
+      "default": ",",
+      "required": false
     },
     "csv_encoding": {
       "type": "string",
-      "title": "CSV Encoding",
+      "label": "CSV Encoding",
       "description": "CSV file encoding",
-      "default": "utf-8"
+      "default": "utf-8",
+      "required": false
     },
     "json_orient": {
       "type": "string",
-      "title": "JSON Orientation",
+      "label": "JSON Orientation",
       "description": "JSON orientation",
-      "enum": ["records", "split", "index", "columns", "values"],
-      "default": "records"
+      "default": "records",
+      "enum": [
+        "records",
+        "split",
+        "index",
+        "columns",
+        "values"
+      ],
+      "required": false
     },
     "excel_sheet_name": {
       "type": "string",
-      "title": "Excel Sheet Name",
+      "label": "Excel Sheet Name",
       "description": "Excel sheet name",
-      "default": "Sheet1"
+      "default": "Sheet1",
+      "required": false
     },
     "parquet_compression": {
       "type": "string",
-      "title": "Parquet Compression",
+      "label": "Parquet Compression",
       "description": "Parquet compression",
-      "enum": ["snappy", "gzip", "brotli", "None"],
-      "default": "snappy"
+      "default": "snappy",
+      "enum": [
+        "snappy",
+        "gzip",
+        "brotli",
+        "None"
+      ],
+      "required": false
     },
     "drop_duplicates": {
       "type": "boolean",
-      "title": "Drop Duplicates",
+      "label": "Drop Duplicates",
       "description": "Whether to drop duplicate rows",
-      "default": false
+      "default": false,
+      "required": false
     },
     "fill_na_value": {
       "type": "string",
-      "title": "Fill NA Value",
-      "description": "Value to fill NaN values with"
+      "label": "Fill NA Value",
+      "description": "Value to fill NaN values with",
+      "required": false
     },
     "columns_to_keep": {
       "type": "string",
-      "title": "Columns to Keep",
-      "description": "Comma-separated list of columns to keep"
+      "label": "Columns to Keep",
+      "description": "Comma-separated list of columns to keep",
+      "required": false
     },
     "description": {
       "type": "string",
-      "title": "Description",
-      "description": "Asset description"
+      "label": "Description",
+      "description": "Asset description",
+      "required": false
     },
     "group_name": {
       "type": "string",
-      "title": "Group Name",
-      "description": "Asset group for organization"
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false
     }
   },
-  "required": ["asset_name", "output_format", "output_directory"]
+  "tags": [
+    "transformation",
+    "data-processing"
+  ]
 }

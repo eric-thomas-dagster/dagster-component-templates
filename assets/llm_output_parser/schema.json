@@ -1,6 +1,9 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
+  "type": "dagster_component_templates.LLMOutputParserComponent",
+  "name": "LLM Output Parser",
+  "category": "ai",
+  "description": "Parse and structure LLM outputs into JSON, CSV, lists, or DataFrames",
+  "icon": "Code",
   "x-dagster-io": {
     "description": "This component receives LLM output from upstream assets via IO managers and outputs parsed structured data",
     "inputs": {
@@ -28,65 +31,90 @@
       }
     }
   },
-  "properties": {
+  "attributes": {
     "asset_name": {
       "type": "string",
-      "title": "Asset Name",
+      "label": "Asset Name",
       "description": "Name of the asset",
-      "default": "parsed_output"
+      "default": "parsed_output",
+      "required": true
     },
     "parser_type": {
       "type": "string",
-      "title": "Parser Type",
+      "label": "Parser Type",
       "description": "Type of parser to use",
-      "enum": ["json", "csv", "list", "key_value", "markdown_table", "custom"],
-      "default": "json"
+      "default": "json",
+      "enum": [
+        "json",
+        "csv",
+        "list",
+        "key_value",
+        "markdown_table",
+        "custom"
+      ],
+      "required": true
     },
     "validation_schema": {
       "type": "string",
-      "title": "Validation Schema",
-      "description": "JSON schema for validation (used with json parser)"
+      "label": "Validation Schema",
+      "description": "JSON schema for validation (used with json parser)",
+      "required": false
     },
     "custom_regex": {
       "type": "string",
-      "title": "Custom Regex",
-      "description": "Custom regex pattern (used with custom parser)"
+      "label": "Custom Regex",
+      "description": "Custom regex pattern (used with custom parser)",
+      "required": false
     },
     "extract_code_blocks": {
       "type": "boolean",
-      "title": "Extract Code Blocks",
+      "label": "Extract Code Blocks",
       "description": "Extract code from markdown code blocks",
-      "default": false
+      "default": false,
+      "required": false
     },
     "strip_markdown": {
       "type": "boolean",
-      "title": "Strip Markdown",
+      "label": "Strip Markdown",
       "description": "Remove markdown formatting",
-      "default": true
+      "default": true,
+      "required": false
     },
     "output_format": {
       "type": "string",
-      "title": "Output Format",
+      "label": "Output Format",
       "description": "Format of the output",
-      "enum": ["dict", "list", "dataframe"],
-      "default": "dict"
+      "default": "dict",
+      "enum": [
+        "dict",
+        "list",
+        "dataframe"
+      ],
+      "required": false
     },
     "strict_validation": {
       "type": "boolean",
-      "title": "Strict Validation",
+      "label": "Strict Validation",
       "description": "Raise error on validation failure",
-      "default": false
+      "default": false,
+      "required": false
     },
     "description": {
       "type": "string",
-      "title": "Description",
-      "description": "Asset description"
+      "label": "Description",
+      "description": "Asset description",
+      "required": false
     },
     "group_name": {
       "type": "string",
-      "title": "Group Name",
-      "description": "Asset group for organization"
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false
     }
   },
-  "required": ["asset_name", "parser_type"]
+  "tags": [
+    "ai",
+    "llm",
+    "nlp"
+  ]
 }

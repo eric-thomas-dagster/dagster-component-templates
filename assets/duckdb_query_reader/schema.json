@@ -1,35 +1,47 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
+  "type": "dagster_component_templates.DuckDBQueryReaderComponent",
+  "name": "DuckDB Query",
+  "category": "extraction",
+  "description": "Query DuckDB databases and return results as DataFrames",
+  "icon": "Database",
+  "attributes": {
     "asset_name": {
       "type": "string",
-      "title": "Asset Name",
-      "description": "Name of the asset to create"
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "required": true
     },
     "database_path": {
       "type": "string",
-      "title": "Database Path",
+      "label": "Database Path",
       "description": "Path to the DuckDB database file",
-      "default": "data.duckdb"
+      "default": "data.duckdb",
+      "required": false
     },
     "query": {
       "type": "string",
-      "title": "SQL Query",
-      "description": "SQL query to execute (SELECT statement)"
+      "label": "SQL Query",
+      "description": "SQL query to execute (SELECT statement)",
+      "required": true
     },
     "description": {
       "type": "string",
-      "title": "Description",
+      "label": "Description",
       "description": "Description of the asset",
-      "default": ""
+      "default": "",
+      "required": false
     },
     "group_name": {
       "type": "string",
-      "title": "Group Name",
+      "label": "Group Name",
       "description": "Asset group name for organization",
-      "default": ""
+      "default": "",
+      "required": false
     }
   },
-  "required": ["asset_name", "query"]
+  "tags": [
+    "extraction",
+    "ingestion",
+    "data-source"
+  ]
 }

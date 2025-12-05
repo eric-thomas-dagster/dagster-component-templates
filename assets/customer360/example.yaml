@@ -1,0 +1,6 @@
+type: dagster_component_templates.Customer360Component
+attributes:
+  asset_name: customer_360
+
+  # Organization
+  description: "Unified customer 360 profiles"

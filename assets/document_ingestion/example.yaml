@@ -1,0 +1,9 @@
+type: dagster_component_templates.DocumentIngestionComponent
+attributes:
+  asset_name: knowledge_base_docs
+
+  # Source configuration
+  source_path: "/path/to/documents"
+
+  # Organization
+  description: "Documents for RAG/Q&A system"

@@ -1,0 +1,9 @@
+type: dagster_component_templates.ModerationScorerComponent
+attributes:
+  asset_name: moderation_scores
+
+  # Source asset (automatically set via lineage)
+  source_asset: user_content
+
+  # Organization
+  description: "Content moderation scores and decisions"

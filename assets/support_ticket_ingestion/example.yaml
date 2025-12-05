@@ -1,0 +1,9 @@
+type: dagster_component_templates.SupportTicketIngestionComponent
+attributes:
+  asset_name: support_tickets
+
+  # Platform configuration
+  platform: zendesk
+
+  # Organization
+  description: "Support tickets from Zendesk"

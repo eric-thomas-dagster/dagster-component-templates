@@ -1,0 +1,6 @@
+type: dagster_component_templates.ContentIngestionComponent
+attributes:
+  asset_name: user_content
+
+  # Organization
+  description: "User-generated content for moderation"

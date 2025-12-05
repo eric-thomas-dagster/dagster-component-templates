@@ -773,5 +773,12 @@
         "use_environment_routing": true
       }
     }
-  }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "dlt[duckdb]>=0.4.0"
+    ]
+  },
+  "tags": ["storage", "database", "dlt", "etl", "data-loading"]
 }

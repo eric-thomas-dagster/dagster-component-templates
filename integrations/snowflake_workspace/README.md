@@ -1,6 +1,6 @@
 # Snowflake Workspace Component
 
-Import Snowflake workspace entities (tasks, stored procedures, dynamic tables, streams) as Dagster assets with automatic observation and orchestration.
+Import Snowflake workspace entities (tasks, stored procedures, dynamic tables, streams, Snowpipes, stages) as Dagster assets with automatic observation and orchestration.
 
 ## Features
 
@@ -8,8 +8,10 @@ Import Snowflake workspace entities (tasks, stored procedures, dynamic tables, s
 - **Stored Procedures**: Import stored procedures as materializable assets (call from Dagster)
 - **Dynamic Tables**: Import dynamic tables as materializable assets (trigger manual refreshes)
 - **Streams**: Import streams as observable assets (monitor CDC)
+- **Snowpipes**: Import Snowpipe continuous ingestion pipes as materializable assets (trigger refresh)
+- **Stages**: Import internal/external stages as observable assets (monitor files)
 - **Filtering**: Filter by name patterns or exclude patterns
-- **Observation Sensor**: Automatically track task runs and dynamic table refreshes
+- **Observation Sensor**: Automatically track task runs, dynamic table refreshes, and Snowpipe loads
 
 ## Configuration
 
@@ -46,6 +48,8 @@ attributes:
   import_stored_procedures: true
   import_dynamic_tables: true
   import_streams: true
+  import_snowpipes: true
+  import_stages: true
 
   # Filtering
   filter_by_name_pattern: ^PROD_.*
@@ -94,12 +98,12 @@ attributes:
 ### Observation Sensor
 
 When `generate_sensor: true`, a sensor is created that:
-1. Polls Snowflake for completed task runs and dynamic table refreshes
+1. Polls Snowflake for completed task runs, dynamic table refreshes, and Snowpipe loads
 2. Emits `AssetMaterialization` events for successful completions
-3. Tracks runs that happen outside Dagster (scheduled tasks, automatic refreshes)
-4. Monitors both tasks and dynamic tables
+3. Tracks runs that happen outside Dagster (scheduled tasks, automatic refreshes, auto-ingest)
+4. Monitors tasks, dynamic tables, and Snowpipes
 
-This ensures your lineage graph stays up-to-date regardless of how tasks or refreshes were triggered.
+This ensures your lineage graph stays up-to-date regardless of how tasks, refreshes, or ingestion were triggered.
 
 ## Entity Types
 
@@ -126,6 +130,20 @@ This ensures your lineage graph stays up-to-date regardless of how tasks or refr
 - Observable assets (no materialization)
 - Monitors data availability
 - Useful for coordinating downstream processing
+
+### Snowpipes
+- Continuous data ingestion from stages
+- Materializable - trigger manual refresh to load pending files
+- Monitors load history and file ingestion
+- Observation sensor tracks automatic loads
+- Useful for forcing immediate ingestion
+
+### Stages
+- Internal and external file storage locations
+- Observable assets - monitor files in stages
+- Tracks file count and total size
+- Useful for monitoring data landing zones
+- Coordinates with Snowpipe for ingestion
 
 ## Filtering
 
@@ -190,6 +208,19 @@ The Snowflake user needs the following privileges:
 - `SELECT` on `INFORMATION_SCHEMA.STREAMS`
 - Access to `SYSTEM$STREAM_HAS_DATA` function
 
+### For Snowpipes:
+- `USAGE` on warehouse, database, and schema
+- `SELECT` on `INFORMATION_SCHEMA.PIPES`
+- `OPERATE` on pipes (to trigger refresh)
+- Access to `INFORMATION_SCHEMA.COPY_HISTORY` table function
+- Access to `SYSTEM$PIPE_STATUS` function
+
+### For Stages:
+- `USAGE` on warehouse, database, and schema
+- `SELECT` on `INFORMATION_SCHEMA.STAGES`
+- `READ` on stages (to list files)
+- For external stages, appropriate cloud storage permissions
+
 ## Use Cases
 
 ### Task Orchestration
@@ -220,6 +251,22 @@ Use Dagster to:
 - Track stream consumption patterns
 - Alert on stream data anomalies
 
+### Snowpipe Orchestration
+Use Dagster to:
+- Force immediate ingestion of pending files
+- Coordinate Snowpipe loads with downstream pipelines
+- Monitor ingestion rates and file processing
+- Track load history and error rates
+- Create dependencies on ingested data
+
+### Stage Monitoring
+Use Dagster to:
+- Monitor file landing zones for new data
+- Track file counts and sizes over time
+- Coordinate file arrival with pipeline execution
+- Alert on missing or stale files
+- Integrate with Snowpipe ingestion workflows
+
 ## Lineage
 
 For dependencies between Snowflake entities and other assets, you have two options:
@@ -240,10 +287,23 @@ The component does NOT parse SQL or task definitions for dependencies - this kee
 ## Limitations
 
 - Stored procedures must be parameterless (or have default parameters)
-- Only monitors successful task runs and dynamic table refreshes
+- Only monitors successful task runs, dynamic table refreshes, and Snowpipe loads
 - Stream observation doesn't consume stream data
 - Requires Snowflake Enterprise Edition for dynamic tables and streams
 - Task execution via `EXECUTE TASK` requires `EXECUTE TASK` privilege
+- Snowpipe refresh triggers load but doesn't wait for completion
+- Stage file listing may be slow for stages with many files
+
+## Future Enhancements
+
+### Snowflake OpenFlow Support
+OpenFlow is Snowflake's integration with Apache NiFi for visual data flow design. Future versions of this component may include:
+- Import OpenFlow data flows as Dagster assets
+- Monitor flow execution status and metrics
+- Trigger flow runs from Dagster
+- Track data volumes and processing times
+
+OpenFlow support will require access to NiFi's REST API or Snowflake's OpenFlow management APIs. If you're interested in this feature, please open an issue on GitHub.
 
 ## Migration Path
 

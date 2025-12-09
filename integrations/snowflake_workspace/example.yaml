@@ -11,6 +11,8 @@ attributes:
   import_stored_procedures: false
   import_dynamic_tables: false
   import_streams: false
+  import_snowpipes: false
+  import_stages: false
   group_name: snowflake_prod
   description: Production Snowflake tasks
 
@@ -32,6 +34,8 @@ attributes:
   import_stored_procedures: true
   import_dynamic_tables: true
   import_streams: true
+  import_snowpipes: true
+  import_stages: true
 
   # Filter configuration
   filter_by_name_pattern: ^PROD_.*

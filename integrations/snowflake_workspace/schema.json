@@ -2,7 +2,7 @@
   "type": "dagster_component_templates.SnowflakeWorkspaceComponent",
   "name": "Snowflake Workspace",
   "category": "orchestration",
-  "description": "Import Snowflake tasks, stored procedures, dynamic tables, and streams as Dagster assets. Trigger tasks and stored procedures directly from Dagster.",
+  "description": "Import Snowflake tasks, stored procedures, dynamic tables, streams, Snowpipes, and stages as Dagster assets. Trigger tasks, stored procedures, and Snowpipes directly from Dagster.",
   "version": "1.0.0",
   "author": "Dagster Community",
   "icon": "Database",
@@ -97,6 +97,20 @@
       "description": "Import streams as observable assets",
       "default": false
     },
+    "import_snowpipes": {
+      "type": "boolean",
+      "required": false,
+      "label": "Import Snowpipes",
+      "description": "Import Snowpipe continuous ingestion pipes as materializable assets (trigger refresh)",
+      "default": false
+    },
+    "import_stages": {
+      "type": "boolean",
+      "required": false,
+      "label": "Import Stages",
+      "description": "Import internal and external stages as observable assets (monitor files)",
+      "default": false
+    },
     "filter_by_name_pattern": {
       "type": "string",
       "required": false,
@@ -130,7 +144,7 @@
       "type": "boolean",
       "required": false,
       "label": "Generate Observation Sensor",
-      "description": "Create a sensor to observe task runs and dynamic table refreshes",
+      "description": "Create a sensor to observe task runs, dynamic table refreshes, and Snowpipe loads",
       "default": true
     },
     "group_name": {
@@ -155,5 +169,5 @@
       "dagster>=1.6.0"
     ]
   },
-  "tags": ["orchestration", "snowflake", "data-warehouse", "tasks", "stored-procedures", "observation"]
+  "tags": ["orchestration", "snowflake", "data-warehouse", "tasks", "stored-procedures", "snowpipe", "ingestion", "observation"]
 }

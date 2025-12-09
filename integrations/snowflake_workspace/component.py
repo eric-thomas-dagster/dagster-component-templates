@@ -36,6 +36,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
     - Stored Procedures (callable routines)
     - Dynamic Tables (materialized views with automatic refresh)
     - Streams (change data capture)
+    - Snowpipe (continuous data ingestion pipes)
+    - Stages (internal/external file stages)
 
     Example:
         ```yaml
@@ -100,6 +102,16 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
     import_streams: bool = Field(
         default=False,
         description="Import streams as observable assets"
+    )
+
+    import_snowpipes: bool = Field(
+        default=False,
+        description="Import Snowpipe continuous ingestion pipes as materializable assets"
+    )
+
+    import_stages: bool = Field(
+        default=False,
+        description="Import internal and external stages as observable assets"
     )
 
     filter_by_name_pattern: Optional[str] = Field(
@@ -187,9 +199,10 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
         assets_list = []
         sensors_list = []
 
-        # Track task and dynamic table metadata for sensor
+        # Track task, dynamic table, and snowpipe metadata for sensor
         task_metadata = {}
         dynamic_table_metadata = {}
+        snowpipe_metadata = {}
 
         try:
             # Import Tasks
@@ -538,17 +551,196 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                 except Exception as e:
                     context.log.error(f"Error importing Snowflake streams: {e}")
 
+            # Import Snowpipes
+            if self.import_snowpipes:
+                try:
+                    query = f"""
+                    SELECT
+                        name,
+                        database_name,
+                        schema_name,
+                        owner,
+                        notification_channel,
+                        created_on
+                    FROM {self.database}.INFORMATION_SCHEMA.PIPES
+                    WHERE schema_name = '{self.schema}'
+                    """
+
+                    pipes = self._execute_query(conn, query)
+
+                    for pipe in pipes:
+                        pipe_name = pipe['NAME']
+
+                        if not self._should_include_entity(pipe_name):
+                            continue
+
+                        # Sanitize name for asset key
+                        asset_key = f"snowpipe_{re.sub(r'[^a-zA-Z0-9_]', '_', pipe_name.lower())}"
+
+                        # Store metadata for sensor
+                        snowpipe_metadata[asset_key] = {
+                            'pipe_name': pipe_name,
+                            'database': pipe['DATABASE_NAME'],
+                            'schema': pipe['SCHEMA_NAME'],
+                        }
+
+                        # Snowpipes are materializable - can trigger refresh
+                        @asset(
+                            name=asset_key,
+                            group_name=self.group_name,
+                            description=f"Snowflake pipe: {pipe_name}",
+                            metadata={
+                                "snowflake_pipe_name": pipe_name,
+                                "snowflake_database": pipe['DATABASE_NAME'],
+                                "snowflake_schema": pipe['SCHEMA_NAME'],
+                                "snowflake_notification_channel": pipe.get('NOTIFICATION_CHANNEL'),
+                                "entity_type": "snowpipe",
+                            }
+                        )
+                        def _snowpipe_asset(context: AssetExecutionContext, pipe_name=pipe_name, db=pipe['DATABASE_NAME'], schema=pipe['SCHEMA_NAME']):
+                            """Materialize by refreshing Snowpipe (loading pending files)."""
+                            conn = self._create_connection()
+                            cursor = conn.cursor()
+
+                            try:
+                                # Refresh the pipe to process pending files
+                                refresh_query = f"ALTER PIPE {db}.{schema}.{pipe_name} REFRESH"
+                                cursor.execute(refresh_query)
+
+                                context.log.info(f"Refreshed Snowpipe: {pipe_name}")
+
+                                # Get pipe status
+                                status_query = f"SELECT SYSTEM$PIPE_STATUS('{db}.{schema}.{pipe_name}')"
+                                cursor.execute(status_query)
+                                status = cursor.fetchone()
+
+                                # Get load history
+                                history_query = f"""
+                                SELECT
+                                    file_name,
+                                    stage_location,
+                                    last_load_time,
+                                    row_count,
+                                    row_parsed,
+                                    file_size,
+                                    first_error_message
+                                FROM TABLE(INFORMATION_SCHEMA.COPY_HISTORY(
+                                    TABLE_NAME => '{pipe_name}',
+                                    START_TIME => DATEADD('hour', -1, CURRENT_TIMESTAMP())
+                                ))
+                                ORDER BY last_load_time DESC
+                                LIMIT 5
+                                """
+
+                                try:
+                                    cursor.execute(history_query)
+                                    recent_loads = cursor.fetchall()
+                                    load_count = len(recent_loads) if recent_loads else 0
+                                except:
+                                    load_count = 0
+
+                                metadata = {
+                                    "pipe_name": pipe_name,
+                                    "database": db,
+                                    "schema": schema,
+                                    "pipe_status": str(status[0]) if status else None,
+                                    "recent_loads": load_count,
+                                }
+
+                                return metadata
+
+                            finally:
+                                cursor.close()
+                                conn.close()
+
+                        assets_list.append(_snowpipe_asset)
+
+                except Exception as e:
+                    context.log.error(f"Error importing Snowflake pipes: {e}")
+
+            # Import Stages
+            if self.import_stages:
+                try:
+                    query = f"""
+                    SELECT
+                        stage_name,
+                        stage_schema,
+                        stage_catalog,
+                        stage_url,
+                        stage_type,
+                        stage_owner,
+                        created
+                    FROM {self.database}.INFORMATION_SCHEMA.STAGES
+                    WHERE stage_schema = '{self.schema}'
+                    """
+
+                    stages = self._execute_query(conn, query)
+
+                    for stage in stages:
+                        stage_name = stage['STAGE_NAME']
+
+                        if not self._should_include_entity(stage_name):
+                            continue
+
+                        # Sanitize name for asset key
+                        asset_key = f"stage_{re.sub(r'[^a-zA-Z0-9_]', '_', stage_name.lower())}"
+
+                        # Stages are observable (monitor files)
+                        @observable_source_asset(
+                            name=asset_key,
+                            group_name=self.group_name,
+                            description=f"Snowflake stage: {stage_name}",
+                            metadata={
+                                "snowflake_stage_name": stage_name,
+                                "snowflake_database": stage['STAGE_CATALOG'],
+                                "snowflake_schema": stage['STAGE_SCHEMA'],
+                                "snowflake_url": stage.get('STAGE_URL'),
+                                "snowflake_type": stage.get('STAGE_TYPE'),
+                                "entity_type": "stage",
+                            }
+                        )
+                        def _stage_asset(context: AssetExecutionContext, stage_name=stage_name, db=stage['STAGE_CATALOG'], schema=stage['STAGE_SCHEMA']):
+                            """Observable stage asset - monitor files."""
+                            conn = self._create_connection()
+                            cursor = conn.cursor()
+
+                            try:
+                                # List files in stage
+                                list_query = f"LIST @{db}.{schema}.{stage_name}"
+                                cursor.execute(list_query)
+
+                                files = cursor.fetchall()
+                                file_count = len(files) if files else 0
+
+                                total_size = 0
+                                if files:
+                                    # Sum up file sizes (size is typically in column index 2)
+                                    for file_row in files:
+                                        if len(file_row) > 2:
+                                            total_size += file_row[2]
+
+                                context.log.info(f"Stage {stage_name} has {file_count} files, total size: {total_size} bytes")
+
+                            finally:
+                                cursor.close()
+                                conn.close()
+
+                        assets_list.append(_stage_asset)
+
+                except Exception as e:
+                    context.log.error(f"Error importing Snowflake stages: {e}")
+
         finally:
             conn.close()
 
         # Create observation sensor if requested
-        if self.generate_sensor and (task_metadata or dynamic_table_metadata):
+        if self.generate_sensor and (task_metadata or dynamic_table_metadata or snowpipe_metadata):
             @sensor(
                 name=f"{self.group_name}_observation_sensor",
                 minimum_interval_seconds=self.poll_interval_seconds
             )
             def snowflake_observation_sensor(context: SensorEvaluationContext):
-                """Sensor to observe Snowflake task runs and dynamic table refreshes."""
+                """Sensor to observe Snowflake task runs, dynamic table refreshes, and Snowpipe loads."""
                 conn = self._create_connection()
                 cursor = conn.cursor()
 
@@ -637,6 +829,54 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                     )
                         except Exception as e:
                             context.log.error(f"Error checking refreshes for dynamic table {table_name}: {e}")
+
+                    # Check for Snowpipe loads
+                    for asset_key, metadata in snowpipe_metadata.items():
+                        pipe_name = metadata['pipe_name']
+                        db = metadata['database']
+                        schema_name = metadata['schema']
+
+                        try:
+                            # Get recent copy history for the pipe
+                            history_query = f"""
+                            SELECT
+                                file_name,
+                                stage_location,
+                                last_load_time,
+                                row_count,
+                                row_parsed,
+                                file_size,
+                                status,
+                                first_error_message
+                            FROM TABLE(INFORMATION_SCHEMA.COPY_HISTORY(
+                                TABLE_NAME => '{pipe_name}',
+                                START_TIME => DATEADD('minute', -{self.poll_interval_seconds / 60}, CURRENT_TIMESTAMP())
+                            ))
+                            WHERE status = 'LOADED'
+                            ORDER BY last_load_time DESC
+                            LIMIT 10
+                            """
+
+                            cursor.execute(history_query)
+
+                            for load in cursor:
+                                columns = [col[0] for col in cursor.description]
+                                load_dict = dict(zip(columns, load))
+
+                                yield AssetMaterialization(
+                                    asset_key=asset_key,
+                                    metadata={
+                                        "pipe_name": pipe_name,
+                                        "file_name": load_dict.get('FILE_NAME'),
+                                        "last_load_time": str(load_dict.get('LAST_LOAD_TIME')) if load_dict.get('LAST_LOAD_TIME') else None,
+                                        "row_count": load_dict.get('ROW_COUNT'),
+                                        "file_size": load_dict.get('FILE_SIZE'),
+                                        "source": "snowflake_observation_sensor",
+                                        "entity_type": "snowpipe",
+                                    }
+                                )
+                        except Exception as e:
+                            context.log.error(f"Error checking loads for Snowpipe {pipe_name}: {e}")
 
                 finally:
                     cursor.close()

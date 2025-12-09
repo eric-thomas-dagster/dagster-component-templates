@@ -1,5 +1,5 @@
 name: Snowflake Workspace
-description: Import Snowflake tasks, stored procedures, dynamic tables, streams, Snowpipes, and stages as Dagster assets. Trigger tasks, stored procedures, and Snowpipes directly from Dagster.
+description: Comprehensive Snowflake workspace integration - import 10 entity types including tasks, stored procedures, dynamic tables, materialized views, streams, Snowpipes, stages, external tables, alerts, and OpenFlow flows. Full orchestration and observation for your Snowflake environment.
 category: orchestration
 version: 1.0.0
 author: Dagster Community

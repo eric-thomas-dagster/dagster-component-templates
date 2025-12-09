@@ -2,7 +2,7 @@
   "type": "dagster_component_templates.SnowflakeWorkspaceComponent",
   "name": "Snowflake Workspace",
   "category": "orchestration",
-  "description": "Import Snowflake tasks, stored procedures, dynamic tables, streams, Snowpipes, and stages as Dagster assets. Trigger tasks, stored procedures, and Snowpipes directly from Dagster.",
+  "description": "Import Snowflake tasks, stored procedures, dynamic tables, materialized views, streams, Snowpipes, stages, external tables, alerts, and OpenFlow flows as Dagster assets. Comprehensive orchestration and observation for your entire Snowflake workspace.",
   "version": "1.0.0",
   "author": "Dagster Community",
   "icon": "Database",
@@ -111,6 +111,34 @@
       "description": "Import internal and external stages as observable assets (monitor files)",
       "default": false
     },
+    "import_materialized_views": {
+      "type": "boolean",
+      "required": false,
+      "label": "Import Materialized Views",
+      "description": "Import materialized views as materializable assets (trigger refresh via SUSPEND/RESUME)",
+      "default": false
+    },
+    "import_external_tables": {
+      "type": "boolean",
+      "required": false,
+      "label": "Import External Tables",
+      "description": "Import external tables as materializable assets (refresh metadata from external sources)",
+      "default": false
+    },
+    "import_alerts": {
+      "type": "boolean",
+      "required": false,
+      "label": "Import Alerts",
+      "description": "Import Snowflake alerts as observable assets (monitor alert history and status)",
+      "default": false
+    },
+    "import_openflow_flows": {
+      "type": "boolean",
+      "required": false,
+      "label": "Import OpenFlow Flows",
+      "description": "Import OpenFlow data integration flows as observable assets (monitor via telemetry)",
+      "default": false
+    },
     "filter_by_name_pattern": {
       "type": "string",
       "required": false,
@@ -169,5 +197,5 @@
       "dagster>=1.6.0"
     ]
   },
-  "tags": ["orchestration", "snowflake", "data-warehouse", "tasks", "stored-procedures", "snowpipe", "ingestion", "observation"]
+  "tags": ["orchestration", "snowflake", "data-warehouse", "tasks", "stored-procedures", "snowpipe", "ingestion", "observation", "openflow", "alerts", "materialized-views"]
 }

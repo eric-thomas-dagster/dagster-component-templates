@@ -10,9 +10,13 @@ attributes:
   import_tasks: true
   import_stored_procedures: false
   import_dynamic_tables: false
+  import_materialized_views: false
   import_streams: false
   import_snowpipes: false
   import_stages: false
+  import_external_tables: false
+  import_alerts: false
+  import_openflow_flows: false
   group_name: snowflake_prod
   description: Production Snowflake tasks
 
@@ -29,13 +33,17 @@ attributes:
   schema: PUBLIC
   role: ACCOUNTADMIN
 
-  # Import all entity types
+  # Import all entity types (10 total!)
   import_tasks: true
   import_stored_procedures: true
   import_dynamic_tables: true
+  import_materialized_views: true
   import_streams: true
   import_snowpipes: true
   import_stages: true
+  import_external_tables: true
+  import_alerts: true
+  import_openflow_flows: true
 
   # Filter configuration
   filter_by_name_pattern: ^PROD_.*

@@ -1,15 +1,19 @@
 # Snowflake Workspace Component
 
-Import Snowflake workspace entities (tasks, stored procedures, dynamic tables, streams, Snowpipes, stages) as Dagster assets with automatic observation and orchestration.
+Import Snowflake workspace entities as Dagster assets with comprehensive orchestration and observation capabilities.
 
 ## Features
 
-- **Tasks**: Import Snowflake tasks as materializable assets (execute on demand from Dagster)
-- **Stored Procedures**: Import stored procedures as materializable assets (call from Dagster)
-- **Dynamic Tables**: Import dynamic tables as materializable assets (trigger manual refreshes)
-- **Streams**: Import streams as observable assets (monitor CDC)
-- **Snowpipes**: Import Snowpipe continuous ingestion pipes as materializable assets (trigger refresh)
-- **Stages**: Import internal/external stages as observable assets (monitor files)
+- **Tasks**: Execute Snowflake tasks on demand from Dagster
+- **Stored Procedures**: Call stored procedures from Dagster
+- **Dynamic Tables**: Trigger manual refreshes for dynamic tables
+- **Materialized Views**: Refresh traditional materialized views (SUSPEND/RESUME)
+- **Streams**: Monitor CDC streams for data availability
+- **Snowpipes**: Trigger Snowpipe refresh to load pending files
+- **Stages**: Monitor file landing zones (internal/external stages)
+- **External Tables**: Refresh external table metadata from cloud sources
+- **Alerts**: Monitor Snowflake native alert history and status
+- **OpenFlow Flows**: Monitor data integration flows via telemetry
 - **Filtering**: Filter by name patterns or exclude patterns
 - **Observation Sensor**: Automatically track task runs, dynamic table refreshes, and Snowpipe loads
 
@@ -47,9 +51,13 @@ attributes:
   import_tasks: true
   import_stored_procedures: true
   import_dynamic_tables: true
+  import_materialized_views: true
   import_streams: true
   import_snowpipes: true
   import_stages: true
+  import_external_tables: true
+  import_alerts: true
+  import_openflow_flows: true
 
   # Filtering
   filter_by_name_pattern: ^PROD_.*
@@ -145,6 +153,34 @@ This ensures your lineage graph stays up-to-date regardless of how tasks, refres
 - Useful for monitoring data landing zones
 - Coordinates with Snowpipe for ingestion
 
+### Materialized Views
+- Traditional materialized views (older than dynamic tables)
+- Materializable - refresh via SUSPEND/RESUME cycle
+- Returns row count and bytes after refresh
+- Useful for legacy MV workflows
+- Manual refresh control from Dagster
+
+### External Tables
+- Tables backed by external data sources (S3, Azure, GCS)
+- Materializable - refresh metadata to detect new files
+- Uses ALTER EXTERNAL TABLE REFRESH
+- Monitors row count and size
+- Integrates external data with Snowflake lineage
+
+### Alerts
+- Snowflake native alerts on conditions
+- Observable - monitor alert history
+- Tracks alert state and execution
+- Uses INFORMATION_SCHEMA.ALERT_HISTORY
+- Monitors alert triggering patterns
+
+### OpenFlow Flows
+- Apache NiFi-based data integration flows
+- Observable - monitor via SNOWFLAKE.TELEMETRY.EVENTS
+- Tracks process groups, processors, and connections
+- Monitors flow metrics and performance
+- Discovers flows from recent telemetry activity
+
 ## Filtering
 
 ### By Name Pattern (Include)
@@ -221,6 +257,27 @@ The Snowflake user needs the following privileges:
 - `READ` on stages (to list files)
 - For external stages, appropriate cloud storage permissions
 
+### For Materialized Views:
+- `USAGE` on warehouse, database, and schema
+- `SELECT` on `INFORMATION_SCHEMA.VIEWS`
+- `OPERATE` on materialized views (to suspend/resume)
+
+### For External Tables:
+- `USAGE` on warehouse, database, and schema
+- `SELECT` on `INFORMATION_SCHEMA.TABLES`
+- `ALTER` on external tables (to refresh)
+- Appropriate cloud storage permissions for external data
+
+### For Alerts:
+- `USAGE` on warehouse, database, and schema
+- `SELECT` on `INFORMATION_SCHEMA.ALERTS`
+- Access to `INFORMATION_SCHEMA.ALERT_HISTORY` table function
+
+### For OpenFlow Flows:
+- `USAGE` on warehouse, database, and schema
+- `SELECT` on `SNOWFLAKE.TELEMETRY.EVENTS`
+- OpenFlow must be configured to send telemetry to event table
+
 ## Use Cases
 
 ### Task Orchestration
@@ -267,6 +324,38 @@ Use Dagster to:
 - Alert on missing or stale files
 - Integrate with Snowpipe ingestion workflows
 
+### Materialized View Refresh
+Use Dagster to:
+- Manually refresh legacy materialized views
+- Coordinate MV refreshes with upstream data changes
+- Monitor MV size and row counts
+- Migrate from scheduled refreshes to event-driven
+- Control refresh timing independently of Snowflake schedules
+
+### External Table Management
+Use Dagster to:
+- Refresh external table metadata when new files land
+- Coordinate external data with internal pipelines
+- Monitor external data source availability
+- Track external table growth and partitioning
+- Integrate cloud storage with Snowflake workflows
+
+### Alert Monitoring
+Use Dagster to:
+- Track Snowflake alert firing patterns
+- Monitor alert execution and errors
+- Coordinate alerts with downstream actions
+- Centralize alert observability with other assets
+- Create dependencies on alert conditions
+
+### OpenFlow Integration
+Use Dagster to:
+- Monitor OpenFlow data integration flows
+- Track flow performance and metrics
+- Observe processor status and queues
+- Detect stuck data or bottlenecks
+- Integrate OpenFlow telemetry with Dagster lineage
+
 ## Lineage
 
 For dependencies between Snowflake entities and other assets, you have two options:
@@ -293,17 +382,10 @@ The component does NOT parse SQL or task definitions for dependencies - this kee
 - Task execution via `EXECUTE TASK` requires `EXECUTE TASK` privilege
 - Snowpipe refresh triggers load but doesn't wait for completion
 - Stage file listing may be slow for stages with many files
-
-## Future Enhancements
-
-### Snowflake OpenFlow Support
-OpenFlow is Snowflake's integration with Apache NiFi for visual data flow design. Future versions of this component may include:
-- Import OpenFlow data flows as Dagster assets
-- Monitor flow execution status and metrics
-- Trigger flow runs from Dagster
-- Track data volumes and processing times
-
-OpenFlow support will require access to NiFi's REST API or Snowflake's OpenFlow management APIs. If you're interested in this feature, please open an issue on GitHub.
+- Materialized view refresh uses SUSPEND/RESUME (not direct refresh)
+- External table refresh only updates metadata (doesn't reload data)
+- OpenFlow flows can only be observed (no programmatic start/stop via SQL)
+- OpenFlow discovery requires recent telemetry activity (last 7 days)
 
 ## Migration Path
 

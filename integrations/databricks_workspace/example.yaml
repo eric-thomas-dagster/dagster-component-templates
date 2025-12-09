@@ -1,0 +1,41 @@
+# Basic configuration - imports only production jobs
+type: dagster_component_templates.DatabricksWorkspaceComponent
+attributes:
+  workspace_url: https://dbc-abc123.cloud.databricks.com
+  access_token: "{{ env('DATABRICKS_TOKEN') }}"
+  import_jobs: true
+  import_notebooks: false
+  import_dlt_pipelines: false
+  import_model_endpoints: false
+  filter_by_tags: production
+  group_name: databricks_prod
+  description: Production Databricks jobs
+
+---
+# Advanced configuration - imports all entity types with filtering
+type: dagster_component_templates.DatabricksWorkspaceComponent
+attributes:
+  workspace_url: https://dbc-abc123.cloud.databricks.com
+  access_token: "{{ env('DATABRICKS_TOKEN') }}"
+
+  # Import all entity types
+  import_jobs: true
+  import_notebooks: true
+  import_dlt_pipelines: true
+  import_model_endpoints: true
+
+  # Filter configuration
+  filter_by_tags: production,analytics,ml
+  filter_by_name_pattern: ^prod_.*
+  exclude_name_pattern: test|dev|staging
+
+  # Notebook configuration
+  notebook_base_path: /Users/data-team@company.com/production
+
+  # Sensor configuration
+  generate_sensor: true
+  poll_interval_seconds: 60
+
+  # Organization
+  group_name: databricks_workspace
+  description: Complete Databricks workspace import with all entity types

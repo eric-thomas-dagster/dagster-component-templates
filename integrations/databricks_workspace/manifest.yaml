@@ -1,0 +1,5 @@
+name: Databricks Workspace
+description: Import Databricks jobs, notebooks, Delta Live Tables pipelines, and ML model endpoints as Dagster assets. Trigger DLT pipeline updates and jobs directly from Dagster.
+category: orchestration
+version: 1.0.0
+author: Dagster Community

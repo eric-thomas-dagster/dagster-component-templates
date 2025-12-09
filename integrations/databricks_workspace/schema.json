@@ -1,0 +1,133 @@
+{
+  "type": "dagster_component_templates.DatabricksWorkspaceComponent",
+  "name": "Databricks Workspace",
+  "category": "orchestration",
+  "description": "Import Databricks jobs, notebooks, Delta Live Tables pipelines, and ML model endpoints as Dagster assets. Trigger DLT pipeline updates and jobs directly from Dagster.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Database",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "multiple",
+      "description": "Generates assets for each discovered Databricks entity"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "workspace_url": {
+      "type": "string",
+      "required": true,
+      "label": "Workspace URL",
+      "description": "Databricks workspace URL (e.g., https://dbc-abc123.cloud.databricks.com)",
+      "placeholder": "https://dbc-abc123.cloud.databricks.com"
+    },
+    "access_token": {
+      "type": "string",
+      "required": true,
+      "label": "Access Token",
+      "description": "Databricks personal access token",
+      "placeholder": "{{ env('DATABRICKS_TOKEN') }}",
+      "secret": true
+    },
+    "import_jobs": {
+      "type": "boolean",
+      "required": false,
+      "label": "Import Jobs",
+      "description": "Import Databricks jobs as assets",
+      "default": true
+    },
+    "import_notebooks": {
+      "type": "boolean",
+      "required": false,
+      "label": "Import Notebooks",
+      "description": "Import standalone notebooks as assets",
+      "default": false
+    },
+    "import_dlt_pipelines": {
+      "type": "boolean",
+      "required": false,
+      "label": "Import Delta Live Tables",
+      "description": "Import Delta Live Tables (DLT) pipelines as materializable assets that can be triggered from Dagster",
+      "default": false
+    },
+    "import_model_endpoints": {
+      "type": "boolean",
+      "required": false,
+      "label": "Import Model Endpoints",
+      "description": "Import ML model serving endpoints as observable assets",
+      "default": false
+    },
+    "filter_by_tags": {
+      "type": "string",
+      "required": false,
+      "label": "Filter by Tags",
+      "description": "Comma-separated list of tags to filter entities (only entities with ANY of these tags will be imported)",
+      "placeholder": "production,analytics,ml"
+    },
+    "filter_by_name_pattern": {
+      "type": "string",
+      "required": false,
+      "label": "Filter by Name Pattern",
+      "description": "Regex pattern to filter entities by name (e.g., '^prod_' for names starting with 'prod_')",
+      "placeholder": "^prod_.*"
+    },
+    "exclude_name_pattern": {
+      "type": "string",
+      "required": false,
+      "label": "Exclude Name Pattern",
+      "description": "Regex pattern to exclude entities by name (e.g., 'test|dev' to exclude test and dev entities)",
+      "placeholder": "test|dev|staging"
+    },
+    "notebook_base_path": {
+      "type": "string",
+      "required": false,
+      "label": "Notebook Base Path",
+      "description": "Base path for importing notebooks (e.g., /Users/user@company.com/production)",
+      "placeholder": "/Users/user@company.com",
+      "condition": {
+        "import_notebooks": true
+      }
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Sensor Poll Interval",
+      "description": "How often (in seconds) the sensor should check for completed runs",
+      "default": 60,
+      "minimum": 10
+    },
+    "generate_sensor": {
+      "type": "boolean",
+      "required": false,
+      "label": "Generate Observation Sensor",
+      "description": "Create a sensor to observe runs from Databricks and emit AssetMaterialization events",
+      "default": true
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Asset Group",
+      "description": "Group name for all imported assets",
+      "default": "databricks",
+      "placeholder": "databricks"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Description for the Databricks workspace component",
+      "placeholder": "Production Databricks workspace assets"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "databricks-sdk>=0.18.0",
+      "dagster>=1.6.0"
+    ]
+  },
+  "tags": ["orchestration", "databricks", "ml", "notebooks", "jobs", "dlt", "observation"]
+}

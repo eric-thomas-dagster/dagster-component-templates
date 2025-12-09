@@ -35,9 +35,13 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
     - Tasks (scheduled SQL/stored procedure executions)
     - Stored Procedures (callable routines)
     - Dynamic Tables (materialized views with automatic refresh)
+    - Materialized Views (traditional MVs with manual refresh)
     - Streams (change data capture)
     - Snowpipe (continuous data ingestion pipes)
     - Stages (internal/external file stages)
+    - External Tables (monitor external data sources)
+    - Alerts (Snowflake native alerts on conditions)
+    - OpenFlow Flows (data integration flows via Apache NiFi)
 
     Example:
         ```yaml
@@ -112,6 +116,26 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
     import_stages: bool = Field(
         default=False,
         description="Import internal and external stages as observable assets"
+    )
+
+    import_materialized_views: bool = Field(
+        default=False,
+        description="Import materialized views as materializable assets (trigger refresh)"
+    )
+
+    import_external_tables: bool = Field(
+        default=False,
+        description="Import external tables as materializable assets (trigger refresh)"
+    )
+
+    import_alerts: bool = Field(
+        default=False,
+        description="Import Snowflake alerts as observable assets (monitor alert status)"
+    )
+
+    import_openflow_flows: bool = Field(
+        default=False,
+        description="Import OpenFlow data integration flows as observable assets (monitor via telemetry)"
     )
 
     filter_by_name_pattern: Optional[str] = Field(
@@ -729,6 +753,346 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
 
                 except Exception as e:
                     context.log.error(f"Error importing Snowflake stages: {e}")
+
+            # Import Materialized Views
+            if self.import_materialized_views:
+                try:
+                    query = f"""
+                    SELECT
+                        name,
+                        database_name,
+                        schema_name,
+                        owner,
+                        created_on,
+                        cluster_by,
+                        is_secure
+                    FROM {self.database}.INFORMATION_SCHEMA.VIEWS
+                    WHERE schema_name = '{self.schema}'
+                    AND table_type = 'MATERIALIZED VIEW'
+                    """
+
+                    mv_list = self._execute_query(conn, query)
+
+                    for mv in mv_list:
+                        mv_name = mv['NAME']
+
+                        if not self._should_include_entity(mv_name):
+                            continue
+
+                        # Sanitize name for asset key
+                        asset_key = f"mv_{re.sub(r'[^a-zA-Z0-9_]', '_', mv_name.lower())}"
+
+                        # Materialized views are materializable
+                        @asset(
+                            name=asset_key,
+                            group_name=self.group_name,
+                            description=f"Snowflake materialized view: {mv_name}",
+                            metadata={
+                                "snowflake_view_name": mv_name,
+                                "snowflake_database": mv['DATABASE_NAME'],
+                                "snowflake_schema": mv['SCHEMA_NAME'],
+                                "snowflake_cluster_by": mv.get('CLUSTER_BY'),
+                                "entity_type": "materialized_view",
+                            }
+                        )
+                        def _mv_asset(context: AssetExecutionContext, mv_name=mv_name, db=mv['DATABASE_NAME'], schema=mv['SCHEMA_NAME']):
+                            """Materialize by refreshing materialized view."""
+                            conn = self._create_connection()
+                            cursor = conn.cursor()
+
+                            try:
+                                # Refresh the materialized view
+                                refresh_query = f"ALTER MATERIALIZED VIEW {db}.{schema}.{mv_name} SUSPEND"
+                                cursor.execute(refresh_query)
+
+                                resume_query = f"ALTER MATERIALIZED VIEW {db}.{schema}.{mv_name} RESUME"
+                                cursor.execute(resume_query)
+
+                                context.log.info(f"Refreshed materialized view: {mv_name}")
+
+                                # Get view info
+                                info_query = f"""
+                                SELECT
+                                    table_name,
+                                    row_count,
+                                    bytes
+                                FROM {db}.INFORMATION_SCHEMA.TABLES
+                                WHERE table_schema = '{schema}' AND table_name = '{mv_name}'
+                                """
+
+                                cursor.execute(info_query)
+                                info = cursor.fetchone()
+
+                                metadata = {
+                                    "view_name": mv_name,
+                                    "database": db,
+                                    "schema": schema,
+                                }
+
+                                if info:
+                                    columns = [col[0] for col in cursor.description]
+                                    info_dict = dict(zip(columns, info))
+                                    metadata.update({
+                                        "row_count": info_dict.get('ROW_COUNT'),
+                                        "bytes": info_dict.get('BYTES'),
+                                    })
+
+                                return metadata
+
+                            finally:
+                                cursor.close()
+                                conn.close()
+
+                        assets_list.append(_mv_asset)
+
+                except Exception as e:
+                    context.log.error(f"Error importing Snowflake materialized views: {e}")
+
+            # Import External Tables
+            if self.import_external_tables:
+                try:
+                    query = f"""
+                    SELECT
+                        table_name,
+                        table_schema,
+                        table_catalog,
+                        table_owner,
+                        created,
+                        last_altered
+                    FROM {self.database}.INFORMATION_SCHEMA.TABLES
+                    WHERE table_schema = '{self.schema}'
+                    AND table_type = 'EXTERNAL TABLE'
+                    """
+
+                    ext_tables = self._execute_query(conn, query)
+
+                    for ext_table in ext_tables:
+                        table_name = ext_table['TABLE_NAME']
+
+                        if not self._should_include_entity(table_name):
+                            continue
+
+                        # Sanitize name for asset key
+                        asset_key = f"external_table_{re.sub(r'[^a-zA-Z0-9_]', '_', table_name.lower())}"
+
+                        # External tables can be refreshed
+                        @asset(
+                            name=asset_key,
+                            group_name=self.group_name,
+                            description=f"Snowflake external table: {table_name}",
+                            metadata={
+                                "snowflake_table_name": table_name,
+                                "snowflake_database": ext_table['TABLE_CATALOG'],
+                                "snowflake_schema": ext_table['TABLE_SCHEMA'],
+                                "entity_type": "external_table",
+                            }
+                        )
+                        def _external_table_asset(context: AssetExecutionContext, table_name=table_name, db=ext_table['TABLE_CATALOG'], schema=ext_table['TABLE_SCHEMA']):
+                            """Materialize by refreshing external table metadata."""
+                            conn = self._create_connection()
+                            cursor = conn.cursor()
+
+                            try:
+                                # Refresh external table metadata
+                                refresh_query = f"ALTER EXTERNAL TABLE {db}.{schema}.{table_name} REFRESH"
+                                cursor.execute(refresh_query)
+
+                                context.log.info(f"Refreshed external table: {table_name}")
+
+                                # Get table info
+                                info_query = f"""
+                                SELECT
+                                    table_name,
+                                    row_count,
+                                    bytes
+                                FROM {db}.INFORMATION_SCHEMA.TABLES
+                                WHERE table_schema = '{schema}' AND table_name = '{table_name}'
+                                """
+
+                                cursor.execute(info_query)
+                                info = cursor.fetchone()
+
+                                metadata = {
+                                    "table_name": table_name,
+                                    "database": db,
+                                    "schema": schema,
+                                }
+
+                                if info:
+                                    columns = [col[0] for col in cursor.description]
+                                    info_dict = dict(zip(columns, info))
+                                    metadata.update({
+                                        "row_count": info_dict.get('ROW_COUNT'),
+                                        "bytes": info_dict.get('BYTES'),
+                                    })
+
+                                return metadata
+
+                            finally:
+                                cursor.close()
+                                conn.close()
+
+                        assets_list.append(_external_table_asset)
+
+                except Exception as e:
+                    context.log.error(f"Error importing Snowflake external tables: {e}")
+
+            # Import Alerts
+            if self.import_alerts:
+                try:
+                    query = f"""
+                    SELECT
+                        name,
+                        database_name,
+                        schema_name,
+                        owner,
+                        condition,
+                        action,
+                        created_on
+                    FROM {self.database}.INFORMATION_SCHEMA.ALERTS
+                    WHERE schema_name = '{self.schema}'
+                    """
+
+                    alerts = self._execute_query(conn, query)
+
+                    for alert in alerts:
+                        alert_name = alert['NAME']
+
+                        if not self._should_include_entity(alert_name):
+                            continue
+
+                        # Sanitize name for asset key
+                        asset_key = f"alert_{re.sub(r'[^a-zA-Z0-9_]', '_', alert_name.lower())}"
+
+                        # Alerts are observable
+                        @observable_source_asset(
+                            name=asset_key,
+                            group_name=self.group_name,
+                            description=f"Snowflake alert: {alert_name}",
+                            metadata={
+                                "snowflake_alert_name": alert_name,
+                                "snowflake_database": alert['DATABASE_NAME'],
+                                "snowflake_schema": alert['SCHEMA_NAME'],
+                                "snowflake_condition": alert.get('CONDITION'),
+                                "entity_type": "alert",
+                            }
+                        )
+                        def _alert_asset(context: AssetExecutionContext, alert_name=alert_name, db=alert['DATABASE_NAME'], schema=alert['SCHEMA_NAME']):
+                            """Observable alert asset - monitor alert status."""
+                            conn = self._create_connection()
+                            cursor = conn.cursor()
+
+                            try:
+                                # Get alert history
+                                history_query = f"""
+                                SELECT
+                                    name,
+                                    state,
+                                    scheduled_time,
+                                    completed_time,
+                                    error
+                                FROM TABLE(INFORMATION_SCHEMA.ALERT_HISTORY(
+                                    SCHEDULED_TIME_RANGE_START => DATEADD('hour', -24, CURRENT_TIMESTAMP())
+                                ))
+                                WHERE name = '{alert_name}'
+                                ORDER BY scheduled_time DESC
+                                LIMIT 1
+                                """
+
+                                cursor.execute(history_query)
+                                history = cursor.fetchone()
+
+                                if history:
+                                    columns = [col[0] for col in cursor.description]
+                                    history_dict = dict(zip(columns, history))
+
+                                    context.log.info(f"Alert {alert_name} last state: {history_dict.get('STATE')}")
+
+                            finally:
+                                cursor.close()
+                                conn.close()
+
+                        assets_list.append(_alert_asset)
+
+                except Exception as e:
+                    context.log.error(f"Error importing Snowflake alerts: {e}")
+
+            # Import OpenFlow Flows
+            if self.import_openflow_flows:
+                try:
+                    # Query OpenFlow telemetry to discover flows
+                    # Get unique process group names from recent telemetry
+                    query = f"""
+                    SELECT DISTINCT
+                        RECORD['process_group_name']::STRING AS flow_name,
+                        RECORD['runtime_id']::STRING AS runtime_id
+                    FROM SNOWFLAKE.TELEMETRY.EVENTS
+                    WHERE RECORD_TYPE = 'openflow_metric'
+                    AND RECORD['metric_name']::STRING = 'process_group_input_bytes'
+                    AND TIMESTAMP >= DATEADD('day', -7, CURRENT_TIMESTAMP())
+                    ORDER BY flow_name
+                    """
+
+                    flows = self._execute_query(conn, query)
+
+                    for flow in flows:
+                        flow_name = flow['FLOW_NAME']
+                        runtime_id = flow.get('RUNTIME_ID')
+
+                        if not flow_name or not self._should_include_entity(flow_name):
+                            continue
+
+                        # Sanitize name for asset key
+                        asset_key = f"openflow_{re.sub(r'[^a-zA-Z0-9_]', '_', flow_name.lower())}"
+
+                        # OpenFlow flows are observable
+                        @observable_source_asset(
+                            name=asset_key,
+                            group_name=self.group_name,
+                            description=f"OpenFlow data integration flow: {flow_name}",
+                            metadata={
+                                "openflow_flow_name": flow_name,
+                                "openflow_runtime_id": runtime_id,
+                                "entity_type": "openflow_flow",
+                            }
+                        )
+                        def _openflow_asset(context: AssetExecutionContext, flow_name=flow_name, runtime_id=runtime_id):
+                            """Observable OpenFlow flow - monitor via telemetry."""
+                            conn = self._create_connection()
+                            cursor = conn.cursor()
+
+                            try:
+                                # Get recent flow metrics
+                                metrics_query = f"""
+                                SELECT
+                                    TIMESTAMP,
+                                    RECORD['metric_name']::STRING AS metric_name,
+                                    RECORD['metric_value']::NUMBER AS metric_value,
+                                    RECORD['component_name']::STRING AS component_name
+                                FROM SNOWFLAKE.TELEMETRY.EVENTS
+                                WHERE RECORD_TYPE = 'openflow_metric'
+                                AND RECORD['process_group_name']::STRING = '{flow_name}'
+                                AND TIMESTAMP >= DATEADD('hour', -1, CURRENT_TIMESTAMP())
+                                ORDER BY TIMESTAMP DESC
+                                LIMIT 100
+                                """
+
+                                cursor.execute(metrics_query)
+                                metrics = cursor.fetchall()
+
+                                if metrics:
+                                    context.log.info(f"OpenFlow flow {flow_name} has {len(metrics)} recent metrics")
+                                else:
+                                    context.log.info(f"OpenFlow flow {flow_name} has no recent activity")
+
+                            finally:
+                                cursor.close()
+                                conn.close()
+
+                        assets_list.append(_openflow_asset)
+
+                except Exception as e:
+                    context.log.error(f"Error importing OpenFlow flows: {e}")
 
         finally:
             conn.close()

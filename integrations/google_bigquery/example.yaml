@@ -1,0 +1,36 @@
+# Basic configuration - imports only scheduled queries
+type: dagster_component_templates.GoogleBigQueryComponent
+attributes:
+  project_id: my-gcp-project
+  credentials_path: "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}"
+  dataset_id: analytics
+  import_scheduled_queries: true
+  group_name: bigquery_prod
+
+---
+# Advanced configuration - imports all entity types
+type: dagster_component_templates.GoogleBigQueryComponent
+attributes:
+  project_id: my-gcp-project
+  credentials_path: "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}"
+  location: US
+  
+  # Import all entity types
+  import_scheduled_queries: true
+  import_stored_procedures: true
+  import_materialized_views: true
+  import_transfer_jobs: true
+  import_tables: true
+  import_routines: true
+  
+  # Filtering
+  filter_by_name_pattern: ^prod_.*
+  exclude_name_pattern: test|dev
+  filter_by_labels: env,team
+  
+  # Sensor configuration
+  generate_sensor: true
+  poll_interval_seconds: 60
+  
+  group_name: bigquery_workspace
+  description: Complete BigQuery workspace integration

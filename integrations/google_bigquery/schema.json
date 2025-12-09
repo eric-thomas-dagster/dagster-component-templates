@@ -1,0 +1,35 @@
+{
+  "type": "dagster_component_templates.GoogleBigQueryComponent",
+  "name": "Google BigQuery",
+  "category": "orchestration",
+  "description": "Import BigQuery scheduled queries, stored procedures, materialized views, transfer jobs, tables, and routines. Comprehensive orchestration for BigQuery workloads.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Cloud",
+  "x-dagster-io": {
+    "inputs": {"type": "none", "required": false},
+    "outputs": {"type": "multiple", "description": "Generates assets for each BigQuery entity"},
+    "supports_partitions": false
+  },
+  "attributes": {
+    "project_id": {"type": "string", "required": true, "label": "Project ID", "description": "GCP project ID", "placeholder": "my-gcp-project"},
+    "credentials_path": {"type": "string", "required": false, "label": "Credentials Path", "description": "Path to service account JSON (optional)", "placeholder": "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}", "secret": true},
+    "dataset_id": {"type": "string", "required": false, "label": "Dataset ID", "description": "Filter to specific dataset (optional)", "placeholder": "analytics"},
+    "location": {"type": "string", "required": false, "label": "Location", "description": "BigQuery location/region", "default": "US", "placeholder": "US"},
+    "import_scheduled_queries": {"type": "boolean", "required": false, "label": "Import Scheduled Queries", "description": "Import scheduled queries as materializable assets", "default": true},
+    "import_stored_procedures": {"type": "boolean", "required": false, "label": "Import Stored Procedures", "description": "Import stored procedures as materializable assets", "default": false},
+    "import_materialized_views": {"type": "boolean", "required": false, "label": "Import Materialized Views", "description": "Import materialized views as materializable assets", "default": false},
+    "import_transfer_jobs": {"type": "boolean", "required": false, "label": "Import Transfer Jobs", "description": "Import Data Transfer Service jobs as materializable assets", "default": false},
+    "import_tables": {"type": "boolean", "required": false, "label": "Import Tables", "description": "Import tables as observable assets (limited to 50 per dataset)", "default": false},
+    "import_routines": {"type": "boolean", "required": false, "label": "Import Routines", "description": "Import routines (UDFs/procedures) as observable assets", "default": false},
+    "filter_by_name_pattern": {"type": "string", "required": false, "label": "Filter by Name Pattern", "description": "Regex pattern to filter entities", "placeholder": "^prod_.*"},
+    "exclude_name_pattern": {"type": "string", "required": false, "label": "Exclude Name Pattern", "description": "Regex pattern to exclude entities", "placeholder": "test|dev"},
+    "filter_by_labels": {"type": "string", "required": false, "label": "Filter by Labels", "description": "Comma-separated label keys to filter entities", "placeholder": "env,team"},
+    "poll_interval_seconds": {"type": "number", "required": false, "label": "Sensor Poll Interval", "description": "Sensor poll interval in seconds", "default": 60, "minimum": 10},
+    "generate_sensor": {"type": "boolean", "required": false, "label": "Generate Observation Sensor", "description": "Create sensor to observe scheduled query runs", "default": true},
+    "group_name": {"type": "string", "required": false, "label": "Asset Group", "description": "Group name for all imported assets", "default": "bigquery"},
+    "description": {"type": "string", "required": false, "label": "Description", "description": "Description for the BigQuery component"}
+  },
+  "dependencies": {"pip": ["google-cloud-bigquery>=3.11.0", "google-cloud-bigquery-datatransfer>=3.11.0", "dagster>=1.6.0"]},
+  "tags": ["orchestration", "gcp", "bigquery", "data-warehouse", "scheduled-queries", "transfer-jobs"]
+}

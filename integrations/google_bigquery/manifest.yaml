@@ -1,0 +1,5 @@
+name: Google BigQuery
+description: Comprehensive BigQuery integration - import scheduled queries, stored procedures, materialized views, transfer jobs, and routines. Full orchestration for BigQuery workloads.
+category: orchestration
+version: 1.0.0
+author: Dagster Community

@@ -1,0 +1,5 @@
+name: AWS Glue
+description: Comprehensive AWS Glue integration - import Glue jobs, crawlers, workflows, DataBrew recipes, and data quality rulesets. Full orchestration and observation for AWS Glue services.
+category: orchestration
+version: 1.0.0
+author: Dagster Community

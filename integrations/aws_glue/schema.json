@@ -1,0 +1,33 @@
+{
+  "type": "dagster_component_templates.AWSGlueComponent",
+  "name": "AWS Glue",
+  "category": "orchestration",
+  "description": "Import AWS Glue jobs, crawlers, workflows, DataBrew recipes, and data quality rulesets as Dagster assets. Comprehensive orchestration for AWS Glue services.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Cloud",
+  "x-dagster-io": {
+    "inputs": {"type": "none", "required": false},
+    "outputs": {"type": "multiple", "description": "Generates assets for each discovered Glue entity"},
+    "supports_partitions": false
+  },
+  "attributes": {
+    "aws_region": {"type": "string", "required": true, "label": "AWS Region", "description": "AWS region (e.g., us-east-1)", "placeholder": "us-east-1"},
+    "aws_access_key_id": {"type": "string", "required": false, "label": "AWS Access Key ID", "description": "AWS access key ID (optional if using IAM role)", "placeholder": "{{ env('AWS_ACCESS_KEY_ID') }}", "secret": true},
+    "aws_secret_access_key": {"type": "string", "required": false, "label": "AWS Secret Access Key", "description": "AWS secret access key (optional if using IAM role)", "placeholder": "{{ env('AWS_SECRET_ACCESS_KEY') }}", "secret": true},
+    "import_jobs": {"type": "boolean", "required": false, "label": "Import Glue Jobs", "description": "Import Glue ETL jobs as materializable assets", "default": true},
+    "import_crawlers": {"type": "boolean", "required": false, "label": "Import Crawlers", "description": "Import Glue crawlers as materializable assets", "default": false},
+    "import_workflows": {"type": "boolean", "required": false, "label": "Import Workflows", "description": "Import Glue workflows as materializable assets", "default": false},
+    "import_databrew_jobs": {"type": "boolean", "required": false, "label": "Import DataBrew Jobs", "description": "Import Glue DataBrew recipe jobs as materializable assets", "default": false},
+    "import_data_quality_rulesets": {"type": "boolean", "required": false, "label": "Import Data Quality Rulesets", "description": "Import data quality rulesets as observable assets", "default": false},
+    "filter_by_name_pattern": {"type": "string", "required": false, "label": "Filter by Name Pattern", "description": "Regex pattern to filter entities by name", "placeholder": "^prod_.*"},
+    "exclude_name_pattern": {"type": "string", "required": false, "label": "Exclude Name Pattern", "description": "Regex pattern to exclude entities by name", "placeholder": "test|dev"},
+    "filter_by_tags": {"type": "string", "required": false, "label": "Filter by Tags", "description": "Comma-separated tag keys to filter entities", "placeholder": "environment,team"},
+    "poll_interval_seconds": {"type": "number", "required": false, "label": "Sensor Poll Interval", "description": "Sensor poll interval in seconds", "default": 60, "minimum": 10},
+    "generate_sensor": {"type": "boolean", "required": false, "label": "Generate Observation Sensor", "description": "Create sensor to observe Glue runs", "default": true},
+    "group_name": {"type": "string", "required": false, "label": "Asset Group", "description": "Group name for all imported assets", "default": "aws_glue"},
+    "description": {"type": "string", "required": false, "label": "Description", "description": "Description for the AWS Glue component"}
+  },
+  "dependencies": {"pip": ["boto3>=1.28.0", "dagster>=1.6.0"]},
+  "tags": ["orchestration", "aws", "glue", "etl", "crawlers", "workflows", "databrew"]
+}

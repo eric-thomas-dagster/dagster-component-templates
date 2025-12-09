@@ -1,0 +1,47 @@
+# Basic configuration - imports only tasks
+type: dagster_component_templates.SnowflakeWorkspaceComponent
+attributes:
+  account: xy12345.us-east-1
+  user: dagster_user
+  password: "{{ env('SNOWFLAKE_PASSWORD') }}"
+  warehouse: COMPUTE_WH
+  database: ANALYTICS
+  schema: PUBLIC
+  import_tasks: true
+  import_stored_procedures: false
+  import_dynamic_tables: false
+  import_streams: false
+  group_name: snowflake_prod
+  description: Production Snowflake tasks
+
+---
+# Advanced configuration - imports all entity types with filtering
+type: dagster_component_templates.SnowflakeWorkspaceComponent
+attributes:
+  # Connection details
+  account: xy12345.us-east-1
+  user: dagster_user
+  password: "{{ env('SNOWFLAKE_PASSWORD') }}"
+  warehouse: COMPUTE_WH
+  database: ANALYTICS
+  schema: PUBLIC
+  role: ACCOUNTADMIN
+
+  # Import all entity types
+  import_tasks: true
+  import_stored_procedures: true
+  import_dynamic_tables: true
+  import_streams: true
+
+  # Filter configuration
+  filter_by_name_pattern: ^PROD_.*
+  exclude_name_pattern: TEST|DEV|STAGING
+  task_filter_by_state: STARTED
+
+  # Sensor configuration
+  generate_sensor: true
+  poll_interval_seconds: 60
+
+  # Organization
+  group_name: snowflake_workspace
+  description: Complete Snowflake workspace import with all entity types

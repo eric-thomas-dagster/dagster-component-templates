@@ -1,0 +1,159 @@
+{
+  "type": "dagster_component_templates.SnowflakeWorkspaceComponent",
+  "name": "Snowflake Workspace",
+  "category": "orchestration",
+  "description": "Import Snowflake tasks, stored procedures, dynamic tables, and streams as Dagster assets. Trigger tasks and stored procedures directly from Dagster.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Database",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "required": false
+    },
+    "outputs": {
+      "type": "multiple",
+      "description": "Generates assets for each discovered Snowflake entity"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "account": {
+      "type": "string",
+      "required": true,
+      "label": "Account Identifier",
+      "description": "Snowflake account identifier (e.g., xy12345.us-east-1)",
+      "placeholder": "xy12345.us-east-1"
+    },
+    "user": {
+      "type": "string",
+      "required": true,
+      "label": "Username",
+      "description": "Snowflake username",
+      "placeholder": "dagster_user"
+    },
+    "password": {
+      "type": "string",
+      "required": true,
+      "label": "Password",
+      "description": "Snowflake password",
+      "placeholder": "{{ env('SNOWFLAKE_PASSWORD') }}",
+      "secret": true
+    },
+    "warehouse": {
+      "type": "string",
+      "required": true,
+      "label": "Warehouse",
+      "description": "Snowflake warehouse to use for queries",
+      "placeholder": "COMPUTE_WH"
+    },
+    "database": {
+      "type": "string",
+      "required": true,
+      "label": "Database",
+      "description": "Snowflake database to connect to",
+      "placeholder": "ANALYTICS"
+    },
+    "schema": {
+      "type": "string",
+      "required": false,
+      "label": "Schema",
+      "description": "Snowflake schema to use",
+      "default": "PUBLIC",
+      "placeholder": "PUBLIC"
+    },
+    "role": {
+      "type": "string",
+      "required": false,
+      "label": "Role",
+      "description": "Snowflake role to use (optional)",
+      "placeholder": "ACCOUNTADMIN"
+    },
+    "import_tasks": {
+      "type": "boolean",
+      "required": false,
+      "label": "Import Tasks",
+      "description": "Import Snowflake tasks as materializable assets",
+      "default": true
+    },
+    "import_stored_procedures": {
+      "type": "boolean",
+      "required": false,
+      "label": "Import Stored Procedures",
+      "description": "Import stored procedures as materializable assets",
+      "default": false
+    },
+    "import_dynamic_tables": {
+      "type": "boolean",
+      "required": false,
+      "label": "Import Dynamic Tables",
+      "description": "Import dynamic tables as materializable assets (trigger manual refreshes)",
+      "default": false
+    },
+    "import_streams": {
+      "type": "boolean",
+      "required": false,
+      "label": "Import Streams",
+      "description": "Import streams as observable assets",
+      "default": false
+    },
+    "filter_by_name_pattern": {
+      "type": "string",
+      "required": false,
+      "label": "Filter by Name Pattern",
+      "description": "Regex pattern to filter entities by name (e.g., '^PROD_' for names starting with 'PROD_')",
+      "placeholder": "^PROD_.*"
+    },
+    "exclude_name_pattern": {
+      "type": "string",
+      "required": false,
+      "label": "Exclude Name Pattern",
+      "description": "Regex pattern to exclude entities by name (e.g., 'TEST|DEV' to exclude test and dev entities)",
+      "placeholder": "TEST|DEV|STAGING"
+    },
+    "task_filter_by_state": {
+      "type": "string",
+      "required": false,
+      "label": "Task State Filter",
+      "description": "Filter tasks by state (STARTED, SUSPENDED). Leave empty to import all tasks.",
+      "placeholder": "STARTED"
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Sensor Poll Interval",
+      "description": "How often (in seconds) the sensor should check for completed runs",
+      "default": 60,
+      "minimum": 10
+    },
+    "generate_sensor": {
+      "type": "boolean",
+      "required": false,
+      "label": "Generate Observation Sensor",
+      "description": "Create a sensor to observe task runs and dynamic table refreshes",
+      "default": true
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Asset Group",
+      "description": "Group name for all imported assets",
+      "default": "snowflake",
+      "placeholder": "snowflake"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description",
+      "description": "Description for the Snowflake workspace component",
+      "placeholder": "Production Snowflake workspace assets"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "snowflake-connector-python>=3.0.0",
+      "dagster>=1.6.0"
+    ]
+  },
+  "tags": ["orchestration", "snowflake", "data-warehouse", "tasks", "stored-procedures", "observation"]
+}

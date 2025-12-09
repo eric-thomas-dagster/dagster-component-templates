@@ -1,0 +1,5 @@
+name: Snowflake Workspace
+description: Import Snowflake tasks, stored procedures, dynamic tables, and streams as Dagster assets. Trigger tasks and stored procedures directly from Dagster.
+category: orchestration
+version: 1.0.0
+author: Dagster Community

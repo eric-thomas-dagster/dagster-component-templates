@@ -1,0 +1,35 @@
+{
+  "type": "dagster_component_templates.AzureDataFactoryComponent",
+  "name": "Azure Data Factory",
+  "category": "orchestration",
+  "description": "Import Azure Data Factory pipelines, triggers, data flows, and integration runtimes. Comprehensive orchestration for ADF workloads.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Cloud",
+  "x-dagster-io": {
+    "inputs": {"type": "none", "required": false},
+    "outputs": {"type": "multiple", "description": "Generates assets for each ADF entity"},
+    "supports_partitions": false
+  },
+  "attributes": {
+    "subscription_id": {"type": "string", "required": true, "label": "Subscription ID", "description": "Azure subscription ID", "placeholder": "12345678-1234-1234-1234-123456789012"},
+    "resource_group_name": {"type": "string", "required": true, "label": "Resource Group", "description": "Azure resource group name", "placeholder": "my-resource-group"},
+    "factory_name": {"type": "string", "required": true, "label": "Data Factory Name", "description": "Azure Data Factory name", "placeholder": "my-data-factory"},
+    "tenant_id": {"type": "string", "required": false, "label": "Tenant ID", "description": "Azure AD tenant ID (optional if using DefaultAzureCredential)", "placeholder": "{{ env('AZURE_TENANT_ID') }}", "secret": true},
+    "client_id": {"type": "string", "required": false, "label": "Client ID", "description": "Azure AD client/application ID (optional)", "placeholder": "{{ env('AZURE_CLIENT_ID') }}", "secret": true},
+    "client_secret": {"type": "string", "required": false, "label": "Client Secret", "description": "Azure AD client secret (optional)", "placeholder": "{{ env('AZURE_CLIENT_SECRET') }}", "secret": true},
+    "import_pipelines": {"type": "boolean", "required": false, "label": "Import Pipelines", "description": "Import pipelines as materializable assets", "default": true},
+    "import_triggers": {"type": "boolean", "required": false, "label": "Import Triggers", "description": "Import triggers as materializable assets (start/stop)", "default": false},
+    "import_data_flows": {"type": "boolean", "required": false, "label": "Import Data Flows", "description": "Import data flows as observable assets", "default": false},
+    "import_integration_runtimes": {"type": "boolean", "required": false, "label": "Import Integration Runtimes", "description": "Import integration runtimes as observable assets", "default": false},
+    "filter_by_name_pattern": {"type": "string", "required": false, "label": "Filter by Name Pattern", "description": "Regex pattern to filter entities", "placeholder": "^prod_.*"},
+    "exclude_name_pattern": {"type": "string", "required": false, "label": "Exclude Name Pattern", "description": "Regex pattern to exclude entities", "placeholder": "test|dev"},
+    "filter_by_tags": {"type": "string", "required": false, "label": "Filter by Tags", "description": "Comma-separated tag keys to filter entities", "placeholder": "env,team"},
+    "poll_interval_seconds": {"type": "number", "required": false, "label": "Sensor Poll Interval", "description": "Sensor poll interval in seconds", "default": 60, "minimum": 10},
+    "generate_sensor": {"type": "boolean", "required": false, "label": "Generate Observation Sensor", "description": "Create sensor to observe pipeline runs and trigger runs", "default": true},
+    "group_name": {"type": "string", "required": false, "label": "Asset Group", "description": "Group name for all imported assets", "default": "azure_data_factory"},
+    "description": {"type": "string", "required": false, "label": "Description", "description": "Description for the Azure Data Factory component"}
+  },
+  "dependencies": {"pip": ["azure-identity>=1.12.0", "azure-mgmt-datafactory>=4.0.0", "dagster>=1.6.0"]},
+  "tags": ["orchestration", "azure", "data-factory", "etl", "pipelines"]
+}

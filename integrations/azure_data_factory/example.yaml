@@ -1,0 +1,51 @@
+# Basic configuration - imports only pipelines
+type: dagster_component_templates.AzureDataFactoryComponent
+attributes:
+  subscription_id: "12345678-1234-1234-1234-123456789012"
+  resource_group_name: my-resource-group
+  factory_name: my-data-factory
+  tenant_id: "{{ env('AZURE_TENANT_ID') }}"
+  client_id: "{{ env('AZURE_CLIENT_ID') }}"
+  client_secret: "{{ env('AZURE_CLIENT_SECRET') }}"
+  import_pipelines: true
+  group_name: adf_prod
+
+---
+# Advanced configuration - imports all entity types
+type: dagster_component_templates.AzureDataFactoryComponent
+attributes:
+  subscription_id: "12345678-1234-1234-1234-123456789012"
+  resource_group_name: my-resource-group
+  factory_name: my-data-factory
+  tenant_id: "{{ env('AZURE_TENANT_ID') }}"
+  client_id: "{{ env('AZURE_CLIENT_ID') }}"
+  client_secret: "{{ env('AZURE_CLIENT_SECRET') }}"
+
+  # Import all entity types
+  import_pipelines: true
+  import_triggers: true
+  import_data_flows: true
+  import_integration_runtimes: true
+
+  # Filtering
+  filter_by_name_pattern: ^prod_.*
+  exclude_name_pattern: test|dev
+  filter_by_tags: env,team
+
+  # Sensor configuration
+  generate_sensor: true
+  poll_interval_seconds: 60
+
+  group_name: adf_workspace
+  description: Complete Azure Data Factory integration
+
+---
+# Using DefaultAzureCredential (no explicit credentials)
+type: dagster_component_templates.AzureDataFactoryComponent
+attributes:
+  subscription_id: "12345678-1234-1234-1234-123456789012"
+  resource_group_name: my-resource-group
+  factory_name: my-data-factory
+  import_pipelines: true
+  import_triggers: true
+  group_name: adf_managed_identity

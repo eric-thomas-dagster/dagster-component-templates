@@ -1,0 +1,5 @@
+name: Azure Data Factory
+description: Comprehensive Azure Data Factory integration - import pipelines, triggers, data flows, and integration runtimes. Full orchestration for ADF workloads.
+category: orchestration
+version: 1.0.0
+author: Dagster Community

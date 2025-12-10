@@ -1,35 +1,41 @@
-# Basic configuration - imports only Glue jobs
+# Basic configuration - imports Glue jobs with lineage to Data Catalog tables
 type: dagster_component_templates.AWSGlueComponent
 attributes:
   aws_region: us-east-1
   aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
   aws_secret_access_key: "{{ env('AWS_SECRET_ACCESS_KEY') }}"
   import_jobs: true
+  import_catalog_tables: true
+  catalog_database_filter: production,analytics
   group_name: aws_glue_prod
 
 ---
-# Advanced configuration - imports all entity types
+# Advanced configuration - imports all entity types with lineage tracking
 type: dagster_component_templates.AWSGlueComponent
 attributes:
   aws_region: us-east-1
   aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
   aws_secret_access_key: "{{ env('AWS_SECRET_ACCESS_KEY') }}"
-  
+
   # Import all entity types
   import_jobs: true
   import_crawlers: true
   import_workflows: true
   import_databrew_jobs: true
   import_data_quality_rulesets: true
-  
+
+  # Lineage tracking
+  import_catalog_tables: true
+  catalog_database_filter: production,staging,analytics
+
   # Filtering
   filter_by_name_pattern: ^prod_.*
   exclude_name_pattern: test|dev
   filter_by_tags: environment,team
-  
+
   # Sensor configuration
   generate_sensor: true
   poll_interval_seconds: 60
-  
+
   group_name: aws_glue_workspace
-  description: Complete AWS Glue workspace integration
+  description: Complete AWS Glue workspace integration with lineage tracking

@@ -1,7 +1,11 @@
 """AWS Glue Component.
 
 Import AWS Glue jobs, crawlers, workflows, DataBrew recipes, and data quality rulesets
-as Dagster assets with automatic observation and orchestration.
+as Dagster assets with automatic lineage tracking from Data Catalog tables.
+
+Glue jobs are created as observable source assets with automatic dependencies on the
+Data Catalog tables they read, similar to how Databricks jobs work. AWS Glue manages
+the orchestration internally, while Dagster tracks lineage and observations.
 """
 
 import re
@@ -29,14 +33,19 @@ from pydantic import Field
 
 
 class AWSGlueComponent(Component, Model, Resolvable):
-    """Component for importing AWS Glue entities as Dagster assets.
+    """Component for importing AWS Glue entities as Dagster assets with lineage tracking.
 
     Supports importing:
-    - Glue Jobs (Spark/Python ETL jobs)
+    - Glue Jobs (Spark/Python ETL jobs) - Observable with automatic lineage to Data Catalog tables
+    - Glue Data Catalog Tables - Observable source assets
     - Glue Crawlers (metadata discovery)
     - Glue Workflows (job orchestration)
     - Glue DataBrew Jobs (visual data preparation)
     - Glue Data Quality Rulesets (data validation)
+
+    Glue jobs are created as observable source assets because AWS Glue manages their
+    execution via workflows, triggers, and schedules. Dagster observes their runs and
+    tracks lineage to upstream Data Catalog tables.
 
     Example:
         ```yaml
@@ -46,7 +55,8 @@ class AWSGlueComponent(Component, Model, Resolvable):
           aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
           aws_secret_access_key: "{{ env('AWS_SECRET_ACCESS_KEY') }}"
           import_jobs: true
-          import_crawlers: true
+          import_catalog_tables: true
+          catalog_database_filter: production,analytics
         ```
     """
 
@@ -92,6 +102,16 @@ class AWSGlueComponent(Component, Model, Resolvable):
     import_data_quality_rulesets: bool = Field(
         default=False,
         description="Import Glue Data Quality rulesets as observable assets"
+    )
+
+    import_catalog_tables: bool = Field(
+        default=True,
+        description="Import Glue Data Catalog tables as observable source assets for lineage"
+    )
+
+    catalog_database_filter: Optional[str] = Field(
+        default=None,
+        description="Filter Data Catalog tables to specific databases (comma-separated)"
     )
 
     filter_by_name_pattern: Optional[str] = Field(
@@ -178,6 +198,82 @@ class AWSGlueComponent(Component, Model, Resolvable):
 
         return True
 
+    def _extract_table_references_from_job(self, job: Dict[str, Any]) -> List[str]:
+        """Extract Data Catalog table references from Glue job metadata.
+
+        Returns list of table asset keys in format: glue_table_{database}_{table}
+        """
+        table_refs = []
+
+        # Check DefaultArguments for common table reference patterns
+        default_args = job.get('DefaultArguments', {})
+
+        # Common argument patterns that contain table references
+        db_arg = default_args.get('--database_name') or default_args.get('--database')
+        table_args = []
+
+        # Look for table name arguments
+        for key, value in default_args.items():
+            if 'table' in key.lower() and '--' in key:
+                table_args.append(value)
+
+        # If we found a database, construct table refs
+        if db_arg:
+            for table_name in table_args:
+                asset_key = f"glue_table_{re.sub(r'[^a-zA-Z0-9_]', '_', db_arg.lower())}_{re.sub(r'[^a-zA-Z0-9_]', '_', table_name.lower())}"
+                table_refs.append(asset_key)
+
+        # Also check Connections which may reference catalog connections
+        connections = job.get('Connections', {}).get('Connections', [])
+        # Note: Connections are typically network connections, not table references,
+        # but we keep this here for potential future enhancement
+
+        return table_refs
+
+    def _list_catalog_tables(self, glue_client) -> List[Dict[str, Any]]:
+        """List all Data Catalog tables across databases."""
+        tables = []
+
+        try:
+            # Get list of databases
+            databases_to_scan = []
+
+            if self.catalog_database_filter:
+                databases_to_scan = [db.strip() for db in self.catalog_database_filter.split(',')]
+            else:
+                # Get all databases
+                db_paginator = glue_client.get_paginator('get_databases')
+                for page in db_paginator.paginate():
+                    for db in page.get('DatabaseList', []):
+                        databases_to_scan.append(db['Name'])
+
+            # Get tables from each database
+            for database_name in databases_to_scan:
+                try:
+                    table_paginator = glue_client.get_paginator('get_tables')
+                    for page in table_paginator.paginate(DatabaseName=database_name):
+                        for table in page.get('TableList', []):
+                            table_name = table['Name']
+
+                            # Apply entity filters
+                            if not self._should_include_entity(f"{database_name}.{table_name}"):
+                                continue
+
+                            tables.append({
+                                'database': database_name,
+                                'table': table_name,
+                                'location': table.get('StorageDescriptor', {}).get('Location'),
+                                'update_time': table.get('UpdateTime'),
+                            })
+                except Exception as e:
+                    # Log but continue with other databases
+                    pass
+
+        except Exception as e:
+            pass
+
+        return tables
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions from AWS Glue entities."""
         glue_client = self._create_glue_client()
@@ -189,6 +285,63 @@ class AWSGlueComponent(Component, Model, Resolvable):
         job_metadata = {}
         crawler_metadata = {}
         workflow_metadata = {}
+
+        # Track Data Catalog tables for lineage
+        catalog_table_keys = set()
+
+        # Import Data Catalog Tables (for lineage)
+        if self.import_catalog_tables:
+            try:
+                tables = self._list_catalog_tables(glue_client)
+
+                for table_info in tables:
+                    database = table_info['database']
+                    table_name = table_info['table']
+
+                    # Create asset key
+                    asset_key = f"glue_table_{re.sub(r'[^a-zA-Z0-9_]', '_', database.lower())}_{re.sub(r'[^a-zA-Z0-9_]', '_', table_name.lower())}"
+                    catalog_table_keys.add(asset_key)
+
+                    # Data Catalog tables are observable source assets
+                    @observable_source_asset(
+                        name=asset_key,
+                        group_name=self.group_name,
+                        description=f"Glue Data Catalog table: {database}.{table_name}",
+                        metadata={
+                            "glue_database": database,
+                            "glue_table": table_name,
+                            "glue_location": table_info.get('location'),
+                            "entity_type": "catalog_table",
+                        }
+                    )
+                    def _catalog_table_asset(context: AssetExecutionContext, database=database, table_name=table_name):
+                        """Observable Data Catalog table."""
+                        client = self._create_glue_client()
+
+                        try:
+                            # Get table metadata
+                            table_response = client.get_table(DatabaseName=database, Name=table_name)
+                            table_data = table_response['Table']
+
+                            metadata = {
+                                "database": database,
+                                "table": table_name,
+                                "location": table_data.get('StorageDescriptor', {}).get('Location'),
+                                "update_time": str(table_data.get('UpdateTime')) if table_data.get('UpdateTime') else None,
+                                "row_count": table_data.get('Parameters', {}).get('numRows', 'N/A'),
+                            }
+
+                            context.log.info(f"Observed Glue table {database}.{table_name}")
+                            return metadata
+
+                        except Exception as e:
+                            context.log.warning(f"Could not get table info for {database}.{table_name}: {e}")
+                            return {"database": database, "table": table_name}
+
+                    assets_list.append(_catalog_table_asset)
+
+            except Exception as e:
+                context.log.error(f"Error importing Glue Data Catalog tables: {e}")
 
         # Import Glue Jobs
         if self.import_jobs:
@@ -208,58 +361,63 @@ class AWSGlueComponent(Component, Model, Resolvable):
                         # Sanitize name for asset key
                         asset_key = f"glue_job_{re.sub(r'[^a-zA-Z0-9_]', '_', job_name.lower())}"
 
+                        # Extract table dependencies for lineage
+                        table_deps = self._extract_table_references_from_job(job)
+                        # Filter to only tables that exist in catalog
+                        table_deps = [dep for dep in table_deps if dep in catalog_table_keys]
+
                         # Store metadata for sensor
                         job_metadata[asset_key] = {
                             'job_name': job_name,
                             'command': job.get('Command', {}).get('Name'),
                         }
 
-                        # Glue jobs are materializable
-                        @asset(
+                        # Glue jobs are observable (Glue manages execution via workflows/triggers)
+                        # They have dependencies on Data Catalog tables they read
+                        @observable_source_asset(
                             name=asset_key,
                             group_name=self.group_name,
-                            description=f"AWS Glue job: {job_name}",
+                            description=f"AWS Glue job: {job_name} (orchestrated by AWS Glue)",
                             metadata={
                                 "glue_job_name": job_name,
                                 "glue_command": job.get('Command', {}).get('Name'),
                                 "glue_role": job.get('Role'),
                                 "glue_worker_type": job.get('WorkerType'),
                                 "entity_type": "glue_job",
-                            }
+                                "upstream_tables": len(table_deps),
+                            },
+                            deps=table_deps if table_deps else None,
                         )
-                        def _glue_job_asset(context: AssetExecutionContext, job_name=job_name):
-                            """Materialize by running Glue job."""
+                        def _glue_job_asset(context: AssetExecutionContext, job_name=job_name, table_deps=table_deps):
+                            """Observable Glue job - AWS Glue manages orchestration."""
                             client = self._create_glue_client()
 
-                            # Start job run
-                            response = client.start_job_run(JobName=job_name)
-                            run_id = response['JobRunId']
+                            try:
+                                # Get recent job runs to report observations
+                                response = client.get_job_runs(JobName=job_name, MaxResults=1)
+                                job_runs = response.get('JobRuns', [])
 
-                            context.log.info(f"Started Glue job {job_name}, run ID: {run_id}")
+                                if job_runs:
+                                    latest_run = job_runs[0]
+                                    metadata = {
+                                        "job_name": job_name,
+                                        "latest_run_id": latest_run.get('Id'),
+                                        "latest_run_state": latest_run.get('JobRunState'),
+                                        "started_on": str(latest_run.get('StartedOn')) if latest_run.get('StartedOn') else None,
+                                        "completed_on": str(latest_run.get('CompletedOn')) if latest_run.get('CompletedOn') else None,
+                                        "execution_time": latest_run.get('ExecutionTime'),
+                                        "upstream_tables": ', '.join(table_deps) if table_deps else 'None detected',
+                                    }
 
-                            # Wait for completion
-                            waiter = client.get_waiter('job_run_complete')
-                            waiter.wait(
-                                JobName=job_name,
-                                RunId=run_id,
-                                WaiterConfig={'Delay': 30, 'MaxAttempts': 120}
-                            )
+                                    context.log.info(f"Observed Glue job {job_name}, latest run state: {latest_run.get('JobRunState')}")
+                                    return metadata
+                                else:
+                                    context.log.info(f"No runs found for Glue job {job_name}")
+                                    return {"job_name": job_name, "status": "No runs found"}
 
-                            # Get run details
-                            run_info = client.get_job_run(JobName=job_name, RunId=run_id)
-                            job_run = run_info['JobRun']
-
-                            metadata = {
-                                "run_id": run_id,
-                                "job_run_state": job_run.get('JobRunState'),
-                                "execution_time": job_run.get('ExecutionTime'),
-                                "started_on": str(job_run.get('StartedOn')) if job_run.get('StartedOn') else None,
-                                "completed_on": str(job_run.get('CompletedOn')) if job_run.get('CompletedOn') else None,
-                            }
-
-                            context.log.info(f"Glue job {job_name} completed with state: {job_run.get('JobRunState')}")
-
-                            return metadata
+                            except Exception as e:
+                                context.log.warning(f"Could not get runs for Glue job {job_name}: {e}")
+                                return {"job_name": job_name, "error": str(e)}
 
                         assets_list.append(_glue_job_asset)
 

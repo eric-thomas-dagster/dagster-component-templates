@@ -1,0 +1,8 @@
+type: dagster_component_templates.GooglePubSubComponent
+attributes:
+  project_id: my-gcp-project
+  credentials_path: "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}"
+  import_topics: true
+  import_subscriptions: true
+  filter_by_name_pattern: ^prod_.*
+  group_name: pubsub_prod

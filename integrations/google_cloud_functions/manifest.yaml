@@ -1,0 +1,3 @@
+component_type: dagster_component_templates.GoogleCloudFunctionsComponent
+name: Google Cloud Functions
+description: Import Google Cloud Functions for serverless function invocation

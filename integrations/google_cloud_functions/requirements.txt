@@ -1,0 +1,2 @@
+google-cloud-functions>=1.13.0
+dagster>=1.6.0

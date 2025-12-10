@@ -1,0 +1,3 @@
+component_type: dagster_component_templates.GooglePubSubComponent
+name: Google Cloud Pub/Sub
+description: Import Google Cloud Pub/Sub topics and subscriptions

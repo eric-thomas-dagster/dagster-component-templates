@@ -1,0 +1,28 @@
+{
+  "type": "dagster_component_templates.GooglePubSubComponent",
+  "name": "Google Cloud Pub/Sub",
+  "category": "messaging",
+  "description": "Import Google Cloud Pub/Sub topics and subscriptions for message queue monitoring.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "MessageCircle",
+  "x-dagster-io": {
+    "inputs": {"type": "none", "required": false},
+    "outputs": {"type": "multiple", "description": "Generates assets for each Pub/Sub entity"},
+    "supports_partitions": false
+  },
+  "attributes": {
+    "project_id": {"type": "string", "required": true, "label": "Project ID", "description": "GCP project ID", "placeholder": "my-gcp-project"},
+    "credentials_path": {"type": "string", "required": false, "label": "Credentials Path", "description": "Path to GCP service account credentials JSON file (optional)", "placeholder": "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}", "secret": true},
+    "import_topics": {"type": "boolean", "required": false, "label": "Import Topics", "description": "Import Pub/Sub topics as observable assets", "default": true},
+    "import_subscriptions": {"type": "boolean", "required": false, "label": "Import Subscriptions", "description": "Import Pub/Sub subscriptions as observable assets", "default": true},
+    "filter_by_name_pattern": {"type": "string", "required": false, "label": "Filter by Name Pattern", "description": "Regex pattern to filter entities", "placeholder": "^prod_.*"},
+    "exclude_name_pattern": {"type": "string", "required": false, "label": "Exclude Name Pattern", "description": "Regex pattern to exclude entities", "placeholder": "test|dev"},
+    "poll_interval_seconds": {"type": "number", "required": false, "label": "Sensor Poll Interval", "description": "Sensor poll interval in seconds", "default": 60, "minimum": 10},
+    "generate_sensor": {"type": "boolean", "required": false, "label": "Generate Observation Sensor", "description": "Create sensor to observe topics and subscriptions", "default": true},
+    "group_name": {"type": "string", "required": false, "label": "Asset Group", "description": "Group name for all imported assets", "default": "google_pubsub"},
+    "description": {"type": "string", "required": false, "label": "Description", "description": "Description for the Google Pub/Sub component"}
+  },
+  "dependencies": {"pip": ["google-cloud-pubsub>=2.18.0", "dagster>=1.6.0"]},
+  "tags": ["messaging", "gcp", "google-cloud", "pubsub", "queue", "events"]
+}

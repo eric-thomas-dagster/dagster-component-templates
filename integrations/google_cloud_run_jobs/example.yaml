@@ -1,0 +1,8 @@
+type: dagster_component_templates.GoogleCloudRunJobsComponent
+attributes:
+  project_id: my-gcp-project
+  location: us-central1
+  credentials_path: "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}"
+  import_jobs: true
+  filter_by_name_pattern: ^prod_.*
+  group_name: cloud_run_jobs_prod

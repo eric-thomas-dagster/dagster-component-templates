@@ -1,0 +1,26 @@
+{
+  "type": "dagster_component_templates.GoogleCloudFunctionsComponent",
+  "name": "Google Cloud Functions",
+  "category": "orchestration",
+  "description": "Import Google Cloud Functions for invoking serverless functions.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Zap",
+  "x-dagster-io": {
+    "inputs": {"type": "none", "required": false},
+    "outputs": {"type": "multiple", "description": "Generates assets for each Cloud Function"},
+    "supports_partitions": false
+  },
+  "attributes": {
+    "project_id": {"type": "string", "required": true, "label": "Project ID", "description": "GCP project ID", "placeholder": "my-gcp-project"},
+    "location": {"type": "string", "required": false, "label": "Location", "description": "GCP location/region for Cloud Functions", "default": "us-central1", "placeholder": "us-central1"},
+    "credentials_path": {"type": "string", "required": false, "label": "Credentials Path", "description": "Path to GCP service account credentials JSON file (optional)", "placeholder": "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}", "secret": true},
+    "import_functions": {"type": "boolean", "required": false, "label": "Import Functions", "description": "Import Cloud Functions as materializable assets", "default": true},
+    "filter_by_name_pattern": {"type": "string", "required": false, "label": "Filter by Name Pattern", "description": "Regex pattern to filter entities", "placeholder": "^prod_.*"},
+    "exclude_name_pattern": {"type": "string", "required": false, "label": "Exclude Name Pattern", "description": "Regex pattern to exclude entities", "placeholder": "test|dev"},
+    "group_name": {"type": "string", "required": false, "label": "Asset Group", "description": "Group name for all imported assets", "default": "google_cloud_functions"},
+    "description": {"type": "string", "required": false, "label": "Description", "description": "Description for the Google Cloud Functions component"}
+  },
+  "dependencies": {"pip": ["google-cloud-functions>=1.13.0", "dagster>=1.6.0"]},
+  "tags": ["orchestration", "gcp", "google-cloud", "cloud-functions", "serverless", "functions"]
+}

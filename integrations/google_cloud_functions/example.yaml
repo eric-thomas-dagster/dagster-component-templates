@@ -1,0 +1,8 @@
+type: dagster_component_templates.GoogleCloudFunctionsComponent
+attributes:
+  project_id: my-gcp-project
+  location: us-central1
+  credentials_path: "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}"
+  import_functions: true
+  filter_by_name_pattern: ^prod_.*
+  group_name: cloud_functions_prod

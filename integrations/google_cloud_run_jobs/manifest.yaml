@@ -1,0 +1,3 @@
+component_type: dagster_component_templates.GoogleCloudRunJobsComponent
+name: Google Cloud Run Jobs
+description: Import Google Cloud Run Jobs for containerized batch execution

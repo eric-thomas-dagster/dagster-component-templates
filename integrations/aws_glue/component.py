@@ -3,9 +3,9 @@
 Import AWS Glue jobs, crawlers, workflows, DataBrew recipes, and data quality rulesets
 as Dagster assets with automatic lineage tracking from Data Catalog tables.
 
-Glue jobs are created as observable source assets with automatic dependencies on the
-Data Catalog tables they read, similar to how Databricks jobs work. AWS Glue manages
-the orchestration internally, while Dagster tracks lineage and observations.
+Glue jobs are materializable assets that can be triggered from Dagster, with automatic
+dependencies on the Data Catalog tables they read. This creates a lineage graph showing
+data flow from tables through jobs.
 """
 
 import re
@@ -36,16 +36,16 @@ class AWSGlueComponent(Component, Model, Resolvable):
     """Component for importing AWS Glue entities as Dagster assets with lineage tracking.
 
     Supports importing:
-    - Glue Jobs (Spark/Python ETL jobs) - Observable with automatic lineage to Data Catalog tables
+    - Glue Jobs (Spark/Python ETL jobs) - Materializable with automatic lineage to Data Catalog tables
     - Glue Data Catalog Tables - Observable source assets
     - Glue Crawlers (metadata discovery)
     - Glue Workflows (job orchestration)
     - Glue DataBrew Jobs (visual data preparation)
     - Glue Data Quality Rulesets (data validation)
 
-    Glue jobs are created as observable source assets because AWS Glue manages their
-    execution via workflows, triggers, and schedules. Dagster observes their runs and
-    tracks lineage to upstream Data Catalog tables.
+    Glue jobs are materializable assets that can be triggered from Dagster. They include
+    automatic dependencies on Data Catalog tables they read, creating a lineage graph
+    that shows data flow from tables through jobs.
 
     Example:
         ```yaml
@@ -372,12 +372,11 @@ class AWSGlueComponent(Component, Model, Resolvable):
                             'command': job.get('Command', {}).get('Name'),
                         }
 
-                        # Glue jobs are observable (Glue manages execution via workflows/triggers)
-                        # They have dependencies on Data Catalog tables they read
-                        @observable_source_asset(
+                        # Glue jobs are materializable and can have dependencies on Data Catalog tables
+                        @asset(
                             name=asset_key,
                             group_name=self.group_name,
-                            description=f"AWS Glue job: {job_name} (orchestrated by AWS Glue)",
+                            description=f"AWS Glue job: {job_name}",
                             metadata={
                                 "glue_job_name": job_name,
                                 "glue_command": job.get('Command', {}).get('Name'),
@@ -389,35 +388,41 @@ class AWSGlueComponent(Component, Model, Resolvable):
                             deps=table_deps if table_deps else None,
                         )
                         def _glue_job_asset(context: AssetExecutionContext, job_name=job_name, table_deps=table_deps):
-                            """Observable Glue job - AWS Glue manages orchestration."""
+                            """Materialize by running Glue job."""
                             client = self._create_glue_client()
 
-                            try:
-                                # Get recent job runs to report observations
-                                response = client.get_job_runs(JobName=job_name, MaxResults=1)
-                                job_runs = response.get('JobRuns', [])
+                            # Start job run
+                            response = client.start_job_run(JobName=job_name)
+                            run_id = response['JobRunId']
 
-                                if job_runs:
-                                    latest_run = job_runs[0]
-                                    metadata = {
-                                        "job_name": job_name,
-                                        "latest_run_id": latest_run.get('Id'),
-                                        "latest_run_state": latest_run.get('JobRunState'),
-                                        "started_on": str(latest_run.get('StartedOn')) if latest_run.get('StartedOn') else None,
-                                        "completed_on": str(latest_run.get('CompletedOn')) if latest_run.get('CompletedOn') else None,
-                                        "execution_time": latest_run.get('ExecutionTime'),
-                                        "upstream_tables": ', '.join(table_deps) if table_deps else 'None detected',
-                                    }
+                            context.log.info(f"Started Glue job {job_name}, run ID: {run_id}")
+                            if table_deps:
+                                context.log.info(f"Upstream tables: {', '.join(table_deps)}")
 
-                                    context.log.info(f"Observed Glue job {job_name}, latest run state: {latest_run.get('JobRunState')}")
-                                    return metadata
-                                else:
-                                    context.log.info(f"No runs found for Glue job {job_name}")
-                                    return {"job_name": job_name, "status": "No runs found"}
+                            # Wait for completion
+                            waiter = client.get_waiter('job_run_complete')
+                            waiter.wait(
+                                JobName=job_name,
+                                RunId=run_id,
+                                WaiterConfig={'Delay': 30, 'MaxAttempts': 120}
+                            )
 
-                            except Exception as e:
-                                context.log.warning(f"Could not get runs for Glue job {job_name}: {e}")
-                                return {"job_name": job_name, "error": str(e)}
+                            # Get run details
+                            run_info = client.get_job_run(JobName=job_name, RunId=run_id)
+                            job_run = run_info['JobRun']
+
+                            metadata = {
+                                "run_id": run_id,
+                                "job_run_state": job_run.get('JobRunState'),
+                                "execution_time": job_run.get('ExecutionTime'),
+                                "started_on": str(job_run.get('StartedOn')) if job_run.get('StartedOn') else None,
+                                "completed_on": str(job_run.get('CompletedOn')) if job_run.get('CompletedOn') else None,
+                                "upstream_tables": ', '.join(table_deps) if table_deps else 'None detected',
+                            }
+
+                            context.log.info(f"Glue job {job_name} completed with state: {job_run.get('JobRunState')}")
+
+                            return metadata
 
                         assets_list.append(_glue_job_asset)
 

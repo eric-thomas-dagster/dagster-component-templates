@@ -92,17 +92,7 @@ class AzureDataFactoryComponent(Component, Model, Resolvable):
 
     import_triggers: bool = Field(
         default=False,
-        description="Import triggers as materializable assets (start/stop)"
-    )
-
-    import_data_flows: bool = Field(
-        default=False,
-        description="Import data flows as observable assets"
-    )
-
-    import_integration_runtimes: bool = Field(
-        default=False,
-        description="Import integration runtimes as observable assets"
+        description="Import triggers as materializable assets (start)"
     )
 
     filter_by_name_pattern: Optional[str] = Field(
@@ -192,26 +182,6 @@ class AzureDataFactoryComponent(Component, Model, Resolvable):
             if self._matches_filters(trigger.name):
                 triggers.append(trigger.name)
         return triggers
-
-    def _list_data_flows(self, client: DataFactoryManagementClient) -> List[str]:
-        """List all data flows in the data factory."""
-        data_flows = []
-        for data_flow in client.data_flows.list_by_factory(
-            self.resource_group_name, self.factory_name
-        ):
-            if self._matches_filters(data_flow.name):
-                data_flows.append(data_flow.name)
-        return data_flows
-
-    def _list_integration_runtimes(self, client: DataFactoryManagementClient) -> List[str]:
-        """List all integration runtimes in the data factory."""
-        integration_runtimes = []
-        for ir in client.integration_runtimes.list_by_factory(
-            self.resource_group_name, self.factory_name
-        ):
-            if self._matches_filters(ir.name):
-                integration_runtimes.append(ir.name)
-        return integration_runtimes
 
     def _get_pipeline_assets(self, client: DataFactoryManagementClient) -> List:
         """Generate pipeline assets."""
@@ -344,93 +314,6 @@ class AzureDataFactoryComponent(Component, Model, Resolvable):
 
         return assets
 
-    def _get_data_flow_assets(self, client: DataFactoryManagementClient) -> List:
-        """Generate data flow observable assets."""
-        assets = []
-        data_flows = self._list_data_flows(client)
-
-        for data_flow_name in data_flows:
-            asset_key = f"adf_data_flow_{data_flow_name}"
-
-            @observable_source_asset(
-                name=asset_key,
-                group_name=self.group_name,
-                metadata={
-                    "data_flow_name": data_flow_name,
-                    "factory_name": self.factory_name,
-                    "resource_group": self.resource_group_name,
-                },
-            )
-            def data_flow_asset(context: AssetExecutionContext, data_flow_name=data_flow_name):
-                """Observe Azure Data Factory data flow."""
-                adf_client = self._get_client()
-
-                # Get data flow details
-                data_flow = adf_client.data_flows.get(
-                    self.resource_group_name,
-                    self.factory_name,
-                    data_flow_name,
-                )
-
-                metadata = {
-                    "data_flow_name": data_flow_name,
-                    "data_flow_type": data_flow.type,
-                    "description": data_flow.properties.description or "",
-                }
-
-                return metadata
-
-            assets.append(data_flow_asset)
-
-        return assets
-
-    def _get_integration_runtime_assets(self, client: DataFactoryManagementClient) -> List:
-        """Generate integration runtime observable assets."""
-        assets = []
-        integration_runtimes = self._list_integration_runtimes(client)
-
-        for ir_name in integration_runtimes:
-            asset_key = f"adf_integration_runtime_{ir_name}"
-
-            @observable_source_asset(
-                name=asset_key,
-                group_name=self.group_name,
-                metadata={
-                    "integration_runtime_name": ir_name,
-                    "factory_name": self.factory_name,
-                    "resource_group": self.resource_group_name,
-                },
-            )
-            def integration_runtime_asset(context: AssetExecutionContext, ir_name=ir_name):
-                """Observe Azure Data Factory integration runtime."""
-                adf_client = self._get_client()
-
-                # Get integration runtime details
-                ir = adf_client.integration_runtimes.get(
-                    self.resource_group_name,
-                    self.factory_name,
-                    ir_name,
-                )
-
-                # Get runtime status
-                status = adf_client.integration_runtimes.get_status(
-                    self.resource_group_name,
-                    self.factory_name,
-                    ir_name,
-                )
-
-                metadata = {
-                    "integration_runtime_name": ir_name,
-                    "type": ir.type,
-                    "state": status.properties.state if hasattr(status.properties, 'state') else "Unknown",
-                }
-
-                return metadata
-
-            assets.append(integration_runtime_asset)
-
-        return assets
-
     def _get_observation_sensor(self, client: DataFactoryManagementClient):
         """Generate sensor to observe pipeline runs and trigger runs."""
 
@@ -527,14 +410,6 @@ class AzureDataFactoryComponent(Component, Model, Resolvable):
         # Import triggers
         if self.import_triggers:
             assets.extend(self._get_trigger_assets(client))
-
-        # Import data flows
-        if self.import_data_flows:
-            assets.extend(self._get_data_flow_assets(client))
-
-        # Import integration runtimes
-        if self.import_integration_runtimes:
-            assets.extend(self._get_integration_runtime_assets(client))
 
         # Generate observation sensor
         if self.generate_sensor and (self.import_pipelines or self.import_triggers):

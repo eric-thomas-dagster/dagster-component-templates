@@ -1,7 +1,6 @@
 """AWS Database Migration Service (DMS) Component.
 
-Import AWS DMS replication tasks, endpoints, and replication instances
-as Dagster assets with automatic observation and orchestration.
+Import AWS DMS replication tasks as Dagster assets for database migrations and CDC.
 """
 
 import re
@@ -17,7 +16,6 @@ from dagster import (
     Definitions,
     AssetExecutionContext,
     asset,
-    observable_source_asset,
     sensor,
     SensorEvaluationContext,
     AssetMaterialization,
@@ -29,12 +27,10 @@ from pydantic import Field
 
 
 class AWSDMSComponent(Component, Model, Resolvable):
-    """Component for importing AWS DMS entities as Dagster assets.
+    """Component for importing AWS DMS replication tasks as Dagster assets.
 
     Supports importing:
     - Replication Tasks (CDC and migration tasks)
-    - Endpoints (source and target connections)
-    - Replication Instances (DMS instance health)
 
     Example:
         ```yaml
@@ -44,7 +40,6 @@ class AWSDMSComponent(Component, Model, Resolvable):
           aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
           aws_secret_access_key: "{{ env('AWS_SECRET_ACCESS_KEY') }}"
           import_replication_tasks: true
-          import_endpoints: true
         ```
     """
 
@@ -70,16 +65,6 @@ class AWSDMSComponent(Component, Model, Resolvable):
     import_replication_tasks: bool = Field(
         default=True,
         description="Import replication tasks as materializable assets"
-    )
-
-    import_endpoints: bool = Field(
-        default=False,
-        description="Import endpoints as observable assets"
-    )
-
-    import_replication_instances: bool = Field(
-        default=False,
-        description="Import replication instances as observable assets"
     )
 
     filter_by_name_pattern: Optional[str] = Field(
@@ -176,46 +161,6 @@ class AWSDMSComponent(Component, Model, Resolvable):
                     })
 
         return tasks
-
-    def _list_endpoints(self, client) -> List[Dict]:
-        """List all endpoints."""
-        endpoints = []
-        paginator = client.get_paginator("describe_endpoints")
-
-        for page in paginator.paginate():
-            for endpoint in page.get("Endpoints", []):
-                endpoint_name = endpoint.get("EndpointIdentifier", "")
-                tags = endpoint.get("Tags", [])
-
-                if self._matches_filters(endpoint_name, tags):
-                    endpoints.append({
-                        "arn": endpoint["EndpointArn"],
-                        "name": endpoint_name,
-                        "type": endpoint.get("EndpointType", "unknown"),
-                        "engine": endpoint.get("EngineName", "unknown"),
-                    })
-
-        return endpoints
-
-    def _list_replication_instances(self, client) -> List[Dict]:
-        """List all replication instances."""
-        instances = []
-        paginator = client.get_paginator("describe_replication_instances")
-
-        for page in paginator.paginate():
-            for instance in page.get("ReplicationInstances", []):
-                instance_name = instance.get("ReplicationInstanceIdentifier", "")
-                tags = instance.get("Tags", [])
-
-                if self._matches_filters(instance_name, tags):
-                    instances.append({
-                        "arn": instance["ReplicationInstanceArn"],
-                        "name": instance_name,
-                        "status": instance.get("ReplicationInstanceStatus", "unknown"),
-                        "class": instance.get("ReplicationInstanceClass", "unknown"),
-                    })
-
-        return instances
 
     def _get_replication_task_assets(self, client) -> List:
         """Generate replication task assets."""
@@ -325,121 +270,6 @@ class AWSDMSComponent(Component, Model, Resolvable):
 
         return assets
 
-    def _get_endpoint_assets(self, client) -> List:
-        """Generate endpoint observable assets."""
-        assets = []
-        endpoints = self._list_endpoints(client)
-
-        for endpoint_info in endpoints:
-            endpoint_name = endpoint_info["name"]
-            endpoint_arn = endpoint_info["arn"]
-            asset_key = f"dms_endpoint_{endpoint_name}"
-
-            @observable_source_asset(
-                name=asset_key,
-                group_name=self.group_name,
-                metadata={
-                    "endpoint_name": endpoint_name,
-                    "endpoint_arn": endpoint_arn,
-                    "endpoint_type": endpoint_info["type"],
-                    "engine": endpoint_info["engine"],
-                },
-            )
-            def endpoint_asset(
-                context: AssetExecutionContext,
-                endpoint_name=endpoint_name,
-                endpoint_arn=endpoint_arn,
-            ):
-                """Observe AWS DMS endpoint."""
-                dms_client = self._get_client()
-
-                # Get endpoint details
-                response = dms_client.describe_endpoints(
-                    Filters=[{"Name": "endpoint-arn", "Values": [endpoint_arn]}]
-                )
-
-                if not response["Endpoints"]:
-                    raise Exception(f"Endpoint {endpoint_name} not found")
-
-                endpoint = response["Endpoints"][0]
-
-                # Test endpoint connection
-                try:
-                    test_response = dms_client.test_connection(
-                        ReplicationInstanceArn=endpoint.get("ReplicationInstanceArn", ""),
-                        EndpointArn=endpoint_arn,
-                    )
-                    connection_status = test_response.get("Connection", {}).get("Status", "unknown")
-                except ClientError:
-                    connection_status = "not_tested"
-
-                metadata = {
-                    "endpoint_name": endpoint_name,
-                    "endpoint_type": endpoint["EndpointType"],
-                    "engine": endpoint["EngineName"],
-                    "status": endpoint.get("Status", "unknown"),
-                    "connection_status": connection_status,
-                }
-
-                return metadata
-
-            assets.append(endpoint_asset)
-
-        return assets
-
-    def _get_replication_instance_assets(self, client) -> List:
-        """Generate replication instance observable assets."""
-        assets = []
-        instances = self._list_replication_instances(client)
-
-        for instance_info in instances:
-            instance_name = instance_info["name"]
-            instance_arn = instance_info["arn"]
-            asset_key = f"dms_instance_{instance_name}"
-
-            @observable_source_asset(
-                name=asset_key,
-                group_name=self.group_name,
-                metadata={
-                    "instance_name": instance_name,
-                    "instance_arn": instance_arn,
-                    "instance_class": instance_info["class"],
-                },
-            )
-            def replication_instance_asset(
-                context: AssetExecutionContext,
-                instance_name=instance_name,
-                instance_arn=instance_arn,
-            ):
-                """Observe AWS DMS replication instance."""
-                dms_client = self._get_client()
-
-                # Get instance details
-                response = dms_client.describe_replication_instances(
-                    Filters=[{"Name": "replication-instance-arn", "Values": [instance_arn]}]
-                )
-
-                if not response["ReplicationInstances"]:
-                    raise Exception(f"Replication instance {instance_name} not found")
-
-                instance = response["ReplicationInstances"][0]
-
-                metadata = {
-                    "instance_name": instance_name,
-                    "status": instance["ReplicationInstanceStatus"],
-                    "instance_class": instance["ReplicationInstanceClass"],
-                    "engine_version": instance.get("EngineVersion", "unknown"),
-                    "allocated_storage": instance.get("AllocatedStorage", 0),
-                    "multi_az": instance.get("MultiAZ", False),
-                    "availability_zone": instance.get("AvailabilityZone", "unknown"),
-                }
-
-                return metadata
-
-            assets.append(replication_instance_asset)
-
-        return assets
-
     def _get_observation_sensor(self, client):
         """Generate sensor to observe replication task runs."""
 
@@ -514,14 +344,6 @@ class AWSDMSComponent(Component, Model, Resolvable):
         # Import replication tasks
         if self.import_replication_tasks:
             assets.extend(self._get_replication_task_assets(client))
-
-        # Import endpoints
-        if self.import_endpoints:
-            assets.extend(self._get_endpoint_assets(client))
-
-        # Import replication instances
-        if self.import_replication_instances:
-            assets.extend(self._get_replication_instance_assets(client))
 
         # Generate observation sensor
         if self.generate_sensor and self.import_replication_tasks:

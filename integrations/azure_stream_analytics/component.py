@@ -77,16 +77,6 @@ class AzureStreamAnalyticsComponent(Component, Model, Resolvable):
         description="Import streaming jobs as materializable assets"
     )
 
-    import_inputs: bool = Field(
-        default=False,
-        description="Import inputs as observable assets"
-    )
-
-    import_outputs: bool = Field(
-        default=False,
-        description="Import outputs as observable assets"
-    )
-
     filter_by_name_pattern: Optional[str] = Field(
         default=None,
         description="Regex pattern to filter entities by name"
@@ -260,114 +250,6 @@ class AzureStreamAnalyticsComponent(Component, Model, Resolvable):
 
         return assets
 
-    def _get_input_assets(self, client: StreamAnalyticsManagementClient) -> List:
-        """Generate input observable assets."""
-        assets = []
-        jobs = self._list_streaming_jobs(client)
-
-        for job_info in jobs:
-            job_name = job_info["name"]
-
-            # Get inputs for this job
-            for input_obj in client.inputs.list_by_streaming_job(
-                self.resource_group_name,
-                job_name,
-            ):
-                if not self._matches_filters(input_obj.name):
-                    continue
-
-                input_name = input_obj.name
-                asset_key = f"asa_input_{job_name}_{input_name}"
-
-                @observable_source_asset(
-                    name=asset_key,
-                    group_name=self.group_name,
-                    metadata={
-                        "job_name": job_name,
-                        "input_name": input_name,
-                    },
-                )
-                def input_asset(
-                    context: AssetExecutionContext,
-                    job_name=job_name,
-                    input_name=input_name,
-                ):
-                    """Observe Azure Stream Analytics input."""
-                    asa_client = self._get_client()
-
-                    # Get input details
-                    input_obj = asa_client.inputs.get(
-                        self.resource_group_name,
-                        job_name,
-                        input_name,
-                    )
-
-                    metadata = {
-                        "job_name": job_name,
-                        "input_name": input_name,
-                        "type": input_obj.type,
-                    }
-
-                    return metadata
-
-                assets.append(input_asset)
-
-        return assets
-
-    def _get_output_assets(self, client: StreamAnalyticsManagementClient) -> List:
-        """Generate output observable assets."""
-        assets = []
-        jobs = self._list_streaming_jobs(client)
-
-        for job_info in jobs:
-            job_name = job_info["name"]
-
-            # Get outputs for this job
-            for output_obj in client.outputs.list_by_streaming_job(
-                self.resource_group_name,
-                job_name,
-            ):
-                if not self._matches_filters(output_obj.name):
-                    continue
-
-                output_name = output_obj.name
-                asset_key = f"asa_output_{job_name}_{output_name}"
-
-                @observable_source_asset(
-                    name=asset_key,
-                    group_name=self.group_name,
-                    metadata={
-                        "job_name": job_name,
-                        "output_name": output_name,
-                    },
-                )
-                def output_asset(
-                    context: AssetExecutionContext,
-                    job_name=job_name,
-                    output_name=output_name,
-                ):
-                    """Observe Azure Stream Analytics output."""
-                    asa_client = self._get_client()
-
-                    # Get output details
-                    output_obj = asa_client.outputs.get(
-                        self.resource_group_name,
-                        job_name,
-                        output_name,
-                    )
-
-                    metadata = {
-                        "job_name": job_name,
-                        "output_name": output_name,
-                        "type": output_obj.type,
-                    }
-
-                    return metadata
-
-                assets.append(output_asset)
-
-        return assets
-
     def _get_observation_sensor(self, client: StreamAnalyticsManagementClient):
         """Generate sensor to observe streaming job status."""
 
@@ -424,14 +306,6 @@ class AzureStreamAnalyticsComponent(Component, Model, Resolvable):
         # Import streaming jobs
         if self.import_streaming_jobs:
             assets.extend(self._get_streaming_job_assets(client))
-
-        # Import inputs
-        if self.import_inputs:
-            assets.extend(self._get_input_assets(client))
-
-        # Import outputs
-        if self.import_outputs:
-            assets.extend(self._get_output_assets(client))
 
         # Generate observation sensor
         if self.generate_sensor and self.import_streaming_jobs:

@@ -87,11 +87,6 @@ class AzureSynapseComponent(Component, Model, Resolvable):
         description="Import pipelines as materializable assets"
     )
 
-    import_sql_pools: bool = Field(
-        default=False,
-        description="Import SQL pools as materializable assets (pause/resume)"
-    )
-
     import_spark_jobs: bool = Field(
         default=False,
         description="Import Spark job definitions as materializable assets"
@@ -186,20 +181,6 @@ class AzureSynapseComponent(Component, Model, Resolvable):
                 pipelines.append(pipeline.name)
         return pipelines
 
-    def _list_sql_pools(self, client: SynapseManagementClient) -> List[Dict]:
-        """List all SQL pools."""
-        pools = []
-        for pool in client.sql_pools.list_by_workspace(
-            self.resource_group_name, self.workspace_name
-        ):
-            if self._matches_filters(pool.name, pool.tags):
-                pools.append({
-                    "name": pool.name,
-                    "status": pool.status,
-                    "sku": pool.sku.name if pool.sku else "unknown",
-                })
-        return pools
-
     def _list_spark_jobs(self, client: ArtifactsClient) -> List[str]:
         """List all Spark job definitions."""
         jobs = []
@@ -285,78 +266,6 @@ class AzureSynapseComponent(Component, Model, Resolvable):
                 }
 
             assets.append(pipeline_asset)
-
-        return assets
-
-    def _get_sql_pool_assets(self, client: SynapseManagementClient) -> List:
-        """Generate SQL pool assets."""
-        assets = []
-        pools = self._list_sql_pools(client)
-
-        for pool_info in pools:
-            pool_name = pool_info["name"]
-            asset_key = f"synapse_sql_pool_{pool_name}"
-
-            @asset(
-                name=asset_key,
-                group_name=self.group_name,
-                metadata={
-                    "pool_name": pool_name,
-                    "workspace_name": self.workspace_name,
-                    "sku": pool_info["sku"],
-                },
-            )
-            def sql_pool_asset(context: AssetExecutionContext, pool_name=pool_name):
-                """Resume Azure Synapse SQL pool."""
-                mgmt_client = self._get_management_client()
-
-                # Get current pool status
-                pool = mgmt_client.sql_pools.get(
-                    self.resource_group_name,
-                    self.workspace_name,
-                    pool_name,
-                )
-
-                context.log.info(f"Current pool status: {pool.status}")
-
-                # Resume pool if paused
-                if pool.status == "Paused":
-                    context.log.info(f"Resuming SQL pool: {pool_name}")
-
-                    mgmt_client.sql_pools.begin_resume(
-                        self.resource_group_name,
-                        self.workspace_name,
-                        pool_name,
-                    ).result()
-
-                    context.log.info(f"SQL pool {pool_name} resumed")
-
-                    # Wait for pool to be online
-                    max_wait = 300  # 5 minutes
-                    elapsed = 0
-                    poll_interval = 15
-
-                    while elapsed < max_wait:
-                        time.sleep(poll_interval)
-                        elapsed += poll_interval
-
-                        pool = mgmt_client.sql_pools.get(
-                            self.resource_group_name,
-                            self.workspace_name,
-                            pool_name,
-                        )
-
-                        if pool.status == "Online":
-                            break
-
-                return {
-                    "pool_name": pool_name,
-                    "status": pool.status,
-                    "sku": pool.sku.name if pool.sku else "unknown",
-                    "provisioning_state": pool.provisioning_state,
-                }
-
-            assets.append(sql_pool_asset)
 
         return assets
 
@@ -514,10 +423,6 @@ class AzureSynapseComponent(Component, Model, Resolvable):
         # Import pipelines
         if self.import_pipelines:
             assets.extend(self._get_pipeline_assets(artifacts_client))
-
-        # Import SQL pools
-        if self.import_sql_pools:
-            assets.extend(self._get_sql_pool_assets(mgmt_client))
 
         # Import Spark jobs
         if self.import_spark_jobs:

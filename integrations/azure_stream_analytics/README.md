@@ -4,9 +4,7 @@ Import Azure Stream Analytics entities as Dagster assets for orchestrating real-
 
 ## Features
 
-- **Streaming Jobs**: Start/stop real-time analytics jobs
-- **Inputs**: Observe input sources (Event Hubs, IoT Hub, Blob Storage)
-- **Outputs**: Observe output destinations (SQL Database, Blob Storage, Power BI)
+- **Streaming Jobs**: Start real-time analytics jobs
 - **Observation Sensor**: Monitor job status and health
 
 ## Configuration
@@ -33,10 +31,8 @@ attributes:
   client_id: "{{ env('AZURE_CLIENT_ID') }}"
   client_secret: "{{ env('AZURE_CLIENT_SECRET') }}"
 
-  # Import all entity types
+  # Import streaming jobs
   import_streaming_jobs: true
-  import_inputs: true
-  import_outputs: true
 
   # Filtering
   filter_by_name_pattern: ^prod_.*
@@ -59,18 +55,6 @@ attributes:
 - Track last output event time
 - Support for Standard and Premium SKUs
 
-### Inputs (Observable)
-- Monitor input sources
-- Support for Event Hubs, IoT Hub, Blob Storage
-- Track input types and configurations
-- Observe data ingestion points
-
-### Outputs (Observable)
-- Monitor output destinations
-- Support for SQL Database, Blob Storage, Power BI, Event Hubs
-- Track output types and configurations
-- Observe data delivery points
-
 ## Authentication
 
 Three authentication options:
@@ -86,9 +70,6 @@ Required Azure RBAC permissions:
 ### Stream Analytics Operations
 - Microsoft.StreamAnalytics/streamingjobs/read
 - Microsoft.StreamAnalytics/streamingjobs/start/action
-- Microsoft.StreamAnalytics/streamingjobs/stop/action
-- Microsoft.StreamAnalytics/streamingjobs/inputs/read
-- Microsoft.StreamAnalytics/streamingjobs/outputs/read
 
 ## Use Cases
 

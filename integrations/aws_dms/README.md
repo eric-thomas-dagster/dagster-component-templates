@@ -4,9 +4,7 @@ Import AWS DMS entities as Dagster assets for orchestrating database migrations 
 
 ## Features
 
-- **Replication Tasks**: Start/stop migration and CDC tasks
-- **Endpoints**: Observe source and target database connections
-- **Replication Instances**: Monitor DMS instance health
+- **Replication Tasks**: Start migration and CDC tasks
 - **CDC Support**: Track CDC latency and replication lag
 - **Observation Sensor**: Monitor task progress and completion
 
@@ -30,10 +28,8 @@ attributes:
   aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
   aws_secret_access_key: "{{ env('AWS_SECRET_ACCESS_KEY') }}"
 
-  # Import all entity types
+  # Import replication tasks
   import_replication_tasks: true
-  import_endpoints: true
-  import_replication_instances: true
 
   # Filtering
   filter_by_name_pattern: ^prod_.*
@@ -63,20 +59,6 @@ attributes:
 - Track full load progress and CDC latency
 - Support for full-load, full-load-and-cdc, and cdc migration types
 
-### Endpoints (Observable)
-- Monitor source and target database connections
-- Track endpoint status and connection health
-- Support for multiple database engines:
-  - MySQL, PostgreSQL, Oracle, SQL Server
-  - MongoDB, DynamoDB, S3, Redshift
-  - Aurora, MariaDB, SAP ASE, and more
-
-### Replication Instances (Observable)
-- Monitor DMS instance health and status
-- Track instance class and allocated storage
-- Observe Multi-AZ configuration
-- Monitor engine version
-
 ## Authentication
 
 Three authentication options:
@@ -92,14 +74,6 @@ Required IAM permissions:
 ### Replication Task Operations
 - `dms:DescribeReplicationTasks` - List and describe tasks
 - `dms:StartReplicationTask` - Start migration/CDC tasks
-- `dms:StopReplicationTask` - Stop running tasks
-
-### Endpoint Operations
-- `dms:DescribeEndpoints` - List and describe endpoints
-- `dms:TestConnection` - Test endpoint connectivity
-
-### Replication Instance Operations
-- `dms:DescribeReplicationInstances` - List and describe instances
 
 ### Monitoring
 - `cloudwatch:GetMetricStatistics` - Access CloudWatch metrics
@@ -137,9 +111,6 @@ The component tracks key CDC metrics:
 ## Limitations
 
 - Task start waits up to 10 minutes for running state
-- Endpoint connection testing requires replication instance ARN
-- Hard limit of 100 endpoints per replication instance
-- Hard limit of 1000 endpoints per AWS account
 - Task logs retained for 24 hours by default
 - Single-threaded task execution (limited parallelism)
 

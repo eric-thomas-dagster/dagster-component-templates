@@ -5,7 +5,6 @@ Import Azure Synapse Analytics entities as Dagster assets for comprehensive data
 ## Features
 
 - **Pipelines**: Trigger Synapse pipeline runs (unified with ADF)
-- **SQL Pools**: Pause/resume dedicated SQL pools for cost management
 - **Spark Jobs**: Submit Spark job definitions
 - **Notebooks**: Execute Synapse notebooks
 - **Observation Sensor**: Track pipeline runs and completion
@@ -36,9 +35,8 @@ attributes:
   client_id: "{{ env('AZURE_CLIENT_ID') }}"
   client_secret: "{{ env('AZURE_CLIENT_SECRET') }}"
 
-  # Import all entity types
+  # Import entity types
   import_pipelines: true
-  import_sql_pools: true
   import_spark_jobs: true
   import_notebooks: true
 
@@ -52,7 +50,7 @@ attributes:
   poll_interval_seconds: 60
 
   group_name: synapse_workspace
-  description: Complete Synapse Analytics integration
+  description: Synapse Analytics pipeline and Spark orchestration
 ```
 
 ## Entity Types
@@ -62,12 +60,6 @@ attributes:
 - Wait for pipeline completion
 - Support for data movement, transformation, and orchestration activities
 - Observation sensor tracks automatic runs
-
-### SQL Pools (Materializable)
-- Resume dedicated SQL pools from paused state
-- Automatic cost management (pause idle pools)
-- Wait for pool to reach online state
-- Monitor pool status and provisioning state
 
 ### Spark Jobs (Materializable)
 - Submit Spark job definitions
@@ -96,9 +88,6 @@ Required Azure RBAC roles and permissions:
 ### Synapse Administrator Role
 - Synapse/workspaces/pipelines/read
 - Synapse/workspaces/pipelines/createRun/action
-- Synapse/workspaces/sqlPools/read
-- Synapse/workspaces/sqlPools/pause/action
-- Synapse/workspaces/sqlPools/resume/action
 - Synapse/workspaces/sparkJobDefinitions/read
 - Synapse/workspaces/notebooks/read
 - Synapse/workspaces/pipelineRuns/read
@@ -110,21 +99,14 @@ Provides broader permissions for resource management.
 
 ### Data Warehouse Orchestration
 - Trigger ELT pipelines for data warehouse loads
-- Coordinate SQL pool resume before processing
-- Pause pools after ETL completion
 - Monitor pipeline performance
+- Coordinate data processing workflows
 
 ### Spark Analytics
 - Submit Spark jobs for big data processing
 - Execute ML training workflows
 - Process large-scale transformations
 - Coordinate batch analytics
-
-### Cost Optimization
-- Automatically pause idle SQL pools
-- Resume pools only when needed
-- Schedule pool operations
-- Track compute usage
 
 ### Unified Analytics
 - Combine SQL and Spark workloads
@@ -134,13 +116,12 @@ Provides broader permissions for resource management.
 
 ## Best Practices
 
-1. Use pause/resume for dedicated SQL pools to manage costs
-2. Configure auto-pause for Spark pools (idle timeout)
-3. Use pipelines to coordinate multi-step workflows
-4. Apply name patterns to filter production resources
-5. Use DefaultAzureCredential with Managed Identity
-6. Monitor pipeline runs for failures and retries
-7. Combine SQL pools and Spark pools for hybrid workloads
+1. Configure auto-pause for Spark pools (idle timeout)
+2. Use pipelines to coordinate multi-step workflows
+3. Apply name patterns to filter production resources
+4. Use DefaultAzureCredential with Managed Identity
+5. Monitor pipeline runs for failures and retries
+6. Combine SQL and Spark workloads for unified analytics
 
 ## Resources
 

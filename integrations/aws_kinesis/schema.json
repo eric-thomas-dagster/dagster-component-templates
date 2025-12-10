@@ -1,14 +1,14 @@
 {
-  "type": "dagster_component_templates.AWSDMSComponent",
-  "name": "AWS Database Migration Service",
-  "category": "ingestion",
-  "description": "Import AWS DMS replication tasks and Zero ETL integrations. Orchestrate database migrations, CDC replication, and continuous data integration.",
+  "type": "dagster_component_templates.AWSKinesisComponent",
+  "name": "AWS Kinesis",
+  "category": "streaming",
+  "description": "Import AWS Kinesis Firehose delivery streams and Data Analytics applications for real-time data delivery and stream processing.",
   "version": "1.0.0",
   "author": "Dagster Community",
-  "icon": "Database",
+  "icon": "Activity",
   "x-dagster-io": {
     "inputs": {"type": "none", "required": false},
-    "outputs": {"type": "multiple", "description": "Generates assets for each DMS entity"},
+    "outputs": {"type": "multiple", "description": "Generates assets for each Kinesis entity"},
     "supports_partitions": false
   },
   "attributes": {
@@ -16,17 +16,16 @@
     "aws_access_key_id": {"type": "string", "required": false, "label": "Access Key ID", "description": "AWS access key ID (optional if using IAM role)", "placeholder": "{{ env('AWS_ACCESS_KEY_ID') }}", "secret": true},
     "aws_secret_access_key": {"type": "string", "required": false, "label": "Secret Access Key", "description": "AWS secret access key (optional if using IAM role)", "placeholder": "{{ env('AWS_SECRET_ACCESS_KEY') }}", "secret": true},
     "aws_session_token": {"type": "string", "required": false, "label": "Session Token", "description": "AWS session token for temporary credentials (optional)", "placeholder": "{{ env('AWS_SESSION_TOKEN') }}", "secret": true},
-    "import_replication_tasks": {"type": "boolean", "required": false, "label": "Import Replication Tasks", "description": "Import replication tasks as materializable assets", "default": true},
-    "import_zero_etl_integrations": {"type": "boolean", "required": false, "label": "Import Zero ETL Integrations", "description": "Import Zero ETL integrations (Aurora/RDS to Redshift, DynamoDB to OpenSearch) as observable assets", "default": false},
+    "import_firehose_streams": {"type": "boolean", "required": false, "label": "Import Firehose Streams", "description": "Import Firehose delivery streams as materializable assets", "default": true},
+    "import_analytics_applications": {"type": "boolean", "required": false, "label": "Import Analytics Applications", "description": "Import Data Analytics applications as materializable assets", "default": true},
     "filter_by_name_pattern": {"type": "string", "required": false, "label": "Filter by Name Pattern", "description": "Regex pattern to filter entities", "placeholder": "^prod_.*"},
     "exclude_name_pattern": {"type": "string", "required": false, "label": "Exclude Name Pattern", "description": "Regex pattern to exclude entities", "placeholder": "test|dev"},
     "filter_by_tags": {"type": "string", "required": false, "label": "Filter by Tags", "description": "Comma-separated tag keys to filter entities", "placeholder": "env,team"},
-    "replication_task_type": {"type": "string", "required": false, "label": "Task Start Type", "description": "Replication task start type", "default": "start-replication", "enum": ["start-replication", "resume-processing", "reload-target"]},
     "poll_interval_seconds": {"type": "number", "required": false, "label": "Sensor Poll Interval", "description": "Sensor poll interval in seconds", "default": 60, "minimum": 10},
-    "generate_sensor": {"type": "boolean", "required": false, "label": "Generate Observation Sensor", "description": "Create sensor to observe replication task runs", "default": true},
-    "group_name": {"type": "string", "required": false, "label": "Asset Group", "description": "Group name for all imported assets", "default": "aws_dms"},
-    "description": {"type": "string", "required": false, "label": "Description", "description": "Description for the AWS DMS component"}
+    "generate_sensor": {"type": "boolean", "required": false, "label": "Generate Observation Sensor", "description": "Create sensor to observe delivery streams and analytics applications", "default": true},
+    "group_name": {"type": "string", "required": false, "label": "Asset Group", "description": "Group name for all imported assets", "default": "aws_kinesis"},
+    "description": {"type": "string", "required": false, "label": "Description", "description": "Description for the AWS Kinesis component"}
   },
   "dependencies": {"pip": ["boto3>=1.28.0", "dagster>=1.6.0"]},
-  "tags": ["ingestion", "aws", "dms", "migration", "cdc", "database", "zero-etl", "replication"]
+  "tags": ["streaming", "aws", "kinesis", "firehose", "analytics", "real-time"]
 }

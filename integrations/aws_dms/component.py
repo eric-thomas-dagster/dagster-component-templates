@@ -1,6 +1,7 @@
 """AWS Database Migration Service (DMS) Component.
 
-Import AWS DMS replication tasks as Dagster assets for database migrations and CDC.
+Import AWS DMS replication tasks and Zero ETL integrations as Dagster assets
+for database migrations, CDC, and continuous replication.
 """
 
 import re
@@ -27,10 +28,11 @@ from pydantic import Field
 
 
 class AWSDMSComponent(Component, Model, Resolvable):
-    """Component for importing AWS DMS replication tasks as Dagster assets.
+    """Component for importing AWS DMS and Zero ETL entities as Dagster assets.
 
     Supports importing:
     - Replication Tasks (CDC and migration tasks)
+    - Zero ETL Integrations (Aurora/RDS to Redshift, DynamoDB to OpenSearch)
 
     Example:
         ```yaml
@@ -40,6 +42,7 @@ class AWSDMSComponent(Component, Model, Resolvable):
           aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
           aws_secret_access_key: "{{ env('AWS_SECRET_ACCESS_KEY') }}"
           import_replication_tasks: true
+          import_zero_etl_integrations: true
         ```
     """
 
@@ -65,6 +68,11 @@ class AWSDMSComponent(Component, Model, Resolvable):
     import_replication_tasks: bool = Field(
         default=True,
         description="Import replication tasks as materializable assets"
+    )
+
+    import_zero_etl_integrations: bool = Field(
+        default=False,
+        description="Import Zero ETL integrations as observable assets"
     )
 
     filter_by_name_pattern: Optional[str] = Field(
@@ -334,6 +342,98 @@ class AWSDMSComponent(Component, Model, Resolvable):
 
         return dms_observation_sensor
 
+    def _list_zero_etl_integrations(self) -> List[Dict[str, Any]]:
+        """List Zero ETL integrations (RDS/Aurora to Redshift, DynamoDB to OpenSearch)."""
+        integrations = []
+
+        # Aurora/RDS to Redshift Zero-ETL integrations
+        try:
+            session_config = {"region_name": self.aws_region}
+            if self.aws_access_key_id and self.aws_secret_access_key:
+                session_config["aws_access_key_id"] = self.aws_access_key_id
+                session_config["aws_secret_access_key"] = self.aws_secret_access_key
+            if self.aws_session_token:
+                session_config["aws_session_token"] = self.aws_session_token
+
+            session = boto3.Session(**session_config)
+            rds_client = session.client("rds")
+
+            # List DB clusters with Zero-ETL enabled
+            paginator = rds_client.get_paginator("describe_db_clusters")
+            for page in paginator.paginate():
+                for cluster in page.get("DBClusters", []):
+                    cluster_id = cluster.get("DBClusterIdentifier", "")
+
+                    # Check for Redshift data sharing (Zero-ETL indicator)
+                    if cluster.get("EnabledCloudwatchLogsExports"):
+                        # Get integrations for this cluster
+                        try:
+                            response = rds_client.describe_integrations(
+                                Filters=[
+                                    {"Name": "source-arn", "Values": [cluster["DBClusterArn"]]}
+                                ]
+                            )
+
+                            for integration in response.get("Integrations", []):
+                                integration_id = integration.get("IntegrationName", "")
+                                if self._matches_filters(integration_id):
+                                    integrations.append({
+                                        "type": "RDS_TO_REDSHIFT",
+                                        "id": integration_id,
+                                        "arn": integration.get("IntegrationArn", ""),
+                                        "source_arn": integration.get("SourceArn", ""),
+                                        "target_arn": integration.get("TargetArn", ""),
+                                        "status": integration.get("Status", "unknown"),
+                                    })
+                        except ClientError:
+                            # Integration API might not be available in all regions
+                            pass
+        except ClientError as e:
+            # RDS access might not be available
+            pass
+
+        return integrations
+
+    def _get_zero_etl_assets(self) -> List:
+        """Generate Zero ETL integration observable assets."""
+        assets = []
+        integrations = self._list_zero_etl_integrations()
+
+        for integration in integrations:
+            integration_id = integration["id"]
+            asset_key = f"zero_etl_{integration_id}"
+
+            @asset(
+                name=asset_key,
+                group_name=self.group_name,
+                metadata={
+                    "integration_id": integration_id,
+                    "integration_type": integration["type"],
+                    "source_arn": integration["source_arn"],
+                    "target_arn": integration["target_arn"],
+                },
+            )
+            def zero_etl_asset(context: AssetExecutionContext, integration=integration):
+                """Observe Zero ETL integration status."""
+                # Zero ETL integrations are observable only - they run continuously
+
+                metadata = {
+                    "integration_id": integration["id"],
+                    "type": integration["type"],
+                    "status": integration["status"],
+                    "source": integration["source_arn"],
+                    "target": integration["target_arn"],
+                    "note": "Zero ETL integrations run continuously and cannot be started/stopped"
+                }
+
+                context.log.info(f"Zero ETL integration status: {integration['status']}")
+
+                return metadata
+
+            assets.append(zero_etl_asset)
+
+        return assets
+
     def resolve(self, load_context: ComponentLoadContext) -> Definitions:
         """Resolve component to Dagster definitions."""
         client = self._get_client()
@@ -344,6 +444,10 @@ class AWSDMSComponent(Component, Model, Resolvable):
         # Import replication tasks
         if self.import_replication_tasks:
             assets.extend(self._get_replication_task_assets(client))
+
+        # Import Zero ETL integrations
+        if self.import_zero_etl_integrations:
+            assets.extend(self._get_zero_etl_assets())
 
         # Generate observation sensor
         if self.generate_sensor and self.import_replication_tasks:

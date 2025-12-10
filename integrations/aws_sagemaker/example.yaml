@@ -1,0 +1,22 @@
+type: dagster_component_templates.AWSSageMakerComponent
+attributes:
+  aws_region: us-east-1
+  aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
+  aws_secret_access_key: "{{ env('AWS_SECRET_ACCESS_KEY') }}"
+
+  # Import entity types
+  import_training_jobs: true
+  import_transform_jobs: true
+  import_processing_jobs: true
+  import_pipelines: true
+
+  # Filtering
+  filter_by_name_pattern: ^prod_.*
+  exclude_name_pattern: test|dev
+
+  # Sensor configuration
+  generate_sensor: true
+  poll_interval_seconds: 60
+
+  group_name: sagemaker_prod
+  description: Production SageMaker ML workflows

@@ -1,0 +1,23 @@
+type: dagster_component_templates.AWSRedshiftComponent
+attributes:
+  aws_region: us-east-1
+  cluster_identifier: my-redshift-cluster
+  database: analytics_db
+  db_user: admin
+  # Or use Secrets Manager:
+  # secret_arn: "{{ env('REDSHIFT_SECRET_ARN') }}"
+
+  # Import entity types
+  import_scheduled_queries: true
+  import_stored_procedures: true
+  import_materialized_views: true
+
+  # Schema configuration
+  schema_name: public
+
+  # Filtering
+  filter_by_name_pattern: ^prod_.*
+  exclude_name_pattern: test|dev
+
+  group_name: redshift_prod
+  description: Production Redshift data warehouse operations

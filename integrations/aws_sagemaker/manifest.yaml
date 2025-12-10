@@ -1,0 +1,3 @@
+component_type: dagster_component_templates.AWSSageMakerComponent
+name: AWS SageMaker
+description: Import AWS SageMaker training jobs, transform jobs, processing jobs, and pipelines

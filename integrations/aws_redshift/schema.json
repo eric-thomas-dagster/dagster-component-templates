@@ -1,0 +1,34 @@
+{
+  "type": "dagster_component_templates.AWSRedshiftComponent",
+  "name": "AWS Redshift",
+  "category": "data-warehouse",
+  "description": "Import AWS Redshift scheduled queries, stored procedures, and materialized views for data warehouse orchestration.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Database",
+  "x-dagster-io": {
+    "inputs": {"type": "none", "required": false},
+    "outputs": {"type": "multiple", "description": "Generates assets for each Redshift entity"},
+    "supports_partitions": false
+  },
+  "attributes": {
+    "aws_region": {"type": "string", "required": true, "label": "AWS Region", "description": "AWS region", "placeholder": "us-east-1"},
+    "cluster_identifier": {"type": "string", "required": true, "label": "Cluster Identifier", "description": "Redshift cluster identifier", "placeholder": "my-redshift-cluster"},
+    "database": {"type": "string", "required": true, "label": "Database", "description": "Redshift database name", "placeholder": "analytics_db"},
+    "db_user": {"type": "string", "required": false, "label": "Database User", "description": "Database user (optional if using IAM authentication)", "placeholder": "admin"},
+    "secret_arn": {"type": "string", "required": false, "label": "Secret ARN", "description": "AWS Secrets Manager ARN for database credentials (optional)", "placeholder": "{{ env('REDSHIFT_SECRET_ARN') }}", "secret": true},
+    "aws_access_key_id": {"type": "string", "required": false, "label": "Access Key ID", "description": "AWS access key ID (optional if using IAM role)", "placeholder": "{{ env('AWS_ACCESS_KEY_ID') }}", "secret": true},
+    "aws_secret_access_key": {"type": "string", "required": false, "label": "Secret Access Key", "description": "AWS secret access key (optional if using IAM role)", "placeholder": "{{ env('AWS_SECRET_ACCESS_KEY') }}", "secret": true},
+    "aws_session_token": {"type": "string", "required": false, "label": "Session Token", "description": "AWS session token for temporary credentials (optional)", "placeholder": "{{ env('AWS_SESSION_TOKEN') }}", "secret": true},
+    "import_scheduled_queries": {"type": "boolean", "required": false, "label": "Import Scheduled Queries", "description": "Import scheduled queries as materializable assets", "default": true},
+    "import_stored_procedures": {"type": "boolean", "required": false, "label": "Import Stored Procedures", "description": "Import stored procedures as materializable assets", "default": true},
+    "import_materialized_views": {"type": "boolean", "required": false, "label": "Import Materialized Views", "description": "Import materialized views as materializable assets", "default": true},
+    "schema_name": {"type": "string", "required": false, "label": "Schema Name", "description": "Schema name to query for procedures and views", "default": "public", "placeholder": "public"},
+    "filter_by_name_pattern": {"type": "string", "required": false, "label": "Filter by Name Pattern", "description": "Regex pattern to filter entities", "placeholder": "^prod_.*"},
+    "exclude_name_pattern": {"type": "string", "required": false, "label": "Exclude Name Pattern", "description": "Regex pattern to exclude entities", "placeholder": "test|dev"},
+    "group_name": {"type": "string", "required": false, "label": "Asset Group", "description": "Group name for all imported assets", "default": "aws_redshift"},
+    "description": {"type": "string", "required": false, "label": "Description", "description": "Description for the AWS Redshift component"}
+  },
+  "dependencies": {"pip": ["boto3>=1.28.0", "dagster>=1.6.0"]},
+  "tags": ["data-warehouse", "aws", "redshift", "sql", "analytics"]
+}

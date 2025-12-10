@@ -1,0 +1,3 @@
+component_type: dagster_component_templates.AWSRedshiftComponent
+name: AWS Redshift
+description: Import AWS Redshift scheduled queries, stored procedures, and materialized views

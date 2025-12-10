@@ -1,0 +1,35 @@
+{
+  "type": "dagster_component_templates.AzureSynapseComponent",
+  "name": "Azure Synapse Analytics",
+  "category": "orchestration",
+  "description": "Import Azure Synapse pipelines, SQL pools, Spark jobs, and notebooks. Comprehensive orchestration for Synapse workloads.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Cloud",
+  "x-dagster-io": {
+    "inputs": {"type": "none", "required": false},
+    "outputs": {"type": "multiple", "description": "Generates assets for each Synapse entity"},
+    "supports_partitions": false
+  },
+  "attributes": {
+    "subscription_id": {"type": "string", "required": true, "label": "Subscription ID", "description": "Azure subscription ID", "placeholder": "12345678-1234-1234-1234-123456789012"},
+    "resource_group_name": {"type": "string", "required": true, "label": "Resource Group", "description": "Azure resource group name", "placeholder": "my-resource-group"},
+    "workspace_name": {"type": "string", "required": true, "label": "Workspace Name", "description": "Azure Synapse workspace name", "placeholder": "my-synapse-workspace"},
+    "tenant_id": {"type": "string", "required": false, "label": "Tenant ID", "description": "Azure AD tenant ID (optional)", "placeholder": "{{ env('AZURE_TENANT_ID') }}", "secret": true},
+    "client_id": {"type": "string", "required": false, "label": "Client ID", "description": "Azure AD client/application ID (optional)", "placeholder": "{{ env('AZURE_CLIENT_ID') }}", "secret": true},
+    "client_secret": {"type": "string", "required": false, "label": "Client Secret", "description": "Azure AD client secret (optional)", "placeholder": "{{ env('AZURE_CLIENT_SECRET') }}", "secret": true},
+    "import_pipelines": {"type": "boolean", "required": false, "label": "Import Pipelines", "description": "Import pipelines as materializable assets", "default": true},
+    "import_sql_pools": {"type": "boolean", "required": false, "label": "Import SQL Pools", "description": "Import SQL pools as materializable assets (pause/resume)", "default": false},
+    "import_spark_jobs": {"type": "boolean", "required": false, "label": "Import Spark Jobs", "description": "Import Spark job definitions as materializable assets", "default": false},
+    "import_notebooks": {"type": "boolean", "required": false, "label": "Import Notebooks", "description": "Import notebooks as materializable assets", "default": false},
+    "filter_by_name_pattern": {"type": "string", "required": false, "label": "Filter by Name Pattern", "description": "Regex pattern to filter entities", "placeholder": "^prod_.*"},
+    "exclude_name_pattern": {"type": "string", "required": false, "label": "Exclude Name Pattern", "description": "Regex pattern to exclude entities", "placeholder": "test|dev"},
+    "filter_by_tags": {"type": "string", "required": false, "label": "Filter by Tags", "description": "Comma-separated tag keys to filter entities", "placeholder": "env,team"},
+    "poll_interval_seconds": {"type": "number", "required": false, "label": "Sensor Poll Interval", "description": "Sensor poll interval in seconds", "default": 60, "minimum": 10},
+    "generate_sensor": {"type": "boolean", "required": false, "label": "Generate Observation Sensor", "description": "Create sensor to observe pipeline runs", "default": true},
+    "group_name": {"type": "string", "required": false, "label": "Asset Group", "description": "Group name for all imported assets", "default": "azure_synapse"},
+    "description": {"type": "string", "required": false, "label": "Description", "description": "Description for the Azure Synapse component"}
+  },
+  "dependencies": {"pip": ["azure-identity>=1.12.0", "azure-mgmt-synapse>=2.0.0", "azure-synapse-artifacts>=0.17.0", "dagster>=1.6.0"]},
+  "tags": ["orchestration", "azure", "synapse", "data-warehouse", "spark", "pipelines"]
+}

@@ -1,0 +1,5 @@
+name: Azure Synapse Analytics
+description: Comprehensive Azure Synapse Analytics integration - orchestrate pipelines, SQL pools, Spark jobs, and notebooks. Unified analytics platform.
+category: orchestration
+version: 1.0.0
+author: Dagster Community

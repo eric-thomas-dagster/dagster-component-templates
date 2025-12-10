@@ -1,0 +1,5 @@
+name: Azure Stream Analytics
+description: Comprehensive Azure Stream Analytics integration - orchestrate streaming jobs, monitor inputs and outputs. Real-time analytics platform.
+category: orchestration
+version: 1.0.0
+author: Dagster Community

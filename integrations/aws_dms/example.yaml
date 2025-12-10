@@ -1,0 +1,58 @@
+# Basic configuration - imports only replication tasks
+type: dagster_component_templates.AWSDMSComponent
+attributes:
+  aws_region: us-east-1
+  aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
+  aws_secret_access_key: "{{ env('AWS_SECRET_ACCESS_KEY') }}"
+  import_replication_tasks: true
+  group_name: dms_prod
+
+---
+# Advanced configuration - imports all entity types
+type: dagster_component_templates.AWSDMSComponent
+attributes:
+  aws_region: us-east-1
+  aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
+  aws_secret_access_key: "{{ env('AWS_SECRET_ACCESS_KEY') }}"
+
+  # Import all entity types
+  import_replication_tasks: true
+  import_endpoints: true
+  import_replication_instances: true
+
+  # Filtering
+  filter_by_name_pattern: ^prod_.*
+  exclude_name_pattern: test|dev
+  filter_by_tags: env,team
+
+  # Task configuration
+  replication_task_type: start-replication
+
+  # Sensor configuration
+  generate_sensor: true
+  poll_interval_seconds: 60
+
+  group_name: dms_workspace
+  description: Complete DMS integration
+
+---
+# Using IAM role (no explicit credentials)
+type: dagster_component_templates.AWSDMSComponent
+attributes:
+  aws_region: us-east-1
+  import_replication_tasks: true
+  import_endpoints: true
+  group_name: dms_iam_role
+
+---
+# CDC-focused configuration
+type: dagster_component_templates.AWSDMSComponent
+attributes:
+  aws_region: us-east-1
+  aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
+  aws_secret_access_key: "{{ env('AWS_SECRET_ACCESS_KEY') }}"
+  import_replication_tasks: true
+  replication_task_type: resume-processing
+  poll_interval_seconds: 30
+  group_name: dms_cdc
+  description: CDC replication monitoring

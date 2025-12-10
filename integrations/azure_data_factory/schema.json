@@ -2,7 +2,7 @@
   "type": "dagster_component_templates.AzureDataFactoryComponent",
   "name": "Azure Data Factory",
   "category": "orchestration",
-  "description": "Import Azure Data Factory pipelines, triggers, data flows, and integration runtimes. Comprehensive orchestration for ADF workloads.",
+  "description": "Import Azure Data Factory pipelines, triggers, data flows, and integration runtimes. Includes SSIS package orchestration via Azure-SSIS Integration Runtime.",
   "version": "1.0.0",
   "author": "Dagster Community",
   "icon": "Cloud",

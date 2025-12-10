@@ -1,0 +1,40 @@
+# Basic configuration - imports only pipelines
+type: dagster_component_templates.AzureSynapseComponent
+attributes:
+  subscription_id: "12345678-1234-1234-1234-123456789012"
+  resource_group_name: my-resource-group
+  workspace_name: my-synapse-workspace
+  tenant_id: "{{ env('AZURE_TENANT_ID') }}"
+  client_id: "{{ env('AZURE_CLIENT_ID') }}"
+  client_secret: "{{ env('AZURE_CLIENT_SECRET') }}"
+  import_pipelines: true
+  group_name: synapse_prod
+
+---
+# Advanced configuration - imports all entity types
+type: dagster_component_templates.AzureSynapseComponent
+attributes:
+  subscription_id: "12345678-1234-1234-1234-123456789012"
+  resource_group_name: my-resource-group
+  workspace_name: my-synapse-workspace
+  tenant_id: "{{ env('AZURE_TENANT_ID') }}"
+  client_id: "{{ env('AZURE_CLIENT_ID') }}"
+  client_secret: "{{ env('AZURE_CLIENT_SECRET') }}"
+
+  # Import all entity types
+  import_pipelines: true
+  import_sql_pools: true
+  import_spark_jobs: true
+  import_notebooks: true
+
+  # Filtering
+  filter_by_name_pattern: ^prod_.*
+  exclude_name_pattern: test|dev
+  filter_by_tags: env,team
+
+  # Sensor configuration
+  generate_sensor: true
+  poll_interval_seconds: 60
+
+  group_name: synapse_workspace
+  description: Complete Synapse Analytics integration

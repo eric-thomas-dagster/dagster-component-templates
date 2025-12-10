@@ -1,0 +1,5 @@
+name: AWS Database Migration Service
+description: Comprehensive AWS DMS integration - orchestrate database migrations and CDC replication. Import replication tasks, endpoints, and instances.
+category: ingestion
+version: 1.0.0
+author: Dagster Community

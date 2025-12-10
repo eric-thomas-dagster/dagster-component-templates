@@ -4,10 +4,11 @@ Import Azure Data Factory entities as Dagster assets with comprehensive orchestr
 
 ## Features
 
-- **Pipelines**: Trigger pipeline runs on demand
+- **Pipelines**: Trigger pipeline runs on demand (includes SSIS package execution)
 - **Triggers**: Start and stop triggers programmatically
 - **Data Flows**: Observe data flow definitions
-- **Integration Runtimes**: Monitor IR status and health
+- **Integration Runtimes**: Monitor IR status and health (includes Azure-SSIS IR)
+- **SSIS Support**: Execute SSIS packages via Execute SSIS Package activity
 - **Observation Sensor**: Track pipeline runs and trigger runs
 
 ## Configuration
@@ -80,6 +81,54 @@ attributes:
 - Track Azure IR, Self-Hosted IR, and Azure-SSIS IR
 - Observe IR health and availability
 - Monitor compute resources
+
+## SSIS Support
+
+Azure Data Factory provides native support for SQL Server Integration Services (SSIS) through **Azure-SSIS Integration Runtime**:
+
+### How SSIS Works in ADF
+
+1. **Azure-SSIS Integration Runtime**: A fully managed cluster of Azure VMs dedicated to running SSIS packages
+2. **Execute SSIS Package Activity**: Pipeline activity that executes SSIS packages stored in SSISDB or file system
+3. **Package Deployment**: Supports both Project Deployment Model (SSISDB) and Package Deployment Model (file system, Azure Files, MSDB)
+
+### Orchestrating SSIS Packages
+
+- **Import Integration Runtimes**: Set `import_integration_runtimes: true` to monitor Azure-SSIS IR status
+- **Import Pipelines**: Pipelines with "Execute SSIS Package" activities are automatically included
+- **Trigger Execution**: Triggering an ADF pipeline will execute any SSIS packages defined in that pipeline
+
+### SSIS Migration Benefits
+
+- **Lift-and-Shift**: Move existing SSIS packages to Azure without code changes
+- **Cost Management**: Start/stop Azure-SSIS IR via pipelines to save costs
+- **Integration**: Combine SSIS packages with native ADF activities (Copy, Data Flow, etc.)
+- **Scheduling**: Use ADF triggers for flexible SSIS package scheduling
+
+### Example: SSIS Package Execution
+
+```yaml
+type: dagster_component_templates.AzureDataFactoryComponent
+attributes:
+  subscription_id: "12345678-1234-1234-1234-123456789012"
+  resource_group_name: my-resource-group
+  factory_name: my-data-factory
+  tenant_id: "{{ env('AZURE_TENANT_ID') }}"
+  client_id: "{{ env('AZURE_CLIENT_ID') }}"
+  client_secret: "{{ env('AZURE_CLIENT_SECRET') }}"
+  import_pipelines: true  # Includes SSIS package execution pipelines
+  import_integration_runtimes: true  # Monitor Azure-SSIS IR
+  filter_by_name_pattern: ^ssis_.*  # Filter to SSIS-related pipelines
+  group_name: ssis_prod
+```
+
+### SSIS Best Practices
+
+1. **Cost Optimization**: Use Web Activity to start/stop Azure-SSIS IR before/after package execution
+2. **Monitoring**: Enable Azure-SSIS IR status monitoring with `import_integration_runtimes`
+3. **Package Storage**: Use SSISDB for better package management and logging
+4. **Parallel Execution**: Leverage ADF pipeline parallelism for multiple SSIS packages
+5. **Hybrid Scenarios**: Combine SSIS packages with modern ADF data flows
 
 ## Authentication
 

@@ -1,0 +1,3 @@
+component_type: dagster_component_templates.GoogleDataflowComponent
+name: Google Cloud Dataflow
+description: Import Google Cloud Dataflow batch and streaming jobs

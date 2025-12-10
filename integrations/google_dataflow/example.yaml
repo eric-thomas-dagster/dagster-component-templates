@@ -1,0 +1,20 @@
+type: dagster_component_templates.GoogleDataflowComponent
+attributes:
+  project_id: my-gcp-project
+  location: us-central1
+  credentials_path: "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}"
+
+  # Import entity types
+  import_batch_jobs: true
+  import_streaming_jobs: true
+
+  # Filtering
+  filter_by_name_pattern: ^prod_.*
+  exclude_name_pattern: test|dev
+
+  # Sensor configuration
+  generate_sensor: true
+  poll_interval_seconds: 60
+
+  group_name: dataflow_prod
+  description: Production Dataflow pipelines

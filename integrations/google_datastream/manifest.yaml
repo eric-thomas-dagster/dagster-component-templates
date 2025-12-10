@@ -1,0 +1,3 @@
+component_type: dagster_component_templates.GoogleDatastreamComponent
+name: Google Cloud Datastream
+description: Import Google Cloud Datastream CDC streams and connection profiles

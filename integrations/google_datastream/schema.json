@@ -1,0 +1,29 @@
+{
+  "type": "dagster_component_templates.GoogleDatastreamComponent",
+  "name": "Google Cloud Datastream",
+  "category": "ingestion",
+  "description": "Import Google Cloud Datastream CDC streams and connection profiles for database replication to BigQuery and Cloud Storage.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Database",
+  "x-dagster-io": {
+    "inputs": {"type": "none", "required": false},
+    "outputs": {"type": "multiple", "description": "Generates assets for each Datastream entity"},
+    "supports_partitions": false
+  },
+  "attributes": {
+    "project_id": {"type": "string", "required": true, "label": "Project ID", "description": "GCP project ID", "placeholder": "my-gcp-project"},
+    "location": {"type": "string", "required": false, "label": "Location", "description": "GCP location/region for Datastream resources", "default": "us-central1", "placeholder": "us-central1"},
+    "credentials_path": {"type": "string", "required": false, "label": "Credentials Path", "description": "Path to GCP service account credentials JSON file (optional)", "placeholder": "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}", "secret": true},
+    "import_streams": {"type": "boolean", "required": false, "label": "Import Streams", "description": "Import Datastream streams as observable assets", "default": true},
+    "import_connection_profiles": {"type": "boolean", "required": false, "label": "Import Connection Profiles", "description": "Import connection profiles as observable assets", "default": false},
+    "filter_by_name_pattern": {"type": "string", "required": false, "label": "Filter by Name Pattern", "description": "Regex pattern to filter entities", "placeholder": "^prod_.*"},
+    "exclude_name_pattern": {"type": "string", "required": false, "label": "Exclude Name Pattern", "description": "Regex pattern to exclude entities", "placeholder": "test|dev"},
+    "poll_interval_seconds": {"type": "number", "required": false, "label": "Sensor Poll Interval", "description": "Sensor poll interval in seconds", "default": 60, "minimum": 10},
+    "generate_sensor": {"type": "boolean", "required": false, "label": "Generate Observation Sensor", "description": "Create sensor to observe stream status", "default": true},
+    "group_name": {"type": "string", "required": false, "label": "Asset Group", "description": "Group name for all imported assets", "default": "google_datastream"},
+    "description": {"type": "string", "required": false, "label": "Description", "description": "Description for the Google Datastream component"}
+  },
+  "dependencies": {"pip": ["google-cloud-datastream>=1.5.0", "dagster>=1.6.0"]},
+  "tags": ["ingestion", "gcp", "google-cloud", "datastream", "cdc", "replication", "database"]
+}

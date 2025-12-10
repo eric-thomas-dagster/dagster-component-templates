@@ -1,0 +1,29 @@
+{
+  "type": "dagster_component_templates.GoogleDataflowComponent",
+  "name": "Google Cloud Dataflow",
+  "category": "orchestration",
+  "description": "Import Google Cloud Dataflow batch and streaming jobs for Apache Beam pipeline orchestration.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "GitBranch",
+  "x-dagster-io": {
+    "inputs": {"type": "none", "required": false},
+    "outputs": {"type": "multiple", "description": "Generates assets for each Dataflow job"},
+    "supports_partitions": false
+  },
+  "attributes": {
+    "project_id": {"type": "string", "required": true, "label": "Project ID", "description": "GCP project ID", "placeholder": "my-gcp-project"},
+    "location": {"type": "string", "required": false, "label": "Location", "description": "GCP location/region for Dataflow jobs", "default": "us-central1", "placeholder": "us-central1"},
+    "credentials_path": {"type": "string", "required": false, "label": "Credentials Path", "description": "Path to GCP service account credentials JSON file (optional)", "placeholder": "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}", "secret": true},
+    "import_batch_jobs": {"type": "boolean", "required": false, "label": "Import Batch Jobs", "description": "Import batch job templates as materializable assets", "default": true},
+    "import_streaming_jobs": {"type": "boolean", "required": false, "label": "Import Streaming Jobs", "description": "Import streaming jobs as observable assets", "default": true},
+    "filter_by_name_pattern": {"type": "string", "required": false, "label": "Filter by Name Pattern", "description": "Regex pattern to filter entities", "placeholder": "^prod_.*"},
+    "exclude_name_pattern": {"type": "string", "required": false, "label": "Exclude Name Pattern", "description": "Regex pattern to exclude entities", "placeholder": "test|dev"},
+    "poll_interval_seconds": {"type": "number", "required": false, "label": "Sensor Poll Interval", "description": "Sensor poll interval in seconds", "default": 60, "minimum": 10},
+    "generate_sensor": {"type": "boolean", "required": false, "label": "Generate Observation Sensor", "description": "Create sensor to observe job status", "default": true},
+    "group_name": {"type": "string", "required": false, "label": "Asset Group", "description": "Group name for all imported assets", "default": "google_dataflow"},
+    "description": {"type": "string", "required": false, "label": "Description", "description": "Description for the Google Dataflow component"}
+  },
+  "dependencies": {"pip": ["google-cloud-dataflow-client>=0.8.0", "dagster>=1.6.0"]},
+  "tags": ["orchestration", "gcp", "google-cloud", "dataflow", "apache-beam", "batch", "streaming"]
+}

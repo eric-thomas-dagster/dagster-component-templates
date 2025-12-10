@@ -1,0 +1,2 @@
+google-cloud-dataflow-client>=0.8.0
+dagster>=1.6.0

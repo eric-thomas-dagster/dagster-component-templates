@@ -1,0 +1,22 @@
+type: dagster_component_templates.GoogleVertexAIComponent
+attributes:
+  project_id: my-gcp-project
+  location: us-central1
+  credentials_path: "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}"
+
+  # Import entity types
+  import_training_jobs: true
+  import_batch_prediction_jobs: true
+  import_custom_jobs: true
+  import_pipelines: true
+
+  # Filtering
+  filter_by_name_pattern: ^prod_.*
+  exclude_name_pattern: test|dev
+
+  # Sensor configuration
+  generate_sensor: true
+  poll_interval_seconds: 60
+
+  group_name: vertex_ai_prod
+  description: Production Vertex AI ML workflows

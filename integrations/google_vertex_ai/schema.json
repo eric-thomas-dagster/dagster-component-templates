@@ -1,0 +1,32 @@
+{
+  "type": "dagster_component_templates.GoogleVertexAIComponent",
+  "name": "Google Vertex AI",
+  "category": "ml-ops",
+  "description": "Import Google Vertex AI training jobs, batch prediction jobs, custom jobs, and ML pipelines for machine learning workflow orchestration.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Cpu",
+  "x-dagster-io": {
+    "inputs": {"type": "none", "required": false},
+    "outputs": {"type": "multiple", "description": "Generates assets for each Vertex AI entity"},
+    "supports_partitions": false
+  },
+  "attributes": {
+    "project_id": {"type": "string", "required": true, "label": "Project ID", "description": "GCP project ID", "placeholder": "my-gcp-project"},
+    "location": {"type": "string", "required": false, "label": "Location", "description": "GCP location/region for Vertex AI resources", "default": "us-central1", "placeholder": "us-central1"},
+    "credentials_path": {"type": "string", "required": false, "label": "Credentials Path", "description": "Path to GCP service account credentials JSON file (optional)", "placeholder": "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}", "secret": true},
+    "import_training_jobs": {"type": "boolean", "required": false, "label": "Import Training Jobs", "description": "Import training job definitions as materializable assets", "default": true},
+    "import_batch_prediction_jobs": {"type": "boolean", "required": false, "label": "Import Batch Prediction Jobs", "description": "Import batch prediction job definitions as materializable assets", "default": true},
+    "import_custom_jobs": {"type": "boolean", "required": false, "label": "Import Custom Jobs", "description": "Import custom job definitions as materializable assets", "default": true},
+    "import_pipelines": {"type": "boolean", "required": false, "label": "Import Pipelines", "description": "Import ML pipeline definitions as materializable assets", "default": true},
+    "filter_by_name_pattern": {"type": "string", "required": false, "label": "Filter by Name Pattern", "description": "Regex pattern to filter entities", "placeholder": "^prod_.*"},
+    "exclude_name_pattern": {"type": "string", "required": false, "label": "Exclude Name Pattern", "description": "Regex pattern to exclude entities", "placeholder": "test|dev"},
+    "filter_by_labels": {"type": "string", "required": false, "label": "Filter by Labels", "description": "Comma-separated label keys to filter entities", "placeholder": "env,team"},
+    "poll_interval_seconds": {"type": "number", "required": false, "label": "Sensor Poll Interval", "description": "Sensor poll interval in seconds", "default": 60, "minimum": 10},
+    "generate_sensor": {"type": "boolean", "required": false, "label": "Generate Observation Sensor", "description": "Create sensor to observe completed jobs and pipelines", "default": true},
+    "group_name": {"type": "string", "required": false, "label": "Asset Group", "description": "Group name for all imported assets", "default": "google_vertex_ai"},
+    "description": {"type": "string", "required": false, "label": "Description", "description": "Description for the Google Vertex AI component"}
+  },
+  "dependencies": {"pip": ["google-cloud-aiplatform>=1.38.0", "dagster>=1.6.0"]},
+  "tags": ["ml-ops", "gcp", "google-cloud", "vertex-ai", "machine-learning", "training", "inference"]
+}

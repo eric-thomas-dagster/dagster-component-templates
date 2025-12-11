@@ -1,0 +1,56 @@
+{
+  "type": "dagster_component_templates.DatabricksAssetBundleComponent",
+  "name": "Databricks Asset Bundle",
+  "category": "orchestration",
+  "description": "Create Dagster assets from Databricks Asset Bundle YAML configuration files. Each task in the bundle becomes a materializable asset with automatic dependency tracking.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "icon": "Zap",
+  "x-dagster-io": {
+    "inputs": {"type": "none", "required": false},
+    "outputs": {"type": "multiple", "description": "Generates assets for each task in the bundle"},
+    "supports_partitions": false
+  },
+  "attributes": {
+    "databricks_config_path": {
+      "type": "string",
+      "required": true,
+      "label": "Bundle Config Path",
+      "description": "Path to databricks.yml bundle configuration file (relative to project root)",
+      "placeholder": "databricks.yml"
+    },
+    "workspace_host": {
+      "type": "string",
+      "required": true,
+      "label": "Workspace URL",
+      "description": "Databricks workspace URL",
+      "placeholder": "https://dbc-abc123.cloud.databricks.com"
+    },
+    "workspace_token": {
+      "type": "string",
+      "required": true,
+      "label": "Access Token",
+      "description": "Databricks personal access token",
+      "placeholder": "{{ env('DATABRICKS_TOKEN') }}",
+      "secret": true
+    },
+    "asset_key_prefix": {
+      "type": "string",
+      "required": false,
+      "label": "Asset Key Prefix",
+      "description": "Optional prefix for all asset keys generated from bundle tasks",
+      "placeholder": "my_bundle"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Asset Group",
+      "description": "Group name for all generated assets",
+      "default": "databricks_bundle"
+    }
+  },
+  "dependencies": {
+    "pip": ["databricks-sdk>=0.18.0", "dagster>=1.6.0", "pyyaml>=6.0"]
+  },
+  "tags": ["orchestration", "databricks", "asset-bundle", "bundle", "iac", "gitops"]
+}

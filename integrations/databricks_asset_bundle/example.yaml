@@ -1,0 +1,17 @@
+# Basic configuration - reads databricks.yml from project root
+type: dagster_component_templates.DatabricksAssetBundleComponent
+attributes:
+  databricks_config_path: databricks.yml
+  workspace_host: https://dbc-abc123.cloud.databricks.com
+  workspace_token: "{{ env('DATABRICKS_TOKEN') }}"
+  group_name: my_bundle
+
+---
+# Advanced configuration - with asset key prefix
+type: dagster_component_templates.DatabricksAssetBundleComponent
+attributes:
+  databricks_config_path: bundles/production/databricks.yml
+  workspace_host: https://dbc-abc123.cloud.databricks.com
+  workspace_token: "{{ env('DATABRICKS_TOKEN') }}"
+  asset_key_prefix: prod_etl
+  group_name: production_bundle

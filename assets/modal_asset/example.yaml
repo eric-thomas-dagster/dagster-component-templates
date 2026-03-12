@@ -1,0 +1,11 @@
+type: dagster_component_templates.ModalAssetComponent
+attributes:
+  asset_name: train_churn_model
+  app_file: "{{ project_root }}/ml/training_app.py"
+  function_name: train_model
+  modal_function: "ml_training_app::train_model"
+  kwargs:
+    experiment_name: churn_v2
+    n_estimators: 500
+  group_name: ml_training
+  description: Train churn model on Modal GPU infrastructure

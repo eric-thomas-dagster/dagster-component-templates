@@ -1,0 +1,13 @@
+type: dagster_component_templates.PineconeAssetComponent
+attributes:
+  asset_name: product_embeddings_index
+  api_key_env_var: PINECONE_API_KEY
+  index_name: product-embeddings
+  operation: upsert
+  upstream_asset_key: product_embeddings
+  id_column: product_id
+  vector_column: embedding
+  metadata_columns: [name, category, price]
+  batch_size: 200
+  namespace: production
+  group_name: vector_store

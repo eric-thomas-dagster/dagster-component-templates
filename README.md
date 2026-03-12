@@ -1,6 +1,6 @@
 # Dagster Component Templates
 
-A community library of 175+ reusable [Dagster component](https://docs.dagster.io/guides/components) templates covering data ingestion, AI/LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, and enterprise tool integrations — all configurable via YAML with no Python required.
+A community library of 185+ reusable [Dagster component](https://docs.dagster.io/guides/components) templates covering data ingestion, AI/LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, and enterprise tool integrations — all configurable via YAML with no Python required.
 
 ## What are Dagster Components?
 
@@ -19,7 +19,7 @@ attributes:
 
 ## Component Library
 
-### Assets (127)
+### Assets (133)
 
 **Ingestion — cloud storage**
 `s3_to_database_asset` · `gcs_to_database_asset` · `adls_to_database_asset`
@@ -42,6 +42,15 @@ attributes:
 **Infrastructure as Code** *(provision resources before pipeline runs)*
 `terraform_asset` · `terraform_cloud_asset` · `cloudformation_asset` · `ansible_asset` · `pulumi_asset` · `helm_deploy` · `aws_cdk_asset`
 
+**Secrets & remote execution**
+`ssh_asset` · `hashicorp_vault`
+
+**Notebooks & ML compute**
+`jupyter_notebook_asset` · `modal_asset`
+
+**Vector stores**
+`pinecone_asset`
+
 **Reverse ETL**
 `polytomic_asset`
 
@@ -53,7 +62,7 @@ attributes:
 
 ---
 
-### Sensors (28)
+### Sensors (30)
 
 **Cloud storage**
 `s3_monitor` · `gcs_monitor` · `adls_monitor`
@@ -68,7 +77,10 @@ attributes:
 `coalesce_job_sensor` · `abinitio_job_sensor` · `matillion_job_sensor` · `rivery_job_sensor` · `precisely_job_sensor`
 
 **Notifications**
-`slack_notification` · `pagerduty_alert` · `teams_notification` · `opsgenie_alert`
+`slack_notification` · `pagerduty_alert` · `teams_notification` · `opsgenie_alert` · `twilio_notification`
+
+**ML triggers**
+`mlflow_model_sensor`
 
 ---
 

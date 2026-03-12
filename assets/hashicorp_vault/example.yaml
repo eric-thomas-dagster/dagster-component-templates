@@ -1,0 +1,15 @@
+type: dagster_component_templates.VaultAssetComponent
+attributes:
+  asset_name: inject_pipeline_secrets
+  vault_url_env_var: VAULT_URL
+  role_id_env_var: VAULT_ROLE_ID
+  secret_id_env_var: VAULT_SECRET_ID
+  secrets:
+    - path: "secret/data/data-platform/db"
+      key: password
+      env_var: DB_PASSWORD
+    - path: "secret/data/data-platform/api"
+      key: api_key
+      env_var: EXTERNAL_API_KEY
+  group_name: secrets
+  description: Inject pipeline secrets from Vault before run

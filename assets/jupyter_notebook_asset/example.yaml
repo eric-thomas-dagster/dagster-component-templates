@@ -1,0 +1,11 @@
+type: dagster_component_templates.JupyterNotebookAssetComponent
+attributes:
+  asset_name: monthly_revenue_report
+  notebook_path: "{{ project_root }}/notebooks/revenue_analysis.ipynb"
+  parameters:
+    start_date: "2024-01-01"
+    end_date: "2024-01-31"
+    output_schema: analytics
+  execution_timeout: 1800
+  group_name: notebooks
+  description: Execute monthly revenue analysis notebook

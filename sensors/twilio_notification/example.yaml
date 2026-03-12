@@ -1,0 +1,11 @@
+type: dagster_component_templates.TwilioNotificationSensor
+attributes:
+  sensor_name: pipeline_sms_alerts
+  account_sid_env_var: TWILIO_ACCOUNT_SID
+  auth_token_env_var: TWILIO_AUTH_TOKEN
+  from_number: "+15551234567"
+  to_numbers:
+    - "+15559876543"
+  on_failure: true
+  on_success: false
+  message_template: "Dagster alert: {asset_key} {event_type} at {timestamp} (run: {run_id})"

@@ -1,0 +1,121 @@
+{
+  "type": "dagster_component_templates.TwilioNotificationSensor",
+  "name": "Twilio Notification Sensor",
+  "category": "sensors",
+  "description": "Send SMS or WhatsApp notifications via Twilio when Dagster assets fail or succeed. No Twilio SDK required — uses the REST API directly.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "component_type": "sensor",
+    "triggers": {
+      "type": "asset_events",
+      "description": "Triggers on asset materialization successes and/or failures"
+    },
+    "outputs": {
+      "type": "notification",
+      "description": "Sends SMS or WhatsApp messages via the Twilio Messaging API"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name",
+      "description": "Unique name for this sensor.",
+      "placeholder": "pipeline_sms_alerts"
+    },
+    "account_sid_env_var": {
+      "type": "string",
+      "required": true,
+      "label": "Account SID Env Var",
+      "description": "Name of the environment variable that holds the Twilio Account SID.",
+      "placeholder": "TWILIO_ACCOUNT_SID"
+    },
+    "auth_token_env_var": {
+      "type": "string",
+      "required": true,
+      "label": "Auth Token Env Var",
+      "description": "Name of the environment variable that holds the Twilio Auth Token.",
+      "placeholder": "TWILIO_AUTH_TOKEN",
+      "sensitive": true
+    },
+    "from_number": {
+      "type": "string",
+      "required": true,
+      "label": "From Number",
+      "description": "Twilio phone number to send from in E.164 format. The 'whatsapp:' prefix is added automatically when channel='whatsapp'.",
+      "placeholder": "+15551234567"
+    },
+    "to_numbers": {
+      "type": "array",
+      "items": { "type": "string" },
+      "required": true,
+      "label": "To Numbers",
+      "description": "List of recipient phone numbers in E.164 format.",
+      "placeholder": ["+15559876543"]
+    },
+    "channel": {
+      "type": "string",
+      "required": false,
+      "label": "Channel",
+      "description": "Messaging channel: 'sms' or 'whatsapp'.",
+      "default": "sms",
+      "enum": ["sms", "whatsapp"],
+      "enumLabels": {
+        "sms": "SMS — standard text message",
+        "whatsapp": "WhatsApp — requires a WhatsApp-enabled Twilio number"
+      }
+    },
+    "message_template": {
+      "type": "string",
+      "required": false,
+      "label": "Message Template",
+      "description": "Template for notification messages. Available variables: {asset_key}, {event_type}, {timestamp}, {run_id}.",
+      "default": "Dagster alert: {asset_key} {event_type} at {timestamp}",
+      "placeholder": "Dagster alert: {asset_key} {event_type} at {timestamp}"
+    },
+    "monitored_assets": {
+      "type": "array",
+      "items": { "type": "string" },
+      "required": false,
+      "label": "Monitored Assets",
+      "description": "Asset key strings to watch. Leave empty to monitor all assets.",
+      "placeholder": ["namespace/my_asset", "other_asset"]
+    },
+    "on_failure": {
+      "type": "boolean",
+      "required": false,
+      "label": "Notify on Failure",
+      "description": "Send a notification when an asset materialization fails.",
+      "default": true
+    },
+    "on_success": {
+      "type": "boolean",
+      "required": false,
+      "label": "Notify on Success",
+      "description": "Send a notification when an asset materialization succeeds.",
+      "default": false
+    },
+    "minimum_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Minimum Interval (seconds)",
+      "description": "Minimum time between sensor evaluations.",
+      "default": 30,
+      "minimum": 10,
+      "placeholder": "30"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "requests>=2.28.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "twilio",
+    "sms",
+    "notifications",
+    "alerts"
+  ]
+}

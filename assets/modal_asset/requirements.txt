@@ -1,0 +1,2 @@
+dagster
+modal>=0.55.0

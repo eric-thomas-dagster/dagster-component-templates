@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VaultAssetComponent",
+  "description": "Read secrets from HashiCorp Vault at pipeline runtime and inject them as environment variables or metadata.",
+  "category": "assets",
+  "tags": ["assets", "secrets", "vault", "hashicorp", "security"],
+  "type": "object",
+  "required": ["asset_name", "vault_url_env_var", "secrets"],
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "description": "Dagster asset key for this component."
+    },
+    "vault_url_env_var": {
+      "type": "string",
+      "description": "Name of the environment variable that holds the Vault base URL (e.g. https://vault.company.com)."
+    },
+    "token_env_var": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Name of the environment variable holding a Vault token. Use for token-based authentication."
+    },
+    "role_id_env_var": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Name of the environment variable holding an AppRole role_id. Must be paired with secret_id_env_var."
+    },
+    "secret_id_env_var": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Name of the environment variable holding an AppRole secret_id. Must be paired with role_id_env_var."
+    },
+    "namespace": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Vault Enterprise namespace (e.g. 'admin' or 'admin/team-a'). Omit for Vault OSS."
+    },
+    "secrets": {
+      "type": "array",
+      "description": "List of secrets to fetch from Vault. Each entry maps a Vault path+key to an environment variable name.",
+      "items": {
+        "type": "object",
+        "required": ["path", "key", "env_var"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "KV v2 path including the 'data/' segment (e.g. 'secret/data/myapp/db')."
+          },
+          "key": {
+            "type": "string",
+            "description": "Key within the secret data dict to extract."
+          },
+          "env_var": {
+            "type": "string",
+            "description": "Name of the environment variable to set with the secret value."
+          }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "commands": {
+      "type": ["array", "null"],
+      "default": null,
+      "items": { "type": "string" },
+      "description": "Optional shell commands to run after secrets are fetched. Secrets are injected as environment variables into each subprocess."
+    },
+    "export_to_env": {
+      "type": "boolean",
+      "default": true,
+      "description": "When true, set the resolved secrets as environment variables on the current process via os.environ."
+    },
+    "group_name": {
+      "type": "string",
+      "default": "secrets",
+      "description": "Dagster asset group name."
+    },
+    "description": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Human-readable description surfaced in the Dagster UI."
+    },
+    "deps": {
+      "type": ["array", "null"],
+      "default": null,
+      "items": { "type": "string" },
+      "description": "Upstream asset keys this asset depends on."
+    }
+  },
+  "additionalProperties": false
+}

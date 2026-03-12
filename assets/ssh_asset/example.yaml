@@ -1,0 +1,12 @@
+type: dagster_component_templates.SSHAssetComponent
+attributes:
+  asset_name: prepare_etl_server
+  host_env_var: ETL_HOST
+  username_env_var: ETL_USER
+  private_key_env_var: ETL_SSH_KEY
+  commands:
+    - "cd /opt/etl && git pull origin main"
+    - "pip install -r requirements.txt"
+    - "python scripts/prepare_data.py"
+  group_name: infrastructure
+  description: Prepare ETL server before pipeline run

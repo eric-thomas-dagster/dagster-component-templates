@@ -1,0 +1,8 @@
+type: dagster_component_templates.MLflowModelSensor
+attributes:
+  sensor_name: production_model_trigger
+  tracking_uri_env_var: MLFLOW_TRACKING_URI
+  model_name: customer_churn_model
+  target_stage: Production
+  target_job: run_churn_scoring_pipeline
+  minimum_interval_seconds: 120

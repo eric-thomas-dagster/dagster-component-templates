@@ -4919,6 +4919,69 @@
       "description": "Deploy AWS CDK stacks as a Dagster asset with real-time log streaming and stack outputs as metadata. Provision infrastructure before running data pipelines.",
       "path": "assets/aws_cdk_asset",
       "tags": ["assets", "infrastructure", "cdk", "aws", "iac", "provisioning"]
+    },
+    {
+      "id": "ssh_asset",
+      "name": "SSH Asset",
+      "type": "dagster_component_templates.SSHAssetComponent",
+      "category": "assets",
+      "description": "Run commands on remote hosts via SSH as a Dagster asset. YAML-configurable command sequences with streaming logs, SFTP upload/download, and env-var-based auth.",
+      "path": "assets/ssh_asset",
+      "tags": ["assets", "infrastructure", "ssh", "remote-execution"]
+    },
+    {
+      "id": "hashicorp_vault",
+      "name": "HashiCorp Vault",
+      "type": "dagster_component_templates.VaultAssetComponent",
+      "category": "assets",
+      "description": "Fetch secrets from HashiCorp Vault and inject them as environment variables before pipeline runs. Supports token and AppRole auth.",
+      "path": "assets/hashicorp_vault",
+      "tags": ["assets", "secrets", "vault", "hashicorp", "security"]
+    },
+    {
+      "id": "jupyter_notebook_asset",
+      "name": "Jupyter Notebook Asset",
+      "type": "dagster_component_templates.JupyterNotebookAssetComponent",
+      "category": "assets",
+      "description": "Execute a parameterized Jupyter notebook as a Dagster asset via Papermill. YAML-configurable parameters, output notebook as artifact, metadata surfaced from last cell.",
+      "path": "assets/jupyter_notebook_asset",
+      "tags": ["assets", "notebooks", "jupyter", "papermill", "analytics"]
+    },
+    {
+      "id": "modal_asset",
+      "name": "Modal Asset",
+      "type": "dagster_component_templates.ModalAssetComponent",
+      "category": "assets",
+      "description": "Trigger a Modal serverless function as a Dagster asset. SDK and CLI execution paths, GPU workloads, detach mode, return value as metadata.",
+      "path": "assets/modal_asset",
+      "tags": ["assets", "ml", "modal", "serverless", "compute", "gpu"]
+    },
+    {
+      "id": "pinecone_asset",
+      "name": "Pinecone Asset",
+      "type": "dagster_component_templates.PineconeAssetComponent",
+      "category": "assets",
+      "description": "Upsert, delete, query, or create a Pinecone vector index as a Dagster asset. Batched upserts from upstream assets or databases. Common in RAG pipelines.",
+      "path": "assets/pinecone_asset",
+      "tags": ["assets", "vector-store", "pinecone", "embeddings", "rag"]
+    },
+    {
+      "id": "mlflow_model_sensor",
+      "name": "MLflow Model Sensor",
+      "type": "dagster_component_templates.MLflowModelSensor",
+      "category": "sensors",
+      "description": "Fire a RunRequest when an MLflow model transitions to a target stage (e.g. Production) in the Model Registry. Enables model-driven pipeline triggers.",
+      "path": "sensors/mlflow_model_sensor",
+      "tags": ["sensors", "mlflow", "ml", "model-registry", "trigger"]
+    },
+    {
+      "id": "twilio_notification",
+      "name": "Twilio Notification Sensor",
+      "type": "dagster_component_templates.TwilioNotificationSensor",
+      "category": "sensors",
+      "description": "Send SMS or WhatsApp notifications when Dagster assets fail or succeed. Matches the slack_notification and pagerduty_alert sensor pattern.",
+      "path": "sensors/twilio_notification",
+      "tags": ["sensors", "twilio", "sms", "notifications", "alerts"]
     }
   ]
 }

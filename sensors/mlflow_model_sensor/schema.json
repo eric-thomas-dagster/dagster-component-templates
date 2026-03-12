@@ -1,0 +1,89 @@
+{
+  "type": "dagster_component_templates.MLflowModelSensor",
+  "name": "MLflow Model Sensor",
+  "category": "sensors",
+  "description": "Fire a Dagster RunRequest when an MLflow registered model transitions to a specified stage (e.g., Production) in the Model Registry. Enables model-driven pipeline triggers.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "component_type": "sensor",
+    "triggers": {
+      "type": "mlflow_model_registry",
+      "description": "Triggers when a new model version appears in the target Model Registry stage"
+    },
+    "outputs": {
+      "type": "run_config",
+      "description": "Passes model_name, model_version, model_uri, and stage to the triggered job via run_config"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name",
+      "description": "Unique name for this sensor.",
+      "placeholder": "production_model_trigger"
+    },
+    "tracking_uri_env_var": {
+      "type": "string",
+      "required": true,
+      "label": "Tracking URI Env Var",
+      "description": "Name of the environment variable that holds the MLflow Tracking URI (e.g., MLFLOW_TRACKING_URI).",
+      "placeholder": "MLFLOW_TRACKING_URI"
+    },
+    "model_name": {
+      "type": "string",
+      "required": true,
+      "label": "Model Name",
+      "description": "Registered model name to watch in the MLflow Model Registry.",
+      "placeholder": "customer_churn_model"
+    },
+    "target_stage": {
+      "type": "string",
+      "required": false,
+      "label": "Target Stage",
+      "description": "Model Registry stage transition that triggers a run.",
+      "default": "Production",
+      "enum": ["Production", "Staging", "Archived"],
+      "enumLabels": {
+        "Production": "Production — live, serving traffic",
+        "Staging": "Staging — validated, awaiting promotion",
+        "Archived": "Archived — retired model versions"
+      }
+    },
+    "target_job": {
+      "type": "string",
+      "required": true,
+      "label": "Target Job",
+      "description": "Name of the Dagster job to trigger when a new version is detected.",
+      "placeholder": "run_churn_scoring_pipeline"
+    },
+    "minimum_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Minimum Interval (seconds)",
+      "description": "Minimum time between sensor evaluations.",
+      "default": 60,
+      "minimum": 10,
+      "placeholder": "60"
+    },
+    "run_config": {
+      "type": "object",
+      "required": false,
+      "label": "Extra Run Config",
+      "description": "Optional extra run config merged into the triggered job run. Model metadata (model_name, model_version, model_uri, stage) is always injected under ops.config."
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "mlflow>=2.0.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "mlflow",
+    "ml",
+    "model-registry",
+    "trigger"
+  ]
+}

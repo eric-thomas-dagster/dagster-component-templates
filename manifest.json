@@ -4433,6 +4433,146 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/precisely_job_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/precisely_job_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/precisely_job_sensor/requirements.txt"
+    },
+    {
+      "id": "adls_to_database_asset",
+      "name": "ADLS to Database",
+      "category": "assets",
+      "description": "Read a file from Azure Data Lake Storage and write it to a database table",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "adls_to_database_asset",
+      "tags": [
+        "assets",
+        "adls",
+        "azure",
+        "ingestion",
+        "sql"
+      ],
+      "dependencies": {
+        "pip": [
+          "azure-storage-blob>=12.0.0",
+          "pandas>=1.3.0",
+          "sqlalchemy>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/adls_to_database_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/adls_to_database_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/adls_to_database_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/adls_to_database_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/adls_to_database_asset/requirements.txt"
+    },
+    {
+      "id": "gcs_to_database_asset",
+      "name": "GCS to Database",
+      "category": "assets",
+      "description": "Read a file from Google Cloud Storage and write it to a database table",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "gcs_to_database_asset",
+      "tags": [
+        "assets",
+        "gcs",
+        "google",
+        "ingestion",
+        "sql"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-storage>=2.0.0",
+          "pandas>=1.3.0",
+          "sqlalchemy>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/gcs_to_database_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/gcs_to_database_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/gcs_to_database_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/gcs_to_database_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/gcs_to_database_asset/requirements.txt"
+    },
+    {
+      "id": "sftp_to_database_asset",
+      "name": "SFTP to Database",
+      "category": "assets",
+      "description": "Download a file from SFTP and write it to a database table",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sftp_to_database_asset",
+      "tags": [
+        "assets",
+        "sftp",
+        "ingestion",
+        "sql",
+        "files"
+      ],
+      "dependencies": {
+        "pip": [
+          "paramiko>=3.0.0",
+          "pandas>=1.3.0",
+          "sqlalchemy>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sftp_to_database_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sftp_to_database_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sftp_to_database_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sftp_to_database_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sftp_to_database_asset/requirements.txt"
+    },
+    {
+      "id": "kafka_to_database_asset",
+      "name": "Kafka to Database",
+      "category": "assets",
+      "description": "Consume a batch of messages from a Kafka topic and write them to a database table",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "kafka_to_database_asset",
+      "tags": [
+        "assets",
+        "kafka",
+        "streaming",
+        "ingestion",
+        "sql"
+      ],
+      "dependencies": {
+        "pip": [
+          "confluent-kafka>=2.0.0",
+          "pandas>=1.3.0",
+          "sqlalchemy>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/kafka_to_database_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/kafka_to_database_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/kafka_to_database_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/kafka_to_database_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/kafka_to_database_asset/requirements.txt"
+    },
+    {
+      "id": "sqs_to_database_asset",
+      "name": "SQS to Database",
+      "category": "assets",
+      "description": "Drain messages from an SQS queue and write them to a database table",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sqs_to_database_asset",
+      "tags": [
+        "assets",
+        "sqs",
+        "aws",
+        "ingestion",
+        "sql"
+      ],
+      "dependencies": {
+        "pip": [
+          "boto3>=1.26.0",
+          "pandas>=1.3.0",
+          "sqlalchemy>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sqs_to_database_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sqs_to_database_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sqs_to_database_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sqs_to_database_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sqs_to_database_asset/requirements.txt"
     }
   ]
 }

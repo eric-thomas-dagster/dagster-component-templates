@@ -1,0 +1,9 @@
+type: dagster_component_templates.SFTPToDatabaseAssetComponent
+attributes:
+  asset_name: sftp_orders_ingest
+  host_env_var: SFTP_HOST
+  username_env_var: SFTP_USERNAME
+  password_env_var: SFTP_PASSWORD
+  database_url_env_var: DATABASE_URL
+  table_name: raw_orders
+  file_format: csv

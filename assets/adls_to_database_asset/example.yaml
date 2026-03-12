@@ -1,0 +1,8 @@
+type: dagster_component_templates.ADLSToDatabaseAssetComponent
+attributes:
+  asset_name: adls_orders_ingest
+  connection_string_env_var: AZURE_STORAGE_CONNECTION_STRING
+  database_url_env_var: DATABASE_URL
+  table_name: raw_orders
+  file_format: parquet
+  if_exists: append

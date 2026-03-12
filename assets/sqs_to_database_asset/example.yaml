@@ -1,0 +1,8 @@
+type: dagster_component_templates.SQSToDatabaseAssetComponent
+attributes:
+  asset_name: sqs_events_ingest
+  queue_url_env_var: SQS_QUEUE_URL
+  database_url_env_var: DATABASE_URL
+  table_name: raw_events
+  max_messages: 10000
+  region_name: us-east-1

@@ -225,3 +225,19 @@ For issues with:
 - **Component**: Create issue in dagster-component-templates repo
 - **dlt source**: Check [dlt Google Ads docs](https://dlthub.com/docs/dlt-ecosystem/verified-sources/google_ads)
 - **Google Ads API**: Refer to [Google Ads API docs](https://developers.google.com/google-ads/api/docs/start)
+
+## Asset Dependencies & Lineage
+
+This component supports a `deps` field for declaring upstream Dagster asset dependencies:
+
+```yaml
+attributes:
+  # ... other fields ...
+  deps:
+    - raw_orders              # simple asset key
+    - raw/schema/orders       # asset key with path prefix
+```
+
+`deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
+
+Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).

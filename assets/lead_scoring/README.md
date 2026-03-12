@@ -660,3 +660,19 @@ for _, lead in df.iterrows():
 - [MQL vs SQL Definitions](https://blog.hubspot.com/marketing/mql-vs-sql)
 - [Lead Scoring Best Practices](https://www.salesforce.com/products/guide/lead-gen/scoring-models/)
 - [Predictive Lead Scoring](https://www.6sense.com/platform/predictive-analytics/lead-scoring)
+
+## Asset Dependencies & Lineage
+
+This component supports a `deps` field for declaring upstream Dagster asset dependencies:
+
+```yaml
+attributes:
+  # ... other fields ...
+  deps:
+    - raw_orders              # simple asset key
+    - raw/schema/orders       # asset key with path prefix
+```
+
+`deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
+
+Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).

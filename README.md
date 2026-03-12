@@ -1,6 +1,6 @@
 # Dagster Component Templates
 
-A community library of 190+ reusable [Dagster component](https://docs.dagster.io/guides/components) templates covering data ingestion, AI/LLM enrichment, observability, sensors, and enterprise tool integrations — all configurable via YAML with no Python required.
+A community library of 166+ reusable [Dagster component](https://docs.dagster.io/guides/components) templates covering data ingestion, AI/LLM enrichment, orchestration, reverse ETL, observability, sensors, and enterprise tool integrations — all configurable via YAML with no Python required.
 
 ## What are Dagster Components?
 
@@ -19,7 +19,7 @@ attributes:
 
 ## Component Library
 
-### Assets (115)
+### Assets (120)
 
 **Ingestion — cloud storage**
 `s3_to_database_asset` · `gcs_to_database_asset` · `adls_to_database_asset`
@@ -28,7 +28,7 @@ attributes:
 `kafka_to_database_asset` · `sqs_to_database_asset` · `kinesis_to_database_asset` · `eventhubs_to_database_asset` · `servicebus_to_database_asset` · `rabbitmq_to_database_asset` · `pubsub_to_database_asset` · `redis_streams_to_database_asset` · `nats_to_database_asset` · `pulsar_to_database_asset` · `mqtt_to_database_asset`
 
 **Ingestion — files & databases**
-`sftp_to_database_asset` · `sql_to_database_asset` · `csv_file_ingestion` · `rest_api_fetcher`
+`sftp_to_database_asset` · `sql_to_database_asset` · `csv_file_ingestion` · `rest_api_fetcher` · `openapi_asset`
 
 **AI / LLM enrichment**
 `litellm_inference_asset` · `ollama_inference_asset` · `langchain_chain_asset` · `llm_prompt_executor` · `llm_chain_executor` · `document_summarizer` · `entity_extractor` · `embeddings_generator` · `moderation_scorer` · `anthropic_llm` · `conversation_memory`
@@ -36,8 +36,14 @@ attributes:
 **dbt**
 `dbt_docs_enriched_project` — extends `DbtProjectComponent` with exposures, metrics, semantic models, contracts, source freshness, and clickable dbt docs links on every asset
 
-**Enterprise tool runs**
-`coalesce_run_asset` · `abinitio_run_asset` · `matillion_run_asset` · `rivery_run_asset` · `precisely_run_asset`
+**Enterprise orchestration**
+`coalesce_run_asset` · `abinitio_run_asset` · `matillion_run_asset` · `rivery_run_asset` · `precisely_run_asset` · `step_functions_asset` · `dataiku_asset`
+
+**Reverse ETL**
+`polytomic_asset`
+
+**Schema discovery**
+`warehouse_schema_assets` — introspects a warehouse at prepare time, creates one external AssetSpec per table with full column metadata
 
 **Analytics & ML**
 `anomaly_detection` · `customer_segmentation` · `ltv_prediction` · `lead_scoring` · `propensity_scoring` · `customer_health_score` · `cohort_analysis` · `funnel_analysis` · `ab_test_analysis` · `campaign_performance` · `multi_touch_attribution` · `product_recommendations` · and more
@@ -93,50 +99,33 @@ Every component follows the same layout:
 
 ```
 component_name/
-├── component.py       # Dagster component class (Component + Model + Resolvable)
+├── component.py       # Dagster component class
 ├── example.yaml       # Working YAML configuration example
 ├── README.md          # Documentation and field reference
 ├── requirements.txt   # pip dependencies
 └── schema.json        # Component registry metadata
 ```
 
-## Quick Start
+---
 
-### 1. Install dagster-components
+## StateBackedComponent
+
+Several components that discover resources from external APIs use Dagster's `StateBackedComponent` pattern. The API call happens **once at prepare time** and is cached to disk — code-server reloads are instant with zero network calls.
+
+Components using this pattern: `coalesce_run_asset`, `azure_data_factory`, `aws_glue`, `databricks_workspace`, `openapi_asset`, `warehouse_schema_assets`, `step_functions_asset`, `dataiku_asset`, `polytomic_asset`
+
+To refresh the cached state after adding pipelines/jobs in the external system:
 
 ```bash
-pip install dagster
+dg utils refresh-defs-state
+# or simply restart: dagster dev
 ```
 
-### 2. Copy a component into your project
+---
 
-```bash
-cp -r sensors/s3_monitor/ my_project/lib/
-```
+## Asset Dependencies & Lineage
 
-### 3. Configure in YAML
-
-```yaml
-# defs/components/my_s3_sensor.yaml
-type: dagster_component_templates.S3MonitorSensor
-attributes:
-  sensor_name: raw_data_monitor
-  bucket_env_var: DATA_BUCKET
-  prefix: incoming/
-  target_asset: raw_data_ingest
-```
-
-### 4. Load in definitions.py
-
-```python
-import dagster as dg
-
-defs = dg.load_from_defs_folder(project_root=Path(__file__).parent)
-```
-
-## Asset Dependencies and Lineage
-
-Every asset component supports a `deps` field for declaring upstream dependencies:
+Every asset component supports a `deps` field for declaring upstream dependencies in the asset graph:
 
 ```yaml
 type: dagster_component_templates.LiteLLMInferenceAssetComponent
@@ -145,11 +134,20 @@ attributes:
   upstream_asset_key: raw_tickets   # loads data + draws lineage edge
   deps:                              # additional lineage-only edges
     - support_schema/tickets_raw
+    - raw/other_table
   model: claude-3-5-sonnet-20241022
-  ...
+  prompt_template: "Classify: {body}"
+  database_url_env_var: DATABASE_URL
+  table_name: enriched_tickets
 ```
 
+**`upstream_asset_key`** — for components that *load* upstream data (LiteLLM, Ollama, LangChain, SQL): draws a lineage edge **and** loads the asset value at runtime.
+
+**`deps`** — for all components: draws additional lineage-only edges without loading data. Use this to express that an asset *depends on* another without consuming it directly.
+
 Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).
+
+---
 
 ## Partitioning
 
@@ -162,6 +160,8 @@ attributes:
   table_name: events_{partition_key}   # {partition_key} is substituted at runtime
 ```
 
+---
+
 ## Sensor → Asset Pairing
 
 Most sensors are designed to trigger a companion ingestion asset. The sensor detects new data and fires a `RunRequest` with source info in `run_config`; the asset reads and ingests it.
@@ -171,9 +171,13 @@ Most sensors are designed to trigger a companion ingestion asset. The sensor det
 | `s3_monitor` | `s3_to_database_asset` |
 | `kafka_monitor` | `kafka_to_database_asset` |
 | `sqs_monitor` | `sqs_to_database_asset` |
+| `kinesis_monitor` | `kinesis_to_database_asset` |
 | `eventhubs_monitor` | `eventhubs_to_database_asset` |
+| `rabbitmq_monitor` | `rabbitmq_to_database_asset` |
 | `sftp_monitor` | `sftp_to_database_asset` |
 | … | … (all 15 pairs complete) |
+
+---
 
 ## dbt Docs Enrichment
 
@@ -187,9 +191,50 @@ attributes:
   include_exposures: true
   include_metrics: true
   include_semantic_models: true
+  include_contracts: true
+  include_source_freshness: true
 ```
 
-Each dbt model asset then shows: a clickable link to the dbt docs page, downstream BI exposures, metrics, semantic models, contract status, and source freshness SLAs — all visible in the Dagster Asset Catalog.
+Each dbt model asset then shows: a clickable link to the dbt docs page, downstream BI exposures, metrics, semantic models, contract status, and source freshness SLAs — all visible in the Dagster Asset Catalog. All `include_*` flags default to `false` — opt in to only what you need.
+
+---
+
+## Quick Start
+
+### 1. Install dagster
+
+```bash
+pip install dagster
+```
+
+### 2. Copy a component into your project
+
+```bash
+cp -r assets/s3_to_database_asset/ my_project/defs/components/
+```
+
+### 3. Configure in YAML
+
+```yaml
+# defs/components/my_s3_ingest.yaml
+type: dagster_component_templates.S3ToDatabaseAssetComponent
+attributes:
+  asset_name: raw_orders
+  bucket_env_var: DATA_BUCKET
+  database_url_env_var: DATABASE_URL
+  table_name: raw_orders
+```
+
+### 4. Load in definitions.py
+
+```python
+import dagster as dg
+from pathlib import Path
+
+defs = dg.load_from_defs_folder(project_root=Path(__file__).parent)
+```
+
+---
 
 ## Contributing
 

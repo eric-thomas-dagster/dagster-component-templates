@@ -1,0 +1,17 @@
+{
+  "type": "dagster_component_templates.HelmDeployComponent",
+  "name": "Helm Deploy",
+  "category": "assets",
+  "description": "Deploy or upgrade a Helm chart as the first step in a Dagster asset graph. Downstream data assets declare deps on this asset and will not run until the release has been deployed and pods are ready.",
+  "dependencies": {
+    "pip": []
+  },
+  "tags": [
+    "assets",
+    "infrastructure",
+    "helm",
+    "kubernetes",
+    "iac",
+    "provisioning"
+  ]
+}

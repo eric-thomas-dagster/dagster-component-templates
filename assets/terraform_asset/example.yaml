@@ -1,0 +1,9 @@
+type: dagster_component_templates.TerraformAssetComponent
+attributes:
+  asset_name: provision_data_infrastructure
+  working_dir: "{{ project_root }}/terraform/data_platform"
+  workspace: production
+  var_files:
+    - vars/production.tfvars
+  group_name: infrastructure
+  description: Provision S3 buckets, IAM roles, and RDS instance before pipeline runs

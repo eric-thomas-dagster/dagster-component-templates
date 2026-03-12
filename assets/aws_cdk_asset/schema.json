@@ -1,0 +1,119 @@
+{
+  "category": "assets",
+  "tags": ["assets", "infrastructure", "cdk", "aws", "iac", "provisioning"],
+  "name": "AWSCDKAssetComponent",
+  "title": "AWS CDK Asset",
+  "description": "Deploy AWS CDK stacks as a Dagster asset. Creates cloud infrastructure (S3, RDS, Glue, VPC, IAM, etc.) as the first step in a pipeline, with stack outputs surfaced as asset metadata for downstream assets to consume.",
+  "schema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "required": ["asset_name", "working_dir"],
+    "properties": {
+      "asset_name": {
+        "type": "string",
+        "description": "Dagster asset key for this CDK deployment asset."
+      },
+      "working_dir": {
+        "type": "string",
+        "description": "Filesystem path to the directory containing cdk.json and the CDK app entry point."
+      },
+      "stacks": {
+        "type": ["array", "null"],
+        "items": {
+          "type": "string"
+        },
+        "default": null,
+        "description": "Specific CDK stack names to deploy. When null all stacks are deployed (equivalent to cdk deploy \"*\")."
+      },
+      "context": {
+        "type": ["object", "null"],
+        "additionalProperties": {
+          "type": "string"
+        },
+        "default": null,
+        "description": "CDK context key/value pairs passed as -c key=value arguments."
+      },
+      "parameters": {
+        "type": ["object", "null"],
+        "additionalProperties": {
+          "type": "string"
+        },
+        "default": null,
+        "description": "CloudFormation parameter overrides in StackName:ParameterName=value format, passed via --parameters."
+      },
+      "require_approval": {
+        "type": "string",
+        "enum": ["never", "any-change", "broadening"],
+        "default": "never",
+        "description": "Approval level for security-sensitive changes. Use \"never\" for fully automated runs."
+      },
+      "exclusively": {
+        "type": "boolean",
+        "default": false,
+        "description": "Pass --exclusively to deploy only the listed stacks without deploying their dependency stacks."
+      },
+      "hotswap": {
+        "type": "boolean",
+        "default": false,
+        "description": "Pass --hotswap for faster deployments of Lambda functions and ECS services. Development environments only."
+      },
+      "rollback": {
+        "type": "boolean",
+        "default": true,
+        "description": "Roll back the stack on deployment failure. Set to false to leave the stack in a failed state for debugging."
+      },
+      "outputs_file": {
+        "type": ["string", "null"],
+        "default": null,
+        "description": "Path where CDK writes stack outputs as JSON via --outputs-file. When null a path under /tmp is used automatically."
+      },
+      "profile": {
+        "type": ["string", "null"],
+        "default": null,
+        "description": "AWS CLI profile name to use for authentication."
+      },
+      "region": {
+        "type": ["string", "null"],
+        "default": null,
+        "description": "AWS region override (e.g. us-east-1)."
+      },
+      "cdk_bin": {
+        "type": "string",
+        "default": "cdk",
+        "description": "Path or name of the CDK CLI executable. Must be available on PATH (installed via npm install -g aws-cdk)."
+      },
+      "env_vars": {
+        "type": ["object", "null"],
+        "additionalProperties": {
+          "type": "string"
+        },
+        "default": null,
+        "description": "Additional environment variables to inject into the CDK subprocess."
+      },
+      "operation": {
+        "type": "string",
+        "enum": ["deploy", "destroy"],
+        "default": "deploy",
+        "description": "CDK operation to run."
+      },
+      "group_name": {
+        "type": "string",
+        "default": "infrastructure",
+        "description": "Dagster asset group name."
+      },
+      "description": {
+        "type": ["string", "null"],
+        "default": null,
+        "description": "Human-readable description surfaced in the Dagster UI."
+      },
+      "deps": {
+        "type": ["array", "null"],
+        "items": {
+          "type": "string"
+        },
+        "default": null,
+        "description": "Dagster asset keys that this asset depends on."
+      }
+    }
+  }
+}

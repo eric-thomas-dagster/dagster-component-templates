@@ -1,6 +1,6 @@
 # Dagster Component Templates
 
-A community library of 166+ reusable [Dagster component](https://docs.dagster.io/guides/components) templates covering data ingestion, AI/LLM enrichment, orchestration, reverse ETL, observability, sensors, and enterprise tool integrations — all configurable via YAML with no Python required.
+A community library of 175+ reusable [Dagster component](https://docs.dagster.io/guides/components) templates covering data ingestion, AI/LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, and enterprise tool integrations — all configurable via YAML with no Python required.
 
 ## What are Dagster Components?
 
@@ -19,7 +19,7 @@ attributes:
 
 ## Component Library
 
-### Assets (120)
+### Assets (127)
 
 **Ingestion — cloud storage**
 `s3_to_database_asset` · `gcs_to_database_asset` · `adls_to_database_asset`
@@ -38,6 +38,9 @@ attributes:
 
 **Enterprise orchestration**
 `coalesce_run_asset` · `abinitio_run_asset` · `matillion_run_asset` · `rivery_run_asset` · `precisely_run_asset` · `step_functions_asset` · `dataiku_asset`
+
+**Infrastructure as Code** *(provision resources before pipeline runs)*
+`terraform_asset` · `terraform_cloud_asset` · `cloudformation_asset` · `ansible_asset` · `pulumi_asset` · `helm_deploy` · `aws_cdk_asset`
 
 **Reverse ETL**
 `polytomic_asset`

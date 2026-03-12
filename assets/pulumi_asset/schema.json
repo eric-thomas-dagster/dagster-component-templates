@@ -1,0 +1,16 @@
+{
+  "type": "dagster_component_templates.PulumiAssetComponent",
+  "name": "Pulumi Asset",
+  "category": "assets",
+  "description": "Deploy a Pulumi stack as the first step in a Dagster asset graph. Downstream data assets declare deps on this asset and will not run until the stack has been deployed successfully.",
+  "dependencies": {
+    "pip": []
+  },
+  "tags": [
+    "assets",
+    "infrastructure",
+    "pulumi",
+    "iac",
+    "provisioning"
+  ]
+}

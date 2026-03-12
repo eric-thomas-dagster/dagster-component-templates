@@ -1,0 +1,11 @@
+type: dagster_component_templates.AnsibleAssetComponent
+attributes:
+  asset_name: configure_data_servers
+  playbook: "{{ project_root }}/ansible/configure_etl_servers.yml"
+  inventory: "{{ project_root }}/ansible/inventory/production"
+  extra_vars:
+    env: production
+    db_host: db.internal.company.com
+  become: true
+  group_name: infrastructure
+  description: Configure ETL servers with required dependencies before pipeline run

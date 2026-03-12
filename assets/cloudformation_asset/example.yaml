@@ -1,0 +1,11 @@
+type: dagster_component_templates.CloudFormationAssetComponent
+attributes:
+  asset_name: provision_data_lake
+  stack_name: my-company-data-platform
+  template_file: "{{ project_root }}/infra/data_platform.yaml"
+  parameters:
+    Environment: production
+    BucketName: my-company-data-lake
+  region_name: us-east-1
+  group_name: infrastructure
+  description: Provision S3 data lake, Glue catalog, and IAM roles

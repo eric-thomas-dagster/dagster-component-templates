@@ -4856,6 +4856,69 @@
         "sync",
         "state-backed"
       ]
+    },
+    {
+      "id": "terraform_asset",
+      "name": "Terraform Asset",
+      "type": "dagster_component_templates.TerraformAssetComponent",
+      "category": "assets",
+      "description": "Run terraform apply (or plan/destroy) as a Dagster asset. Provision infrastructure before running data pipelines — downstream assets declare deps on this asset.",
+      "path": "assets/terraform_asset",
+      "tags": ["assets", "infrastructure", "terraform", "iac", "provisioning"]
+    },
+    {
+      "id": "terraform_cloud_asset",
+      "name": "Terraform Cloud Asset",
+      "type": "dagster_component_templates.TerraformCloudAssetComponent",
+      "category": "assets",
+      "description": "Discover all HCP Terraform workspaces at prepare time and create one Dagster asset per workspace. Triggers remote runs and polls for completion. Cached via StateBackedComponent.",
+      "path": "assets/terraform_cloud_asset",
+      "tags": ["assets", "infrastructure", "terraform", "terraform-cloud", "iac", "state-backed"]
+    },
+    {
+      "id": "cloudformation_asset",
+      "name": "CloudFormation Asset",
+      "type": "dagster_component_templates.CloudFormationAssetComponent",
+      "category": "assets",
+      "description": "Deploy or update an AWS CloudFormation stack as a Dagster asset. Idempotent via change sets — creates stack on first run, updates on subsequent runs.",
+      "path": "assets/cloudformation_asset",
+      "tags": ["assets", "infrastructure", "cloudformation", "aws", "iac", "provisioning"]
+    },
+    {
+      "id": "ansible_asset",
+      "name": "Ansible Asset",
+      "type": "dagster_component_templates.AnsibleAssetComponent",
+      "category": "assets",
+      "description": "Run an Ansible playbook as a Dagster asset with real-time log streaming. Configure servers or prepare infrastructure before running data pipelines.",
+      "path": "assets/ansible_asset",
+      "tags": ["assets", "infrastructure", "ansible", "iac", "configuration-management", "provisioning"]
+    },
+    {
+      "id": "pulumi_asset",
+      "name": "Pulumi Asset",
+      "type": "dagster_component_templates.PulumiAssetComponent",
+      "category": "assets",
+      "description": "Deploy a Pulumi stack as a Dagster asset. Supports up, destroy, and preview operations with JSON output parsing and stack outputs as metadata.",
+      "path": "assets/pulumi_asset",
+      "tags": ["assets", "infrastructure", "pulumi", "iac", "provisioning"]
+    },
+    {
+      "id": "helm_deploy",
+      "name": "Helm Deploy",
+      "type": "dagster_component_templates.HelmDeployComponent",
+      "category": "assets",
+      "description": "Install or upgrade a Helm chart as a Dagster asset. Deploy Kubernetes workloads (ML serving, databases, tools) before running dependent pipeline assets.",
+      "path": "assets/helm_deploy",
+      "tags": ["assets", "infrastructure", "helm", "kubernetes", "iac", "provisioning"]
+    },
+    {
+      "id": "aws_cdk_asset",
+      "name": "AWS CDK Asset",
+      "type": "dagster_component_templates.AWSCDKAssetComponent",
+      "category": "assets",
+      "description": "Deploy AWS CDK stacks as a Dagster asset with real-time log streaming and stack outputs as metadata. Provision infrastructure before running data pipelines.",
+      "path": "assets/aws_cdk_asset",
+      "tags": ["assets", "infrastructure", "cdk", "aws", "iac", "provisioning"]
     }
   ]
 }

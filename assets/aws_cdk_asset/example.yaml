@@ -1,0 +1,13 @@
+type: dagster_component_templates.AWSCDKAssetComponent
+attributes:
+  asset_name: provision_data_platform
+  working_dir: "{{ project_root }}/cdk"
+  stacks:
+    - DataLakeStack
+    - GlueCatalogStack
+  context:
+    environment: production
+    account: "123456789012"
+  require_approval: never
+  group_name: infrastructure
+  description: Deploy S3 data lake and Glue catalog stacks before pipeline

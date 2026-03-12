@@ -1,0 +1,13 @@
+type: dagster_component_templates.HelmDeployComponent
+attributes:
+  asset_name: deploy_ml_serving
+  release_name: ml-serving
+  chart: my-org/ml-serving
+  repo_url: https://charts.my-company.com
+  repo_name: my-org
+  namespace: ml-serving
+  set_values:
+    image.tag: "latest"
+    replicas: "3"
+  group_name: infrastructure
+  description: Deploy ML model serving before inference pipeline runs

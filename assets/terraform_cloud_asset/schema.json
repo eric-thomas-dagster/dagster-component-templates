@@ -1,0 +1,8 @@
+{
+  "type": "dagster_component_templates.terraform_cloud_asset",
+  "name": "HCP Terraform (Terraform Cloud) Asset",
+  "category": "assets",
+  "description": "Discovers all workspaces in an HCP Terraform organization at prepare time and creates one Dagster asset per workspace. Materialization triggers a remote run and polls for completion.",
+  "dependencies": {"pip": ["requests>=2.28.0"]},
+  "tags": ["assets", "infrastructure", "terraform", "terraform-cloud", "iac", "state-backed"]
+}

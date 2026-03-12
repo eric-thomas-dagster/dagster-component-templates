@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AnsibleAssetComponent",
+  "description": "Run an Ansible playbook as a Dagster asset to provision or configure infrastructure as a pipeline-first step.",
+  "category": "assets",
+  "tags": ["assets", "infrastructure", "ansible", "iac", "configuration-management", "provisioning"],
+  "type": "object",
+  "required": ["asset_name", "playbook"],
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "description": "Dagster asset key for this component."
+    },
+    "playbook": {
+      "type": "string",
+      "description": "Path to the Ansible playbook YAML file."
+    },
+    "inventory": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Inventory file path, directory, or comma-separated host list (e.g. 'host1,host2,'). When null, ansible-playbook uses the inventory from ansible.cfg."
+    },
+    "extra_vars": {
+      "type": ["object", "null"],
+      "default": null,
+      "additionalProperties": { "type": "string" },
+      "description": "Key/value pairs passed as --extra-vars 'k=v k2=v2 ...'."
+    },
+    "extra_vars_file": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Path to a vars file passed as --extra-vars @<file>."
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "default": null,
+      "items": { "type": "string" },
+      "description": "Limit execution to tasks with these Ansible tags (--tags)."
+    },
+    "skip_tags": {
+      "type": ["array", "null"],
+      "default": null,
+      "items": { "type": "string" },
+      "description": "Skip tasks with these Ansible tags (--skip-tags)."
+    },
+    "limit": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Further limit the hosts targeted by this play (--limit)."
+    },
+    "become": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable privilege escalation (--become / sudo)."
+    },
+    "become_user": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "User to become when privilege escalation is active (--become-user)."
+    },
+    "vault_password_file": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Path to a file containing the Ansible Vault password (--vault-password-file)."
+    },
+    "vault_password_env_var": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Name of an environment variable whose value is the Vault password. Written to a secure temp file and passed as --vault-password-file."
+    },
+    "ssh_private_key_env_var": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Name of an environment variable containing an SSH private key (PEM). Written to a 0600 temp file; sets ANSIBLE_PRIVATE_KEY_FILE."
+    },
+    "check_mode": {
+      "type": "boolean",
+      "default": false,
+      "description": "Run in check (dry-run) mode — no changes are applied (--check)."
+    },
+    "diff_mode": {
+      "type": "boolean",
+      "default": false,
+      "description": "Show diffs for files that would be changed (--diff)."
+    },
+    "verbosity": {
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 4,
+      "description": "Verbosity level 0-4. Maps to -v / -vv / -vvv / -vvvv."
+    },
+    "ansible_bin": {
+      "type": "string",
+      "default": "ansible-playbook",
+      "description": "Path to the ansible-playbook binary."
+    },
+    "working_dir": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Working directory for the subprocess. Defaults to the current process cwd."
+    },
+    "env_vars": {
+      "type": ["object", "null"],
+      "default": null,
+      "additionalProperties": { "type": "string" },
+      "description": "Additional environment variables merged into the subprocess environment."
+    },
+    "group_name": {
+      "type": "string",
+      "default": "infrastructure",
+      "description": "Dagster asset group name."
+    },
+    "description": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Human-readable description surfaced in the Dagster UI."
+    },
+    "deps": {
+      "type": ["array", "null"],
+      "default": null,
+      "items": { "type": "string" },
+      "description": "Upstream asset keys this asset depends on."
+    }
+  },
+  "additionalProperties": false
+}

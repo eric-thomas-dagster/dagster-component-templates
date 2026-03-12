@@ -1,0 +1,8 @@
+type: dagster_component_templates.PulumiAssetComponent
+attributes:
+  asset_name: provision_cloud_resources
+  stack_name: my-org/data-platform/production
+  working_dir: "{{ project_root }}/infrastructure"
+  operation: up
+  refresh: true
+  group_name: infrastructure

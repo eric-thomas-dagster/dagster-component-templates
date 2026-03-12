@@ -1,0 +1,34 @@
+{
+  "type": "dagster_component_templates.CloudFormationAssetComponent",
+  "name": "CloudFormation Asset",
+  "category": "assets",
+  "description": "Deploy or update an AWS CloudFormation stack as a Dagster asset. Idempotent via change sets. Stack outputs are surfaced as Dagster metadata after each materialization.",
+  "attributes": {
+    "asset_name": {"type": "string", "required": true},
+    "stack_name": {"type": "string", "required": true},
+    "template_file": {"type": "string", "required": false},
+    "template_url": {"type": "string", "required": false},
+    "parameters": {"type": "object", "required": false},
+    "capabilities": {
+      "type": "array",
+      "items": {"type": "string"},
+      "default": ["CAPABILITY_IAM", "CAPABILITY_NAMED_IAM"]
+    },
+    "region_name": {"type": "string", "default": "us-east-1"},
+    "aws_profile": {"type": "string", "required": false},
+    "role_arn": {"type": "string", "required": false},
+    "on_failure": {"type": "string", "default": "ROLLBACK"},
+    "timeout_minutes": {"type": "integer", "default": 60},
+    "poll_interval_seconds": {"type": "integer", "default": 15},
+    "tags": {"type": "object", "required": false},
+    "group_name": {"type": "string", "default": "infrastructure"},
+    "description": {"type": "string", "required": false},
+    "deps": {
+      "type": "array",
+      "items": {"type": "string"},
+      "required": false
+    }
+  },
+  "dependencies": {"pip": ["boto3>=1.26.0"]},
+  "tags": ["assets", "infrastructure", "cloudformation", "aws", "iac", "provisioning"]
+}

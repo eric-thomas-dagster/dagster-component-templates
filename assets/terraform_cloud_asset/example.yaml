@@ -1,0 +1,8 @@
+type: dagster_component_templates.TerraformCloudAssetComponent
+attributes:
+  api_token_env_var: TFC_TOKEN
+  organization: my-company
+  workspace_filter: "data-platform-"
+  group_name: infrastructure
+  auto_apply: true
+  message: "Triggered by Dagster pipeline"

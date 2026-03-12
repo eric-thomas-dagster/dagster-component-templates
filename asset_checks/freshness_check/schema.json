@@ -1,0 +1,72 @@
+{
+  "type": "dagster_component_templates.FreshnessPolicyComponent",
+  "name": "Freshness Policy",
+  "category": "asset_checks",
+  "description": "Attach a Dagster FreshnessPolicy to an asset for continuous SLA monitoring",
+  "icon": "CheckCircle",
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key",
+      "placeholder": "warehouse/orders"
+    },
+    "policy_type": {
+      "type": "string",
+      "required": false,
+      "label": "Policy Type",
+      "default": "time_window",
+      "enum": ["time_window", "cron"]
+    },
+    "fail_window_hours": {
+      "type": "number",
+      "required": false,
+      "label": "Fail Window (hours)",
+      "placeholder": "25",
+      "minimum": 0.017,
+      "description": "[time_window] Hours after which the asset is stale and fails"
+    },
+    "warn_window_hours": {
+      "type": "number",
+      "required": false,
+      "label": "Warn Window (hours)",
+      "placeholder": "13",
+      "minimum": 0.017,
+      "description": "[time_window] Hours after which a warning is raised"
+    },
+    "deadline_cron": {
+      "type": "string",
+      "required": false,
+      "label": "Deadline Cron",
+      "placeholder": "0 10 * * *",
+      "description": "[cron] Cron expression for the materialization deadline"
+    },
+    "lower_bound_delta_hours": {
+      "type": "number",
+      "required": false,
+      "label": "Lower Bound Delta (hours)",
+      "placeholder": "1",
+      "minimum": 0,
+      "description": "[cron] Hours before deadline when the materialization window opens"
+    },
+    "timezone": {
+      "type": "string",
+      "required": false,
+      "label": "Timezone",
+      "placeholder": "America/New_York",
+      "description": "[cron] Timezone for the cron expression. Defaults to UTC."
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dagster"
+    ]
+  },
+  "tags": [
+    "asset_checks",
+    "freshness",
+    "sla",
+    "data_quality",
+    "observability"
+  ]
+}

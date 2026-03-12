@@ -1,0 +1,7 @@
+type: dagster_component_templates.RabbitmqObservationSensorComponent
+attributes:
+  sensor_name: rabbitmq_tasks_obs
+  asset_key: queue/tasks
+  host: localhost
+  queue_name: task-queue
+  check_interval_seconds: 60

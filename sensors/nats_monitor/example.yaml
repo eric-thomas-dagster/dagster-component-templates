@@ -1,0 +1,11 @@
+type: dagster_component_templates.NATSMonitorSensorComponent
+attributes:
+  sensor_name: nats_events_sensor
+  servers: nats://localhost:4222
+  stream_name: EVENTS
+  consumer_name: dagster-sensor
+  job_name: process_nats_messages_job
+  max_messages_per_poll: 100
+  fetch_timeout_seconds: 5.0
+  minimum_interval_seconds: 30
+  default_status: running

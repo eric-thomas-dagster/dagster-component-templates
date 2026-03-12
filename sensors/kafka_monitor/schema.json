@@ -1,0 +1,157 @@
+{
+  "type": "dagster_component_templates.KafkaMonitorSensorComponent",
+  "name": "Kafka Monitor",
+  "category": "sensors",
+  "description": "Monitor a Kafka topic for new messages and trigger jobs when messages are detected",
+  "icon": "Activity",
+  "x-dagster-io": {
+    "component_type": "sensor",
+    "triggers": {
+      "type": "kafka",
+      "description": "Triggers when new messages are detected on the monitored Kafka topic"
+    },
+    "outputs": {
+      "type": "run_config",
+      "description": "Passes message information (topic, partition, offset, key, value, timestamp) to triggered jobs via run_config"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name",
+      "description": "Unique name for this sensor",
+      "placeholder": "kafka_events_sensor"
+    },
+    "bootstrap_servers": {
+      "type": "string",
+      "required": true,
+      "label": "Bootstrap Servers",
+      "description": "Comma-separated list of Kafka broker addresses",
+      "placeholder": "broker1:9092,broker2:9092"
+    },
+    "topic": {
+      "type": "string",
+      "required": true,
+      "label": "Topic",
+      "description": "Name of the Kafka topic to monitor",
+      "placeholder": "user-events"
+    },
+    "group_id": {
+      "type": "string",
+      "required": true,
+      "label": "Consumer Group ID",
+      "description": "Kafka consumer group ID for this sensor",
+      "placeholder": "dagster-sensor-group"
+    },
+    "job_name": {
+      "type": "string",
+      "required": true,
+      "label": "Job Name",
+      "description": "Name of the job to trigger when messages are detected",
+      "placeholder": "process_kafka_messages_job"
+    },
+    "minimum_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Minimum Interval (seconds)",
+      "description": "Minimum time between sensor evaluations",
+      "default": 30,
+      "minimum": 1,
+      "placeholder": "30"
+    },
+    "max_messages_per_poll": {
+      "type": "number",
+      "required": false,
+      "label": "Max Messages Per Poll",
+      "description": "Maximum number of messages to consume per sensor evaluation",
+      "default": 100,
+      "minimum": 1,
+      "placeholder": "100"
+    },
+    "poll_timeout_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Poll Timeout (seconds)",
+      "description": "Seconds to wait for messages during each poll call before moving on",
+      "default": 5.0,
+      "minimum": 0.1,
+      "placeholder": "5.0"
+    },
+    "security_protocol": {
+      "type": "string",
+      "required": false,
+      "label": "Security Protocol",
+      "description": "Kafka security protocol",
+      "default": "PLAINTEXT",
+      "enum": [
+        "PLAINTEXT",
+        "SSL",
+        "SASL_PLAINTEXT",
+        "SASL_SSL"
+      ],
+      "enumLabels": {
+        "PLAINTEXT": "PLAINTEXT (no authentication)",
+        "SSL": "SSL (TLS encryption only)",
+        "SASL_PLAINTEXT": "SASL_PLAINTEXT (SASL auth, no TLS)",
+        "SASL_SSL": "SASL_SSL (SASL auth with TLS)"
+      }
+    },
+    "sasl_mechanism": {
+      "type": "string",
+      "required": false,
+      "label": "SASL Mechanism",
+      "description": "SASL mechanism when using SASL_PLAINTEXT or SASL_SSL (e.g., PLAIN, SCRAM-SHA-256)",
+      "placeholder": "PLAIN"
+    },
+    "sasl_username_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "SASL Username Env Var",
+      "description": "Name of the environment variable containing the SASL username",
+      "placeholder": "KAFKA_SASL_USERNAME"
+    },
+    "sasl_password_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "SASL Password Env Var",
+      "description": "Name of the environment variable containing the SASL password",
+      "placeholder": "KAFKA_SASL_PASSWORD"
+    },
+    "default_status": {
+      "type": "string",
+      "required": false,
+      "label": "Default Status",
+      "description": "Default status of the sensor",
+      "default": "running",
+      "enum": [
+        "running",
+        "stopped"
+      ],
+      "enumLabels": {
+        "running": "Running (sensor actively monitors)",
+        "stopped": "Stopped (sensor is paused)"
+      }
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key> is used instead of creating a connection from the other fields. See README for the expected interface.",
+      "placeholder": "my_aws_resource"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "kafka-python>=2.0.2"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "kafka",
+    "streaming",
+    "messaging",
+    "monitoring",
+    "automation"
+  ]
+}

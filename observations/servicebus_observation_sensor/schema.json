@@ -1,0 +1,68 @@
+{
+  "type": "dagster_component_templates.ServiceBusObservationSensorComponent",
+  "name": "Service Bus Observation Sensor",
+  "category": "sensors",
+  "description": "Emit health observations for an external Service Bus queue or topic",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "observation_sensor"
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name"
+    },
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key"
+    },
+    "namespace": {
+      "type": "string",
+      "required": true,
+      "label": "Namespace"
+    },
+    "queue_name": {
+      "type": "string",
+      "required": false,
+      "label": "Queue Name"
+    },
+    "topic_name": {
+      "type": "string",
+      "required": false,
+      "label": "Topic Name"
+    },
+    "subscription_name": {
+      "type": "string",
+      "required": false,
+      "label": "Subscription Name"
+    },
+    "connection_string_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "Connection String Env Var"
+    },
+    "check_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Check Interval (s)",
+      "default": 60
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "azure-servicebus>=7.0.0",
+      "azure-identity>=1.10.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "observation"
+  ]
+}

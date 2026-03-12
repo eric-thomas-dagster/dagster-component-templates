@@ -1,0 +1,6 @@
+type: dagster_component_templates.RiveryRunAssetComponent
+attributes:
+  asset_key: rivery/ingest/salesforce_accounts
+  river_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  api_token_env_var: RIVERY_API_TOKEN
+  region: us2

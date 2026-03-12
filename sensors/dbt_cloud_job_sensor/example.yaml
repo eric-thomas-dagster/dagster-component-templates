@@ -1,0 +1,8 @@
+type: dagster_component_templates.DbtCloudJobSensorComponent
+attributes:
+  sensor_name: dbt_daily_models_done
+  account_id: 12345
+  job_id: 67890
+  api_token_env_var: DBT_CLOUD_API_TOKEN
+  job_name: downstream_processing_job
+  minimum_interval_seconds: 60

@@ -1,0 +1,9 @@
+type: dagster_component_templates.AcceldataCheckComponent
+attributes:
+  asset_key: warehouse/orders
+  api_url_env_var: ACCELDATA_API_URL
+  api_token_env_var: ACCELDATA_API_TOKEN
+  rule_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  poll_interval_seconds: 5.0
+  timeout_seconds: 300
+  severity: ERROR

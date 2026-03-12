@@ -1,0 +1,7 @@
+type: dagster_component_templates.S3ObservationSensorComponent
+attributes:
+  sensor_name: s3_orders_obs
+  asset_key: raw/orders
+  bucket_name: my-data-bucket
+  prefix: incoming/orders/
+  check_interval_seconds: 300

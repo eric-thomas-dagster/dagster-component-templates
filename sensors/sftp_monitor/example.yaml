@@ -1,0 +1,10 @@
+type: dagster_component_templates.SftpMonitorSensorComponent
+attributes:
+  sensor_name: sftp_orders_monitor
+  host: sftp.partner.com
+  username_env_var: SFTP_USERNAME
+  password_env_var: SFTP_PASSWORD
+  remote_path: /incoming/orders
+  file_pattern: "*.csv"
+  job_name: process_sftp_file_job
+  minimum_interval_seconds: 300

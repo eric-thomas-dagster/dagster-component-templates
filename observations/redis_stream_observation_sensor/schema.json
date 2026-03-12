@@ -1,0 +1,70 @@
+{
+  "type": "dagster_component_templates.RedisStreamObservationSensorComponent",
+  "name": "Redis Stream Observation Sensor",
+  "category": "sensors",
+  "description": "Emit health observations for an external Redis Stream",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "observation_sensor"
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name"
+    },
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key"
+    },
+    "stream_name": {
+      "type": "string",
+      "required": true,
+      "label": "Stream Name"
+    },
+    "host": {
+      "type": "string",
+      "required": false,
+      "label": "Host",
+      "default": "localhost"
+    },
+    "port": {
+      "type": "number",
+      "required": false,
+      "label": "Port",
+      "default": 6379
+    },
+    "db": {
+      "type": "number",
+      "required": false,
+      "label": "DB Index",
+      "default": 0
+    },
+    "password_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "Password Env Var"
+    },
+    "check_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Check Interval (s)",
+      "default": 60
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "redis>=4.0.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "observation"
+  ]
+}

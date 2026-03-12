@@ -1,0 +1,8 @@
+type: dagster_component_templates.ExternalSnowflakeTableAsset
+attributes:
+  asset_key: snowflake/raw/orders
+  account: myorg-us-east-1
+  database: RAW
+  schema_name: PUBLIC
+  table_name: ORDERS
+  group_name: snowflake_sources

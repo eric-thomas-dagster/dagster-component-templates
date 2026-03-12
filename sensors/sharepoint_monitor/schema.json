@@ -1,0 +1,96 @@
+{
+  "type": "dagster_component_templates.SharePointMonitorSensorComponent",
+  "name": "SharePoint Monitor",
+  "category": "sensors",
+  "description": "Monitor a SharePoint document library for new or modified files and trigger jobs",
+  "icon": "Activity",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name",
+      "placeholder": "sharepoint_reports_monitor"
+    },
+    "site_url": {
+      "type": "string",
+      "required": true,
+      "label": "Site URL",
+      "placeholder": "https://myorg.sharepoint.com/sites/DataTeam"
+    },
+    "library_name": {
+      "type": "string",
+      "required": true,
+      "label": "Library Name",
+      "placeholder": "Reports"
+    },
+    "tenant_id_env_var": {
+      "type": "string",
+      "required": true,
+      "label": "Tenant ID Env Var",
+      "placeholder": "AZURE_TENANT_ID"
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "required": true,
+      "label": "Client ID Env Var",
+      "placeholder": "AZURE_CLIENT_ID"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "required": true,
+      "label": "Client Secret Env Var",
+      "placeholder": "AZURE_CLIENT_SECRET"
+    },
+    "folder_path": {
+      "type": "string",
+      "required": false,
+      "label": "Folder Path",
+      "default": ""
+    },
+    "file_extension_filter": {
+      "type": "string",
+      "required": false,
+      "label": "File Extension Filter",
+      "placeholder": ".xlsx"
+    },
+    "job_name": {
+      "type": "string",
+      "required": true,
+      "label": "Job Name"
+    },
+    "minimum_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Poll Interval (s)",
+      "default": 300
+    },
+    "default_status": {
+      "type": "string",
+      "required": false,
+      "label": "Default Status",
+      "default": "running",
+      "enum": [
+        "running",
+        "stopped"
+      ]
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "requests>=2.28.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "sharepoint",
+    "microsoft",
+    "office365",
+    "files",
+    "automation"
+  ]
+}

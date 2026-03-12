@@ -1,0 +1,13 @@
+type: dagster_component_templates.MQTTMonitorSensorComponent
+attributes:
+  sensor_name: mqtt_telemetry_sensor
+  broker_host: mqtt.example.com
+  topic: sensors/factory/+/temperature
+  job_name: process_telemetry_job
+  broker_port: 1883
+  qos: 1
+  collect_window_seconds: 5.0
+  max_messages_per_poll: 100
+  use_tls: false
+  minimum_interval_seconds: 60
+  default_status: running

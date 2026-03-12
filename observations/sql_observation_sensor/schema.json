@@ -1,0 +1,58 @@
+{
+  "type": "dagster_component_templates.SqlObservationSensorComponent",
+  "name": "SQL Observation Sensor",
+  "category": "sensors",
+  "description": "Emit health observations for an external SQL table",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "observation_sensor"
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name"
+    },
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key"
+    },
+    "table_name": {
+      "type": "string",
+      "required": true,
+      "label": "Table Name"
+    },
+    "connection_string_env_var": {
+      "type": "string",
+      "required": true,
+      "label": "Connection String Env Var"
+    },
+    "watermark_column": {
+      "type": "string",
+      "required": false,
+      "label": "Watermark Column",
+      "placeholder": "updated_at"
+    },
+    "check_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Check Interval (s)",
+      "default": 300
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "sqlalchemy>=2.0.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "observation"
+  ]
+}

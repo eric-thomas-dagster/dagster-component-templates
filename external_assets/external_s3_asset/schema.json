@@ -1,0 +1,56 @@
+{
+  "type": "dagster_component_templates.ExternalS3Asset",
+  "name": "External S3 Asset",
+  "category": "sensors",
+  "description": "Declare an S3 bucket prefix as an external asset",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "external_asset"
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key",
+      "placeholder": "raw/orders"
+    },
+    "bucket_name": {
+      "type": "string",
+      "required": true,
+      "label": "Bucket Name",
+      "placeholder": "my-data-bucket"
+    },
+    "prefix": {
+      "type": "string",
+      "required": false,
+      "label": "Prefix",
+      "default": "",
+      "placeholder": "incoming/"
+    },
+    "region_name": {
+      "type": "string",
+      "required": false,
+      "label": "Region",
+      "placeholder": "us-east-1"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dagster"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "external_asset"
+  ]
+}

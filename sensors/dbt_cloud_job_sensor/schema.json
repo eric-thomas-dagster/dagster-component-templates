@@ -1,0 +1,72 @@
+{
+  "type": "dagster_component_templates.DbtCloudJobSensorComponent",
+  "name": "dbt Cloud Job Sensor",
+  "category": "sensors",
+  "description": "Trigger a Dagster job when a dbt Cloud job run completes successfully",
+  "icon": "Activity",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name",
+      "placeholder": "dbt_daily_models_done"
+    },
+    "account_id": {
+      "type": "number",
+      "required": true,
+      "label": "Account ID",
+      "placeholder": "12345"
+    },
+    "job_id": {
+      "type": "number",
+      "required": true,
+      "label": "Job ID",
+      "placeholder": "67890"
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "required": true,
+      "label": "API Token Env Var",
+      "placeholder": "DBT_CLOUD_API_TOKEN"
+    },
+    "job_name": {
+      "type": "string",
+      "required": true,
+      "label": "Dagster Job Name",
+      "placeholder": "downstream_processing_job"
+    },
+    "minimum_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Poll Interval (s)",
+      "default": 60
+    },
+    "default_status": {
+      "type": "string",
+      "required": false,
+      "label": "Default Status",
+      "default": "running",
+      "enum": [
+        "running",
+        "stopped"
+      ]
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "requests>=2.28.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "dbt",
+    "dbt-cloud",
+    "transformation",
+    "automation"
+  ]
+}

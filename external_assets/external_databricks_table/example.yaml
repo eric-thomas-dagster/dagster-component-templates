@@ -1,0 +1,8 @@
+type: dagster_component_templates.ExternalDatabricksTableAsset
+attributes:
+  asset_key: databricks/gold/orders
+  workspace_url: https://myorg.azuredatabricks.net
+  catalog: main
+  schema_name: gold
+  table_name: orders
+  group_name: databricks_sources

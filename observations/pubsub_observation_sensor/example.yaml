@@ -1,0 +1,7 @@
+type: dagster_component_templates.PubsubObservationSensorComponent
+attributes:
+  sensor_name: pubsub_events_obs
+  asset_key: streaming/events
+  project_id: my-gcp-project
+  topic_id: my-topic
+  check_interval_seconds: 300

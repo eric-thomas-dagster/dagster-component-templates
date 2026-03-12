@@ -1,0 +1,7 @@
+type: dagster_component_templates.PulsarObservationSensorComponent
+attributes:
+  sensor_name: pulsar_events_obs
+  asset_key: streaming/events
+  service_url: pulsar://localhost:6650
+  topic: persistent://public/default/my-topic
+  check_interval_seconds: 300

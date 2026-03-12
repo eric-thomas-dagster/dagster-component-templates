@@ -1,0 +1,9 @@
+type: dagster_component_templates.ServiceBusMonitorSensorComponent
+attributes:
+  sensor_name: servicebus_sensor
+  fully_qualified_namespace: mynamespace.servicebus.windows.net
+  queue_name: my-queue
+  job_name: process_messages_job
+  minimum_interval_seconds: 30
+  max_messages_per_poll: 100
+  default_status: running

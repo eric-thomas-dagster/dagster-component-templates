@@ -1,0 +1,11 @@
+type: dagster_component_templates.DatabricksTableObservationSensorComponent
+attributes:
+  sensor_name: databricks_orders_obs
+  asset_key: databricks/gold/orders
+  workspace_url: https://myorg.azuredatabricks.net
+  catalog: main
+  schema_name: gold
+  table_name: orders
+  token_env_var: DATABRICKS_TOKEN
+  http_path: /sql/1.0/warehouses/abc123
+  check_interval_seconds: 300

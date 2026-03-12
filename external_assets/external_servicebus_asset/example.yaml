@@ -1,0 +1,5 @@
+type: dagster_component_templates.ExternalServiceBusAsset
+attributes:
+  asset_key: queue/orders
+  namespace: my-servicebus-ns
+  queue_name: orders-queue

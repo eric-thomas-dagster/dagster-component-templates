@@ -1,0 +1,57 @@
+{
+  "type": "dagster_component_templates.BigQueryTableObservationSensorComponent",
+  "name": "BigQuery Table Observation Sensor",
+  "category": "observations",
+  "description": "Emit health observations for an external BigQuery table",
+  "icon": "Database",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name"
+    },
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key"
+    },
+    "project_id": {
+      "type": "string",
+      "required": true,
+      "label": "Project ID"
+    },
+    "dataset_id": {
+      "type": "string",
+      "required": true,
+      "label": "Dataset ID"
+    },
+    "table_id": {
+      "type": "string",
+      "required": true,
+      "label": "Table ID"
+    },
+    "check_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Check Interval (s)",
+      "default": 300
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "google-cloud-bigquery>=3.0.0"
+    ]
+  },
+  "tags": [
+    "observations",
+    "bigquery",
+    "gcp",
+    "data_warehouse",
+    "monitoring"
+  ]
+}

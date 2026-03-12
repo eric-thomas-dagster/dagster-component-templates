@@ -1,0 +1,9 @@
+type: dagster_component_templates.SftpPathObservationSensorComponent
+attributes:
+  sensor_name: sftp_orders_obs
+  asset_key: sftp/partner/orders
+  host: sftp.partner.com
+  remote_path: /incoming/orders
+  username_env_var: SFTP_USERNAME
+  password_env_var: SFTP_PASSWORD
+  check_interval_seconds: 300

@@ -1,0 +1,50 @@
+{
+  "type": "dagster_component_templates.SodaCheckComponent",
+  "name": "Soda Check",
+  "category": "asset_checks",
+  "description": "Run a Soda scan as a Dagster asset check",
+  "icon": "CheckCircle",
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key"
+    },
+    "data_source_name": {
+      "type": "string",
+      "required": true,
+      "label": "Data Source Name"
+    },
+    "checks_yaml_path": {
+      "type": "string",
+      "required": true,
+      "label": "Checks YAML Path",
+      "placeholder": "./soda/orders_checks.yaml"
+    },
+    "soda_configuration_path": {
+      "type": "string",
+      "required": false,
+      "label": "Soda Configuration Path",
+      "default": "./soda/configuration.yaml"
+    },
+    "severity": {
+      "type": "string",
+      "required": false,
+      "label": "Severity",
+      "default": "ERROR",
+      "enum": [
+        "ERROR",
+        "WARN"
+      ]
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "soda-core>=3.0.0"
+    ]
+  },
+  "tags": [
+    "asset_checks",
+    "data_quality"
+  ]
+}

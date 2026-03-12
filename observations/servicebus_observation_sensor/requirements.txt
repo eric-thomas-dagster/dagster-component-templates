@@ -1,0 +1,2 @@
+azure-servicebus>=7.0.0
+azure-identity>=1.10.0

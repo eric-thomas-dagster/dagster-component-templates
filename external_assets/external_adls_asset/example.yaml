@@ -1,0 +1,7 @@
+type: dagster_component_templates.ExternalAdlsAsset
+attributes:
+  asset_key: raw/events
+  account_name: mystorageaccount
+  container_name: raw
+  path_prefix: events/
+  group_name: adls_sources

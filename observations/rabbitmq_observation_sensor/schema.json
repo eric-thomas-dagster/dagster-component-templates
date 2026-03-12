@@ -1,0 +1,74 @@
+{
+  "type": "dagster_component_templates.RabbitmqObservationSensorComponent",
+  "name": "RabbitMQ Observation Sensor",
+  "category": "sensors",
+  "description": "Emit health observations for an external RabbitMQ queue",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "observation_sensor"
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name"
+    },
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key"
+    },
+    "host": {
+      "type": "string",
+      "required": true,
+      "label": "Host"
+    },
+    "queue_name": {
+      "type": "string",
+      "required": true,
+      "label": "Queue Name"
+    },
+    "virtual_host": {
+      "type": "string",
+      "required": false,
+      "label": "Virtual Host",
+      "default": "/"
+    },
+    "port": {
+      "type": "number",
+      "required": false,
+      "label": "Port",
+      "default": 5672
+    },
+    "username_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "Username Env Var"
+    },
+    "password_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "Password Env Var"
+    },
+    "check_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Check Interval (s)",
+      "default": 60
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pika>=1.3.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "observation"
+  ]
+}

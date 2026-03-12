@@ -1,0 +1,6 @@
+type: dagster_component_templates.ExternalSqlAsset
+attributes:
+  asset_key: db/orders
+  table_name: orders
+  connection_string_env_var: DATABASE_URL
+  group_name: database_sources

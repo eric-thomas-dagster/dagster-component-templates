@@ -1,0 +1,14 @@
+type: dagster_component_templates.RabbitMQMonitorSensorComponent
+attributes:
+  sensor_name: rabbitmq_events_sensor
+  host: localhost
+  queue_name: data-ingestion-queue
+  job_name: process_rabbitmq_messages_job
+  port: 5672
+  virtual_host: /
+  username_env_var: RABBITMQ_USERNAME
+  password_env_var: RABBITMQ_PASSWORD
+  use_tls: false
+  max_messages_per_poll: 100
+  minimum_interval_seconds: 30
+  default_status: running

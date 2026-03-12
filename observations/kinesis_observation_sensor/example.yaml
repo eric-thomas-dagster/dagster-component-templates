@@ -1,0 +1,6 @@
+type: dagster_component_templates.KinesisObservationSensorComponent
+attributes:
+  sensor_name: kinesis_stream_obs
+  asset_key: streaming/clickstream
+  stream_name: my-kinesis-stream
+  check_interval_seconds: 300

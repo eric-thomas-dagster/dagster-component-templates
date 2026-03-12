@@ -1,0 +1,54 @@
+{
+  "type": "dagster_component_templates.GreatExpectationsCheckComponent",
+  "name": "Great Expectations Check",
+  "category": "asset_checks",
+  "description": "Run a Great Expectations expectation suite as a Dagster asset check",
+  "icon": "CheckCircle",
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key"
+    },
+    "ge_context_root_dir": {
+      "type": "string",
+      "required": true,
+      "label": "GE Context Root Dir",
+      "placeholder": "./great_expectations"
+    },
+    "datasource_name": {
+      "type": "string",
+      "required": true,
+      "label": "Datasource Name"
+    },
+    "data_asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Data Asset Name"
+    },
+    "expectation_suite_name": {
+      "type": "string",
+      "required": true,
+      "label": "Expectation Suite Name"
+    },
+    "severity": {
+      "type": "string",
+      "required": false,
+      "label": "Severity",
+      "default": "ERROR",
+      "enum": [
+        "ERROR",
+        "WARN"
+      ]
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "great-expectations>=0.18.0"
+    ]
+  },
+  "tags": [
+    "asset_checks",
+    "data_quality"
+  ]
+}

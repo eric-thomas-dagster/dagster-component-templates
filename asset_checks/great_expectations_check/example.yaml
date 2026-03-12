@@ -1,0 +1,7 @@
+type: dagster_component_templates.GreatExpectationsCheckComponent
+attributes:
+  asset_key: warehouse/orders
+  ge_context_root_dir: ./great_expectations
+  datasource_name: my_postgres
+  data_asset_name: orders
+  expectation_suite_name: orders.critical

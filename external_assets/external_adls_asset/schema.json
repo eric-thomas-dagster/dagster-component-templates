@@ -1,0 +1,55 @@
+{
+  "type": "dagster_component_templates.ExternalAdlsAsset",
+  "name": "External ADLS Asset",
+  "category": "sensors",
+  "description": "Declare an Azure Data Lake Storage path as an external asset",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "external_asset"
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key",
+      "placeholder": "raw/events"
+    },
+    "account_name": {
+      "type": "string",
+      "required": true,
+      "label": "Account Name",
+      "placeholder": "mystorageaccount"
+    },
+    "container_name": {
+      "type": "string",
+      "required": true,
+      "label": "Container Name",
+      "placeholder": "raw"
+    },
+    "path_prefix": {
+      "type": "string",
+      "required": false,
+      "label": "Path Prefix",
+      "default": ""
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dagster"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "external_asset"
+  ]
+}

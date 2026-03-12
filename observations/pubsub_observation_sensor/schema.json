@@ -1,0 +1,57 @@
+{
+  "type": "dagster_component_templates.PubsubObservationSensorComponent",
+  "name": "Pub/Sub Observation Sensor",
+  "category": "sensors",
+  "description": "Emit health observations for an external Pub/Sub topic",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "observation_sensor"
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name"
+    },
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key"
+    },
+    "project_id": {
+      "type": "string",
+      "required": true,
+      "label": "Project ID"
+    },
+    "topic_id": {
+      "type": "string",
+      "required": true,
+      "label": "Topic ID"
+    },
+    "subscription_id": {
+      "type": "string",
+      "required": false,
+      "label": "Subscription ID"
+    },
+    "check_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Check Interval (s)",
+      "default": 300
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "google-cloud-pubsub>=2.0.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "observation"
+  ]
+}

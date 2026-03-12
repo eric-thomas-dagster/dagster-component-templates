@@ -1,0 +1,48 @@
+{
+  "type": "dagster_component_templates.ExternalKinesisAsset",
+  "name": "External Kinesis Asset",
+  "category": "sensors",
+  "description": "Declare a Kinesis stream as an external asset",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "external_asset"
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key",
+      "placeholder": "streaming/clickstream"
+    },
+    "stream_name": {
+      "type": "string",
+      "required": true,
+      "label": "Stream Name",
+      "placeholder": "my-stream"
+    },
+    "region_name": {
+      "type": "string",
+      "required": false,
+      "label": "Region"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dagster"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "external_asset"
+  ]
+}

@@ -1,0 +1,12 @@
+type: dagster_component_templates.KafkaMonitorSensorComponent
+attributes:
+  sensor_name: kafka_events_sensor
+  bootstrap_servers: broker1:9092,broker2:9092
+  topic: user-events
+  group_id: dagster-sensor-group
+  job_name: process_kafka_messages_job
+  minimum_interval_seconds: 30
+  max_messages_per_poll: 100
+  poll_timeout_seconds: 5.0
+  security_protocol: PLAINTEXT
+  default_status: running

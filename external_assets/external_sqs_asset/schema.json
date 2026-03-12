@@ -1,0 +1,48 @@
+{
+  "type": "dagster_component_templates.ExternalSqsAsset",
+  "name": "External SQS Asset",
+  "category": "sensors",
+  "description": "Declare an SQS queue as an external asset",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "external_asset"
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key",
+      "placeholder": "queue/orders"
+    },
+    "queue_url": {
+      "type": "string",
+      "required": true,
+      "label": "Queue URL",
+      "placeholder": "https://sqs.us-east-1.amazonaws.com/123456789/my-queue"
+    },
+    "region_name": {
+      "type": "string",
+      "required": false,
+      "label": "Region"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dagster"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "external_asset"
+  ]
+}

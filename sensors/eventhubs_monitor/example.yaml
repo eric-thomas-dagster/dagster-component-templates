@@ -1,0 +1,10 @@
+type: dagster_component_templates.EventHubsMonitorSensorComponent
+attributes:
+  sensor_name: eventhubs_sensor
+  eventhub_name: my-event-hub
+  fully_qualified_namespace: mynamespace.servicebus.windows.net
+  consumer_group: $Default
+  job_name: process_events_job
+  minimum_interval_seconds: 30
+  max_events_per_partition: 100
+  default_status: running

@@ -1,0 +1,77 @@
+{
+  "type": "dagster_component_templates.SnowflakeTableObservationSensorComponent",
+  "name": "Snowflake Table Observation Sensor",
+  "category": "observations",
+  "description": "Emit health observations for an external Snowflake table",
+  "icon": "Database",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name"
+    },
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key"
+    },
+    "account": {
+      "type": "string",
+      "required": true,
+      "label": "Account"
+    },
+    "database": {
+      "type": "string",
+      "required": true,
+      "label": "Database"
+    },
+    "schema_name": {
+      "type": "string",
+      "required": true,
+      "label": "Schema"
+    },
+    "table_name": {
+      "type": "string",
+      "required": true,
+      "label": "Table"
+    },
+    "username_env_var": {
+      "type": "string",
+      "required": true,
+      "label": "Username Env Var"
+    },
+    "password_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "Password Env Var"
+    },
+    "warehouse": {
+      "type": "string",
+      "required": false,
+      "label": "Warehouse"
+    },
+    "check_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Check Interval (s)",
+      "default": 300
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "snowflake-connector-python>=3.0.0"
+    ]
+  },
+  "tags": [
+    "observations",
+    "snowflake",
+    "sql",
+    "data_warehouse",
+    "monitoring"
+  ]
+}

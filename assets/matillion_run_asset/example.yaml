@@ -1,0 +1,9 @@
+type: dagster_component_templates.MatillionRunAssetComponent
+attributes:
+  asset_key: matillion/transforms/load_orders
+  project: MyProject
+  version: default
+  job_name: Load Orders
+  instance_url_env_var: MATILLION_INSTANCE_URL
+  username_env_var: MATILLION_USERNAME
+  password_env_var: MATILLION_PASSWORD

@@ -1,0 +1,55 @@
+{
+  "type": "dagster_component_templates.ExternalMqttAsset",
+  "name": "External MQTT Asset",
+  "category": "sensors",
+  "description": "Declare an MQTT broker topic as an external asset",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "external_asset"
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key",
+      "placeholder": "iot/sensors"
+    },
+    "broker_host": {
+      "type": "string",
+      "required": true,
+      "label": "Broker Host",
+      "placeholder": "mqtt.example.com"
+    },
+    "topic": {
+      "type": "string",
+      "required": true,
+      "label": "Topic",
+      "placeholder": "sensors/+/temperature"
+    },
+    "broker_port": {
+      "type": "number",
+      "required": false,
+      "label": "Broker Port",
+      "default": 1883
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dagster"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "external_asset"
+  ]
+}

@@ -1,0 +1,7 @@
+type: dagster_component_templates.KafkaObservationSensorComponent
+attributes:
+  sensor_name: kafka_orders_obs
+  asset_key: streaming/orders
+  bootstrap_servers: localhost:9092
+  topic: orders
+  check_interval_seconds: 300

@@ -1,0 +1,108 @@
+{
+  "type": "dagster_component_templates.S3MonitorSensorComponent",
+  "name": "S3 Monitor",
+  "category": "sensors",
+  "description": "Monitor an S3 bucket prefix for new objects and trigger jobs when matching objects are detected",
+  "icon": "CloudSearch",
+  "x-dagster-io": {
+    "component_type": "sensor",
+    "triggers": {
+      "type": "s3",
+      "description": "Triggers when new objects are detected in the monitored S3 bucket prefix"
+    },
+    "outputs": {
+      "type": "run_config",
+      "description": "Passes object information (bucket, key, size, etag, last_modified) to triggered jobs via run_config"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name",
+      "description": "Unique name for this sensor",
+      "placeholder": "s3_data_sensor"
+    },
+    "bucket_name": {
+      "type": "string",
+      "required": true,
+      "label": "Bucket Name",
+      "description": "Name of the S3 bucket to monitor",
+      "placeholder": "my-data-bucket"
+    },
+    "prefix": {
+      "type": "string",
+      "required": false,
+      "label": "Prefix",
+      "description": "S3 key prefix to scope monitoring (e.g., 'incoming/' or 'data/2024/')",
+      "default": "",
+      "placeholder": "incoming/"
+    },
+    "key_pattern": {
+      "type": "string",
+      "required": false,
+      "label": "Key Pattern",
+      "description": "Regex pattern to match object keys relative to the prefix (e.g., '.*\\.parquet$')",
+      "default": ".*",
+      "placeholder": ".*\\.parquet$"
+    },
+    "job_name": {
+      "type": "string",
+      "required": true,
+      "label": "Job Name",
+      "description": "Name of the job to trigger when objects are detected",
+      "placeholder": "process_s3_objects_job"
+    },
+    "minimum_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Minimum Interval (seconds)",
+      "description": "Minimum time between sensor evaluations",
+      "default": 30,
+      "minimum": 1,
+      "placeholder": "30"
+    },
+    "region_name": {
+      "type": "string",
+      "required": false,
+      "label": "AWS Region",
+      "description": "AWS region name (e.g., 'us-east-1'). Uses default boto3 region if not set.",
+      "placeholder": "us-east-1"
+    },
+    "default_status": {
+      "type": "string",
+      "required": false,
+      "label": "Default Status",
+      "description": "Default status of the sensor",
+      "default": "running",
+      "enum": [
+        "running",
+        "stopped"
+      ],
+      "enumLabels": {
+        "running": "Running (sensor actively monitors)",
+        "stopped": "Stopped (sensor is paused)"
+      }
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key> is used instead of creating a connection from the other fields. See README for the expected interface.",
+      "placeholder": "my_aws_resource"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "boto3>=1.26.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "s3",
+    "aws",
+    "cloud",
+    "monitoring",
+    "automation"
+  ]
+}

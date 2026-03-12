@@ -1,0 +1,7 @@
+type: dagster_component_templates.ExternalBigQueryTableAsset
+attributes:
+  asset_key: bq/analytics/orders
+  project_id: my-gcp-project
+  dataset_id: analytics
+  table_id: orders
+  group_name: bigquery_sources

@@ -1,0 +1,10 @@
+type: dagster_component_templates.SQSMonitorSensorComponent
+attributes:
+  sensor_name: sqs_events_sensor
+  queue_url: https://sqs.us-east-1.amazonaws.com/123456789/my-queue
+  job_name: process_sqs_messages_job
+  minimum_interval_seconds: 30
+  max_messages_per_poll: 10
+  visibility_timeout_seconds: 30
+  region_name: us-east-1
+  default_status: running

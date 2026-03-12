@@ -1,0 +1,49 @@
+{
+  "type": "dagster_component_templates.ExternalPubsubAsset",
+  "name": "External Pub/Sub Asset",
+  "category": "sensors",
+  "description": "Declare a Google Cloud Pub/Sub topic as an external asset",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "external_asset"
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key",
+      "placeholder": "streaming/events"
+    },
+    "project_id": {
+      "type": "string",
+      "required": true,
+      "label": "Project ID",
+      "placeholder": "my-gcp-project"
+    },
+    "topic_id": {
+      "type": "string",
+      "required": true,
+      "label": "Topic ID",
+      "placeholder": "my-topic"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dagster"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "external_asset"
+  ]
+}

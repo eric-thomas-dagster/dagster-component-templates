@@ -1,0 +1,11 @@
+type: dagster_component_templates.SnowflakeTableObservationSensorComponent
+attributes:
+  sensor_name: snowflake_orders_obs
+  asset_key: snowflake/raw/orders
+  account: myorg-us-east-1
+  database: RAW
+  schema_name: PUBLIC
+  table_name: ORDERS
+  username_env_var: SNOWFLAKE_USER
+  password_env_var: SNOWFLAKE_PASSWORD
+  check_interval_seconds: 300

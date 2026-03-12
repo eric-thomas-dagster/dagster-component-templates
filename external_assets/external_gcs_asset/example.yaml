@@ -1,0 +1,6 @@
+type: dagster_component_templates.ExternalGcsAsset
+attributes:
+  asset_key: raw/data
+  bucket_name: my-gcs-bucket
+  prefix: incoming/
+  group_name: gcs_sources

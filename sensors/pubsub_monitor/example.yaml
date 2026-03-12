@@ -1,0 +1,9 @@
+type: dagster_component_templates.PubSubMonitorSensorComponent
+attributes:
+  sensor_name: pubsub_events_sensor
+  project: my-gcp-project
+  subscription: my-subscription
+  job_name: process_pubsub_messages_job
+  minimum_interval_seconds: 30
+  max_messages_per_pull: 100
+  default_status: running

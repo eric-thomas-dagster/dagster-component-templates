@@ -1,0 +1,8 @@
+type: dagster_component_templates.ExternalClickHouseTableComponent
+attributes:
+  asset_key: clickhouse/analytics/events
+  database: analytics
+  table: events
+  host_env_var: CLICKHOUSE_HOST
+  password_env_var: CLICKHOUSE_PASSWORD
+  group_name: clickhouse

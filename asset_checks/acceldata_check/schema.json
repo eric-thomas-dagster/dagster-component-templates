@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AcceldataCheckComponent",
+  "description": "Trigger an Acceldata rule execution on demand and surface results as a Dagster asset check.",
+  "type": "object",
+  "required": ["asset_key", "api_url_env_var", "api_token_env_var", "rule_id"],
+  "properties": {
+    "asset_key": {
+      "type": "string",
+      "description": "Asset key to attach this check to (e.g. 'warehouse/orders')"
+    },
+    "api_url_env_var": {
+      "type": "string",
+      "description": "Env var with Acceldata API base URL (e.g. https://mycompany.acceldata.io)"
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "description": "Env var with Acceldata API token"
+    },
+    "rule_id": {
+      "type": "string",
+      "description": "ID of the Acceldata DQ rule to execute. Find in Acceldata UI: Rules → Rule Details → ID."
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "default": 5.0,
+      "description": "Seconds between status polls"
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "default": 300,
+      "description": "Max seconds to wait for rule execution"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["ERROR", "WARN"],
+      "default": "ERROR",
+      "description": "Dagster asset check severity when the rule fails"
+    }
+  },
+  "additionalProperties": false
+}

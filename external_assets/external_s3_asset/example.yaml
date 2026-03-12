@@ -1,0 +1,7 @@
+type: dagster_component_templates.ExternalS3Asset
+attributes:
+  asset_key: raw/orders
+  bucket_name: my-data-bucket
+  prefix: incoming/orders/
+  region_name: us-east-1
+  group_name: s3_sources

@@ -1,0 +1,10 @@
+type: dagster_component_templates.ServiceNowSensorComponent
+attributes:
+  sensor_name: snow_change_approved
+  instance_env_var: SNOW_INSTANCE
+  username_env_var: SNOW_USERNAME
+  password_env_var: SNOW_PASSWORD
+  table: change_request
+  sysparm_query: "state=approved^assignment_group=data_engineering"
+  job_name: execute_approved_change_job
+  minimum_interval_seconds: 120

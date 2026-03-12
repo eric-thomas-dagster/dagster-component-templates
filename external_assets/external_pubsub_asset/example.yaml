@@ -1,0 +1,6 @@
+type: dagster_component_templates.ExternalPubsubAsset
+attributes:
+  asset_key: streaming/events
+  project_id: my-gcp-project
+  topic_id: my-topic
+  group_name: pubsub_sources

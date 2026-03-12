@@ -1,0 +1,49 @@
+{
+  "type": "dagster_component_templates.ExternalEventHubsAsset",
+  "name": "External Event Hubs Asset",
+  "category": "sensors",
+  "description": "Declare an Azure Event Hub as an external asset",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "external_asset"
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key",
+      "placeholder": "streaming/telemetry"
+    },
+    "namespace": {
+      "type": "string",
+      "required": true,
+      "label": "Namespace",
+      "placeholder": "my-eventhubs-ns"
+    },
+    "eventhub_name": {
+      "type": "string",
+      "required": true,
+      "label": "Event Hub Name",
+      "placeholder": "telemetry"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dagster"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "external_asset"
+  ]
+}

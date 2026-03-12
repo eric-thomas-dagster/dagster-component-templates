@@ -1,0 +1,8 @@
+type: dagster_component_templates.BigQueryTableObservationSensorComponent
+attributes:
+  sensor_name: bq_orders_obs
+  asset_key: bq/analytics/orders
+  project_id: my-gcp-project
+  dataset_id: analytics
+  table_id: orders
+  check_interval_seconds: 300

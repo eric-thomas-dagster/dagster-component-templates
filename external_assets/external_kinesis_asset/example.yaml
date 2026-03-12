@@ -1,0 +1,5 @@
+type: dagster_component_templates.ExternalKinesisAsset
+attributes:
+  asset_key: streaming/clickstream
+  stream_name: my-kinesis-stream
+  region_name: us-east-1

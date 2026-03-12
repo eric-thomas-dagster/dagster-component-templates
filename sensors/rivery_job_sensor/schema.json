@@ -1,0 +1,17 @@
+{
+  "type": "dagster_component_templates.rivery_job_sensor",
+  "name": "Rivery Job Sensor",
+  "category": "sensors",
+  "description": "Trigger a Dagster job when a Rivery river run completes",
+  "dependencies": {
+    "pip": [
+      "requests>=2.28.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "rivery",
+    "elt",
+    "automation"
+  ]
+}

@@ -1,0 +1,157 @@
+{
+  "type": "dagster_component_templates.MQTTMonitorSensorComponent",
+  "name": "MQTT Monitor",
+  "category": "sensors",
+  "description": "Subscribe to an MQTT broker topic and trigger jobs when messages are received \u2014 ideal for IoT telemetry and device event pipelines",
+  "icon": "Radio",
+  "x-dagster-io": {
+    "component_type": "sensor",
+    "triggers": {
+      "type": "mqtt",
+      "description": "Triggers when messages are received on the subscribed MQTT topic"
+    },
+    "outputs": {
+      "type": "run_config",
+      "description": "Passes message information (topic, payload, qos, retain, timestamp_s, broker_host) to triggered jobs via run_config"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name",
+      "description": "Unique name for this sensor",
+      "placeholder": "mqtt_telemetry_sensor"
+    },
+    "broker_host": {
+      "type": "string",
+      "required": true,
+      "label": "Broker Host",
+      "description": "MQTT broker hostname or IP address",
+      "placeholder": "mqtt.example.com"
+    },
+    "topic": {
+      "type": "string",
+      "required": true,
+      "label": "Topic",
+      "description": "MQTT topic to subscribe to. Supports wildcards: + (single level), # (multi-level)",
+      "placeholder": "sensors/factory/+/temperature"
+    },
+    "job_name": {
+      "type": "string",
+      "required": true,
+      "label": "Job Name",
+      "description": "Name of the job to trigger when messages are received",
+      "placeholder": "process_telemetry_job"
+    },
+    "broker_port": {
+      "type": "number",
+      "required": false,
+      "label": "Broker Port",
+      "description": "MQTT broker port (default: 1883, TLS: 8883)",
+      "default": 1883,
+      "placeholder": "1883"
+    },
+    "qos": {
+      "type": "number",
+      "required": false,
+      "label": "QoS Level",
+      "description": "MQTT Quality of Service level (0=at most once, 1=at least once, 2=exactly once)",
+      "default": 1,
+      "minimum": 0,
+      "maximum": 2,
+      "placeholder": "1"
+    },
+    "collect_window_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Collect Window (seconds)",
+      "description": "Seconds to listen for messages before disconnecting each evaluation",
+      "default": 5.0,
+      "minimum": 0.5,
+      "placeholder": "5.0"
+    },
+    "max_messages_per_poll": {
+      "type": "number",
+      "required": false,
+      "label": "Max Messages Per Poll",
+      "description": "Maximum number of messages to collect per evaluation",
+      "default": 100,
+      "minimum": 1,
+      "placeholder": "100"
+    },
+    "client_id": {
+      "type": "string",
+      "required": false,
+      "label": "Client ID",
+      "description": "MQTT client ID. Auto-generated if not set.",
+      "placeholder": "dagster-sensor"
+    },
+    "use_tls": {
+      "type": "boolean",
+      "required": false,
+      "label": "Use TLS",
+      "description": "Whether to use TLS for the connection",
+      "default": false
+    },
+    "username_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "Username Env Var",
+      "description": "Name of the environment variable containing the MQTT username",
+      "placeholder": "MQTT_USERNAME"
+    },
+    "password_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "Password Env Var",
+      "description": "Name of the environment variable containing the MQTT password",
+      "placeholder": "MQTT_PASSWORD"
+    },
+    "minimum_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Minimum Interval (seconds)",
+      "description": "Minimum time between sensor evaluations",
+      "default": 60,
+      "minimum": 1,
+      "placeholder": "60"
+    },
+    "default_status": {
+      "type": "string",
+      "required": false,
+      "label": "Default Status",
+      "description": "Default status of the sensor",
+      "default": "running",
+      "enum": [
+        "running",
+        "stopped"
+      ],
+      "enumLabels": {
+        "running": "Running (sensor actively monitors)",
+        "stopped": "Stopped (sensor is paused)"
+      }
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key> is used instead of creating a connection from the other fields. See README for the expected interface.",
+      "placeholder": "my_aws_resource"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "paho-mqtt>=1.6.1"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "mqtt",
+    "iot",
+    "telemetry",
+    "messaging",
+    "monitoring",
+    "automation"
+  ]
+}

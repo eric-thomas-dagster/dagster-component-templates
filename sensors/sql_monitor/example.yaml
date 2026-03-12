@@ -1,0 +1,11 @@
+type: dagster_component_templates.SQLMonitorSensorComponent
+attributes:
+  sensor_name: orders_table_sensor
+  connection_string_env_var: DATABASE_URL
+  table_name: orders
+  watermark_column: updated_at
+  id_column: id
+  job_name: process_new_orders_job
+  batch_size: 100
+  minimum_interval_seconds: 60
+  default_status: running

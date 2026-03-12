@@ -1,0 +1,5 @@
+type: dagster_component_templates.ExternalSharePointLibraryAsset
+attributes:
+  asset_key: sharepoint/reports
+  site_url: https://myorg.sharepoint.com/sites/DataTeam
+  library_name: Reports

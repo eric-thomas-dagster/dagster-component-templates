@@ -1,0 +1,17 @@
+{
+  "type": "dagster_component_templates.matillion_job_sensor",
+  "name": "Matillion Job Sensor",
+  "category": "sensors",
+  "description": "Trigger a Dagster job when a Matillion ETL job run completes",
+  "dependencies": {
+    "pip": [
+      "requests>=2.28.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "matillion",
+    "etl",
+    "automation"
+  ]
+}

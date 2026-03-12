@@ -1,0 +1,5 @@
+type: dagster_component_templates.ExternalPulsarAsset
+attributes:
+  asset_key: streaming/events
+  service_url: pulsar://localhost:6650
+  topic: persistent://public/default/my-topic

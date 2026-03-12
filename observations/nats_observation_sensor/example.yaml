@@ -1,0 +1,7 @@
+type: dagster_component_templates.NatsObservationSensorComponent
+attributes:
+  sensor_name: nats_events_obs
+  asset_key: streaming/events
+  servers: nats://localhost:4222
+  stream_name: EVENTS
+  check_interval_seconds: 300

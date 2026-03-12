@@ -1,0 +1,5 @@
+type: dagster_component_templates.ExternalSftpPathAsset
+attributes:
+  asset_key: sftp/partner/orders
+  host: sftp.partner.com
+  remote_path: /incoming/orders

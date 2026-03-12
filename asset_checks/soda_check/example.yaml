@@ -1,0 +1,6 @@
+type: dagster_component_templates.SodaCheckComponent
+attributes:
+  asset_key: warehouse/orders
+  data_source_name: my_postgres
+  checks_yaml_path: ./soda/orders_checks.yaml
+  soda_configuration_path: ./soda/configuration.yaml

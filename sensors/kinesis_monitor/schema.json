@@ -1,0 +1,117 @@
+{
+  "type": "dagster_component_templates.KinesisMonitorSensorComponent",
+  "name": "Kinesis Monitor",
+  "category": "sensors",
+  "description": "Monitor an AWS Kinesis Data Stream for new records and trigger jobs when records are detected",
+  "icon": "Activity",
+  "x-dagster-io": {
+    "component_type": "sensor",
+    "triggers": {
+      "type": "kinesis",
+      "description": "Triggers when new records are detected in the Kinesis stream shards"
+    },
+    "outputs": {
+      "type": "run_config",
+      "description": "Passes record information (stream, shard, sequence_number, partition_key, data_b64, arrival_timestamp) to triggered jobs via run_config"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name",
+      "description": "Unique name for this sensor",
+      "placeholder": "kinesis_events_sensor"
+    },
+    "stream_name": {
+      "type": "string",
+      "required": true,
+      "label": "Stream Name",
+      "description": "Name of the Kinesis Data Stream to monitor",
+      "placeholder": "my-event-stream"
+    },
+    "job_name": {
+      "type": "string",
+      "required": true,
+      "label": "Job Name",
+      "description": "Name of the job to trigger when records are detected",
+      "placeholder": "process_kinesis_records_job"
+    },
+    "minimum_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Minimum Interval (seconds)",
+      "description": "Minimum time between sensor evaluations",
+      "default": 30,
+      "minimum": 1,
+      "placeholder": "30"
+    },
+    "max_records_per_shard": {
+      "type": "number",
+      "required": false,
+      "label": "Max Records Per Shard",
+      "description": "Maximum number of records to read per shard per evaluation",
+      "default": 100,
+      "minimum": 1,
+      "placeholder": "100"
+    },
+    "initial_position": {
+      "type": "string",
+      "required": false,
+      "label": "Initial Position",
+      "description": "Where to start reading on first run",
+      "default": "LATEST",
+      "enum": [
+        "LATEST",
+        "TRIM_HORIZON"
+      ],
+      "enumLabels": {
+        "LATEST": "LATEST (only new records from now on)",
+        "TRIM_HORIZON": "TRIM_HORIZON (read all existing records first)"
+      }
+    },
+    "region_name": {
+      "type": "string",
+      "required": false,
+      "label": "AWS Region",
+      "description": "AWS region name. Uses default boto3 region if not set.",
+      "placeholder": "us-east-1"
+    },
+    "default_status": {
+      "type": "string",
+      "required": false,
+      "label": "Default Status",
+      "description": "Default status of the sensor",
+      "default": "running",
+      "enum": [
+        "running",
+        "stopped"
+      ],
+      "enumLabels": {
+        "running": "Running (sensor actively monitors)",
+        "stopped": "Stopped (sensor is paused)"
+      }
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key> is used instead of creating a connection from the other fields. See README for the expected interface.",
+      "placeholder": "my_aws_resource"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "boto3>=1.26.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "kinesis",
+    "aws",
+    "cloud",
+    "streaming",
+    "monitoring",
+    "automation"
+  ]
+}

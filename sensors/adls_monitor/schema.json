@@ -1,0 +1,123 @@
+{
+  "type": "dagster_component_templates.ADLSMonitorSensorComponent",
+  "name": "ADLS Monitor",
+  "category": "sensors",
+  "description": "Monitor an Azure Data Lake Storage Gen2 container for new files and trigger jobs when matching files are detected",
+  "icon": "CloudSearch",
+  "x-dagster-io": {
+    "component_type": "sensor",
+    "triggers": {
+      "type": "adls",
+      "description": "Triggers when new files are detected in the monitored ADLS Gen2 container directory"
+    },
+    "outputs": {
+      "type": "run_config",
+      "description": "Passes file information (storage account, container, path, size, last_modified) to triggered jobs via run_config"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name",
+      "description": "Unique name for this sensor",
+      "placeholder": "adls_data_sensor"
+    },
+    "storage_account_name": {
+      "type": "string",
+      "required": true,
+      "label": "Storage Account Name",
+      "description": "Azure Storage account name (e.g., 'mydatalake')",
+      "placeholder": "mydatalake"
+    },
+    "container_name": {
+      "type": "string",
+      "required": true,
+      "label": "Container Name",
+      "description": "Name of the ADLS Gen2 container (filesystem) to monitor",
+      "placeholder": "raw"
+    },
+    "directory_path": {
+      "type": "string",
+      "required": false,
+      "label": "Directory Path",
+      "description": "Directory path within the container to monitor (e.g., 'incoming/' or 'data/2024/')",
+      "default": "",
+      "placeholder": "incoming/"
+    },
+    "file_pattern": {
+      "type": "string",
+      "required": false,
+      "label": "File Pattern",
+      "description": "Regex pattern to match file names (e.g., '.*\\.parquet$' for Parquet files)",
+      "default": ".*",
+      "placeholder": ".*\\.parquet$"
+    },
+    "job_name": {
+      "type": "string",
+      "required": true,
+      "label": "Job Name",
+      "description": "Name of the job to trigger when files are detected",
+      "placeholder": "process_adls_files_job"
+    },
+    "minimum_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Minimum Interval (seconds)",
+      "description": "Minimum time between sensor evaluations",
+      "default": 30,
+      "minimum": 1,
+      "placeholder": "30"
+    },
+    "recursive": {
+      "type": "boolean",
+      "required": false,
+      "label": "Recursive",
+      "description": "Whether to recursively list files in subdirectories",
+      "default": false
+    },
+    "connection_string_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "Connection String Env Var",
+      "description": "Name of the environment variable containing the storage connection string. If not provided, DefaultAzureCredential is used.",
+      "placeholder": "AZURE_STORAGE_CONNECTION_STRING"
+    },
+    "default_status": {
+      "type": "string",
+      "required": false,
+      "label": "Default Status",
+      "description": "Default status of the sensor",
+      "default": "running",
+      "enum": [
+        "running",
+        "stopped"
+      ],
+      "enumLabels": {
+        "running": "Running (sensor actively monitors)",
+        "stopped": "Stopped (sensor is paused)"
+      }
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key> is used instead of creating a connection from the other fields. See README for the expected interface.",
+      "placeholder": "my_aws_resource"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "azure-storage-file-datalake>=12.0.0",
+      "azure-identity>=1.12.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "adls",
+    "azure",
+    "cloud",
+    "monitoring",
+    "automation"
+  ]
+}

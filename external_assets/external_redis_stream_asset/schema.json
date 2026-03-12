@@ -1,0 +1,55 @@
+{
+  "type": "dagster_component_templates.ExternalRedisStreamAsset",
+  "name": "External Redis Stream Asset",
+  "category": "sensors",
+  "description": "Declare a Redis Stream as an external asset",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "external_asset"
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key",
+      "placeholder": "streaming/events"
+    },
+    "stream_name": {
+      "type": "string",
+      "required": true,
+      "label": "Stream Name",
+      "placeholder": "events:incoming"
+    },
+    "host": {
+      "type": "string",
+      "required": false,
+      "label": "Host",
+      "default": "localhost"
+    },
+    "port": {
+      "type": "number",
+      "required": false,
+      "label": "Port",
+      "default": 6379
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dagster"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "external_asset"
+  ]
+}

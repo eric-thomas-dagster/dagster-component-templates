@@ -1,0 +1,24 @@
+# Using env vars directly
+type: dagster_component_templates.AbInitioRunAssetComponent
+attributes:
+  asset_key: abinitio/etl/load_orders
+  job_path: /prod/etl/load_orders
+  eme_url_env_var: ABINITIO_EME_URL
+  username_env_var: ABINITIO_USERNAME
+  password_env_var: ABINITIO_PASSWORD
+  parameters:
+    AI_START_DATE: "2024-01-01"
+    AI_END_DATE: "2024-01-31"
+    AI_INPUT_PATH: /data/inbound/orders
+  group_name: abinitio
+
+---
+
+# Using a shared AbInitioResource (recommended when running multiple Ab Initio jobs)
+type: dagster_component_templates.AbInitioRunAssetComponent
+attributes:
+  asset_key: abinitio/etl/load_customers
+  job_path: /prod/etl/load_customers
+  resource_key: abinitio
+  parameters:
+    AI_ENV: prod

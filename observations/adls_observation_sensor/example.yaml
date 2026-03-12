@@ -1,0 +1,8 @@
+type: dagster_component_templates.AdlsObservationSensorComponent
+attributes:
+  sensor_name: adls_events_obs
+  asset_key: raw/events
+  account_name: mystorageaccount
+  container_name: raw
+  path_prefix: events/
+  check_interval_seconds: 300

@@ -1,0 +1,72 @@
+{
+  "type": "dagster_component_templates.DatabricksTableObservationSensorComponent",
+  "name": "Databricks Table Observation Sensor",
+  "category": "observations",
+  "description": "Emit health observations for an external Databricks Delta table",
+  "icon": "Database",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name"
+    },
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key"
+    },
+    "workspace_url": {
+      "type": "string",
+      "required": true,
+      "label": "Workspace URL"
+    },
+    "catalog": {
+      "type": "string",
+      "required": false,
+      "label": "Catalog"
+    },
+    "schema_name": {
+      "type": "string",
+      "required": true,
+      "label": "Schema"
+    },
+    "table_name": {
+      "type": "string",
+      "required": true,
+      "label": "Table"
+    },
+    "token_env_var": {
+      "type": "string",
+      "required": true,
+      "label": "Token Env Var"
+    },
+    "http_path": {
+      "type": "string",
+      "required": true,
+      "label": "SQL Warehouse HTTP Path"
+    },
+    "check_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Check Interval (s)",
+      "default": 300
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "databricks-sql-connector>=3.0.0"
+    ]
+  },
+  "tags": [
+    "observations",
+    "databricks",
+    "delta",
+    "lakehouse",
+    "monitoring"
+  ]
+}

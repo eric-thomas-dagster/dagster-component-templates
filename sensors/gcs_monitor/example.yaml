@@ -1,0 +1,10 @@
+type: dagster_component_templates.GCSMonitorSensorComponent
+attributes:
+  sensor_name: gcs_data_sensor
+  bucket_name: my-data-bucket
+  prefix: incoming/
+  blob_pattern: ".*\\.parquet$"
+  job_name: process_gcs_objects_job
+  minimum_interval_seconds: 60
+  project: my-gcp-project
+  default_status: running

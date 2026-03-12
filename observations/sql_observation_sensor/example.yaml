@@ -1,0 +1,8 @@
+type: dagster_component_templates.SqlObservationSensorComponent
+attributes:
+  sensor_name: sql_orders_obs
+  asset_key: db/orders
+  table_name: orders
+  connection_string_env_var: DATABASE_URL
+  watermark_column: updated_at
+  check_interval_seconds: 300

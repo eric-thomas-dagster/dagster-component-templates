@@ -1,0 +1,13 @@
+type: dagster_component_templates.RedisStreamsMonitorSensorComponent
+attributes:
+  sensor_name: redis_stream_sensor
+  stream_name: events:incoming
+  job_name: process_stream_entries_job
+  host: localhost
+  port: 6379
+  db: 0
+  password_env_var: REDIS_PASSWORD
+  max_entries_per_poll: 100
+  start_from_beginning: false
+  minimum_interval_seconds: 30
+  default_status: running

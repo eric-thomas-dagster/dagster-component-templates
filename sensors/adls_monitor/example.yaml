@@ -1,0 +1,11 @@
+type: dagster_component_templates.ADLSMonitorSensorComponent
+attributes:
+  sensor_name: adls_data_sensor
+  storage_account_name: mydatalake
+  container_name: raw
+  directory_path: incoming/
+  file_pattern: ".*\\.parquet$"
+  job_name: process_adls_files_job
+  minimum_interval_seconds: 60
+  recursive: false
+  default_status: running

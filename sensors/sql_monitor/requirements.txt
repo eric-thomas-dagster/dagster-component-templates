@@ -1,0 +1,9 @@
+sqlalchemy>=2.0.0
+# Install the appropriate database driver for your database:
+# PostgreSQL:  psycopg2-binary>=2.9.0
+# MySQL:       pymysql>=1.0.0
+# SQL Server:  pyodbc>=4.0.0
+# Snowflake:   snowflake-sqlalchemy>=1.5.0
+# BigQuery:    sqlalchemy-bigquery>=1.6.0
+# Redshift:    sqlalchemy-redshift>=0.8.0
+# SQLite:      (built-in, no additional driver needed)

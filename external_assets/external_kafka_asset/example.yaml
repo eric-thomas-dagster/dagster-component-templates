@@ -1,0 +1,6 @@
+type: dagster_component_templates.ExternalKafkaAsset
+attributes:
+  asset_key: streaming/orders
+  bootstrap_servers: localhost:9092
+  topic: orders
+  group_name: kafka_sources

@@ -1,0 +1,8 @@
+type: dagster_component_templates.FivetranSyncSensorComponent
+attributes:
+  sensor_name: fivetran_orders_done
+  connector_id: abc123xyz
+  api_key_env_var: FIVETRAN_API_KEY
+  api_secret_env_var: FIVETRAN_API_SECRET
+  job_name: process_synced_orders_job
+  minimum_interval_seconds: 60

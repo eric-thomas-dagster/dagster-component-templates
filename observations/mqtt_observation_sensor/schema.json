@@ -1,0 +1,64 @@
+{
+  "type": "dagster_component_templates.MqttObservationSensorComponent",
+  "name": "MQTT Observation Sensor",
+  "category": "sensors",
+  "description": "Emit health observations for an external MQTT broker/topic",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "observation_sensor"
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name"
+    },
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key"
+    },
+    "broker_host": {
+      "type": "string",
+      "required": true,
+      "label": "Broker Host"
+    },
+    "topic": {
+      "type": "string",
+      "required": true,
+      "label": "Topic"
+    },
+    "broker_port": {
+      "type": "number",
+      "required": false,
+      "label": "Broker Port",
+      "default": 1883
+    },
+    "connect_timeout_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Connect Timeout (s)",
+      "default": 5.0
+    },
+    "check_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Check Interval (s)",
+      "default": 300
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "paho-mqtt>=1.6.1"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "observation"
+  ]
+}

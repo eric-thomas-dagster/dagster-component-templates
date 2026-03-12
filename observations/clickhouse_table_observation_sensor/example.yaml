@@ -1,0 +1,10 @@
+# Using env vars
+type: dagster_component_templates.ClickHouseTableObservationSensorComponent
+attributes:
+  sensor_name: clickhouse_events_observation
+  asset_key: clickhouse/analytics/events
+  database: analytics
+  table: events
+  host_env_var: CLICKHOUSE_HOST
+  password_env_var: CLICKHOUSE_PASSWORD
+  check_interval_seconds: 300

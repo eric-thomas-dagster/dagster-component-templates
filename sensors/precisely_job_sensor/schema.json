@@ -1,0 +1,19 @@
+{
+  "type": "dagster_component_templates.precisely_job_sensor",
+  "name": "Precisely Job Sensor",
+  "category": "sensors",
+  "description": "Trigger a Dagster job when a Precisely Connect job run completes",
+  "dependencies": {
+    "pip": [
+      "requests>=2.28.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "precisely",
+    "etl",
+    "data-integration",
+    "enterprise",
+    "automation"
+  ]
+}

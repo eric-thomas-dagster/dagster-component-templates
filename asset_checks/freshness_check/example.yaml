@@ -1,0 +1,18 @@
+# time_window: asset must materialize within a rolling window
+type: dagster_component_templates.FreshnessPolicyComponent
+attributes:
+  asset_key: warehouse/orders
+  policy_type: time_window
+  fail_window_hours: 25
+  warn_window_hours: 13
+
+---
+
+# cron: asset must materialize before each scheduled deadline
+type: dagster_component_templates.FreshnessPolicyComponent
+attributes:
+  asset_key: warehouse/daily_summary
+  policy_type: cron
+  deadline_cron: "0 10 * * *"
+  lower_bound_delta_hours: 1
+  timezone: America/New_York

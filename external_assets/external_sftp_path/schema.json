@@ -1,0 +1,48 @@
+{
+  "type": "dagster_component_templates.ExternalSftpPathAsset",
+  "name": "External SFTP Path",
+  "category": "external_assets",
+  "description": "Declare an SFTP directory as an observable external asset",
+  "icon": "Database",
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key",
+      "placeholder": "sftp/partner/orders"
+    },
+    "host": {
+      "type": "string",
+      "required": true,
+      "label": "Host",
+      "placeholder": "sftp.partner.com"
+    },
+    "remote_path": {
+      "type": "string",
+      "required": true,
+      "label": "Remote Path",
+      "placeholder": "/incoming/orders"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dagster"
+    ]
+  },
+  "tags": [
+    "external_assets",
+    "sftp",
+    "files",
+    "regulated"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "type": "dagster_component_templates.rivery_run_asset",
+  "name": "Rivery Run Asset",
+  "category": "assets",
+  "description": "Trigger a Rivery river (pipeline) run on demand and surface results as a Dagster asset",
+  "dependencies": {
+    "pip": [
+      "requests>=2.28.0"
+    ]
+  },
+  "tags": [
+    "assets",
+    "rivery",
+    "elt",
+    "ingestion"
+  ]
+}

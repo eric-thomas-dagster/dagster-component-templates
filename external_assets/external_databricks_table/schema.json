@@ -1,0 +1,61 @@
+{
+  "type": "dagster_component_templates.ExternalDatabricksTableAsset",
+  "name": "External Databricks Table",
+  "category": "external_assets",
+  "description": "Declare a Databricks Delta table as an observable external asset",
+  "icon": "Database",
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key",
+      "placeholder": "databricks/gold/orders"
+    },
+    "workspace_url": {
+      "type": "string",
+      "required": true,
+      "label": "Workspace URL",
+      "placeholder": "https://myorg.azuredatabricks.net"
+    },
+    "catalog": {
+      "type": "string",
+      "required": false,
+      "label": "Catalog (Unity Catalog)",
+      "placeholder": "main"
+    },
+    "schema_name": {
+      "type": "string",
+      "required": true,
+      "label": "Schema",
+      "placeholder": "gold"
+    },
+    "table_name": {
+      "type": "string",
+      "required": true,
+      "label": "Table",
+      "placeholder": "orders"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dagster"
+    ]
+  },
+  "tags": [
+    "external_assets",
+    "databricks",
+    "delta",
+    "lakehouse",
+    "table"
+  ]
+}

@@ -1,0 +1,5 @@
+type: dagster_component_templates.ExternalMqttAsset
+attributes:
+  asset_key: iot/sensors
+  broker_host: mqtt.example.com
+  topic: sensors/+/temperature

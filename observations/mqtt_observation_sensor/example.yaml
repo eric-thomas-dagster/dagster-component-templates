@@ -1,0 +1,7 @@
+type: dagster_component_templates.MqttObservationSensorComponent
+attributes:
+  sensor_name: mqtt_sensors_obs
+  asset_key: iot/sensors
+  broker_host: mqtt.example.com
+  topic: sensors/+/temperature
+  check_interval_seconds: 300

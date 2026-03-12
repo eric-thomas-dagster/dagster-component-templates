@@ -1,0 +1,49 @@
+{
+  "type": "dagster_component_templates.ExternalPulsarAsset",
+  "name": "External Pulsar Asset",
+  "category": "sensors",
+  "description": "Declare an Apache Pulsar topic as an external asset",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "external_asset"
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key",
+      "placeholder": "streaming/events"
+    },
+    "service_url": {
+      "type": "string",
+      "required": true,
+      "label": "Service URL",
+      "placeholder": "pulsar://localhost:6650"
+    },
+    "topic": {
+      "type": "string",
+      "required": true,
+      "label": "Topic",
+      "placeholder": "persistent://public/default/my-topic"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dagster"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "external_asset"
+  ]
+}

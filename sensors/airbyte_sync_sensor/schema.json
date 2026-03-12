@@ -1,0 +1,75 @@
+{
+  "type": "dagster_component_templates.AirbyteSyncSensorComponent",
+  "name": "Airbyte Sync Sensor",
+  "category": "sensors",
+  "description": "Trigger a Dagster job when an Airbyte connection sync completes successfully",
+  "icon": "Activity",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name",
+      "placeholder": "airbyte_orders_done"
+    },
+    "connection_id": {
+      "type": "string",
+      "required": true,
+      "label": "Connection ID",
+      "placeholder": "aaaabbbb-cccc-dddd-eeee-ffffffffffff"
+    },
+    "airbyte_url": {
+      "type": "string",
+      "required": false,
+      "label": "Airbyte URL",
+      "default": "http://localhost:8000"
+    },
+    "username_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "Username Env Var"
+    },
+    "password_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "Password Env Var"
+    },
+    "job_name": {
+      "type": "string",
+      "required": true,
+      "label": "Dagster Job Name"
+    },
+    "minimum_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Poll Interval (s)",
+      "default": 60
+    },
+    "default_status": {
+      "type": "string",
+      "required": false,
+      "label": "Default Status",
+      "default": "running",
+      "enum": [
+        "running",
+        "stopped"
+      ]
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "requests>=2.28.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "airbyte",
+    "integration",
+    "etl",
+    "automation"
+  ]
+}

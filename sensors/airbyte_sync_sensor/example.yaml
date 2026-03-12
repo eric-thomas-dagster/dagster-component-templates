@@ -1,0 +1,6 @@
+type: dagster_component_templates.AirbyteSyncSensorComponent
+attributes:
+  sensor_name: airbyte_orders_done
+  connection_id: aaaabbbb-cccc-dddd-eeee-ffffffffffff
+  airbyte_url: http://localhost:8000
+  job_name: process_synced_orders_job

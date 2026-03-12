@@ -1,0 +1,11 @@
+type: dagster_component_templates.SharePointMonitorSensorComponent
+attributes:
+  sensor_name: sharepoint_reports_monitor
+  site_url: https://myorg.sharepoint.com/sites/DataTeam
+  library_name: Reports
+  tenant_id_env_var: AZURE_TENANT_ID
+  client_id_env_var: AZURE_CLIENT_ID
+  client_secret_env_var: AZURE_CLIENT_SECRET
+  file_extension_filter: .xlsx
+  job_name: process_sharepoint_report_job
+  minimum_interval_seconds: 300

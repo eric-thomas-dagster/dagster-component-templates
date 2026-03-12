@@ -1,0 +1,10 @@
+type: dagster_component_templates.MatillionJobSensorComponent
+attributes:
+  sensor_name: matillion_orders_done
+  project: MyProject
+  version: default
+  job_name: Load Orders
+  instance_url_env_var: MATILLION_INSTANCE_URL
+  username_env_var: MATILLION_USERNAME
+  password_env_var: MATILLION_PASSWORD
+  job_name_dagster: downstream_processing_job

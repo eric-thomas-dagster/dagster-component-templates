@@ -1,0 +1,52 @@
+{
+  "type": "dagster_component_templates.KinesisObservationSensorComponent",
+  "name": "Kinesis Observation Sensor",
+  "category": "sensors",
+  "description": "Emit health observations for an external Kinesis stream",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "observation_sensor"
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name"
+    },
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key"
+    },
+    "stream_name": {
+      "type": "string",
+      "required": true,
+      "label": "Stream Name"
+    },
+    "region_name": {
+      "type": "string",
+      "required": false,
+      "label": "Region"
+    },
+    "check_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Check Interval (s)",
+      "default": 300
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "boto3>=1.20.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "observation"
+  ]
+}

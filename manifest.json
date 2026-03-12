@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2025-12-05",
+  "last_updated": "2026-03-12",
   "components": [
     {
       "id": "ab_test_analysis",
@@ -2428,6 +2428,2011 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/example.yaml"
+    },
+    {
+      "id": "s3_monitor",
+      "name": "S3 Monitor",
+      "category": "sensors",
+      "description": "Monitor an S3 bucket prefix for new objects and trigger jobs when matching objects are detected",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/s3_monitor",
+      "tags": [
+        "sensors",
+        "s3",
+        "aws",
+        "cloud",
+        "monitoring",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "boto3>=1.26.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/s3_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/s3_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/s3_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/s3_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/s3_monitor/requirements.txt"
+    },
+    {
+      "id": "adls_monitor",
+      "name": "ADLS Monitor",
+      "category": "sensors",
+      "description": "Monitor an Azure Data Lake Storage Gen2 container for new files and trigger jobs when matching files are detected",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/adls_monitor",
+      "tags": [
+        "sensors",
+        "adls",
+        "azure",
+        "cloud",
+        "monitoring",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "azure-storage-file-datalake>=12.0.0",
+          "azure-identity>=1.12.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/adls_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/adls_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/adls_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/adls_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/adls_monitor/requirements.txt"
+    },
+    {
+      "id": "kafka_monitor",
+      "name": "Kafka Monitor",
+      "category": "sensors",
+      "description": "Monitor a Kafka topic for new messages and trigger jobs when messages are detected",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/kafka_monitor",
+      "tags": [
+        "sensors",
+        "kafka",
+        "streaming",
+        "messaging",
+        "monitoring",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "kafka-python>=2.0.2"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/kafka_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/kafka_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/kafka_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/kafka_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/kafka_monitor/requirements.txt"
+    },
+    {
+      "id": "gcs_monitor",
+      "name": "GCS Monitor",
+      "category": "sensors",
+      "description": "Monitor a Google Cloud Storage bucket prefix for new objects and trigger jobs when matching objects are detected",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/gcs_monitor",
+      "tags": [
+        "sensors",
+        "gcs",
+        "gcp",
+        "google",
+        "cloud",
+        "monitoring",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-storage>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/gcs_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/gcs_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/gcs_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/gcs_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/gcs_monitor/requirements.txt"
+    },
+    {
+      "id": "sqs_monitor",
+      "name": "SQS Monitor",
+      "category": "sensors",
+      "description": "Poll an AWS SQS queue for new messages and trigger jobs when messages are received",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/sqs_monitor",
+      "tags": [
+        "sensors",
+        "sqs",
+        "aws",
+        "cloud",
+        "queue",
+        "messaging",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "boto3>=1.26.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sqs_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sqs_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sqs_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sqs_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sqs_monitor/requirements.txt"
+    },
+    {
+      "id": "kinesis_monitor",
+      "name": "Kinesis Monitor",
+      "category": "sensors",
+      "description": "Monitor an AWS Kinesis Data Stream for new records and trigger jobs when records are detected",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/kinesis_monitor",
+      "tags": [
+        "sensors",
+        "kinesis",
+        "aws",
+        "cloud",
+        "streaming",
+        "monitoring",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "boto3>=1.26.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/kinesis_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/kinesis_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/kinesis_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/kinesis_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/kinesis_monitor/requirements.txt"
+    },
+    {
+      "id": "pubsub_monitor",
+      "name": "Google Pub/Sub Monitor",
+      "category": "sensors",
+      "description": "Pull messages from a Google Cloud Pub/Sub subscription and trigger jobs when messages are received",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/pubsub_monitor",
+      "tags": [
+        "sensors",
+        "pubsub",
+        "gcp",
+        "google",
+        "cloud",
+        "messaging",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-pubsub>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pubsub_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pubsub_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pubsub_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pubsub_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pubsub_monitor/requirements.txt"
+    },
+    {
+      "id": "eventhubs_monitor",
+      "name": "Azure Event Hubs Monitor",
+      "category": "sensors",
+      "description": "Monitor an Azure Event Hub for new events and trigger jobs when events are detected",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/eventhubs_monitor",
+      "tags": [
+        "sensors",
+        "eventhubs",
+        "azure",
+        "cloud",
+        "streaming",
+        "monitoring",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "azure-eventhub>=5.11.0",
+          "azure-identity>=1.12.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/eventhubs_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/eventhubs_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/eventhubs_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/eventhubs_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/eventhubs_monitor/requirements.txt"
+    },
+    {
+      "id": "servicebus_monitor",
+      "name": "Azure Service Bus Monitor",
+      "category": "sensors",
+      "description": "Poll an Azure Service Bus queue or topic subscription for new messages and trigger jobs when messages are received",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/servicebus_monitor",
+      "tags": [
+        "sensors",
+        "servicebus",
+        "azure",
+        "cloud",
+        "queue",
+        "messaging",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "azure-servicebus>=7.11.0",
+          "azure-identity>=1.12.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/servicebus_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/servicebus_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/servicebus_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/servicebus_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/servicebus_monitor/requirements.txt"
+    },
+    {
+      "id": "rabbitmq_monitor",
+      "name": "RabbitMQ Monitor",
+      "category": "sensors",
+      "description": "Poll a RabbitMQ queue for new messages and trigger jobs when messages are received",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/rabbitmq_monitor",
+      "tags": [
+        "sensors",
+        "rabbitmq",
+        "amqp",
+        "queue",
+        "messaging",
+        "monitoring",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "pika>=1.3.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rabbitmq_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rabbitmq_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rabbitmq_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rabbitmq_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rabbitmq_monitor/requirements.txt"
+    },
+    {
+      "id": "mqtt_monitor",
+      "name": "MQTT Monitor",
+      "category": "sensors",
+      "description": "Subscribe to an MQTT broker topic and trigger jobs when messages are received \u2014 ideal for IoT telemetry and device event pipelines",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/mqtt_monitor",
+      "tags": [
+        "sensors",
+        "mqtt",
+        "iot",
+        "telemetry",
+        "messaging",
+        "monitoring",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "paho-mqtt>=1.6.1"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mqtt_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mqtt_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mqtt_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mqtt_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mqtt_monitor/requirements.txt"
+    },
+    {
+      "id": "redis_streams_monitor",
+      "name": "Redis Streams Monitor",
+      "category": "sensors",
+      "description": "Monitor a Redis Stream for new entries and trigger jobs when entries are detected",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/redis_streams_monitor",
+      "tags": [
+        "sensors",
+        "redis",
+        "streams",
+        "messaging",
+        "monitoring",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "redis>=4.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/redis_streams_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/redis_streams_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/redis_streams_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/redis_streams_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/redis_streams_monitor/requirements.txt"
+    },
+    {
+      "id": "pulsar_monitor",
+      "name": "Apache Pulsar Monitor",
+      "category": "sensors",
+      "description": "Monitor an Apache Pulsar topic for new messages and trigger jobs when messages are detected",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/pulsar_monitor",
+      "tags": [
+        "sensors",
+        "pulsar",
+        "apache",
+        "streaming",
+        "messaging",
+        "monitoring",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "pulsar-client>=3.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pulsar_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pulsar_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pulsar_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pulsar_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pulsar_monitor/requirements.txt"
+    },
+    {
+      "id": "nats_monitor",
+      "name": "NATS JetStream Monitor",
+      "category": "sensors",
+      "description": "Monitor a NATS JetStream consumer for new messages and trigger jobs when messages are detected",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/nats_monitor",
+      "tags": [
+        "sensors",
+        "nats",
+        "jetstream",
+        "cloud-native",
+        "streaming",
+        "messaging",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "nats-py>=2.3.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/nats_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/nats_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/nats_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/nats_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/nats_monitor/requirements.txt"
+    },
+    {
+      "id": "sql_monitor",
+      "name": "SQL Monitor",
+      "category": "sensors",
+      "description": "Monitor a SQL database table for new or updated rows using a watermark column and trigger jobs when changes are detected",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/sql_monitor",
+      "tags": [
+        "sensors",
+        "sql",
+        "database",
+        "postgres",
+        "mysql",
+        "snowflake",
+        "monitoring",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "sqlalchemy>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sql_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sql_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sql_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sql_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sql_monitor/requirements.txt"
+    },
+    {
+      "id": "external_s3_asset",
+      "name": "External S3 Asset",
+      "category": "sensors",
+      "description": "Declare an S3 bucket prefix as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_s3_asset",
+      "tags": [
+        "external_asset",
+        "s3",
+        "aws",
+        "object_store"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_s3_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_s3_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_s3_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_s3_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_s3_asset/requirements.txt"
+    },
+    {
+      "id": "external_adls_asset",
+      "name": "External ADLS Asset",
+      "category": "sensors",
+      "description": "Declare an Azure Data Lake Storage path as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_adls_asset",
+      "tags": [
+        "external_asset",
+        "adls",
+        "azure",
+        "object_store"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_adls_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_adls_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_adls_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_adls_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_adls_asset/requirements.txt"
+    },
+    {
+      "id": "external_gcs_asset",
+      "name": "External GCS Asset",
+      "category": "sensors",
+      "description": "Declare a GCS bucket prefix as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_gcs_asset",
+      "tags": [
+        "external_asset",
+        "gcs",
+        "gcp",
+        "object_store"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_gcs_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_gcs_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_gcs_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_gcs_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_gcs_asset/requirements.txt"
+    },
+    {
+      "id": "external_kafka_asset",
+      "name": "External Kafka Asset",
+      "category": "sensors",
+      "description": "Declare a Kafka topic as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_kafka_asset",
+      "tags": [
+        "external_asset",
+        "kafka",
+        "streaming"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_kafka_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_kafka_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_kafka_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_kafka_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_kafka_asset/requirements.txt"
+    },
+    {
+      "id": "external_sqs_asset",
+      "name": "External SQS Asset",
+      "category": "sensors",
+      "description": "Declare an SQS queue as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_sqs_asset",
+      "tags": [
+        "external_asset",
+        "sqs",
+        "aws",
+        "queue"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sqs_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sqs_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sqs_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sqs_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sqs_asset/requirements.txt"
+    },
+    {
+      "id": "external_kinesis_asset",
+      "name": "External Kinesis Asset",
+      "category": "sensors",
+      "description": "Declare a Kinesis stream as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_kinesis_asset",
+      "tags": [
+        "external_asset",
+        "kinesis",
+        "aws",
+        "streaming"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_kinesis_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_kinesis_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_kinesis_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_kinesis_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_kinesis_asset/requirements.txt"
+    },
+    {
+      "id": "external_pubsub_asset",
+      "name": "External Pub/Sub Asset",
+      "category": "sensors",
+      "description": "Declare a Google Cloud Pub/Sub topic as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_pubsub_asset",
+      "tags": [
+        "external_asset",
+        "pubsub",
+        "gcp",
+        "streaming"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_pubsub_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_pubsub_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_pubsub_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_pubsub_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_pubsub_asset/requirements.txt"
+    },
+    {
+      "id": "external_eventhubs_asset",
+      "name": "External Event Hubs Asset",
+      "category": "sensors",
+      "description": "Declare an Azure Event Hub as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_eventhubs_asset",
+      "tags": [
+        "external_asset",
+        "eventhubs",
+        "azure",
+        "streaming"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_eventhubs_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_eventhubs_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_eventhubs_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_eventhubs_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_eventhubs_asset/requirements.txt"
+    },
+    {
+      "id": "external_servicebus_asset",
+      "name": "External Service Bus Asset",
+      "category": "sensors",
+      "description": "Declare an Azure Service Bus queue or topic as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_servicebus_asset",
+      "tags": [
+        "external_asset",
+        "servicebus",
+        "azure",
+        "queue"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_servicebus_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_servicebus_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_servicebus_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_servicebus_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_servicebus_asset/requirements.txt"
+    },
+    {
+      "id": "external_rabbitmq_asset",
+      "name": "External RabbitMQ Asset",
+      "category": "sensors",
+      "description": "Declare a RabbitMQ queue as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_rabbitmq_asset",
+      "tags": [
+        "external_asset",
+        "rabbitmq",
+        "queue",
+        "messaging"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_rabbitmq_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_rabbitmq_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_rabbitmq_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_rabbitmq_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_rabbitmq_asset/requirements.txt"
+    },
+    {
+      "id": "external_mqtt_asset",
+      "name": "External MQTT Asset",
+      "category": "sensors",
+      "description": "Declare an MQTT broker topic as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_mqtt_asset",
+      "tags": [
+        "external_asset",
+        "mqtt",
+        "iot",
+        "messaging"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_mqtt_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_mqtt_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_mqtt_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_mqtt_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_mqtt_asset/requirements.txt"
+    },
+    {
+      "id": "external_redis_stream_asset",
+      "name": "External Redis Stream Asset",
+      "category": "sensors",
+      "description": "Declare a Redis Stream as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_redis_stream_asset",
+      "tags": [
+        "external_asset",
+        "redis",
+        "streaming"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_redis_stream_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_redis_stream_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_redis_stream_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_redis_stream_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_redis_stream_asset/requirements.txt"
+    },
+    {
+      "id": "external_pulsar_asset",
+      "name": "External Pulsar Asset",
+      "category": "sensors",
+      "description": "Declare an Apache Pulsar topic as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_pulsar_asset",
+      "tags": [
+        "external_asset",
+        "pulsar",
+        "streaming"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_pulsar_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_pulsar_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_pulsar_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_pulsar_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_pulsar_asset/requirements.txt"
+    },
+    {
+      "id": "external_nats_asset",
+      "name": "External NATS Asset",
+      "category": "sensors",
+      "description": "Declare a NATS JetStream stream as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_nats_asset",
+      "tags": [
+        "external_asset",
+        "nats",
+        "jetstream",
+        "streaming"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_nats_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_nats_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_nats_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_nats_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_nats_asset/requirements.txt"
+    },
+    {
+      "id": "external_sql_asset",
+      "name": "External SQL Asset",
+      "category": "sensors",
+      "description": "Declare a SQL database table as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_sql_asset",
+      "tags": [
+        "external_asset",
+        "sql",
+        "database"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sql_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sql_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sql_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sql_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sql_asset/requirements.txt"
+    },
+    {
+      "id": "s3_observation_sensor",
+      "name": "S3 Observation Sensor",
+      "category": "sensors",
+      "description": "Emit health observations for an external S3 asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "s3_observation_sensor",
+      "tags": [
+        "observation",
+        "s3",
+        "aws",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "boto3>=1.20.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/s3_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/s3_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/s3_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/s3_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/s3_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "adls_observation_sensor",
+      "name": "ADLS Observation Sensor",
+      "category": "sensors",
+      "description": "Emit health observations for an external ADLS asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "adls_observation_sensor",
+      "tags": [
+        "observation",
+        "adls",
+        "azure",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "azure-storage-file-datalake>=12.0.0",
+          "azure-identity>=1.10.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/adls_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/adls_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/adls_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/adls_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/adls_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "gcs_observation_sensor",
+      "name": "GCS Observation Sensor",
+      "category": "sensors",
+      "description": "Emit health observations for an external GCS asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "gcs_observation_sensor",
+      "tags": [
+        "observation",
+        "gcs",
+        "gcp",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-storage>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/gcs_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/gcs_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/gcs_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/gcs_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/gcs_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "kafka_observation_sensor",
+      "name": "Kafka Observation Sensor",
+      "category": "sensors",
+      "description": "Emit health observations for an external Kafka topic",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "kafka_observation_sensor",
+      "tags": [
+        "observation",
+        "kafka",
+        "streaming",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "kafka-python>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/kafka_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/kafka_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/kafka_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/kafka_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/kafka_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "sqs_observation_sensor",
+      "name": "SQS Observation Sensor",
+      "category": "sensors",
+      "description": "Emit health observations for an external SQS queue",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sqs_observation_sensor",
+      "tags": [
+        "observation",
+        "sqs",
+        "aws",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "boto3>=1.20.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sqs_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sqs_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sqs_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sqs_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sqs_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "kinesis_observation_sensor",
+      "name": "Kinesis Observation Sensor",
+      "category": "sensors",
+      "description": "Emit health observations for an external Kinesis stream",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "kinesis_observation_sensor",
+      "tags": [
+        "observation",
+        "kinesis",
+        "aws",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "boto3>=1.20.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/kinesis_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/kinesis_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/kinesis_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/kinesis_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/kinesis_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "pubsub_observation_sensor",
+      "name": "Pub/Sub Observation Sensor",
+      "category": "sensors",
+      "description": "Emit health observations for an external Pub/Sub topic",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "pubsub_observation_sensor",
+      "tags": [
+        "observation",
+        "pubsub",
+        "gcp",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-pubsub>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/pubsub_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/pubsub_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/pubsub_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/pubsub_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/pubsub_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "eventhubs_observation_sensor",
+      "name": "Event Hubs Observation Sensor",
+      "category": "sensors",
+      "description": "Emit health observations for an external Event Hub",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "eventhubs_observation_sensor",
+      "tags": [
+        "observation",
+        "eventhubs",
+        "azure",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "azure-eventhub>=5.10.0",
+          "azure-identity>=1.10.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/eventhubs_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/eventhubs_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/eventhubs_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/eventhubs_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/eventhubs_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "servicebus_observation_sensor",
+      "name": "Service Bus Observation Sensor",
+      "category": "sensors",
+      "description": "Emit health observations for an external Service Bus queue or topic",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "servicebus_observation_sensor",
+      "tags": [
+        "observation",
+        "servicebus",
+        "azure",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "azure-servicebus>=7.0.0",
+          "azure-identity>=1.10.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/servicebus_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/servicebus_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/servicebus_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/servicebus_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/servicebus_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "rabbitmq_observation_sensor",
+      "name": "RabbitMQ Observation Sensor",
+      "category": "sensors",
+      "description": "Emit health observations for an external RabbitMQ queue",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "rabbitmq_observation_sensor",
+      "tags": [
+        "observation",
+        "rabbitmq",
+        "queue",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "pika>=1.3.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/rabbitmq_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/rabbitmq_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/rabbitmq_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/rabbitmq_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/rabbitmq_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "mqtt_observation_sensor",
+      "name": "MQTT Observation Sensor",
+      "category": "sensors",
+      "description": "Emit health observations for an external MQTT broker/topic",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "mqtt_observation_sensor",
+      "tags": [
+        "observation",
+        "mqtt",
+        "iot",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "paho-mqtt>=1.6.1"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/mqtt_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/mqtt_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/mqtt_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/mqtt_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/mqtt_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "redis_stream_observation_sensor",
+      "name": "Redis Stream Observation Sensor",
+      "category": "sensors",
+      "description": "Emit health observations for an external Redis Stream",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "redis_stream_observation_sensor",
+      "tags": [
+        "observation",
+        "redis",
+        "streaming",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "redis>=4.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/redis_stream_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/redis_stream_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/redis_stream_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/redis_stream_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/redis_stream_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "pulsar_observation_sensor",
+      "name": "Pulsar Observation Sensor",
+      "category": "sensors",
+      "description": "Emit health observations for an external Pulsar topic",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "pulsar_observation_sensor",
+      "tags": [
+        "observation",
+        "pulsar",
+        "streaming",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "pulsar-client>=3.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/pulsar_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/pulsar_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/pulsar_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/pulsar_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/pulsar_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "nats_observation_sensor",
+      "name": "NATS Observation Sensor",
+      "category": "sensors",
+      "description": "Emit health observations for an external NATS JetStream stream",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "nats_observation_sensor",
+      "tags": [
+        "observation",
+        "nats",
+        "jetstream",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "nats-py>=2.3.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/nats_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/nats_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/nats_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/nats_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/nats_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "sql_observation_sensor",
+      "name": "SQL Observation Sensor",
+      "category": "sensors",
+      "description": "Emit health observations for an external SQL table",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sql_observation_sensor",
+      "tags": [
+        "observation",
+        "sql",
+        "database",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "sqlalchemy>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sql_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sql_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sql_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sql_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sql_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "freshness_check",
+      "name": "Freshness Policy",
+      "category": "asset_checks",
+      "description": "Attach a Dagster FreshnessPolicy to an asset for continuous SLA monitoring",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "freshness_check",
+      "tags": [
+        "asset_checks",
+        "freshness",
+        "sla",
+        "data_quality",
+        "observability"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/freshness_check/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/freshness_check/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/freshness_check/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/freshness_check/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/freshness_check/requirements.txt"
+    },
+    {
+      "id": "great_expectations_check",
+      "name": "Great Expectations Check",
+      "category": "asset_checks",
+      "description": "Run a Great Expectations expectation suite as a Dagster asset check",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "great_expectations_check",
+      "tags": [
+        "asset_checks",
+        "data_quality",
+        "great_expectations"
+      ],
+      "dependencies": {
+        "pip": [
+          "great-expectations>=0.18.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/great_expectations_check/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/great_expectations_check/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/great_expectations_check/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/great_expectations_check/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/great_expectations_check/requirements.txt"
+    },
+    {
+      "id": "soda_check",
+      "name": "Soda Check",
+      "category": "asset_checks",
+      "description": "Run a Soda scan as a Dagster asset check",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "soda_check",
+      "tags": [
+        "asset_checks",
+        "data_quality",
+        "soda"
+      ],
+      "dependencies": {
+        "pip": [
+          "soda-core>=3.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/soda_check/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/soda_check/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/soda_check/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/soda_check/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/soda_check/requirements.txt"
+    },
+    {
+      "id": "fivetran_sync_sensor",
+      "name": "Fivetran Sync Sensor",
+      "category": "sensors",
+      "description": "Trigger a Dagster job when a Fivetran connector sync completes",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "fivetran_sync_sensor",
+      "tags": [
+        "sensors",
+        "fivetran",
+        "integration",
+        "etl",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/fivetran_sync_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/fivetran_sync_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/fivetran_sync_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/fivetran_sync_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/fivetran_sync_sensor/requirements.txt"
+    },
+    {
+      "id": "dbt_cloud_job_sensor",
+      "name": "dbt Cloud Job Sensor",
+      "category": "sensors",
+      "description": "Trigger a Dagster job when a dbt Cloud job run completes",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "dbt_cloud_job_sensor",
+      "tags": [
+        "sensors",
+        "dbt",
+        "transformation",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dbt_cloud_job_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dbt_cloud_job_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dbt_cloud_job_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dbt_cloud_job_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dbt_cloud_job_sensor/requirements.txt"
+    },
+    {
+      "id": "airbyte_sync_sensor",
+      "name": "Airbyte Sync Sensor",
+      "category": "sensors",
+      "description": "Trigger a Dagster job when an Airbyte connection sync completes",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "airbyte_sync_sensor",
+      "tags": [
+        "sensors",
+        "airbyte",
+        "integration",
+        "etl",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/airbyte_sync_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/airbyte_sync_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/airbyte_sync_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/airbyte_sync_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/airbyte_sync_sensor/requirements.txt"
+    },
+    {
+      "id": "sharepoint_monitor",
+      "name": "SharePoint Monitor",
+      "category": "sensors",
+      "description": "Monitor a SharePoint document library for new or modified files",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sharepoint_monitor",
+      "tags": [
+        "sensors",
+        "sharepoint",
+        "microsoft",
+        "files",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sharepoint_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sharepoint_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sharepoint_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sharepoint_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sharepoint_monitor/requirements.txt"
+    },
+    {
+      "id": "sftp_monitor",
+      "name": "SFTP Monitor",
+      "category": "sensors",
+      "description": "Monitor an SFTP directory for new files",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sftp_monitor",
+      "tags": [
+        "sensors",
+        "sftp",
+        "files",
+        "finance",
+        "healthcare",
+        "regulated"
+      ],
+      "dependencies": {
+        "pip": [
+          "paramiko>=3.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sftp_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sftp_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sftp_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sftp_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sftp_monitor/requirements.txt"
+    },
+    {
+      "id": "servicenow_sensor",
+      "name": "ServiceNow Sensor",
+      "category": "sensors",
+      "description": "Trigger a Dagster job when ServiceNow records match a target state",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "servicenow_sensor",
+      "tags": [
+        "sensors",
+        "servicenow",
+        "itsm",
+        "enterprise",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/servicenow_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/servicenow_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/servicenow_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/servicenow_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/servicenow_sensor/requirements.txt"
+    },
+    {
+      "id": "external_snowflake_table",
+      "name": "External Snowflake Table",
+      "category": "external_assets",
+      "description": "Declare a Snowflake table as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_snowflake_table",
+      "tags": [
+        "external_assets",
+        "snowflake",
+        "sql",
+        "data_warehouse"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_snowflake_table/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_snowflake_table/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_snowflake_table/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_snowflake_table/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_snowflake_table/requirements.txt"
+    },
+    {
+      "id": "external_bigquery_table",
+      "name": "External BigQuery Table",
+      "category": "external_assets",
+      "description": "Declare a BigQuery table as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_bigquery_table",
+      "tags": [
+        "external_assets",
+        "bigquery",
+        "gcp",
+        "data_warehouse"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_bigquery_table/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_bigquery_table/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_bigquery_table/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_bigquery_table/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_bigquery_table/requirements.txt"
+    },
+    {
+      "id": "external_databricks_table",
+      "name": "External Databricks Table",
+      "category": "external_assets",
+      "description": "Declare a Databricks Delta table as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_databricks_table",
+      "tags": [
+        "external_assets",
+        "databricks",
+        "delta",
+        "lakehouse"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_databricks_table/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_databricks_table/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_databricks_table/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_databricks_table/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_databricks_table/requirements.txt"
+    },
+    {
+      "id": "external_sftp_path",
+      "name": "External SFTP Path",
+      "category": "external_assets",
+      "description": "Declare an SFTP directory as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_sftp_path",
+      "tags": [
+        "external_assets",
+        "sftp",
+        "files",
+        "regulated"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sftp_path/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sftp_path/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sftp_path/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sftp_path/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sftp_path/requirements.txt"
+    },
+    {
+      "id": "external_sharepoint_library",
+      "name": "External SharePoint Library",
+      "category": "external_assets",
+      "description": "Declare a SharePoint document library as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_sharepoint_library",
+      "tags": [
+        "external_assets",
+        "sharepoint",
+        "microsoft",
+        "files"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sharepoint_library/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sharepoint_library/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sharepoint_library/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sharepoint_library/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sharepoint_library/requirements.txt"
+    },
+    {
+      "id": "snowflake_table_observation_sensor",
+      "name": "Snowflake Table Observation Sensor",
+      "category": "observations",
+      "description": "Emit health observations for an external Snowflake table",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "snowflake_table_observation_sensor",
+      "tags": [
+        "observations",
+        "snowflake",
+        "data_warehouse",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/snowflake_table_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/snowflake_table_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/snowflake_table_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/snowflake_table_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/snowflake_table_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "bigquery_table_observation_sensor",
+      "name": "BigQuery Table Observation Sensor",
+      "category": "observations",
+      "description": "Emit health observations for an external BigQuery table",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "bigquery_table_observation_sensor",
+      "tags": [
+        "observations",
+        "bigquery",
+        "gcp",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-bigquery>=3.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/bigquery_table_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/bigquery_table_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/bigquery_table_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/bigquery_table_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/bigquery_table_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "databricks_table_observation_sensor",
+      "name": "Databricks Table Observation Sensor",
+      "category": "observations",
+      "description": "Emit health observations for an external Databricks Delta table",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "databricks_table_observation_sensor",
+      "tags": [
+        "observations",
+        "databricks",
+        "delta",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "databricks-sql-connector>=3.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/databricks_table_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/databricks_table_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/databricks_table_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/databricks_table_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/databricks_table_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "sftp_path_observation_sensor",
+      "name": "SFTP Path Observation Sensor",
+      "category": "observations",
+      "description": "Emit health observations for an external SFTP path",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sftp_path_observation_sensor",
+      "tags": [
+        "observations",
+        "sftp",
+        "files",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "paramiko>=3.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sftp_path_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sftp_path_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sftp_path_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sftp_path_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/sftp_path_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "monte_carlo_check",
+      "name": "Monte Carlo Check",
+      "category": "asset_checks",
+      "description": "Trigger a Monte Carlo custom SQL rule on demand and surface results as a Dagster asset check",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "monte_carlo_check",
+      "tags": [
+        "asset_checks",
+        "data_quality",
+        "monte_carlo",
+        "observability"
+      ],
+      "dependencies": {
+        "pip": [
+          "pycarlo"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/monte_carlo_check/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/monte_carlo_check/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/monte_carlo_check/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/monte_carlo_check/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/monte_carlo_check/requirements.txt"
+    },
+    {
+      "id": "sifflet_check",
+      "name": "Sifflet Check",
+      "category": "asset_checks",
+      "description": "Trigger a Sifflet monitor run on demand and surface results as a Dagster asset check",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sifflet_check",
+      "tags": [
+        "asset_checks",
+        "data_quality",
+        "sifflet",
+        "observability"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/sifflet_check/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/sifflet_check/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/sifflet_check/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/sifflet_check/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/sifflet_check/requirements.txt"
+    },
+    {
+      "id": "acceldata_check",
+      "name": "Acceldata Check",
+      "category": "asset_checks",
+      "description": "Trigger an Acceldata DQ rule execution on demand and surface results as a Dagster asset check",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "acceldata_check",
+      "tags": [
+        "asset_checks",
+        "data_quality",
+        "acceldata",
+        "observability"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/acceldata_check/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/acceldata_check/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/acceldata_check/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/acceldata_check/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/acceldata_check/requirements.txt"
+    },
+    {
+      "id": "coalesce_job_sensor",
+      "name": "Coalesce Job Sensor",
+      "category": "sensors",
+      "description": "Trigger a Dagster job when a Coalesce job run completes",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "coalesce_job_sensor",
+      "tags": [
+        "sensors",
+        "coalesce",
+        "transformation",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/coalesce_job_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/coalesce_job_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/coalesce_job_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/coalesce_job_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/coalesce_job_sensor/requirements.txt"
+    },
+    {
+      "id": "coalesce_project",
+      "name": "Coalesce Project",
+      "category": "assets",
+      "description": "Create one Dagster asset per Coalesce node, mirroring the Coalesce DAG",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "coalesce_run_asset",
+      "tags": [
+        "assets",
+        "coalesce",
+        "transformation",
+        "sql",
+        "multi-asset"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/coalesce_run_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/coalesce_run_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/coalesce_run_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/coalesce_run_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/coalesce_run_asset/requirements.txt"
+    },
+    {
+      "id": "abinitio_job_sensor",
+      "name": "Ab Initio Job Sensor",
+      "category": "sensors",
+      "description": "Trigger a Dagster job when an Ab Initio EME job run completes",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "abinitio_job_sensor",
+      "tags": [
+        "sensors",
+        "abinitio",
+        "etl",
+        "enterprise",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/abinitio_job_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/abinitio_job_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/abinitio_job_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/abinitio_job_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/abinitio_job_sensor/requirements.txt"
+    },
+    {
+      "id": "external_clickhouse_table",
+      "name": "External ClickHouse Table",
+      "category": "external_assets",
+      "description": "Declare a ClickHouse table as an observable external asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "external_clickhouse_table",
+      "tags": [
+        "external_assets",
+        "clickhouse",
+        "sql",
+        "olap"
+      ],
+      "dependencies": {
+        "pip": [
+          "clickhouse-connect>=0.6.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_clickhouse_table/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_clickhouse_table/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_clickhouse_table/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_clickhouse_table/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_clickhouse_table/requirements.txt"
+    },
+    {
+      "id": "clickhouse_table_observation_sensor",
+      "name": "ClickHouse Table Observation Sensor",
+      "category": "observations",
+      "description": "Emit health observations for an external ClickHouse table",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "clickhouse_table_observation_sensor",
+      "tags": [
+        "observations",
+        "clickhouse",
+        "sql",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "clickhouse-connect>=0.6.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/clickhouse_table_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/clickhouse_table_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/clickhouse_table_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/clickhouse_table_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/clickhouse_table_observation_sensor/requirements.txt"
+    },
+    {
+      "id": "abinitio_run_asset",
+      "name": "Ab Initio Run Asset",
+      "category": "assets",
+      "description": "Submit an Ab Initio graph or job on demand and surface it as a Dagster asset materialization",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "abinitio_run_asset",
+      "tags": [
+        "assets",
+        "abinitio",
+        "etl",
+        "enterprise",
+        "batch"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/abinitio_run_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/abinitio_run_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/abinitio_run_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/abinitio_run_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/abinitio_run_asset/requirements.txt"
+    },
+    {
+      "id": "matillion_run_asset",
+      "name": "Matillion Run Asset",
+      "category": "assets",
+      "description": "Trigger a Matillion ETL job on demand and surface results as a Dagster asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "matillion_run_asset",
+      "tags": [
+        "assets",
+        "matillion",
+        "etl",
+        "transformation"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/matillion_run_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/matillion_run_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/matillion_run_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/matillion_run_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/matillion_run_asset/requirements.txt"
+    },
+    {
+      "id": "matillion_job_sensor",
+      "name": "Matillion Job Sensor",
+      "category": "sensors",
+      "description": "Trigger a Dagster job when a Matillion ETL job run completes",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "matillion_job_sensor",
+      "tags": [
+        "sensors",
+        "matillion",
+        "etl",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/matillion_job_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/matillion_job_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/matillion_job_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/matillion_job_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/matillion_job_sensor/requirements.txt"
+    },
+    {
+      "id": "rivery_run_asset",
+      "name": "Rivery Run Asset",
+      "category": "assets",
+      "description": "Trigger a Rivery river (pipeline) run on demand and surface results as a Dagster asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "rivery_run_asset",
+      "tags": [
+        "assets",
+        "rivery",
+        "elt",
+        "ingestion"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rivery_run_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rivery_run_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rivery_run_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rivery_run_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/rivery_run_asset/requirements.txt"
+    },
+    {
+      "id": "rivery_job_sensor",
+      "name": "Rivery Job Sensor",
+      "category": "sensors",
+      "description": "Trigger a Dagster job when a Rivery river run completes",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "rivery_job_sensor",
+      "tags": [
+        "sensors",
+        "rivery",
+        "elt",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rivery_job_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rivery_job_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rivery_job_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rivery_job_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rivery_job_sensor/requirements.txt"
+    },
+    {
+      "id": "precisely_run_asset",
+      "name": "Precisely Run Asset",
+      "category": "assets",
+      "description": "Trigger a Precisely Connect job on demand and surface results as a Dagster asset",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "precisely_run_asset",
+      "tags": [
+        "assets",
+        "precisely",
+        "etl",
+        "data-integration",
+        "enterprise"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/precisely_run_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/precisely_run_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/precisely_run_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/precisely_run_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/precisely_run_asset/requirements.txt"
+    },
+    {
+      "id": "precisely_job_sensor",
+      "name": "Precisely Job Sensor",
+      "category": "sensors",
+      "description": "Trigger a Dagster job when a Precisely Connect job run completes",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "precisely_job_sensor",
+      "tags": [
+        "sensors",
+        "precisely",
+        "etl",
+        "data-integration",
+        "enterprise",
+        "automation"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/precisely_job_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/precisely_job_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/precisely_job_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/precisely_job_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/precisely_job_sensor/requirements.txt"
     }
   ]
 }

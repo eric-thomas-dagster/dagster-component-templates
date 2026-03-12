@@ -1,0 +1,6 @@
+type: dagster_component_templates.RedisStreamObservationSensorComponent
+attributes:
+  sensor_name: redis_events_obs
+  asset_key: streaming/events
+  stream_name: events:incoming
+  check_interval_seconds: 60

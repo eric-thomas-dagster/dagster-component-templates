@@ -1,0 +1,90 @@
+{
+  "type": "dagster_component_templates.ServiceNowSensorComponent",
+  "name": "ServiceNow Sensor",
+  "category": "sensors",
+  "description": "Trigger a Dagster job when ServiceNow records match a target state",
+  "icon": "Activity",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name",
+      "placeholder": "snow_change_approved"
+    },
+    "instance_env_var": {
+      "type": "string",
+      "required": true,
+      "label": "Instance Env Var",
+      "placeholder": "SNOW_INSTANCE"
+    },
+    "username_env_var": {
+      "type": "string",
+      "required": true,
+      "label": "Username Env Var",
+      "placeholder": "SNOW_USERNAME"
+    },
+    "password_env_var": {
+      "type": "string",
+      "required": true,
+      "label": "Password Env Var",
+      "placeholder": "SNOW_PASSWORD"
+    },
+    "table": {
+      "type": "string",
+      "required": true,
+      "label": "Table",
+      "placeholder": "change_request"
+    },
+    "sysparm_query": {
+      "type": "string",
+      "required": true,
+      "label": "Query",
+      "placeholder": "state=approved^assignment_group=data_engineering"
+    },
+    "job_name": {
+      "type": "string",
+      "required": true,
+      "label": "Job Name"
+    },
+    "sysparm_fields": {
+      "type": "string",
+      "required": false,
+      "label": "Fields",
+      "default": "sys_id,number,state,short_description,sys_updated_on"
+    },
+    "minimum_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Poll Interval (s)",
+      "default": 120
+    },
+    "default_status": {
+      "type": "string",
+      "required": false,
+      "label": "Default Status",
+      "default": "running",
+      "enum": [
+        "running",
+        "stopped"
+      ]
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "requests>=2.28.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "servicenow",
+    "itsm",
+    "change-management",
+    "enterprise",
+    "automation"
+  ]
+}

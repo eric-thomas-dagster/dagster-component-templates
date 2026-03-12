@@ -1,0 +1,17 @@
+{
+  "type": "dagster_component_templates.matillion_run_asset",
+  "name": "Matillion Run Asset",
+  "category": "assets",
+  "description": "Trigger a Matillion ETL job on demand and surface results as a Dagster asset",
+  "dependencies": {
+    "pip": [
+      "requests>=2.28.0"
+    ]
+  },
+  "tags": [
+    "assets",
+    "matillion",
+    "etl",
+    "transformation"
+  ]
+}

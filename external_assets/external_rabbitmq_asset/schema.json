@@ -1,0 +1,55 @@
+{
+  "type": "dagster_component_templates.ExternalRabbitmqAsset",
+  "name": "External RabbitMQ Asset",
+  "category": "sensors",
+  "description": "Declare a RabbitMQ queue as an external asset",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "external_asset"
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key",
+      "placeholder": "queue/tasks"
+    },
+    "host": {
+      "type": "string",
+      "required": true,
+      "label": "Host",
+      "placeholder": "localhost"
+    },
+    "queue_name": {
+      "type": "string",
+      "required": true,
+      "label": "Queue Name",
+      "placeholder": "task-queue"
+    },
+    "virtual_host": {
+      "type": "string",
+      "required": false,
+      "label": "Virtual Host",
+      "default": "/"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dagster"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "external_asset"
+  ]
+}

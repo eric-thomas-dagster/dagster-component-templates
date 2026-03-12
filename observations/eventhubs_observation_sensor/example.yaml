@@ -1,0 +1,7 @@
+type: dagster_component_templates.EventHubsObservationSensorComponent
+attributes:
+  sensor_name: eventhubs_telemetry_obs
+  asset_key: streaming/telemetry
+  namespace: my-eventhubs-ns
+  eventhub_name: telemetry
+  check_interval_seconds: 300

@@ -1,0 +1,48 @@
+{
+  "type": "dagster_component_templates.ExternalSharePointLibraryAsset",
+  "name": "External SharePoint Library",
+  "category": "external_assets",
+  "description": "Declare a SharePoint document library as an observable external asset",
+  "icon": "Database",
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key",
+      "placeholder": "sharepoint/reports"
+    },
+    "site_url": {
+      "type": "string",
+      "required": true,
+      "label": "Site URL",
+      "placeholder": "https://myorg.sharepoint.com/sites/DataTeam"
+    },
+    "library_name": {
+      "type": "string",
+      "required": true,
+      "label": "Library Name",
+      "placeholder": "Reports"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dagster"
+    ]
+  },
+  "tags": [
+    "external_assets",
+    "sharepoint",
+    "microsoft",
+    "files"
+  ]
+}

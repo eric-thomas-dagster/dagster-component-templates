@@ -1,0 +1,5 @@
+type: dagster_component_templates.ExternalSqsAsset
+attributes:
+  asset_key: queue/orders
+  queue_url: https://sqs.us-east-1.amazonaws.com/123456789/orders-queue
+  region_name: us-east-1

@@ -1,0 +1,109 @@
+{
+  "type": "dagster_component_templates.GCSMonitorSensorComponent",
+  "name": "GCS Monitor",
+  "category": "sensors",
+  "description": "Monitor a Google Cloud Storage bucket prefix for new objects and trigger jobs when matching objects are detected",
+  "icon": "CloudSearch",
+  "x-dagster-io": {
+    "component_type": "sensor",
+    "triggers": {
+      "type": "gcs",
+      "description": "Triggers when new objects are detected in the monitored GCS bucket prefix"
+    },
+    "outputs": {
+      "type": "run_config",
+      "description": "Passes object information (bucket, name, size, etag, updated, content_type) to triggered jobs via run_config"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name",
+      "description": "Unique name for this sensor",
+      "placeholder": "gcs_data_sensor"
+    },
+    "bucket_name": {
+      "type": "string",
+      "required": true,
+      "label": "Bucket Name",
+      "description": "Name of the GCS bucket to monitor",
+      "placeholder": "my-data-bucket"
+    },
+    "prefix": {
+      "type": "string",
+      "required": false,
+      "label": "Prefix",
+      "description": "Object prefix to scope monitoring (e.g., 'incoming/' or 'data/2024/')",
+      "default": "",
+      "placeholder": "incoming/"
+    },
+    "blob_pattern": {
+      "type": "string",
+      "required": false,
+      "label": "Blob Pattern",
+      "description": "Regex pattern to match object names relative to the prefix (e.g., '.*\\.parquet$')",
+      "default": ".*",
+      "placeholder": ".*\\.parquet$"
+    },
+    "job_name": {
+      "type": "string",
+      "required": true,
+      "label": "Job Name",
+      "description": "Name of the job to trigger when objects are detected",
+      "placeholder": "process_gcs_objects_job"
+    },
+    "minimum_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Minimum Interval (seconds)",
+      "description": "Minimum time between sensor evaluations",
+      "default": 30,
+      "minimum": 1,
+      "placeholder": "30"
+    },
+    "project": {
+      "type": "string",
+      "required": false,
+      "label": "GCP Project ID",
+      "description": "GCP project ID. Uses the project from Application Default Credentials if not set.",
+      "placeholder": "my-gcp-project"
+    },
+    "default_status": {
+      "type": "string",
+      "required": false,
+      "label": "Default Status",
+      "description": "Default status of the sensor",
+      "default": "running",
+      "enum": [
+        "running",
+        "stopped"
+      ],
+      "enumLabels": {
+        "running": "Running (sensor actively monitors)",
+        "stopped": "Stopped (sensor is paused)"
+      }
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key> is used instead of creating a connection from the other fields. See README for the expected interface.",
+      "placeholder": "my_aws_resource"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "google-cloud-storage>=2.0.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "gcs",
+    "gcp",
+    "google",
+    "cloud",
+    "monitoring",
+    "automation"
+  ]
+}

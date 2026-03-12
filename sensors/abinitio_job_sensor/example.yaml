@@ -1,0 +1,10 @@
+# Using env vars directly
+type: dagster_component_templates.AbInitioJobSensorComponent
+attributes:
+  sensor_name: abinitio_etl_done
+  eme_url_env_var: ABINITIO_EME_URL
+  username_env_var: ABINITIO_USERNAME
+  password_env_var: ABINITIO_PASSWORD
+  job_path: /prod/etl/load_orders
+  job_name: downstream_processing_job
+  minimum_interval_seconds: 120

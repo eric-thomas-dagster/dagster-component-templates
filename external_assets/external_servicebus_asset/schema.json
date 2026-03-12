@@ -1,0 +1,55 @@
+{
+  "type": "dagster_component_templates.ExternalServiceBusAsset",
+  "name": "External Service Bus Asset",
+  "category": "sensors",
+  "description": "Declare an Azure Service Bus queue or topic as an external asset",
+  "icon": "Database",
+  "x-dagster-io": {
+    "component_type": "external_asset"
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Key",
+      "placeholder": "queue/orders"
+    },
+    "namespace": {
+      "type": "string",
+      "required": true,
+      "label": "Namespace",
+      "placeholder": "my-servicebus-ns"
+    },
+    "queue_name": {
+      "type": "string",
+      "required": false,
+      "label": "Queue Name",
+      "placeholder": "orders-queue"
+    },
+    "topic_name": {
+      "type": "string",
+      "required": false,
+      "label": "Topic Name",
+      "placeholder": "orders-topic"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name"
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "label": "Description"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "dagster"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "external_asset"
+  ]
+}

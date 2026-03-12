@@ -1,0 +1,10 @@
+type: dagster_component_templates.S3MonitorSensorComponent
+attributes:
+  sensor_name: s3_data_sensor
+  bucket_name: my-data-bucket
+  prefix: incoming/
+  key_pattern: ".*\\.parquet$"
+  job_name: process_s3_objects_job
+  minimum_interval_seconds: 60
+  region_name: us-east-1
+  default_status: running

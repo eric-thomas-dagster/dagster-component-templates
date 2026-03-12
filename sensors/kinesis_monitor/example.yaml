@@ -1,0 +1,10 @@
+type: dagster_component_templates.KinesisMonitorSensorComponent
+attributes:
+  sensor_name: kinesis_events_sensor
+  stream_name: my-event-stream
+  job_name: process_kinesis_records_job
+  minimum_interval_seconds: 30
+  max_records_per_shard: 100
+  initial_position: LATEST
+  region_name: us-east-1
+  default_status: running

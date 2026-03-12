@@ -1,0 +1,7 @@
+type: dagster_component_templates.ServiceBusObservationSensorComponent
+attributes:
+  sensor_name: sb_orders_obs
+  asset_key: queue/orders
+  namespace: my-servicebus-ns
+  queue_name: orders-queue
+  check_interval_seconds: 60

@@ -1,0 +1,112 @@
+{
+  "type": "dagster_component_templates.SQSMonitorSensorComponent",
+  "name": "SQS Monitor",
+  "category": "sensors",
+  "description": "Poll an AWS SQS queue for new messages and trigger jobs when messages are received",
+  "icon": "MessageSquare",
+  "x-dagster-io": {
+    "component_type": "sensor",
+    "triggers": {
+      "type": "sqs",
+      "description": "Triggers when new messages are received from the SQS queue"
+    },
+    "outputs": {
+      "type": "run_config",
+      "description": "Passes message information (message_id, body, sent_timestamp, queue_url) to triggered jobs via run_config"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "label": "Sensor Name",
+      "description": "Unique name for this sensor",
+      "placeholder": "sqs_events_sensor"
+    },
+    "queue_url": {
+      "type": "string",
+      "required": true,
+      "label": "Queue URL",
+      "description": "Full URL of the SQS queue to poll",
+      "placeholder": "https://sqs.us-east-1.amazonaws.com/123456789/my-queue"
+    },
+    "job_name": {
+      "type": "string",
+      "required": true,
+      "label": "Job Name",
+      "description": "Name of the job to trigger when messages are received",
+      "placeholder": "process_sqs_messages_job"
+    },
+    "minimum_interval_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Minimum Interval (seconds)",
+      "description": "Minimum time between sensor evaluations",
+      "default": 30,
+      "minimum": 1,
+      "placeholder": "30"
+    },
+    "max_messages_per_poll": {
+      "type": "number",
+      "required": false,
+      "label": "Max Messages Per Poll",
+      "description": "Maximum number of messages to receive per evaluation (1\u201310, SQS limit)",
+      "default": 10,
+      "minimum": 1,
+      "maximum": 10,
+      "placeholder": "10"
+    },
+    "visibility_timeout_seconds": {
+      "type": "number",
+      "required": false,
+      "label": "Visibility Timeout (seconds)",
+      "description": "Seconds a message stays hidden from other consumers while being processed",
+      "default": 30,
+      "minimum": 1,
+      "placeholder": "30"
+    },
+    "region_name": {
+      "type": "string",
+      "required": false,
+      "label": "AWS Region",
+      "description": "AWS region name. Uses default boto3 region if not set.",
+      "placeholder": "us-east-1"
+    },
+    "default_status": {
+      "type": "string",
+      "required": false,
+      "label": "Default Status",
+      "description": "Default status of the sensor",
+      "default": "running",
+      "enum": [
+        "running",
+        "stopped"
+      ],
+      "enumLabels": {
+        "running": "Running (sensor actively monitors)",
+        "stopped": "Stopped (sensor is paused)"
+      }
+    },
+    "resource_key": {
+      "type": "string",
+      "required": false,
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key> is used instead of creating a connection from the other fields. See README for the expected interface.",
+      "placeholder": "my_aws_resource"
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "boto3>=1.26.0"
+    ]
+  },
+  "tags": [
+    "sensors",
+    "sqs",
+    "aws",
+    "cloud",
+    "queue",
+    "messaging",
+    "automation"
+  ]
+}

@@ -1,0 +1,5 @@
+type: dagster_component_templates.ExternalEventHubsAsset
+attributes:
+  asset_key: streaming/telemetry
+  namespace: my-eventhubs-ns
+  eventhub_name: telemetry

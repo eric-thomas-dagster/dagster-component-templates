@@ -1,0 +1,5 @@
+type: dagster_component_templates.ExternalRabbitmqAsset
+attributes:
+  asset_key: queue/tasks
+  host: localhost
+  queue_name: task-queue

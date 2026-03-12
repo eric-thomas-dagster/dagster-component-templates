@@ -1,0 +1,7 @@
+type: dagster_component_templates.PreciselyJobSensorComponent
+attributes:
+  sensor_name: precisely_etl_done
+  job_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  host_env_var: PRECISELY_HOST
+  api_token_env_var: PRECISELY_API_TOKEN
+  job_name: downstream_processing_job

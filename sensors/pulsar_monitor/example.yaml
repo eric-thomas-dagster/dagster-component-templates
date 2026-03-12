@@ -1,0 +1,12 @@
+type: dagster_component_templates.PulsarMonitorSensorComponent
+attributes:
+  sensor_name: pulsar_events_sensor
+  service_url: pulsar://localhost:6650
+  topic: persistent://public/default/events
+  subscription_name: dagster-sensor-sub
+  job_name: process_pulsar_messages_job
+  subscription_type: Shared
+  max_messages_per_poll: 100
+  receive_timeout_ms: 5000
+  minimum_interval_seconds: 30
+  default_status: running

@@ -1,0 +1,8 @@
+{
+  "type": "dagster_component_templates.dataiku_asset",
+  "name": "Dataiku DSS Scenario Assets",
+  "category": "assets",
+  "description": "Connects to a Dataiku DSS instance at prepare time, discovers all scenarios across specified projects, and creates one Dagster asset per scenario. Uses StateBackedComponent so the scenario list is fetched once and cached — code-server reloads are instant even for large Dataiku instances with many projects.",
+  "dependencies": {"pip": ["requests>=2.28.0"]},
+  "tags": ["assets", "dataiku", "ml", "orchestration", "state-backed"]
+}

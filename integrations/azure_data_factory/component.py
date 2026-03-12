@@ -1,421 +1,695 @@
 """Azure Data Factory Component.
 
-Import Azure Data Factory pipelines, triggers, data flows, and integration runtimes
-as Dagster assets with automatic observation and orchestration.
+Extends StateBackedComponent so the ADF Management API is called once at prepare time
+(write_state_to_path) and the pipeline list is cached on disk. build_defs_from_state
+builds asset specs from the cached list with zero network calls, keeping code-server
+reloads fast.
+
+On first load (state_path is None) returns empty Definitions — run
+`dg utils refresh-defs-state` or `dagster dev` to populate the cache.
 """
+from __future__ import annotations
 
+import json
 import re
-from typing import Optional, List, Dict, Any
+import time
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from azure.identity import DefaultAzureCredential, ClientSecretCredential
-from azure.mgmt.datafactory import DataFactoryManagementClient
-from azure.mgmt.datafactory.models import (
-    RunFilterParameters,
-    RunQueryFilter,
-    RunQueryFilterOperand,
-    RunQueryFilterOperator,
-)
+import dagster as dg
 
-from dagster import (
-    Component,
-    ComponentLoadContext,
-    Definitions,
-    AssetExecutionContext,
-    asset,
-    observable_source_asset,
-    sensor,
-    SensorEvaluationContext,
-    AssetMaterialization,
-    Resolvable,
-    Model,
-    MetadataValue,
-)
-from pydantic import Field
+try:
+    from dagster.components.component.state_backed_component import StateBackedComponent
+    from dagster.components.utils.defs_state import (
+        DefsStateConfig,
+        DefsStateConfigArgs,
+        ResolvedDefsStateConfig,
+    )
+    _HAS_STATE_BACKED = True
+except ImportError:
+    StateBackedComponent = None
+    _HAS_STATE_BACKED = False
 
 
-class AzureDataFactoryComponent(Component, Model, Resolvable):
-    """Component for importing Azure Data Factory entities as Dagster assets.
+# ── Resource ──────────────────────────────────────────────────────────────────
 
-    Supports importing:
-    - Pipelines (trigger pipeline runs)
-    - Triggers (start/stop triggers)
-    - Data Flows (observe data flow definitions)
-    - Integration Runtimes (observe IR status)
+class AzureDataFactoryResource(dg.ConfigurableResource):
+    """Shared Azure Data Factory connection config.
+
+    Supports both DefaultAzureCredential and explicit Service Principal auth.
 
     Example:
-        ```yaml
-        type: dagster_component_templates.AzureDataFactoryComponent
-        attributes:
-          subscription_id: "12345678-1234-1234-1234-123456789012"
-          resource_group_name: my-resource-group
-          factory_name: my-data-factory
-          tenant_id: "{{ env('AZURE_TENANT_ID') }}"
-          client_id: "{{ env('AZURE_CLIENT_ID') }}"
-          client_secret: "{{ env('AZURE_CLIENT_SECRET') }}"
-          import_pipelines: true
-          import_triggers: true
+        ```python
+        resources = {
+            "adf": AzureDataFactoryResource(
+                subscription_id="12345678-...",
+                resource_group_name="my-rg",
+                factory_name="my-adf",
+                tenant_id_env_var="AZURE_TENANT_ID",
+                client_id_env_var="AZURE_CLIENT_ID",
+                client_secret_env_var="AZURE_CLIENT_SECRET",
+            )
+        }
         ```
     """
 
-    subscription_id: str = Field(
-        description="Azure subscription ID"
-    )
-
-    resource_group_name: str = Field(
-        description="Azure resource group name"
-    )
-
-    factory_name: str = Field(
-        description="Azure Data Factory name"
-    )
-
-    tenant_id: Optional[str] = Field(
+    subscription_id: str = dg.Field(description="Azure subscription ID")
+    resource_group_name: str = dg.Field(description="Azure resource group name")
+    factory_name: str = dg.Field(description="Azure Data Factory name")
+    tenant_id_env_var: Optional[str] = dg.Field(
         default=None,
-        description="Azure AD tenant ID (optional if using DefaultAzureCredential)"
+        description="Env var holding the Azure AD tenant ID (optional — uses DefaultAzureCredential if absent)",
     )
-
-    client_id: Optional[str] = Field(
+    client_id_env_var: Optional[str] = dg.Field(
         default=None,
-        description="Azure AD client/application ID (optional if using DefaultAzureCredential)"
+        description="Env var holding the Azure AD client/application ID (optional)",
     )
-
-    client_secret: Optional[str] = Field(
+    client_secret_env_var: Optional[str] = dg.Field(
         default=None,
-        description="Azure AD client secret (optional if using DefaultAzureCredential)"
+        description="Env var holding the Azure AD client secret (optional)",
     )
 
-    import_pipelines: bool = Field(
-        default=True,
-        description="Import pipelines as materializable assets"
-    )
+    def get_client(self):
+        """Return an authenticated DataFactoryManagementClient."""
+        import os
+        from azure.identity import ClientSecretCredential, DefaultAzureCredential
+        from azure.mgmt.datafactory import DataFactoryManagementClient
 
-    import_triggers: bool = Field(
-        default=False,
-        description="Import triggers as materializable assets (start)"
-    )
-
-    filter_by_name_pattern: Optional[str] = Field(
-        default=None,
-        description="Regex pattern to filter entities by name"
-    )
-
-    exclude_name_pattern: Optional[str] = Field(
-        default=None,
-        description="Regex pattern to exclude entities by name"
-    )
-
-    filter_by_tags: Optional[str] = Field(
-        default=None,
-        description="Comma-separated tag keys to filter entities (e.g., 'env,team')"
-    )
-
-    poll_interval_seconds: int = Field(
-        default=60,
-        description="Sensor poll interval in seconds"
-    )
-
-    generate_sensor: bool = Field(
-        default=True,
-        description="Generate observation sensor for pipeline runs and trigger runs"
-    )
-
-    group_name: str = Field(
-        default="azure_data_factory",
-        description="Asset group name for all imported assets"
-    )
-
-    description: Optional[str] = Field(
-        default=None,
-        description="Description for the Azure Data Factory component"
-    )
-
-    def _get_client(self) -> DataFactoryManagementClient:
-        """Create Azure Data Factory client."""
-        if self.tenant_id and self.client_id and self.client_secret:
+        if self.tenant_id_env_var and self.client_id_env_var and self.client_secret_env_var:
             credential = ClientSecretCredential(
-                tenant_id=self.tenant_id,
-                client_id=self.client_id,
-                client_secret=self.client_secret,
+                tenant_id=os.environ[self.tenant_id_env_var],
+                client_id=os.environ[self.client_id_env_var],
+                client_secret=os.environ[self.client_secret_env_var],
             )
         else:
             credential = DefaultAzureCredential()
 
         return DataFactoryManagementClient(credential, self.subscription_id)
 
-    def _matches_filters(self, name: str, tags: Optional[Dict[str, str]] = None) -> bool:
-        """Check if entity matches name and tag filters."""
-        # Name pattern filter
-        if self.filter_by_name_pattern:
-            if not re.search(self.filter_by_name_pattern, name):
-                return False
 
-        # Exclusion pattern
-        if self.exclude_name_pattern:
-            if re.search(self.exclude_name_pattern, name):
-                return False
+# ── Shared helpers ─────────────────────────────────────────────────────────────
 
-        # Tag filter
-        if self.filter_by_tags and tags:
-            required_keys = [k.strip() for k in self.filter_by_tags.split(",")]
-            if not all(key in tags for key in required_keys):
-                return False
+def _get_adf_client(
+    subscription_id: str,
+    tenant_id: Optional[str],
+    client_id: Optional[str],
+    client_secret: Optional[str],
+):
+    """Build an ADF management client from explicit credential values."""
+    from azure.identity import ClientSecretCredential, DefaultAzureCredential
+    from azure.mgmt.datafactory import DataFactoryManagementClient
 
-        return True
+    if tenant_id and client_id and client_secret:
+        credential = ClientSecretCredential(
+            tenant_id=tenant_id,
+            client_id=client_id,
+            client_secret=client_secret,
+        )
+    else:
+        credential = DefaultAzureCredential()
 
-    def _list_pipelines(self, client: DataFactoryManagementClient) -> List[str]:
-        """List all pipelines in the data factory."""
-        pipelines = []
-        for pipeline in client.pipelines.list_by_factory(
-            self.resource_group_name, self.factory_name
+    return DataFactoryManagementClient(credential, subscription_id)
+
+
+def _matches_filters(
+    name: str,
+    filter_by_name_pattern: Optional[str],
+    exclude_name_pattern: Optional[str],
+    filter_by_tags: Optional[str],
+    tags: Optional[Dict[str, str]] = None,
+) -> bool:
+    """Return True if *name* passes all configured filters."""
+    if filter_by_name_pattern and not re.search(filter_by_name_pattern, name):
+        return False
+    if exclude_name_pattern and re.search(exclude_name_pattern, name):
+        return False
+    if filter_by_tags and tags:
+        required_keys = [k.strip() for k in filter_by_tags.split(",")]
+        if not all(k in tags for k in required_keys):
+            return False
+    return True
+
+
+def _fetch_pipelines(
+    client,
+    resource_group_name: str,
+    factory_name: str,
+    filter_by_name_pattern: Optional[str],
+    exclude_name_pattern: Optional[str],
+    filter_by_tags: Optional[str],
+) -> List[Dict[str, Any]]:
+    """List all matching pipelines and return serialisable dicts."""
+    result = []
+    for pipeline in client.pipelines.list_by_factory(resource_group_name, factory_name):
+        name = pipeline.name or ""
+        if not _matches_filters(
+            name,
+            filter_by_name_pattern,
+            exclude_name_pattern,
+            filter_by_tags,
         ):
-            if self._matches_filters(pipeline.name):
-                pipelines.append(pipeline.name)
-        return pipelines
+            continue
+        # Count activities safely
+        activities = getattr(pipeline, "activities", None) or []
+        result.append(
+            {
+                "name": name,
+                "description": getattr(pipeline, "description", None) or "",
+                "parameters": list((getattr(pipeline, "parameters", None) or {}).keys()),
+                "activities_count": len(activities),
+            }
+        )
+    return result
 
-    def _list_triggers(self, client: DataFactoryManagementClient) -> List[str]:
-        """List all triggers in the data factory."""
-        triggers = []
-        for trigger in client.triggers.list_by_factory(
-            self.resource_group_name, self.factory_name
-        ):
-            if self._matches_filters(trigger.name):
-                triggers.append(trigger.name)
-        return triggers
 
-    def _get_pipeline_assets(self, client: DataFactoryManagementClient) -> List:
-        """Generate pipeline assets."""
-        assets = []
-        pipelines = self._list_pipelines(client)
+def _fetch_triggers(
+    client,
+    resource_group_name: str,
+    factory_name: str,
+    filter_by_name_pattern: Optional[str],
+    exclude_name_pattern: Optional[str],
+    filter_by_tags: Optional[str],
+) -> List[str]:
+    """List all matching trigger names."""
+    result = []
+    for trigger in client.triggers.list_by_factory(resource_group_name, factory_name):
+        name = trigger.name or ""
+        if _matches_filters(name, filter_by_name_pattern, exclude_name_pattern, filter_by_tags):
+            result.append(name)
+    return result
 
-        for pipeline_name in pipelines:
-            asset_key = f"adf_pipeline_{pipeline_name}"
 
-            @asset(
-                name=asset_key,
-                group_name=self.group_name,
+# ── Core definition builder (no network calls) ────────────────────────────────
+
+def _build_adf_defs(
+    pipelines: List[Dict[str, Any]],
+    trigger_names: List[str],
+    subscription_id: str,
+    resource_group_name: str,
+    factory_name: str,
+    tenant_id: Optional[str],
+    client_id: Optional[str],
+    client_secret: Optional[str],
+    group_name: str,
+    import_pipelines: bool,
+    import_triggers: bool,
+    generate_sensor: bool,
+    poll_interval_seconds: int,
+    filter_by_name_pattern: Optional[str],
+    exclude_name_pattern: Optional[str],
+) -> dg.Definitions:
+    """Build Dagster Definitions from pre-fetched ADF metadata (no network calls)."""
+    assets: list = []
+    sensors: list = []
+
+    # ── Pipeline assets ────────────────────────────────────────────────────────
+    if import_pipelines:
+        for pipeline_meta in pipelines:
+            pipeline_name = pipeline_meta["name"]
+
+            @dg.asset(
+                name=f"adf_pipeline_{pipeline_name}",
+                group_name=group_name,
+                description=pipeline_meta.get("description") or f"ADF pipeline: {pipeline_name}",
                 metadata={
-                    "pipeline_name": pipeline_name,
-                    "factory_name": self.factory_name,
-                    "resource_group": self.resource_group_name,
+                    "pipeline_name": dg.MetadataValue.text(pipeline_name),
+                    "factory_name": dg.MetadataValue.text(factory_name),
+                    "resource_group": dg.MetadataValue.text(resource_group_name),
+                    "activities_count": dg.MetadataValue.int(
+                        pipeline_meta.get("activities_count", 0)
+                    ),
+                    "parameters": dg.MetadataValue.text(
+                        ", ".join(pipeline_meta.get("parameters", [])) or "(none)"
+                    ),
                 },
+                kinds={"azure", "adf"},
             )
-            def pipeline_asset(context: AssetExecutionContext, pipeline_name=pipeline_name):
-                """Trigger Azure Data Factory pipeline run."""
-                adf_client = self._get_client()
-
-                # Trigger pipeline run
-                run_response = adf_client.pipelines.create_run(
-                    self.resource_group_name,
-                    self.factory_name,
-                    pipeline_name,
+            def pipeline_asset(
+                context: dg.AssetExecutionContext,
+                _pipeline_name: str = pipeline_name,
+                _subscription_id: str = subscription_id,
+                _resource_group_name: str = resource_group_name,
+                _factory_name: str = factory_name,
+                _tenant_id: Optional[str] = tenant_id,
+                _client_id: Optional[str] = client_id,
+                _client_secret: Optional[str] = client_secret,
+            ):
+                """Trigger an Azure Data Factory pipeline run and wait for completion."""
+                adf_client = _get_adf_client(
+                    _subscription_id, _tenant_id, _client_id, _client_secret
                 )
 
+                run_response = adf_client.pipelines.create_run(
+                    _resource_group_name,
+                    _factory_name,
+                    _pipeline_name,
+                )
                 run_id = run_response.run_id
                 context.log.info(f"Pipeline run started. Run ID: {run_id}")
 
-                # Wait for pipeline run to complete
-                max_wait_minutes = 60
+                max_wait_seconds = 3600  # 60 minutes
                 poll_interval = 30
                 elapsed = 0
 
-                while elapsed < max_wait_minutes * 60:
+                while elapsed < max_wait_seconds:
                     pipeline_run = adf_client.pipeline_runs.get(
-                        self.resource_group_name,
-                        self.factory_name,
+                        _resource_group_name,
+                        _factory_name,
                         run_id,
                     )
-
                     status = pipeline_run.status
                     context.log.info(f"Pipeline run status: {status}")
 
-                    if status in ["Succeeded", "Failed", "Cancelled"]:
-                        metadata = {
-                            "run_id": run_id,
-                            "status": status,
-                            "pipeline_name": pipeline_name,
-                            "start_time": str(pipeline_run.run_start),
-                            "end_time": str(pipeline_run.run_end),
-                            "duration_seconds": (
-                                (pipeline_run.run_end - pipeline_run.run_start).total_seconds()
-                                if pipeline_run.run_end and pipeline_run.run_start
-                                else 0
-                            ),
+                    if status in ("Succeeded", "Failed", "Cancelled"):
+                        duration_seconds = 0.0
+                        if pipeline_run.run_end and pipeline_run.run_start:
+                            duration_seconds = (
+                                pipeline_run.run_end - pipeline_run.run_start
+                            ).total_seconds()
+
+                        metadata: Dict[str, Any] = {
+                            "run_id": dg.MetadataValue.text(run_id),
+                            "status": dg.MetadataValue.text(status),
+                            "pipeline_name": dg.MetadataValue.text(_pipeline_name),
+                            "start_time": dg.MetadataValue.text(str(pipeline_run.run_start)),
+                            "end_time": dg.MetadataValue.text(str(pipeline_run.run_end)),
+                            "duration_seconds": dg.MetadataValue.float(duration_seconds),
                         }
 
                         if status == "Failed":
-                            metadata["error"] = pipeline_run.message or "Pipeline failed"
+                            error_msg = getattr(pipeline_run, "message", None) or "Pipeline failed"
+                            metadata["error"] = dg.MetadataValue.text(error_msg)
+                            raise Exception(
+                                f"ADF pipeline '{_pipeline_name}' failed: {error_msg}"
+                            )
 
-                        return metadata
+                        return dg.MaterializeResult(metadata=metadata)
 
-                    import time
                     time.sleep(poll_interval)
                     elapsed += poll_interval
 
-                context.log.warning(f"Pipeline run timed out after {max_wait_minutes} minutes")
-                return {
-                    "run_id": run_id,
-                    "status": "Timeout",
-                    "pipeline_name": pipeline_name,
-                }
+                context.log.warning(
+                    f"Pipeline run timed out after {max_wait_seconds // 60} minutes"
+                )
+                return dg.MaterializeResult(
+                    metadata={
+                        "run_id": dg.MetadataValue.text(run_id),
+                        "status": dg.MetadataValue.text("Timeout"),
+                        "pipeline_name": dg.MetadataValue.text(_pipeline_name),
+                    }
+                )
 
             assets.append(pipeline_asset)
 
-        return assets
+    # ── Trigger assets ─────────────────────────────────────────────────────────
+    if import_triggers:
+        for trigger_name in trigger_names:
 
-    def _get_trigger_assets(self, client: DataFactoryManagementClient) -> List:
-        """Generate trigger assets."""
-        assets = []
-        triggers = self._list_triggers(client)
-
-        for trigger_name in triggers:
-            asset_key = f"adf_trigger_{trigger_name}"
-
-            @asset(
-                name=asset_key,
-                group_name=self.group_name,
+            @dg.asset(
+                name=f"adf_trigger_{trigger_name}",
+                group_name=group_name,
+                description=f"ADF trigger: {trigger_name}",
                 metadata={
-                    "trigger_name": trigger_name,
-                    "factory_name": self.factory_name,
-                    "resource_group": self.resource_group_name,
+                    "trigger_name": dg.MetadataValue.text(trigger_name),
+                    "factory_name": dg.MetadataValue.text(factory_name),
+                    "resource_group": dg.MetadataValue.text(resource_group_name),
                 },
+                kinds={"azure", "adf"},
             )
-            def trigger_asset(context: AssetExecutionContext, trigger_name=trigger_name):
-                """Start Azure Data Factory trigger."""
-                adf_client = self._get_client()
-
-                # Get trigger status
-                trigger = adf_client.triggers.get(
-                    self.resource_group_name,
-                    self.factory_name,
-                    trigger_name,
+            def trigger_asset(
+                context: dg.AssetExecutionContext,
+                _trigger_name: str = trigger_name,
+                _subscription_id: str = subscription_id,
+                _resource_group_name: str = resource_group_name,
+                _factory_name: str = factory_name,
+                _tenant_id: Optional[str] = tenant_id,
+                _client_id: Optional[str] = client_id,
+                _client_secret: Optional[str] = client_secret,
+            ):
+                """Start an Azure Data Factory trigger (no-op if already running)."""
+                adf_client = _get_adf_client(
+                    _subscription_id, _tenant_id, _client_id, _client_secret
                 )
 
-                context.log.info(f"Trigger runtime state: {trigger.runtime_state}")
+                trigger = adf_client.triggers.get(
+                    _resource_group_name,
+                    _factory_name,
+                    _trigger_name,
+                )
+                runtime_state = getattr(trigger, "runtime_state", "Unknown")
+                context.log.info(f"Trigger runtime state: {runtime_state}")
 
-                # Start trigger if not running
-                if trigger.runtime_state != "Started":
+                if runtime_state != "Started":
                     adf_client.triggers.begin_start(
-                        self.resource_group_name,
-                        self.factory_name,
-                        trigger_name,
+                        _resource_group_name,
+                        _factory_name,
+                        _trigger_name,
                     ).result()
-                    context.log.info(f"Trigger {trigger_name} started")
+                    context.log.info(f"Trigger {_trigger_name} started")
                 else:
-                    context.log.info(f"Trigger {trigger_name} already running")
+                    context.log.info(f"Trigger {_trigger_name} already running")
 
-                return {
-                    "trigger_name": trigger_name,
-                    "runtime_state": "Started",
-                    "trigger_type": trigger.type,
-                }
+                return dg.MaterializeResult(
+                    metadata={
+                        "trigger_name": dg.MetadataValue.text(_trigger_name),
+                        "runtime_state": dg.MetadataValue.text("Started"),
+                        "trigger_type": dg.MetadataValue.text(
+                            getattr(trigger, "type", "Unknown") or "Unknown"
+                        ),
+                    }
+                )
 
             assets.append(trigger_asset)
 
-        return assets
+    # ── Observation sensor ─────────────────────────────────────────────────────
+    if generate_sensor and (import_pipelines or import_triggers):
 
-    def _get_observation_sensor(self, client: DataFactoryManagementClient):
-        """Generate sensor to observe pipeline runs and trigger runs."""
-
-        @sensor(
-            name=f"{self.group_name}_observation_sensor",
-            minimum_interval_seconds=self.poll_interval_seconds,
+        @dg.sensor(
+            name=f"{group_name}_observation_sensor",
+            minimum_interval_seconds=poll_interval_seconds,
         )
-        def adf_observation_sensor(context: SensorEvaluationContext):
-            """Sensor to observe Azure Data Factory pipeline runs and trigger runs."""
-            adf_client = self._get_client()
+        def adf_observation_sensor(context: dg.SensorEvaluationContext):
+            """Observe Azure Data Factory pipeline runs and trigger runs."""
+            from azure.mgmt.datafactory.models import RunFilterParameters
 
-            # Get cursor (last check time)
+            adf_client = _get_adf_client(subscription_id, tenant_id, client_id, client_secret)
+
             cursor = context.cursor
-            if cursor:
-                last_check = datetime.fromisoformat(cursor)
-            else:
-                last_check = datetime.utcnow() - timedelta(hours=1)
-
+            last_check = (
+                datetime.fromisoformat(cursor)
+                if cursor
+                else datetime.utcnow() - timedelta(hours=1)
+            )
             now = datetime.utcnow()
 
-            # Query pipeline runs since last check
             filter_params = RunFilterParameters(
                 last_updated_after=last_check,
                 last_updated_before=now,
             )
 
             pipeline_runs = adf_client.pipeline_runs.query_by_factory(
-                self.resource_group_name,
-                self.factory_name,
-                filter_params,
+                resource_group_name, factory_name, filter_params
             )
 
-            # Emit asset materializations for completed pipeline runs
             for run in pipeline_runs.value:
-                if run.status in ["Succeeded", "Failed", "Cancelled"]:
-                    # Check if pipeline matches our filters
-                    if not self._matches_filters(run.pipeline_name):
-                        continue
+                if run.status not in ("Succeeded", "Failed", "Cancelled"):
+                    continue
+                run_pipeline_name = run.pipeline_name or ""
+                if not _matches_filters(
+                    run_pipeline_name,
+                    filter_by_name_pattern,
+                    exclude_name_pattern,
+                    None,
+                ):
+                    continue
 
-                    asset_key = f"adf_pipeline_{run.pipeline_name}"
+                duration = 0.0
+                if run.run_end and run.run_start:
+                    duration = (run.run_end - run.run_start).total_seconds()
 
-                    metadata = {
-                        "run_id": MetadataValue.text(run.run_id),
-                        "status": MetadataValue.text(run.status),
-                        "pipeline_name": MetadataValue.text(run.pipeline_name),
-                        "start_time": MetadataValue.text(str(run.run_start)),
-                        "end_time": MetadataValue.text(str(run.run_end)),
-                        "duration_seconds": MetadataValue.float(
-                            (run.run_end - run.run_start).total_seconds()
-                            if run.run_end and run.run_start
-                            else 0
-                        ),
-                    }
+                meta: Dict[str, Any] = {
+                    "run_id": dg.MetadataValue.text(run.run_id or ""),
+                    "status": dg.MetadataValue.text(run.status),
+                    "pipeline_name": dg.MetadataValue.text(run_pipeline_name),
+                    "start_time": dg.MetadataValue.text(str(run.run_start)),
+                    "end_time": dg.MetadataValue.text(str(run.run_end)),
+                    "duration_seconds": dg.MetadataValue.float(duration),
+                }
+                if run.status == "Failed" and getattr(run, "message", None):
+                    meta["error"] = dg.MetadataValue.text(run.message)
 
-                    if run.status == "Failed" and run.message:
-                        metadata["error"] = MetadataValue.text(run.message)
+                yield dg.AssetMaterialization(
+                    asset_key=f"adf_pipeline_{run_pipeline_name}",
+                    metadata=meta,
+                )
 
-                    yield AssetMaterialization(
-                        asset_key=asset_key,
-                        metadata=metadata,
-                    )
-
-            # Query trigger runs since last check
+            # Log trigger run activity
             trigger_runs = adf_client.trigger_runs.query_by_factory(
-                self.resource_group_name,
-                self.factory_name,
-                filter_params,
+                resource_group_name, factory_name, filter_params
             )
-
-            # Log trigger run information
             for run in trigger_runs.value:
-                if run.status in ["Succeeded", "Failed"]:
+                if run.status in ("Succeeded", "Failed"):
                     context.log.info(
-                        f"Trigger run: {run.trigger_name} - Status: {run.status} - "
+                        f"Trigger run: {run.trigger_name} — Status: {run.status} — "
                         f"Time: {run.trigger_run_timestamp}"
                     )
 
-            # Update cursor
             context.update_cursor(now.isoformat())
 
-        return adf_observation_sensor
+        sensors.append(adf_observation_sensor)
 
-    def resolve(self, load_context: ComponentLoadContext) -> Definitions:
-        """Resolve component to Dagster definitions."""
-        client = self._get_client()
+    return dg.Definitions(assets=assets, sensors=sensors)
 
-        assets = []
-        sensors = []
 
-        # Import pipelines
-        if self.import_pipelines:
-            assets.extend(self._get_pipeline_assets(client))
+# ── Component (StateBackedComponent path) ──────────────────────────────────────
 
-        # Import triggers
-        if self.import_triggers:
-            assets.extend(self._get_trigger_assets(client))
+if _HAS_STATE_BACKED:
+    @dataclass
+    class AzureDataFactoryComponent(StateBackedComponent, dg.Resolvable):
+        """Azure Data Factory component — one Dagster asset per ADF pipeline (and trigger).
 
-        # Generate observation sensor
-        if self.generate_sensor and (self.import_pipelines or self.import_triggers):
-            sensors.append(self._get_observation_sensor(client))
+        Uses StateBackedComponent to cache the pipeline list from the ADF Management API,
+        so code-server reloads are fast. Populate the cache with:
+          dagster dev                        (automatic in dev)
+          dg utils refresh-defs-state        (CI/CD / image build)
 
-        return Definitions(
-            assets=assets,
-            sensors=sensors,
+        On first load (before the cache is populated) returns empty Definitions.
+
+        Example:
+            ```yaml
+            type: dagster_component_templates.AzureDataFactoryComponent
+            attributes:
+              subscription_id: "12345678-1234-1234-1234-123456789012"
+              resource_group_name: my-resource-group
+              factory_name: my-data-factory
+              tenant_id: "{{ env('AZURE_TENANT_ID') }}"
+              client_id: "{{ env('AZURE_CLIENT_ID') }}"
+              client_secret: "{{ env('AZURE_CLIENT_SECRET') }}"
+              import_pipelines: true
+              import_triggers: false
+            ```
+        """
+
+        # ── Required fields ────────────────────────────────────────────────────
+        subscription_id: str
+        resource_group_name: str
+        factory_name: str
+
+        # ── Auth (optional — falls back to DefaultAzureCredential) ────────────
+        tenant_id: Optional[str] = None
+        client_id: Optional[str] = None
+        client_secret: Optional[str] = None
+
+        # ── Import toggles ─────────────────────────────────────────────────────
+        import_pipelines: bool = True
+        import_triggers: bool = False
+
+        # ── Filtering ──────────────────────────────────────────────────────────
+        filter_by_name_pattern: Optional[str] = None
+        exclude_name_pattern: Optional[str] = None
+        filter_by_tags: Optional[str] = None
+
+        # ── Sensor ────────────────────────────────────────────────────────────
+        generate_sensor: bool = True
+        poll_interval_seconds: int = 60
+
+        # ── Presentation ──────────────────────────────────────────────────────
+        group_name: str = "azure_data_factory"
+        description: Optional[str] = None
+
+        # ── State backing ─────────────────────────────────────────────────────
+        defs_state: ResolvedDefsStateConfig = field(
+            default_factory=DefsStateConfigArgs.local_filesystem
         )
+
+        @property
+        def defs_state_config(self) -> DefsStateConfig:
+            return DefsStateConfig.from_args(
+                self.defs_state,
+                default_key=f"AzureDataFactoryComponent[{self.factory_name}]",
+            )
+
+        # ── State write (runs once at prepare time) ────────────────────────────
+
+        def write_state_to_path(self, state_path: Path) -> None:
+            """Call ADF Management API and cache pipeline (and trigger) metadata to disk."""
+            client = _get_adf_client(
+                self.subscription_id,
+                self.tenant_id,
+                self.client_id,
+                self.client_secret,
+            )
+
+            state: Dict[str, Any] = {}
+
+            if self.import_pipelines:
+                state["pipelines"] = _fetch_pipelines(
+                    client,
+                    self.resource_group_name,
+                    self.factory_name,
+                    self.filter_by_name_pattern,
+                    self.exclude_name_pattern,
+                    self.filter_by_tags,
+                )
+            else:
+                state["pipelines"] = []
+
+            if self.import_triggers:
+                state["triggers"] = _fetch_triggers(
+                    client,
+                    self.resource_group_name,
+                    self.factory_name,
+                    self.filter_by_name_pattern,
+                    self.exclude_name_pattern,
+                    self.filter_by_tags,
+                )
+            else:
+                state["triggers"] = []
+
+            state_path.write_text(json.dumps(state, indent=2))
+
+        # ── Defs build from cache (zero network calls) ─────────────────────────
+
+        def build_defs_from_state(
+            self, context: dg.ComponentLoadContext, state_path: Optional[Path]
+        ) -> dg.Definitions:
+            """Build asset specs from cached ADF metadata — no network calls."""
+            if state_path is None or not state_path.exists():
+                if hasattr(context, "log"):
+                    context.log.warning(  # type: ignore[union-attr]
+                        "AzureDataFactoryComponent: no cached state found. "
+                        "Run `dg utils refresh-defs-state` or `dagster dev` to populate."
+                    )
+                return dg.Definitions()
+
+            state = json.loads(state_path.read_text())
+            pipelines: List[Dict[str, Any]] = state.get("pipelines", [])
+            trigger_names: List[str] = state.get("triggers", [])
+
+            return _build_adf_defs(
+                pipelines=pipelines,
+                trigger_names=trigger_names,
+                subscription_id=self.subscription_id,
+                resource_group_name=self.resource_group_name,
+                factory_name=self.factory_name,
+                tenant_id=self.tenant_id,
+                client_id=self.client_id,
+                client_secret=self.client_secret,
+                group_name=self.group_name,
+                import_pipelines=self.import_pipelines,
+                import_triggers=self.import_triggers,
+                generate_sensor=self.generate_sensor,
+                poll_interval_seconds=self.poll_interval_seconds,
+                filter_by_name_pattern=self.filter_by_name_pattern,
+                exclude_name_pattern=self.exclude_name_pattern,
+            )
+
+else:
+    # ── Fallback: StateBackedComponent not available in this dagster version ──
+    # Falls back to calling the ADF API on every build_defs (original behaviour).
+    class AzureDataFactoryComponent(dg.Component, dg.Model, dg.Resolvable):  # type: ignore[no-redef]
+        """Azure Data Factory component (fallback: no state caching).
+
+        Upgrade to dagster>=1.8 to enable StateBackedComponent caching.
+
+        Example:
+            ```yaml
+            type: dagster_component_templates.AzureDataFactoryComponent
+            attributes:
+              subscription_id: "12345678-1234-1234-1234-123456789012"
+              resource_group_name: my-resource-group
+              factory_name: my-data-factory
+              tenant_id: "{{ env('AZURE_TENANT_ID') }}"
+              client_id: "{{ env('AZURE_CLIENT_ID') }}"
+              client_secret: "{{ env('AZURE_CLIENT_SECRET') }}"
+              import_pipelines: true
+            ```
+        """
+
+        subscription_id: str = dg.Field(description="Azure subscription ID")
+        resource_group_name: str = dg.Field(description="Azure resource group name")
+        factory_name: str = dg.Field(description="Azure Data Factory name")
+
+        tenant_id: Optional[str] = dg.Field(
+            default=None,
+            description="Azure AD tenant ID (optional — uses DefaultAzureCredential if absent)",
+        )
+        client_id: Optional[str] = dg.Field(
+            default=None,
+            description="Azure AD client/application ID (optional)",
+        )
+        client_secret: Optional[str] = dg.Field(
+            default=None,
+            description="Azure AD client secret (optional)",
+        )
+
+        import_pipelines: bool = dg.Field(default=True, description="Import pipelines as assets")
+        import_triggers: bool = dg.Field(default=False, description="Import triggers as assets")
+
+        filter_by_name_pattern: Optional[str] = dg.Field(
+            default=None, description="Regex to filter entities by name"
+        )
+        exclude_name_pattern: Optional[str] = dg.Field(
+            default=None, description="Regex to exclude entities by name"
+        )
+        filter_by_tags: Optional[str] = dg.Field(
+            default=None, description="Comma-separated tag keys to filter entities"
+        )
+
+        generate_sensor: bool = dg.Field(default=True, description="Generate observation sensor")
+        poll_interval_seconds: int = dg.Field(default=60, description="Sensor poll interval (s)")
+
+        group_name: str = dg.Field(default="azure_data_factory", description="Asset group name")
+        description: Optional[str] = dg.Field(default=None, description="Component description")
+
+        def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+            """Build Definitions by calling the ADF API at load time."""
+            client = _get_adf_client(
+                self.subscription_id,
+                self.tenant_id,
+                self.client_id,
+                self.client_secret,
+            )
+
+            pipelines: List[Dict[str, Any]] = []
+            trigger_names: List[str] = []
+
+            if self.import_pipelines:
+                pipelines = _fetch_pipelines(
+                    client,
+                    self.resource_group_name,
+                    self.factory_name,
+                    self.filter_by_name_pattern,
+                    self.exclude_name_pattern,
+                    self.filter_by_tags,
+                )
+
+            if self.import_triggers:
+                trigger_names = _fetch_triggers(
+                    client,
+                    self.resource_group_name,
+                    self.factory_name,
+                    self.filter_by_name_pattern,
+                    self.exclude_name_pattern,
+                    self.filter_by_tags,
+                )
+
+            return _build_adf_defs(
+                pipelines=pipelines,
+                trigger_names=trigger_names,
+                subscription_id=self.subscription_id,
+                resource_group_name=self.resource_group_name,
+                factory_name=self.factory_name,
+                tenant_id=self.tenant_id,
+                client_id=self.client_id,
+                client_secret=self.client_secret,
+                group_name=self.group_name,
+                import_pipelines=self.import_pipelines,
+                import_triggers=self.import_triggers,
+                generate_sensor=self.generate_sensor,
+                poll_interval_seconds=self.poll_interval_seconds,
+                filter_by_name_pattern=self.filter_by_name_pattern,
+                exclude_name_pattern=self.exclude_name_pattern,
+            )

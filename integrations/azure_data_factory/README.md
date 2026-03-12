@@ -1,17 +1,38 @@
 # Azure Data Factory Component
 
-Import Azure Data Factory entities as Dagster assets with comprehensive orchestration and observation capabilities.
+Import Azure Data Factory pipelines and triggers as Dagster assets with fast startup
+via **StateBackedComponent** caching and a built-in observation sensor.
+
+## How It Works
+
+`AzureDataFactoryComponent` extends `StateBackedComponent` (dagster>=1.8):
+
+1. **`write_state_to_path`** — called once at prepare time (e.g. `dagster dev` or
+   `dg utils refresh-defs-state`). Calls the ADF Management API to list all pipelines
+   (and triggers), and writes `{name, description, parameters, activities_count}` JSON
+   to a local cache file.
+2. **`build_defs_from_state`** — called on every code-server reload. Reads the cached
+   JSON and builds one `@dg.asset` per pipeline / trigger with **zero network calls**,
+   keeping restarts fast.
+
+If no cache exists yet, `build_defs_from_state` returns empty `Definitions` and logs a
+warning. Run `dg utils refresh-defs-state` (or just start `dagster dev`) to populate it.
+
+Dagster <1.8 falls back to the original behaviour: `build_defs` calls the API on every
+load.
 
 ## Features
 
-- **Pipelines**: Trigger pipeline runs on demand
-- **Triggers**: Start triggers programmatically
-- **Observation Sensor**: Track pipeline runs and trigger runs
+- **Pipelines**: Trigger pipeline runs on demand; polls until Succeeded/Failed/Cancelled
+- **Triggers**: Start triggers programmatically (no-op if already running)
+- **Observation Sensor**: Tracks runs triggered outside Dagster and emits `AssetMaterialization` events
+- **Filtering**: Include/exclude by regex name pattern and tag keys
+- **Authentication**: DefaultAzureCredential or explicit Service Principal
 
-## Configuration
+## Quick Start
 
-### Basic Example
 ```yaml
+# defs/azure_data_factory/component.yaml
 type: dagster_component_templates.AzureDataFactoryComponent
 attributes:
   subscription_id: "12345678-1234-1234-1234-123456789012"
@@ -23,7 +44,37 @@ attributes:
   import_pipelines: true
 ```
 
+Then populate the cache:
+
+```bash
+dg utils refresh-defs-state   # CI/CD / Docker image build
+# or
+dagster dev                    # automatic in development
+```
+
+## Configuration Reference
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `subscription_id` | str | **required** | Azure subscription ID |
+| `resource_group_name` | str | **required** | Azure resource group name |
+| `factory_name` | str | **required** | Azure Data Factory name |
+| `tenant_id` | str | `None` | Azure AD tenant ID (omit to use DefaultAzureCredential) |
+| `client_id` | str | `None` | Azure AD client/application ID |
+| `client_secret` | str | `None` | Azure AD client secret |
+| `import_pipelines` | bool | `true` | Import pipelines as materializable assets |
+| `import_triggers` | bool | `false` | Import triggers as materializable assets |
+| `filter_by_name_pattern` | str | `None` | Regex to include matching entity names |
+| `exclude_name_pattern` | str | `None` | Regex to exclude matching entity names |
+| `filter_by_tags` | str | `None` | Comma-separated tag keys entities must have |
+| `generate_sensor` | bool | `true` | Generate observation sensor |
+| `poll_interval_seconds` | int | `60` | Sensor minimum poll interval |
+| `group_name` | str | `azure_data_factory` | Dagster asset group name |
+| `description` | str | `None` | Component description |
+| `defs_state` | object | local filesystem | StateBackedComponent cache location |
+
 ### Advanced Example
+
 ```yaml
 type: dagster_component_templates.AzureDataFactoryComponent
 attributes:
@@ -34,163 +85,85 @@ attributes:
   client_id: "{{ env('AZURE_CLIENT_ID') }}"
   client_secret: "{{ env('AZURE_CLIENT_SECRET') }}"
 
-  # Import entity types
   import_pipelines: true
   import_triggers: true
 
-  # Filtering
+  # Only include production entities
   filter_by_name_pattern: ^prod_.*
   exclude_name_pattern: test|dev
-  filter_by_tags: env,team
 
-  # Sensor configuration
   generate_sensor: true
   poll_interval_seconds: 60
 
   group_name: adf_workspace
-  description: Azure Data Factory pipeline orchestration
+  description: Production Azure Data Factory integration
 ```
-
-## Entity Types
-
-### Pipelines (Materializable)
-- Trigger pipeline runs on demand
-- Wait for pipeline completion
-- Returns run ID, status, duration, and error details
-- Observation sensor tracks automatic runs
-
-### Triggers (Materializable)
-- Start triggers programmatically
-- Monitor trigger runtime state
-- Supports schedule, tumbling window, and event-based triggers
 
 ## Authentication
 
-Three authentication options:
+Three options (all ultimately resolved via the `azure-identity` library):
 
-1. **DefaultAzureCredential** (recommended): Omit tenant_id, client_id, client_secret
-   - Uses Azure CLI, Managed Identity, or environment variables
-   - Best for local development and Azure-hosted apps
+1. **DefaultAzureCredential** (recommended) — omit `tenant_id`, `client_id`, `client_secret`.
+   Works with Azure CLI (`az login`), Managed Identity, and the `AZURE_*` env vars.
 
-2. **Service Principal**: Provide tenant_id, client_id, client_secret
-   - Explicit credential management
-   - Recommended for production
+2. **Service Principal** — provide `tenant_id`, `client_id`, `client_secret` as env-var
+   references (`{{ env('...') }}`).
 
-3. **Environment Variables**: Set AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET
-   - Used by DefaultAzureCredential
-   - Flexible credential management
+3. **Environment variables** — set `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`,
+   `AZURE_CLIENT_SECRET`; picked up automatically by `DefaultAzureCredential`.
 
-## Permissions
+## Asset Execution
 
-Required Azure RBAC roles and permissions:
+### Pipeline Assets (`adf_pipeline_<name>`)
 
-### Data Factory Contributor Role
-- Microsoft.DataFactory/factories/pipelines/read
-- Microsoft.DataFactory/factories/pipelines/createRun/action
-- Microsoft.DataFactory/factories/triggers/read
-- Microsoft.DataFactory/factories/triggers/start/action
-- Microsoft.DataFactory/factories/pipelineruns/read
-- Microsoft.DataFactory/factories/pipelineruns/queryByFactory/action
-- Microsoft.DataFactory/factories/triggerruns/queryByFactory/action
+When materialised:
+1. Calls `client.pipelines.create_run()` — returns a `run_id`.
+2. Polls `client.pipeline_runs.get()` every 30 seconds (up to 60 minutes).
+3. On success, returns `MaterializeResult` with `run_id`, `status`, `start_time`,
+   `end_time`, `duration_seconds`.
+4. On failure, raises an exception with the ADF error message.
 
-### Alternative: Data Factory Data Access User
-Provides read and run permissions without write access.
+### Trigger Assets (`adf_trigger_<name>`)
 
-## Limitations
+When materialised:
+1. Calls `client.triggers.get()` to check runtime state.
+2. If not already `Started`, calls `client.triggers.begin_start().result()`.
+3. Returns `MaterializeResult` with `trigger_name`, `runtime_state`, `trigger_type`.
 
-- Pipeline runs are limited to 60 minutes wait time
-- Pipeline run history retained for 45 days (configure Azure Monitor for longer retention)
-- Trigger assets only start triggers (does not stop them on completion)
+## Observation Sensor
 
-## Use Cases
+The `<group_name>_observation_sensor` polls `pipeline_runs.query_by_factory()` since the
+last cursor timestamp and emits `AssetMaterialization` events for runs triggered outside
+Dagster. This enables:
 
-### Pipeline Orchestration
-- Trigger pipelines on demand outside normal schedule
-- Coordinate pipeline execution with upstream data
-- Create dependencies on pipeline results
-- Monitor pipeline performance and costs
-
-### Trigger Management
-- Start triggers based on external events
-- Enable triggers for specific time windows
-- Coordinate trigger activation with data availability
-- Manage trigger lifecycle programmatically
-
-## Best Practices
-
-1. Use `filter_by_name_pattern` to scope imports to production entities
-2. Apply exclusion patterns to filter test/dev resources
-3. Use tags for fine-grained resource filtering
-4. Set appropriate sensor poll intervals (default: 60s)
-5. Use DefaultAzureCredential for security best practices
-6. Configure Azure Monitor for long-term run history
-7. Use Managed Identity when running on Azure compute
-8. Separate production and non-production data factories
-
-## Monitoring and Observability
-
-The observation sensor tracks:
-
-- **Pipeline Runs**: Status (Succeeded, Failed, Cancelled), duration, timestamps
-- **Trigger Runs**: Trigger execution events, status, timestamps
-- **Failed Runs**: Error messages and failure details
-
-Sensor emits `AssetMaterialization` events for completed pipeline runs, enabling:
 - Downstream dependencies on ADF pipeline results
-- Historical tracking of pipeline executions
+- Historical tracking in the Dagster UI
 - Alerting on pipeline failures
-- Performance analytics
 
-## Integration with Dagster
+## Required Azure Permissions
 
-### Upstream Dependencies
-Create dependencies on data sources:
-```python
-@asset(deps=["my_source_data"])
-def my_adf_pipeline():
-    # Triggers when source data materializes
-    pass
-```
+Assign the **Data Factory Contributor** role (or the individual actions below):
 
-### Downstream Dependencies
-Use ADF pipeline results in downstream assets:
-```python
-@asset(deps=["adf_pipeline_my_etl"])
-def my_downstream_analysis():
-    # Runs after ADF pipeline completes
-    pass
-```
-
-### Dynamic Configuration
-Pass runtime parameters to pipelines:
-```python
-# Future enhancement - parameter passing not yet implemented
-```
+- `Microsoft.DataFactory/factories/pipelines/read`
+- `Microsoft.DataFactory/factories/pipelines/createRun/action`
+- `Microsoft.DataFactory/factories/triggers/read`
+- `Microsoft.DataFactory/factories/triggers/start/action`
+- `Microsoft.DataFactory/factories/pipelineruns/read`
+- `Microsoft.DataFactory/factories/pipelineruns/queryByFactory/action`
+- `Microsoft.DataFactory/factories/triggerruns/queryByFactory/action`
 
 ## Troubleshooting
 
-### Authentication Errors
-- Verify service principal has correct permissions
-- Check tenant ID, client ID, and client secret
-- Ensure subscription ID and resource group are correct
-- Test Azure CLI authentication: `az login`
+**Authentication errors** — verify service principal permissions, check env vars, test
+with `az login`.
 
-### Pipeline Run Failures
-- Check pipeline definition in Azure Portal
-- Review activity errors in pipeline run details
-- Verify linked services are configured correctly
-- Check integration runtime connectivity
+**Cache not populated** — run `dg utils refresh-defs-state` or `dagster dev`.
 
-### Sensor Not Detecting Runs
-- Verify `generate_sensor: true` in configuration
-- Check sensor poll interval (may need to wait)
-- Ensure pipelines match name filters
-- Review sensor logs for errors
+**Sensor not detecting runs** — confirm `generate_sensor: true` and that pipeline names
+match any configured filters.
 
-### Timeout Issues
-- Increase pipeline timeout in component code (default: 60 minutes)
-- Use asynchronous execution for long-running pipelines
-- Consider using observation sensor instead of synchronous waits
+**Pipeline timeout** — the default wait is 60 minutes. Very long pipelines should be
+monitored via the observation sensor instead of synchronous execution.
 
 ## Resources
 

@@ -1,0 +1,11 @@
+{
+  "id": "dagster_component_templates.step_functions_asset",
+  "name": "AWS Step Functions Asset",
+  "type": "dagster_component_templates.StepFunctionsAssetComponent",
+  "category": "assets",
+  "description": "Discovers AWS Step Functions state machines at prepare time and creates one Dagster asset per state machine. Each asset triggers a Step Functions execution and waits for completion. Uses StateBackedComponent so discovery is cached — code-server reloads are instant.",
+  "dependencies": {
+    "pip": ["boto3>=1.26.0"]
+  },
+  "tags": ["assets", "aws", "step-functions", "orchestration", "state-backed"]
+}

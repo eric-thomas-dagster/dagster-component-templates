@@ -4811,6 +4811,51 @@
         "postgres",
         "redshift"
       ]
+    },
+    {
+      "id": "step_functions_asset",
+      "name": "AWS Step Functions Asset",
+      "type": "dagster_component_templates.StepFunctionsAssetComponent",
+      "category": "assets",
+      "description": "Discover all AWS Step Functions state machines at prepare time and create one Dagster asset per state machine. Triggers executions and polls for completion. Cached via StateBackedComponent.",
+      "path": "assets/step_functions_asset",
+      "tags": [
+        "assets",
+        "aws",
+        "step-functions",
+        "orchestration",
+        "state-backed"
+      ]
+    },
+    {
+      "id": "dataiku_asset",
+      "name": "Dataiku Asset",
+      "type": "dagster_component_templates.DataikuAssetComponent",
+      "category": "assets",
+      "description": "Discover all Dataiku DSS scenarios across projects at prepare time and create one Dagster asset per scenario. Triggers scenario runs and polls for completion. Cached via StateBackedComponent.",
+      "path": "assets/dataiku_asset",
+      "tags": [
+        "assets",
+        "dataiku",
+        "ml",
+        "orchestration",
+        "state-backed"
+      ]
+    },
+    {
+      "id": "polytomic_asset",
+      "name": "Polytomic Asset",
+      "type": "dagster_component_templates.PolytomicAssetComponent",
+      "category": "assets",
+      "description": "Discover all Polytomic reverse ETL syncs at prepare time and create one Dagster asset per sync. Triggers sync runs and polls for completion. Cached via StateBackedComponent.",
+      "path": "assets/polytomic_asset",
+      "tags": [
+        "assets",
+        "reverse-etl",
+        "polytomic",
+        "sync",
+        "state-backed"
+      ]
     }
   ]
 }

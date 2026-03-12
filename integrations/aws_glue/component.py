@@ -3,752 +3,1002 @@
 Import AWS Glue jobs, crawlers, workflows, DataBrew recipes, and data quality rulesets
 as Dagster assets with automatic lineage tracking from Data Catalog tables.
 
-Glue jobs are materializable assets that can be triggered from Dagster, with automatic
-dependencies on the Data Catalog tables they read. This creates a lineage graph showing
-data flow from tables through jobs.
-"""
+Uses StateBackedComponent so AWS API calls are made once at prepare time
+(write_state_to_path) and cached on disk. build_defs_from_state builds all
+asset definitions from the cached state with zero network calls, keeping
+code-server reloads fast.
 
+On first load (state_path is None) returns empty Definitions — run
+`dg utils refresh-defs-state` or `dagster dev` to populate the cache.
+"""
+from __future__ import annotations
+
+import json
 import re
-from typing import Optional, List, Dict, Any
+import time
+from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import boto3
+import dagster as dg
 from botocore.exceptions import ClientError
 
-from dagster import (
-    Component,
-    ComponentLoadContext,
-    Definitions,
-    AssetExecutionContext,
-    asset,
-    observable_source_asset,
-    sensor,
-    SensorEvaluationContext,
-    AssetMaterialization,
-    Resolvable,
-    Model,
-    MetadataValue,
-)
-from pydantic import Field
+try:
+    from dagster.components.component.state_backed_component import StateBackedComponent
+    from dagster.components.utils.defs_state import (
+        DefsStateConfig,
+        DefsStateConfigArgs,
+        ResolvedDefsStateConfig,
+    )
+    _HAS_STATE_BACKED = True
+except ImportError:
+    StateBackedComponent = None
+    _HAS_STATE_BACKED = False
 
 
-class AWSGlueComponent(Component, Model, Resolvable):
-    """Component for importing AWS Glue entities as Dagster assets with lineage tracking.
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-    Supports importing:
-    - Glue Jobs (Spark/Python ETL jobs) - Materializable with automatic lineage to Data Catalog tables
-    - Glue Data Catalog Tables - Observable source assets
-    - Glue Crawlers (metadata discovery)
-    - Glue Workflows (job orchestration)
-    - Glue DataBrew Jobs (visual data preparation)
-    - Glue Data Quality Rulesets (data validation)
+def _sanitize(name: str) -> str:
+    """Lowercase and replace non-alphanumeric characters with underscores."""
+    return re.sub(r"[^a-zA-Z0-9_]", "_", name.lower())
 
-    Glue jobs are materializable assets that can be triggered from Dagster. They include
-    automatic dependencies on Data Catalog tables they read, creating a lineage graph
-    that shows data flow from tables through jobs.
 
-    Example:
-        ```yaml
-        type: dagster_component_templates.AWSGlueComponent
-        attributes:
-          aws_region: us-east-1
-          aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
-          aws_secret_access_key: "{{ env('AWS_SECRET_ACCESS_KEY') }}"
-          import_jobs: true
-          import_catalog_tables: true
-          catalog_database_filter: production,analytics
-        ```
-    """
+def _make_glue_client(
+    region_name: str,
+    aws_access_key_id: Optional[str] = None,
+    aws_secret_access_key: Optional[str] = None,
+    aws_session_token: Optional[str] = None,
+):
+    session_kwargs: Dict[str, Any] = {"region_name": region_name}
+    if aws_access_key_id and aws_secret_access_key:
+        session_kwargs["aws_access_key_id"] = aws_access_key_id
+        session_kwargs["aws_secret_access_key"] = aws_secret_access_key
+    if aws_session_token:
+        session_kwargs["aws_session_token"] = aws_session_token
+    return boto3.Session(**session_kwargs).client("glue")
 
-    aws_region: str = Field(
-        description="AWS region (e.g., us-east-1)"
+
+def _make_databrew_client(
+    region_name: str,
+    aws_access_key_id: Optional[str] = None,
+    aws_secret_access_key: Optional[str] = None,
+    aws_session_token: Optional[str] = None,
+):
+    session_kwargs: Dict[str, Any] = {"region_name": region_name}
+    if aws_access_key_id and aws_secret_access_key:
+        session_kwargs["aws_access_key_id"] = aws_access_key_id
+        session_kwargs["aws_secret_access_key"] = aws_secret_access_key
+    if aws_session_token:
+        session_kwargs["aws_session_token"] = aws_session_token
+    return boto3.Session(**session_kwargs).client("databrew")
+
+
+def _should_include(
+    name: str,
+    tags: Optional[Dict[str, str]],
+    job_name_prefix: Optional[str],
+    exclude_jobs: Optional[List[str]],
+    filter_by_name_pattern: Optional[str],
+    exclude_name_pattern: Optional[str],
+    filter_by_tags: Optional[str],
+) -> bool:
+    """Apply all configured filters to decide whether to include an entity."""
+    if job_name_prefix and not name.startswith(job_name_prefix):
+        return False
+    if exclude_jobs and name in exclude_jobs:
+        return False
+    if exclude_name_pattern and re.search(exclude_name_pattern, name, re.IGNORECASE):
+        return False
+    if filter_by_name_pattern and not re.search(filter_by_name_pattern, name, re.IGNORECASE):
+        return False
+    if filter_by_tags and tags:
+        filter_keys = [t.strip() for t in filter_by_tags.split(",")]
+        entity_keys = list(tags.keys()) if isinstance(tags, dict) else []
+        if not any(k in entity_keys for k in filter_keys):
+            return False
+    return True
+
+
+def _extract_table_refs(job: Dict[str, Any], catalog_keys: set) -> List[str]:
+    """Extract Data Catalog table asset keys referenced in job DefaultArguments."""
+    refs = []
+    default_args = job.get("DefaultArguments", {})
+    db_arg = default_args.get("--database_name") or default_args.get("--database")
+    if not db_arg:
+        return refs
+    for key, value in default_args.items():
+        if "table" in key.lower() and key.startswith("--"):
+            candidate = f"glue_table_{_sanitize(db_arg)}_{_sanitize(value)}"
+            if candidate in catalog_keys:
+                refs.append(candidate)
+    return refs
+
+
+# ── Core defs builder (no network calls) ──────────────────────────────────────
+
+def _build_glue_defs(
+    state: Dict[str, Any],
+    region_name: str,
+    aws_access_key_id: Optional[str],
+    aws_secret_access_key: Optional[str],
+    aws_session_token: Optional[str],
+    group_name: str,
+    key_prefix: Optional[str],
+    poll_interval_seconds: int,
+    generate_sensor: bool,
+    import_catalog_tables: bool,
+    catalog_database_filter: Optional[str],
+    filter_by_name_pattern: Optional[str],
+    exclude_name_pattern: Optional[str],
+    filter_by_tags: Optional[str],
+) -> dg.Definitions:
+    """Build Definitions from cached state dict with zero network calls."""
+
+    assets_list: list = []
+    sensors_list: list = []
+
+    # Credentials bundle passed into asset closures
+    creds = dict(
+        region_name=region_name,
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        aws_session_token=aws_session_token,
     )
 
-    aws_access_key_id: Optional[str] = Field(
-        default=None,
-        description="AWS access key ID (optional if using IAM role)"
-    )
+    # ── Data Catalog Tables (observable) ──────────────────────────────────────
+    catalog_table_keys: set = set()
+    if import_catalog_tables:
+        for t in state.get("catalog_tables", []):
+            database = t["database"]
+            table_name = t["table"]
+            asset_key = f"glue_table_{_sanitize(database)}_{_sanitize(table_name)}"
+            catalog_table_keys.add(asset_key)
 
-    aws_secret_access_key: Optional[str] = Field(
-        default=None,
-        description="AWS secret access key (optional if using IAM role)"
-    )
+            prefixed_key = ([key_prefix] + [asset_key]) if key_prefix else [asset_key]
 
-    aws_session_token: Optional[str] = Field(
-        default=None,
-        description="AWS session token for temporary credentials (optional)"
-    )
-
-    import_jobs: bool = Field(
-        default=True,
-        description="Import Glue jobs as materializable assets"
-    )
-
-    import_crawlers: bool = Field(
-        default=False,
-        description="Import Glue crawlers as materializable assets"
-    )
-
-    import_workflows: bool = Field(
-        default=False,
-        description="Import Glue workflows as materializable assets"
-    )
-
-    import_databrew_jobs: bool = Field(
-        default=False,
-        description="Import Glue DataBrew recipe jobs as materializable assets"
-    )
-
-    import_data_quality_rulesets: bool = Field(
-        default=False,
-        description="Import Glue Data Quality rulesets as observable assets"
-    )
-
-    import_catalog_tables: bool = Field(
-        default=True,
-        description="Import Glue Data Catalog tables as observable source assets for lineage"
-    )
-
-    catalog_database_filter: Optional[str] = Field(
-        default=None,
-        description="Filter Data Catalog tables to specific databases (comma-separated)"
-    )
-
-    filter_by_name_pattern: Optional[str] = Field(
-        default=None,
-        description="Regex pattern to filter entities by name"
-    )
-
-    exclude_name_pattern: Optional[str] = Field(
-        default=None,
-        description="Regex pattern to exclude entities by name"
-    )
-
-    filter_by_tags: Optional[str] = Field(
-        default=None,
-        description="Comma-separated list of tag keys to filter entities (entities with ANY of these tags)"
-    )
-
-    poll_interval_seconds: int = Field(
-        default=60,
-        description="How often (in seconds) the sensor should check for completed runs"
-    )
-
-    generate_sensor: bool = Field(
-        default=True,
-        description="Create a sensor to observe Glue job runs, crawler runs, and workflow runs"
-    )
-
-    group_name: Optional[str] = Field(
-        default="aws_glue",
-        description="Group name for all imported assets"
-    )
-
-    description: Optional[str] = Field(
-        default=None,
-        description="Description for the AWS Glue component"
-    )
-
-    def _create_glue_client(self):
-        """Create and return AWS Glue client."""
-        session_kwargs = {'region_name': self.aws_region}
-
-        if self.aws_access_key_id and self.aws_secret_access_key:
-            session_kwargs['aws_access_key_id'] = self.aws_access_key_id
-            session_kwargs['aws_secret_access_key'] = self.aws_secret_access_key
-
-        if self.aws_session_token:
-            session_kwargs['aws_session_token'] = self.aws_session_token
-
-        session = boto3.Session(**session_kwargs)
-        return session.client('glue')
-
-    def _create_databrew_client(self):
-        """Create and return AWS Glue DataBrew client."""
-        session_kwargs = {'region_name': self.aws_region}
-
-        if self.aws_access_key_id and self.aws_secret_access_key:
-            session_kwargs['aws_access_key_id'] = self.aws_access_key_id
-            session_kwargs['aws_secret_access_key'] = self.aws_secret_access_key
-
-        if self.aws_session_token:
-            session_kwargs['aws_session_token'] = self.aws_session_token
-
-        session = boto3.Session(**session_kwargs)
-        return session.client('databrew')
-
-    def _should_include_entity(self, name: str, tags: Dict[str, str] = None) -> bool:
-        """Check if an entity should be included based on filters."""
-        # Check name exclusion pattern
-        if self.exclude_name_pattern:
-            if re.search(self.exclude_name_pattern, name, re.IGNORECASE):
-                return False
-
-        # Check name inclusion pattern
-        if self.filter_by_name_pattern:
-            if not re.search(self.filter_by_name_pattern, name, re.IGNORECASE):
-                return False
-
-        # Check tags filter
-        if self.filter_by_tags and tags:
-            filter_tag_keys = [t.strip() for t in self.filter_by_tags.split(',')]
-            entity_tag_keys = list(tags.keys()) if isinstance(tags, dict) else []
-            if not any(tag_key in entity_tag_keys for tag_key in filter_tag_keys):
-                return False
-
-        return True
-
-    def _extract_table_references_from_job(self, job: Dict[str, Any]) -> List[str]:
-        """Extract Data Catalog table references from Glue job metadata.
-
-        Returns list of table asset keys in format: glue_table_{database}_{table}
-        """
-        table_refs = []
-
-        # Check DefaultArguments for common table reference patterns
-        default_args = job.get('DefaultArguments', {})
-
-        # Common argument patterns that contain table references
-        db_arg = default_args.get('--database_name') or default_args.get('--database')
-        table_args = []
-
-        # Look for table name arguments
-        for key, value in default_args.items():
-            if 'table' in key.lower() and '--' in key:
-                table_args.append(value)
-
-        # If we found a database, construct table refs
-        if db_arg:
-            for table_name in table_args:
-                asset_key = f"glue_table_{re.sub(r'[^a-zA-Z0-9_]', '_', db_arg.lower())}_{re.sub(r'[^a-zA-Z0-9_]', '_', table_name.lower())}"
-                table_refs.append(asset_key)
-
-        # Also check Connections which may reference catalog connections
-        connections = job.get('Connections', {}).get('Connections', [])
-        # Note: Connections are typically network connections, not table references,
-        # but we keep this here for potential future enhancement
-
-        return table_refs
-
-    def _list_catalog_tables(self, glue_client) -> List[Dict[str, Any]]:
-        """List all Data Catalog tables across databases."""
-        tables = []
-
-        try:
-            # Get list of databases
-            databases_to_scan = []
-
-            if self.catalog_database_filter:
-                databases_to_scan = [db.strip() for db in self.catalog_database_filter.split(',')]
-            else:
-                # Get all databases
-                db_paginator = glue_client.get_paginator('get_databases')
-                for page in db_paginator.paginate():
-                    for db in page.get('DatabaseList', []):
-                        databases_to_scan.append(db['Name'])
-
-            # Get tables from each database
-            for database_name in databases_to_scan:
+            @dg.observable_source_asset(
+                name=asset_key,
+                group_name=group_name,
+                description=f"Glue Data Catalog table: {database}.{table_name}",
+                metadata={
+                    "glue_database": database,
+                    "glue_table": table_name,
+                    "glue_location": dg.MetadataValue.text(t.get("location") or ""),
+                    "entity_type": "catalog_table",
+                },
+            )
+            def _catalog_asset(
+                context: dg.AssetExecutionContext,
+                _db=database,
+                _tbl=table_name,
+                _creds=creds,
+            ):
+                client = _make_glue_client(**_creds)
                 try:
-                    table_paginator = glue_client.get_paginator('get_tables')
-                    for page in table_paginator.paginate(DatabaseName=database_name):
-                        for table in page.get('TableList', []):
-                            table_name = table['Name']
+                    table_data = client.get_table(DatabaseName=_db, Name=_tbl)["Table"]
+                    return {
+                        "database": _db,
+                        "table": _tbl,
+                        "location": table_data.get("StorageDescriptor", {}).get("Location"),
+                        "update_time": str(table_data.get("UpdateTime")) if table_data.get("UpdateTime") else None,
+                        "row_count": table_data.get("Parameters", {}).get("numRows", "N/A"),
+                    }
+                except Exception as exc:
+                    context.log.warning(f"Could not get table info for {_db}.{_tbl}: {exc}")
+                    return {"database": _db, "table": _tbl}
 
-                            # Apply entity filters
-                            if not self._should_include_entity(f"{database_name}.{table_name}"):
+            assets_list.append(_catalog_asset)
+
+    # ── Glue Jobs (materializable) ─────────────────────────────────────────────
+    job_metadata: Dict[str, Dict[str, Any]] = {}
+
+    for job in state.get("jobs", []):
+        job_name: str = job["name"]
+        asset_key = f"glue_job_{_sanitize(job_name)}"
+        if key_prefix:
+            asset_key = f"{_sanitize(key_prefix)}_{asset_key}"
+
+        table_deps = _extract_table_refs(
+            {"DefaultArguments": job.get("default_arguments", {})},
+            catalog_table_keys,
+        )
+        job_metadata[asset_key] = {"job_name": job_name}
+
+        @dg.asset(
+            name=asset_key,
+            group_name=group_name,
+            description=job.get("description") or f"AWS Glue job: {job_name}",
+            metadata={
+                "glue_job_name": dg.MetadataValue.text(job_name),
+                "glue_command": dg.MetadataValue.text(job.get("command_name") or ""),
+                "glue_role": dg.MetadataValue.text(job.get("role") or ""),
+                "glue_max_capacity": dg.MetadataValue.float(float(job.get("max_capacity") or 0)),
+                "glue_timeout": dg.MetadataValue.int(int(job.get("timeout") or 0)),
+                "entity_type": "glue_job",
+                "upstream_tables": dg.MetadataValue.int(len(table_deps)),
+            },
+            deps=table_deps if table_deps else None,
+            tags=job.get("tags") or {},
+        )
+        def _job_asset(
+            context: dg.AssetExecutionContext,
+            _job_name=job_name,
+            _table_deps=table_deps,
+            _creds=creds,
+            _poll=poll_interval_seconds,
+        ):
+            client = _make_glue_client(**_creds)
+
+            # Start job run
+            response = client.start_job_run(JobName=_job_name)
+            run_id: str = response["JobRunId"]
+            context.log.info(f"Started Glue job '{_job_name}', run ID: {run_id}")
+
+            # Poll until terminal state
+            terminal = {"SUCCEEDED", "FAILED", "STOPPED", "TIMEOUT", "ERROR"}
+            started_at = datetime.utcnow()
+            while True:
+                time.sleep(_poll)
+                run_info = client.get_job_run(JobName=_job_name, RunId=run_id)
+                job_run = run_info["JobRun"]
+                state_val: str = job_run.get("JobRunState", "")
+                context.log.info(f"Glue job '{_job_name}' run {run_id} state: {state_val}")
+                if state_val in terminal:
+                    break
+
+            execution_time = job_run.get("ExecutionTime")
+            if state_val != "SUCCEEDED":
+                raise Exception(
+                    f"Glue job '{_job_name}' run {run_id} ended with state: {state_val}"
+                )
+
+            return dg.MaterializeResult(
+                metadata={
+                    "run_id": dg.MetadataValue.text(run_id),
+                    "job_run_state": dg.MetadataValue.text(state_val),
+                    "execution_time_seconds": dg.MetadataValue.int(int(execution_time or 0)),
+                    "started_on": dg.MetadataValue.text(
+                        str(job_run.get("StartedOn")) if job_run.get("StartedOn") else ""
+                    ),
+                    "completed_on": dg.MetadataValue.text(
+                        str(job_run.get("CompletedOn")) if job_run.get("CompletedOn") else ""
+                    ),
+                    "upstream_tables": dg.MetadataValue.text(
+                        ", ".join(_table_deps) if _table_deps else "None detected"
+                    ),
+                }
+            )
+
+        assets_list.append(_job_asset)
+
+    # ── Glue Crawlers (materializable) ─────────────────────────────────────────
+    crawler_metadata: Dict[str, Dict[str, Any]] = {}
+
+    for crawler in state.get("crawlers", []):
+        crawler_name: str = crawler["name"]
+        asset_key = f"glue_crawler_{_sanitize(crawler_name)}"
+        if key_prefix:
+            asset_key = f"{_sanitize(key_prefix)}_{asset_key}"
+
+        crawler_metadata[asset_key] = {"crawler_name": crawler_name}
+
+        @dg.asset(
+            name=asset_key,
+            group_name=group_name,
+            description=crawler.get("description") or f"AWS Glue crawler: {crawler_name}",
+            metadata={
+                "glue_crawler_name": dg.MetadataValue.text(crawler_name),
+                "glue_role": dg.MetadataValue.text(crawler.get("role") or ""),
+                "glue_database": dg.MetadataValue.text(crawler.get("database_name") or ""),
+                "entity_type": "glue_crawler",
+            },
+        )
+        def _crawler_asset(
+            context: dg.AssetExecutionContext,
+            _crawler_name=crawler_name,
+            _creds=creds,
+        ):
+            client = _make_glue_client(**_creds)
+            client.start_crawler(Name=_crawler_name)
+            context.log.info(f"Started Glue crawler: {_crawler_name}")
+
+            crawler_data = client.get_crawler(Name=_crawler_name)["Crawler"]
+            return dg.MaterializeResult(
+                metadata={
+                    "crawler_name": dg.MetadataValue.text(_crawler_name),
+                    "state": dg.MetadataValue.text(crawler_data.get("State") or ""),
+                    "last_crawl": dg.MetadataValue.text(
+                        str(crawler_data.get("LastCrawl", {}).get("StartTime"))
+                        if crawler_data.get("LastCrawl")
+                        else ""
+                    ),
+                }
+            )
+
+        assets_list.append(_crawler_asset)
+
+    # ── Glue Workflows (materializable) ────────────────────────────────────────
+    workflow_metadata: Dict[str, Dict[str, Any]] = {}
+
+    for workflow in state.get("workflows", []):
+        workflow_name: str = workflow["name"]
+        asset_key = f"glue_workflow_{_sanitize(workflow_name)}"
+        if key_prefix:
+            asset_key = f"{_sanitize(key_prefix)}_{asset_key}"
+
+        workflow_metadata[asset_key] = {"workflow_name": workflow_name}
+
+        @dg.asset(
+            name=asset_key,
+            group_name=group_name,
+            description=workflow.get("description") or f"AWS Glue workflow: {workflow_name}",
+            metadata={
+                "glue_workflow_name": dg.MetadataValue.text(workflow_name),
+                "entity_type": "glue_workflow",
+            },
+        )
+        def _workflow_asset(
+            context: dg.AssetExecutionContext,
+            _workflow_name=workflow_name,
+            _creds=creds,
+        ):
+            client = _make_glue_client(**_creds)
+            response = client.start_workflow_run(Name=_workflow_name)
+            run_id: str = response["RunId"]
+            context.log.info(f"Started Glue workflow '{_workflow_name}', run ID: {run_id}")
+
+            run_info = client.get_workflow_run(Name=_workflow_name, RunId=run_id)
+            workflow_run = run_info["Run"]
+
+            return dg.MaterializeResult(
+                metadata={
+                    "run_id": dg.MetadataValue.text(run_id),
+                    "status": dg.MetadataValue.text(workflow_run.get("Status") or ""),
+                    "started_on": dg.MetadataValue.text(
+                        str(workflow_run.get("StartedOn")) if workflow_run.get("StartedOn") else ""
+                    ),
+                }
+            )
+
+        assets_list.append(_workflow_asset)
+
+    # ── Glue DataBrew Jobs (materializable) ────────────────────────────────────
+    for databrew_job in state.get("databrew_jobs", []):
+        databrew_job_name: str = databrew_job["name"]
+        asset_key = f"databrew_job_{_sanitize(databrew_job_name)}"
+        if key_prefix:
+            asset_key = f"{_sanitize(key_prefix)}_{asset_key}"
+
+        @dg.asset(
+            name=asset_key,
+            group_name=group_name,
+            description=databrew_job.get("description") or f"AWS Glue DataBrew job: {databrew_job_name}",
+            metadata={
+                "databrew_job_name": dg.MetadataValue.text(databrew_job_name),
+                "databrew_type": dg.MetadataValue.text(databrew_job.get("type") or ""),
+                "databrew_recipe": dg.MetadataValue.text(databrew_job.get("recipe_name") or ""),
+                "entity_type": "databrew_job",
+            },
+        )
+        def _databrew_asset(
+            context: dg.AssetExecutionContext,
+            _job_name=databrew_job_name,
+            _creds=creds,
+        ):
+            client = _make_databrew_client(**_creds)
+            response = client.start_job_run(Name=_job_name)
+            run_id: str = response["RunId"]
+            context.log.info(f"Started DataBrew job '{_job_name}', run ID: {run_id}")
+            return dg.MaterializeResult(
+                metadata={
+                    "run_id": dg.MetadataValue.text(run_id),
+                    "job_name": dg.MetadataValue.text(_job_name),
+                }
+            )
+
+        assets_list.append(_databrew_asset)
+
+    # ── Glue Data Quality Rulesets (observable) ────────────────────────────────
+    for ruleset in state.get("data_quality_rulesets", []):
+        ruleset_name: str = ruleset["name"]
+        asset_key = f"data_quality_{_sanitize(ruleset_name)}"
+        if key_prefix:
+            asset_key = f"{_sanitize(key_prefix)}_{asset_key}"
+
+        @dg.observable_source_asset(
+            name=asset_key,
+            group_name=group_name,
+            description=f"AWS Glue Data Quality ruleset: {ruleset_name}",
+            metadata={
+                "ruleset_name": dg.MetadataValue.text(ruleset_name),
+                "target_table": dg.MetadataValue.text(str(ruleset.get("target_table") or "")),
+                "entity_type": "data_quality_ruleset",
+            },
+        )
+        def _dq_asset(
+            context: dg.AssetExecutionContext,
+            _ruleset_name=ruleset_name,
+            _creds=creds,
+        ):
+            client = _make_glue_client(**_creds)
+            try:
+                client.get_data_quality_ruleset(Name=_ruleset_name)
+                context.log.info(f"Data quality ruleset '{_ruleset_name}' found")
+            except ClientError as exc:
+                context.log.warning(f"Could not get data quality ruleset '{_ruleset_name}': {exc}")
+
+        assets_list.append(_dq_asset)
+
+    # ── Observation Sensor ─────────────────────────────────────────────────────
+    if generate_sensor and (job_metadata or crawler_metadata or workflow_metadata):
+        sensor_name = f"{group_name}_observation_sensor"
+
+        @dg.sensor(
+            name=sensor_name,
+            minimum_interval_seconds=poll_interval_seconds,
+        )
+        def glue_observation_sensor(
+            context: dg.SensorEvaluationContext,
+            _job_meta=job_metadata,
+            _crawler_meta=crawler_metadata,
+            _workflow_meta=workflow_metadata,
+            _creds=creds,
+        ):
+            client = _make_glue_client(**_creds)
+
+            for asset_key, meta in _job_meta.items():
+                job_name = meta["job_name"]
+                try:
+                    runs = client.get_job_runs(JobName=job_name, MaxResults=5).get("JobRuns", [])
+                    for run in runs:
+                        if run.get("JobRunState") == "SUCCEEDED":
+                            yield dg.AssetMaterialization(
+                                asset_key=asset_key,
+                                metadata={
+                                    "run_id": run.get("Id"),
+                                    "job_run_state": run.get("JobRunState"),
+                                    "started_on": str(run.get("StartedOn")) if run.get("StartedOn") else None,
+                                    "completed_on": str(run.get("CompletedOn")) if run.get("CompletedOn") else None,
+                                    "execution_time": run.get("ExecutionTime"),
+                                    "source": "glue_observation_sensor",
+                                    "entity_type": "glue_job",
+                                },
+                            )
+                except Exception as exc:
+                    context.log.error(f"Error checking runs for Glue job '{job_name}': {exc}")
+
+            for asset_key, meta in _crawler_meta.items():
+                crawler_name = meta["crawler_name"]
+                try:
+                    metrics = client.get_crawler_metrics(
+                        CrawlerNameList=[crawler_name]
+                    ).get("CrawlerMetricsList", [])
+                    if metrics and metrics[0].get("LastRuntimeSeconds", 0) > 0:
+                        m = metrics[0]
+                        yield dg.AssetMaterialization(
+                            asset_key=asset_key,
+                            metadata={
+                                "crawler_name": crawler_name,
+                                "tables_created": m.get("TablesCreated", 0),
+                                "tables_updated": m.get("TablesUpdated", 0),
+                                "tables_deleted": m.get("TablesDeleted", 0),
+                                "last_runtime_seconds": m.get("LastRuntimeSeconds"),
+                                "source": "glue_observation_sensor",
+                                "entity_type": "glue_crawler",
+                            },
+                        )
+                except Exception as exc:
+                    context.log.error(f"Error checking metrics for Glue crawler '{crawler_name}': {exc}")
+
+            for asset_key, meta in _workflow_meta.items():
+                workflow_name = meta["workflow_name"]
+                try:
+                    runs = client.get_workflow_runs(Name=workflow_name, MaxResults=5).get("Runs", [])
+                    for run in runs:
+                        if run.get("Status") == "COMPLETED":
+                            yield dg.AssetMaterialization(
+                                asset_key=asset_key,
+                                metadata={
+                                    "run_id": run.get("WorkflowRunId"),
+                                    "status": run.get("Status"),
+                                    "started_on": str(run.get("StartedOn")) if run.get("StartedOn") else None,
+                                    "completed_on": str(run.get("CompletedOn")) if run.get("CompletedOn") else None,
+                                    "source": "glue_observation_sensor",
+                                    "entity_type": "glue_workflow",
+                                },
+                            )
+                except Exception as exc:
+                    context.log.error(f"Error checking runs for Glue workflow '{workflow_name}': {exc}")
+
+        sensors_list.append(glue_observation_sensor)
+
+    if not assets_list:
+        return dg.Definitions()
+
+    return dg.Definitions(
+        assets=assets_list,
+        sensors=sensors_list if sensors_list else None,
+    )
+
+
+# ── StateBackedComponent branch ────────────────────────────────────────────────
+
+if _HAS_STATE_BACKED:
+    @dataclass
+    class AWSGlueComponent(StateBackedComponent, dg.Resolvable):
+        """Component for importing AWS Glue entities as Dagster assets.
+
+        Uses StateBackedComponent to cache discovery results from the AWS Glue API
+        on disk, so code-server reloads make zero network calls. Populate the cache
+        with:
+          dagster dev                       (automatic in dev)
+          dg utils refresh-defs-state       (CI/CD / image builds)
+
+        Supports:
+        - Glue Jobs (materializable, automatic lineage to Data Catalog tables)
+        - Glue Crawlers (materializable)
+        - Glue Workflows (materializable)
+        - Glue DataBrew Jobs (materializable)
+        - Glue Data Quality Rulesets (observable)
+        - Data Catalog Tables (observable, for lineage)
+        - Observation Sensor (tracks external runs)
+
+        Example:
+            ```yaml
+            type: dagster_component_templates.AWSGlueComponent
+            attributes:
+              region_name: us-east-1
+              aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
+              aws_secret_access_key: "{{ env('AWS_SECRET_ACCESS_KEY') }}"
+              import_jobs: true
+              import_catalog_tables: true
+              catalog_database_filter: production,analytics
+            ```
+        """
+
+        # ── Required ──────────────────────────────────────────────────────────
+        region_name: str
+
+        # ── AWS credentials (optional; falls back to IAM role / env) ──────────
+        aws_access_key_id: Optional[str] = None
+        aws_secret_access_key: Optional[str] = None
+        aws_session_token: Optional[str] = None
+
+        # ── Discovery toggles ──────────────────────────────────────────────────
+        import_jobs: bool = True
+        import_crawlers: bool = False
+        import_workflows: bool = False
+        import_databrew_jobs: bool = False
+        import_data_quality_rulesets: bool = False
+        import_catalog_tables: bool = True
+
+        # ── Filtering ─────────────────────────────────────────────────────────
+        catalog_database_filter: Optional[str] = None
+        job_name_prefix: Optional[str] = None
+        exclude_jobs: Optional[List[str]] = None
+        filter_by_name_pattern: Optional[str] = None
+        exclude_name_pattern: Optional[str] = None
+        filter_by_tags: Optional[str] = None
+
+        # ── Asset presentation ────────────────────────────────────────────────
+        group_name: str = "aws_glue"
+        key_prefix: Optional[str] = None
+
+        # ── Execution ─────────────────────────────────────────────────────────
+        poll_interval_seconds: int = 30
+        generate_sensor: bool = True
+
+        # ── State backing ─────────────────────────────────────────────────────
+        defs_state: ResolvedDefsStateConfig = field(
+            default_factory=DefsStateConfigArgs.local_filesystem
+        )
+
+        # ── StateBackedComponent interface ────────────────────────────────────
+
+        @property
+        def defs_state_config(self) -> DefsStateConfig:
+            return DefsStateConfig.from_args(
+                self.defs_state,
+                default_key=f"GlueComponent[{self.region_name}]",
+            )
+
+        def write_state_to_path(self, state_path: Path) -> None:
+            """Call AWS Glue APIs and write discovered entities to a JSON cache file."""
+            glue = _make_glue_client(
+                region_name=self.region_name,
+                aws_access_key_id=self.aws_access_key_id,
+                aws_secret_access_key=self.aws_secret_access_key,
+                aws_session_token=self.aws_session_token,
+            )
+
+            filter_kwargs = dict(
+                job_name_prefix=self.job_name_prefix,
+                exclude_jobs=self.exclude_jobs or [],
+                filter_by_name_pattern=self.filter_by_name_pattern,
+                exclude_name_pattern=self.exclude_name_pattern,
+                filter_by_tags=self.filter_by_tags,
+            )
+
+            # ── Jobs ──────────────────────────────────────────────────────────
+            jobs: List[Dict[str, Any]] = []
+            if self.import_jobs:
+                paginator = glue.get_paginator("get_jobs")
+                for page in paginator.paginate():
+                    for job in page.get("Jobs", []):
+                        name: str = job["Name"]
+                        tags = job.get("Tags", {})
+                        if not _should_include(name, tags, **filter_kwargs):
+                            continue
+                        jobs.append({
+                            "name": name,
+                            "description": job.get("Description"),
+                            "role": job.get("Role"),
+                            "command_name": job.get("Command", {}).get("Name"),
+                            "max_capacity": job.get("MaxCapacity"),
+                            "timeout": job.get("Timeout"),
+                            "tags": tags,
+                            "default_arguments": job.get("DefaultArguments", {}),
+                        })
+
+            # ── Crawlers ──────────────────────────────────────────────────────
+            crawlers: List[Dict[str, Any]] = []
+            if self.import_crawlers:
+                paginator = glue.get_paginator("get_crawlers")
+                for page in paginator.paginate():
+                    for crawler in page.get("Crawlers", []):
+                        name = crawler["Name"]
+                        tags = crawler.get("Tags", {})
+                        if not _should_include(name, tags, **filter_kwargs):
+                            continue
+                        crawlers.append({
+                            "name": name,
+                            "description": crawler.get("Description"),
+                            "role": crawler.get("Role"),
+                            "database_name": crawler.get("DatabaseName"),
+                            "tags": tags,
+                        })
+
+            # ── Workflows ─────────────────────────────────────────────────────
+            workflows: List[Dict[str, Any]] = []
+            if self.import_workflows:
+                paginator = glue.get_paginator("list_workflows")
+                for page in paginator.paginate():
+                    workflow_names: List[str] = page.get("Workflows", [])
+                    if not workflow_names:
+                        continue
+                    batch = glue.batch_get_workflows(Names=workflow_names)
+                    for wf in batch.get("Workflows", []):
+                        name = wf["Name"]
+                        if not _should_include(name, None, **filter_kwargs):
+                            continue
+                        workflows.append({
+                            "name": name,
+                            "description": wf.get("Description"),
+                            "created_on": str(wf.get("CreatedOn")) if wf.get("CreatedOn") else None,
+                        })
+
+            # ── DataBrew Jobs ─────────────────────────────────────────────────
+            databrew_jobs: List[Dict[str, Any]] = []
+            if self.import_databrew_jobs:
+                try:
+                    databrew = _make_databrew_client(
+                        region_name=self.region_name,
+                        aws_access_key_id=self.aws_access_key_id,
+                        aws_secret_access_key=self.aws_secret_access_key,
+                        aws_session_token=self.aws_session_token,
+                    )
+                    paginator = databrew.get_paginator("list_jobs")
+                    for page in paginator.paginate():
+                        for job in page.get("Jobs", []):
+                            name = job["Name"]
+                            tags = job.get("Tags", {})
+                            if not _should_include(name, tags, **filter_kwargs):
                                 continue
-
-                            tables.append({
-                                'database': database_name,
-                                'table': table_name,
-                                'location': table.get('StorageDescriptor', {}).get('Location'),
-                                'update_time': table.get('UpdateTime'),
+                            databrew_jobs.append({
+                                "name": name,
+                                "description": job.get("Description"),
+                                "type": job.get("Type"),
+                                "recipe_name": job.get("RecipeName"),
+                                "tags": tags,
                             })
-                except Exception as e:
-                    # Log but continue with other databases
+                except Exception:
+                    pass  # DataBrew may not be available in all regions
+
+            # ── Data Quality Rulesets ─────────────────────────────────────────
+            data_quality_rulesets: List[Dict[str, Any]] = []
+            if self.import_data_quality_rulesets:
+                try:
+                    paginator = glue.get_paginator("list_data_quality_rulesets")
+                    for page in paginator.paginate():
+                        for rs in page.get("Rulesets", []):
+                            name = rs.get("Name")
+                            if not name or not _should_include(name, None, **filter_kwargs):
+                                continue
+                            data_quality_rulesets.append({
+                                "name": name,
+                                "target_table": rs.get("TargetTable"),
+                            })
+                except Exception:
                     pass
 
-        except Exception as e:
-            pass
+            # ── Data Catalog Tables ───────────────────────────────────────────
+            catalog_tables: List[Dict[str, Any]] = []
+            if self.import_catalog_tables:
+                try:
+                    databases_to_scan: List[str] = []
+                    if self.catalog_database_filter:
+                        databases_to_scan = [
+                            db.strip() for db in self.catalog_database_filter.split(",")
+                        ]
+                    else:
+                        db_pager = glue.get_paginator("get_databases")
+                        for page in db_pager.paginate():
+                            for db in page.get("DatabaseList", []):
+                                databases_to_scan.append(db["Name"])
 
-        return tables
-
-    def build_defs(self, context: ComponentLoadContext) -> Definitions:
-        """Build Dagster definitions from AWS Glue entities."""
-        glue_client = self._create_glue_client()
-
-        assets_list = []
-        sensors_list = []
-
-        # Track job, crawler, and workflow metadata for sensor
-        job_metadata = {}
-        crawler_metadata = {}
-        workflow_metadata = {}
-
-        # Track Data Catalog tables for lineage
-        catalog_table_keys = set()
-
-        # Import Data Catalog Tables (for lineage)
-        if self.import_catalog_tables:
-            try:
-                tables = self._list_catalog_tables(glue_client)
-
-                for table_info in tables:
-                    database = table_info['database']
-                    table_name = table_info['table']
-
-                    # Create asset key
-                    asset_key = f"glue_table_{re.sub(r'[^a-zA-Z0-9_]', '_', database.lower())}_{re.sub(r'[^a-zA-Z0-9_]', '_', table_name.lower())}"
-                    catalog_table_keys.add(asset_key)
-
-                    # Data Catalog tables are observable source assets
-                    @observable_source_asset(
-                        name=asset_key,
-                        group_name=self.group_name,
-                        description=f"Glue Data Catalog table: {database}.{table_name}",
-                        metadata={
-                            "glue_database": database,
-                            "glue_table": table_name,
-                            "glue_location": table_info.get('location'),
-                            "entity_type": "catalog_table",
-                        }
-                    )
-                    def _catalog_table_asset(context: AssetExecutionContext, database=database, table_name=table_name):
-                        """Observable Data Catalog table."""
-                        client = self._create_glue_client()
-
+                    for database_name in databases_to_scan:
                         try:
-                            # Get table metadata
-                            table_response = client.get_table(DatabaseName=database, Name=table_name)
-                            table_data = table_response['Table']
-
-                            metadata = {
-                                "database": database,
-                                "table": table_name,
-                                "location": table_data.get('StorageDescriptor', {}).get('Location'),
-                                "update_time": str(table_data.get('UpdateTime')) if table_data.get('UpdateTime') else None,
-                                "row_count": table_data.get('Parameters', {}).get('numRows', 'N/A'),
-                            }
-
-                            context.log.info(f"Observed Glue table {database}.{table_name}")
-                            return metadata
-
-                        except Exception as e:
-                            context.log.warning(f"Could not get table info for {database}.{table_name}: {e}")
-                            return {"database": database, "table": table_name}
-
-                    assets_list.append(_catalog_table_asset)
-
-            except Exception as e:
-                context.log.error(f"Error importing Glue Data Catalog tables: {e}")
-
-        # Import Glue Jobs
-        if self.import_jobs:
-            try:
-                paginator = glue_client.get_paginator('get_jobs')
-
-                for page in paginator.paginate():
-                    jobs = page.get('Jobs', [])
-
-                    for job in jobs:
-                        job_name = job['Name']
-                        tags = job.get('Tags', {})
-
-                        if not self._should_include_entity(job_name, tags):
+                            tbl_pager = glue.get_paginator("get_tables")
+                            for page in tbl_pager.paginate(DatabaseName=database_name):
+                                for table in page.get("TableList", []):
+                                    tbl_name = table["Name"]
+                                    fqn = f"{database_name}.{tbl_name}"
+                                    if not _should_include(fqn, None, **filter_kwargs):
+                                        continue
+                                    catalog_tables.append({
+                                        "database": database_name,
+                                        "table": tbl_name,
+                                        "location": table.get("StorageDescriptor", {}).get("Location"),
+                                        "update_time": str(table.get("UpdateTime"))
+                                        if table.get("UpdateTime")
+                                        else None,
+                                    })
+                        except Exception:
                             continue
-
-                        # Sanitize name for asset key
-                        asset_key = f"glue_job_{re.sub(r'[^a-zA-Z0-9_]', '_', job_name.lower())}"
-
-                        # Extract table dependencies for lineage
-                        table_deps = self._extract_table_references_from_job(job)
-                        # Filter to only tables that exist in catalog
-                        table_deps = [dep for dep in table_deps if dep in catalog_table_keys]
-
-                        # Store metadata for sensor
-                        job_metadata[asset_key] = {
-                            'job_name': job_name,
-                            'command': job.get('Command', {}).get('Name'),
-                        }
-
-                        # Glue jobs are materializable and can have dependencies on Data Catalog tables
-                        @asset(
-                            name=asset_key,
-                            group_name=self.group_name,
-                            description=f"AWS Glue job: {job_name}",
-                            metadata={
-                                "glue_job_name": job_name,
-                                "glue_command": job.get('Command', {}).get('Name'),
-                                "glue_role": job.get('Role'),
-                                "glue_worker_type": job.get('WorkerType'),
-                                "entity_type": "glue_job",
-                                "upstream_tables": len(table_deps),
-                            },
-                            deps=table_deps if table_deps else None,
-                        )
-                        def _glue_job_asset(context: AssetExecutionContext, job_name=job_name, table_deps=table_deps):
-                            """Materialize by running Glue job."""
-                            client = self._create_glue_client()
-
-                            # Start job run
-                            response = client.start_job_run(JobName=job_name)
-                            run_id = response['JobRunId']
-
-                            context.log.info(f"Started Glue job {job_name}, run ID: {run_id}")
-                            if table_deps:
-                                context.log.info(f"Upstream tables: {', '.join(table_deps)}")
-
-                            # Wait for completion
-                            waiter = client.get_waiter('job_run_complete')
-                            waiter.wait(
-                                JobName=job_name,
-                                RunId=run_id,
-                                WaiterConfig={'Delay': 30, 'MaxAttempts': 120}
-                            )
-
-                            # Get run details
-                            run_info = client.get_job_run(JobName=job_name, RunId=run_id)
-                            job_run = run_info['JobRun']
-
-                            metadata = {
-                                "run_id": run_id,
-                                "job_run_state": job_run.get('JobRunState'),
-                                "execution_time": job_run.get('ExecutionTime'),
-                                "started_on": str(job_run.get('StartedOn')) if job_run.get('StartedOn') else None,
-                                "completed_on": str(job_run.get('CompletedOn')) if job_run.get('CompletedOn') else None,
-                                "upstream_tables": ', '.join(table_deps) if table_deps else 'None detected',
-                            }
-
-                            context.log.info(f"Glue job {job_name} completed with state: {job_run.get('JobRunState')}")
-
-                            return metadata
-
-                        assets_list.append(_glue_job_asset)
-
-            except Exception as e:
-                context.log.error(f"Error importing AWS Glue jobs: {e}")
-
-        # Import Glue Crawlers
-        if self.import_crawlers:
-            try:
-                paginator = glue_client.get_paginator('get_crawlers')
-
-                for page in paginator.paginate():
-                    crawlers = page.get('Crawlers', [])
-
-                    for crawler in crawlers:
-                        crawler_name = crawler['Name']
-                        tags = crawler.get('Tags', {})
-
-                        if not self._should_include_entity(crawler_name, tags):
-                            continue
-
-                        # Sanitize name for asset key
-                        asset_key = f"glue_crawler_{re.sub(r'[^a-zA-Z0-9_]', '_', crawler_name.lower())}"
-
-                        # Store metadata for sensor
-                        crawler_metadata[asset_key] = {
-                            'crawler_name': crawler_name,
-                        }
-
-                        # Crawlers are materializable
-                        @asset(
-                            name=asset_key,
-                            group_name=self.group_name,
-                            description=f"AWS Glue crawler: {crawler_name}",
-                            metadata={
-                                "glue_crawler_name": crawler_name,
-                                "glue_role": crawler.get('Role'),
-                                "glue_database": crawler.get('DatabaseName'),
-                                "entity_type": "glue_crawler",
-                            }
-                        )
-                        def _glue_crawler_asset(context: AssetExecutionContext, crawler_name=crawler_name):
-                            """Materialize by running Glue crawler."""
-                            client = self._create_glue_client()
-
-                            # Start crawler
-                            client.start_crawler(Name=crawler_name)
-                            context.log.info(f"Started Glue crawler: {crawler_name}")
-
-                            # Get crawler state
-                            crawler_info = client.get_crawler(Name=crawler_name)
-                            crawler_data = crawler_info['Crawler']
-
-                            metadata = {
-                                "crawler_name": crawler_name,
-                                "state": crawler_data.get('State'),
-                                "last_crawl": str(crawler_data.get('LastCrawl', {}).get('StartTime')) if crawler_data.get('LastCrawl') else None,
-                            }
-
-                            context.log.info(f"Glue crawler {crawler_name} started, state: {crawler_data.get('State')}")
-
-                            return metadata
-
-                        assets_list.append(_glue_crawler_asset)
-
-            except Exception as e:
-                context.log.error(f"Error importing AWS Glue crawlers: {e}")
-
-        # Import Glue Workflows
-        if self.import_workflows:
-            try:
-                paginator = glue_client.get_paginator('list_workflows')
-
-                for page in paginator.paginate():
-                    workflow_names = page.get('Workflows', [])
-
-                    if workflow_names:
-                        # Get workflow details
-                        workflows_response = glue_client.batch_get_workflows(Names=workflow_names)
-                        workflows = workflows_response.get('Workflows', [])
-
-                        for workflow in workflows:
-                            workflow_name = workflow['Name']
-                            tags = {}  # Workflows don't have direct tags in response
-
-                            if not self._should_include_entity(workflow_name, tags):
-                                continue
-
-                            # Sanitize name for asset key
-                            asset_key = f"glue_workflow_{re.sub(r'[^a-zA-Z0-9_]', '_', workflow_name.lower())}"
-
-                            # Store metadata for sensor
-                            workflow_metadata[asset_key] = {
-                                'workflow_name': workflow_name,
-                            }
-
-                            # Workflows are materializable
-                            @asset(
-                                name=asset_key,
-                                group_name=self.group_name,
-                                description=f"AWS Glue workflow: {workflow_name}",
-                                metadata={
-                                    "glue_workflow_name": workflow_name,
-                                    "glue_created_on": str(workflow.get('CreatedOn')) if workflow.get('CreatedOn') else None,
-                                    "entity_type": "glue_workflow",
-                                }
-                            )
-                            def _glue_workflow_asset(context: AssetExecutionContext, workflow_name=workflow_name):
-                                """Materialize by running Glue workflow."""
-                                client = self._create_glue_client()
-
-                                # Start workflow run
-                                response = client.start_workflow_run(Name=workflow_name)
-                                run_id = response['RunId']
-
-                                context.log.info(f"Started Glue workflow {workflow_name}, run ID: {run_id}")
-
-                                # Get workflow run status
-                                run_info = client.get_workflow_run(Name=workflow_name, RunId=run_id)
-                                workflow_run = run_info['Run']
-
-                                metadata = {
-                                    "run_id": run_id,
-                                    "status": workflow_run.get('Status'),
-                                    "started_on": str(workflow_run.get('StartedOn')) if workflow_run.get('StartedOn') else None,
-                                }
-
-                                context.log.info(f"Glue workflow {workflow_name} started, run ID: {run_id}")
-
-                                return metadata
-
-                            assets_list.append(_glue_workflow_asset)
-
-            except Exception as e:
-                context.log.error(f"Error importing AWS Glue workflows: {e}")
-
-        # Import Glue DataBrew Jobs
-        if self.import_databrew_jobs:
-            try:
-                databrew_client = self._create_databrew_client()
-                paginator = databrew_client.get_paginator('list_jobs')
-
-                for page in paginator.paginate():
-                    jobs = page.get('Jobs', [])
-
-                    for job in jobs:
-                        job_name = job['Name']
-                        tags = job.get('Tags', {})
-
-                        if not self._should_include_entity(job_name, tags):
-                            continue
-
-                        # Sanitize name for asset key
-                        asset_key = f"databrew_job_{re.sub(r'[^a-zA-Z0-9_]', '_', job_name.lower())}"
-
-                        # DataBrew jobs are materializable
-                        @asset(
-                            name=asset_key,
-                            group_name=self.group_name,
-                            description=f"AWS Glue DataBrew job: {job_name}",
-                            metadata={
-                                "databrew_job_name": job_name,
-                                "databrew_type": job.get('Type'),
-                                "databrew_recipe": job.get('RecipeName'),
-                                "entity_type": "databrew_job",
-                            }
-                        )
-                        def _databrew_job_asset(context: AssetExecutionContext, job_name=job_name):
-                            """Materialize by running DataBrew job."""
-                            client = self._create_databrew_client()
-
-                            # Start job run
-                            response = client.start_job_run(Name=job_name)
-                            run_id = response['RunId']
-
-                            context.log.info(f"Started DataBrew job {job_name}, run ID: {run_id}")
-
-                            metadata = {
-                                "run_id": run_id,
-                                "job_name": job_name,
-                            }
-
-                            return metadata
-
-                        assets_list.append(_databrew_job_asset)
-
-            except Exception as e:
-                context.log.error(f"Error importing AWS Glue DataBrew jobs: {e}")
-
-        # Import Glue Data Quality Rulesets
-        if self.import_data_quality_rulesets:
-            try:
-                paginator = glue_client.get_paginator('list_data_quality_rulesets')
-
-                for page in paginator.paginate():
-                    rulesets = page.get('Rulesets', [])
-
-                    for ruleset in rulesets:
-                        ruleset_name = ruleset.get('Name')
-
-                        if not ruleset_name or not self._should_include_entity(ruleset_name):
-                            continue
-
-                        # Sanitize name for asset key
-                        asset_key = f"data_quality_{re.sub(r'[^a-zA-Z0-9_]', '_', ruleset_name.lower())}"
-
-                        # Data quality rulesets are observable
-                        @observable_source_asset(
-                            name=asset_key,
-                            group_name=self.group_name,
-                            description=f"AWS Glue Data Quality ruleset: {ruleset_name}",
-                            metadata={
-                                "ruleset_name": ruleset_name,
-                                "target_table": ruleset.get('TargetTable'),
-                                "entity_type": "data_quality_ruleset",
-                            }
-                        )
-                        def _data_quality_asset(context: AssetExecutionContext, ruleset_name=ruleset_name):
-                            """Observable data quality ruleset."""
-                            client = self._create_glue_client()
-
-                            # Get ruleset details
-                            try:
-                                ruleset_info = client.get_data_quality_ruleset(Name=ruleset_name)
-                                context.log.info(f"Data quality ruleset {ruleset_name} found")
-                            except ClientError as e:
-                                context.log.warning(f"Could not get data quality ruleset {ruleset_name}: {e}")
-
-                        assets_list.append(_data_quality_asset)
-
-            except Exception as e:
-                context.log.error(f"Error importing AWS Glue Data Quality rulesets: {e}")
-
-        # Create observation sensor if requested
-        if self.generate_sensor and (job_metadata or crawler_metadata or workflow_metadata):
-            @sensor(
-                name=f"{self.group_name}_observation_sensor",
-                minimum_interval_seconds=self.poll_interval_seconds
+                except Exception:
+                    pass
+
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "jobs": jobs,
+                        "crawlers": crawlers,
+                        "workflows": workflows,
+                        "databrew_jobs": databrew_jobs,
+                        "data_quality_rulesets": data_quality_rulesets,
+                        "catalog_tables": catalog_tables,
+                    },
+                    default=str,
+                )
             )
-            def glue_observation_sensor(context: SensorEvaluationContext):
-                """Sensor to observe Glue job runs, crawler runs, and workflow runs."""
-                client = self._create_glue_client()
 
-                # Check for completed job runs
-                for asset_key, metadata in job_metadata.items():
-                    job_name = metadata['job_name']
+        def build_defs_from_state(
+            self,
+            context: dg.ComponentLoadContext,
+            state_path: Optional[Path],
+        ) -> dg.Definitions:
+            """Build asset definitions from the cached state file — no network calls."""
+            if state_path is None or not state_path.exists():
+                if hasattr(context, "log"):
+                    context.log.warning(  # type: ignore[attr-defined]
+                        "AWSGlueComponent: no cached state found. "
+                        "Run `dg utils refresh-defs-state` or `dagster dev` to populate."
+                    )
+                return dg.Definitions()
 
-                    try:
-                        # Get recent job runs
-                        response = client.get_job_runs(JobName=job_name, MaxResults=5)
-                        job_runs = response.get('JobRuns', [])
+            state: Dict[str, Any] = json.loads(state_path.read_text())
+            return _build_glue_defs(
+                state=state,
+                region_name=self.region_name,
+                aws_access_key_id=self.aws_access_key_id,
+                aws_secret_access_key=self.aws_secret_access_key,
+                aws_session_token=self.aws_session_token,
+                group_name=self.group_name,
+                key_prefix=self.key_prefix,
+                poll_interval_seconds=self.poll_interval_seconds,
+                generate_sensor=self.generate_sensor,
+                import_catalog_tables=self.import_catalog_tables,
+                catalog_database_filter=self.catalog_database_filter,
+                filter_by_name_pattern=self.filter_by_name_pattern,
+                exclude_name_pattern=self.exclude_name_pattern,
+                filter_by_tags=self.filter_by_tags,
+            )
 
-                        for run in job_runs:
-                            # Only emit for successful completions
-                            if run.get('JobRunState') == 'SUCCEEDED':
-                                yield AssetMaterialization(
-                                    asset_key=asset_key,
-                                    metadata={
-                                        "run_id": run.get('Id'),
-                                        "job_run_state": run.get('JobRunState'),
-                                        "started_on": str(run.get('StartedOn')) if run.get('StartedOn') else None,
-                                        "completed_on": str(run.get('CompletedOn')) if run.get('CompletedOn') else None,
-                                        "execution_time": run.get('ExecutionTime'),
-                                        "source": "glue_observation_sensor",
-                                        "entity_type": "glue_job",
-                                    }
-                                )
-                    except Exception as e:
-                        context.log.error(f"Error checking runs for Glue job {job_name}: {e}")
+else:
+    # ── Fallback: StateBackedComponent not available in this Dagster version ──
+    # Falls back to calling AWS APIs on every build_defs call.
+    class AWSGlueComponent(dg.Component, dg.Model, dg.Resolvable):  # type: ignore[no-redef]
+        """AWS Glue component (fallback: no state caching).
 
-                # Check for completed crawler runs
-                for asset_key, metadata in crawler_metadata.items():
-                    crawler_name = metadata['crawler_name']
+        Upgrade to dagster>=1.8 to get StateBackedComponent caching.
 
-                    try:
-                        # Get crawler metrics
-                        response = client.get_crawler_metrics(CrawlerNameList=[crawler_name])
-                        metrics = response.get('CrawlerMetricsList', [])
+        Example:
+            ```yaml
+            type: dagster_component_templates.AWSGlueComponent
+            attributes:
+              region_name: us-east-1
+              import_jobs: true
+            ```
+        """
 
-                        if metrics:
-                            metric = metrics[0]
-                            if metric.get('LastRuntimeSeconds', 0) > 0:
-                                yield AssetMaterialization(
-                                    asset_key=asset_key,
-                                    metadata={
-                                        "crawler_name": crawler_name,
-                                        "tables_created": metric.get('TablesCreated', 0),
-                                        "tables_updated": metric.get('TablesUpdated', 0),
-                                        "tables_deleted": metric.get('TablesDeleted', 0),
-                                        "last_runtime_seconds": metric.get('LastRuntimeSeconds'),
-                                        "source": "glue_observation_sensor",
-                                        "entity_type": "glue_crawler",
-                                    }
-                                )
-                    except Exception as e:
-                        context.log.error(f"Error checking metrics for Glue crawler {crawler_name}: {e}")
+        region_name: str = dg.Field(description="AWS region (e.g., us-east-1)")
+        aws_access_key_id: Optional[str] = dg.Field(default=None)
+        aws_secret_access_key: Optional[str] = dg.Field(default=None)
+        aws_session_token: Optional[str] = dg.Field(default=None)
 
-                # Check for completed workflow runs
-                for asset_key, metadata in workflow_metadata.items():
-                    workflow_name = metadata['workflow_name']
+        import_jobs: bool = dg.Field(default=True)
+        import_crawlers: bool = dg.Field(default=False)
+        import_workflows: bool = dg.Field(default=False)
+        import_databrew_jobs: bool = dg.Field(default=False)
+        import_data_quality_rulesets: bool = dg.Field(default=False)
+        import_catalog_tables: bool = dg.Field(default=True)
 
-                    try:
-                        # Get recent workflow runs
-                        response = client.get_workflow_runs(Name=workflow_name, MaxResults=5)
-                        runs = response.get('Runs', [])
+        catalog_database_filter: Optional[str] = dg.Field(default=None)
+        job_name_prefix: Optional[str] = dg.Field(default=None)
+        exclude_jobs: Optional[List[str]] = dg.Field(default=None)
+        filter_by_name_pattern: Optional[str] = dg.Field(default=None)
+        exclude_name_pattern: Optional[str] = dg.Field(default=None)
+        filter_by_tags: Optional[str] = dg.Field(default=None)
 
-                        for run in runs:
-                            # Only emit for successful completions
-                            if run.get('Status') == 'COMPLETED':
-                                yield AssetMaterialization(
-                                    asset_key=asset_key,
-                                    metadata={
-                                        "run_id": run.get('WorkflowRunId'),
-                                        "status": run.get('Status'),
-                                        "started_on": str(run.get('StartedOn')) if run.get('StartedOn') else None,
-                                        "completed_on": str(run.get('CompletedOn')) if run.get('CompletedOn') else None,
-                                        "source": "glue_observation_sensor",
-                                        "entity_type": "glue_workflow",
-                                    }
-                                )
-                    except Exception as e:
-                        context.log.error(f"Error checking runs for Glue workflow {workflow_name}: {e}")
+        group_name: str = dg.Field(default="aws_glue")
+        key_prefix: Optional[str] = dg.Field(default=None)
+        poll_interval_seconds: int = dg.Field(default=30)
+        generate_sensor: bool = dg.Field(default=True)
 
-            sensors_list.append(glue_observation_sensor)
+        def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+            """Discover AWS Glue entities at load time and build Definitions."""
+            glue = _make_glue_client(
+                region_name=self.region_name,
+                aws_access_key_id=self.aws_access_key_id,
+                aws_secret_access_key=self.aws_secret_access_key,
+                aws_session_token=self.aws_session_token,
+            )
 
-        return Definitions(
-            assets=assets_list,
-            sensors=sensors_list if sensors_list else None,
-        )
+            filter_kwargs = dict(
+                job_name_prefix=self.job_name_prefix,
+                exclude_jobs=self.exclude_jobs or [],
+                filter_by_name_pattern=self.filter_by_name_pattern,
+                exclude_name_pattern=self.exclude_name_pattern,
+                filter_by_tags=self.filter_by_tags,
+            )
+
+            jobs: List[Dict[str, Any]] = []
+            if self.import_jobs:
+                for page in glue.get_paginator("get_jobs").paginate():
+                    for job in page.get("Jobs", []):
+                        name = job["Name"]
+                        if not _should_include(name, job.get("Tags", {}), **filter_kwargs):
+                            continue
+                        jobs.append({
+                            "name": name,
+                            "description": job.get("Description"),
+                            "role": job.get("Role"),
+                            "command_name": job.get("Command", {}).get("Name"),
+                            "max_capacity": job.get("MaxCapacity"),
+                            "timeout": job.get("Timeout"),
+                            "tags": job.get("Tags", {}),
+                            "default_arguments": job.get("DefaultArguments", {}),
+                        })
+
+            crawlers: List[Dict[str, Any]] = []
+            if self.import_crawlers:
+                for page in glue.get_paginator("get_crawlers").paginate():
+                    for crawler in page.get("Crawlers", []):
+                        name = crawler["Name"]
+                        if not _should_include(name, crawler.get("Tags", {}), **filter_kwargs):
+                            continue
+                        crawlers.append({
+                            "name": name,
+                            "description": crawler.get("Description"),
+                            "role": crawler.get("Role"),
+                            "database_name": crawler.get("DatabaseName"),
+                            "tags": crawler.get("Tags", {}),
+                        })
+
+            workflows: List[Dict[str, Any]] = []
+            if self.import_workflows:
+                for page in glue.get_paginator("list_workflows").paginate():
+                    names = page.get("Workflows", [])
+                    if names:
+                        for wf in glue.batch_get_workflows(Names=names).get("Workflows", []):
+                            name = wf["Name"]
+                            if not _should_include(name, None, **filter_kwargs):
+                                continue
+                            workflows.append({
+                                "name": name,
+                                "description": wf.get("Description"),
+                                "created_on": str(wf.get("CreatedOn")) if wf.get("CreatedOn") else None,
+                            })
+
+            databrew_jobs: List[Dict[str, Any]] = []
+            if self.import_databrew_jobs:
+                try:
+                    databrew = _make_databrew_client(
+                        region_name=self.region_name,
+                        aws_access_key_id=self.aws_access_key_id,
+                        aws_secret_access_key=self.aws_secret_access_key,
+                        aws_session_token=self.aws_session_token,
+                    )
+                    for page in databrew.get_paginator("list_jobs").paginate():
+                        for job in page.get("Jobs", []):
+                            name = job["Name"]
+                            if not _should_include(name, job.get("Tags", {}), **filter_kwargs):
+                                continue
+                            databrew_jobs.append({
+                                "name": name,
+                                "description": job.get("Description"),
+                                "type": job.get("Type"),
+                                "recipe_name": job.get("RecipeName"),
+                                "tags": job.get("Tags", {}),
+                            })
+                except Exception:
+                    pass
+
+            data_quality_rulesets: List[Dict[str, Any]] = []
+            if self.import_data_quality_rulesets:
+                try:
+                    for page in glue.get_paginator("list_data_quality_rulesets").paginate():
+                        for rs in page.get("Rulesets", []):
+                            name = rs.get("Name")
+                            if name and _should_include(name, None, **filter_kwargs):
+                                data_quality_rulesets.append({
+                                    "name": name,
+                                    "target_table": rs.get("TargetTable"),
+                                })
+                except Exception:
+                    pass
+
+            catalog_tables: List[Dict[str, Any]] = []
+            if self.import_catalog_tables:
+                try:
+                    dbs: List[str] = []
+                    if self.catalog_database_filter:
+                        dbs = [d.strip() for d in self.catalog_database_filter.split(",")]
+                    else:
+                        for page in glue.get_paginator("get_databases").paginate():
+                            for db in page.get("DatabaseList", []):
+                                dbs.append(db["Name"])
+                    for db_name in dbs:
+                        try:
+                            for page in glue.get_paginator("get_tables").paginate(DatabaseName=db_name):
+                                for tbl in page.get("TableList", []):
+                                    tbl_name = tbl["Name"]
+                                    if not _should_include(f"{db_name}.{tbl_name}", None, **filter_kwargs):
+                                        continue
+                                    catalog_tables.append({
+                                        "database": db_name,
+                                        "table": tbl_name,
+                                        "location": tbl.get("StorageDescriptor", {}).get("Location"),
+                                    })
+                        except Exception:
+                            continue
+                except Exception:
+                    pass
+
+            state = {
+                "jobs": jobs,
+                "crawlers": crawlers,
+                "workflows": workflows,
+                "databrew_jobs": databrew_jobs,
+                "data_quality_rulesets": data_quality_rulesets,
+                "catalog_tables": catalog_tables,
+            }
+
+            return _build_glue_defs(
+                state=state,
+                region_name=self.region_name,
+                aws_access_key_id=self.aws_access_key_id,
+                aws_secret_access_key=self.aws_secret_access_key,
+                aws_session_token=self.aws_session_token,
+                group_name=self.group_name,
+                key_prefix=self.key_prefix,
+                poll_interval_seconds=self.poll_interval_seconds,
+                generate_sensor=self.generate_sensor,
+                import_catalog_tables=self.import_catalog_tables,
+                catalog_database_filter=self.catalog_database_filter,
+                filter_by_name_pattern=self.filter_by_name_pattern,
+                exclude_name_pattern=self.exclude_name_pattern,
+                filter_by_tags=self.filter_by_tags,
+            )

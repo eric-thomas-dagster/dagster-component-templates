@@ -1,0 +1,9 @@
+type: dagster_component_templates.DataikuAssetComponent
+attributes:
+  host_env_var: DATAIKU_HOST
+  api_key_env_var: DATAIKU_API_KEY
+  project_keys:
+    - CUSTOMER_ANALYTICS
+    - ML_MODELS
+  group_name: dataiku
+  wait_for_completion: true

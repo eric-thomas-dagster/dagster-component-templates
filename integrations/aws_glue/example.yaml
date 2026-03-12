@@ -1,7 +1,8 @@
-# Basic configuration - imports Glue jobs with lineage to Data Catalog tables
+# Minimal configuration — discovers all Glue jobs in us-east-1.
+# Run `dg utils refresh-defs-state` after adding to populate the cache.
 type: dagster_component_templates.AWSGlueComponent
 attributes:
-  aws_region: us-east-1
+  region_name: us-east-1
   aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
   aws_secret_access_key: "{{ env('AWS_SECRET_ACCESS_KEY') }}"
   import_jobs: true
@@ -10,14 +11,14 @@ attributes:
   group_name: aws_glue_prod
 
 ---
-# Advanced configuration - imports all entity types with lineage tracking
+# Advanced configuration — all entity types with prefix filtering and state caching.
 type: dagster_component_templates.AWSGlueComponent
 attributes:
-  aws_region: us-east-1
+  region_name: us-east-1
   aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
   aws_secret_access_key: "{{ env('AWS_SECRET_ACCESS_KEY') }}"
 
-  # Import all entity types
+  # Entity discovery
   import_jobs: true
   import_crawlers: true
   import_workflows: true
@@ -28,14 +29,15 @@ attributes:
   import_catalog_tables: true
   catalog_database_filter: production,staging,analytics
 
-  # Filtering
-  filter_by_name_pattern: ^prod_.*
+  # Filtering — only jobs whose names start with "prod_", excluding "test"/"dev"
+  job_name_prefix: prod_
   exclude_name_pattern: test|dev
   filter_by_tags: environment,team
 
-  # Sensor configuration
+  # Asset presentation
+  group_name: aws_glue_workspace
+  key_prefix: glue
+
+  # Observation sensor
   generate_sensor: true
   poll_interval_seconds: 60
-
-  group_name: aws_glue_workspace
-  description: Complete AWS Glue workspace integration with lineage tracking

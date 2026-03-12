@@ -1,0 +1,7 @@
+type: dagster_component_templates.StepFunctionsAssetComponent
+attributes:
+  region_name: us-east-1
+  name_prefix: "data-pipeline-"
+  group_name: step_functions
+  wait_for_completion: true
+  poll_interval_seconds: 15

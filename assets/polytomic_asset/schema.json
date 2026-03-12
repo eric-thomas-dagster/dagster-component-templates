@@ -1,0 +1,8 @@
+{
+  "type": "dagster_component_templates.polytomic_asset",
+  "name": "Polytomic Sync Asset",
+  "category": "assets",
+  "description": "Connects to the Polytomic API at prepare time, discovers all syncs across the organization, and creates one Dagster asset per sync. At execution time each asset triggers the sync run and polls until completion.",
+  "dependencies": {"pip": ["requests>=2.28.0"]},
+  "tags": ["assets", "reverse-etl", "polytomic", "sync", "state-backed"]
+}

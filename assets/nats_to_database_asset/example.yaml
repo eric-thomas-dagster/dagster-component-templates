@@ -1,0 +1,11 @@
+type: dagster_component_templates.NATSToDatabaseAssetComponent
+attributes:
+  asset_name: nats_events_ingest
+  nats_url_env_var: NATS_URL
+  subject: events.>
+  use_jetstream: true
+  stream_name: EVENTS
+  consumer_name: dagster-ingest
+  database_url_env_var: DATABASE_URL
+  table_name: raw_events
+  max_messages: 10000

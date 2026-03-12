@@ -1,0 +1,10 @@
+type: dagster_component_templates.SQLToDatabaseAssetComponent
+attributes:
+  asset_name: crm_contacts_sync
+  source_url_env_var: SOURCE_DB_URL
+  destination_url_env_var: DESTINATION_DB_URL
+  source_table: contacts
+  source_schema: public
+  destination_table: raw_contacts
+  watermark_column: updated_at
+  watermark_env_var: CONTACTS_WATERMARK

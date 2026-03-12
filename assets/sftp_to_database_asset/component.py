@@ -45,9 +45,19 @@ class SFTPToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     column_mapping: Optional[dict] = Field(default=None, description="Rename columns: {old: new}")
     group_name: Optional[str] = Field(default="ingestion", description="Asset group name")
     description: Optional[str] = Field(default=None)
+    partition_type: str = Field(default="none", description="none, daily, weekly, or monthly")
+    partition_start_date: Optional[str] = Field(default=None, description="Partition start date YYYY-MM-DD (required if partition_type != none)")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
+
+        partitions_def = None
+        if _self.partition_type == "daily":
+            partitions_def = dg.DailyPartitionsDefinition(start_date=_self.partition_start_date or "2020-01-01")
+        elif _self.partition_type == "weekly":
+            partitions_def = dg.WeeklyPartitionsDefinition(start_date=_self.partition_start_date or "2020-01-01")
+        elif _self.partition_type == "monthly":
+            partitions_def = dg.MonthlyPartitionsDefinition(start_date=_self.partition_start_date or "2020-01-01")
 
         class SFTPFileConfig(Config):
             remote_path: str      # full remote file path
@@ -60,6 +70,7 @@ class SFTPToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             description=_self.description or f"SFTP → {_self.table_name}",
             group_name=_self.group_name,
             kinds={"sftp", "sql"},
+            partitions_def=partitions_def,
         )
         def sftp_to_database_asset(context: AssetExecutionContext, config: SFTPFileConfig):
             import os
@@ -72,7 +83,11 @@ class SFTPToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             username = os.environ[_self.username_env_var]
             db_url = os.environ[_self.database_url_env_var]
 
-            context.log.info(f"Downloading {config.remote_path} from {host}")
+            remote_path = config.remote_path
+            if context.has_partition_key:
+                remote_path = remote_path.replace("{partition_key}", context.partition_key)
+
+            context.log.info(f"Downloading {remote_path} from {host}")
 
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -86,7 +101,7 @@ class SFTPToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             ssh.connect(host, **connect_kwargs)
             sftp = ssh.open_sftp()
             buf = BytesIO()
-            sftp.getfo(config.remote_path, buf)
+            sftp.getfo(remote_path, buf)
             sftp.close()
             ssh.close()
             content = buf.getvalue()
@@ -108,17 +123,21 @@ class SFTPToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             if _self.column_mapping:
                 df = df.rename(columns=_self.column_mapping)
 
+            table_name = _self.table_name
+            if context.has_partition_key:
+                table_name = table_name.replace("{partition_key}", context.partition_key)
+
             engine = create_engine(db_url)
-            df.to_sql(_self.table_name, con=engine, schema=_self.schema_name,
+            df.to_sql(table_name, con=engine, schema=_self.schema_name,
                       if_exists=_self.if_exists, index=False, method="multi", chunksize=1000)
 
-            context.log.info(f"Wrote {len(df)} rows to {_self.schema_name + '.' if _self.schema_name else ''}{_self.table_name}")
+            context.log.info(f"Wrote {len(df)} rows to {_self.schema_name + '.' if _self.schema_name else ''}{table_name}")
             return dg.MaterializeResult(metadata={
                 "num_rows": len(df),
                 "num_columns": len(df.columns),
                 "columns": list(df.columns),
-                "remote_path": config.remote_path,
-                "table": f"{_self.schema_name + '.' if _self.schema_name else ''}{_self.table_name}",
+                "remote_path": remote_path,
+                "table": f"{_self.schema_name + '.' if _self.schema_name else ''}{table_name}",
                 "file_format": fmt,
             })
 

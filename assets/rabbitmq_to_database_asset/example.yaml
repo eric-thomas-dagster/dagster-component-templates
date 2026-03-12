@@ -1,0 +1,8 @@
+type: dagster_component_templates.RabbitMQToDatabaseAssetComponent
+attributes:
+  asset_name: rabbitmq_orders_ingest
+  amqp_url_env_var: RABBITMQ_URL
+  queue_name: orders
+  database_url_env_var: DATABASE_URL
+  table_name: raw_orders
+  max_messages: 10000

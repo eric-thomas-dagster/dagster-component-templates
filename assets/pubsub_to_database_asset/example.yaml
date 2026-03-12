@@ -1,0 +1,8 @@
+type: dagster_component_templates.PubSubToDatabaseAssetComponent
+attributes:
+  asset_name: pubsub_events_ingest
+  project_id: my-gcp-project
+  subscription_id: events-sub
+  database_url_env_var: DATABASE_URL
+  table_name: raw_events
+  max_messages: 10000

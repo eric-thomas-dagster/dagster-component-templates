@@ -1,0 +1,3 @@
+pulsar-client>=3.3.0
+pandas>=1.3.0
+sqlalchemy>=2.0.0

@@ -1,0 +1,9 @@
+type: dagster_component_templates.PulsarToDatabaseAssetComponent
+attributes:
+  asset_name: pulsar_events_ingest
+  service_url_env_var: PULSAR_SERVICE_URL
+  topic: persistent://public/default/events
+  subscription_name: dagster-ingest
+  database_url_env_var: DATABASE_URL
+  table_name: raw_events
+  max_messages: 10000

@@ -1,0 +1,8 @@
+type: dagster_component_templates.KinesisToDatabaseAssetComponent
+attributes:
+  asset_name: kinesis_events_ingest
+  stream_name: my-stream
+  database_url_env_var: DATABASE_URL
+  table_name: raw_events
+  max_records: 10000
+  region_name: us-east-1

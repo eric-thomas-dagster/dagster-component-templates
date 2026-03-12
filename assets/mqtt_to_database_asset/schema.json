@@ -1,0 +1,20 @@
+{
+  "type": "dagster_component_templates.mqtt_to_database_asset",
+  "name": "MQTT to Database",
+  "category": "assets",
+  "description": "Subscribe to an MQTT topic, collect messages, and write them to a database table",
+  "dependencies": {
+    "pip": [
+      "paho-mqtt>=1.6.0",
+      "pandas>=1.3.0",
+      "sqlalchemy>=2.0.0"
+    ]
+  },
+  "tags": [
+    "assets",
+    "mqtt",
+    "iot",
+    "ingestion",
+    "sql"
+  ]
+}

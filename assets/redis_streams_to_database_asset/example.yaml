@@ -1,0 +1,8 @@
+type: dagster_component_templates.RedisStreamsToDatabaseAssetComponent
+attributes:
+  asset_name: redis_events_ingest
+  redis_url_env_var: REDIS_URL
+  stream_name: events
+  database_url_env_var: DATABASE_URL
+  table_name: raw_events
+  max_entries: 10000

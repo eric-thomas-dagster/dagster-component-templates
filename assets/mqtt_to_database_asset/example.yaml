@@ -1,0 +1,9 @@
+type: dagster_component_templates.MQTTToDatabaseAssetComponent
+attributes:
+  asset_name: mqtt_sensors_ingest
+  broker_host_env_var: MQTT_BROKER_HOST
+  topic: sensors/#
+  database_url_env_var: DATABASE_URL
+  table_name: raw_sensor_readings
+  collect_seconds: 30
+  max_messages: 10000

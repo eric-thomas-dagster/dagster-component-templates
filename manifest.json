@@ -4573,6 +4573,147 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sqs_to_database_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sqs_to_database_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sqs_to_database_asset/requirements.txt"
+    },
+    {
+      "name": "EventHubs to Database",
+      "type": "dagster_component_templates.EventHubsToDatabaseAssetComponent",
+      "category": "assets",
+      "description": "Consume events from an Azure Event Hub and write them to a database table",
+      "path": "assets/eventhubs_to_database_asset",
+      "tags": [
+        "assets",
+        "eventhubs",
+        "azure",
+        "ingestion",
+        "sql"
+      ]
+    },
+    {
+      "name": "Service Bus to Database",
+      "type": "dagster_component_templates.ServiceBusToDatabaseAssetComponent",
+      "category": "assets",
+      "description": "Drain messages from an Azure Service Bus queue or subscription and write them to a database table",
+      "path": "assets/servicebus_to_database_asset",
+      "tags": [
+        "assets",
+        "servicebus",
+        "azure",
+        "ingestion",
+        "sql"
+      ]
+    },
+    {
+      "name": "RabbitMQ to Database",
+      "type": "dagster_component_templates.RabbitMQToDatabaseAssetComponent",
+      "category": "assets",
+      "description": "Drain messages from a RabbitMQ queue and write them to a database table",
+      "path": "assets/rabbitmq_to_database_asset",
+      "tags": [
+        "assets",
+        "rabbitmq",
+        "amqp",
+        "ingestion",
+        "sql"
+      ]
+    },
+    {
+      "name": "Pub/Sub to Database",
+      "type": "dagster_component_templates.PubSubToDatabaseAssetComponent",
+      "category": "assets",
+      "description": "Pull messages from a Google Cloud Pub/Sub subscription and write them to a database table",
+      "path": "assets/pubsub_to_database_asset",
+      "tags": [
+        "assets",
+        "pubsub",
+        "gcp",
+        "google",
+        "ingestion",
+        "sql"
+      ]
+    },
+    {
+      "name": "Kinesis to Database",
+      "type": "dagster_component_templates.KinesisToDatabaseAssetComponent",
+      "category": "assets",
+      "description": "Read records from an Amazon Kinesis Data Stream and write them to a database table",
+      "path": "assets/kinesis_to_database_asset",
+      "tags": [
+        "assets",
+        "kinesis",
+        "aws",
+        "ingestion",
+        "sql"
+      ]
+    },
+    {
+      "name": "Redis Streams to Database",
+      "type": "dagster_component_templates.RedisStreamsToDatabaseAssetComponent",
+      "category": "assets",
+      "description": "Read entries from a Redis Stream and write them to a database table",
+      "path": "assets/redis_streams_to_database_asset",
+      "tags": [
+        "assets",
+        "redis",
+        "streams",
+        "ingestion",
+        "sql"
+      ]
+    },
+    {
+      "name": "SQL to Database",
+      "type": "dagster_component_templates.SQLToDatabaseAssetComponent",
+      "category": "assets",
+      "description": "Read rows from a source database and write them to a destination database table",
+      "path": "assets/sql_to_database_asset",
+      "tags": [
+        "assets",
+        "sql",
+        "database",
+        "ingestion",
+        "etl"
+      ]
+    },
+    {
+      "name": "MQTT to Database",
+      "type": "dagster_component_templates.MQTTToDatabaseAssetComponent",
+      "category": "assets",
+      "description": "Subscribe to an MQTT topic, collect messages, and write them to a database table",
+      "path": "assets/mqtt_to_database_asset",
+      "tags": [
+        "assets",
+        "mqtt",
+        "iot",
+        "ingestion",
+        "sql"
+      ]
+    },
+    {
+      "name": "NATS to Database",
+      "type": "dagster_component_templates.NATSToDatabaseAssetComponent",
+      "category": "assets",
+      "description": "Fetch messages from a NATS subject or JetStream consumer and write them to a database table",
+      "path": "assets/nats_to_database_asset",
+      "tags": [
+        "assets",
+        "nats",
+        "jetstream",
+        "ingestion",
+        "sql"
+      ]
+    },
+    {
+      "name": "Pulsar to Database",
+      "type": "dagster_component_templates.PulsarToDatabaseAssetComponent",
+      "category": "assets",
+      "description": "Consume messages from an Apache Pulsar topic and write them to a database table",
+      "path": "assets/pulsar_to_database_asset",
+      "tags": [
+        "assets",
+        "pulsar",
+        "apache",
+        "ingestion",
+        "sql"
+      ]
     }
   ]
 }

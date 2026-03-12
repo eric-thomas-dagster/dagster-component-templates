@@ -1,0 +1,9 @@
+type: dagster_component_templates.EventHubsToDatabaseAssetComponent
+attributes:
+  asset_name: eventhubs_events_ingest
+  connection_string_env_var: EVENTHUB_CONNECTION_STRING
+  eventhub_name: my-hub
+  consumer_group: $Default
+  database_url_env_var: DATABASE_URL
+  table_name: raw_events
+  max_events: 10000

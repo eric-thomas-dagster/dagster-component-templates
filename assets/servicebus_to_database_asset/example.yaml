@@ -1,0 +1,8 @@
+type: dagster_component_templates.ServiceBusToDatabaseAssetComponent
+attributes:
+  asset_name: servicebus_orders_ingest
+  connection_string_env_var: SERVICEBUS_CONNECTION_STRING
+  queue_name: orders-queue
+  database_url_env_var: DATABASE_URL
+  table_name: raw_orders
+  max_messages: 5000

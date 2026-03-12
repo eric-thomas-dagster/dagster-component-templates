@@ -1,0 +1,12 @@
+type: dagster_component_templates.OpenAPIAssetComponent
+attributes:
+  spec_url: "https://api.mycompany.com/openapi.json"
+  api_base_url_env_var: API_BASE_URL
+  api_key_env_var: API_KEY
+  database_url_env_var: DATABASE_URL
+  schema_name: raw_api
+  include_tags:
+    - customers
+    - orders
+    - products
+  page_size: 250

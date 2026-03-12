@@ -1,0 +1,10 @@
+{
+  "type": "dagster_component_templates.openapi_asset",
+  "name": "OpenAPI Asset",
+  "category": "assets",
+  "description": "Auto-discovers GET endpoints from an OpenAPI spec and creates one Dagster asset per tag group, with cached spec loading via StateBackedComponent",
+  "dependencies": {
+    "pip": ["requests>=2.31.0", "pyyaml>=6.0.0", "pandas>=1.3.0", "sqlalchemy>=2.0.0"]
+  },
+  "tags": ["assets", "api", "openapi", "rest", "ingestion", "state-backed"]
+}

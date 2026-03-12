@@ -1,0 +1,11 @@
+type: dagster_component_templates.WarehouseSchemaAssetsComponent
+attributes:
+  database_url_env_var: WAREHOUSE_URL
+  schema_names:
+    - raw
+    - staging
+    - marts
+  include_views: false
+  include_columns: true
+  group_by_schema: true
+  tag_with_schema: true

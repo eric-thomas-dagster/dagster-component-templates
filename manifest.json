@@ -4775,6 +4775,42 @@
         "inference",
         "enrichment"
       ]
+    },
+    {
+      "id": "openapi_asset",
+      "name": "OpenAPI Asset",
+      "type": "dagster_component_templates.OpenAPIAssetComponent",
+      "category": "assets",
+      "description": "Fetch an OpenAPI spec once at prepare time, discover GET endpoints grouped by tag, and create one Dagster asset per tag group. Cached via StateBackedComponent for fast code-server reloads.",
+      "path": "assets/openapi_asset",
+      "tags": [
+        "assets",
+        "api",
+        "rest",
+        "openapi",
+        "ingestion",
+        "state-backed"
+      ]
+    },
+    {
+      "id": "warehouse_schema_assets",
+      "name": "Warehouse Schema Assets",
+      "type": "dagster_component_templates.WarehouseSchemaAssetsComponent",
+      "category": "assets",
+      "description": "Introspect a database warehouse at prepare time and create one external AssetSpec per table, with full column schema metadata. Cached via StateBackedComponent.",
+      "path": "assets/warehouse_schema_assets",
+      "tags": [
+        "assets",
+        "external",
+        "warehouse",
+        "schema",
+        "discovery",
+        "state-backed",
+        "snowflake",
+        "bigquery",
+        "postgres",
+        "redshift"
+      ]
     }
   ]
 }

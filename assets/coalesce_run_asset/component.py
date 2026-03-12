@@ -1,288 +1,289 @@
 """Coalesce Project Component.
 
-Introspects a Coalesce environment at load time and creates one Dagster asset
-per Coalesce node (model), with dependencies mirroring the Coalesce DAG.
+Extends StateBackedComponent so the Coalesce API is called once at prepare time
+(write_state_to_path) and cached on disk. build_defs_from_state builds asset specs
+from the cached node list with zero network calls, keeping code-server reloads fast.
 
-Coalesce nodes are the equivalent of dbt models — each is a SQL transformation
-that can be individually selected, materialized, and tracked in Dagster.
-
-API: https://app.coalescesoftware.io
+On first load (state_path is None) returns empty Definitions — run
+`dg utils refresh-defs-state` or `dagster dev` to populate the cache.
 """
-import time
-from typing import Optional, Sequence
+from __future__ import annotations
+
+import json
+import os
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Optional
+
 import dagster as dg
-from dagster import (
-    AssetExecutionContext,
-    AssetSpec,
-    MaterializeResult,
-    ConfigurableResource,
-    multi_asset,
-)
-from pydantic import Field
+import requests
+
+try:
+    from dagster.components.component.state_backed_component import StateBackedComponent
+    from dagster.components.utils.defs_state import (
+        DefsStateConfig,
+        DefsStateConfigArgs,
+        ResolvedDefsStateConfig,
+    )
+    _HAS_STATE_BACKED = True
+except ImportError:
+    StateBackedComponent = None
+    _HAS_STATE_BACKED = False
 
 
-class CoalesceResource(ConfigurableResource):
-    """Resource for interacting with the Coalesce Scheduler API.
+# ── Resource ──────────────────────────────────────────────────────────────────
 
-    Example (dagster.yaml or Definitions):
+class CoalesceResource(dg.ConfigurableResource):
+    """Shared Coalesce connection config.
+
+    Example:
         ```python
-        CoalesceResource(api_token=EnvVar("COALESCE_API_TOKEN"))
+        resources = {
+            "coalesce": CoalesceResource(
+                api_token_env_var="COALESCE_API_TOKEN",
+                environment_id="env_abc123",
+            )
+        }
         ```
     """
-
-    api_token: str = Field(description="Coalesce API token")
-    base_url: str = Field(
+    api_token_env_var: str = dg.Field(description="Env var with Coalesce API token")
+    environment_id: str = dg.Field(description="Coalesce environment ID")
+    api_base_url: str = dg.Field(
         default="https://app.coalescesoftware.io",
-        description="Coalesce base URL (default: https://app.coalescesoftware.io)",
+        description="Coalesce API base URL",
     )
 
     def _headers(self) -> dict:
-        return {
-            "Authorization": f"Bearer {self.api_token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        }
+        return {"Authorization": f"Bearer {os.environ[self.api_token_env_var]}"}
 
-    def list_nodes(self, environment_id: str) -> list:
-        import requests
-        resp = requests.get(
-            f"{self.base_url}/api/v1/environments/{environment_id}/nodes",
-            headers=self._headers(),
-            timeout=30,
-        )
+    def list_nodes(self) -> list[dict]:
+        url = f"{self.api_base_url}/api/v1/environments/{self.environment_id}/nodes"
+        resp = requests.get(url, headers=self._headers(), timeout=30)
         resp.raise_for_status()
         data = resp.json()
-        return data.get("nodes", data if isinstance(data, list) else [])
+        return data.get("data", data) if isinstance(data, dict) else data
 
-    def start_run(self, environment_id: str, job_id: str, node_ids: list | None = None) -> str:
-        import requests
-        body: dict = {"environmentID": environment_id, "jobID": job_id}
-        if node_ids:
-            body["parameterOverride"] = {"nodeIds": node_ids}
-        resp = requests.post(
-            f"{self.base_url}/scheduler/startRun",
-            headers=self._headers(),
-            json=body,
-            timeout=30,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        return str(data.get("runCounter", data.get("id", "")))
-
-    def get_run_status(self, run_counter: str) -> dict:
-        import requests
-        resp = requests.get(
-            f"{self.base_url}/scheduler/runStatus",
-            headers=self._headers(),
-            params={"runCounter": run_counter},
-            timeout=30,
-        )
-        resp.raise_for_status()
-        return resp.json()
-
-
-class CoalesceProjectComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Create one Dagster asset per Coalesce node, mirroring the Coalesce DAG.
-
-    Discovers all nodes in the specified Coalesce environment at load time.
-    Each node becomes a Dagster asset with upstream dependencies matching the
-    Coalesce graph. Individual nodes can be selected and materialized — Dagster
-    calls the Coalesce API to run only the selected subset.
-
-    Requires a CoalesceResource to be available (see resource_key).
-
-    Example:
-        ```yaml
-        type: dagster_component_templates.CoalesceProjectComponent
-        attributes:
-          environment_id: "my-environment-id"
-          job_id: "my-job-id"
-          api_token_env_var: COALESCE_API_TOKEN
-          asset_key_prefix: coalesce
-          group_name: coalesce_transforms
-        ```
-    """
-
-    environment_id: str = Field(description="Coalesce environment ID")
-    job_id: str = Field(description="Coalesce job ID used to execute node runs")
-    api_token_env_var: str = Field(description="Env var containing the Coalesce API token")
-    asset_key_prefix: str = Field(
-        default="coalesce",
-        description="Prefix for all generated asset keys (e.g. 'coalesce' → 'coalesce/orders_stage')",
-    )
-    group_name: str = Field(default="coalesce", description="Dagster asset group name")
-    poll_interval_seconds: float = Field(default=10.0, description="Seconds between status polls")
-    timeout_seconds: int = Field(default=3600, description="Max seconds to wait for a run")
-    base_url: str = Field(
-        default="https://app.coalescesoftware.io",
-        description="Coalesce base URL",
-    )
-
-    def _fetch_nodes(self) -> list:
-        """Fetch nodes from Coalesce API at load time."""
-        import os, requests
-        token = os.environ.get(self.api_token_env_var, "")
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/json",
+    def start_run(self, node_ids: list[str], parameters: Optional[dict] = None) -> str:
+        url = f"{self.api_base_url}/scheduler/startRun"
+        payload: dict = {
+            "environmentID": self.environment_id,
+            "parameterOverride": {"nodeIds": node_ids},
         }
+        if parameters:
+            payload["parameterOverride"].update(parameters)
+        resp = requests.post(url, headers=self._headers(), json=payload, timeout=30)
+        resp.raise_for_status()
+        return resp.json()["runCounter"]
+
+    def get_run_status(self, run_counter: str) -> str:
+        url = f"{self.api_base_url}/scheduler/runStatus"
         resp = requests.get(
-            f"{self.base_url}/api/v1/environments/{self.environment_id}/nodes",
-            headers=headers,
-            timeout=30,
+            url, headers=self._headers(),
+            params={"runCounter": run_counter}, timeout=30,
         )
         resp.raise_for_status()
-        data = resp.json()
-        return data.get("nodes", data if isinstance(data, list) else [])
+        return resp.json().get("runStatus", "")
 
-    def _node_to_asset_key(self, node: dict) -> dg.AssetKey:
-        name = (node.get("name") or node.get("nodeId") or "unknown").lower().replace(" ", "_").replace("-", "_")
-        return dg.AssetKey([self.asset_key_prefix, name])
 
-    def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        _self = self
+# ── Component ─────────────────────────────────────────────────────────────────
 
-        # Discover nodes from Coalesce at load time
-        try:
-            nodes = self._fetch_nodes()
-        except Exception as e:
-            raise RuntimeError(
-                f"Failed to load Coalesce nodes for environment {self.environment_id}: {e}"
+def _build_coalesce_defs(
+    nodes: list[dict],
+    environment_id: str,
+    api_token_env_var: str,
+    api_base_url: str,
+    asset_name_prefix: Optional[str],
+    group_name: Optional[str],
+    poll_interval: int,
+    timeout: int,
+) -> dg.Definitions:
+    """Build Definitions from a list of Coalesce node dicts (no network calls)."""
+    from dagster import AssetExecutionContext
+
+    # Build a flat mapping of nodeId → AssetKey for dep resolution
+    node_key_map: dict[str, dg.AssetKey] = {}
+    for node in nodes:
+        node_id = node.get("nodeId", node.get("id", ""))
+        name = node.get("name", node_id)
+        parts = [asset_name_prefix, name] if asset_name_prefix else [name]
+        node_key_map[node_id] = dg.AssetKey([p for p in parts if p])
+
+    specs: list[dg.AssetSpec] = []
+    for node in nodes:
+        node_id = node.get("nodeId", node.get("id", ""))
+        name = node.get("name", node_id)
+        source_ids = node.get("sourceNodeIds", [])
+
+        dep_keys = [node_key_map[sid] for sid in source_ids if sid in node_key_map]
+
+        specs.append(dg.AssetSpec(
+            key=node_key_map[node_id],
+            description=node.get("description"),
+            group_name=group_name or "coalesce",
+            deps=dep_keys,
+            kinds={"coalesce", "sql"},
+            metadata={
+                "coalesce/node_id": dg.MetadataValue.text(node_id),
+                "coalesce/node_type": dg.MetadataValue.text(node.get("type", "")),
+            },
+        ))
+
+    if not specs:
+        return dg.Definitions()
+
+    @dg.multi_asset(specs=specs)
+    def coalesce_project(context: AssetExecutionContext):
+        import time
+
+        token = os.environ[api_token_env_var]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # Determine which node IDs to materialize (selected assets)
+        selected_node_ids = []
+        reverse_map = {v: k for k, v in node_key_map.items()}
+        for key in context.selected_asset_keys:
+            node_id = reverse_map.get(key)
+            if node_id:
+                selected_node_ids.append(node_id)
+
+        context.log.info(f"Starting Coalesce run for {len(selected_node_ids)} nodes")
+        run_url = f"{api_base_url}/scheduler/startRun"
+        run_resp = requests.post(run_url, headers=headers, json={
+            "environmentID": environment_id,
+            "parameterOverride": {"nodeIds": selected_node_ids},
+        }, timeout=30)
+        run_resp.raise_for_status()
+        run_counter = run_resp.json()["runCounter"]
+        context.log.info(f"Coalesce run started: {run_counter}")
+
+        elapsed = 0
+        while elapsed < timeout:
+            time.sleep(poll_interval)
+            elapsed += poll_interval
+            status_resp = requests.get(
+                f"{api_base_url}/scheduler/runStatus",
+                headers=headers,
+                params={"runCounter": run_counter},
+                timeout=30,
             )
+            status_resp.raise_for_status()
+            status = status_resp.json().get("runStatus", "")
+            context.log.info(f"Coalesce run {run_counter} status: {status}")
+            if status == "succeeded":
+                break
+            if status in ("failed", "cancelled", "error"):
+                raise Exception(f"Coalesce run {run_counter} {status}")
 
-        if not nodes:
-            return dg.Definitions(assets=[])
+        return dg.MaterializeResult(metadata={
+            "run_counter": dg.MetadataValue.text(run_counter),
+            "nodes_run": len(selected_node_ids),
+        })
 
-        # Build a lookup: nodeId → asset key
-        node_id_to_key: dict = {}
-        for node in nodes:
-            node_id = node.get("nodeId") or node.get("id") or ""
-            node_id_to_key[node_id] = self._node_to_asset_key(node)
+    return dg.Definitions(assets=[coalesce_project])
 
-        # Create one AssetSpec per node with upstream deps
-        specs: list[AssetSpec] = []
-        node_id_to_node: dict = {}
-        for node in nodes:
-            node_id = node.get("nodeId") or node.get("id") or ""
-            node_id_to_node[node_id] = node
-            upstream_ids = node.get("sourceNodeIds", node.get("upstreamNodeIds", []))
-            deps = [
-                node_id_to_key[uid]
-                for uid in upstream_ids
-                if uid in node_id_to_key
-            ]
-            node_type = (node.get("type") or node.get("nodeType") or "node").lower()
-            specs.append(
-                AssetSpec(
-                    key=node_id_to_key[node_id],
-                    group_name=self.group_name,
-                    description=f"Coalesce {node_type}: {node.get('name', node_id)}",
-                    kinds={"coalesce", "sql"},
-                    metadata={
-                        "coalesce/node_id": node_id,
-                        "coalesce/node_type": node_type,
-                        "coalesce/environment_id": self.environment_id,
-                        "coalesce/name": node.get("name", ""),
-                        "coalesce/location": node.get("location", node.get("folder", "")),
-                    },
-                    deps=deps if deps else [],
-                )
-            )
 
-        # Reverse lookup: asset key string → nodeId (for execution)
-        key_str_to_node_id = {
-            "/".join(node_id_to_key[nid].path): nid
-            for nid in node_id_to_key
-        }
+if _HAS_STATE_BACKED:
+    @dataclass
+    class CoalesceProjectComponent(StateBackedComponent, dg.Resolvable):
+        """Coalesce project component — one Dagster asset per Coalesce node.
 
-        multi_asset_name = f"coalesce_{self.environment_id.replace('-', '_')}_nodes"
+        Uses StateBackedComponent to cache the node list from the Coalesce API,
+        so code-server reloads are fast. Populate the cache with:
+          dagster dev   (automatic in dev)
+          dg utils refresh-defs-state   (CI/CD/image build)
 
-        @multi_asset(
-            specs=specs,
-            name=multi_asset_name,
-            required_resource_keys=set(),
+        Example:
+            ```yaml
+            type: dagster_component_templates.CoalesceProjectComponent
+            attributes:
+              environment_id: env_abc123
+              api_token_env_var: COALESCE_API_TOKEN
+            ```
+        """
+
+        environment_id: str
+        api_token_env_var: str
+        api_base_url: str = "https://app.coalescesoftware.io"
+        asset_name_prefix: Optional[str] = None
+        group_name: Optional[str] = "coalesce"
+        poll_interval_seconds: int = 10
+        timeout_seconds: int = 1800
+        defs_state: ResolvedDefsStateConfig = field(
+            default_factory=DefsStateConfigArgs.local_filesystem
         )
-        def coalesce_assets(context: AssetExecutionContext) -> Sequence[MaterializeResult]:
-            import os, requests as req
 
-            token = os.environ.get(_self.api_token_env_var, "")
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-            }
-            base = _self.base_url
-
-            # Resolve selected asset keys → Coalesce node IDs
-            selected_node_ids = []
-            for asset_key in context.selected_asset_keys:
-                key_str = "/".join(asset_key.path)
-                node_id = key_str_to_node_id.get(key_str)
-                if node_id:
-                    selected_node_ids.append(node_id)
-
-            context.log.info(
-                f"Materializing {len(selected_node_ids)} Coalesce node(s): {selected_node_ids}"
+        @property
+        def defs_state_config(self) -> DefsStateConfig:
+            return DefsStateConfig.from_args(
+                self.defs_state,
+                default_key=f"CoalesceProjectComponent[{self.environment_id}]",
             )
 
-            # Trigger Coalesce run for selected nodes
-            body: dict = {"environmentID": _self.environment_id, "jobID": _self.job_id}
-            if selected_node_ids:
-                body["parameterOverride"] = {"nodeIds": selected_node_ids}
+        def write_state_to_path(self, state_path: Path) -> None:
+            """Fetch all nodes from Coalesce API and cache to disk."""
+            token = os.environ[self.api_token_env_var]
+            headers = {"Authorization": f"Bearer {token}"}
+            url = f"{self.api_base_url}/api/v1/environments/{self.environment_id}/nodes"
+            resp = requests.get(url, headers=headers, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+            nodes = data.get("data", data) if isinstance(data, dict) else data
+            state_path.write_text(json.dumps(nodes))
 
-            try:
-                resp = req.post(f"{base}/scheduler/startRun", headers=headers, json=body, timeout=30)
-                resp.raise_for_status()
-                data = resp.json()
-                run_counter = str(data.get("runCounter", data.get("id", "")))
-            except Exception as e:
-                raise Exception(f"Failed to start Coalesce run: {e}")
+        def build_defs_from_state(
+            self, context: dg.ComponentLoadContext, state_path: Optional[Path]
+        ) -> dg.Definitions:
+            """Build asset specs from cached node list — no network calls."""
+            if state_path is None or not state_path.exists():
+                context.log.warning(  # type: ignore
+                    "CoalesceProjectComponent: no cached state found. "
+                    "Run `dg utils refresh-defs-state` or `dagster dev` to populate."
+                ) if hasattr(context, "log") else None
+                return dg.Definitions()
 
-            context.log.info(f"Coalesce run started. runCounter={run_counter}")
+            nodes = json.loads(state_path.read_text())
+            return _build_coalesce_defs(
+                nodes=nodes,
+                environment_id=self.environment_id,
+                api_token_env_var=self.api_token_env_var,
+                api_base_url=self.api_base_url,
+                asset_name_prefix=self.asset_name_prefix,
+                group_name=self.group_name,
+                poll_interval=self.poll_interval_seconds,
+                timeout=self.timeout_seconds,
+            )
 
-            # Poll for completion
-            elapsed = 0.0
-            while elapsed < _self.timeout_seconds:
-                time.sleep(_self.poll_interval_seconds)
-                elapsed += _self.poll_interval_seconds
-                try:
-                    status_resp = req.get(
-                        f"{base}/scheduler/runStatus",
-                        headers=headers,
-                        params={"runCounter": run_counter},
-                        timeout=30,
-                    )
-                    status_resp.raise_for_status()
-                    status_data = status_resp.json()
-                    status = (status_data.get("status") or "").lower()
-                    context.log.info(f"Run {run_counter} status: {status}")
-                except Exception as e:
-                    context.log.warning(f"Poll error: {e}")
-                    continue
+else:
+    # Fallback: StateBackedComponent not available in this dagster version.
+    # Falls back to calling the API on every build_defs (original behaviour).
+    class CoalesceProjectComponent(dg.Component, dg.Model, dg.Resolvable):  # type: ignore[no-redef]
+        """Coalesce project component (fallback: no state caching).
 
-                if status == "succeeded":
-                    nodes_run = status_data.get("nodesRun", 0)
-                    nodes_failed = status_data.get("nodesFailed", 0)
-                    return [
-                        MaterializeResult(
-                            asset_key=ak,
-                            metadata={
-                                "run_counter": run_counter,
-                                "nodes_run": nodes_run,
-                                "nodes_failed": nodes_failed,
-                                "status": status,
-                            },
-                        )
-                        for ak in context.selected_asset_keys
-                    ]
-                elif status in ("failed", "cancelled", "error"):
-                    raise Exception(
-                        f"Coalesce run {run_counter} {status}. "
-                        f"nodes_failed={status_data.get('nodesFailed', '?')}. "
-                        f"{status_data.get('errorMessage', '')}"
-                    )
-                # running / queued — keep polling
+        Upgrade to dagster>=1.8 to get StateBackedComponent caching.
+        """
+        environment_id: str = dg.Field(description="Coalesce environment ID")
+        api_token_env_var: str = dg.Field(description="Env var with Coalesce API token")
+        api_base_url: str = dg.Field(default="https://app.coalescesoftware.io")
+        asset_name_prefix: Optional[str] = dg.Field(default=None)
+        group_name: Optional[str] = dg.Field(default="coalesce")
+        poll_interval_seconds: int = dg.Field(default=10)
+        timeout_seconds: int = dg.Field(default=1800)
 
-            raise Exception(f"Coalesce run {run_counter} timed out after {_self.timeout_seconds}s")
-
-        return dg.Definitions(assets=[coalesce_assets])
+        def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+            token = os.environ[self.api_token_env_var]
+            headers = {"Authorization": f"Bearer {token}"}
+            url = f"{self.api_base_url}/api/v1/environments/{self.environment_id}/nodes"
+            resp = requests.get(url, headers=headers, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+            nodes = data.get("data", data) if isinstance(data, dict) else data
+            return _build_coalesce_defs(
+                nodes=nodes,
+                environment_id=self.environment_id,
+                api_token_env_var=self.api_token_env_var,
+                api_base_url=self.api_base_url,
+                asset_name_prefix=self.asset_name_prefix,
+                group_name=self.group_name,
+                poll_interval=self.poll_interval_seconds,
+                timeout=self.timeout_seconds,
+            )

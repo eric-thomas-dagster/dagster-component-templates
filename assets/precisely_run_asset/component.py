@@ -103,6 +103,7 @@ class PreciselyRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     poll_interval_seconds: float = Field(default=10.0, description="Seconds between status polls")
     timeout_seconds: int = Field(default=3600, description="Max seconds to wait for job completion")
     group_name: Optional[str] = Field(default="precisely", description="Dagster asset group name")
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
@@ -113,6 +114,7 @@ class PreciselyRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             group_name=self.group_name,
             kinds={"precisely"},
             required_resource_keys={self.resource_key} if self.resource_key else set(),
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def precisely_run_asset(context: AssetExecutionContext) -> MaterializeResult:
             import os, requests

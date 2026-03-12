@@ -8,6 +8,7 @@ Mimics capabilities of Supermetrics and Funnel.io.
 from typing import Optional
 import pandas as pd
 from dagster import (
+    AssetKey,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -142,6 +143,8 @@ class PinterestAdsIngestionComponent(Component, Model, Resolvable):
         description="If True with destination set: persist to database AND return DataFrame. If False: only persist to database."
     )
 
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         access_token = self.access_token
@@ -164,6 +167,7 @@ class PinterestAdsIngestionComponent(Component, Model, Resolvable):
             name=asset_name,
             description=description,
             group_name=group_name,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def pinterest_ads_ingestion_asset(context: AssetExecutionContext) -> pd.DataFrame:
             """Asset that ingests Pinterest Ads data using dlt and returns as DataFrame."""

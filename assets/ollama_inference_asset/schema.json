@@ -1,0 +1,10 @@
+{
+  "type": "dagster_component_templates.ollama_inference_asset",
+  "name": "Ollama Inference Asset",
+  "category": "assets",
+  "description": "Enrich rows from an upstream asset using a locally-running Ollama model (no API key required)",
+  "dependencies": {
+    "pip": ["requests>=2.31.0", "pandas>=1.3.0", "sqlalchemy>=2.0.0"]
+  },
+  "tags": ["assets", "ai", "llm", "ollama", "inference", "local", "enrichment"]
+}

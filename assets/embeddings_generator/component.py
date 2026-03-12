@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 
 from dagster import (
+    AssetKey,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -151,6 +152,8 @@ class EmbeddingsGeneratorComponent(Component, Model, Resolvable):
         description="Include sample data preview in metadata"
     )
 
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         provider = self.provider
@@ -185,6 +188,7 @@ class EmbeddingsGeneratorComponent(Component, Model, Resolvable):
             name=asset_name,
             description=description,
             group_name=group_name,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def embeddings_generator_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
             """Asset that generates embeddings for text."""

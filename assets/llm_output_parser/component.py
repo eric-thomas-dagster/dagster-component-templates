@@ -12,6 +12,7 @@ from dagster import (
     ComponentLoadContext,
     Definitions,
     AssetExecutionContext,
+    AssetKey,
     asset,
     Resolvable,
     Model,
@@ -43,6 +44,7 @@ class LLMOutputParserComponent(Component, Model, Resolvable):
     strict_validation: bool = Field(default=False, description="Raise error on validation failure")
     description: Optional[str] = Field(default=None, description="Asset description")
     group_name: Optional[str] = Field(default=None, description="Asset group")
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
@@ -60,6 +62,7 @@ class LLMOutputParserComponent(Component, Model, Resolvable):
             name=asset_name,
             description=description,
             group_name=group_name,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def llm_output_parser_asset(ctx: AssetExecutionContext, **kwargs):
             """Parse LLM output.

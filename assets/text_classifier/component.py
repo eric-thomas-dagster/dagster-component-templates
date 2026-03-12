@@ -12,6 +12,7 @@ from dagster import (
     ComponentLoadContext,
     Definitions,
     AssetExecutionContext,
+    AssetKey,
     asset,
     Resolvable,
     Model,
@@ -45,6 +46,7 @@ class TextClassifierComponent(Component, Model, Resolvable):
     temperature: float = Field(default=0.1, description="Temperature (low for consistency)")
     description: Optional[str] = Field(default=None, description="Asset description")
     group_name: Optional[str] = Field(default=None, description="Asset group")
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
@@ -63,6 +65,7 @@ class TextClassifierComponent(Component, Model, Resolvable):
             name=asset_name,
             description=description,
             group_name=group_name,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def text_classifier_asset(ctx: AssetExecutionContext, **kwargs):
             """Classify text.

@@ -10,6 +10,7 @@ from dagster import (
     Definitions,
     AssetExecutionContext,
     ComponentLoadContext,
+    AssetKey,
     asset,
     Output,
     MetadataValue,
@@ -59,6 +60,8 @@ class DuckDBQueryReaderComponent(Component, Model, Resolvable):
         description="Include sample data preview in metadata (first 5 rows as markdown table and interactive preview)"
     )
 
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions for the DuckDB query reader."""
 
@@ -74,6 +77,7 @@ class DuckDBQueryReaderComponent(Component, Model, Resolvable):
             name=asset_name,
             description=description,
             group_name=group_name,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def duckdb_reader_asset(context: AssetExecutionContext) -> pd.DataFrame:
             """Execute SQL query and return results as DataFrame."""

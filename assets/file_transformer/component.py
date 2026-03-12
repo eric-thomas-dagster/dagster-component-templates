@@ -14,6 +14,7 @@ from dagster import (
     ComponentLoadContext,
     Definitions,
     AssetExecutionContext,
+    AssetKey,
     asset,
     Config,
     Resolvable,
@@ -123,6 +124,8 @@ class FileTransformerComponent(Component, Model, Resolvable):
         description="Asset group for organization"
     )
 
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         fixed_input_path = self.input_file_path
@@ -154,6 +157,7 @@ class FileTransformerComponent(Component, Model, Resolvable):
             name=asset_name,
             description=description,
             group_name=group_name,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def file_transformer_asset(context: AssetExecutionContext, config: FileConfig):
             """Asset that transforms files between formats."""

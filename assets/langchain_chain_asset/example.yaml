@@ -1,0 +1,14 @@
+type: dagster_component_templates.LangChainChainAssetComponent
+attributes:
+  asset_name: summarized_articles
+  upstream_asset_key: raw_articles
+  llm_provider: openai
+  model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  prompt_template: |
+    Summarize the following article in 2-3 sentences:
+    {content}
+  system_message: "You are a concise summarizer. Respond with plain text only."
+  response_column: summary
+  database_url_env_var: DATABASE_URL
+  table_name: summarized_articles

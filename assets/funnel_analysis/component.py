@@ -162,6 +162,8 @@ class FunnelAnalysisComponent(Component):
         description="Asset group name",
     )
 
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
+
     def _get_funnel_stages(self) -> List[tuple]:
         """Get configured funnel stages as (event, name) tuples."""
         stages = []
@@ -430,6 +432,7 @@ class FunnelAnalysisComponent(Component):
             ins=asset_ins,
             description=self.description or "Funnel analysis with conversion rates and drop-off identification",
             group_name=self.group_name,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def funnel_analysis_asset(context: AssetExecutionContext, **inputs) -> pd.DataFrame:
             """Analyze user progression through conversion funnel."""

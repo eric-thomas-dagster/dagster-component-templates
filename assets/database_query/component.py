@@ -13,6 +13,7 @@ from dagster import (
     ComponentLoadContext,
     Definitions,
     AssetExecutionContext,
+    AssetKey,
     asset,
     Resolvable,
     Model,
@@ -70,6 +71,8 @@ class DatabaseQueryComponent(Component, Model, Resolvable):
         description="Asset group for organization"
     )
 
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
+
     include_sample_metadata: bool = Field(
         default=False,
         description="Include sample data preview in metadata (first 5 rows as markdown table and interactive preview)"
@@ -89,6 +92,7 @@ class DatabaseQueryComponent(Component, Model, Resolvable):
             name=asset_name,
             description=description,
             group_name=group_name,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def database_query_asset(context: AssetExecutionContext):
             """Asset that executes SQL query and returns results."""

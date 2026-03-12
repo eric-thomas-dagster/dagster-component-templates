@@ -1,0 +1,6 @@
+langchain-core>=0.3.0
+langchain-openai>=0.2.0
+pandas>=1.3.0
+sqlalchemy>=2.0.0
+# Install the provider package you need:
+# langchain-anthropic, langchain-google-genai, langchain-ollama

@@ -8,6 +8,7 @@ from typing import Optional
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
+    AssetKey,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -48,6 +49,8 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
         description="Asset description"
     )
 
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         platform = self.platform
@@ -57,6 +60,7 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
             name=asset_name,
             description=description,
             group_name="support",
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def support_ticket_ingestion_asset(context: AssetExecutionContext) -> pd.DataFrame:
             """Asset that ingests support ticket data."""

@@ -11,6 +11,7 @@ from dagster import (
     Definitions,
     AssetExecutionContext,
     ComponentLoadContext,
+    AssetKey,
     asset,
     Output,
     MetadataValue,
@@ -85,6 +86,8 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
         description="Include sample data preview in metadata (first 5 rows as markdown table and interactive preview)"
     )
 
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions for the CSV ingestion asset."""
 
@@ -128,7 +131,8 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
                 "source_file": file_path,
                 "delimiter": delimiter,
                 "encoding": encoding,
-            }
+            },
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def csv_ingestion_asset(context: AssetExecutionContext):
             """Asset that ingests CSV file into a pandas DataFrame."""

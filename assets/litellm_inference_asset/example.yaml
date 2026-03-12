@@ -1,0 +1,11 @@
+type: dagster_component_templates.LiteLLMInferenceAssetComponent
+attributes:
+  asset_name: enriched_support_tickets
+  upstream_asset_key: raw_support_tickets
+  model: claude-3-5-sonnet-20241022
+  api_key_env_var: ANTHROPIC_API_KEY
+  prompt_template: "Classify the sentiment and urgency of this support ticket in JSON: {body}"
+  system_prompt: "You are a support ticket classifier. Respond with JSON only: {\"sentiment\": \"positive|neutral|negative\", \"urgency\": \"low|medium|high\"}"
+  response_column: ai_classification
+  database_url_env_var: DATABASE_URL
+  table_name: enriched_support_tickets

@@ -97,6 +97,8 @@ class CustomerSegmentationComponent(Component):
         description="Asset group name",
     )
 
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
+
     def _calculate_rfm_scores(self, transaction_data: pd.DataFrame) -> pd.DataFrame:
         """Calculate RFM scores for each customer."""
         if transaction_data is None or transaction_data.empty:
@@ -253,6 +255,7 @@ class CustomerSegmentationComponent(Component):
             ins=asset_ins,
             description=self.description or "Customer segmentation using RFM analysis",
             group_name=self.group_name,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def customer_segmentation_asset(context: AssetExecutionContext, **inputs) -> pd.DataFrame:
             """Segment customers using RFM analysis."""

@@ -163,6 +163,8 @@ class LeadScoringComponent(Component):
         description="Asset group name",
     )
 
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
+
     def _normalize_score(self, value: float, min_val: float = 0.0, max_val: float = 1.0) -> float:
         """Normalize a value to 0-100 scale."""
         if pd.isna(value):
@@ -442,6 +444,7 @@ class LeadScoringComponent(Component):
             ins=asset_ins,
             description=self.description or "Lead scores with qualification flags (MQL/SQL) and temperature classification",
             group_name=self.group_name,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def lead_scoring_asset(context: AssetExecutionContext, **inputs) -> pd.DataFrame:
             """Score and qualify leads based on fit and intent."""

@@ -13,6 +13,7 @@ from dagster import (
     Definitions,
     AssetExecutionContext,
     ComponentLoadContext,
+    AssetKey,
     asset,
     Config,
 )
@@ -87,6 +88,8 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
         description="Asset group name for organization"
     )
 
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions for the S3 to Database asset."""
 
@@ -137,7 +140,8 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
                 "table": table_name,
                 "schema": schema_name,
                 "source": "s3",
-            }
+            },
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def s3_to_database_asset(context: AssetExecutionContext, config: S3FileConfig):
             """Asset that loads S3 files into a database table."""

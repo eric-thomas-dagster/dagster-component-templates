@@ -4714,6 +4714,67 @@
         "ingestion",
         "sql"
       ]
+    },
+    {
+      "name": "dbt Docs Enriched Project",
+      "type": "dagster_component_templates.DbtDocsEnrichedProjectComponent",
+      "category": "assets",
+      "description": "Extends DbtProjectComponent to surface rich dbt docs metadata: exposures, metrics, semantic models, contracts, source freshness, and clickable docs links on every asset",
+      "path": "assets/dbt_docs_enriched_project",
+      "tags": [
+        "assets",
+        "dbt",
+        "docs",
+        "metadata",
+        "lineage",
+        "enrichment"
+      ]
+    },
+    {
+      "name": "LiteLLM Inference Asset",
+      "type": "dagster_component_templates.LiteLLMInferenceAssetComponent",
+      "category": "assets",
+      "description": "Enrich rows from an upstream asset using any LLM via LiteLLM (OpenAI, Anthropic, Azure, Bedrock, Gemini, and 100+ more)",
+      "path": "assets/litellm_inference_asset",
+      "tags": [
+        "assets",
+        "ai",
+        "llm",
+        "litellm",
+        "inference",
+        "enrichment"
+      ]
+    },
+    {
+      "name": "Ollama Inference Asset",
+      "type": "dagster_component_templates.OllamaInferenceAssetComponent",
+      "category": "assets",
+      "description": "Enrich rows from an upstream asset using a locally-running Ollama model (no API key required)",
+      "path": "assets/ollama_inference_asset",
+      "tags": [
+        "assets",
+        "ai",
+        "llm",
+        "ollama",
+        "local",
+        "inference",
+        "enrichment"
+      ]
+    },
+    {
+      "name": "LangChain Chain Asset",
+      "type": "dagster_component_templates.LangChainChainAssetComponent",
+      "category": "assets",
+      "description": "Run a LangChain chain over rows from an upstream asset and write enriched output to a database table",
+      "path": "assets/langchain_chain_asset",
+      "tags": [
+        "assets",
+        "ai",
+        "llm",
+        "langchain",
+        "inference",
+        "enrichment"
+      ]
     }
   ]
 }

@@ -12,6 +12,7 @@ from dagster import (
     ComponentLoadContext,
     Definitions,
     AssetExecutionContext,
+    AssetKey,
     asset,
     Resolvable,
     Model,
@@ -48,6 +49,7 @@ class ConversationMemoryComponent(Component, Model, Resolvable):
     system_prompt: str = Field(default="You are a helpful assistant.", description="System prompt")
     description: Optional[str] = Field(default=None, description="Asset description")
     group_name: Optional[str] = Field(default=None, description="Asset group")
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
@@ -62,6 +64,7 @@ class ConversationMemoryComponent(Component, Model, Resolvable):
             name=asset_name,
             description=description,
             group_name=group_name,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def conversation_memory_asset(ctx: AssetExecutionContext, **kwargs):
             """Manage conversation memory.

@@ -16,6 +16,7 @@ from dagster import (
     ComponentLoadContext,
     Definitions,
     AssetExecutionContext,
+    AssetKey,
     asset,
     Resolvable,
     Model,
@@ -130,6 +131,8 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
         description="Asset group for organization"
     )
 
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
+
     include_sample_metadata: bool = Field(
         default=False,
         description="Include sample data preview in metadata when output_format is 'dataframe' (first 5 rows as markdown table and interactive preview)"
@@ -160,6 +163,7 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
             name=asset_name,
             description=description,
             group_name=group_name,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def rest_api_asset(context: AssetExecutionContext):
             """Asset that fetches data from REST API."""

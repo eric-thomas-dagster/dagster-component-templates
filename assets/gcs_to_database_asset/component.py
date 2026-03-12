@@ -44,6 +44,7 @@ class GCSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     description: Optional[str] = Field(default=None)
     partition_type: str = Field(default="none", description="none, daily, weekly, or monthly")
     partition_start_date: Optional[str] = Field(default=None, description="Partition start date YYYY-MM-DD (required if partition_type != none)")
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
@@ -66,6 +67,7 @@ class GCSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             description=_self.description or f"GCS → {_self.table_name}",
             group_name=_self.group_name,
             kinds={"gcs", "sql"},
+            deps=[dg.AssetKey.from_user_string(k) for k in (_self.deps or [])],
             partitions_def=partitions_def,
         )
         def gcs_to_database_asset(context: AssetExecutionContext, config: GCSObjectConfig):

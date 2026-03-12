@@ -45,6 +45,8 @@ class Customer360Component(Component, Model, Resolvable):
         description="Asset description"
     )
 
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         description = self.description or "Unified customer 360 profiles"
@@ -53,6 +55,7 @@ class Customer360Component(Component, Model, Resolvable):
             name=asset_name,
             description=description,
             group_name="customer_analytics",
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def customer_360_asset(context: AssetExecutionContext, **upstream_assets) -> pd.DataFrame:
             """Asset that creates unified customer profiles from upstream data."""

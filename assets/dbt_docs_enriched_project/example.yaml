@@ -1,0 +1,12 @@
+type: dagster_component_templates.DbtDocsEnrichedProjectComponent
+attributes:
+  project: "{{ project_root }}/dbt_project"
+  dbt_docs_url: "https://dbt-docs.internal.mycompany.com"
+  include_exposures: true
+  include_metrics: true
+  include_semantic_models: true
+  include_contracts: true
+  include_meta: true
+  include_source_freshness: true
+  cli_args:
+    - build

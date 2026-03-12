@@ -8,6 +8,7 @@ from typing import Optional, List
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
+    AssetKey,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -99,6 +100,8 @@ class FreshdeskIngestionComponent(Component, Model, Resolvable):
         default=False,
         description="If True with destination set: persist to database AND return DataFrame. If False: only persist to database."
     )
+
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
     def _get_effective_destination(self) -> Optional[str]:
         """Get destination based on environment routing if enabled."""
@@ -267,6 +270,7 @@ class FreshdeskIngestionComponent(Component, Model, Resolvable):
             name=asset_name,
             description=description,
             group_name=group_name,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def freshdesk_ingestion_asset(context: AssetExecutionContext) -> pd.DataFrame:
             """Asset that ingests Freshdesk data using dlt."""

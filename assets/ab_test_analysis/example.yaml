@@ -1,0 +1,8 @@
+type: dagster_component_templates.ABTestAnalysisComponent
+attributes:
+  asset_name: ab_test_results
+  source_asset: experiment_data
+  confidence_level: 0.95
+  minimum_sample_size: 1000
+  minimum_detectable_effect: 0.05
+  group_name: experimentation

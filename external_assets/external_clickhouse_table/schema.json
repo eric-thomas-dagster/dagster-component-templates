@@ -1,0 +1,8 @@
+{
+  "type": "dagster_component_templates.external_clickhouse_table",
+  "name": "External ClickHouse Table",
+  "category": "external_assets",
+  "description": "Declares a ClickHouse table as an observable external asset in Dagster with rich metadata from system tables.",
+  "dependencies": {"pip": ["clickhouse-connect>=0.6.0"]},
+  "tags": ["clickhouse", "external-asset", "sql"]
+}

@@ -1,0 +1,9 @@
+type: dagster_component_templates.LTVPredictionComponent
+attributes:
+  asset_name: customer_ltv
+  source_asset: transaction_data
+  prediction_period_months: 24
+  cohort_analysis: true
+  include_confidence_intervals: true
+  min_transactions_required: 2
+  group_name: customer_analytics

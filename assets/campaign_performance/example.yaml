@@ -1,0 +1,8 @@
+type: dagster_component_templates.CampaignPerformanceComponent
+attributes:
+  asset_name: campaign_performance
+  campaign_data_asset: campaign_metrics
+  conversion_data_asset: conversions
+  target_roas: 3.0
+  target_cpa: 25.0
+  group_name: marketing_analytics

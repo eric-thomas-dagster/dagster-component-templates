@@ -1,0 +1,8 @@
+type: dagster_component_templates.SiffletCheckComponent
+attributes:
+  asset_key: warehouse/orders
+  sifflet_tenant_env_var: SIFFLET_TENANT
+  api_token_env_var: SIFFLET_API_TOKEN
+  monitor_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  severity: ERROR
+  timeout_seconds: 300

@@ -1,0 +1,8 @@
+type: dagster_component_templates.MonteCarloCheckComponent
+attributes:
+  asset_key: warehouse/orders
+  mcd_id_env_var: MCD_ID
+  mcd_token_env_var: MCD_TOKEN
+  rule_uuid: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  severity: ERROR
+  timeout_seconds: 300

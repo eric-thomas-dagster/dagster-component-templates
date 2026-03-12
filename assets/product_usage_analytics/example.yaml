@@ -1,0 +1,9 @@
+type: dagster_component_templates.ProductUsageAnalyticsComponent
+attributes:
+  asset_name: product_usage_metrics
+  event_data_asset: product_events
+  analysis_period_days: 30
+  core_feature_events: "dashboard_viewed,report_created,export_run"
+  identify_power_users: true
+  power_user_threshold: 20
+  group_name: analytics

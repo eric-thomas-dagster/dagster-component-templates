@@ -1,0 +1,13 @@
+type: dagster_component_templates.DLTDataFrameWriterComponent
+attributes:
+  asset_name: customer_scores_written
+  table_name: customer_scores
+  write_disposition: replace
+  destination: snowflake
+  snowflake_account: myorg-myaccount
+  snowflake_database: ANALYTICS
+  snowflake_schema: public
+  snowflake_warehouse: COMPUTE_WH
+  snowflake_username: dagster_user
+  snowflake_password: "{{ env('SNOWFLAKE_PASSWORD') }}"
+  group_name: data_loading

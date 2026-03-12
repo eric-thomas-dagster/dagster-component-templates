@@ -1,0 +1,8 @@
+{
+  "type": "dagster_component_templates.coalesce_job_sensor",
+  "name": "Coalesce Job Sensor",
+  "category": "sensors",
+  "description": "Polls the Coalesce Scheduler API and triggers a Dagster job when a specified Coalesce job run completes successfully.",
+  "dependencies": {"pip": ["requests>=2.28.0"]},
+  "tags": ["coalesce", "sensor", "event-driven"]
+}

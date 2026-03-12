@@ -1,0 +1,11 @@
+type: dagster_component_templates.LeadScoringComponent
+attributes:
+  asset_name: scored_leads
+  lead_data_asset: crm_leads
+  behavioral_data_asset: web_activity
+  scoring_model: combined
+  fit_weight: 0.4
+  intent_weight: 0.6
+  mql_threshold: 50.0
+  sql_threshold: 70.0
+  group_name: analytics

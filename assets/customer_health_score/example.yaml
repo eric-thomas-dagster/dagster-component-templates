@@ -1,0 +1,11 @@
+type: dagster_component_templates.CustomerHealthScoreComponent
+attributes:
+  asset_name: customer_health_scores
+  customer_data_asset: crm_customers
+  subscription_data_asset: subscriptions
+  product_usage_asset: product_events
+  support_ticket_asset: support_tickets
+  analysis_period_days: 30
+  churn_risk_threshold: 40.0
+  expansion_opportunity_threshold: 75.0
+  group_name: analytics

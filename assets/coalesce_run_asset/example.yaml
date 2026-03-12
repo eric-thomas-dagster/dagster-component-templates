@@ -1,0 +1,8 @@
+type: dagster_component_templates.CoalesceProjectComponent
+attributes:
+  environment_id: "prod-environment-abc123"
+  job_id: "daily-transform-job-xyz"
+  api_token_env_var: COALESCE_API_TOKEN
+  asset_key_prefix: coalesce
+  group_name: coalesce_transforms
+  timeout_seconds: 3600

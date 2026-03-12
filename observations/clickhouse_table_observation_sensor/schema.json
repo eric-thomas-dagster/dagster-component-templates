@@ -1,0 +1,8 @@
+{
+  "type": "dagster_component_templates.clickhouse_table_observation_sensor",
+  "name": "ClickHouse Table Observation Sensor",
+  "category": "observations",
+  "description": "Periodically queries ClickHouse system tables and emits AssetObservation events with row count, disk size, active parts, and engine type.",
+  "dependencies": {"pip": ["clickhouse-connect>=0.6.0"]},
+  "tags": ["clickhouse", "observation", "sensor", "monitoring"]
+}

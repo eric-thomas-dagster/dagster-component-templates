@@ -1,0 +1,9 @@
+type: dagster_component_templates.PropensityScoringComponent
+attributes:
+  asset_name: customer_propensity_scores
+  source_asset: customer_behavior
+  propensity_type: purchase
+  scoring_window_days: 90
+  score_threshold_high: 70.0
+  score_threshold_medium: 40.0
+  group_name: customer_analytics

@@ -1,0 +1,9 @@
+type: dagster_component_templates.AdSpendStandardizerComponent
+attributes:
+  asset_name: standardized_ad_spend
+  google_ads_asset: google_ads_data
+  facebook_ads_asset: facebook_ads_data
+  currency_normalization: USD
+  aggregate_by_day: true
+  calculate_derived_metrics: true
+  group_name: standardizers

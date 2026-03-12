@@ -1,0 +1,8 @@
+{
+  "type": "dagster_component_templates.sifflet_check",
+  "name": "Sifflet Check",
+  "category": "asset_checks",
+  "description": "Triggers a Sifflet monitor run on demand via the Sifflet REST API and surfaces the result as a Dagster asset check.",
+  "dependencies": {"pip": ["requests>=2.28.0"]},
+  "tags": ["data-quality", "sifflet", "asset-check"]
+}

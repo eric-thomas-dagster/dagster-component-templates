@@ -1,0 +1,8 @@
+{
+  "type": "dagster_component_templates.monte_carlo_check",
+  "name": "Monte Carlo Check",
+  "category": "asset_checks",
+  "description": "Triggers a Monte Carlo Custom SQL Rule on demand via the pycarlo SDK and surfaces the result as a Dagster asset check.",
+  "dependencies": {"pip": ["pycarlo"]},
+  "tags": ["data-quality", "monte-carlo", "asset-check"]
+}

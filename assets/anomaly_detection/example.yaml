@@ -1,0 +1,8 @@
+type: dagster_component_templates.AnomalyDetectionComponent
+attributes:
+  asset_name: transaction_anomalies
+  source_asset: transactions
+  detection_method: z_score
+  metric_column: amount
+  threshold: 3.0
+  group_name: monitoring

@@ -1,0 +1,8 @@
+type: dagster_component_templates.ProductRecommendationsComponent
+attributes:
+  asset_name: product_recommendations
+  source_asset: order_items
+  recommendation_type: collaborative
+  num_recommendations: 10
+  min_co_occurrence: 3
+  group_name: product_analytics

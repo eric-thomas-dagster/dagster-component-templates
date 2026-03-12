@@ -1,0 +1,8 @@
+{
+  "type": "dagster_component_templates.coalesce_run_asset",
+  "name": "Coalesce Project",
+  "category": "assets",
+  "description": "Introspects a Coalesce environment at load time and creates one Dagster asset per Coalesce node, mirroring the Coalesce DAG.",
+  "dependencies": {"pip": ["requests>=2.28.0"]},
+  "tags": ["coalesce", "sql", "transformation"]
+}

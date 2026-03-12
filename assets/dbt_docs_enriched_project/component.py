@@ -54,9 +54,9 @@ try:
     class DbtDocsEnrichedProjectComponent(_DbtProjectComponent):
         """Extends DbtProjectComponent with rich dbt docs metadata on every asset.
 
-        Drop-in replacement for DbtProjectComponent in defs.yaml. All dbt execution,
-        selection, and check generation work identically. Adds a layer of metadata
-        enrichment by reading the compiled manifest.json after dbt prepare.
+        Drop-in replacement for DbtProjectComponent. By default it is identical —
+        same dbt execution, selection, and check generation, no extra metadata.
+        Opt in to specific enrichments by setting the include_* flags or dbt_docs_url.
 
         Example:
             ```yaml
@@ -77,26 +77,26 @@ try:
         """Base URL of your hosted dbt docs site. If set, each asset gets a
         clickable URL: {dbt_docs_url}/#!/{resource_type}/{unique_id}"""
 
-        include_exposures: bool = True
+        include_exposures: bool = False
         """Annotate each model with downstream exposures (dashboards, notebooks, etc.)"""
 
-        include_metrics: bool = True
+        include_metrics: bool = False
         """Annotate each model with dbt metrics that reference it."""
 
-        include_semantic_models: bool = True
+        include_semantic_models: bool = False
         """Annotate each model with semantic model definitions referencing it."""
 
-        include_contracts: bool = True
+        include_contracts: bool = False
         """Surface contract enforcement status and column-level constraints."""
 
-        include_meta: bool = True
+        include_meta: bool = False
         """Surface the full node.meta dict (beyond dagster-specific sub-keys)."""
 
-        include_source_freshness: bool = True
+        include_source_freshness: bool = False
         """Surface freshness SLA thresholds on source assets."""
 
         include_doc_blocks: bool = False
-        """Resolve and embed doc block contents. Off by default (can be verbose)."""
+        """Resolve and embed doc block contents."""
 
         manifest_path: Optional[str] = None
         """Override path to manifest.json. Defaults to {project_dir}/target/manifest.json."""

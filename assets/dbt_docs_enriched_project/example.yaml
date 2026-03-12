@@ -1,12 +1,13 @@
 type: dagster_component_templates.DbtDocsEnrichedProjectComponent
 attributes:
   project: "{{ project_root }}/dbt_project"
-  dbt_docs_url: "https://dbt-docs.internal.mycompany.com"
-  include_exposures: true
-  include_metrics: true
-  include_semantic_models: true
-  include_contracts: true
-  include_meta: true
-  include_source_freshness: true
+  # By default this is identical to DbtProjectComponent.
+  # Opt in to any enrichment you want:
+  dbt_docs_url: "https://dbt-docs.internal.mycompany.com"  # clickable link per asset
+  include_exposures: true        # which BI tools / dashboards consume each model
+  include_metrics: true          # dbt metrics referencing each model
+  include_semantic_models: true  # semantic layer definitions
+  include_contracts: true        # contract enforcement + column constraints
+  include_source_freshness: true # freshness SLA on source assets
   cli_args:
     - build

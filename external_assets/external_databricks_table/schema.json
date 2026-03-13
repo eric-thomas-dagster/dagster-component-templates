@@ -1,61 +1,65 @@
 {
-  "type": "dagster_component_templates.ExternalDatabricksTableAsset",
-  "name": "External Databricks Table",
-  "category": "external_assets",
-  "description": "Declare a Databricks Delta table as an observable external asset",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.ExternalDatabricksTableAsset",
+  "description": "Declare a Databricks Delta table (Unity Catalog or Hive Metastore) as an observable external asset.",
+  "category": "external",
+  "icon": "Link",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "External asset declaration"
+    }
+  },
   "attributes": {
     "asset_key": {
       "type": "string",
-      "required": true,
       "label": "Asset Key",
-      "placeholder": "databricks/gold/orders"
+      "description": "Dagster asset key",
+      "required": true
     },
     "workspace_url": {
       "type": "string",
-      "required": true,
-      "label": "Workspace URL",
-      "placeholder": "https://myorg.azuredatabricks.net"
+      "label": "Workspace Url",
+      "description": "Workspace Url",
+      "required": true
     },
     "catalog": {
       "type": "string",
+      "label": "Catalog",
+      "description": "Catalog",
       "required": false,
-      "label": "Catalog (Unity Catalog)",
-      "placeholder": "main"
+      "default": null
     },
     "schema_name": {
       "type": "string",
-      "required": true,
-      "label": "Schema",
-      "placeholder": "gold"
+      "label": "Schema Name",
+      "description": "Schema/database name",
+      "required": true
     },
     "table_name": {
       "type": "string",
-      "required": true,
-      "label": "Table",
-      "placeholder": "orders"
+      "label": "Table Name",
+      "description": "Table name",
+      "required": true
     },
     "group_name": {
       "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
       "required": false,
-      "label": "Group Name"
+      "default": null
     },
     "description": {
       "type": "string",
+      "label": "Description",
+      "description": "Human-readable description",
       "required": false,
-      "label": "Description"
+      "default": null,
+      "ui:widget": "code"
     }
   },
-  "dependencies": {
-    "pip": [
-      "dagster"
-    ]
-  },
   "tags": [
-    "external_assets",
+    "external",
     "databricks",
-    "delta",
-    "lakehouse",
     "table"
   ]
 }

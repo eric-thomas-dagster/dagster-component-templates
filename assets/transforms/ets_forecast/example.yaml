@@ -1,0 +1,14 @@
+component_type: ets_forecast
+description: Forecast weekly e-commerce orders using additive Holt-Winters ETS model.
+
+asset_name: ecommerce_orders_forecast
+upstream_asset_key: ecommerce_orders_weekly
+date_column: week_start
+value_column: order_count
+forecast_periods: 12
+trend: add
+seasonal: add
+seasonal_periods: 52
+damped_trend: false
+output_mode: append
+group_name: forecasting

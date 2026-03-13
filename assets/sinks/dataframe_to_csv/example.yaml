@@ -1,0 +1,13 @@
+type: dagster_component_templates.DataframeToCsvComponent
+attributes:
+  asset_name: write_monthly_report_csv
+  upstream_asset_key: monthly_revenue_summary
+  file_path: ${OUTPUT_DIR}/monthly_report.csv
+  delimiter: ","
+  include_index: false
+  encoding: utf-8
+  columns:
+    - date
+    - revenue
+    - region
+  group_name: output

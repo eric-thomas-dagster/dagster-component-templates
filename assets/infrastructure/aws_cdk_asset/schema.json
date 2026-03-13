@@ -1,0 +1,151 @@
+{
+  "component_type": "dagster_component_templates.AWSCDKAssetComponent",
+  "description": "Deploy AWS CDK stacks as a Dagster asset.",
+  "category": "infrastructure",
+  "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Provisioning result"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset key for this CDK deployment asset.",
+      "required": true
+    },
+    "working_dir": {
+      "type": "string",
+      "label": "Working Dir",
+      "description": "Working Dir",
+      "required": true
+    },
+    "stacks": {
+      "type": "string",
+      "label": "Stacks",
+      "description": "Stacks",
+      "required": false,
+      "default": null
+    },
+    "context": {
+      "type": "object",
+      "label": "Context",
+      "description": "Context",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "parameters": {
+      "type": "object",
+      "label": "Parameters",
+      "description": "Parameters",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "require_approval": {
+      "type": "string",
+      "label": "Require Approval",
+      "description": "Require Approval",
+      "required": false,
+      "default": "never"
+    },
+    "exclusively": {
+      "type": "boolean",
+      "label": "Exclusively",
+      "description": "Exclusively",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "hotswap": {
+      "type": "boolean",
+      "label": "Hotswap",
+      "description": "Hotswap",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "rollback": {
+      "type": "boolean",
+      "label": "Rollback",
+      "description": "Rollback",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "outputs_file": {
+      "type": "string",
+      "label": "Outputs File",
+      "description": "Outputs File",
+      "required": false,
+      "default": null
+    },
+    "profile": {
+      "type": "string",
+      "label": "Profile",
+      "description": "AWS CLI profile name to use for authentication.",
+      "required": false,
+      "default": null
+    },
+    "region": {
+      "type": "string",
+      "label": "Region",
+      "description": "Region",
+      "required": false,
+      "default": null
+    },
+    "cdk_bin": {
+      "type": "string",
+      "label": "Cdk Bin",
+      "description": "Cdk Bin",
+      "required": false,
+      "default": "cdk"
+    },
+    "env_vars": {
+      "type": "object",
+      "label": "Env Vars",
+      "description": "Env Vars",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "operation": {
+      "type": "string",
+      "label": "Operation",
+      "description": "CDK operation to run. Either ",
+      "required": false,
+      "default": "deploy"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": "infrastructure"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Human-readable description surfaced in the Dagster UI.",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Deps",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "aws",
+    "cdk",
+    "asset"
+  ]
+}

@@ -1,0 +1,4 @@
+dagster
+pandas>=1.5.0
+litellm>=1.0.0
+Pillow>=9.0.0

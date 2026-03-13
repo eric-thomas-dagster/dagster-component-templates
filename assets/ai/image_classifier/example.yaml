@@ -1,0 +1,28 @@
+type: dagster_component_templates.ImageClassifierComponent
+attributes:
+  asset_name: classified_images
+  upstream_asset_key: raw_images
+
+  # Input
+  image_column: "file_path"
+
+  # Output
+  output_column: "predicted_class"
+  score_column: "confidence_score"
+  all_predictions_column: "top_predictions"
+  top_k: 3
+
+  # Model
+  model_name: "openai/clip-vit-base-patch32"
+  device: "cpu"
+
+  # CLIP zero-shot labels (optional)
+  candidate_labels:
+    - "cat"
+    - "dog"
+    - "car"
+    - "person"
+    - "building"
+
+  # Organization
+  group_name: "vision"

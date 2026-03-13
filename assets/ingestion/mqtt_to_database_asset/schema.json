@@ -1,0 +1,159 @@
+{
+  "component_type": "dagster_component_templates.MQTTToDatabaseAssetComponent",
+  "description": "Subscribe to an MQTT topic and write messages to a database table.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "broker_host_env_var": {
+      "type": "string",
+      "label": "Broker Host Env Var",
+      "description": "Env var with MQTT broker hostname",
+      "required": true
+    },
+    "broker_port": {
+      "type": "integer",
+      "label": "Broker Port",
+      "description": "Broker Port",
+      "required": false,
+      "default": 1883
+    },
+    "topic": {
+      "type": "string",
+      "label": "Topic",
+      "description": "Topic",
+      "required": true
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var with MQTT username",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var with MQTT password",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "use_tls": {
+      "type": "boolean",
+      "label": "Use Tls",
+      "description": "Enable TLS/SSL connection",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "database_url_env_var": {
+      "type": "string",
+      "label": "Database Url Env Var",
+      "description": "Env var with SQLAlchemy database URL",
+      "required": true
+    },
+    "table_name": {
+      "type": "string",
+      "label": "Table Name",
+      "description": "Destination table name",
+      "required": true
+    },
+    "schema_name": {
+      "type": "string",
+      "label": "Schema Name",
+      "description": "Destination schema name",
+      "required": false,
+      "default": null
+    },
+    "if_exists": {
+      "type": "string",
+      "label": "If Exists",
+      "description": "fail, replace, or append",
+      "required": false,
+      "default": "append"
+    },
+    "collect_seconds": {
+      "type": "number",
+      "label": "Collect Seconds",
+      "description": "Seconds to collect messages before writing",
+      "required": false,
+      "default": 30.0
+    },
+    "max_messages": {
+      "type": "integer",
+      "label": "Max Messages",
+      "description": "Max messages to collect per run",
+      "required": false,
+      "default": 10000
+    },
+    "qos": {
+      "type": "integer",
+      "label": "Qos",
+      "description": "Qos",
+      "required": false,
+      "default": 1
+    },
+    "column_mapping": {
+      "type": "object",
+      "label": "Column Mapping",
+      "description": "Rename columns: {old: new}",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name",
+      "required": false,
+      "default": "ingestion"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "none, daily, weekly, or monthly",
+      "required": false,
+      "default": "none"
+    },
+    "partition_start_date": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "Partition Start Date",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "mqtt",
+    "database",
+    "asset"
+  ]
+}

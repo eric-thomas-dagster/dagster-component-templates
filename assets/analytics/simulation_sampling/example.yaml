@@ -1,0 +1,12 @@
+type: dagster_component_templates.SimulationSamplingComponent
+attributes:
+  asset_name: demand_simulation
+  upstream_asset_key: demand_distributions
+  variable_column: variable
+  distribution_column: distribution
+  param1_column: param1
+  param2_column: param2
+  n_simulations: 10000
+  random_state: 42
+  output_mode: statistics
+  group_name: analytics

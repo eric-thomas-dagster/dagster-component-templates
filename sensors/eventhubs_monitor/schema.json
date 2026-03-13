@@ -1,118 +1,86 @@
 {
-  "type": "dagster_component_templates.EventHubsMonitorSensorComponent",
-  "name": "Azure Event Hubs Monitor",
-  "category": "sensors",
-  "description": "Monitor an Azure Event Hub for new events and trigger jobs when events are detected",
-  "icon": "Activity",
+  "component_type": "dagster_component_templates.EventHubsMonitorSensorComponent",
+  "description": "Component for monitoring an Azure Event Hub for new events.",
+  "category": "sensor",
+  "icon": "Radar",
   "x-dagster-io": {
-    "component_type": "sensor",
-    "triggers": {
-      "type": "eventhubs",
-      "description": "Triggers when new events are detected in the monitored Event Hub partitions"
-    },
     "outputs": {
-      "type": "run_config",
-      "description": "Passes event information (eventhub_name, partition_id, sequence_number, offset, enqueued_time, body) to triggered jobs via run_config"
+      "type": "RunRequest",
+      "description": "Sensor run requests"
     }
   },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
       "label": "Sensor Name",
       "description": "Unique name for this sensor",
-      "placeholder": "eventhubs_sensor"
+      "required": true
     },
     "eventhub_name": {
       "type": "string",
-      "required": true,
-      "label": "Event Hub Name",
+      "label": "Eventhub Name",
       "description": "Name of the Event Hub to monitor",
-      "placeholder": "my-event-hub"
+      "required": true
     },
     "job_name": {
       "type": "string",
-      "required": true,
       "label": "Job Name",
       "description": "Name of the job to trigger when events are detected",
-      "placeholder": "process_events_job"
+      "required": true
     },
     "fully_qualified_namespace": {
       "type": "string",
-      "required": false,
       "label": "Fully Qualified Namespace",
-      "description": "Event Hubs namespace hostname. Required when not using a connection string.",
-      "placeholder": "mynamespace.servicebus.windows.net"
+      "description": "Event Hubs namespace hostname (e.g., ",
+      "required": false,
+      "default": null
     },
     "connection_string_env_var": {
       "type": "string",
-      "required": false,
       "label": "Connection String Env Var",
-      "description": "Name of the environment variable containing the Event Hubs connection string. If not provided, DefaultAzureCredential is used.",
-      "placeholder": "EVENTHUBS_CONNECTION_STRING"
+      "description": "Name of the environment variable containing the Event Hubs connection string. ",
+      "required": false,
+      "default": null
     },
     "consumer_group": {
       "type": "string",
-      "required": false,
       "label": "Consumer Group",
       "description": "Event Hubs consumer group name",
-      "default": "$Default",
-      "placeholder": "$Default"
+      "required": false,
+      "default": "$Default"
     },
     "max_events_per_partition": {
-      "type": "number",
-      "required": false,
+      "type": "integer",
       "label": "Max Events Per Partition",
       "description": "Maximum number of events to read per partition per evaluation",
-      "default": 100,
-      "minimum": 1,
-      "placeholder": "100"
+      "required": false,
+      "default": 100
     },
     "minimum_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum Interval Seconds",
       "required": false,
-      "label": "Minimum Interval (seconds)",
-      "description": "Minimum time between sensor evaluations",
-      "default": 30,
-      "minimum": 1,
-      "placeholder": "30"
-    },
-    "default_status": {
-      "type": "string",
-      "required": false,
-      "label": "Default Status",
-      "description": "Default status of the sensor",
-      "default": "running",
-      "enum": [
-        "running",
-        "stopped"
-      ],
-      "enumLabels": {
-        "running": "Running (sensor actively monitors)",
-        "stopped": "Stopped (sensor is paused)"
-      }
+      "default": 30
     },
     "resource_key": {
       "type": "string",
-      "required": false,
       "label": "Resource Key",
-      "description": "Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key> is used instead of creating a connection from the other fields. See README for the expected interface.",
-      "placeholder": "my_aws_resource"
+      "description": "Optional Dagster resource key providing a pre-configured client. ",
+      "required": false,
+      "default": null
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Default Status",
+      "required": false,
+      "default": "running"
     }
   },
-  "dependencies": {
-    "pip": [
-      "azure-eventhub>=5.11.0",
-      "azure-identity>=1.12.0"
-    ]
-  },
   "tags": [
-    "sensors",
+    "sensor",
     "eventhubs",
-    "azure",
-    "cloud",
-    "streaming",
-    "monitoring",
-    "automation"
+    "monitor"
   ]
 }

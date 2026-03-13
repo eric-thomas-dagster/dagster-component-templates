@@ -1,0 +1,103 @@
+{
+  "component_type": "dagster_component_templates.PreciselyResource",
+  "description": "Resource for connecting to the Precisely Connect REST API.",
+  "category": "infrastructure",
+  "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Provisioning result"
+    }
+  },
+  "attributes": {
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "description": "Host",
+      "required": true
+    },
+    "api_token": {
+      "type": "string",
+      "label": "Api Token",
+      "description": "Api Token",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Dagster asset key (e.g. ",
+      "required": true
+    },
+    "job_id": {
+      "type": "string",
+      "label": "Job Id",
+      "description": "Precisely Connect job ID. Find in Precisely UI: Jobs \u2192 Job Details \u2192 ID.",
+      "required": true
+    },
+    "host_env_var": {
+      "type": "string",
+      "label": "Host Env Var",
+      "description": "Env var with Precisely Connect host URL",
+      "required": false,
+      "default": null
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "Api Token Env Var",
+      "description": "Env var with Precisely API token",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of a PreciselyResource",
+      "required": false,
+      "default": null
+    },
+    "parameters": {
+      "type": "object",
+      "label": "Parameters",
+      "description": "Job parameters passed at runtime",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between status polls",
+      "required": false,
+      "default": 10.0
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Max seconds to wait for job completion",
+      "required": false,
+      "default": 3600
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": "precisely"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "precisely",
+    "run",
+    "asset"
+  ]
+}

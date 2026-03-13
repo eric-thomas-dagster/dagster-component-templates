@@ -1,0 +1,268 @@
+{
+  "component_type": "dagster_component_templates.PriorityScorerComponent",
+  "description": "Component for scoring ticket priority and predicting SLA breaches.",
+  "category": "analytics",
+  "icon": "BarChart2",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Analytics result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset that will hold prioritized ticket data",
+      "required": true
+    },
+    "method": {
+      "type": "string",
+      "label": "Method",
+      "description": "Method",
+      "required": false,
+      "default": "rules"
+    },
+    "llm_provider": {
+      "type": "string",
+      "label": "Llm Provider",
+      "description": "Llm Provider",
+      "required": false,
+      "default": null
+    },
+    "llm_model": {
+      "type": "string",
+      "label": "Llm Model",
+      "description": "Llm Model",
+      "required": false,
+      "default": null
+    },
+    "ml_model": {
+      "type": "string",
+      "label": "Ml Model",
+      "description": "Ml Model",
+      "required": false,
+      "default": null
+    },
+    "api_key": {
+      "type": "string",
+      "label": "Api Key",
+      "description": "API key for LLM method",
+      "required": false,
+      "default": null
+    },
+    "input_columns": {
+      "type": "string",
+      "label": "Input Columns",
+      "description": "Comma-separated list of columns to use for scoring",
+      "required": false,
+      "default": "ticket_text"
+    },
+    "priority_levels": {
+      "type": "string",
+      "label": "Priority Levels",
+      "description": "Comma-separated priority levels or ",
+      "required": false,
+      "default": "P1"
+    },
+    "sla_hours": {
+      "type": "string",
+      "label": "Sla Hours",
+      "description": "JSON dict mapping customer tier to SLA hours: {\\",
+      "required": false,
+      "default": null
+    },
+    "customer_tier_column": {
+      "type": "string",
+      "label": "Customer Tier Column",
+      "description": "Column name for customer tier (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "sentiment_score_column": {
+      "type": "string",
+      "label": "Sentiment Score Column",
+      "description": "Sentiment Score Column",
+      "required": false,
+      "default": null
+    },
+    "urgency_column": {
+      "type": "string",
+      "label": "Urgency Column",
+      "description": "Urgency Column",
+      "required": false,
+      "default": null
+    },
+    "escalation_threshold": {
+      "type": "number",
+      "label": "Escalation Threshold",
+      "description": "Escalation Threshold",
+      "required": false,
+      "default": 80.0
+    },
+    "predict_sla_breach": {
+      "type": "boolean",
+      "label": "Predict Sla Breach",
+      "description": "Predict if ticket will breach SLA",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "include_explanation": {
+      "type": "boolean",
+      "label": "Include Explanation",
+      "description": "Include explanation of priority score factors",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "tier_weights": {
+      "type": "string",
+      "label": "Tier Weights",
+      "description": "JSON dict of tier weight multipliers: {\\",
+      "required": false,
+      "default": null
+    },
+    "urgency_weights": {
+      "type": "string",
+      "label": "Urgency Weights",
+      "description": "JSON dict of urgency weight multipliers: {\\",
+      "required": false,
+      "default": null
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "description": "Batch size for processing",
+      "required": false,
+      "default": 50
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature",
+      "description": "Temperature",
+      "required": false,
+      "default": 0.0
+    },
+    "max_tokens": {
+      "type": "integer",
+      "label": "Max Tokens",
+      "description": "Max tokens for LLM response",
+      "required": false,
+      "default": 300
+    },
+    "rate_limit_delay": {
+      "type": "number",
+      "label": "Rate Limit Delay",
+      "description": "Delay in seconds between API calls",
+      "required": false,
+      "default": 0.1
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "description": "Maximum retries for failed API calls",
+      "required": false,
+      "default": 3
+    },
+    "track_costs": {
+      "type": "boolean",
+      "label": "Track Costs",
+      "description": "Track Costs",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "priority_scoring"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "analytics",
+    "priority",
+    "scorer"
+  ]
+}

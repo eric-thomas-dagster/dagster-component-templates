@@ -1,68 +1,80 @@
 {
-  "type": "dagster_component_templates.ServiceBusObservationSensorComponent",
-  "name": "Service Bus Observation Sensor",
-  "category": "sensors",
-  "description": "Emit health observations for an external Service Bus queue or topic",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.ServiceBusObservationSensorComponent",
+  "description": "ServiceBusObservationSensorComponent",
+  "category": "observation",
+  "icon": "Eye",
   "x-dagster-io": {
-    "component_type": "observation_sensor"
+    "outputs": {
+      "type": "AssetObservation",
+      "description": "Asset observation events"
+    }
   },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
-      "label": "Sensor Name"
+      "label": "Sensor Name",
+      "description": "Unique sensor name",
+      "required": true
     },
     "asset_key": {
       "type": "string",
-      "required": true,
-      "label": "Asset Key"
+      "label": "Asset Key",
+      "description": "Asset key of the ExternalServiceBusAsset to observe",
+      "required": true
     },
     "namespace": {
       "type": "string",
-      "required": true,
-      "label": "Namespace"
+      "label": "Namespace",
+      "description": "Azure Service Bus namespace",
+      "required": true
     },
     "queue_name": {
       "type": "string",
+      "label": "Queue Name",
+      "description": "Queue Name",
       "required": false,
-      "label": "Queue Name"
+      "default": null
     },
     "topic_name": {
       "type": "string",
+      "label": "Topic Name",
+      "description": "Topic name",
       "required": false,
-      "label": "Topic Name"
+      "default": null
     },
     "subscription_name": {
       "type": "string",
+      "label": "Subscription Name",
+      "description": "Subscription Name",
       "required": false,
-      "label": "Subscription Name"
+      "default": null,
+      "ui:widget": "code"
     },
     "connection_string_env_var": {
       "type": "string",
+      "label": "Connection String Env Var",
+      "description": "Env var with connection string",
       "required": false,
-      "label": "Connection String Env Var"
+      "default": null
     },
     "check_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks",
       "required": false,
-      "label": "Check Interval (s)",
       "default": 60
     },
     "resource_key": {
       "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key.",
       "required": false,
-      "label": "Resource Key"
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "azure-servicebus>=7.0.0",
-      "azure-identity>=1.10.0"
-    ]
-  },
   "tags": [
-    "sensors",
-    "observation"
+    "observation",
+    "servicebus",
+    "sensor"
   ]
 }

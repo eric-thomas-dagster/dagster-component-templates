@@ -1,0 +1,162 @@
+{
+  "component_type": "dagster_component_templates.ChromadbAssetComponent",
+  "description": "Read documents from an upstream Dagster asset (DataFrame), generate embeddings via OpenAI,",
+  "category": "analytics",
+  "icon": "BarChart2",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Analytics result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset key for this component.",
+      "required": true
+    },
+    "chroma_host": {
+      "type": "string",
+      "label": "Chroma Host",
+      "description": "Chroma Host",
+      "required": false,
+      "default": "localhost"
+    },
+    "chroma_port": {
+      "type": "integer",
+      "label": "Chroma Port",
+      "description": "Port of the ChromaDB HTTP server.",
+      "required": false,
+      "default": 8000
+    },
+    "chroma_api_key_env_var": {
+      "type": "string",
+      "label": "Chroma Api Key Env Var",
+      "description": "Chroma Api Key Env Var",
+      "required": false,
+      "default": null
+    },
+    "collection_name": {
+      "type": "string",
+      "label": "Collection Name",
+      "description": "ChromaDB collection to get-or-create and upsert documents into.",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream Asset Key",
+      "required": true
+    },
+    "id_column": {
+      "type": "string",
+      "label": "Id Column",
+      "description": "Primary key column. Values are cast to strings and used as ChromaDB document IDs.",
+      "required": true
+    },
+    "text_column": {
+      "type": "string",
+      "label": "Text Column",
+      "description": "Column containing the document text to embed.",
+      "required": true,
+      "ui:widget": "textarea"
+    },
+    "metadata_columns": {
+      "type": "string",
+      "label": "Metadata Columns",
+      "description": "Metadata Columns",
+      "required": false,
+      "default": null
+    },
+    "embedding_model": {
+      "type": "string",
+      "label": "Embedding Model",
+      "description": "OpenAI embedding model name.",
+      "required": false,
+      "default": "text-embedding-3-small"
+    },
+    "openai_api_key_env_var": {
+      "type": "string",
+      "label": "Openai Api Key Env Var",
+      "description": "Env var containing the OpenAI API key.",
+      "required": false,
+      "default": "OPENAI_API_KEY"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "description": "Number of documents sent to the OpenAI API per request.",
+      "required": false,
+      "default": 100
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": "vector_store"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "analytics",
+    "chromadb",
+    "asset"
+  ]
+}

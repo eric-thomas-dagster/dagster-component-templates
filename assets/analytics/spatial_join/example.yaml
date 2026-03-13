@@ -1,0 +1,11 @@
+component_type: spatial_join
+description: Join user events to administrative regions to enrich with region metadata.
+
+asset_name: events_joined_regions
+upstream_asset_key: events
+regions_asset_key: admin_regions
+lat_column: latitude
+lng_column: longitude
+geometry_column: geometry
+how: left
+group_name: geospatial

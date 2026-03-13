@@ -1,0 +1,9 @@
+type: dagster_component_templates.DataframeToJsonComponent
+attributes:
+  asset_name: write_events_jsonl
+  upstream_asset_key: processed_events
+  file_path: ${OUTPUT_DIR}/events.jsonl
+  orient: records
+  lines: true
+  date_format: iso
+  group_name: output

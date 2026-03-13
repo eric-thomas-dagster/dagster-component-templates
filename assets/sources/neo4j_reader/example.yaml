@@ -1,0 +1,9 @@
+type: dagster_component_templates.Neo4jReaderComponent
+attributes:
+  asset_name: neo4j_person_network
+  uri_env_var: NEO4J_URI
+  username_env_var: NEO4J_USERNAME
+  password_env_var: NEO4J_PASSWORD
+  query: "MATCH (n:Person)-[:KNOWS]->(m:Person) RETURN n.name AS person, m.name AS knows LIMIT 1000"
+  database: neo4j
+  group_name: sources

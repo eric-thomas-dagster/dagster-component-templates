@@ -1,57 +1,64 @@
 {
-  "type": "dagster_component_templates.NatsObservationSensorComponent",
-  "name": "NATS Observation Sensor",
-  "category": "sensors",
-  "description": "Emit health observations for an external NATS JetStream stream",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.NatsObservationSensorComponent",
+  "description": "NatsObservationSensorComponent",
+  "category": "observation",
+  "icon": "Eye",
   "x-dagster-io": {
-    "component_type": "observation_sensor"
+    "outputs": {
+      "type": "AssetObservation",
+      "description": "Asset observation events"
+    }
   },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
-      "label": "Sensor Name"
+      "label": "Sensor Name",
+      "description": "Unique sensor name",
+      "required": true
     },
     "asset_key": {
       "type": "string",
-      "required": true,
-      "label": "Asset Key"
+      "label": "Asset Key",
+      "description": "Asset key of the ExternalNatsAsset to observe",
+      "required": true
     },
     "servers": {
       "type": "string",
-      "required": true,
-      "label": "Servers"
+      "label": "Servers",
+      "description": "Comma-separated NATS server URLs",
+      "required": true
     },
     "stream_name": {
       "type": "string",
-      "required": true,
-      "label": "Stream Name"
+      "label": "Stream Name",
+      "description": "JetStream stream name",
+      "required": true
     },
     "credentials_env_var": {
       "type": "string",
+      "label": "Credentials Env Var",
+      "description": "Env var with path to NATS .creds file",
       "required": false,
-      "label": "Credentials Env Var"
+      "default": null
     },
     "check_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks",
       "required": false,
-      "label": "Check Interval (s)",
       "default": 300
     },
     "resource_key": {
       "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key.",
       "required": false,
-      "label": "Resource Key"
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "nats-py>=2.3.0"
-    ]
-  },
   "tags": [
-    "sensors",
-    "observation"
+    "observation",
+    "nats",
+    "sensor"
   ]
 }

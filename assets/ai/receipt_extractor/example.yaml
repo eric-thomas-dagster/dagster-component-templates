@@ -1,0 +1,32 @@
+type: dagster_component_templates.ReceiptExtractorComponent
+attributes:
+  asset_name: extracted_receipts
+  upstream_asset_key: raw_receipts
+
+  # Input column
+  input_column: "text"
+  input_type: "text"  # text | file
+
+  # LLM
+  model: "gpt-4o-mini"
+  api_key_env_var: "OPENAI_API_KEY"
+
+  # Fields to extract
+  output_fields:
+    - "merchant_name"
+    - "merchant_address"
+    - "date"
+    - "time"
+    - "items"
+    - "subtotal"
+    - "tax"
+    - "total"
+    - "payment_method"
+    - "card_last_four"
+    - "receipt_number"
+
+  # Performance
+  batch_size: 5
+
+  # Organization
+  group_name: "document_extraction"

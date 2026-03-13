@@ -1,56 +1,58 @@
 {
-  "type": "dagster_component_templates.ExternalBigQueryTableAsset",
-  "name": "External BigQuery Table",
-  "category": "external_assets",
-  "description": "Declare a BigQuery table as an observable external asset",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.ExternalBigQueryTableAsset",
+  "description": "Declare a BigQuery table as an observable external asset.",
+  "category": "external",
+  "icon": "Link",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "External asset declaration"
+    }
+  },
   "attributes": {
     "asset_key": {
       "type": "string",
-      "required": true,
       "label": "Asset Key",
-      "placeholder": "bq/analytics/orders"
+      "description": "Dagster asset key",
+      "required": true
     },
     "project_id": {
       "type": "string",
-      "required": true,
-      "label": "Project ID",
-      "placeholder": "my-gcp-project"
+      "label": "Project Id",
+      "description": "GCP project ID",
+      "required": true
     },
     "dataset_id": {
       "type": "string",
-      "required": true,
-      "label": "Dataset ID",
-      "placeholder": "analytics"
+      "label": "Dataset Id",
+      "description": "BigQuery dataset ID",
+      "required": true
     },
     "table_id": {
       "type": "string",
-      "required": true,
-      "label": "Table ID",
-      "placeholder": "orders"
+      "label": "Table Id",
+      "description": "BigQuery table ID",
+      "required": true
     },
     "group_name": {
       "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
       "required": false,
-      "label": "Group Name"
+      "default": null
     },
     "description": {
       "type": "string",
+      "label": "Description",
+      "description": "Human-readable description",
       "required": false,
-      "label": "Description"
+      "default": null,
+      "ui:widget": "code"
     }
   },
-  "dependencies": {
-    "pip": [
-      "dagster"
-    ]
-  },
   "tags": [
-    "external_assets",
+    "external",
     "bigquery",
-    "gcp",
-    "sql",
-    "table",
-    "data_warehouse"
+    "table"
   ]
 }

@@ -1,0 +1,13 @@
+type: dagster_component_templates.ChromadbReaderComponent
+attributes:
+  asset_name: chroma_results
+  collection_name: documents
+  persist_directory: ./chroma_db
+  query_texts:
+    - "machine learning tutorials"
+  n_results: 10
+  include:
+    - documents
+    - metadatas
+    - distances
+  group_name: sources

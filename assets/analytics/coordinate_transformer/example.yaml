@@ -1,0 +1,12 @@
+component_type: coordinate_transformer
+description: Reproject event coordinates from WGS84 to Web Mercator for map tile rendering.
+
+asset_name: events_web_mercator
+upstream_asset_key: events
+x_column: longitude
+y_column: latitude
+source_crs: EPSG:4326
+target_crs: EPSG:3857
+output_x_column: x_mercator
+output_y_column: y_mercator
+group_name: geospatial

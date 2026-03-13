@@ -1,0 +1,12 @@
+component_type: dagster_component_templates.DocumentMergerComponent
+
+asset_name: merged_orders_customers
+left_asset_key: cleaned_orders
+right_asset_key: cleaned_customers
+group_name: transforms
+on: customer_id
+how: left
+suffixes:
+  - "_order"
+  - "_customer"
+flatten_result: true

@@ -1,0 +1,12 @@
+type: dagster_component_templates.RankComponent
+attributes:
+  asset_name: products_ranked_by_revenue
+  upstream_asset_key: product_sales
+  column: total_revenue
+  method: dense
+  ascending: false
+  group_by:
+    - category
+  output_column: revenue_rank
+  normalize: false
+  group_name: analytics

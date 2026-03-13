@@ -1,102 +1,72 @@
 {
-  "type": "dagster_component_templates.PubSubMonitorSensorComponent",
-  "name": "Google Pub/Sub Monitor",
-  "category": "sensors",
-  "description": "Pull messages from a Google Cloud Pub/Sub subscription and trigger jobs when messages are received",
-  "icon": "MessageSquare",
+  "component_type": "dagster_component_templates.PubSubMonitorSensorComponent",
+  "description": "Component for pulling messages from a Google Cloud Pub/Sub subscription.",
+  "category": "sensor",
+  "icon": "Radar",
   "x-dagster-io": {
-    "component_type": "sensor",
-    "triggers": {
-      "type": "pubsub",
-      "description": "Triggers when messages are pulled from the Pub/Sub subscription"
-    },
     "outputs": {
-      "type": "run_config",
-      "description": "Passes message information (message_id, data, attributes, publish_time) to triggered jobs via run_config"
+      "type": "RunRequest",
+      "description": "Sensor run requests"
     }
   },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
       "label": "Sensor Name",
       "description": "Unique name for this sensor",
-      "placeholder": "pubsub_events_sensor"
+      "required": true
     },
     "project": {
       "type": "string",
-      "required": true,
-      "label": "GCP Project ID",
-      "description": "Google Cloud project ID",
-      "placeholder": "my-gcp-project"
+      "label": "Project",
+      "description": "GCP project ID",
+      "required": true
     },
     "subscription": {
       "type": "string",
+      "label": "Subscription",
+      "description": "Subscription",
       "required": true,
-      "label": "Subscription Name",
-      "description": "Pub/Sub subscription name (short name, not full resource path)",
-      "placeholder": "my-subscription"
+      "ui:widget": "code"
     },
     "job_name": {
       "type": "string",
-      "required": true,
       "label": "Job Name",
       "description": "Name of the job to trigger when messages are received",
-      "placeholder": "process_pubsub_messages_job"
+      "required": true
     },
     "minimum_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum Interval Seconds",
       "required": false,
-      "label": "Minimum Interval (seconds)",
-      "description": "Minimum time between sensor evaluations",
-      "default": 30,
-      "minimum": 1,
-      "placeholder": "30"
+      "default": 30
     },
     "max_messages_per_pull": {
-      "type": "number",
-      "required": false,
+      "type": "integer",
       "label": "Max Messages Per Pull",
       "description": "Maximum number of messages to pull per evaluation",
-      "default": 100,
-      "minimum": 1,
-      "placeholder": "100"
-    },
-    "default_status": {
-      "type": "string",
       "required": false,
-      "label": "Default Status",
-      "description": "Default status of the sensor",
-      "default": "running",
-      "enum": [
-        "running",
-        "stopped"
-      ],
-      "enumLabels": {
-        "running": "Running (sensor actively monitors)",
-        "stopped": "Stopped (sensor is paused)"
-      }
+      "default": 100
     },
     "resource_key": {
       "type": "string",
-      "required": false,
       "label": "Resource Key",
-      "description": "Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key> is used instead of creating a connection from the other fields. See README for the expected interface.",
-      "placeholder": "my_aws_resource"
+      "description": "Optional Dagster resource key providing a pre-configured client. ",
+      "required": false,
+      "default": null
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Default Status",
+      "required": false,
+      "default": "running"
     }
   },
-  "dependencies": {
-    "pip": [
-      "google-cloud-pubsub>=2.0.0"
-    ]
-  },
   "tags": [
-    "sensors",
+    "sensor",
     "pubsub",
-    "gcp",
-    "google",
-    "cloud",
-    "messaging",
-    "automation"
+    "monitor"
   ]
 }

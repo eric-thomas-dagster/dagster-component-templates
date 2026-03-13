@@ -1,0 +1,42 @@
+type: dagster_component_templates.LitellmFunctionCallingComponent
+attributes:
+  asset_name: routed_user_queries
+  upstream_asset_key: raw_user_queries
+  text_column: query_text
+  output_column: tool_calls
+  model: gpt-4o-mini
+  system_prompt: "You are a helpful assistant. Use the available tools to respond to user requests."
+  tools:
+    - type: function
+      function:
+        name: search_products
+        description: Search the product catalog
+        parameters:
+          type: object
+          properties:
+            query:
+              type: string
+              description: Search query
+            category:
+              type: string
+              description: Product category filter
+            limit:
+              type: integer
+              description: Maximum number of results
+              default: 10
+          required:
+            - query
+    - type: function
+      function:
+        name: get_order_status
+        description: Get the status of an order
+        parameters:
+          type: object
+          properties:
+            order_id:
+              type: string
+              description: The order ID
+          required:
+            - order_id
+  api_key_env_var: OPENAI_API_KEY
+  group_name: ai_routing

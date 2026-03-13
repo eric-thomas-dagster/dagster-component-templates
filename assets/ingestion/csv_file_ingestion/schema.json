@@ -1,0 +1,126 @@
+{
+  "component_type": "dagster_component_templates.CSVFileIngestionComponent",
+  "description": "Component for ingesting CSV files into Dagster assets.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "required": true
+    },
+    "file_path": {
+      "type": "string",
+      "label": "File Path",
+      "description": "Path to the CSV file to ingest",
+      "required": true,
+      "ui:widget": "file"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description of the asset",
+      "required": false,
+      "default": "",
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name for organization",
+      "required": false,
+      "default": ""
+    },
+    "delimiter": {
+      "type": "string",
+      "label": "Delimiter",
+      "description": "CSV delimiter character",
+      "required": false,
+      "default": ""
+    },
+    "encoding": {
+      "type": "string",
+      "label": "Encoding",
+      "description": "File encoding",
+      "required": false,
+      "default": "utf-8"
+    },
+    "skip_rows": {
+      "type": "integer",
+      "label": "Skip Rows",
+      "description": "Number of rows to skip at the start",
+      "required": false,
+      "default": 0
+    },
+    "header_row": {
+      "type": "integer",
+      "label": "Header Row",
+      "description": "Header Row",
+      "required": false,
+      "default": 0
+    },
+    "columns_to_read": {
+      "type": "string",
+      "label": "Columns To Read",
+      "description": "Columns To Read",
+      "required": false,
+      "default": ""
+    },
+    "dtype_mapping": {
+      "type": "string",
+      "label": "Dtype Mapping",
+      "description": "Column type mappings as JSON string, e.g. {\\",
+      "required": false,
+      "default": ""
+    },
+    "parse_dates": {
+      "type": "string",
+      "label": "Parse Dates",
+      "description": "Comma-separated list of columns to parse as dates",
+      "required": false,
+      "default": ""
+    },
+    "cache_to_parquet": {
+      "type": "boolean",
+      "label": "Cache To Parquet",
+      "description": "Whether to cache the data to a parquet file for better performance",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "parquet_path": {
+      "type": "string",
+      "label": "Parquet Path",
+      "description": "Parquet Path",
+      "required": false,
+      "default": ""
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "label": "Include Sample Metadata",
+      "description": "Include Sample Metadata",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "csv",
+    "file"
+  ]
+}

@@ -1,0 +1,11 @@
+type: dagster_component_templates.SortComponent
+attributes:
+  asset_name: orders_sorted
+  upstream_asset_key: raw_orders
+  by:
+    - order_date
+    - total_amount
+  ascending: false
+  na_position: last
+  reset_index: true
+  group_name: order_processing

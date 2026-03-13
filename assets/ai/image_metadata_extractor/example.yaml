@@ -1,0 +1,20 @@
+type: dagster_component_templates.ImageMetadataExtractorComponent
+attributes:
+  asset_name: image_metadata
+  upstream_asset_key: raw_images
+
+  # Input
+  image_column: "file_path"
+
+  # EXIF & GPS extraction
+  extract_exif: true
+  extract_gps: true
+
+  # Output column prefix (produces: img_width, img_height, img_format, etc.)
+  output_prefix: "img_"
+
+  # Optional histogram column
+  include_histogram: false
+
+  # Organization
+  group_name: "vision"

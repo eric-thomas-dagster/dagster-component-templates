@@ -1,0 +1,20 @@
+type: dagster_component_templates.LitellmStructuredOutputComponent
+attributes:
+  asset_name: extracted_contact_info
+  upstream_asset_key: raw_emails
+  text_column: email_body
+  schema_definition:
+    name:
+      type: string
+    company:
+      type: string
+    phone:
+      type: string
+    request_type:
+      type: string
+  model: gpt-4o-mini
+  prompt_prefix: "Extract contact information and request type from this email."
+  output_prefix: "extracted_"
+  on_error: "null"
+  api_key_env_var: OPENAI_API_KEY
+  group_name: ai_extraction

@@ -1,0 +1,13 @@
+type: dagster_component_templates.FirestoreReaderComponent
+attributes:
+  asset_name: firestore_active_users
+  collection: users
+  project_id_env_var: GCP_PROJECT_ID
+  credentials_env_var: GOOGLE_APPLICATION_CREDENTIALS
+  filters:
+    - field: active
+      op: "=="
+      value: true
+  order_by: created_at
+  limit: 500
+  group_name: sources

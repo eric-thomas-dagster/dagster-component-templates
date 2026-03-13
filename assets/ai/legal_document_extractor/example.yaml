@@ -1,0 +1,32 @@
+type: dagster_component_templates.LegalDocumentExtractorComponent
+attributes:
+  asset_name: extracted_legal_documents
+  upstream_asset_key: raw_legal_documents
+
+  # Input column
+  input_column: "text"
+  input_type: "text"  # text | file
+
+  # LLM
+  model: "gpt-4o-mini"
+  api_key_env_var: "OPENAI_API_KEY"
+
+  # Fields to extract
+  output_fields:
+    - "document_type"
+    - "jurisdiction"
+    - "court"
+    - "case_number"
+    - "parties"
+    - "filing_date"
+    - "key_dates"
+    - "relief_sought"
+    - "defined_terms"
+    - "obligations"
+    - "penalties"
+
+  # Performance
+  batch_size: 5
+
+  # Organization
+  group_name: "document_extraction"

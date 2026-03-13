@@ -1,8 +1,94 @@
 {
-  "type": "dagster_component_templates.clickhouse_table_observation_sensor",
-  "name": "ClickHouse Table Observation Sensor",
-  "category": "observations",
-  "description": "Periodically queries ClickHouse system tables and emits AssetObservation events with row count, disk size, active parts, and engine type.",
-  "dependencies": {"pip": ["clickhouse-connect>=0.6.0"]},
-  "tags": ["clickhouse", "observation", "sensor", "monitoring"]
+  "component_type": "dagster_component_templates.ClickHouseTableObservationSensorComponent",
+  "description": "Emit health observations for an external ClickHouse table.",
+  "category": "observation",
+  "icon": "Eye",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetObservation",
+      "description": "Asset observation events"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique sensor name",
+      "required": true
+    },
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Asset key of the external ClickHouse table to observe",
+      "required": true
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "description": "ClickHouse database name",
+      "required": true
+    },
+    "table": {
+      "type": "string",
+      "label": "Table",
+      "description": "ClickHouse table name",
+      "required": true
+    },
+    "host_env_var": {
+      "type": "string",
+      "label": "Host Env Var",
+      "description": "Env var with ClickHouse host",
+      "required": false,
+      "default": null
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "description": "ClickHouse port",
+      "required": false,
+      "default": 8443
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var with ClickHouse username",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var with ClickHouse password",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of a ClickHouseResource. When set, env var fields are ignored.",
+      "required": false,
+      "default": null
+    },
+    "check_interval_seconds": {
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between observations",
+      "required": false,
+      "default": 300
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "running or stopped",
+      "required": false,
+      "default": "running"
+    }
+  },
+  "tags": [
+    "observation",
+    "clickhouse",
+    "table",
+    "sensor"
+  ]
 }

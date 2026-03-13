@@ -1,0 +1,7 @@
+type: dagster_component_templates.DynamodbReaderComponent
+attributes:
+  asset_name: dynamo_orders
+  table_name: orders
+  aws_region: us-east-1
+  limit: 1000
+  group_name: sources

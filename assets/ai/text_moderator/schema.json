@@ -1,0 +1,239 @@
+{
+  "component_type": "dagster_component_templates.TextModeratorComponent",
+  "description": "Component for content moderation and safety detection.",
+  "category": "ai",
+  "icon": "Sparkles",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Enriched DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset that will hold moderated content",
+      "required": true
+    },
+    "method": {
+      "type": "string",
+      "label": "Method",
+      "description": "Moderation method: openai_moderation, perspective_api, transformer, or llm",
+      "required": false,
+      "default": "openai_moderation"
+    },
+    "llm_provider": {
+      "type": "string",
+      "label": "Llm Provider",
+      "description": "Llm Provider",
+      "required": false,
+      "default": null
+    },
+    "llm_model": {
+      "type": "string",
+      "label": "Llm Model",
+      "description": "Llm Model",
+      "required": false,
+      "default": null
+    },
+    "transformer_model": {
+      "type": "string",
+      "label": "Transformer Model",
+      "description": "Transformer Model",
+      "required": false,
+      "default": null
+    },
+    "api_key": {
+      "type": "string",
+      "label": "Api Key",
+      "description": "API key for OpenAI, Anthropic, or Perspective API",
+      "required": false,
+      "default": null
+    },
+    "input_column": {
+      "type": "string",
+      "label": "Input Column",
+      "description": "Column name containing text to moderate",
+      "required": false,
+      "default": "text"
+    },
+    "categories": {
+      "type": "string",
+      "label": "Categories",
+      "description": "Comma-separated moderation categories to check",
+      "required": false,
+      "default": "toxicity"
+    },
+    "threshold": {
+      "type": "number",
+      "label": "Threshold",
+      "description": "Threshold",
+      "required": false,
+      "default": 0.7
+    },
+    "redact_pii": {
+      "type": "boolean",
+      "label": "Redact Pii",
+      "description": "Redact/mask detected PII in output",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "include_scores": {
+      "type": "boolean",
+      "label": "Include Scores",
+      "description": "Include confidence scores for each category",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "flag_column": {
+      "type": "string",
+      "label": "Flag Column",
+      "description": "Flag Column",
+      "required": false,
+      "default": "flagged"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "description": "Batch size for processing",
+      "required": false,
+      "default": 32
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature",
+      "description": "Temperature",
+      "required": false,
+      "default": 0.0
+    },
+    "max_tokens": {
+      "type": "integer",
+      "label": "Max Tokens",
+      "description": "Max tokens for LLM response",
+      "required": false,
+      "default": 300
+    },
+    "rate_limit_delay": {
+      "type": "number",
+      "label": "Rate Limit Delay",
+      "description": "Delay in seconds between API calls",
+      "required": false,
+      "default": 0.1
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "description": "Maximum retries for failed API calls",
+      "required": false,
+      "default": 3
+    },
+    "track_costs": {
+      "type": "boolean",
+      "label": "Track Costs",
+      "description": "Track Costs",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "custom_profanity_list": {
+      "type": "string",
+      "label": "Custom Profanity List",
+      "description": "Comma-separated list of custom profanity words to detect",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "content_moderation"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame with text to moderate",
+      "required": true
+    }
+  },
+  "tags": [
+    "ai",
+    "text",
+    "moderator"
+  ]
+}

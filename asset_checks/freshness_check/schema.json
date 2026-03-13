@@ -1,72 +1,59 @@
 {
-  "type": "dagster_component_templates.FreshnessPolicyComponent",
-  "name": "Freshness Policy",
-  "category": "asset_checks",
-  "description": "Attach a Dagster FreshnessPolicy to an asset for continuous SLA monitoring",
+  "component_type": "dagster_component_templates.FreshnessPolicyComponent",
+  "description": "Attach a Dagster FreshnessPolicy to an asset for continuous SLA monitoring.",
+  "category": "check",
   "icon": "CheckCircle",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetCheckResult",
+      "description": "Asset check result"
+    }
+  },
   "attributes": {
     "asset_key": {
       "type": "string",
-      "required": true,
       "label": "Asset Key",
-      "placeholder": "warehouse/orders"
-    },
-    "policy_type": {
-      "type": "string",
-      "required": false,
-      "label": "Policy Type",
-      "default": "time_window",
-      "enum": ["time_window", "cron"]
+      "description": "Asset key to attach the freshness policy to (e.g. ",
+      "required": true
     },
     "fail_window_hours": {
       "type": "number",
+      "label": "Fail Window Hours",
+      "description": "[time_window] Hours after which the asset is considered stale and the check fails. Must exceed 1 minute.",
       "required": false,
-      "label": "Fail Window (hours)",
-      "placeholder": "25",
-      "minimum": 0.017,
-      "description": "[time_window] Hours after which the asset is stale and fails"
+      "default": null
     },
     "warn_window_hours": {
       "type": "number",
+      "label": "Warn Window Hours",
+      "description": "[time_window] Hours after which a warning is raised. Must be shorter than fail_window_hours.",
       "required": false,
-      "label": "Warn Window (hours)",
-      "placeholder": "13",
-      "minimum": 0.017,
-      "description": "[time_window] Hours after which a warning is raised"
+      "default": null
     },
     "deadline_cron": {
       "type": "string",
-      "required": false,
       "label": "Deadline Cron",
-      "placeholder": "0 10 * * *",
-      "description": "[cron] Cron expression for the materialization deadline"
+      "description": "[cron] Cron expression for the materialization deadline (e.g. ",
+      "required": false,
+      "default": null
     },
     "lower_bound_delta_hours": {
       "type": "number",
+      "label": "Lower Bound Delta Hours",
+      "description": "[cron] How many hours before the deadline the materialization window opens.",
       "required": false,
-      "label": "Lower Bound Delta (hours)",
-      "placeholder": "1",
-      "minimum": 0,
-      "description": "[cron] Hours before deadline when the materialization window opens"
+      "default": null
     },
     "timezone": {
       "type": "string",
-      "required": false,
       "label": "Timezone",
-      "placeholder": "America/New_York",
-      "description": "[cron] Timezone for the cron expression. Defaults to UTC."
+      "description": "[cron] Timezone for the cron expression (e.g. ",
+      "required": false,
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "dagster"
-    ]
-  },
   "tags": [
-    "asset_checks",
-    "freshness",
-    "sla",
-    "data_quality",
-    "observability"
+    "check",
+    "freshness"
   ]
 }

@@ -1,201 +1,195 @@
 {
-  "type": "dagster_component_templates.SnowflakeWorkspaceComponent",
-  "name": "Snowflake Workspace",
-  "category": "orchestration",
-  "description": "Import Snowflake tasks, stored procedures, dynamic tables, materialized views, streams, Snowpipes, stages, external tables, alerts, and OpenFlow flows as Dagster assets. Comprehensive orchestration and observation for your entire Snowflake workspace.",
-  "version": "1.0.0",
-  "author": "Dagster Community",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.SnowflakeWorkspaceComponent",
+  "description": "Component for importing Snowflake workspace entities as Dagster assets.",
+  "category": "integration",
+  "icon": "Plug",
   "x-dagster-io": {
-    "inputs": {
-      "type": "none",
-      "required": false
-    },
     "outputs": {
-      "type": "multiple",
-      "description": "Generates assets for each discovered Snowflake entity"
-    },
-    "supports_partitions": false
+      "type": "MaterializeResult",
+      "description": "Integration result"
+    }
   },
   "attributes": {
     "account": {
       "type": "string",
-      "required": true,
-      "label": "Account Identifier",
-      "description": "Snowflake account identifier (e.g., xy12345.us-east-1)",
-      "placeholder": "xy12345.us-east-1"
+      "label": "Account",
+      "description": "Account",
+      "required": true
     },
     "user": {
       "type": "string",
-      "required": true,
-      "label": "Username",
+      "label": "User",
       "description": "Snowflake username",
-      "placeholder": "dagster_user"
+      "required": true
     },
     "password": {
       "type": "string",
-      "required": true,
       "label": "Password",
       "description": "Snowflake password",
-      "placeholder": "{{ env('SNOWFLAKE_PASSWORD') }}",
-      "secret": true
+      "required": true,
+      "ui:widget": "password"
     },
     "warehouse": {
       "type": "string",
-      "required": true,
       "label": "Warehouse",
       "description": "Snowflake warehouse to use for queries",
-      "placeholder": "COMPUTE_WH"
+      "required": true
     },
     "database": {
       "type": "string",
-      "required": true,
       "label": "Database",
       "description": "Snowflake database to connect to",
-      "placeholder": "ANALYTICS"
+      "required": true
     },
     "schema": {
       "type": "string",
-      "required": false,
       "label": "Schema",
       "description": "Snowflake schema to use",
-      "default": "PUBLIC",
-      "placeholder": "PUBLIC"
+      "required": false,
+      "default": "PUBLIC"
     },
     "role": {
       "type": "string",
-      "required": false,
       "label": "Role",
-      "description": "Snowflake role to use (optional)",
-      "placeholder": "ACCOUNTADMIN"
+      "description": "Role",
+      "required": false,
+      "default": null
     },
     "import_tasks": {
       "type": "boolean",
-      "required": false,
       "label": "Import Tasks",
       "description": "Import Snowflake tasks as materializable assets",
-      "default": true
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
     },
     "import_stored_procedures": {
       "type": "boolean",
-      "required": false,
       "label": "Import Stored Procedures",
       "description": "Import stored procedures as materializable assets",
-      "default": false
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
     },
     "import_dynamic_tables": {
       "type": "boolean",
-      "required": false,
       "label": "Import Dynamic Tables",
-      "description": "Import dynamic tables as materializable assets (trigger manual refreshes)",
-      "default": false
+      "description": "Import dynamic tables as observable assets",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
     },
     "import_streams": {
       "type": "boolean",
-      "required": false,
       "label": "Import Streams",
       "description": "Import streams as observable assets",
-      "default": false
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
     },
     "import_snowpipes": {
       "type": "boolean",
-      "required": false,
       "label": "Import Snowpipes",
-      "description": "Import Snowpipe continuous ingestion pipes as materializable assets (trigger refresh)",
-      "default": false
+      "description": "Import Snowpipe continuous ingestion pipes as materializable assets",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
     },
     "import_stages": {
       "type": "boolean",
-      "required": false,
       "label": "Import Stages",
-      "description": "Import internal and external stages as observable assets (monitor files)",
-      "default": false
+      "description": "Import internal and external stages as observable assets",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
     },
     "import_materialized_views": {
       "type": "boolean",
-      "required": false,
       "label": "Import Materialized Views",
-      "description": "Import materialized views as materializable assets (trigger refresh via SUSPEND/RESUME)",
-      "default": false
+      "description": "Import Materialized Views",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
     },
     "import_external_tables": {
       "type": "boolean",
-      "required": false,
       "label": "Import External Tables",
-      "description": "Import external tables as materializable assets (refresh metadata from external sources)",
-      "default": false
+      "description": "Import External Tables",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
     },
     "import_alerts": {
       "type": "boolean",
-      "required": false,
       "label": "Import Alerts",
-      "description": "Import Snowflake alerts as observable assets (monitor alert history and status)",
-      "default": false
+      "description": "Import Alerts",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
     },
     "import_openflow_flows": {
       "type": "boolean",
+      "label": "Import Openflow Flows",
+      "description": "Import Openflow Flows",
       "required": false,
-      "label": "Import OpenFlow Flows",
-      "description": "Import OpenFlow data integration flows as observable assets (monitor via telemetry)",
-      "default": false
+      "default": false,
+      "ui:widget": "checkbox"
     },
     "filter_by_name_pattern": {
       "type": "string",
+      "label": "Filter By Name Pattern",
+      "description": "Regex pattern to filter entities by name",
       "required": false,
-      "label": "Filter by Name Pattern",
-      "description": "Regex pattern to filter entities by name (e.g., '^PROD_' for names starting with 'PROD_')",
-      "placeholder": "^PROD_.*"
+      "default": null
     },
     "exclude_name_pattern": {
       "type": "string",
-      "required": false,
       "label": "Exclude Name Pattern",
-      "description": "Regex pattern to exclude entities by name (e.g., 'TEST|DEV' to exclude test and dev entities)",
-      "placeholder": "TEST|DEV|STAGING"
+      "description": "Regex pattern to exclude entities by name",
+      "required": false,
+      "default": null
     },
     "task_filter_by_state": {
       "type": "string",
+      "label": "Task Filter By State",
+      "description": "Task Filter By State",
       "required": false,
-      "label": "Task State Filter",
-      "description": "Filter tasks by state (STARTED, SUSPENDED). Leave empty to import all tasks.",
-      "placeholder": "STARTED"
+      "default": null
     },
     "poll_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "description": "Poll Interval Seconds",
       "required": false,
-      "label": "Sensor Poll Interval",
-      "description": "How often (in seconds) the sensor should check for completed runs",
-      "default": 60,
-      "minimum": 10
+      "default": 60
     },
     "generate_sensor": {
       "type": "boolean",
+      "label": "Generate Sensor",
+      "description": "Create a sensor to observe task runs and dynamic table refreshes",
       "required": false,
-      "label": "Generate Observation Sensor",
-      "description": "Create a sensor to observe task runs, dynamic table refreshes, and Snowpipe loads",
-      "default": true
+      "default": true,
+      "ui:widget": "checkbox"
     },
     "group_name": {
       "type": "string",
-      "required": false,
-      "label": "Asset Group",
+      "label": "Group Name",
       "description": "Group name for all imported assets",
-      "default": "snowflake",
-      "placeholder": "snowflake"
+      "required": false,
+      "default": "snowflake"
     },
     "description": {
       "type": "string",
-      "required": false,
       "label": "Description",
       "description": "Description for the Snowflake workspace component",
-      "placeholder": "Production Snowflake workspace assets"
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
     }
   },
-  "dependencies": {
-    "pip": [
-      "snowflake-connector-python>=3.0.0",
-      "dagster>=1.6.0"
-    ]
-  },
-  "tags": ["orchestration", "snowflake", "data-warehouse", "tasks", "stored-procedures", "snowpipe", "ingestion", "observation", "openflow", "alerts", "materialized-views"]
+  "tags": [
+    "integration",
+    "snowflake",
+    "workspace"
+  ]
 }

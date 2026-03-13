@@ -1,0 +1,19 @@
+{
+  "component_type": "dagster_component_templates.TerraformCloudAssetComponent",
+  "description": "HCP Terraform (Terraform Cloud) asset component.",
+  "category": "infrastructure",
+  "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Provisioning result"
+    }
+  },
+  "attributes": {},
+  "tags": [
+    "infrastructure",
+    "terraform",
+    "cloud",
+    "asset"
+  ]
+}

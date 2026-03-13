@@ -1,52 +1,57 @@
 {
-  "type": "dagster_component_templates.KafkaObservationSensorComponent",
-  "name": "Kafka Observation Sensor",
-  "category": "sensors",
-  "description": "Emit health observations for an external Kafka asset",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.KafkaObservationSensorComponent",
+  "description": "KafkaObservationSensorComponent",
+  "category": "observation",
+  "icon": "Eye",
   "x-dagster-io": {
-    "component_type": "observation_sensor"
+    "outputs": {
+      "type": "AssetObservation",
+      "description": "Asset observation events"
+    }
   },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
-      "label": "Sensor Name"
+      "label": "Sensor Name",
+      "description": "Unique sensor name",
+      "required": true
     },
     "asset_key": {
       "type": "string",
-      "required": true,
-      "label": "Asset Key"
+      "label": "Asset Key",
+      "description": "Asset key of the ExternalKafkaAsset to observe",
+      "required": true
     },
     "bootstrap_servers": {
       "type": "string",
-      "required": true,
-      "label": "Bootstrap Servers"
+      "label": "Bootstrap Servers",
+      "description": "Comma-separated Kafka broker addresses",
+      "required": true
     },
     "topic": {
       "type": "string",
-      "required": true,
-      "label": "Topic"
+      "label": "Topic",
+      "description": "Kafka topic name",
+      "required": true
     },
     "check_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks",
       "required": false,
-      "label": "Check Interval (s)",
       "default": 300
     },
     "resource_key": {
       "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key.",
       "required": false,
-      "label": "Resource Key"
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "kafka-python>=2.0.0"
-    ]
-  },
   "tags": [
-    "sensors",
-    "observation"
+    "observation",
+    "kafka",
+    "sensor"
   ]
 }

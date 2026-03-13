@@ -1,31 +1,115 @@
 {
-  "type": "dagster_component_templates.AWSKinesisComponent",
-  "name": "AWS Kinesis",
-  "category": "streaming",
-  "description": "Import AWS Kinesis Firehose delivery streams and Data Analytics applications for real-time data delivery and stream processing.",
-  "version": "1.0.0",
-  "author": "Dagster Community",
-  "icon": "Activity",
+  "component_type": "dagster_component_templates.AWSKinesisComponent",
+  "description": "Component for importing AWS Kinesis entities as Dagster assets.",
+  "category": "integration",
+  "icon": "Plug",
   "x-dagster-io": {
-    "inputs": {"type": "none", "required": false},
-    "outputs": {"type": "multiple", "description": "Generates assets for each Kinesis entity"},
-    "supports_partitions": false
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Integration result"
+    }
   },
   "attributes": {
-    "aws_region": {"type": "string", "required": true, "label": "AWS Region", "description": "AWS region", "placeholder": "us-east-1"},
-    "aws_access_key_id": {"type": "string", "required": false, "label": "Access Key ID", "description": "AWS access key ID (optional if using IAM role)", "placeholder": "{{ env('AWS_ACCESS_KEY_ID') }}", "secret": true},
-    "aws_secret_access_key": {"type": "string", "required": false, "label": "Secret Access Key", "description": "AWS secret access key (optional if using IAM role)", "placeholder": "{{ env('AWS_SECRET_ACCESS_KEY') }}", "secret": true},
-    "aws_session_token": {"type": "string", "required": false, "label": "Session Token", "description": "AWS session token for temporary credentials (optional)", "placeholder": "{{ env('AWS_SESSION_TOKEN') }}", "secret": true},
-    "import_firehose_streams": {"type": "boolean", "required": false, "label": "Import Firehose Streams", "description": "Import Firehose delivery streams as materializable assets", "default": true},
-    "import_analytics_applications": {"type": "boolean", "required": false, "label": "Import Analytics Applications", "description": "Import Data Analytics applications as materializable assets", "default": true},
-    "filter_by_name_pattern": {"type": "string", "required": false, "label": "Filter by Name Pattern", "description": "Regex pattern to filter entities", "placeholder": "^prod_.*"},
-    "exclude_name_pattern": {"type": "string", "required": false, "label": "Exclude Name Pattern", "description": "Regex pattern to exclude entities", "placeholder": "test|dev"},
-    "filter_by_tags": {"type": "string", "required": false, "label": "Filter by Tags", "description": "Comma-separated tag keys to filter entities", "placeholder": "env,team"},
-    "poll_interval_seconds": {"type": "number", "required": false, "label": "Sensor Poll Interval", "description": "Sensor poll interval in seconds", "default": 60, "minimum": 10},
-    "generate_sensor": {"type": "boolean", "required": false, "label": "Generate Observation Sensor", "description": "Create sensor to observe delivery streams and analytics applications", "default": true},
-    "group_name": {"type": "string", "required": false, "label": "Asset Group", "description": "Group name for all imported assets", "default": "aws_kinesis"},
-    "description": {"type": "string", "required": false, "label": "Description", "description": "Description for the AWS Kinesis component"}
+    "aws_region": {
+      "type": "string",
+      "label": "Aws Region",
+      "description": "AWS region",
+      "required": true
+    },
+    "aws_access_key_id": {
+      "type": "string",
+      "label": "Aws Access Key Id",
+      "description": "Aws Access Key Id",
+      "required": false,
+      "default": null
+    },
+    "aws_secret_access_key": {
+      "type": "string",
+      "label": "Aws Secret Access Key",
+      "description": "Aws Secret Access Key",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "aws_session_token": {
+      "type": "string",
+      "label": "Aws Session Token",
+      "description": "Aws Session Token",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "import_firehose_streams": {
+      "type": "boolean",
+      "label": "Import Firehose Streams",
+      "description": "Import Firehose delivery streams as materializable assets",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "import_analytics_applications": {
+      "type": "boolean",
+      "label": "Import Analytics Applications",
+      "description": "Import Data Analytics applications as materializable assets",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "filter_by_name_pattern": {
+      "type": "string",
+      "label": "Filter By Name Pattern",
+      "description": "Regex pattern to filter entities by name",
+      "required": false,
+      "default": null
+    },
+    "exclude_name_pattern": {
+      "type": "string",
+      "label": "Exclude Name Pattern",
+      "description": "Regex pattern to exclude entities by name",
+      "required": false,
+      "default": null
+    },
+    "filter_by_tags": {
+      "type": "string",
+      "label": "Filter By Tags",
+      "description": "Comma-separated tag keys to filter entities (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "description": "Sensor poll interval in seconds",
+      "required": false,
+      "default": 60
+    },
+    "generate_sensor": {
+      "type": "boolean",
+      "label": "Generate Sensor",
+      "description": "Generate observation sensor for delivery streams and applications",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name for all imported assets",
+      "required": false,
+      "default": "aws_kinesis"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description for the AWS Kinesis component",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    }
   },
-  "dependencies": {"pip": ["boto3>=1.28.0", "dagster>=1.6.0"]},
-  "tags": ["streaming", "aws", "kinesis", "firehose", "analytics", "real-time"]
+  "tags": [
+    "integration",
+    "aws",
+    "kinesis"
+  ]
 }

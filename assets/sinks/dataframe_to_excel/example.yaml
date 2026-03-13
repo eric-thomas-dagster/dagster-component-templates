@@ -1,0 +1,16 @@
+type: dagster_component_templates.DataframeToExcelComponent
+attributes:
+  asset_name: write_quarterly_report_excel
+  upstream_asset_key: quarterly_summary
+  file_path: ${OUTPUT_DIR}/quarterly_report.xlsx
+  sheet_name: Summary
+  include_index: false
+  columns:
+    - quarter
+    - revenue
+    - expenses
+    - profit
+  freeze_panes:
+    - 1
+    - 0
+  group_name: output

@@ -1,0 +1,11 @@
+type: dagster_component_templates.FormulaComponent
+attributes:
+  asset_name: orders_with_metrics
+  upstream_asset_key: raw_orders
+  expressions:
+    total_revenue: "price * quantity"
+    margin_pct: "(revenue - cost) / revenue * 100"
+    discount_amount: "list_price - price"
+  drop_source_columns:
+    - list_price
+  group_name: calculations

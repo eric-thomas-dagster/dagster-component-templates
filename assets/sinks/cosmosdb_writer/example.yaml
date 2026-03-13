@@ -1,0 +1,10 @@
+type: dagster_component_templates.CosmosdbWriterComponent
+attributes:
+  asset_name: write_orders_to_cosmos
+  upstream_asset_key: processed_orders
+  endpoint_env_var: COSMOS_ENDPOINT
+  key_env_var: COSMOS_KEY
+  database: ecommerce
+  container: orders
+  if_exists: upsert
+  group_name: sinks

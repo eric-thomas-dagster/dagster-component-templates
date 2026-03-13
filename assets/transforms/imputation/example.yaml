@@ -1,0 +1,11 @@
+type: dagster_component_templates.ImputationComponent
+attributes:
+  asset_name: imputed_sensor_readings
+  upstream_asset_key: raw_sensor_readings
+  strategy: forward_fill
+  columns:
+    - temperature
+    - humidity
+    - pressure
+  limit: 3
+  group_name: data_quality

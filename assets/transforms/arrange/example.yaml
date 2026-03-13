@@ -1,0 +1,16 @@
+type: dagster_component_templates.ArrangeComponent
+attributes:
+  asset_name: orders_arranged
+  upstream_asset_key: raw_orders
+  move_to_front:
+    - order_id
+    - customer_id
+    - order_date
+  move_to_back:
+    - internal_flag
+    - created_at
+    - updated_at
+  rename:
+    order_date: date
+    customer_id: cust_id
+  group_name: order_processing

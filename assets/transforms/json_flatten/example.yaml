@@ -1,0 +1,9 @@
+component_type: dagster_component_templates.JsonFlattenComponent
+
+asset_name: flattened_users
+upstream_asset_key: raw_users
+group_name: transforms
+column: address
+separator: "."
+max_depth: 3
+drop_original: true

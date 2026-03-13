@@ -53,7 +53,6 @@ type: dagster_component_templates.RedisStreamObservationSensorComponent
 attributes:
   sensor_name: redis_stream_asset_observer
   asset_key: external/redis_stream
-  asset_key: external/redis_stream
   stream_name: my_stream
 ```
 

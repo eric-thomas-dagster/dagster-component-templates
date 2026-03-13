@@ -1,0 +1,27 @@
+type: dagster_component_templates.ImageLlmExtractorComponent
+attributes:
+  asset_name: product_image_extracted
+  upstream_asset_key: product_images
+
+  # Input
+  image_column: "image_path"
+  input_type: "file"  # file | url
+
+  # Fields to extract (column_name: description)
+  extraction_fields:
+    product_name: "name or title of the product shown"
+    price: "price if visible, including currency symbol"
+    brand: "brand name or logo text"
+    color: "primary color of the product"
+    condition: "new, used, or damaged"
+
+  # LLM settings
+  model: "gpt-4o-mini"
+  api_key_env_var: "OPENAI_API_KEY"
+  max_tokens: 500
+
+  # Optional domain prompt
+  prompt_prefix: "You are analyzing e-commerce product images."
+
+  # Organization
+  group_name: "vision"

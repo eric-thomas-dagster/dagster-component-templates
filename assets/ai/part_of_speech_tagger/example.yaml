@@ -1,0 +1,18 @@
+type: dagster_component_templates.PartOfSpeechTaggerComponent
+attributes:
+  asset_name: pos_tagged_reviews
+  upstream_asset_key: raw_reviews
+  text_column: review_text
+
+  # Output configuration
+  output_mode: "tags_column"  # tags_column | expanded | counts
+  output_column: "pos_tags"
+
+  # Language model
+  language: "en"  # or "en_core_web_sm", "de_core_news_sm", etc.
+
+  # Token options
+  include_token_text: true
+
+  # Organization
+  group_name: "text_mining"

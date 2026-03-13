@@ -51,7 +51,6 @@ type: dagster_component_templates.KinesisObservationSensorComponent
 attributes:
   sensor_name: kinesis_asset_observer
   asset_key: external/kinesis
-  asset_key: external/kinesis
   stream_name: my_stream
 ```
 

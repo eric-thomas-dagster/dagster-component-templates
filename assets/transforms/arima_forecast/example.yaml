@@ -1,0 +1,13 @@
+component_type: arima_forecast
+description: Forecast monthly retail sales 12 periods ahead using ARIMA(1,1,1).
+
+asset_name: retail_sales_forecast
+upstream_asset_key: retail_sales_monthly
+date_column: sale_date
+value_column: revenue
+forecast_periods: 12
+order: [1, 1, 1]
+seasonal_order: [1, 1, 1, 12]
+output_mode: append
+confidence_level: 0.95
+group_name: forecasting

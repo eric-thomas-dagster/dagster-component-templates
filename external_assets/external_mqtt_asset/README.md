@@ -54,7 +54,6 @@ type: dagster_component_templates.MqttObservationSensorComponent
 attributes:
   sensor_name: mqtt_asset_observer
   asset_key: external/mqtt
-  asset_key: external/mqtt
   broker_host: my-mqtt.internal
   topic: TOPIC
 ```

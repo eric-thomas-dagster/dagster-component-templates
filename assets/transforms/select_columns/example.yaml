@@ -1,0 +1,17 @@
+type: dagster_component_templates.SelectColumnsComponent
+attributes:
+  asset_name: customers_slim
+  upstream_asset_key: raw_customers
+  columns:
+    - customer_id
+    - email
+    - full_name
+    - signup_date
+  drop_columns:
+    - internal_notes
+    - legacy_id
+  rename:
+    full_name: name
+    signup_date: created_at
+  reorder: true
+  group_name: customer_data

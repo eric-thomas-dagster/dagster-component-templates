@@ -52,7 +52,6 @@ type: dagster_component_templates.SftpPathObservationSensorComponent
 attributes:
   sensor_name: sftp_path_observer
   asset_key: external/sftp_path
-  asset_key: external/sftp_path
   host: my-sftp-path.internal
   remote_path: REMOTE_PATH
 ```

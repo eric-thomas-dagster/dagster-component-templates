@@ -1,0 +1,179 @@
+{
+  "component_type": "dagster_component_templates.AnsibleAssetComponent",
+  "description": "Run an Ansible playbook as a Dagster asset.",
+  "category": "infrastructure",
+  "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Provisioning result"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset key for this component.",
+      "required": true
+    },
+    "playbook": {
+      "type": "string",
+      "label": "Playbook",
+      "description": "Path to the Ansible playbook YAML file.",
+      "required": true
+    },
+    "inventory": {
+      "type": "string",
+      "label": "Inventory",
+      "description": "Inventory",
+      "required": false,
+      "default": null
+    },
+    "extra_vars": {
+      "type": "object",
+      "label": "Extra Vars",
+      "description": "Key/value pairs passed as --extra-vars ",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "extra_vars_file": {
+      "type": "string",
+      "label": "Extra Vars File",
+      "description": "Path to a vars file passed as --extra-vars @<file>.",
+      "required": false,
+      "default": null
+    },
+    "tags": {
+      "type": "string",
+      "label": "Tags",
+      "description": "Tags",
+      "required": false,
+      "default": null
+    },
+    "skip_tags": {
+      "type": "string",
+      "label": "Skip Tags",
+      "description": "Skip Tags",
+      "required": false,
+      "default": null
+    },
+    "limit": {
+      "type": "string",
+      "label": "Limit",
+      "description": "Limit",
+      "required": false,
+      "default": null
+    },
+    "become": {
+      "type": "boolean",
+      "label": "Become",
+      "description": "Become",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "become_user": {
+      "type": "string",
+      "label": "Become User",
+      "description": "Become User",
+      "required": false,
+      "default": null
+    },
+    "vault_password_file": {
+      "type": "string",
+      "label": "Vault Password File",
+      "description": "Vault Password File",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "vault_password_env_var": {
+      "type": "string",
+      "label": "Vault Password Env Var",
+      "description": "Vault Password Env Var",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "ssh_private_key_env_var": {
+      "type": "string",
+      "label": "Ssh Private Key Env Var",
+      "description": "Ssh Private Key Env Var",
+      "required": false,
+      "default": null
+    },
+    "check_mode": {
+      "type": "boolean",
+      "label": "Check Mode",
+      "description": "Check Mode",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "diff_mode": {
+      "type": "boolean",
+      "label": "Diff Mode",
+      "description": "Diff Mode",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "verbosity": {
+      "type": "integer",
+      "label": "Verbosity",
+      "description": "Verbosity level 0-4. Translates to -v / -vv / -vvv / -vvvv.",
+      "required": false,
+      "default": 0
+    },
+    "ansible_bin": {
+      "type": "string",
+      "label": "Ansible Bin",
+      "description": "Path to the ansible-playbook binary.",
+      "required": false,
+      "default": "ansible-playbook"
+    },
+    "working_dir": {
+      "type": "string",
+      "label": "Working Dir",
+      "description": "Working directory for the subprocess. Defaults to the current process cwd.",
+      "required": false,
+      "default": null
+    },
+    "env_vars": {
+      "type": "object",
+      "label": "Env Vars",
+      "description": "Additional environment variables merged into the subprocess environment.",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": "infrastructure"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Human-readable description surfaced in the Dagster UI.",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "ansible",
+    "asset"
+  ]
+}

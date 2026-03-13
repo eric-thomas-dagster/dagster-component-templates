@@ -52,7 +52,6 @@ type: dagster_component_templates.SqlObservationSensorComponent
 attributes:
   sensor_name: sql_asset_observer
   asset_key: external/sql
-  asset_key: external/sql
   table_name: my_table
   connection_string_env_var: CONNECTION_STRING_ENV_VAR
 ```

@@ -54,7 +54,6 @@ type: dagster_component_templates.AdlsObservationSensorComponent
 attributes:
   sensor_name: adls_asset_observer
   asset_key: external/adls
-  asset_key: external/adls
   account_name: my_account
   container_name: my_container
 ```

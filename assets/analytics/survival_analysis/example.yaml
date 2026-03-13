@@ -1,0 +1,10 @@
+component_type: survival_analysis
+description: Estimate subscription survival curves by plan tier using Kaplan-Meier.
+
+asset_name: subscription_survival_curves
+upstream_asset_key: subscription_cohort_data
+duration_column: days_active
+event_column: cancelled
+group_column: plan_tier
+method: kaplan_meier
+group_name: retention_analysis

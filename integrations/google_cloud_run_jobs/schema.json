@@ -1,26 +1,78 @@
 {
-  "type": "dagster_component_templates.GoogleCloudRunJobsComponent",
-  "name": "Google Cloud Run Jobs",
-  "category": "orchestration",
-  "description": "Import Google Cloud Run Jobs for executing containerized batch workloads.",
-  "version": "1.0.0",
-  "author": "Dagster Community",
-  "icon": "Package",
+  "component_type": "dagster_component_templates.GoogleCloudRunJobsComponent",
+  "description": "Component for importing Google Cloud Run Jobs as Dagster assets.",
+  "category": "integration",
+  "icon": "Plug",
   "x-dagster-io": {
-    "inputs": {"type": "none", "required": false},
-    "outputs": {"type": "multiple", "description": "Generates assets for each Cloud Run Job"},
-    "supports_partitions": false
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Integration result"
+    }
   },
   "attributes": {
-    "project_id": {"type": "string", "required": true, "label": "Project ID", "description": "GCP project ID", "placeholder": "my-gcp-project"},
-    "location": {"type": "string", "required": false, "label": "Location", "description": "GCP location/region for Cloud Run Jobs", "default": "us-central1", "placeholder": "us-central1"},
-    "credentials_path": {"type": "string", "required": false, "label": "Credentials Path", "description": "Path to GCP service account credentials JSON file (optional)", "placeholder": "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}", "secret": true},
-    "import_jobs": {"type": "boolean", "required": false, "label": "Import Jobs", "description": "Import Cloud Run Jobs as materializable assets", "default": true},
-    "filter_by_name_pattern": {"type": "string", "required": false, "label": "Filter by Name Pattern", "description": "Regex pattern to filter entities", "placeholder": "^prod_.*"},
-    "exclude_name_pattern": {"type": "string", "required": false, "label": "Exclude Name Pattern", "description": "Regex pattern to exclude entities", "placeholder": "test|dev"},
-    "group_name": {"type": "string", "required": false, "label": "Asset Group", "description": "Group name for all imported assets", "default": "google_cloud_run_jobs"},
-    "description": {"type": "string", "required": false, "label": "Description", "description": "Description for the Google Cloud Run Jobs component"}
+    "project_id": {
+      "type": "string",
+      "label": "Project Id",
+      "description": "GCP project ID",
+      "required": true
+    },
+    "location": {
+      "type": "string",
+      "label": "Location",
+      "description": "GCP location/region for Cloud Run Jobs",
+      "required": false,
+      "default": "us-central1"
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "description": "Credentials Path",
+      "required": false,
+      "default": null
+    },
+    "import_jobs": {
+      "type": "boolean",
+      "label": "Import Jobs",
+      "description": "Import Cloud Run Jobs as materializable assets",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "filter_by_name_pattern": {
+      "type": "string",
+      "label": "Filter By Name Pattern",
+      "description": "Regex pattern to filter entities by name",
+      "required": false,
+      "default": null
+    },
+    "exclude_name_pattern": {
+      "type": "string",
+      "label": "Exclude Name Pattern",
+      "description": "Regex pattern to exclude entities by name",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name for all imported assets",
+      "required": false,
+      "default": "google_cloud_run_jobs"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description for the Google Cloud Run Jobs component",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    }
   },
-  "dependencies": {"pip": ["google-cloud-run>=0.10.0", "dagster>=1.6.0"]},
-  "tags": ["orchestration", "gcp", "google-cloud", "cloud-run", "containers", "batch"]
+  "tags": [
+    "integration",
+    "google",
+    "cloud",
+    "run",
+    "jobs"
+  ]
 }

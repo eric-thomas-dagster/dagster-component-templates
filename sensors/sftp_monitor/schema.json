@@ -1,97 +1,99 @@
 {
-  "type": "dagster_component_templates.SftpMonitorSensorComponent",
-  "name": "SFTP Monitor",
-  "category": "sensors",
-  "description": "Monitor an SFTP directory for new files \u2014 essential for regulated industry file-based integrations",
-  "icon": "Activity",
+  "component_type": "dagster_component_templates.SftpMonitorSensorComponent",
+  "description": "Monitor an SFTP directory for new files.",
+  "category": "sensor",
+  "icon": "Radar",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "Sensor run requests"
+    }
+  },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
       "label": "Sensor Name",
-      "placeholder": "sftp_drop_zone_monitor"
+      "description": "Unique sensor name",
+      "required": true
     },
     "host": {
       "type": "string",
-      "required": true,
       "label": "Host",
-      "placeholder": "sftp.partner.com"
+      "description": "SFTP host",
+      "required": true
     },
     "port": {
-      "type": "number",
-      "required": false,
+      "type": "integer",
       "label": "Port",
+      "description": "SFTP port",
+      "required": false,
       "default": 22
     },
     "username_env_var": {
       "type": "string",
-      "required": true,
       "label": "Username Env Var",
-      "placeholder": "SFTP_USERNAME"
+      "description": "Env var with SFTP username",
+      "required": true
     },
     "password_env_var": {
       "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var with SFTP password",
       "required": false,
-      "label": "Password Env Var"
+      "default": null,
+      "ui:widget": "password"
     },
     "private_key_env_var": {
       "type": "string",
+      "label": "Private Key Env Var",
+      "description": "Env var with path to SSH private key file",
       "required": false,
-      "label": "Private Key Path Env Var"
+      "default": null
     },
     "remote_path": {
       "type": "string",
-      "required": true,
       "label": "Remote Path",
-      "placeholder": "/incoming/orders"
+      "description": "Remote directory path to monitor",
+      "required": true
     },
     "file_pattern": {
       "type": "string",
-      "required": false,
       "label": "File Pattern",
-      "default": "*",
-      "placeholder": "*.csv"
+      "description": "Glob-style filename filter (e.g. ",
+      "required": false,
+      "default": "*"
     },
     "job_name": {
       "type": "string",
-      "required": true,
-      "label": "Job Name"
+      "label": "Job Name",
+      "description": "Job to trigger when new files are detected",
+      "required": true
     },
     "minimum_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Seconds between polls",
       "required": false,
-      "label": "Poll Interval (s)",
       "default": 300
     },
     "default_status": {
       "type": "string",
-      "required": false,
       "label": "Default Status",
-      "default": "running",
-      "enum": [
-        "running",
-        "stopped"
-      ]
+      "description": "running or stopped",
+      "required": false,
+      "default": "running"
     },
     "resource_key": {
       "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key.",
       "required": false,
-      "label": "Resource Key"
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "paramiko>=3.0.0"
-    ]
-  },
   "tags": [
-    "sensors",
+    "sensor",
     "sftp",
-    "ssh",
-    "files",
-    "finance",
-    "healthcare",
-    "regulated",
-    "automation"
+    "monitor"
   ]
 }

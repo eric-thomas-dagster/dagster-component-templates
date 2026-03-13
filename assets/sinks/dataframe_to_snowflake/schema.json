@@ -1,0 +1,164 @@
+{
+  "component_type": "dagster_component_templates.DataframeToSnowflakeComponent",
+  "description": "Write a DataFrame to a Snowflake table.",
+  "category": "sink",
+  "icon": "ArrowDownToLine",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame to write"
+    },
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Write confirmation with metadata"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
+    "table": {
+      "type": "string",
+      "label": "Table",
+      "description": "Destination Snowflake table name",
+      "required": true
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "description": "Database",
+      "required": false,
+      "default": null
+    },
+    "schema": {
+      "type": "string",
+      "label": "Schema",
+      "description": "Snowflake schema",
+      "required": false,
+      "default": null
+    },
+    "warehouse": {
+      "type": "string",
+      "label": "Warehouse",
+      "description": "Snowflake warehouse to use",
+      "required": false,
+      "default": null
+    },
+    "role": {
+      "type": "string",
+      "label": "Role",
+      "description": "Snowflake role",
+      "required": false,
+      "default": null
+    },
+    "account_env_var": {
+      "type": "string",
+      "label": "Account Env Var",
+      "description": "Env var containing Snowflake account identifier",
+      "required": false,
+      "default": "SNOWFLAKE_ACCOUNT"
+    },
+    "user_env_var": {
+      "type": "string",
+      "label": "User Env Var",
+      "description": "Env var containing Snowflake user",
+      "required": false,
+      "default": "SNOWFLAKE_USER"
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var containing Snowflake password",
+      "required": false,
+      "default": "SNOWFLAKE_PASSWORD",
+      "ui:widget": "password"
+    },
+    "if_exists": {
+      "type": "string",
+      "label": "If Exists",
+      "description": "Behavior if table exists: ",
+      "required": false,
+      "default": "replace"
+    },
+    "chunksize": {
+      "type": "integer",
+      "label": "Chunksize",
+      "description": "Number of rows per write chunk",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "sink",
+    "dataframe",
+    "snowflake"
+  ]
+}

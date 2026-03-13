@@ -1,0 +1,21 @@
+component_type: random_forest_model
+description: Predict customer lifetime value tier using a random forest regressor.
+
+asset_name: customer_ltv_predictions
+upstream_asset_key: customer_features_enriched
+target_column: ltv_12m
+feature_columns:
+  - total_orders
+  - avg_order_value
+  - days_since_first_order
+  - product_categories_count
+  - email_open_rate
+  - support_tickets_count
+task_type: regression
+n_estimators: 200
+max_depth: 10
+test_size: 0.2
+random_state: 42
+output_mode: predictions
+n_jobs: -1
+group_name: ltv_models

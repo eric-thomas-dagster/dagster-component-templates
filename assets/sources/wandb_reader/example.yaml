@@ -1,0 +1,10 @@
+type: dagster_component_templates.WandbReaderComponent
+attributes:
+  asset_name: experiment_runs
+  project: my-ml-project
+  entity: my-team
+  filters:
+    state: finished
+  n_runs: 50
+  include_history: false
+  group_name: sources

@@ -1,0 +1,185 @@
+{
+  "component_type": "dagster_component_templates.PineconeReaderComponent",
+  "description": "Component for querying a Pinecone vector index.",
+  "category": "source",
+  "icon": "Database",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "Output DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "required": true
+    },
+    "index_name": {
+      "type": "string",
+      "label": "Index Name",
+      "description": "Pinecone index to query",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "description": "Environment variable containing Pinecone API key",
+      "required": false,
+      "default": "PINECONE_API_KEY"
+    },
+    "environment_env_var": {
+      "type": "string",
+      "label": "Environment Env Var",
+      "description": "Environment variable containing Pinecone environment",
+      "required": false,
+      "default": "PINECONE_ENVIRONMENT"
+    },
+    "query_vector": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "label": "Query Vector",
+      "description": "Pre-computed query vector for search",
+      "required": false,
+      "default": null,
+      "ui:widget": "list"
+    },
+    "query_text": {
+      "type": "string",
+      "label": "Query Text",
+      "description": "Query Text",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "embedding_model": {
+      "type": "string",
+      "label": "Embedding Model",
+      "description": "Embedding Model",
+      "required": false,
+      "default": null
+    },
+    "openai_api_key_env_var": {
+      "type": "string",
+      "label": "Openai Api Key Env Var",
+      "description": "Environment variable containing OpenAI API key",
+      "required": false,
+      "default": "OPENAI_API_KEY"
+    },
+    "n_results": {
+      "type": "integer",
+      "label": "N Results",
+      "description": "Number of similar results to return",
+      "required": false,
+      "default": 10
+    },
+    "namespace": {
+      "type": "string",
+      "label": "Namespace",
+      "description": "Pinecone namespace to query",
+      "required": false,
+      "default": null
+    },
+    "filter": {
+      "type": "object",
+      "label": "Filter",
+      "description": "Metadata filter for query (e.g., {\\",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "include_values": {
+      "type": "boolean",
+      "label": "Include Values",
+      "description": "Include vector values in results",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "include_metadata": {
+      "type": "boolean",
+      "label": "Include Metadata",
+      "description": "Include metadata in results",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "description": "Upstream asset keys for lineage",
+      "required": false,
+      "default": null,
+      "ui:widget": "list"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "source",
+    "pinecone",
+    "reader"
+  ]
+}

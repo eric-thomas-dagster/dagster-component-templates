@@ -1,77 +1,91 @@
 {
-  "type": "dagster_component_templates.SnowflakeTableObservationSensorComponent",
-  "name": "Snowflake Table Observation Sensor",
-  "category": "observations",
-  "description": "Emit health observations for an external Snowflake table",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.SnowflakeTableObservationSensorComponent",
+  "description": "Emit health observations for an external Snowflake table.",
+  "category": "observation",
+  "icon": "Eye",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetObservation",
+      "description": "Asset observation events"
+    }
+  },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
-      "label": "Sensor Name"
+      "label": "Sensor Name",
+      "description": "Unique sensor name",
+      "required": true
     },
     "asset_key": {
       "type": "string",
-      "required": true,
-      "label": "Asset Key"
+      "label": "Asset Key",
+      "description": "Asset key of the ExternalSnowflakeTableAsset to observe",
+      "required": true
     },
     "account": {
       "type": "string",
-      "required": true,
-      "label": "Account"
+      "label": "Account",
+      "description": "Snowflake account identifier",
+      "required": true
     },
     "database": {
       "type": "string",
-      "required": true,
-      "label": "Database"
+      "label": "Database",
+      "description": "Snowflake database",
+      "required": true
     },
     "schema_name": {
       "type": "string",
-      "required": true,
-      "label": "Schema"
+      "label": "Schema Name",
+      "description": "Snowflake schema",
+      "required": true
     },
     "table_name": {
       "type": "string",
-      "required": true,
-      "label": "Table"
+      "label": "Table Name",
+      "description": "Snowflake table",
+      "required": true
     },
     "username_env_var": {
       "type": "string",
-      "required": true,
-      "label": "Username Env Var"
+      "label": "Username Env Var",
+      "description": "Env var with Snowflake username",
+      "required": true
     },
     "password_env_var": {
       "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var with password",
       "required": false,
-      "label": "Password Env Var"
+      "default": null,
+      "ui:widget": "password"
     },
     "warehouse": {
       "type": "string",
+      "label": "Warehouse",
+      "description": "Snowflake warehouse to use",
       "required": false,
-      "label": "Warehouse"
+      "default": null
     },
     "check_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks",
       "required": false,
-      "label": "Check Interval (s)",
       "default": 300
     },
     "resource_key": {
       "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key.",
       "required": false,
-      "label": "Resource Key"
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "snowflake-connector-python>=3.0.0"
-    ]
-  },
   "tags": [
-    "observations",
+    "observation",
     "snowflake",
-    "sql",
-    "data_warehouse",
-    "monitoring"
+    "table",
+    "sensor"
   ]
 }

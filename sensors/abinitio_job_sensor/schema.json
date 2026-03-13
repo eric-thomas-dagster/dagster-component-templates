@@ -1,19 +1,99 @@
 {
-  "type": "dagster_component_templates.AbInitioJobSensorComponent",
-  "name": "Ab Initio Job Sensor",
-  "category": "sensors",
-  "description": "Trigger a Dagster job when an Ab Initio EME job run completes",
-  "attributes": {
-    "sensor_name": {"type": "string", "required": true},
-    "job_path": {"type": "string", "required": true},
-    "job_name": {"type": "string", "required": true},
-    "eme_url_env_var": {"type": "string", "required": false},
-    "username_env_var": {"type": "string", "required": false},
-    "password_env_var": {"type": "string", "required": false},
-    "resource_key": {"type": "string", "required": false},
-    "minimum_interval_seconds": {"type": "integer", "default": 120},
-    "default_status": {"type": "string", "default": "running", "enum": ["running", "stopped"]}
+  "component_type": "dagster_component_templates.AbInitioResource",
+  "description": "Resource for connecting to Ab Initio EME REST API.",
+  "category": "sensor",
+  "icon": "Radar",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "Sensor run requests"
+    }
   },
-  "dependencies": {"pip": ["requests>=2.28.0"]},
-  "tags": ["sensors", "abinitio", "etl", "enterprise", "automation"]
+  "attributes": {
+    "eme_url": {
+      "type": "string",
+      "label": "Eme Url",
+      "description": "Eme Url",
+      "required": true
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "description": "Ab Initio EME username",
+      "required": true
+    },
+    "password": {
+      "type": "string",
+      "label": "Password",
+      "description": "Ab Initio EME password",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique sensor name",
+      "required": true
+    },
+    "job_path": {
+      "type": "string",
+      "label": "Job Path",
+      "description": "Job Path",
+      "required": true
+    },
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job to trigger when Ab Initio run completes",
+      "required": true
+    },
+    "eme_url_env_var": {
+      "type": "string",
+      "label": "Eme Url Env Var",
+      "description": "Env var with Ab Initio EME base URL",
+      "required": false,
+      "default": null
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var with Ab Initio EME username",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var with Ab Initio EME password",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of an AbInitioResource. When set, env var fields are ignored.",
+      "required": false,
+      "default": null
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Seconds between polls",
+      "required": false,
+      "default": 120
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "running or stopped",
+      "required": false,
+      "default": "running"
+    }
+  },
+  "tags": [
+    "sensor",
+    "abinitio",
+    "job"
+  ]
 }

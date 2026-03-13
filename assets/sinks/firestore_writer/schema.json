@@ -1,0 +1,134 @@
+{
+  "type": "dagster_component_templates.FirestoreWriterComponent",
+  "name": "Firestore Writer",
+  "category": "sink",
+  "description": "Write a DataFrame to a Google Cloud Firestore collection using batch writes with merge or overwrite support",
+  "icon": "Database",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "DataFrame to write to Firestore"
+    },
+    "outputs": {
+      "type": "materialize_result",
+      "description": "Materialization result with row count metadata"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the output asset to create",
+      "placeholder": "write_to_firestore"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Upstream Asset Key",
+      "description": "Asset key of the upstream DataFrame asset"
+    },
+    "collection": {
+      "type": "string",
+      "required": true,
+      "label": "Collection",
+      "description": "Firestore collection name"
+    },
+    "project_id_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "Project ID Env Var",
+      "description": "Environment variable containing the GCP project ID"
+    },
+    "credentials_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "Credentials Env Var",
+      "description": "Environment variable containing path to service account JSON file"
+    },
+    "id_column": {
+      "type": "string",
+      "required": false,
+      "label": "ID Column",
+      "description": "DataFrame column to use as the Firestore document ID (None = auto-generate)"
+    },
+    "merge": {
+      "type": "boolean",
+      "required": false,
+      "label": "Merge",
+      "description": "If true, merge fields into existing documents; if false, overwrite",
+      "default": false
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "google-cloud-firestore>=2.0.0"
+    ]
+  },
+  "tags": [
+    "sink",
+    "firestore",
+    "gcp",
+    "nosql",
+    "document-database"
+  ]
+}

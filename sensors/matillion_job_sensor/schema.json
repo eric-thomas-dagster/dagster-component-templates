@@ -1,17 +1,93 @@
 {
-  "type": "dagster_component_templates.matillion_job_sensor",
-  "name": "Matillion Job Sensor",
-  "category": "sensors",
-  "description": "Trigger a Dagster job when a Matillion ETL job run completes",
-  "dependencies": {
-    "pip": [
-      "requests>=2.28.0"
-    ]
+  "component_type": "dagster_component_templates.MatillionJobSensorComponent",
+  "description": "Trigger a Dagster job when a Matillion ETL job run completes.",
+  "category": "sensor",
+  "icon": "Radar",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "Sensor run requests"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique sensor name",
+      "required": true
+    },
+    "project": {
+      "type": "string",
+      "label": "Project",
+      "description": "Matillion project name",
+      "required": true
+    },
+    "version": {
+      "type": "string",
+      "label": "Version",
+      "description": "Matillion project version name",
+      "required": false,
+      "default": "default"
+    },
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Matillion job name to monitor",
+      "required": true
+    },
+    "job_name_dagster": {
+      "type": "string",
+      "label": "Job Name Dagster",
+      "description": "Dagster job to trigger when Matillion run completes",
+      "required": true
+    },
+    "instance_url_env_var": {
+      "type": "string",
+      "label": "Instance Url Env Var",
+      "description": "Env var with Matillion instance URL",
+      "required": false,
+      "default": null
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var with Matillion username",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var with Matillion password",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of a MatillionResource",
+      "required": false,
+      "default": null
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Seconds between polls",
+      "required": false,
+      "default": 60
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "running or stopped",
+      "required": false,
+      "default": "running"
+    }
   },
   "tags": [
-    "sensors",
+    "sensor",
     "matillion",
-    "etl",
-    "automation"
+    "job"
   ]
 }

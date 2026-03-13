@@ -1,0 +1,11 @@
+component_type: dagster_component_templates.HtmlParserComponent
+
+asset_name: parsed_html_content
+upstream_asset_key: raw_web_pages
+group_name: transforms
+columns:
+  - body
+  - description
+mode: strip_tags
+parser: html.parser
+new_column_suffix: _text

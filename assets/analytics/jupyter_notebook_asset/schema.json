@@ -1,0 +1,163 @@
+{
+  "component_type": "dagster_component_templates.JupyterNotebookAssetComponent",
+  "description": "Execute a Jupyter notebook as a Dagster asset using Papermill.",
+  "category": "analytics",
+  "icon": "BarChart2",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Analytics result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset key for this component.",
+      "required": true
+    },
+    "notebook_path": {
+      "type": "string",
+      "label": "Notebook Path",
+      "description": "Notebook Path",
+      "required": true
+    },
+    "output_path": {
+      "type": "string",
+      "label": "Output Path",
+      "description": "Output Path",
+      "required": false,
+      "default": null,
+      "ui:widget": "file"
+    },
+    "parameters": {
+      "type": "object",
+      "label": "Parameters",
+      "description": "Parameters",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "kernel_name": {
+      "type": "string",
+      "label": "Kernel Name",
+      "description": "Kernel Name",
+      "required": false,
+      "default": null
+    },
+    "execution_timeout": {
+      "type": "integer",
+      "label": "Execution Timeout",
+      "description": "Execution Timeout",
+      "required": false,
+      "default": 600
+    },
+    "working_dir": {
+      "type": "string",
+      "label": "Working Dir",
+      "description": "Working Dir",
+      "required": false,
+      "default": null
+    },
+    "env_vars": {
+      "type": "object",
+      "label": "Env Vars",
+      "description": "Env Vars",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "store_output_ipynb": {
+      "type": "boolean",
+      "label": "Store Output Ipynb",
+      "description": "Store Output Ipynb",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": "notebooks"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Human-readable description surfaced in the Dagster UI.",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "analytics",
+    "jupyter",
+    "notebook",
+    "asset"
+  ]
+}

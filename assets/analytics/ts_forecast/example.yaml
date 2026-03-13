@@ -1,0 +1,26 @@
+type: dagster_component_templates.TsForecastComponent
+attributes:
+  asset_name: monthly_sales_forecast
+  upstream_asset_key: monthly_sales_history
+  date_column: "month"
+  value_column: "revenue"
+
+  # Forecast horizon
+  forecast_periods: 12
+
+  # Model selection
+  model: "auto"  # auto | arima | ets
+
+  # ARIMA parameters (if model=arima or auto)
+  arima_order: [1, 1, 1]
+
+  # ETS parameters (if model=ets or auto)
+  ets_trend: "add"
+  ets_seasonal: "add"
+  ets_seasonal_periods: 12
+
+  # Output
+  output_mode: "append"  # forecast_only | append
+
+  # Organization
+  group_name: "forecasting"

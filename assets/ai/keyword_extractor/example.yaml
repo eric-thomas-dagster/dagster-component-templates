@@ -1,0 +1,13 @@
+component_type: dagster_component_templates.KeywordExtractorComponent
+
+asset_name: extracted_keywords
+upstream_asset_key: article_text
+group_name: ai
+text_column: body
+output_column: keywords
+method: tfidf
+top_n: 10
+ngram_range:
+  - 1
+  - 2
+language: en

@@ -1,0 +1,147 @@
+{
+  "component_type": "dagster_component_templates.TikTokAdsIngestionComponent",
+  "description": "Component for ingesting TikTok Ads data using dlt - returns DataFrames.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset that will hold the TikTok Ads data",
+      "required": true
+    },
+    "access_token": {
+      "type": "string",
+      "label": "Access Token",
+      "description": "TikTok Marketing API Access Token. Use ${TIKTOK_ACCESS_TOKEN} for env vars.",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "advertiser_ids": {
+      "type": "string",
+      "label": "Advertiser Ids",
+      "description": "Comma-separated list of TikTok Advertiser IDs (e.g., ",
+      "required": true
+    },
+    "app_id": {
+      "type": "string",
+      "label": "App Id",
+      "description": "App Id",
+      "required": false,
+      "default": null
+    },
+    "secret": {
+      "type": "string",
+      "label": "Secret",
+      "description": "Secret",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "resources": {
+      "type": "string",
+      "label": "Resources",
+      "description": "Comma-separated list of resources to extract: advertisers, campaigns, ad_groups, ads, videos, images, reports",
+      "required": false,
+      "default": "campaigns"
+    },
+    "start_date": {
+      "type": "string",
+      "label": "Start Date",
+      "description": "Start Date",
+      "required": false,
+      "default": null
+    },
+    "end_date": {
+      "type": "string",
+      "label": "End Date",
+      "description": "End Date",
+      "required": false,
+      "default": null
+    },
+    "report_type": {
+      "type": "string",
+      "label": "Report Type",
+      "description": "Report Type",
+      "required": false,
+      "default": "BASIC"
+    },
+    "data_level": {
+      "type": "string",
+      "label": "Data Level",
+      "description": "Data aggregation level: AUCTION_ADVERTISER, AUCTION_CAMPAIGN, AUCTION_ADGROUP, or AUCTION_AD",
+      "required": false,
+      "default": "AUCTION_CAMPAIGN"
+    },
+    "metrics": {
+      "type": "string",
+      "label": "Metrics",
+      "description": "Metrics",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "tiktok_ads"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "destination": {
+      "type": "string",
+      "label": "Destination",
+      "description": "Optional dlt destination (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "destination_config": {
+      "type": "string",
+      "label": "Destination Config",
+      "description": "Optional destination configuration as connection string or JSON. Required if destination is set.",
+      "required": false,
+      "default": null
+    },
+    "persist_and_return": {
+      "type": "boolean",
+      "label": "Persist And Return",
+      "description": "If True with destination set: persist to database AND return DataFrame. If False: only persist to database.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "tiktok",
+    "ads"
+  ]
+}

@@ -1,0 +1,120 @@
+{
+  "component_type": "dagster_component_templates.PulumiAssetComponent",
+  "description": "Deploy a Pulumi stack as a Dagster asset.",
+  "category": "infrastructure",
+  "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Provisioning result"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "stack_name": {
+      "type": "string",
+      "label": "Stack Name",
+      "description": "Stack Name",
+      "required": true
+    },
+    "working_dir": {
+      "type": "string",
+      "label": "Working Dir",
+      "description": "Directory containing Pulumi.yaml",
+      "required": true
+    },
+    "operation": {
+      "type": "string",
+      "label": "Operation",
+      "description": "Pulumi operation to perform: ",
+      "required": false,
+      "default": "up"
+    },
+    "expect_no_changes": {
+      "type": "boolean",
+      "label": "Expect No Changes",
+      "description": "Expect No Changes",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "refresh": {
+      "type": "boolean",
+      "label": "Refresh",
+      "description": "Run ",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "target_resources": {
+      "type": "string",
+      "label": "Target Resources",
+      "description": "Limit the operation to specific resource URNs via --target.",
+      "required": false,
+      "default": null
+    },
+    "config": {
+      "type": "object",
+      "label": "Config",
+      "description": "Config key-value pairs passed as --config key=value to the Pulumi command.",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "secrets_provider": {
+      "type": "string",
+      "label": "Secrets Provider",
+      "description": "Secrets Provider",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "pulumi_bin": {
+      "type": "string",
+      "label": "Pulumi Bin",
+      "description": "Path to the pulumi binary (default: ",
+      "required": false,
+      "default": "pulumi"
+    },
+    "env_vars": {
+      "type": "object",
+      "label": "Env Vars",
+      "description": "Env Vars",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": "infrastructure"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Human-readable description of what this Pulumi stack provisions.",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream Dagster asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "pulumi",
+    "asset"
+  ]
+}

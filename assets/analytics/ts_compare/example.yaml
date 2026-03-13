@@ -1,0 +1,20 @@
+type: dagster_component_templates.TsCompareComponent
+attributes:
+  asset_name: arima_vs_ets_comparison
+  upstream_asset_key: monthly_sales_history
+  date_column: "month"
+  value_column: "revenue"
+
+  # Hold-out test set size
+  test_periods: 6
+
+  # ARIMA parameters
+  arima_order: [1, 1, 1]
+
+  # ETS parameters
+  ets_trend: "add"
+  ets_seasonal: "add"
+  ets_seasonal_periods: 12
+
+  # Organization
+  group_name: "model_evaluation"

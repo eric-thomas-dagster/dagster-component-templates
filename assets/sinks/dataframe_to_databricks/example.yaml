@@ -1,0 +1,13 @@
+type: dagster_component_templates.DataframeToDatabricksComponent
+attributes:
+  asset_name: databricks_transactions
+  upstream_asset_key: processed_transactions
+  catalog: main
+  schema: analytics
+  table: transactions
+  host_env_var: DATABRICKS_HOST
+  token_env_var: DATABRICKS_TOKEN
+  mode: overwrite
+  merge_schema: true
+  cluster_id: abc1234567890def
+  group_name: warehouse_sinks

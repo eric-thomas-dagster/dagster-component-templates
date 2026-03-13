@@ -1,0 +1,11 @@
+type: dagster_component_templates.RecordIdComponent
+attributes:
+  asset_name: orders_with_id
+  upstream_asset_key: processed_orders
+  output_column: order_record_id
+  start: 1000
+  step: 1
+  sort_by: order_date
+  sort_ascending: true
+  id_prefix: "ORD-"
+  group_name: enrichment

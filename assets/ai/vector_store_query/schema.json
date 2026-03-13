@@ -1,0 +1,166 @@
+{
+  "component_type": "dagster_component_templates.VectorStoreQueryComponent",
+  "description": "Component for querying vector stores.",
+  "category": "ai",
+  "icon": "Sparkles",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Enriched DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "required": true
+    },
+    "provider": {
+      "type": "string",
+      "label": "Provider",
+      "description": "Provider: ",
+      "required": true
+    },
+    "collection_name": {
+      "type": "string",
+      "label": "Collection Name",
+      "description": "Collection/index name",
+      "required": true
+    },
+    "query_text": {
+      "type": "string",
+      "label": "Query Text",
+      "description": "Query Text",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "top_k": {
+      "type": "integer",
+      "label": "Top K",
+      "description": "Number of results",
+      "required": false,
+      "default": 10
+    },
+    "connection_string": {
+      "type": "string",
+      "label": "Connection String",
+      "description": "Connection string",
+      "required": false,
+      "default": null
+    },
+    "api_key": {
+      "type": "string",
+      "label": "Api Key",
+      "description": "Api Key",
+      "required": false,
+      "default": null
+    },
+    "filter_metadata": {
+      "type": "string",
+      "label": "Filter Metadata",
+      "description": "JSON filter for metadata",
+      "required": false,
+      "default": null
+    },
+    "include_distances": {
+      "type": "boolean",
+      "label": "Include Distances",
+      "description": "Include similarity distances",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "embedding_column": {
+      "type": "string",
+      "label": "Embedding Column",
+      "description": "Column name containing query embeddings in the upstream DataFrame",
+      "required": false,
+      "default": "embedding"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame with query embeddings",
+      "required": true
+    }
+  },
+  "tags": [
+    "ai",
+    "vector",
+    "store",
+    "query"
+  ]
+}

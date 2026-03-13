@@ -1,0 +1,26 @@
+type: dagster_component_templates.InstructorExtractorComponent
+attributes:
+  asset_name: extracted_invoice_data
+  upstream_asset_key: raw_invoice_text
+  text_column: invoice_text
+  model: gpt-4o-mini
+  extraction_schema:
+    vendor_name:
+      type: str
+      description: "Name of the vendor or supplier"
+    total_amount:
+      type: float
+      description: "Total invoice amount in dollars"
+    invoice_date:
+      type: str
+      description: "Invoice date in YYYY-MM-DD format"
+    invoice_number:
+      type: str
+      description: "Unique invoice identifier"
+    line_items:
+      type: list
+      description: "List of line item descriptions"
+  output_prefix: "inv_"
+  max_retries: 3
+  api_key_env_var: OPENAI_API_KEY
+  group_name: ai_extraction

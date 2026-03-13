@@ -1,0 +1,14 @@
+type: dagster_component_templates.DataframeToS3Component
+attributes:
+  asset_name: s3_daily_report
+  upstream_asset_key: processed_daily_report
+  bucket_env_var: S3_BUCKET
+  key: data/reports/daily_report.parquet
+  format: parquet
+  aws_access_key_env_var: AWS_ACCESS_KEY_ID
+  aws_secret_key_env_var: AWS_SECRET_ACCESS_KEY
+  aws_region: us-east-1
+  compression: snappy
+  partition_cols:
+    - date
+  group_name: storage_sinks

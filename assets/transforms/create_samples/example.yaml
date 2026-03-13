@@ -1,0 +1,10 @@
+type: dagster_component_templates.CreateSamplesComponent
+attributes:
+  asset_name: customers_split
+  upstream_asset_key: cleaned_customers
+  test_size: 0.2
+  validation_size: 0.1
+  random_state: 42
+  stratify_column: churn_label
+  output_split_column: split
+  group_name: ml_datasets

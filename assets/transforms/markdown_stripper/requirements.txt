@@ -1,0 +1,4 @@
+dagster
+pandas>=1.5.0
+markdown>=3.3.0
+beautifulsoup4>=4.9.0

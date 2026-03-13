@@ -1,0 +1,145 @@
+{
+  "component_type": "dagster_component_templates.SQLToDatabaseAssetComponent",
+  "description": "Read from a source database and write to a destination database table.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "source_url_env_var": {
+      "type": "string",
+      "label": "Source Url Env Var",
+      "description": "Env var with source SQLAlchemy database URL",
+      "required": true
+    },
+    "destination_url_env_var": {
+      "type": "string",
+      "label": "Destination Url Env Var",
+      "description": "Env var with destination SQLAlchemy database URL",
+      "required": true
+    },
+    "source_table": {
+      "type": "string",
+      "label": "Source Table",
+      "description": "Source Table",
+      "required": false,
+      "default": null
+    },
+    "source_schema": {
+      "type": "string",
+      "label": "Source Schema",
+      "description": "Source schema name",
+      "required": false,
+      "default": null
+    },
+    "source_query": {
+      "type": "string",
+      "label": "Source Query",
+      "description": "Source Query",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "destination_table": {
+      "type": "string",
+      "label": "Destination Table",
+      "description": "Destination table name",
+      "required": true
+    },
+    "destination_schema": {
+      "type": "string",
+      "label": "Destination Schema",
+      "description": "Destination schema name",
+      "required": false,
+      "default": null
+    },
+    "if_exists": {
+      "type": "string",
+      "label": "If Exists",
+      "description": "fail, replace, or append",
+      "required": false,
+      "default": "append"
+    },
+    "watermark_column": {
+      "type": "string",
+      "label": "Watermark Column",
+      "description": "Watermark Column",
+      "required": false,
+      "default": null
+    },
+    "watermark_env_var": {
+      "type": "string",
+      "label": "Watermark Env Var",
+      "description": "Env var storing the last watermark value",
+      "required": false,
+      "default": null
+    },
+    "chunksize": {
+      "type": "integer",
+      "label": "Chunksize",
+      "description": "Rows to read/write per chunk",
+      "required": false,
+      "default": 10000
+    },
+    "column_mapping": {
+      "type": "object",
+      "label": "Column Mapping",
+      "description": "Rename columns: {old: new}",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name",
+      "required": false,
+      "default": "ingestion"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "none, daily, weekly, or monthly",
+      "required": false,
+      "default": "none"
+    },
+    "partition_start_date": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "Partition Start Date",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "sql",
+    "database",
+    "asset"
+  ]
+}

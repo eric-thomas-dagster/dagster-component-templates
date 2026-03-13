@@ -1,29 +1,99 @@
 {
-  "type": "dagster_component_templates.GoogleDatastreamComponent",
-  "name": "Google Cloud Datastream",
-  "category": "ingestion",
-  "description": "Import Google Cloud Datastream CDC streams and connection profiles for database replication to BigQuery and Cloud Storage.",
-  "version": "1.0.0",
-  "author": "Dagster Community",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.GoogleDatastreamComponent",
+  "description": "Component for importing Google Cloud Datastream entities as Dagster assets.",
+  "category": "integration",
+  "icon": "Plug",
   "x-dagster-io": {
-    "inputs": {"type": "none", "required": false},
-    "outputs": {"type": "multiple", "description": "Generates assets for each Datastream entity"},
-    "supports_partitions": false
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Integration result"
+    }
   },
   "attributes": {
-    "project_id": {"type": "string", "required": true, "label": "Project ID", "description": "GCP project ID", "placeholder": "my-gcp-project"},
-    "location": {"type": "string", "required": false, "label": "Location", "description": "GCP location/region for Datastream resources", "default": "us-central1", "placeholder": "us-central1"},
-    "credentials_path": {"type": "string", "required": false, "label": "Credentials Path", "description": "Path to GCP service account credentials JSON file (optional)", "placeholder": "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}", "secret": true},
-    "import_streams": {"type": "boolean", "required": false, "label": "Import Streams", "description": "Import Datastream streams as observable assets", "default": true},
-    "import_connection_profiles": {"type": "boolean", "required": false, "label": "Import Connection Profiles", "description": "Import connection profiles as observable assets", "default": false},
-    "filter_by_name_pattern": {"type": "string", "required": false, "label": "Filter by Name Pattern", "description": "Regex pattern to filter entities", "placeholder": "^prod_.*"},
-    "exclude_name_pattern": {"type": "string", "required": false, "label": "Exclude Name Pattern", "description": "Regex pattern to exclude entities", "placeholder": "test|dev"},
-    "poll_interval_seconds": {"type": "number", "required": false, "label": "Sensor Poll Interval", "description": "Sensor poll interval in seconds", "default": 60, "minimum": 10},
-    "generate_sensor": {"type": "boolean", "required": false, "label": "Generate Observation Sensor", "description": "Create sensor to observe stream status", "default": true},
-    "group_name": {"type": "string", "required": false, "label": "Asset Group", "description": "Group name for all imported assets", "default": "google_datastream"},
-    "description": {"type": "string", "required": false, "label": "Description", "description": "Description for the Google Datastream component"}
+    "project_id": {
+      "type": "string",
+      "label": "Project Id",
+      "description": "GCP project ID",
+      "required": true
+    },
+    "location": {
+      "type": "string",
+      "label": "Location",
+      "description": "GCP location/region for Datastream resources",
+      "required": false,
+      "default": "us-central1"
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "description": "Credentials Path",
+      "required": false,
+      "default": null
+    },
+    "import_streams": {
+      "type": "boolean",
+      "label": "Import Streams",
+      "description": "Import Datastream streams as observable assets",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "import_connection_profiles": {
+      "type": "boolean",
+      "label": "Import Connection Profiles",
+      "description": "Import connection profiles as observable assets",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "filter_by_name_pattern": {
+      "type": "string",
+      "label": "Filter By Name Pattern",
+      "description": "Regex pattern to filter entities by name",
+      "required": false,
+      "default": null
+    },
+    "exclude_name_pattern": {
+      "type": "string",
+      "label": "Exclude Name Pattern",
+      "description": "Regex pattern to exclude entities by name",
+      "required": false,
+      "default": null
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "description": "Sensor poll interval in seconds",
+      "required": false,
+      "default": 60
+    },
+    "generate_sensor": {
+      "type": "boolean",
+      "label": "Generate Sensor",
+      "description": "Generate observation sensor for streams",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name for all imported assets",
+      "required": false,
+      "default": "google_datastream"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description for the Google Datastream component",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    }
   },
-  "dependencies": {"pip": ["google-cloud-datastream>=1.5.0", "dagster>=1.6.0"]},
-  "tags": ["ingestion", "gcp", "google-cloud", "datastream", "cdc", "replication", "database"]
+  "tags": [
+    "integration",
+    "google",
+    "datastream"
+  ]
 }

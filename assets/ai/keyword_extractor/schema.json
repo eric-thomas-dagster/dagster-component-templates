@@ -1,0 +1,150 @@
+{
+  "component_type": "dagster_component_templates.KeywordExtractorComponent",
+  "description": "Extract keywords and key phrases from a text column using TF-IDF, YAKE, or RAKE.",
+  "category": "ai",
+  "icon": "Tag",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame with a text column"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with extracted keywords list column added"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "text_column": {
+      "type": "string",
+      "label": "Text Column",
+      "description": "Column containing text to extract keywords from",
+      "required": true
+    },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "description": "Column to write list of keyword strings",
+      "required": false,
+      "default": "keywords"
+    },
+    "method": {
+      "type": "string",
+      "label": "Method",
+      "description": "Extraction method to use",
+      "required": false,
+      "default": "tfidf",
+      "enum": [
+        "tfidf",
+        "yake",
+        "rake"
+      ],
+      "ui:widget": "select"
+    },
+    "top_n": {
+      "type": "integer",
+      "label": "Top N",
+      "description": "Number of keywords to extract per row",
+      "required": false,
+      "default": 10
+    },
+    "ngram_range": {
+      "type": "array",
+      "items": {
+        "type": "integer"
+      },
+      "label": "N-gram Range",
+      "description": "Min/max n-gram size as [min, max]",
+      "required": false,
+      "default": [
+        1,
+        2
+      ],
+      "ui:widget": "list"
+    },
+    "language": {
+      "type": "string",
+      "label": "Language",
+      "description": "Language of the text",
+      "required": false,
+      "default": "en"
+    }
+  },
+  "tags": [
+    "ai",
+    "nlp",
+    "keywords",
+    "tfidf",
+    "text-mining"
+  ]
+}

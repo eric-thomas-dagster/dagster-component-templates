@@ -1,0 +1,184 @@
+{
+  "component_type": "dagster_component_templates.PineconeAssetComponent",
+  "description": "Upsert, query, or manage a Pinecone vector index as a Dagster asset.",
+  "category": "analytics",
+  "icon": "BarChart2",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Analytics result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset key for this component.",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "description": "Name of the environment variable containing the Pinecone API key.",
+      "required": true
+    },
+    "index_name": {
+      "type": "string",
+      "label": "Index Name",
+      "description": "Name of the Pinecone index to operate on.",
+      "required": true
+    },
+    "operation": {
+      "type": "string",
+      "label": "Operation",
+      "description": "Operation",
+      "required": false,
+      "default": "upsert"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream Asset Key",
+      "required": true
+    },
+    "id_column": {
+      "type": "string",
+      "label": "Id Column",
+      "description": "DataFrame column whose values become Pinecone vector IDs.",
+      "required": false,
+      "default": "id"
+    },
+    "vector_column": {
+      "type": "string",
+      "label": "Vector Column",
+      "description": "Vector Column",
+      "required": false,
+      "default": "embedding"
+    },
+    "metadata_columns": {
+      "type": "string",
+      "label": "Metadata Columns",
+      "description": "Metadata Columns",
+      "required": false,
+      "default": null
+    },
+    "namespace": {
+      "type": "string",
+      "label": "Namespace",
+      "description": "Namespace",
+      "required": false,
+      "default": null
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "description": "Batch Size",
+      "required": false,
+      "default": 100
+    },
+    "dimension": {
+      "type": "integer",
+      "label": "Dimension",
+      "description": "Dimension",
+      "required": false,
+      "default": null
+    },
+    "metric": {
+      "type": "string",
+      "label": "Metric",
+      "description": "Metric",
+      "required": false,
+      "default": "cosine"
+    },
+    "cloud": {
+      "type": "string",
+      "label": "Cloud",
+      "description": "Cloud provider for the serverless index: ``aws``, ``gcp``, ``azure``.",
+      "required": false,
+      "default": "aws"
+    },
+    "region": {
+      "type": "string",
+      "label": "Region",
+      "description": "Region",
+      "required": false,
+      "default": "us-east-1"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": "vector_store"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Human-readable description surfaced in the Dagster UI.",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    }
+  },
+  "tags": [
+    "analytics",
+    "pinecone",
+    "asset"
+  ]
+}

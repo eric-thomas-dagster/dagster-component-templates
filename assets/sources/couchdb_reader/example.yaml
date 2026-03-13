@@ -1,0 +1,14 @@
+type: dagster_component_templates.CouchdbReaderComponent
+attributes:
+  asset_name: couchdb_active_orders
+  url_env_var: COUCHDB_URL
+  database: orders
+  selector:
+    status: active
+  fields:
+    - _id
+    - customer_id
+    - total
+    - created_at
+  limit: 500
+  group_name: sources

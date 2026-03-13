@@ -1,0 +1,220 @@
+"""Image Object Detector Component.
+
+Detect objects in images using HuggingFace DETR models.
+"""
+
+from dataclasses import dataclass
+from typing import Optional, List
+import pandas as pd
+
+from dagster import (
+    AssetExecutionContext,
+    AssetIn,
+    AssetKey,
+    Component,
+    ComponentLoadContext,
+    Definitions,
+    MetadataValue,
+    Model,
+    Resolvable,
+    asset,
+)
+from pydantic import Field
+
+
+@dataclass
+class ImageObjectDetectorComponent(Component, Model, Resolvable):
+    """Component for detecting objects in images using HuggingFace DETR models.
+
+    Returns bounding boxes, labels, and confidence scores for each detected object.
+    Supports filtering by confidence threshold and target label list.
+
+    Features:
+    - HuggingFace DETR-based object detection
+    - Configurable confidence threshold
+    - Optional label filtering (e.g. only detect "person", "car")
+    - Object count column
+    - CPU, CUDA, and MPS device support
+
+    Use Cases:
+    - Inventory counting from images
+    - Safety/PPE compliance detection
+    - Traffic / vehicle analysis
+    - Retail shelf analysis
+    """
+
+    asset_name: str = Field(description="Output Dagster asset name")
+    upstream_asset_key: str = Field(
+        description="Upstream asset key providing a DataFrame"
+    )
+    image_column: str = Field(description="Column with image file paths or URLs")
+    output_column: str = Field(
+        default="detected_objects",
+        description="Column for list of {label, confidence, bbox} dicts per row",
+    )
+    count_column: str = Field(
+        default="object_count", description="Column for detected object count"
+    )
+    model_name: str = Field(
+        default="facebook/detr-resnet-50",
+        description="HuggingFace DETR model ID",
+    )
+    confidence_threshold: float = Field(
+        default=0.7, description="Minimum confidence to include a detection"
+    )
+    target_labels: Optional[List[str]] = Field(
+        default=None,
+        description="Only return detections with these labels e.g. ['person','car']",
+    )
+    device: str = Field(
+        default="cpu",
+        description="Compute device: cpu, cuda, or mps",
+    )
+    group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned",
+    )
+    partition_start: Optional[str] = Field(
+        default=None,
+        description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+    )
+    partition_date_column: Optional[str] = Field(
+        default=None,
+        description="Column used to filter upstream DataFrame to the current date partition key.",
+    )
+    partition_values: Optional[str] = Field(
+        default=None,
+        description="Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
+    )
+    partition_static_dim: Optional[str] = Field(
+        default=None,
+        description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
+    )
+    partition_static_column: Optional[str] = Field(
+        default=None,
+        description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
+    )
+
+    def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        asset_name = self.asset_name
+        upstream_asset_key = self.upstream_asset_key
+        image_column = self.image_column
+        output_column = self.output_column
+        count_column = self.count_column
+        model_name = self.model_name
+        confidence_threshold = self.confidence_threshold
+        target_labels = self.target_labels
+        device = self.device
+
+        # Build partition definition
+        partitions_def = None
+        if self.partition_type:
+            from dagster import (
+                DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+                MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+                StaticPartitionsDefinition, MultiPartitionsDefinition,
+            )
+            _start = self.partition_start or "2020-01-01"
+            _values = [v.strip() for v in (self.partition_values or "").split(",") if v.strip()]
+            if self.partition_type == "daily":
+                partitions_def = DailyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "weekly":
+                partitions_def = WeeklyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "monthly":
+                partitions_def = MonthlyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "hourly":
+                partitions_def = HourlyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "static":
+                partitions_def = StaticPartitionsDefinition(_values)
+            elif self.partition_type == "multi":
+                _dim = self.partition_static_dim or "segment"
+                partitions_def = MultiPartitionsDefinition({
+                    "date": DailyPartitionsDefinition(start_date=_start),
+                    _dim: StaticPartitionsDefinition(_values),
+                })
+        partition_type = self.partition_type
+        partition_date_column = self.partition_date_column
+        partition_static_column = self.partition_static_column
+        partition_static_dim = self.partition_static_dim
+
+        @asset(
+            name=asset_name,
+            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+            partitions_def=partitions_def,
+            group_name=self.group_name,
+        )
+        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+            # Filter to current partition if partitioned
+            if context.has_partition_key:
+                _pk = context.partition_key
+                _is_multi = hasattr(_pk, "keys_by_dimension")
+                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                if partition_date_column and partition_date_column in upstream.columns and _date_key:
+                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
+                if partition_static_column and partition_static_column in upstream.columns and _static_key:
+                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
+                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
+                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+            try:
+                from transformers import pipeline
+            except ImportError:
+                raise ImportError("transformers required: pip install transformers")
+            try:
+                from PIL import Image
+            except ImportError:
+                raise ImportError("Pillow required: pip install Pillow")
+
+            df = upstream.copy()
+            context.log.info(f"Loading object detection model {model_name}")
+            detector = pipeline(
+                "object-detection", model=model_name, device=0 if device == "cuda" else -1
+            )
+
+            all_detections = []
+            all_counts = []
+
+            for path in df[image_column]:
+                try:
+                    img = Image.open(str(path)).convert("RGB")
+                    raw = detector(img)
+                    detections = []
+                    for det in raw:
+                        if det["score"] < confidence_threshold:
+                            continue
+                        label = det["label"]
+                        if target_labels and label not in target_labels:
+                            continue
+                        detections.append(
+                            {
+                                "label": label,
+                                "confidence": round(float(det["score"]), 4),
+                                "bbox": {
+                                    k: round(float(v), 2)
+                                    for k, v in det["box"].items()
+                                },
+                            }
+                        )
+                    all_detections.append(detections)
+                    all_counts.append(len(detections))
+                except Exception as e:
+                    context.log.warning(f"Detection failed for {path}: {e}")
+                    all_detections.append([])
+                    all_counts.append(0)
+
+            df[output_column] = all_detections
+            df[count_column] = all_counts
+
+            context.add_output_metadata(
+                {
+                    "row_count": MetadataValue.int(len(df)),
+                    "model": model_name,
+                    "confidence_threshold": confidence_threshold,
+                    "total_detections": MetadataValue.int(sum(all_counts)),
+                    "preview": MetadataValue.md(df[[image_column, count_column]].head(5).to_markdown()),
+                }
+            )
+            return df
+
+        return Definitions(assets=[_asset])

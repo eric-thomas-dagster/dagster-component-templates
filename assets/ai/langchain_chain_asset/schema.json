@@ -1,0 +1,196 @@
+{
+  "component_type": "dagster_component_templates.LangChainChainAssetComponent",
+  "description": "Run a LangChain chain over rows from an upstream asset DataFrame and return enriched DataFrame.",
+  "category": "ai",
+  "icon": "Sparkles",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Enriched DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream Asset Key",
+      "required": true
+    },
+    "llm_provider": {
+      "type": "string",
+      "label": "Llm Provider",
+      "description": "LLM provider: openai, anthropic, azure_openai, google, ollama",
+      "required": false,
+      "default": "openai"
+    },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "description": "Model",
+      "required": false,
+      "default": "gpt-4o-mini"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "description": "Env var with provider API key",
+      "required": false,
+      "default": null
+    },
+    "api_base_env_var": {
+      "type": "string",
+      "label": "Api Base Env Var",
+      "description": "Env var with custom API base URL",
+      "required": false,
+      "default": null
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature",
+      "description": "Sampling temperature",
+      "required": false,
+      "default": 0.0
+    },
+    "max_tokens": {
+      "type": "integer",
+      "label": "Max Tokens",
+      "description": "Max tokens per completion",
+      "required": false,
+      "default": 1024
+    },
+    "prompt_template": {
+      "type": "string",
+      "label": "Prompt Template",
+      "description": "LangChain prompt template string with {column_name} placeholders",
+      "required": true,
+      "ui:widget": "textarea"
+    },
+    "system_message": {
+      "type": "string",
+      "label": "System Message",
+      "description": "System message for chat models",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "response_column": {
+      "type": "string",
+      "label": "Response Column",
+      "description": "Column name to store chain output",
+      "required": false,
+      "default": "chain_output"
+    },
+    "parse_json": {
+      "type": "boolean",
+      "label": "Parse Json",
+      "description": "Attempt to parse LLM response as JSON and expand into columns",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "description": "Rows per batch for progress logging",
+      "required": false,
+      "default": 10
+    },
+    "max_rows": {
+      "type": "integer",
+      "label": "Max Rows",
+      "description": "Max Rows",
+      "required": false,
+      "default": null
+    },
+    "max_concurrency": {
+      "type": "integer",
+      "label": "Max Concurrency",
+      "description": "Max Concurrency",
+      "required": false,
+      "default": 1
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name",
+      "required": false,
+      "default": "ai"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    }
+  },
+  "tags": [
+    "ai",
+    "langchain",
+    "chain",
+    "asset"
+  ]
+}

@@ -52,7 +52,6 @@ type: dagster_component_templates.EventHubsObservationSensorComponent
 attributes:
   sensor_name: eventhubs_asset_observer
   asset_key: external/eventhubs
-  asset_key: external/eventhubs
   namespace: my_namespace
   eventhub_name: my_eventhub
 ```

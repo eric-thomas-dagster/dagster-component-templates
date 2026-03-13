@@ -1,0 +1,34 @@
+type: dagster_component_templates.JobPostingExtractorComponent
+attributes:
+  asset_name: extracted_job_postings
+  upstream_asset_key: raw_job_postings
+
+  # Input column
+  input_column: "text"
+  input_type: "text"  # text | file
+
+  # LLM
+  model: "gpt-4o-mini"
+  api_key_env_var: "OPENAI_API_KEY"
+
+  # Fields to extract
+  output_fields:
+    - "job_title"
+    - "company"
+    - "location"
+    - "remote_policy"
+    - "employment_type"
+    - "salary_range"
+    - "required_skills"
+    - "preferred_skills"
+    - "experience_required"
+    - "education_required"
+    - "responsibilities"
+    - "benefits"
+    - "application_deadline"
+
+  # Performance
+  batch_size: 5
+
+  # Organization
+  group_name: "document_extraction"

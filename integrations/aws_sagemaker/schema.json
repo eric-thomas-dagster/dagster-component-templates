@@ -1,33 +1,131 @@
 {
-  "type": "dagster_component_templates.AWSSageMakerComponent",
-  "name": "AWS SageMaker",
-  "category": "ml-ops",
-  "description": "Import AWS SageMaker training jobs, batch transform jobs, processing jobs, and ML pipelines for machine learning workflow orchestration.",
-  "version": "1.0.0",
-  "author": "Dagster Community",
-  "icon": "Cpu",
+  "component_type": "dagster_component_templates.AWSSageMakerComponent",
+  "description": "Component for importing AWS SageMaker entities as Dagster assets.",
+  "category": "integration",
+  "icon": "Plug",
   "x-dagster-io": {
-    "inputs": {"type": "none", "required": false},
-    "outputs": {"type": "multiple", "description": "Generates assets for each SageMaker entity"},
-    "supports_partitions": false
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Integration result"
+    }
   },
   "attributes": {
-    "aws_region": {"type": "string", "required": true, "label": "AWS Region", "description": "AWS region", "placeholder": "us-east-1"},
-    "aws_access_key_id": {"type": "string", "required": false, "label": "Access Key ID", "description": "AWS access key ID (optional if using IAM role)", "placeholder": "{{ env('AWS_ACCESS_KEY_ID') }}", "secret": true},
-    "aws_secret_access_key": {"type": "string", "required": false, "label": "Secret Access Key", "description": "AWS secret access key (optional if using IAM role)", "placeholder": "{{ env('AWS_SECRET_ACCESS_KEY') }}", "secret": true},
-    "aws_session_token": {"type": "string", "required": false, "label": "Session Token", "description": "AWS session token for temporary credentials (optional)", "placeholder": "{{ env('AWS_SESSION_TOKEN') }}", "secret": true},
-    "import_training_jobs": {"type": "boolean", "required": false, "label": "Import Training Jobs", "description": "Import training job definitions as materializable assets", "default": true},
-    "import_transform_jobs": {"type": "boolean", "required": false, "label": "Import Transform Jobs", "description": "Import batch transform job definitions as materializable assets", "default": true},
-    "import_processing_jobs": {"type": "boolean", "required": false, "label": "Import Processing Jobs", "description": "Import processing job definitions as materializable assets", "default": true},
-    "import_pipelines": {"type": "boolean", "required": false, "label": "Import Pipelines", "description": "Import ML pipeline definitions as materializable assets", "default": true},
-    "filter_by_name_pattern": {"type": "string", "required": false, "label": "Filter by Name Pattern", "description": "Regex pattern to filter entities", "placeholder": "^prod_.*"},
-    "exclude_name_pattern": {"type": "string", "required": false, "label": "Exclude Name Pattern", "description": "Regex pattern to exclude entities", "placeholder": "test|dev"},
-    "filter_by_tags": {"type": "string", "required": false, "label": "Filter by Tags", "description": "Comma-separated tag keys to filter entities", "placeholder": "env,team"},
-    "poll_interval_seconds": {"type": "number", "required": false, "label": "Sensor Poll Interval", "description": "Sensor poll interval in seconds", "default": 60, "minimum": 10},
-    "generate_sensor": {"type": "boolean", "required": false, "label": "Generate Observation Sensor", "description": "Create sensor to observe completed jobs and pipelines", "default": true},
-    "group_name": {"type": "string", "required": false, "label": "Asset Group", "description": "Group name for all imported assets", "default": "aws_sagemaker"},
-    "description": {"type": "string", "required": false, "label": "Description", "description": "Description for the AWS SageMaker component"}
+    "aws_region": {
+      "type": "string",
+      "label": "Aws Region",
+      "description": "AWS region",
+      "required": true
+    },
+    "aws_access_key_id": {
+      "type": "string",
+      "label": "Aws Access Key Id",
+      "description": "Aws Access Key Id",
+      "required": false,
+      "default": null
+    },
+    "aws_secret_access_key": {
+      "type": "string",
+      "label": "Aws Secret Access Key",
+      "description": "Aws Secret Access Key",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "aws_session_token": {
+      "type": "string",
+      "label": "Aws Session Token",
+      "description": "Aws Session Token",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "import_training_jobs": {
+      "type": "boolean",
+      "label": "Import Training Jobs",
+      "description": "Import training job definitions as materializable assets",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "import_transform_jobs": {
+      "type": "boolean",
+      "label": "Import Transform Jobs",
+      "description": "Import transform job definitions as materializable assets",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "import_processing_jobs": {
+      "type": "boolean",
+      "label": "Import Processing Jobs",
+      "description": "Import processing job definitions as materializable assets",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "import_pipelines": {
+      "type": "boolean",
+      "label": "Import Pipelines",
+      "description": "Import pipeline definitions as materializable assets",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "filter_by_name_pattern": {
+      "type": "string",
+      "label": "Filter By Name Pattern",
+      "description": "Regex pattern to filter entities by name",
+      "required": false,
+      "default": null
+    },
+    "exclude_name_pattern": {
+      "type": "string",
+      "label": "Exclude Name Pattern",
+      "description": "Regex pattern to exclude entities by name",
+      "required": false,
+      "default": null
+    },
+    "filter_by_tags": {
+      "type": "string",
+      "label": "Filter By Tags",
+      "description": "Comma-separated tag keys to filter entities (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "description": "Sensor poll interval in seconds",
+      "required": false,
+      "default": 60
+    },
+    "generate_sensor": {
+      "type": "boolean",
+      "label": "Generate Sensor",
+      "description": "Generate observation sensor for completed jobs",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name for all imported assets",
+      "required": false,
+      "default": "aws_sagemaker"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description for the AWS SageMaker component",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    }
   },
-  "dependencies": {"pip": ["boto3>=1.28.0", "dagster>=1.6.0"]},
-  "tags": ["ml-ops", "aws", "sagemaker", "machine-learning", "training", "inference"]
+  "tags": [
+    "integration",
+    "aws",
+    "sagemaker"
+  ]
 }

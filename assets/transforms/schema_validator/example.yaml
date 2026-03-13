@@ -1,0 +1,25 @@
+component_type: dagster_component_templates.SchemaValidatorComponent
+
+asset_name: validated_orders
+upstream_asset_key: raw_orders
+group_name: transforms
+json_schema:
+  type: object
+  required:
+    - order_id
+    - amount
+  properties:
+    order_id:
+      type: string
+    amount:
+      type: number
+      minimum: 0
+    status:
+      type: string
+      enum: ["pending", "complete", "cancelled"]
+on_invalid: tag
+tag_column: _validation_errors
+subset_columns:
+  - order_id
+  - amount
+  - status

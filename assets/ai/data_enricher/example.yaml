@@ -1,0 +1,16 @@
+component_type: dagster_component_templates.DataEnricherComponent
+
+asset_name: enriched_products
+upstream_asset_key: raw_product_data
+group_name: ai
+context_columns:
+  - product_name
+  - description
+enrichment_fields:
+  sentiment: "positive/negative/neutral sentiment of the description"
+  category: "product category e.g. Electronics, Clothing, Food"
+  target_audience: "primary target demographic"
+model: gpt-4o-mini
+output_prefix: "llm_"
+max_workers: 4
+api_key_env_var: OPENAI_API_KEY

@@ -1,0 +1,89 @@
+{
+  "component_type": "dagster_component_templates.RiveryResource",
+  "description": "Resource for connecting to the Rivery REST API.",
+  "category": "infrastructure",
+  "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Provisioning result"
+    }
+  },
+  "attributes": {
+    "api_token": {
+      "type": "string",
+      "label": "Api Token",
+      "description": "Rivery API token",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "region": {
+      "type": "string",
+      "label": "Region",
+      "description": "Region",
+      "required": false,
+      "default": "us2"
+    },
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Dagster asset key (e.g. ",
+      "required": true
+    },
+    "river_id": {
+      "type": "string",
+      "label": "River Id",
+      "description": "River Id",
+      "required": true
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "Api Token Env Var",
+      "description": "Env var with Rivery API token",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of a RiveryResource",
+      "required": false,
+      "default": null
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between status polls",
+      "required": false,
+      "default": 10.0
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Max seconds to wait for river run",
+      "required": false,
+      "default": 3600
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": "rivery"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "rivery",
+    "run",
+    "asset"
+  ]
+}

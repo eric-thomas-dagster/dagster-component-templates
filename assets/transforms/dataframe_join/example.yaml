@@ -1,0 +1,14 @@
+type: dagster_component_templates.DataframeJoin
+attributes:
+  asset_name: orders_with_customers
+  left_asset_key: orders
+  right_asset_key: customers
+  how: left
+  on:
+    - customer_id
+  left_on: null
+  right_on: null
+  suffixes:
+    - _order
+    - _customer
+  group_name: transforms

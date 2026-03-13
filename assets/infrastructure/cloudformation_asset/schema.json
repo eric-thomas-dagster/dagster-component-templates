@@ -1,0 +1,134 @@
+{
+  "component_type": "dagster_component_templates.CloudFormationAssetComponent",
+  "description": "Deploy or update an AWS CloudFormation stack as a Dagster asset.",
+  "category": "infrastructure",
+  "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Provisioning result"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name for this CloudFormation stack",
+      "required": true
+    },
+    "stack_name": {
+      "type": "string",
+      "label": "Stack Name",
+      "description": "CloudFormation stack name",
+      "required": true
+    },
+    "template_file": {
+      "type": "string",
+      "label": "Template File",
+      "description": "Template File",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "template_url": {
+      "type": "string",
+      "label": "Template Url",
+      "description": "S3 URL to the CloudFormation template ",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "parameters": {
+      "type": "object",
+      "label": "Parameters",
+      "description": "Stack parameters as a key/value dict. ",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "capabilities": {
+      "type": "string",
+      "label": "Capabilities",
+      "description": "CloudFormation capabilities to acknowledge ",
+      "required": false,
+      "default": "[\"CAPABILITY_IAM\""
+    },
+    "region_name": {
+      "type": "string",
+      "label": "Region Name",
+      "description": "AWS region in which to manage the stack.",
+      "required": false,
+      "default": "us-east-1"
+    },
+    "aws_profile": {
+      "type": "string",
+      "label": "Aws Profile",
+      "description": "AWS CLI profile name to use for credentials. ",
+      "required": false,
+      "default": null
+    },
+    "role_arn": {
+      "type": "string",
+      "label": "Role Arn",
+      "description": "ARN of an IAM role for CloudFormation to assume when managing the stack. ",
+      "required": false,
+      "default": null
+    },
+    "on_failure": {
+      "type": "string",
+      "label": "On Failure",
+      "description": "Action on stack creation failure: ROLLBACK, DO_NOTHING, or DELETE.",
+      "required": false,
+      "default": "ROLLBACK"
+    },
+    "timeout_minutes": {
+      "type": "integer",
+      "label": "Timeout Minutes",
+      "description": "Maximum minutes to wait for a stack operation to complete.",
+      "required": false,
+      "default": 60
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between stack status polls.",
+      "required": false,
+      "default": 15
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Tags",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": "infrastructure"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Human-readable description of what this stack provisions.",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Dagster asset keys that this asset depends on ",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "cloudformation",
+    "asset"
+  ]
+}

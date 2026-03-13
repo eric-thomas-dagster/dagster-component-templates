@@ -56,7 +56,6 @@ type: dagster_component_templates.DatabricksTableObservationSensorComponentObser
 attributes:
   sensor_name: databricks_table_observer
   asset_key: external/databricks
-  asset_key: external/databricks
   workspace_url: WORKSPACE_URL
   schema_name: my_schema
 ```

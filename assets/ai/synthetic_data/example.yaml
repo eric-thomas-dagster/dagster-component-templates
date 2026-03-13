@@ -1,0 +1,20 @@
+component_type: synthetic_data
+description: Generate 500 synthetic e-commerce customer records for pipeline testing.
+
+asset_name: synthetic_customers
+schema:
+  customer_id: "UUID string"
+  full_name: "realistic full name"
+  email: "valid email address"
+  age: "integer between 18 and 75"
+  country: "country name, mostly US, UK, Canada, Australia"
+  total_orders: "integer between 0 and 200"
+  avg_order_value: "float between 10.00 and 500.00"
+  account_created_date: "ISO date string between 2018-01-01 and 2024-12-31"
+  subscription_tier: "one of: free, basic, pro, enterprise"
+n_rows: 500
+model: gpt-4o-mini
+api_key_env_var: OPENAI_API_KEY
+context: e-commerce SaaS platform customers
+batch_size: 25
+group_name: synthetic_datasets

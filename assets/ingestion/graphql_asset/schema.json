@@ -1,0 +1,18 @@
+{
+  "component_type": "dagster_component_templates.GraphQLAssetComponent",
+  "description": "Execute GraphQL queries and write results to a database.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {},
+  "tags": [
+    "ingestion",
+    "graphql",
+    "asset"
+  ]
+}

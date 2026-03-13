@@ -1,0 +1,212 @@
+{
+  "component_type": "dagster_component_templates.CustomerHealthScoreComponent",
+  "description": "Component that calculates customer health scores from multiple data sources.",
+  "category": "analytics",
+  "icon": "BarChart2",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Analytics result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the customer health score asset to create",
+      "required": true
+    },
+    "customer_data_asset": {
+      "type": "string",
+      "label": "Customer Data Asset",
+      "description": "Customer Data Asset",
+      "required": false,
+      "default": ""
+    },
+    "subscription_data_asset": {
+      "type": "string",
+      "label": "Subscription Data Asset",
+      "description": "Subscription/billing data asset",
+      "required": false,
+      "default": "",
+      "ui:widget": "code"
+    },
+    "product_usage_asset": {
+      "type": "string",
+      "label": "Product Usage Asset",
+      "description": "Product usage/activity data asset",
+      "required": false,
+      "default": ""
+    },
+    "support_ticket_asset": {
+      "type": "string",
+      "label": "Support Ticket Asset",
+      "description": "Support ticket data asset",
+      "required": false,
+      "default": ""
+    },
+    "analysis_period_days": {
+      "type": "integer",
+      "label": "Analysis Period Days",
+      "description": "Number of days to analyze for health calculation",
+      "required": false,
+      "default": 30
+    },
+    "engagement_weight": {
+      "type": "number",
+      "label": "Engagement Weight",
+      "description": "Engagement Weight",
+      "required": false,
+      "default": 0.25
+    },
+    "product_usage_weight": {
+      "type": "number",
+      "label": "Product Usage Weight",
+      "description": "Product Usage Weight",
+      "required": false,
+      "default": 0.25
+    },
+    "payment_health_weight": {
+      "type": "number",
+      "label": "Payment Health Weight",
+      "description": "Payment Health Weight",
+      "required": false,
+      "default": 0.25
+    },
+    "support_health_weight": {
+      "type": "number",
+      "label": "Support Health Weight",
+      "description": "Support Health Weight",
+      "required": false,
+      "default": 0.25
+    },
+    "min_health_score": {
+      "type": "number",
+      "label": "Min Health Score",
+      "description": "Min Health Score",
+      "required": false,
+      "default": 0.0
+    },
+    "max_health_score": {
+      "type": "number",
+      "label": "Max Health Score",
+      "description": "Max Health Score",
+      "required": false,
+      "default": 100.0
+    },
+    "churn_risk_threshold": {
+      "type": "number",
+      "label": "Churn Risk Threshold",
+      "description": "Health score below this is considered churn risk",
+      "required": false,
+      "default": 40.0
+    },
+    "expansion_opportunity_threshold": {
+      "type": "number",
+      "label": "Expansion Opportunity Threshold",
+      "description": "Health score above this is considered expansion opportunity",
+      "required": false,
+      "default": 75.0
+    },
+    "include_factor_breakdown": {
+      "type": "boolean",
+      "label": "Include Factor Breakdown",
+      "description": "Include breakdown of contributing factors in output",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "calculate_trend": {
+      "type": "boolean",
+      "label": "Calculate Trend",
+      "description": "Calculate Trend",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": "",
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name",
+      "required": false,
+      "default": "analytics"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "analytics",
+    "customer",
+    "health",
+    "score"
+  ]
+}

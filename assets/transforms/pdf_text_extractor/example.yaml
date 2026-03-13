@@ -1,0 +1,9 @@
+component_type: dagster_component_templates.PdfTextExtractorComponent
+
+asset_name: extracted_pdf_text
+upstream_asset_key: raw_pdf_files
+group_name: transforms
+column: file_path
+output_column: pdf_text
+pages: "1-5,10"
+include_page_numbers: true

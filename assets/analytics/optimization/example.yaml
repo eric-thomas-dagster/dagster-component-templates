@@ -1,0 +1,9 @@
+type: dagster_component_templates.OptimizationComponent
+attributes:
+  asset_name: portfolio_optimization
+  upstream_asset_key: portfolio_problem
+  objective_column: expected_return
+  bounds_lower_column: min_weight
+  bounds_upper_column: max_weight
+  maximize: true
+  group_name: analytics

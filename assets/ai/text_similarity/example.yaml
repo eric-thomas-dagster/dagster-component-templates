@@ -1,0 +1,10 @@
+component_type: dagster_component_templates.TextSimilarityComponent
+
+asset_name: text_similarity_scores
+upstream_asset_key: document_pairs
+group_name: ai
+text_column_a: question
+text_column_b: answer
+output_column: similarity_score
+method: cosine_tfidf
+model_name: all-MiniLM-L6-v2

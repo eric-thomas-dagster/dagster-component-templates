@@ -1,0 +1,9 @@
+component_type: lift_chart
+description: Generate a decile lift chart for a churn propensity model.
+
+asset_name: churn_lift_chart
+upstream_asset_key: churn_propensity_scores
+actual_column: churned
+predicted_proba_column: churn_probability
+n_bins: 10
+group_name: model_evaluation

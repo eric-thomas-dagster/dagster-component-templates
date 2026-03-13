@@ -1,0 +1,11 @@
+type: dagster_component_templates.DspyProgramComponent
+attributes:
+  asset_name: summarized_research_papers
+  upstream_asset_key: raw_research_papers
+  text_column: abstract
+  output_column: summary
+  program_type: chain_of_thought
+  signature: "document -> summary, key_points"
+  model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  group_name: ai_nlp

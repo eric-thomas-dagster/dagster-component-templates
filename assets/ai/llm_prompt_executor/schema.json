@@ -1,0 +1,188 @@
+{
+  "component_type": "dagster_component_templates.LLMPromptExecutorComponent",
+  "description": "Component for executing prompts against LLM APIs row-by-row over an upstream DataFrame.",
+  "category": "ai",
+  "icon": "Sparkles",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Enriched DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame with text to process",
+      "required": true
+    },
+    "input_column": {
+      "type": "string",
+      "label": "Input Column",
+      "description": "Column name containing input text to send to LLM as the prompt",
+      "required": false,
+      "default": "text"
+    },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "description": "Column name for LLM responses",
+      "required": false,
+      "default": "llm_response"
+    },
+    "provider": {
+      "type": "string",
+      "label": "Provider",
+      "description": "LLM provider: ",
+      "required": true
+    },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "description": "Model name (e.g., ",
+      "required": true
+    },
+    "system_prompt": {
+      "type": "string",
+      "label": "System Prompt",
+      "description": "System prompt to set context for the LLM",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "user_prompt_template": {
+      "type": "string",
+      "label": "User Prompt Template",
+      "description": "User prompt template with {column_name} placeholders for DataFrame columns. ",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature",
+      "description": "Temperature",
+      "required": false,
+      "default": 0.7
+    },
+    "max_tokens": {
+      "type": "integer",
+      "label": "Max Tokens",
+      "description": "Maximum tokens in the response",
+      "required": false,
+      "default": null
+    },
+    "api_key": {
+      "type": "string",
+      "label": "Api Key",
+      "description": "Api Key",
+      "required": false,
+      "default": null
+    },
+    "response_format": {
+      "type": "string",
+      "label": "Response Format",
+      "description": "Response format: ",
+      "required": false,
+      "default": "text"
+    },
+    "json_schema": {
+      "type": "string",
+      "label": "Json Schema",
+      "description": "Json Schema",
+      "required": false,
+      "default": null
+    },
+    "streaming": {
+      "type": "boolean",
+      "label": "Streaming",
+      "description": "Whether to use streaming responses",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ai",
+    "llm",
+    "prompt",
+    "executor"
+  ]
+}

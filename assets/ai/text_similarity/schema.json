@@ -1,0 +1,145 @@
+{
+  "component_type": "dagster_component_templates.TextSimilarityComponent",
+  "description": "Compute semantic or lexical similarity between two text columns or each row against a fixed query string.",
+  "category": "ai",
+  "icon": "GitCompare",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame with one or two text columns"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with similarity score column added"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "text_column_a": {
+      "type": "string",
+      "label": "Text Column A",
+      "description": "First text column for comparison",
+      "required": true
+    },
+    "text_column_b": {
+      "type": "string",
+      "label": "Text Column B",
+      "description": "Second text column. If omitted, compare against query.",
+      "required": false,
+      "default": null
+    },
+    "query": {
+      "type": "string",
+      "label": "Query",
+      "description": "Fixed string to compare each row against (used when text_column_b is omitted)",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "description": "Column to write float similarity score (0-1)",
+      "required": false,
+      "default": "similarity_score"
+    },
+    "method": {
+      "type": "string",
+      "label": "Method",
+      "description": "Similarity method to use",
+      "required": false,
+      "default": "cosine_tfidf",
+      "enum": [
+        "cosine_tfidf",
+        "jaccard",
+        "sequence_matcher",
+        "semantic"
+      ],
+      "ui:widget": "select"
+    },
+    "model_name": {
+      "type": "string",
+      "label": "Model Name",
+      "description": "Sentence-transformers model name (semantic method only)",
+      "required": false,
+      "default": "all-MiniLM-L6-v2"
+    }
+  },
+  "tags": [
+    "ai",
+    "nlp",
+    "similarity",
+    "embeddings",
+    "tfidf"
+  ]
+}

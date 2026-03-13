@@ -1,50 +1,50 @@
 {
-  "type": "dagster_component_templates.SodaCheckComponent",
-  "name": "Soda Check",
-  "category": "asset_checks",
-  "description": "Run a Soda scan as a Dagster asset check",
+  "component_type": "dagster_component_templates.SodaCheckComponent",
+  "description": "Run a Soda scan as a Dagster asset check.",
+  "category": "check",
   "icon": "CheckCircle",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetCheckResult",
+      "description": "Asset check result"
+    }
+  },
   "attributes": {
     "asset_key": {
       "type": "string",
-      "required": true,
-      "label": "Asset Key"
+      "label": "Asset Key",
+      "description": "Asset key to attach this check to",
+      "required": true
     },
     "data_source_name": {
       "type": "string",
-      "required": true,
-      "label": "Data Source Name"
+      "label": "Data Source Name",
+      "description": "Data Source Name",
+      "required": true
     },
     "checks_yaml_path": {
       "type": "string",
-      "required": true,
-      "label": "Checks YAML Path",
-      "placeholder": "./soda/orders_checks.yaml"
+      "label": "Checks Yaml Path",
+      "description": "Path to the Soda checks YAML file",
+      "required": true
     },
     "soda_configuration_path": {
       "type": "string",
-      "required": false,
       "label": "Soda Configuration Path",
+      "description": "Path to the Soda configuration YAML file",
+      "required": false,
       "default": "./soda/configuration.yaml"
     },
     "severity": {
       "type": "string",
-      "required": false,
       "label": "Severity",
-      "default": "ERROR",
-      "enum": [
-        "ERROR",
-        "WARN"
-      ]
+      "description": "WARN or ERROR",
+      "required": false,
+      "default": "ERROR"
     }
   },
-  "dependencies": {
-    "pip": [
-      "soda-core>=3.0.0"
-    ]
-  },
   "tags": [
-    "asset_checks",
-    "data_quality"
+    "check",
+    "soda"
   ]
 }

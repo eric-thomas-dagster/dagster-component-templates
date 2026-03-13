@@ -1,0 +1,10 @@
+component_type: dagster_component_templates.AudioTranscriberComponent
+
+asset_name: transcribed_audio
+upstream_asset_key: audio_file_records
+group_name: ai
+audio_path_column: file_path
+output_column: transcription
+language_column: detected_language
+model_size: base
+language: null

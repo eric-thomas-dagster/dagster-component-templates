@@ -1,0 +1,11 @@
+type: dagster_component_templates.RedisWriterComponent
+attributes:
+  asset_name: write_sessions_to_redis
+  upstream_asset_key: computed_sessions
+  host_env_var: REDIS_HOST
+  port: 6379
+  db: 0
+  key_column: session_id
+  write_mode: hash
+  expire_seconds: 3600
+  group_name: sinks

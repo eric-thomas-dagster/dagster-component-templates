@@ -1,0 +1,111 @@
+{
+  "component_type": "dagster_component_templates.StripeIngestionComponent",
+  "description": "Component for ingesting Stripe payment and customer data using dlt - returns DataFrames.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset that will hold the Stripe data",
+      "required": true
+    },
+    "api_key": {
+      "type": "string",
+      "label": "Api Key",
+      "description": "Stripe API Secret Key. Use ${STRIPE_API_KEY} for env vars. Find in Stripe Dashboard > Developers > API Keys.",
+      "required": true
+    },
+    "resources": {
+      "type": "string",
+      "label": "Resources",
+      "description": "Comma-separated list: customers, subscriptions, charges, invoices, products, prices, payment_intents, balance_transactions, events",
+      "required": false,
+      "default": "customers"
+    },
+    "start_date": {
+      "type": "string",
+      "label": "Start Date",
+      "description": "Start Date",
+      "required": false,
+      "default": null
+    },
+    "end_date": {
+      "type": "string",
+      "label": "End Date",
+      "description": "End Date",
+      "required": false,
+      "default": null
+    },
+    "incremental": {
+      "type": "boolean",
+      "label": "Incremental",
+      "description": "Incremental",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "stripe"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "destination": {
+      "type": "string",
+      "label": "Destination",
+      "description": "Optional dlt destination (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "destination_config": {
+      "type": "string",
+      "label": "Destination Config",
+      "description": "Optional destination configuration as connection string or JSON. Required if destination is set.",
+      "required": false,
+      "default": null
+    },
+    "persist_and_return": {
+      "type": "boolean",
+      "label": "Persist And Return",
+      "description": "If True with destination set: persist to database AND return DataFrame. If False: only persist to database.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "stripe"
+  ]
+}

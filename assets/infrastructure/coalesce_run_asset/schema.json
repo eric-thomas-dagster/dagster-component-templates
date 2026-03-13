@@ -1,0 +1,19 @@
+{
+  "component_type": "dagster_component_templates.CoalesceResource",
+  "description": "Shared Coalesce connection config.",
+  "category": "infrastructure",
+  "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Provisioning result"
+    }
+  },
+  "attributes": {},
+  "tags": [
+    "infrastructure",
+    "coalesce",
+    "run",
+    "asset"
+  ]
+}

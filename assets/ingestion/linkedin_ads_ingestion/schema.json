@@ -1,0 +1,125 @@
+{
+  "component_type": "dagster_component_templates.LinkedInAdsIngestionComponent",
+  "description": "Component for ingesting LinkedIn Ads data using dlt - returns DataFrames.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset that will hold the LinkedIn Ads data",
+      "required": true
+    },
+    "access_token": {
+      "type": "string",
+      "label": "Access Token",
+      "description": "LinkedIn OAuth 2.0 Access Token with r_ads and r_ads_reporting permissions. Use ${LINKEDIN_ACCESS_TOKEN} for env vars.",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "account_ids": {
+      "type": "string",
+      "label": "Account Ids",
+      "description": "Comma-separated list of LinkedIn Ad Account IDs (e.g., ",
+      "required": true
+    },
+    "resources": {
+      "type": "string",
+      "label": "Resources",
+      "description": "Comma-separated list of resources to extract: accounts, campaigns, creatives, campaign_groups, analytics, conversions",
+      "required": false,
+      "default": "campaigns"
+    },
+    "start_date": {
+      "type": "string",
+      "label": "Start Date",
+      "description": "Start Date",
+      "required": false,
+      "default": null
+    },
+    "end_date": {
+      "type": "string",
+      "label": "End Date",
+      "description": "End Date",
+      "required": false,
+      "default": null
+    },
+    "time_granularity": {
+      "type": "string",
+      "label": "Time Granularity",
+      "description": "Time Granularity",
+      "required": false,
+      "default": "DAILY"
+    },
+    "pivot_by": {
+      "type": "string",
+      "label": "Pivot By",
+      "description": "Analytics pivot dimension: CAMPAIGN, CREATIVE, ACCOUNT, or COMPANY",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "linkedin_ads"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "destination": {
+      "type": "string",
+      "label": "Destination",
+      "description": "Optional dlt destination (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "destination_config": {
+      "type": "string",
+      "label": "Destination Config",
+      "description": "Optional destination configuration as connection string or JSON. Required if destination is set.",
+      "required": false,
+      "default": null
+    },
+    "persist_and_return": {
+      "type": "boolean",
+      "label": "Persist And Return",
+      "description": "If True with destination set: persist to database AND return DataFrame. If False: only persist to database.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "linkedin",
+    "ads"
+  ]
+}

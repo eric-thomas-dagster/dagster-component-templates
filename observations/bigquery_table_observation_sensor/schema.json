@@ -1,57 +1,64 @@
 {
-  "type": "dagster_component_templates.BigQueryTableObservationSensorComponent",
-  "name": "BigQuery Table Observation Sensor",
-  "category": "observations",
-  "description": "Emit health observations for an external BigQuery table",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.BigQueryTableObservationSensorComponent",
+  "description": "Emit health observations for an external BigQuery table.",
+  "category": "observation",
+  "icon": "Eye",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetObservation",
+      "description": "Asset observation events"
+    }
+  },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
-      "label": "Sensor Name"
+      "label": "Sensor Name",
+      "description": "Unique sensor name",
+      "required": true
     },
     "asset_key": {
       "type": "string",
-      "required": true,
-      "label": "Asset Key"
+      "label": "Asset Key",
+      "description": "Asset key of the ExternalBigQueryTableAsset to observe",
+      "required": true
     },
     "project_id": {
       "type": "string",
-      "required": true,
-      "label": "Project ID"
+      "label": "Project Id",
+      "description": "GCP project ID",
+      "required": true
     },
     "dataset_id": {
       "type": "string",
-      "required": true,
-      "label": "Dataset ID"
+      "label": "Dataset Id",
+      "description": "BigQuery dataset ID",
+      "required": true
     },
     "table_id": {
       "type": "string",
-      "required": true,
-      "label": "Table ID"
+      "label": "Table Id",
+      "description": "BigQuery table ID",
+      "required": true
     },
     "check_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks",
       "required": false,
-      "label": "Check Interval (s)",
       "default": 300
     },
     "resource_key": {
       "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key.",
       "required": false,
-      "label": "Resource Key"
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "google-cloud-bigquery>=3.0.0"
-    ]
-  },
   "tags": [
-    "observations",
+    "observation",
     "bigquery",
-    "gcp",
-    "data_warehouse",
-    "monitoring"
+    "table",
+    "sensor"
   ]
 }

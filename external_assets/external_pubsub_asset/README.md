@@ -52,7 +52,6 @@ type: dagster_component_templates.PubsubObservationSensorComponent
 attributes:
   sensor_name: pubsub_asset_observer
   asset_key: external/pubsub
-  asset_key: external/pubsub
   project_id: PROJECT_ID
   topic_id: TOPIC_ID
 ```

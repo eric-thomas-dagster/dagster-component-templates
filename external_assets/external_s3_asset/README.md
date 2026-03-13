@@ -53,7 +53,6 @@ type: dagster_component_templates.S3ObservationSensorComponent
 attributes:
   sensor_name: s3_asset_observer
   asset_key: external/s3
-  asset_key: external/s3
   bucket_name: my_bucket
 ```
 

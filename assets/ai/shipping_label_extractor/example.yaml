@@ -1,0 +1,32 @@
+type: dagster_component_templates.ShippingLabelExtractorComponent
+attributes:
+  asset_name: extracted_shipping_labels
+  upstream_asset_key: raw_shipping_labels
+
+  # Input column
+  input_column: "text"
+  input_type: "text"  # text | file
+
+  # LLM
+  model: "gpt-4o-mini"
+  api_key_env_var: "OPENAI_API_KEY"
+
+  # Fields to extract
+  output_fields:
+    - "tracking_number"
+    - "carrier"
+    - "service_type"
+    - "sender_name"
+    - "sender_address"
+    - "recipient_name"
+    - "recipient_address"
+    - "weight"
+    - "dimensions"
+    - "ship_date"
+    - "estimated_delivery"
+
+  # Performance
+  batch_size: 5
+
+  # Organization
+  group_name: "document_extraction"

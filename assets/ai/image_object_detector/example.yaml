@@ -1,0 +1,25 @@
+type: dagster_component_templates.ImageObjectDetectorComponent
+attributes:
+  asset_name: detected_objects
+  upstream_asset_key: raw_images
+
+  # Input
+  image_column: "file_path"
+
+  # Output
+  output_column: "detected_objects"
+  count_column: "object_count"
+
+  # Model
+  model_name: "facebook/detr-resnet-50"
+  device: "cpu"
+
+  # Filtering
+  confidence_threshold: 0.7
+  target_labels:
+    - "person"
+    - "car"
+    - "bicycle"
+
+  # Organization
+  group_name: "vision"

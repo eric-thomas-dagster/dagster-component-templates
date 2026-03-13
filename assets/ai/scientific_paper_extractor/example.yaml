@@ -1,0 +1,33 @@
+type: dagster_component_templates.ScientificPaperExtractorComponent
+attributes:
+  asset_name: extracted_scientific_papers
+  upstream_asset_key: raw_scientific_papers
+
+  # Input column
+  input_column: "text"
+  input_type: "text"  # text | file
+
+  # LLM
+  model: "gpt-4o-mini"
+  api_key_env_var: "OPENAI_API_KEY"
+
+  # Fields to extract
+  output_fields:
+    - "title"
+    - "authors"
+    - "journal"
+    - "publication_date"
+    - "doi"
+    - "abstract"
+    - "keywords"
+    - "methodology"
+    - "key_findings"
+    - "limitations"
+    - "citations_count"
+    - "data_availability"
+
+  # Performance
+  batch_size: 5
+
+  # Organization
+  group_name: "document_extraction"

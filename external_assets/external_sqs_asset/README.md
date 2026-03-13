@@ -51,7 +51,6 @@ type: dagster_component_templates.SqsObservationSensorComponent
 attributes:
   sensor_name: sqs_asset_observer
   asset_key: external/sqs
-  asset_key: external/sqs
   queue_url: QUEUE_URL
 ```
 

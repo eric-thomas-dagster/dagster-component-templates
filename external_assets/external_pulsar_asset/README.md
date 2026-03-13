@@ -52,7 +52,6 @@ type: dagster_component_templates.PulsarObservationSensorComponent
 attributes:
   sensor_name: pulsar_asset_observer
   asset_key: external/pulsar
-  asset_key: external/pulsar
   service_url: SERVICE_URL
   topic: TOPIC
 ```

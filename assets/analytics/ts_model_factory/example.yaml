@@ -1,0 +1,24 @@
+type: dagster_component_templates.TsModelFactoryComponent
+attributes:
+  asset_name: product_forecasts
+  upstream_asset_key: product_sales_history
+  date_column: "month"
+  value_column: "units_sold"
+  group_column: "product_id"
+
+  # Forecast horizon
+  forecast_periods: 12
+
+  # Model
+  model: "ets"  # ets | arima
+
+  # ARIMA parameters (if model=arima)
+  arima_order: [1, 1, 1]
+
+  # ETS parameters (if model=ets)
+  ets_trend: "add"
+  ets_seasonal: "add"
+  ets_seasonal_periods: 12
+
+  # Organization
+  group_name: "forecasting"

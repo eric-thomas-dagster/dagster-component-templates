@@ -1,0 +1,10 @@
+type: dagster_component_templates.DataframeToTableComponent
+attributes:
+  asset_name: write_monthly_summary
+  upstream_asset_key: monthly_revenue_summary
+  table_name: monthly_revenue_summary
+  database_url_env_var: DATABASE_URL
+  if_exists: replace
+  schema: reporting
+  chunksize: 1000
+  group_name: output

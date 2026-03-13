@@ -1,0 +1,13 @@
+type: dagster_component_templates.LitellmEmbeddingBatchComponent
+attributes:
+  asset_name: article_embeddings
+  upstream_asset_key: processed_articles
+  text_column: body
+  output_column: embedding
+  model: text-embedding-3-small
+  batch_size: 100
+  dimensions: 1536
+  fallback_models:
+    - text-embedding-ada-002
+  api_key_env_var: OPENAI_API_KEY
+  group_name: ai_embeddings

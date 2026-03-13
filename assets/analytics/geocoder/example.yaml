@@ -1,0 +1,11 @@
+type: dagster_component_templates.GeocoderComponent
+attributes:
+  asset_name: geocoded_customers
+  upstream_asset_key: customers
+  address_column: full_address
+  provider: nominatim
+  user_agent: dagster_geocoder
+  lat_column: latitude
+  lng_column: longitude
+  batch_delay: 1.0
+  group_name: analytics

@@ -1,0 +1,147 @@
+{
+  "component_type": "dagster_component_templates.FacebookAdsIngestionComponent",
+  "description": "Component for ingesting Facebook Ads data using dlt - returns DataFrames.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset that will hold the Facebook Ads data",
+      "required": true
+    },
+    "account_id": {
+      "type": "string",
+      "label": "Account Id",
+      "description": "Account Id",
+      "required": true
+    },
+    "access_token": {
+      "type": "string",
+      "label": "Access Token",
+      "description": "Facebook Access Token with ads_read and lead_retrieval permissions. Use ${FACEBOOK_ACCESS_TOKEN} for env vars.",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "app_id": {
+      "type": "string",
+      "label": "App Id",
+      "description": "App Id",
+      "required": false,
+      "default": null
+    },
+    "app_secret": {
+      "type": "string",
+      "label": "App Secret",
+      "description": "App Secret",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "resources": {
+      "type": "string",
+      "label": "Resources",
+      "description": "Comma-separated list of resources to extract: campaigns, ad_sets, ads, creatives, ad_leads, insights",
+      "required": false,
+      "default": "insights"
+    },
+    "initial_load_past_days": {
+      "type": "integer",
+      "label": "Initial Load Past Days",
+      "description": "Number of days of historical data to load",
+      "required": false,
+      "default": 30
+    },
+    "ad_states": {
+      "type": "string",
+      "label": "Ad States",
+      "description": "Comma-separated ad states to extract: ACTIVE, PAUSED, DELETED, ARCHIVED, DISAPPROVED, etc.",
+      "required": false,
+      "default": "ACTIVE"
+    },
+    "insights_fields": {
+      "type": "string",
+      "label": "Insights Fields",
+      "description": "Insights Fields",
+      "required": false,
+      "default": null
+    },
+    "insights_breakdown": {
+      "type": "string",
+      "label": "Insights Breakdown",
+      "description": "Insights breakdown dimension: age, gender, country, region, platform, device_platform",
+      "required": false,
+      "default": null
+    },
+    "time_increment_days": {
+      "type": "integer",
+      "label": "Time Increment Days",
+      "description": "Time Increment Days",
+      "required": false,
+      "default": 1
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "facebook_ads"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "destination": {
+      "type": "string",
+      "label": "Destination",
+      "description": "Optional dlt destination (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "destination_config": {
+      "type": "string",
+      "label": "Destination Config",
+      "description": "Optional destination configuration as connection string or JSON. Required if destination is set.",
+      "required": false,
+      "default": null
+    },
+    "persist_and_return": {
+      "type": "boolean",
+      "label": "Persist And Return",
+      "description": "If True with destination set: persist to database AND return DataFrame. If False: only persist to database.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "facebook",
+    "ads"
+  ]
+}

@@ -1,0 +1,10 @@
+type: dagster_component_templates.CountRecordsComponent
+attributes:
+  asset_name: orders_by_status
+  upstream_asset_key: cleaned_orders
+  group_by:
+    - status
+    - region
+  count_column: order_count
+  include_null_counts: true
+  group_name: reporting

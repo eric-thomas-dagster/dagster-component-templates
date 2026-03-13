@@ -1,0 +1,11 @@
+type: dagster_component_templates.DataframeUnion
+attributes:
+  asset_name: all_transactions
+  upstream_asset_keys:
+    - transactions_q1
+    - transactions_q2
+    - transactions_q3
+    - transactions_q4
+  ignore_index: true
+  join: outer
+  group_name: transforms

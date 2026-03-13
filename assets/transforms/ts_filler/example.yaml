@@ -1,0 +1,15 @@
+component_type: ts_filler
+description: Fill gaps in daily sensor readings using forward fill, grouped by device_id.
+
+asset_name: sensor_readings_filled
+upstream_asset_key: raw_sensor_readings
+date_column: reading_date
+frequency: D
+fill_method: forward_fill
+value_columns:
+  - temperature
+  - humidity
+  - pressure
+group_by:
+  - device_id
+group_name: time_series

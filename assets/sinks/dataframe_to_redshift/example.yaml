@@ -1,0 +1,14 @@
+type: dagster_component_templates.DataframeToRedshiftComponent
+attributes:
+  asset_name: redshift_customers
+  upstream_asset_key: processed_customers
+  table: customers
+  schema: analytics
+  host_env_var: REDSHIFT_HOST
+  port: 5439
+  database_env_var: REDSHIFT_DATABASE
+  user_env_var: REDSHIFT_USER
+  password_env_var: REDSHIFT_PASSWORD
+  if_exists: replace
+  chunksize: 10000
+  group_name: warehouse_sinks

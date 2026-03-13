@@ -1,0 +1,18 @@
+type: dagster_component_templates.DataframeFromSqlComponent
+attributes:
+  asset_name: monthly_revenue
+  query: |
+    SELECT
+      DATE_TRUNC('month', order_date) AS month,
+      region,
+      SUM(amount) AS total_revenue
+    FROM orders
+    WHERE status = 'completed'
+    GROUP BY 1, 2
+    ORDER BY 1, 2
+  database_url_env_var: DATABASE_URL
+  parse_dates:
+    - month
+  deps:
+    - orders_ingested
+  group_name: reporting

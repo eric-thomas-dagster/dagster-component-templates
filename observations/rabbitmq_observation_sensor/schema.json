@@ -1,74 +1,86 @@
 {
-  "type": "dagster_component_templates.RabbitmqObservationSensorComponent",
-  "name": "RabbitMQ Observation Sensor",
-  "category": "sensors",
-  "description": "Emit health observations for an external RabbitMQ queue",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.RabbitmqObservationSensorComponent",
+  "description": "RabbitmqObservationSensorComponent",
+  "category": "observation",
+  "icon": "Eye",
   "x-dagster-io": {
-    "component_type": "observation_sensor"
+    "outputs": {
+      "type": "AssetObservation",
+      "description": "Asset observation events"
+    }
   },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
-      "label": "Sensor Name"
+      "label": "Sensor Name",
+      "description": "Unique sensor name",
+      "required": true
     },
     "asset_key": {
       "type": "string",
-      "required": true,
-      "label": "Asset Key"
+      "label": "Asset Key",
+      "description": "Asset key of the ExternalRabbitmqAsset to observe",
+      "required": true
     },
     "host": {
       "type": "string",
-      "required": true,
-      "label": "Host"
+      "label": "Host",
+      "description": "RabbitMQ host",
+      "required": true
     },
     "queue_name": {
       "type": "string",
-      "required": true,
-      "label": "Queue Name"
+      "label": "Queue Name",
+      "description": "RabbitMQ queue name",
+      "required": true
     },
     "virtual_host": {
       "type": "string",
-      "required": false,
       "label": "Virtual Host",
+      "description": "RabbitMQ virtual host",
+      "required": false,
       "default": "/"
     },
     "port": {
-      "type": "number",
-      "required": false,
+      "type": "integer",
       "label": "Port",
+      "description": "AMQP port",
+      "required": false,
       "default": 5672
     },
     "username_env_var": {
       "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var with username",
       "required": false,
-      "label": "Username Env Var"
+      "default": null
     },
     "password_env_var": {
       "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var with password",
       "required": false,
-      "label": "Password Env Var"
+      "default": null,
+      "ui:widget": "password"
     },
     "check_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks",
       "required": false,
-      "label": "Check Interval (s)",
       "default": 60
     },
     "resource_key": {
       "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key.",
       "required": false,
-      "label": "Resource Key"
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "pika>=1.3.0"
-    ]
-  },
   "tags": [
-    "sensors",
-    "observation"
+    "observation",
+    "rabbitmq",
+    "sensor"
   ]
 }

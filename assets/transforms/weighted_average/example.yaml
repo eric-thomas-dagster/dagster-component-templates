@@ -1,0 +1,11 @@
+type: dagster_component_templates.WeightedAverageComponent
+attributes:
+  asset_name: weighted_avg_price_by_category
+  upstream_asset_key: order_line_items
+  value_column: unit_price
+  weight_column: quantity
+  group_by:
+    - product_category
+    - region
+  output_column: weighted_avg_price
+  group_name: transforms

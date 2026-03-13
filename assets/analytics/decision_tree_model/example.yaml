@@ -1,0 +1,19 @@
+component_type: decision_tree_model
+description: Classify loan default risk using a decision tree with max depth 5.
+
+asset_name: loan_default_predictions
+upstream_asset_key: loan_applications_features
+target_column: defaulted
+feature_columns:
+  - credit_score
+  - annual_income
+  - loan_amount
+  - debt_to_income_ratio
+  - employment_length_years
+task_type: classification
+max_depth: 5
+min_samples_split: 10
+test_size: 0.2
+random_state: 42
+output_mode: predictions
+group_name: credit_models

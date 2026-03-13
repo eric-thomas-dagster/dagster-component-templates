@@ -1,0 +1,107 @@
+{
+  "component_type": "dagster_component_templates.SalesforceIngestionComponent",
+  "description": "Component for ingesting Salesforce CRM data using dlt.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "required": true
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "description": "Salesforce username",
+      "required": true
+    },
+    "password": {
+      "type": "string",
+      "label": "Password",
+      "description": "Salesforce password",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "security_token": {
+      "type": "string",
+      "label": "Security Token",
+      "description": "Security Token",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "sf_objects": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Sf Objects",
+      "description": "Sf Objects",
+      "required": false,
+      "default": "[\"Account\"",
+      "ui:widget": "list"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "salesforce"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "destination": {
+      "type": "string",
+      "label": "Destination",
+      "description": "Optional dlt destination (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "destination_config": {
+      "type": "string",
+      "label": "Destination Config",
+      "description": "Optional destination configuration as connection string or JSON. Required if destination is set.",
+      "required": false,
+      "default": null
+    },
+    "persist_and_return": {
+      "type": "boolean",
+      "label": "Persist And Return",
+      "description": "If True with destination set: persist to database AND return DataFrame. If False: only persist to database.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "salesforce"
+  ]
+}

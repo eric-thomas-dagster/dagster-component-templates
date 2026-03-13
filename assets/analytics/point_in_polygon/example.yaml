@@ -1,0 +1,12 @@
+component_type: point_in_polygon
+description: Tag each event with the US state it occurred in using a GeoJSON boundaries file.
+
+asset_name: events_with_state
+upstream_asset_key: events
+lat_column: latitude
+lng_column: longitude
+geojson_path: /data/regions/us_states.geojson
+polygon_name_field: NAME
+output_column: state
+output_inside_column: in_us
+group_name: geospatial

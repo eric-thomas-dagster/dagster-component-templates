@@ -1,0 +1,178 @@
+{
+  "component_type": "dagster_component_templates.TextClassifierComponent",
+  "description": "Component for classifying text with LLMs.",
+  "category": "ai",
+  "icon": "Sparkles",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Enriched DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame with text to classify",
+      "required": true
+    },
+    "input_column": {
+      "type": "string",
+      "label": "Input Column",
+      "description": "Column name containing text to classify",
+      "required": false,
+      "default": "text"
+    },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "description": "Column name for classification result",
+      "required": false,
+      "default": "category"
+    },
+    "confidence_column": {
+      "type": "string",
+      "label": "Confidence Column",
+      "description": "Confidence Column",
+      "required": false,
+      "default": "confidence"
+    },
+    "provider": {
+      "type": "string",
+      "label": "Provider",
+      "description": "LLM provider",
+      "required": true
+    },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "description": "Model name",
+      "required": true
+    },
+    "categories": {
+      "type": "string",
+      "label": "Categories",
+      "description": "JSON array of categories",
+      "required": true
+    },
+    "classification_task": {
+      "type": "string",
+      "label": "Classification Task",
+      "description": "Task description",
+      "required": false,
+      "default": "classification"
+    },
+    "include_confidence": {
+      "type": "boolean",
+      "label": "Include Confidence",
+      "description": "Include confidence scores",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "include_reasoning": {
+      "type": "boolean",
+      "label": "Include Reasoning",
+      "description": "Include reasoning",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "api_key": {
+      "type": "string",
+      "label": "Api Key",
+      "description": "API key with ${VAR_NAME} syntax",
+      "required": false,
+      "default": null
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature",
+      "description": "Temperature",
+      "required": false,
+      "default": 0.1
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ai",
+    "text",
+    "classifier"
+  ]
+}

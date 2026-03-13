@@ -1,0 +1,13 @@
+component_type: bounding_box_filter
+description: Filter GPS events to the contiguous United States bounding box.
+
+asset_name: us_gps_events
+upstream_asset_key: all_gps_events
+lat_column: latitude
+lng_column: longitude
+min_lat: 24.396308
+max_lat: 49.384358
+min_lng: -125.0
+max_lng: -66.93457
+keep_outside: false
+group_name: geospatial

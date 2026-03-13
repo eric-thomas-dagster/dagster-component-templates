@@ -52,7 +52,6 @@ type: dagster_component_templates.KafkaObservationSensorComponent
 attributes:
   sensor_name: kafka_asset_observer
   asset_key: external/kafka
-  asset_key: external/kafka
   bootstrap_servers: BOOTSTRAP_SERVERS
   topic: TOPIC
 ```

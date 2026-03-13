@@ -1,0 +1,20 @@
+component_type: pca
+description: Reduce 20 product feature dimensions to 3 principal components for visualization.
+
+asset_name: product_features_pca
+upstream_asset_key: product_features_scaled
+feature_columns:
+  - price
+  - weight
+  - rating
+  - review_count
+  - sales_velocity
+  - return_rate
+  - margin_pct
+  - click_through_rate
+n_components: 3
+output_prefix: pc_
+normalize: true
+keep_original: false
+include_explained_variance: true
+group_name: dimensionality_reduction

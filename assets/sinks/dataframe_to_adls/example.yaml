@@ -1,0 +1,11 @@
+type: dagster_component_templates.DataframeToAdlsComponent
+attributes:
+  asset_name: adls_user_events
+  upstream_asset_key: processed_user_events
+  account_name_env_var: AZURE_STORAGE_ACCOUNT
+  container: datalake
+  blob_path: processed/user_events/results.parquet
+  format: parquet
+  account_key_env_var: AZURE_STORAGE_KEY
+  compression: snappy
+  group_name: storage_sinks

@@ -1,0 +1,20 @@
+type: dagster_component_templates.ImageSimilarityScorerComponent
+attributes:
+  asset_name: image_similarity_scores
+  upstream_asset_key: image_pairs
+
+  # Input columns
+  image_column_a: "image_a_path"
+  image_column_b: "image_b_path"
+  # Alternatively, compare all rows against a fixed reference:
+  # reference_image: "/data/reference.jpg"
+
+  # Output
+  output_column: "image_similarity"
+
+  # Model
+  model_name: "openai/clip-vit-base-patch32"
+  device: "cpu"
+
+  # Organization
+  group_name: "vision"

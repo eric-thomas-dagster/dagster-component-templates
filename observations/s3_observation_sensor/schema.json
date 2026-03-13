@@ -1,61 +1,64 @@
 {
-  "type": "dagster_component_templates.S3ObservationSensorComponent",
-  "name": "S3 Observation Sensor",
-  "category": "sensors",
-  "description": "Emit health observations for an external S3 asset",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.S3ObservationSensorComponent",
+  "description": "S3ObservationSensorComponent",
+  "category": "observation",
+  "icon": "Eye",
   "x-dagster-io": {
-    "component_type": "observation_sensor"
+    "outputs": {
+      "type": "AssetObservation",
+      "description": "Asset observation events"
+    }
   },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
       "label": "Sensor Name",
-      "placeholder": "s3_orders_obs"
+      "description": "Unique sensor name",
+      "required": true
     },
     "asset_key": {
       "type": "string",
-      "required": true,
       "label": "Asset Key",
-      "placeholder": "raw/orders"
+      "description": "Asset key of the external asset to observe",
+      "required": true
     },
     "bucket_name": {
       "type": "string",
-      "required": true,
       "label": "Bucket Name",
-      "placeholder": "my-data-bucket"
+      "description": "S3 bucket name",
+      "required": true
     },
     "prefix": {
       "type": "string",
-      "required": false,
       "label": "Prefix",
+      "description": "Key prefix",
+      "required": false,
       "default": ""
     },
     "region_name": {
       "type": "string",
+      "label": "Region Name",
+      "description": "AWS region",
       "required": false,
-      "label": "Region"
+      "default": null
     },
     "check_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks",
       "required": false,
-      "label": "Check Interval (s)",
       "default": 300
     },
     "resource_key": {
       "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key.",
       "required": false,
-      "label": "Resource Key"
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "boto3>=1.20.0"
-    ]
-  },
   "tags": [
-    "sensors",
-    "observation"
+    "observation",
+    "sensor"
   ]
 }

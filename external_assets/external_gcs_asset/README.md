@@ -53,7 +53,6 @@ type: dagster_component_templates.GcsObservationSensorComponent
 attributes:
   sensor_name: gcs_asset_observer
   asset_key: external/gcs
-  asset_key: external/gcs
   bucket_name: my_bucket
 ```
 

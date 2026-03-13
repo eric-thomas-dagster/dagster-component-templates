@@ -1,0 +1,136 @@
+{
+  "component_type": "dagster_component_templates.TerraformAssetComponent",
+  "description": "Provision infrastructure with Terraform as a Dagster asset.",
+  "category": "infrastructure",
+  "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Provisioning result"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "working_dir": {
+      "type": "string",
+      "label": "Working Dir",
+      "description": "Path to the Terraform root module directory",
+      "required": true
+    },
+    "workspace": {
+      "type": "string",
+      "label": "Workspace",
+      "description": "Terraform workspace to select before running. Uses the default workspace if None.",
+      "required": false,
+      "default": null
+    },
+    "var_files": {
+      "type": "string",
+      "label": "Var Files",
+      "description": "List of .tfvars files passed as -var-file arguments",
+      "required": false,
+      "default": null
+    },
+    "vars": {
+      "type": "object",
+      "label": "Vars",
+      "description": "Inline variable overrides passed as -var key=value",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "targets": {
+      "type": "string",
+      "label": "Targets",
+      "description": "Limit apply/plan scope to specific resources via -target",
+      "required": false,
+      "default": null
+    },
+    "terraform_bin": {
+      "type": "string",
+      "label": "Terraform Bin",
+      "description": "Path to the terraform binary (default: ",
+      "required": false,
+      "default": "terraform"
+    },
+    "init_on_run": {
+      "type": "boolean",
+      "label": "Init On Run",
+      "description": "Run ",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "plan_only": {
+      "type": "boolean",
+      "label": "Plan Only",
+      "description": "Only run ",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "destroy": {
+      "type": "boolean",
+      "label": "Destroy",
+      "description": "Run ",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "parallelism": {
+      "type": "integer",
+      "label": "Parallelism",
+      "description": "Parallelism",
+      "required": false,
+      "default": 10
+    },
+    "auto_approve": {
+      "type": "boolean",
+      "label": "Auto Approve",
+      "description": "Pass -auto-approve to apply/destroy. Set False to require manual approval.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "env_vars": {
+      "type": "object",
+      "label": "Env Vars",
+      "description": "Env Vars",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": "infrastructure"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Human-readable description of what this Terraform module provisions",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream Dagster asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "terraform",
+    "asset"
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "component_type": "dagster_component_templates.AbInitioResource",
+  "description": "Resource for connecting to Ab Initio EME REST API.",
+  "category": "infrastructure",
+  "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Provisioning result"
+    }
+  },
+  "attributes": {
+    "eme_url": {
+      "type": "string",
+      "label": "Eme Url",
+      "description": "Eme Url",
+      "required": true
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "description": "Ab Initio EME username",
+      "required": true
+    },
+    "password": {
+      "type": "string",
+      "label": "Password",
+      "description": "Ab Initio EME password",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Dagster asset key (e.g. ",
+      "required": true
+    },
+    "job_path": {
+      "type": "string",
+      "label": "Job Path",
+      "description": "Job Path",
+      "required": true
+    },
+    "eme_url_env_var": {
+      "type": "string",
+      "label": "Eme Url Env Var",
+      "description": "Env var with Ab Initio EME base URL",
+      "required": false,
+      "default": null
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var with Ab Initio EME username",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var with Ab Initio EME password",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of an AbInitioResource. When set, env var fields are ignored.",
+      "required": false,
+      "default": null
+    },
+    "parameters": {
+      "type": "object",
+      "label": "Parameters",
+      "description": "Parameters",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between status polls",
+      "required": false,
+      "default": 15.0
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Max seconds to wait for job completion",
+      "required": false,
+      "default": 3600
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": "abinitio"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "abinitio",
+    "run",
+    "asset"
+  ]
+}

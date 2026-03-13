@@ -1,0 +1,11 @@
+type: dagster_component_templates.XmlParser
+attributes:
+  asset_name: parsed_product_xml
+  upstream_asset_key: raw_product_feed
+  xml_column: xml_data
+  xpath_expressions:
+    product_name: ".//name/text()"
+    price: ".//price/text()"
+    sku: ".//sku/text()"
+  namespace: null
+  group_name: transforms

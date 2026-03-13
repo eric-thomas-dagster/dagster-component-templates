@@ -1,132 +1,112 @@
 {
-  "type": "dagster_component_templates.NATSMonitorSensorComponent",
-  "name": "NATS JetStream Monitor",
-  "category": "sensors",
-  "description": "Monitor a NATS JetStream consumer for new messages and trigger jobs when messages are detected",
-  "icon": "Activity",
+  "component_type": "dagster_component_templates.NATSMonitorSensorComponent",
+  "description": "Component for monitoring a NATS JetStream consumer for new messages.",
+  "category": "sensor",
+  "icon": "Radar",
   "x-dagster-io": {
-    "component_type": "sensor",
-    "triggers": {
-      "type": "nats",
-      "description": "Triggers when new messages are detected in the NATS JetStream consumer"
-    },
     "outputs": {
-      "type": "run_config",
-      "description": "Passes message information (stream, consumer, subject, sequence, data, headers, timestamp_ns) to triggered jobs via run_config"
+      "type": "RunRequest",
+      "description": "Sensor run requests"
     }
   },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
       "label": "Sensor Name",
       "description": "Unique name for this sensor",
-      "placeholder": "nats_events_sensor"
+      "required": true
     },
     "servers": {
       "type": "string",
-      "required": true,
       "label": "Servers",
-      "description": "Comma-separated NATS server URLs",
-      "placeholder": "nats://localhost:4222"
+      "description": "Comma-separated NATS server URLs (e.g., ",
+      "required": true
     },
     "stream_name": {
       "type": "string",
-      "required": true,
       "label": "Stream Name",
       "description": "JetStream stream name",
-      "placeholder": "EVENTS"
+      "required": true
     },
     "consumer_name": {
       "type": "string",
-      "required": true,
       "label": "Consumer Name",
       "description": "Durable JetStream consumer name. Must be pre-created on the server.",
-      "placeholder": "dagster-sensor"
+      "required": true
     },
     "job_name": {
       "type": "string",
-      "required": true,
       "label": "Job Name",
       "description": "Name of the job to trigger when messages are detected",
-      "placeholder": "process_nats_messages_job"
+      "required": true
     },
     "subject_filter": {
       "type": "string",
-      "required": false,
       "label": "Subject Filter",
       "description": "Optional subject filter to scope which messages are processed",
-      "placeholder": "events.orders.*"
+      "required": false,
+      "default": null
     },
     "max_messages_per_poll": {
-      "type": "number",
-      "required": false,
+      "type": "integer",
       "label": "Max Messages Per Poll",
       "description": "Maximum number of messages to fetch per evaluation",
-      "default": 100,
-      "minimum": 1,
-      "placeholder": "100"
+      "required": false,
+      "default": 100
     },
     "fetch_timeout_seconds": {
       "type": "number",
-      "required": false,
-      "label": "Fetch Timeout (seconds)",
+      "label": "Fetch Timeout Seconds",
       "description": "Seconds to wait for messages during each fetch call",
-      "default": 5.0,
-      "minimum": 0.1,
-      "placeholder": "5.0"
+      "required": false,
+      "default": 5.0
     },
     "credentials_env_var": {
       "type": "string",
-      "required": false,
       "label": "Credentials Env Var",
       "description": "Name of the environment variable containing the path to a NATS .creds file",
-      "placeholder": "NATS_CREDENTIALS_PATH"
+      "required": false,
+      "default": null
+    },
+    "jwt_env_var": {
+      "type": "string",
+      "label": "Jwt Env Var",
+      "description": "Name of the environment variable containing a NATS JWT token",
+      "required": false,
+      "default": null
+    },
+    "nkey_env_var": {
+      "type": "string",
+      "label": "Nkey Env Var",
+      "description": "Name of the environment variable containing a NATS NKey seed",
+      "required": false,
+      "default": null
     },
     "minimum_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum Interval Seconds",
       "required": false,
-      "label": "Minimum Interval (seconds)",
-      "description": "Minimum time between sensor evaluations",
-      "default": 30,
-      "minimum": 1,
-      "placeholder": "30"
-    },
-    "default_status": {
-      "type": "string",
-      "required": false,
-      "label": "Default Status",
-      "description": "Default status of the sensor",
-      "default": "running",
-      "enum": [
-        "running",
-        "stopped"
-      ],
-      "enumLabels": {
-        "running": "Running (sensor actively monitors)",
-        "stopped": "Stopped (sensor is paused)"
-      }
+      "default": 30
     },
     "resource_key": {
       "type": "string",
-      "required": false,
       "label": "Resource Key",
-      "description": "Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key> is used instead of creating a connection from the other fields. See README for the expected interface.",
-      "placeholder": "my_aws_resource"
+      "description": "Optional Dagster resource key providing a pre-configured client. ",
+      "required": false,
+      "default": null
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Default Status",
+      "required": false,
+      "default": "running"
     }
   },
-  "dependencies": {
-    "pip": [
-      "nats-py>=2.3.0"
-    ]
-  },
   "tags": [
-    "sensors",
+    "sensor",
     "nats",
-    "jetstream",
-    "cloud-native",
-    "streaming",
-    "messaging",
-    "automation"
+    "monitor"
   ]
 }

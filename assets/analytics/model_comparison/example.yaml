@@ -1,0 +1,22 @@
+component_type: model_comparison
+description: Compare five classifiers on customer churn features to select the best model.
+
+asset_name: churn_model_comparison
+upstream_asset_key: customer_features_enriched
+target_column: churned
+feature_columns:
+  - days_since_last_order
+  - total_orders
+  - avg_order_value
+  - support_tickets_count
+  - email_open_rate
+task_type: classification
+models:
+  - logistic_regression
+  - random_forest
+  - gradient_boosting
+  - decision_tree
+  - naive_bayes
+cv_folds: 5
+random_state: 42
+group_name: model_selection

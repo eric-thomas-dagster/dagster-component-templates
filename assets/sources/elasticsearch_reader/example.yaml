@@ -1,0 +1,10 @@
+type: dagster_component_templates.ElasticsearchReaderComponent
+attributes:
+  asset_name: product_search_results
+  index_name: products
+  search_text: "wireless headphones"
+  search_fields:
+    - title
+    - description
+  n_results: 50
+  group_name: sources

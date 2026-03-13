@@ -1,124 +1,95 @@
 {
-  "type": "dagster_component_templates.ServiceBusMonitorSensorComponent",
-  "name": "Azure Service Bus Monitor",
-  "category": "sensors",
-  "description": "Poll an Azure Service Bus queue or topic subscription for new messages and trigger jobs when messages are received",
-  "icon": "MessageSquare",
+  "component_type": "dagster_component_templates.ServiceBusMonitorSensorComponent",
+  "description": "Component for polling an Azure Service Bus queue or topic subscription.",
+  "category": "sensor",
+  "icon": "Radar",
   "x-dagster-io": {
-    "component_type": "sensor",
-    "triggers": {
-      "type": "servicebus",
-      "description": "Triggers when new messages are received from the Service Bus queue or topic subscription"
-    },
     "outputs": {
-      "type": "run_config",
-      "description": "Passes message information (message_id, body, subject, content_type, enqueued_time) to triggered jobs via run_config"
+      "type": "RunRequest",
+      "description": "Sensor run requests"
     }
   },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
       "label": "Sensor Name",
       "description": "Unique name for this sensor",
-      "placeholder": "servicebus_sensor"
+      "required": true
     },
     "job_name": {
       "type": "string",
-      "required": true,
       "label": "Job Name",
       "description": "Name of the job to trigger when messages are received",
-      "placeholder": "process_messages_job"
+      "required": true
     },
     "fully_qualified_namespace": {
       "type": "string",
-      "required": false,
       "label": "Fully Qualified Namespace",
-      "description": "Service Bus namespace hostname. Required when not using a connection string.",
-      "placeholder": "mynamespace.servicebus.windows.net"
+      "description": "Service Bus namespace hostname (e.g., ",
+      "required": false,
+      "default": null
     },
     "connection_string_env_var": {
       "type": "string",
-      "required": false,
       "label": "Connection String Env Var",
-      "description": "Name of the environment variable containing the Service Bus connection string. If not provided, DefaultAzureCredential is used.",
-      "placeholder": "SERVICEBUS_CONNECTION_STRING"
+      "description": "Name of the environment variable containing the Service Bus connection string. ",
+      "required": false,
+      "default": null
     },
     "queue_name": {
       "type": "string",
-      "required": false,
       "label": "Queue Name",
       "description": "Name of the Service Bus queue to monitor. Provide this OR topic_name.",
-      "placeholder": "my-queue"
+      "required": false,
+      "default": null
     },
     "topic_name": {
       "type": "string",
-      "required": false,
       "label": "Topic Name",
       "description": "Name of the Service Bus topic to monitor. Requires subscription_name.",
-      "placeholder": "my-topic"
+      "required": false,
+      "default": null
     },
     "subscription_name": {
       "type": "string",
-      "required": false,
       "label": "Subscription Name",
-      "description": "Name of the topic subscription (required when using topic_name)",
-      "placeholder": "my-subscription"
+      "description": "Subscription Name",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
     },
     "max_messages_per_poll": {
-      "type": "number",
-      "required": false,
+      "type": "integer",
       "label": "Max Messages Per Poll",
       "description": "Maximum number of messages to receive per evaluation",
-      "default": 100,
-      "minimum": 1,
-      "placeholder": "100"
+      "required": false,
+      "default": 100
     },
     "minimum_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum Interval Seconds",
       "required": false,
-      "label": "Minimum Interval (seconds)",
-      "description": "Minimum time between sensor evaluations",
-      "default": 30,
-      "minimum": 1,
-      "placeholder": "30"
-    },
-    "default_status": {
-      "type": "string",
-      "required": false,
-      "label": "Default Status",
-      "description": "Default status of the sensor",
-      "default": "running",
-      "enum": [
-        "running",
-        "stopped"
-      ],
-      "enumLabels": {
-        "running": "Running (sensor actively monitors)",
-        "stopped": "Stopped (sensor is paused)"
-      }
+      "default": 30
     },
     "resource_key": {
       "type": "string",
-      "required": false,
       "label": "Resource Key",
-      "description": "Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key> is used instead of creating a connection from the other fields. See README for the expected interface.",
-      "placeholder": "my_aws_resource"
+      "description": "Optional Dagster resource key providing a pre-configured client. ",
+      "required": false,
+      "default": null
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Default Status",
+      "required": false,
+      "default": "running"
     }
   },
-  "dependencies": {
-    "pip": [
-      "azure-servicebus>=7.11.0",
-      "azure-identity>=1.12.0"
-    ]
-  },
   "tags": [
-    "sensors",
+    "sensor",
     "servicebus",
-    "azure",
-    "cloud",
-    "queue",
-    "messaging",
-    "automation"
+    "monitor"
   ]
 }

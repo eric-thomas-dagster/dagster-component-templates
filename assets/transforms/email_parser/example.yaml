@@ -1,0 +1,14 @@
+component_type: dagster_component_templates.EmailParserComponent
+
+asset_name: parsed_emails
+upstream_asset_key: raw_email_messages
+group_name: transforms
+column: raw_email
+extract_fields:
+  - from
+  - to
+  - subject
+  - date
+  - body
+output_prefix: "email_"
+drop_source: false

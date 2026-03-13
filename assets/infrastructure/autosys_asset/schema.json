@@ -1,0 +1,18 @@
+{
+  "component_type": "dagster_component_templates.AutoSysAssetComponent",
+  "description": "AutoSys enterprise job scheduler component.",
+  "category": "infrastructure",
+  "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Provisioning result"
+    }
+  },
+  "attributes": {},
+  "tags": [
+    "infrastructure",
+    "autosys",
+    "asset"
+  ]
+}

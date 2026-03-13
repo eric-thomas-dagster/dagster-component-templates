@@ -1,0 +1,11 @@
+component_type: dagster_component_templates.ImageCaptionerComponent
+
+asset_name: captioned_images
+upstream_asset_key: image_file_records
+group_name: ai
+image_path_column: image_path
+output_column: caption
+model: gpt-4o-mini
+prompt: "Describe this image concisely."
+max_tokens: 200
+api_key_env_var: OPENAI_API_KEY

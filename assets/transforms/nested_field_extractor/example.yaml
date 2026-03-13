@@ -1,0 +1,12 @@
+component_type: dagster_component_templates.NestedFieldExtractorComponent
+
+asset_name: extracted_address_fields
+upstream_asset_key: raw_customers
+group_name: transforms
+extractions:
+  city: "address.city"
+  zip: "address.zip"
+  country: "address.country"
+source_column: customer_data
+missing_value: null
+drop_source: false

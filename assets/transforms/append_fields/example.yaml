@@ -1,0 +1,10 @@
+type: dagster_component_templates.AppendFields
+attributes:
+  asset_name: orders_with_config
+  upstream_asset_key: orders
+  source_asset_key: global_config
+  fields:
+    - currency
+    - tax_rate
+    - fiscal_year
+  group_name: transforms

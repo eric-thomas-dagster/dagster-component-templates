@@ -1,0 +1,147 @@
+{
+  "component_type": "dagster_component_templates.PinterestAdsIngestionComponent",
+  "description": "Component for ingesting Pinterest Ads data using dlt - returns DataFrames.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset that will hold the Pinterest Ads data",
+      "required": true
+    },
+    "access_token": {
+      "type": "string",
+      "label": "Access Token",
+      "description": "Pinterest OAuth 2.0 Access Token with ads:read scope. Use ${PINTEREST_ACCESS_TOKEN} for env vars.",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "ad_account_ids": {
+      "type": "string",
+      "label": "Ad Account Ids",
+      "description": "Comma-separated list of Pinterest Ad Account IDs (e.g., ",
+      "required": true
+    },
+    "app_id": {
+      "type": "string",
+      "label": "App Id",
+      "description": "App Id",
+      "required": false,
+      "default": null
+    },
+    "app_secret": {
+      "type": "string",
+      "label": "App Secret",
+      "description": "App Secret",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "resources": {
+      "type": "string",
+      "label": "Resources",
+      "description": "Comma-separated list of resources to extract: ad_accounts, campaigns, ad_groups, ads, pins, keywords, analytics",
+      "required": false,
+      "default": "campaigns"
+    },
+    "start_date": {
+      "type": "string",
+      "label": "Start Date",
+      "description": "Start Date",
+      "required": false,
+      "default": null
+    },
+    "end_date": {
+      "type": "string",
+      "label": "End Date",
+      "description": "End Date",
+      "required": false,
+      "default": null
+    },
+    "granularity": {
+      "type": "string",
+      "label": "Granularity",
+      "description": "Analytics granularity: DAY, HOUR, WEEK, or MONTH",
+      "required": false,
+      "default": "DAY"
+    },
+    "level": {
+      "type": "string",
+      "label": "Level",
+      "description": "Analytics aggregation level: AD_ACCOUNT, CAMPAIGN, AD_GROUP, AD, KEYWORD, or PIN_PROMOTION",
+      "required": false,
+      "default": "CAMPAIGN"
+    },
+    "columns": {
+      "type": "string",
+      "label": "Columns",
+      "description": "Columns",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "pinterest_ads"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "destination": {
+      "type": "string",
+      "label": "Destination",
+      "description": "Optional dlt destination (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "destination_config": {
+      "type": "string",
+      "label": "Destination Config",
+      "description": "Optional destination configuration as connection string or JSON. Required if destination is set.",
+      "required": false,
+      "default": null
+    },
+    "persist_and_return": {
+      "type": "boolean",
+      "label": "Persist And Return",
+      "description": "If True with destination set: persist to database AND return DataFrame. If False: only persist to database.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "pinterest",
+    "ads"
+  ]
+}

@@ -1,0 +1,14 @@
+type: dagster_component_templates.CassandraWriterComponent
+attributes:
+  asset_name: write_events_to_cassandra
+  upstream_asset_key: processed_events
+  hosts:
+    - cassandra1.example.com
+    - cassandra2.example.com
+  port: 9042
+  keyspace: analytics
+  table: events
+  if_exists: insert
+  username_env_var: CASSANDRA_USERNAME
+  password_env_var: CASSANDRA_PASSWORD
+  group_name: sinks

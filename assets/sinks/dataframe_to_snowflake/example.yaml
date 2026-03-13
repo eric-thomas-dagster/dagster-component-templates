@@ -1,0 +1,15 @@
+type: dagster_component_templates.DataframeToSnowflakeComponent
+attributes:
+  asset_name: snowflake_orders
+  upstream_asset_key: processed_orders
+  table: orders
+  database: ANALYTICS
+  schema: PUBLIC
+  warehouse: COMPUTE_WH
+  role: TRANSFORMER
+  account_env_var: SNOWFLAKE_ACCOUNT
+  user_env_var: SNOWFLAKE_USER
+  password_env_var: SNOWFLAKE_PASSWORD
+  if_exists: replace
+  chunksize: 10000
+  group_name: warehouse_sinks

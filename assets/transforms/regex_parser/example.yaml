@@ -1,0 +1,15 @@
+type: dagster_component_templates.RegexParser
+attributes:
+  asset_name: extracted_phone_parts
+  upstream_asset_key: raw_contacts
+  column: phone_number
+  pattern: "^(\\d{3})-(\\d{3})-(\\d{4})$"
+  mode: extract
+  replacement: null
+  output_columns:
+    - area_code
+    - exchange
+    - subscriber
+  output_column: null
+  flags: 0
+  group_name: transforms

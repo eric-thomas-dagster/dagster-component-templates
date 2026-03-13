@@ -1,0 +1,15 @@
+component_type: reverse_geocoder
+description: Reverse geocode GPS event coordinates to human-readable addresses.
+
+asset_name: gps_events_with_address
+upstream_asset_key: gps_events
+lat_column: latitude
+lng_column: longitude
+provider: nominatim
+user_agent: dagster_reverse_geocoder
+output_address_column: address
+output_city_column: city
+output_country_column: country
+timeout: 10
+batch_delay: 1.0
+group_name: geospatial

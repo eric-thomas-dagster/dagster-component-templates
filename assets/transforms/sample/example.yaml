@@ -1,0 +1,8 @@
+type: dagster_component_templates.SampleComponent
+attributes:
+  asset_name: transactions_sample
+  upstream_asset_key: raw_transactions
+  frac: 0.1
+  random_state: 42
+  replace: false
+  group_name: data_exploration

@@ -1,0 +1,13 @@
+component_type: distance_calculator
+description: Calculate haversine distance between pickup and dropoff coordinates for deliveries.
+
+asset_name: deliveries_with_distance
+upstream_asset_key: deliveries
+lat1_column: pickup_lat
+lng1_column: pickup_lng
+lat2_column: dropoff_lat
+lng2_column: dropoff_lng
+output_column: distance_km
+unit: km
+formula: haversine
+group_name: geospatial

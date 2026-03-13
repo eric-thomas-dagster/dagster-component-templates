@@ -1,0 +1,28 @@
+type: dagster_component_templates.InvoiceExtractorComponent
+attributes:
+  asset_name: extracted_invoices
+  upstream_asset_key: raw_invoices
+
+  # Input column
+  input_column: "invoice_text"
+  input_type: "text"  # text | file
+
+  # LLM
+  model: "gpt-4o"
+  api_key_env_var: "OPENAI_API_KEY"
+
+  # Fields to extract
+  output_fields:
+    - "invoice_number"
+    - "date"
+    - "vendor"
+    - "total_amount"
+    - "line_items"
+    - "tax"
+    - "currency"
+
+  # Performance
+  batch_size: 5
+
+  # Organization
+  group_name: "genai"

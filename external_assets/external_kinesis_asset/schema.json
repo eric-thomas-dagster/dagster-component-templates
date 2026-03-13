@@ -1,48 +1,53 @@
 {
-  "type": "dagster_component_templates.ExternalKinesisAsset",
-  "name": "External Kinesis Asset",
-  "category": "sensors",
-  "description": "Declare a Kinesis stream as an external asset",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.ExternalKinesisAsset",
+  "description": "ExternalKinesisAsset",
+  "category": "external",
+  "icon": "Link",
   "x-dagster-io": {
-    "component_type": "external_asset"
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "External asset declaration"
+    }
   },
   "attributes": {
     "asset_key": {
       "type": "string",
-      "required": true,
       "label": "Asset Key",
-      "placeholder": "streaming/clickstream"
+      "description": "Dagster asset key",
+      "required": true
     },
     "stream_name": {
       "type": "string",
-      "required": true,
       "label": "Stream Name",
-      "placeholder": "my-stream"
+      "description": "Kinesis stream name",
+      "required": true
     },
     "region_name": {
       "type": "string",
+      "label": "Region Name",
+      "description": "AWS region",
       "required": false,
-      "label": "Region"
+      "default": null
     },
     "group_name": {
       "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
       "required": false,
-      "label": "Group Name"
+      "default": null
     },
     "description": {
       "type": "string",
+      "label": "Description",
+      "description": "Human-readable description",
       "required": false,
-      "label": "Description"
+      "default": null,
+      "ui:widget": "code"
     }
   },
-  "dependencies": {
-    "pip": [
-      "dagster"
-    ]
-  },
   "tags": [
-    "sensors",
-    "external_asset"
+    "external",
+    "kinesis",
+    "asset"
   ]
 }

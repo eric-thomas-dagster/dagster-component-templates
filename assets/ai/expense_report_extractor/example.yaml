@@ -1,0 +1,32 @@
+type: dagster_component_templates.ExpenseReportExtractorComponent
+attributes:
+  asset_name: extracted_expense_reports
+  upstream_asset_key: raw_expense_reports
+
+  # Input column
+  input_column: "text"
+  input_type: "text"  # text | file
+
+  # LLM
+  model: "gpt-4o-mini"
+  api_key_env_var: "OPENAI_API_KEY"
+
+  # Fields to extract
+  output_fields:
+    - "employee_name"
+    - "employee_id"
+    - "department"
+    - "report_date"
+    - "period_start"
+    - "period_end"
+    - "line_items"
+    - "total_amount"
+    - "currency"
+    - "approver"
+    - "status"
+
+  # Performance
+  batch_size: 5
+
+  # Organization
+  group_name: "document_extraction"

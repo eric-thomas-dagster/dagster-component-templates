@@ -1,0 +1,18 @@
+component_type: naive_bayes_model
+description: Classify lead quality using Gaussian Naive Bayes on sales features.
+
+asset_name: lead_quality_nb_predictions
+upstream_asset_key: lead_features_enriched
+target_column: lead_quality
+feature_columns:
+  - company_size
+  - industry_score
+  - engagement_score
+  - days_since_signup
+  - page_views_30d
+variant: gaussian
+test_size: 0.2
+random_state: 42
+output_predictions: true
+output_probabilities: true
+group_name: lead_scoring_models

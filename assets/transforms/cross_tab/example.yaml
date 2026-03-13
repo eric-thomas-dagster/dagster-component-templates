@@ -1,0 +1,10 @@
+type: dagster_component_templates.CrossTabComponent
+attributes:
+  asset_name: sales_by_region_and_quarter
+  upstream_asset_key: sales_data
+  index_column: region
+  pivot_column: quarter
+  value_column: revenue
+  agg_func: sum
+  fill_value: 0
+  group_name: transforms

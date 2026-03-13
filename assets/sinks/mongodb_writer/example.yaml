@@ -1,0 +1,9 @@
+type: dagster_component_templates.MongodbWriterComponent
+attributes:
+  asset_name: write_users_to_mongo
+  upstream_asset_key: transformed_users
+  connection_string_env_var: MONGODB_URI
+  database: mydb
+  collection: users
+  if_exists: replace
+  group_name: sinks

@@ -1,0 +1,14 @@
+component_type: dagster_component_templates.FieldMapperComponent
+
+asset_name: normalized_events
+upstream_asset_key: raw_mongo_events
+group_name: transforms
+mapping:
+  _id: id
+  createdAt: created_at
+  updatedAt: updated_at
+  userId: user_id
+drop_unmapped: false
+passthrough:
+  - event_type
+  - payload

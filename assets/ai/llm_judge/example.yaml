@@ -1,0 +1,22 @@
+type: dagster_component_templates.LlmJudgeComponent
+attributes:
+  asset_name: evaluated_chatbot_responses
+  upstream_asset_key: chatbot_response_log
+  response_column: bot_response
+  reference_column: expected_answer
+  criteria:
+    - accuracy
+    - clarity
+    - helpfulness
+    - completeness
+  score_column: judge_score
+  reason_column: judge_reason
+  model: gpt-4o
+  rubric: |
+    Score each criterion from 0-10:
+    - 0-3: Poor, significantly misses the mark
+    - 4-6: Adequate, partially meets expectations
+    - 7-9: Good, meets most expectations
+    - 10: Excellent, fully meets or exceeds expectations
+  api_key_env_var: OPENAI_API_KEY
+  group_name: ai_evaluation

@@ -1,0 +1,15 @@
+type: dagster_component_templates.DataframeFromCsvComponent
+attributes:
+  asset_name: sales_data
+  file_path: "${DATA_DIR}/sales/2024_sales.csv"
+  delimiter: ","
+  encoding: utf-8
+  parse_dates:
+    - order_date
+    - ship_date
+  dtype:
+    order_id: str
+    amount: float
+  skiprows: 1
+  nrows: 10000
+  group_name: ingestion

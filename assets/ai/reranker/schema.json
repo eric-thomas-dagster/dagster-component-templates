@@ -1,0 +1,232 @@
+{
+  "component_type": "dagster_component_templates.RerankerComponent",
+  "description": "Component for reranking search results to improve relevance.",
+  "category": "ai",
+  "icon": "Sparkles",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Enriched DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset that will hold reranked results",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame with search results to rerank",
+      "required": true
+    },
+    "method": {
+      "type": "string",
+      "label": "Method",
+      "description": "Reranking method: cohere, cross_encoder, bm25",
+      "required": true
+    },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "description": "Model name (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "api_key": {
+      "type": "string",
+      "label": "Api Key",
+      "description": "API key for Cohere. Use ${COHERE_API_KEY} for env vars.",
+      "required": false,
+      "default": null
+    },
+    "query_column": {
+      "type": "string",
+      "label": "Query Column",
+      "description": "Column name containing search queries",
+      "required": false,
+      "default": "query",
+      "ui:widget": "code"
+    },
+    "text_column": {
+      "type": "string",
+      "label": "Text Column",
+      "description": "Column name containing document text to rerank",
+      "required": false,
+      "default": "text",
+      "ui:widget": "textarea"
+    },
+    "score_column": {
+      "type": "string",
+      "label": "Score Column",
+      "description": "Score Column",
+      "required": false,
+      "default": "score"
+    },
+    "output_score_column": {
+      "type": "string",
+      "label": "Output Score Column",
+      "description": "Column name for reranking scores",
+      "required": false,
+      "default": "rerank_score"
+    },
+    "top_n": {
+      "type": "integer",
+      "label": "Top N",
+      "description": "Top N",
+      "required": false,
+      "default": null
+    },
+    "rerank_threshold": {
+      "type": "number",
+      "label": "Rerank Threshold",
+      "description": "Rerank Threshold",
+      "required": false,
+      "default": null
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "description": "Batch Size",
+      "required": false,
+      "default": 100
+    },
+    "normalize_scores": {
+      "type": "boolean",
+      "label": "Normalize Scores",
+      "description": "Normalize scores to 0-1 range",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "combine_scores": {
+      "type": "string",
+      "label": "Combine Scores",
+      "description": "Combine with original scores: ",
+      "required": false,
+      "default": null
+    },
+    "score_weight": {
+      "type": "number",
+      "label": "Score Weight",
+      "description": "Score Weight",
+      "required": false,
+      "default": 0.5
+    },
+    "return_documents": {
+      "type": "boolean",
+      "label": "Return Documents",
+      "description": "Return document text in results",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "max_chunks_per_doc": {
+      "type": "integer",
+      "label": "Max Chunks Per Doc",
+      "description": "Max Chunks Per Doc",
+      "required": false,
+      "default": null
+    },
+    "rate_limit_delay": {
+      "type": "number",
+      "label": "Rate Limit Delay",
+      "description": "Delay between API calls in seconds",
+      "required": false,
+      "default": 0.0
+    },
+    "track_costs": {
+      "type": "boolean",
+      "label": "Track Costs",
+      "description": "Track Costs",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "reranking"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    }
+  },
+  "tags": [
+    "ai",
+    "reranker"
+  ]
+}

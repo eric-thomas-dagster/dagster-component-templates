@@ -1,0 +1,33 @@
+type: dagster_component_templates.PurchaseOrderExtractorComponent
+attributes:
+  asset_name: extracted_purchase_orders
+  upstream_asset_key: raw_purchase_orders
+
+  # Input column
+  input_column: "text"
+  input_type: "text"  # text | file
+
+  # LLM
+  model: "gpt-4o-mini"
+  api_key_env_var: "OPENAI_API_KEY"
+
+  # Fields to extract
+  output_fields:
+    - "po_number"
+    - "vendor"
+    - "buyer"
+    - "issue_date"
+    - "delivery_date"
+    - "line_items"
+    - "subtotal"
+    - "tax"
+    - "total"
+    - "payment_terms"
+    - "shipping_address"
+    - "billing_address"
+
+  # Performance
+  batch_size: 5
+
+  # Organization
+  group_name: "document_extraction"

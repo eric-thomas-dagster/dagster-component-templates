@@ -1,0 +1,16 @@
+type: dagster_component_templates.TileBinningComponent
+attributes:
+  asset_name: customers_with_spend_tier
+  upstream_asset_key: customer_spend
+  column: annual_spend
+  n_bins: 5
+  method: equal_freq
+  labels:
+    - bronze
+    - silver
+    - gold
+    - platinum
+    - diamond
+  output_column: spend_tier
+  include_numeric_label: true
+  group_name: segmentation

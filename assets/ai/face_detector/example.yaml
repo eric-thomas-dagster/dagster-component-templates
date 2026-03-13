@@ -1,0 +1,19 @@
+type: dagster_component_templates.FaceDetectorComponent
+attributes:
+  asset_name: detected_faces
+  upstream_asset_key: raw_images
+
+  # Input
+  image_column: "file_path"
+
+  # Output
+  count_column: "face_count"
+  boxes_column: "face_bounding_boxes"
+  landmarks_column: "face_landmarks"
+
+  # Detection settings
+  backend: "opencv"  # opencv | mediapipe | retinaface
+  min_confidence: 0.5
+
+  # Organization
+  group_name: "vision"

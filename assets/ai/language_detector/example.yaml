@@ -1,0 +1,10 @@
+component_type: dagster_component_templates.LanguageDetectorComponent
+
+asset_name: language_detected_text
+upstream_asset_key: raw_text_data
+group_name: ai
+text_column: content
+output_column: language
+confidence_column: language_confidence
+backend: langdetect
+fallback_language: unknown

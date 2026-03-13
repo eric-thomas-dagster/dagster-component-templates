@@ -1,0 +1,112 @@
+{
+  "component_type": "dagster_component_templates.ModalAssetComponent",
+  "description": "Trigger a Modal function as a Dagster asset.",
+  "category": "infrastructure",
+  "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Provisioning result"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset key for this component.",
+      "required": true
+    },
+    "modal_function": {
+      "type": "string",
+      "label": "Modal Function",
+      "description": "Modal Function",
+      "required": true
+    },
+    "app_file": {
+      "type": "string",
+      "label": "App File",
+      "description": "App File",
+      "required": false,
+      "default": null
+    },
+    "function_name": {
+      "type": "string",
+      "label": "Function Name",
+      "description": "Function Name",
+      "required": false,
+      "default": null
+    },
+    "args": {
+      "type": "string",
+      "label": "Args",
+      "description": "Positional arguments forwarded to the Modal function.",
+      "required": false,
+      "default": null
+    },
+    "kwargs": {
+      "type": "object",
+      "label": "Kwargs",
+      "description": "Keyword arguments forwarded to the Modal function.",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "modal_token_id_env_var": {
+      "type": "string",
+      "label": "Modal Token Id Env Var",
+      "description": "Modal Token Id Env Var",
+      "required": false,
+      "default": null
+    },
+    "modal_token_secret_env_var": {
+      "type": "string",
+      "label": "Modal Token Secret Env Var",
+      "description": "Modal Token Secret Env Var",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "detach": {
+      "type": "boolean",
+      "label": "Detach",
+      "description": "Detach",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "environment_name": {
+      "type": "string",
+      "label": "Environment Name",
+      "description": "Environment Name",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": "compute"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Human-readable description surfaced in the Dagster UI.",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "modal",
+    "asset"
+  ]
+}

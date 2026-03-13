@@ -1,0 +1,8 @@
+component_type: dagster_component_templates.ArrayExploderComponent
+
+asset_name: exploded_tags
+upstream_asset_key: raw_documents
+group_name: transforms
+column: tags
+ignore_index: true
+drop_nulls: false

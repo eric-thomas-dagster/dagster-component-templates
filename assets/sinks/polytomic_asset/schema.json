@@ -1,0 +1,23 @@
+{
+  "component_type": "dagster_component_templates.PolytomicAssetComponent",
+  "description": "Polytomic reverse-ETL component \u2014 one Dagster asset per Polytomic sync.",
+  "category": "sink",
+  "icon": "ArrowDownToLine",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame to write"
+    },
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Write confirmation with metadata"
+    }
+  },
+  "attributes": {},
+  "tags": [
+    "sink",
+    "polytomic",
+    "asset"
+  ]
+}

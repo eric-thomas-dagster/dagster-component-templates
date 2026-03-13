@@ -1,72 +1,83 @@
 {
-  "type": "dagster_component_templates.DatabricksTableObservationSensorComponent",
-  "name": "Databricks Table Observation Sensor",
-  "category": "observations",
-  "description": "Emit health observations for an external Databricks Delta table",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.DatabricksTableObservationSensorComponent",
+  "description": "Emit health observations for an external Databricks Delta table.",
+  "category": "observation",
+  "icon": "Eye",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetObservation",
+      "description": "Asset observation events"
+    }
+  },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
-      "label": "Sensor Name"
+      "label": "Sensor Name",
+      "description": "Unique sensor name",
+      "required": true
     },
     "asset_key": {
       "type": "string",
-      "required": true,
-      "label": "Asset Key"
+      "label": "Asset Key",
+      "description": "Asset key of the ExternalDatabricksTableAsset to observe",
+      "required": true
     },
     "workspace_url": {
       "type": "string",
-      "required": true,
-      "label": "Workspace URL"
+      "label": "Workspace Url",
+      "description": "Databricks workspace URL",
+      "required": true
     },
     "catalog": {
       "type": "string",
+      "label": "Catalog",
+      "description": "Unity Catalog name",
       "required": false,
-      "label": "Catalog"
+      "default": null
     },
     "schema_name": {
       "type": "string",
-      "required": true,
-      "label": "Schema"
+      "label": "Schema Name",
+      "description": "Schema/database name",
+      "required": true
     },
     "table_name": {
       "type": "string",
-      "required": true,
-      "label": "Table"
+      "label": "Table Name",
+      "description": "Table name",
+      "required": true
     },
     "token_env_var": {
       "type": "string",
-      "required": true,
-      "label": "Token Env Var"
+      "label": "Token Env Var",
+      "description": "Env var with Databricks personal access token",
+      "required": true
     },
     "http_path": {
       "type": "string",
-      "required": true,
-      "label": "SQL Warehouse HTTP Path"
+      "label": "Http Path",
+      "description": "Http Path",
+      "required": true
     },
     "check_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks",
       "required": false,
-      "label": "Check Interval (s)",
       "default": 300
     },
     "resource_key": {
       "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key.",
       "required": false,
-      "label": "Resource Key"
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "databricks-sql-connector>=3.0.0"
-    ]
-  },
   "tags": [
-    "observations",
+    "observation",
     "databricks",
-    "delta",
-    "lakehouse",
-    "monitoring"
+    "table",
+    "sensor"
   ]
 }

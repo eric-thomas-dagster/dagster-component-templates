@@ -1,0 +1,14 @@
+component_type: topic_modeling
+description: Discover 8 latent topics in customer support tickets for routing and analysis.
+
+asset_name: support_ticket_topics
+upstream_asset_key: support_tickets_clean_text
+text_column: cleaned_text
+n_topics: 8
+n_top_words: 15
+max_features: 2000
+max_iter: 20
+random_state: 42
+output_mode: dominant_topic
+language: english
+group_name: nlp_pipeline

@@ -1,0 +1,9 @@
+type: dagster_component_templates.MakeColumnsComponent
+attributes:
+  asset_name: features_wide
+  upstream_asset_key: feature_list
+  n_columns: 4
+  value_column: feature_value
+  key_column: feature_name
+  fill_value: "N/A"
+  group_name: wide_format

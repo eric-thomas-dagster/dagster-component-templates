@@ -1,0 +1,23 @@
+type: dagster_component_templates.DocumentLayoutAnalyzerComponent
+attributes:
+  asset_name: document_layout_regions
+  upstream_asset_key: document_page_images
+
+  # Input
+  image_column: "page_image_path"
+
+  # Output
+  output_column: "layout_regions"
+
+  # Model
+  model_name: "microsoft/layoutlmv3-base"
+  device: "cpu"
+
+  # Filter to specific region types (optional)
+  region_types:
+    - "table"
+    - "figure"
+    - "text"
+
+  # Organization
+  group_name: "vision"

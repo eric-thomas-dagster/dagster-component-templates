@@ -1,0 +1,18 @@
+component_type: k_means_clustering
+description: Segment customers into 6 behavioral clusters using RFM-style features.
+
+asset_name: customer_segments
+upstream_asset_key: customer_features_enriched
+feature_columns:
+  - recency_days
+  - frequency_90d
+  - monetary_value_90d
+  - avg_session_duration
+  - pages_per_session
+n_clusters: 6
+output_column: segment_cluster
+normalize: true
+random_state: 42
+max_iter: 300
+include_distance: true
+group_name: segmentation

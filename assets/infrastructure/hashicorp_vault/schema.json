@@ -1,0 +1,112 @@
+{
+  "component_type": "dagster_component_templates.VaultResource",
+  "description": "Dagster resource for reading secrets from a HashiCorp Vault cluster.",
+  "category": "infrastructure",
+  "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Provisioning result"
+    }
+  },
+  "attributes": {
+    "vault_url_env_var": {
+      "type": "string",
+      "label": "Vault Url Env Var",
+      "description": "Vault Url Env Var",
+      "required": true
+    },
+    "token_env_var": {
+      "type": "string",
+      "label": "Token Env Var",
+      "description": "Token Env Var",
+      "required": false,
+      "default": null
+    },
+    "role_id_env_var": {
+      "type": "string",
+      "label": "Role Id Env Var",
+      "description": "Role Id Env Var",
+      "required": false,
+      "default": null
+    },
+    "secret_id_env_var": {
+      "type": "string",
+      "label": "Secret Id Env Var",
+      "description": "Secret Id Env Var",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "namespace": {
+      "type": "string",
+      "label": "Namespace",
+      "description": "Namespace",
+      "required": false,
+      "default": null
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify Ssl",
+      "description": "Verify Ssl",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset key for this component.",
+      "required": true
+    },
+    "secrets": {
+      "type": "string",
+      "label": "Secrets",
+      "description": "Secrets",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "commands": {
+      "type": "string",
+      "label": "Commands",
+      "description": "Commands",
+      "required": false,
+      "default": null
+    },
+    "export_to_env": {
+      "type": "boolean",
+      "label": "Export To Env",
+      "description": "Export To Env",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": "secrets"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Human-readable description surfaced in the Dagster UI.",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "hashicorp",
+    "vault"
+  ]
+}

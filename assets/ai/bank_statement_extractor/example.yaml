@@ -1,0 +1,30 @@
+type: dagster_component_templates.BankStatementExtractorComponent
+attributes:
+  asset_name: extracted_bank_statements
+  upstream_asset_key: raw_bank_statements
+
+  # Input column
+  input_column: "text"
+  input_type: "text"  # text | file
+
+  # LLM
+  model: "gpt-4o-mini"
+  api_key_env_var: "OPENAI_API_KEY"
+
+  # Fields to extract
+  output_fields:
+    - "account_number"
+    - "account_holder"
+    - "bank_name"
+    - "statement_period"
+    - "opening_balance"
+    - "closing_balance"
+    - "transactions"
+    - "total_credits"
+    - "total_debits"
+
+  # Performance
+  batch_size: 5
+
+  # Organization
+  group_name: "document_extraction"

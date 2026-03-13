@@ -1,0 +1,164 @@
+{
+  "component_type": "dagster_component_templates.RestApiFetcherComponent",
+  "description": "Component for fetching data from REST APIs.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "required": true
+    },
+    "api_url": {
+      "type": "string",
+      "label": "Api Url",
+      "description": "URL of the API endpoint to fetch data from",
+      "required": true
+    },
+    "method": {
+      "type": "string",
+      "label": "Method",
+      "description": "Method",
+      "required": false,
+      "default": "GET"
+    },
+    "headers": {
+      "type": "string",
+      "label": "Headers",
+      "description": "JSON string of HTTP headers (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "params": {
+      "type": "string",
+      "label": "Params",
+      "description": "JSON string of query parameters (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "body": {
+      "type": "string",
+      "label": "Body",
+      "description": "JSON string of request body for POST/PUT requests",
+      "required": false,
+      "default": null
+    },
+    "auth_type": {
+      "type": "string",
+      "label": "Auth Type",
+      "description": "Authentication type: ",
+      "required": false,
+      "default": null
+    },
+    "auth_username": {
+      "type": "string",
+      "label": "Auth Username",
+      "description": "Auth Username",
+      "required": false,
+      "default": null
+    },
+    "auth_password": {
+      "type": "string",
+      "label": "Auth Password",
+      "description": "Auth Password",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "auth_token": {
+      "type": "string",
+      "label": "Auth Token",
+      "description": "Auth Token",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "timeout": {
+      "type": "integer",
+      "label": "Timeout",
+      "description": "Request timeout in seconds",
+      "required": false,
+      "default": 30
+    },
+    "output_format": {
+      "type": "string",
+      "label": "Output Format",
+      "description": "Output format: ",
+      "required": false,
+      "default": "json"
+    },
+    "json_path": {
+      "type": "string",
+      "label": "Json Path",
+      "description": "JSON path to extract data from response (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "cache_results": {
+      "type": "boolean",
+      "label": "Cache Results",
+      "description": "Whether to cache results locally",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "cache_path": {
+      "type": "string",
+      "label": "Cache Path",
+      "description": "Cache Path",
+      "required": false,
+      "default": null
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify Ssl",
+      "description": "Whether to verify SSL certificates",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata when output_format is ",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    }
+  },
+  "tags": [
+    "ingestion",
+    "rest",
+    "api",
+    "fetcher"
+  ]
+}

@@ -1,0 +1,291 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dagster-component-templates/schema-spec",
+  "title": "Dagster Component Schema Specification",
+  "description": "Master specification for all component schema.json files in dagster-component-templates. A UI editor reads this file to understand the valid structure, field types, widgets, and I/O contracts for every component.",
+  "version": "1.0.0",
+
+  "componentSchema": {
+    "description": "The structure every component's schema.json must follow",
+    "required": ["component_type", "description", "category", "attributes"],
+    "properties": {
+      "component_type": {
+        "type": "string",
+        "description": "Fully-qualified Python class path. Format: 'dagster_component_templates.<ClassName>'",
+        "examples": ["dagster_component_templates.SummarizeComponent", "dagster_component_templates.CsvSinkComponent"]
+      },
+      "description": {
+        "type": "string",
+        "description": "One-sentence human-readable description shown in the component picker."
+      },
+      "category": {
+        "type": "string",
+        "description": "Functional category — controls folder, I/O contract, and UI grouping.",
+        "enum": [
+          "transformation",
+          "source",
+          "sink",
+          "ingestion",
+          "analytics",
+          "ai",
+          "infrastructure",
+          "dbt",
+          "sensor",
+          "external",
+          "observation",
+          "check",
+          "integration"
+        ]
+      },
+      "icon": {
+        "type": "string",
+        "description": "Lucide icon name to display in the UI. See 'icons' section for valid values.",
+        "examples": ["Database", "Filter", "BarChart2", "Cpu", "Globe"]
+      },
+      "x-dagster-io": {
+        "description": "Declares the data I/O contract for this component. Drives port display and type-checking in the canvas editor.",
+        "$ref": "#/ioContract"
+      },
+      "attributes": {
+        "type": "object",
+        "description": "Maps each configurable field name to its field descriptor. The UI editor renders a form from this.",
+        "additionalProperties": {
+          "$ref": "#/fieldDescriptor"
+        }
+      },
+      "tags": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Search/filter tags shown in the component picker.",
+        "examples": [["transformation", "filter", "rows"]]
+      }
+    }
+  },
+
+  "ioContract": {
+    "description": "Specifies what data types flow in and out of a component. Used by the canvas editor to validate connections between components.",
+    "properties": {
+      "inputs": {
+        "description": "Describes the primary input port. Omit if the component has no DataFrame input.",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["dataframe", "string", "any"],
+            "description": "'dataframe' is the most common — the component receives a pandas DataFrame via the Dagster IO manager."
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether an upstream connection must be present."
+          },
+          "description": {
+            "type": "string",
+            "description": "Tooltip shown on the input port."
+          }
+        }
+      },
+      "outputs": {
+        "description": "Describes the primary output port. Omit if the component produces no downstream-consumable output.",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["dataframe", "MaterializeResult", "string", "any"],
+            "description": "'dataframe' = passes a pandas DataFrame downstream via IO manager. 'MaterializeResult' = terminal sink/ingestion, returns metadata only."
+          },
+          "description": {
+            "type": "string",
+            "description": "Tooltip shown on the output port."
+          }
+        }
+      }
+    }
+  },
+
+  "fieldDescriptor": {
+    "description": "Describes one configurable attribute. The UI editor uses this to render the correct input widget and validate values.",
+    "required": ["type", "label", "description"],
+    "properties": {
+      "type": {
+        "type": "string",
+        "enum": ["string", "integer", "number", "boolean", "array", "object"],
+        "description": "JSON Schema primitive type for this field."
+      },
+      "label": {
+        "type": "string",
+        "description": "Human-readable field label shown above the input widget."
+      },
+      "description": {
+        "type": "string",
+        "description": "Help text shown below the input widget. Should explain what the field does and give an example if non-obvious."
+      },
+      "required": {
+        "type": "boolean",
+        "description": "If true, the UI shows this field as required and validates it is non-empty before saving."
+      },
+      "default": {
+        "description": "Default value pre-filled in the widget. Can be string, number, boolean, array, object, or null."
+      },
+      "enum": {
+        "type": "array",
+        "description": "Restricts valid values to this list. When present, the UI renders a 'select' dropdown (or 'radio' for ≤3 short values).",
+        "examples": [["repeat", "append", "cross_join"], ["sum", "mean", "count", "min", "max"]]
+      },
+      "items": {
+        "description": "For type='array', describes each element. Typically {\"type\": \"string\"} or {\"type\": \"object\"}."
+      },
+      "ui:widget": {
+        "type": "string",
+        "description": "Override the auto-selected widget. See 'widgets' section for valid values and when to use each.",
+        "enum": [
+          "text",
+          "textarea",
+          "code",
+          "select",
+          "radio",
+          "checkbox",
+          "number",
+          "list",
+          "key-value",
+          "file",
+          "password"
+        ]
+      }
+    }
+  },
+
+  "widgets": {
+    "description": "All valid ui:widget values, when they are auto-selected, and when to manually set them.",
+    "text": {
+      "description": "Single-line text input. Auto-selected for string fields. Suitable for names, keys, short values.",
+      "autoSelected": "string fields without a special name suffix"
+    },
+    "textarea": {
+      "description": "Multi-line text area. Auto-selected when field name contains: description, prompt, template, message, text, content.",
+      "autoSelected": "fields named *_description, *_prompt, *_template, *_message"
+    },
+    "code": {
+      "description": "Code editor (monospace, syntax highlighting). Auto-selected when field name contains: query, sql, expression, condition, formula, code, script.",
+      "autoSelected": "fields named *_query, *_sql, *_expression, *_formula, *_script"
+    },
+    "select": {
+      "description": "Dropdown selector. Auto-selected when 'enum' is present with more than 3 options.",
+      "autoSelected": "fields with 'enum' array (4+ values)"
+    },
+    "radio": {
+      "description": "Radio button group. Use for 'enum' with 2-3 short option labels.",
+      "autoSelected": "fields with 'enum' array (2-3 values)"
+    },
+    "checkbox": {
+      "description": "Boolean toggle/checkbox. Auto-selected for boolean fields.",
+      "autoSelected": "boolean fields"
+    },
+    "number": {
+      "description": "Numeric spinner input. Auto-selected for integer and number fields.",
+      "autoSelected": "integer and number fields"
+    },
+    "list": {
+      "description": "Dynamic list of strings. Auto-selected for array fields with string items. Each row is one string value.",
+      "autoSelected": "array fields where items.type == 'string'"
+    },
+    "key-value": {
+      "description": "Dynamic key-value editor. Auto-selected for object fields. Each row is one key:value pair.",
+      "autoSelected": "object fields (dict/mapping)"
+    },
+    "file": {
+      "description": "File path picker (opens OS file dialog). Use for fields that specify a local file or directory path.",
+      "autoSelected": "fields named *file_path, *local_path, *output_path, *input_path"
+    },
+    "password": {
+      "description": "Masked input. Auto-selected for fields that contain credentials. Stored encrypted in vault.",
+      "autoSelected": "fields named password, secret, api_token, access_token, auth_token, or ending in _password/_secret/_token"
+    }
+  },
+
+  "ioContractsByCategory": {
+    "description": "Standard I/O contracts by category. All components in a category should conform to the same contract so they are interchangeable in the canvas editor.",
+    "transformation": {
+      "inputs": { "type": "dataframe", "required": true, "description": "Input DataFrame" },
+      "outputs": { "type": "dataframe", "description": "Transformed DataFrame" }
+    },
+    "source": {
+      "outputs": { "type": "dataframe", "description": "Output DataFrame" }
+    },
+    "sink": {
+      "inputs": { "type": "dataframe", "required": true, "description": "DataFrame to write" },
+      "outputs": { "type": "MaterializeResult", "description": "Write confirmation with metadata" }
+    },
+    "ingestion": {
+      "outputs": { "type": "MaterializeResult", "description": "Ingestion result with row count" }
+    },
+    "analytics": {
+      "inputs": { "type": "dataframe", "required": true, "description": "Input DataFrame" },
+      "outputs": { "type": "dataframe", "description": "Analytics result DataFrame" }
+    },
+    "ai": {
+      "inputs": { "type": "dataframe", "required": true, "description": "Input DataFrame" },
+      "outputs": { "type": "dataframe", "description": "Processed DataFrame" }
+    },
+    "infrastructure": {
+      "outputs": { "type": "MaterializeResult", "description": "Deployment or operation result" }
+    },
+    "dbt": {
+      "outputs": { "type": "MaterializeResult", "description": "dbt run result" }
+    },
+    "sensor": {},
+    "external": {},
+    "observation": {},
+    "check": {},
+    "integration": {}
+  },
+
+  "icons": {
+    "description": "Recommended Lucide icon names by category. Any valid Lucide icon name is accepted.",
+    "transformation": ["Shuffle", "Filter", "SortAsc", "Columns", "GitMerge", "Scissors", "Type", "Hash", "Calculator", "RefreshCw", "ArrowRightLeft", "Rows", "PlusSquare", "Minus", "Braces"],
+    "source": ["Database", "Table", "FileText", "Globe", "Server", "HardDrive", "FileJson", "Sheet", "Inbox"],
+    "sink": ["Download", "Save", "Upload", "HardDrive", "FileOutput", "Database", "Archive"],
+    "ingestion": ["Upload", "CloudUpload", "Inbox", "Import", "ArrowDownToLine"],
+    "analytics": ["BarChart2", "PieChart", "TrendingUp", "Activity", "Sigma", "Target", "GitBranch", "Crosshair", "Map"],
+    "ai": ["Cpu", "Brain", "MessageSquare", "Sparkles", "Wand2", "Eye", "Search", "Tag"],
+    "infrastructure": ["Server", "Cloud", "GitBranch", "Shield", "Settings", "Terminal", "Layers"],
+    "sensor": ["Bell", "Radio", "Wifi", "Clock"],
+    "external": ["ExternalLink", "Link", "Globe"],
+    "observation": ["Eye", "Activity", "Monitor"],
+    "check": ["CheckCircle", "AlertTriangle", "Shield"],
+    "integration": ["Plug", "Link2", "Zap"]
+  },
+
+  "componentRegistry": {
+    "description": "All component categories and their folder locations within the repository.",
+    "folders": {
+      "assets/ingestion": { "category": "ingestion", "count": 49 },
+      "assets/sources": { "category": "source", "count": 18 },
+      "assets/transforms": { "category": "transformation", "count": 38 },
+      "assets/sinks": { "category": "sink", "count": 23 },
+      "assets/analytics": { "category": "analytics", "count": 69 },
+      "assets/ai": { "category": "ai", "count": 34 },
+      "assets/infrastructure": { "category": "infrastructure", "count": 16 },
+      "assets/dbt": { "category": "dbt", "count": 1 },
+      "sensors": { "category": "sensor", "count": 30 },
+      "external_assets": { "category": "external", "count": 21 },
+      "observations": { "category": "observation", "count": 20 },
+      "asset_checks": { "category": "check", "count": 7 },
+      "integrations": { "category": "integration", "count": 18 }
+    },
+    "totalComponents": 342,
+    "manifestFile": "manifest.json",
+    "manifestDescription": "Full registry of all components with paths and GitHub raw URLs. Updated when new components are added."
+  },
+
+  "parsingInstructions": {
+    "description": "How a UI editor should load and parse components from this repository.",
+    "steps": [
+      "1. Fetch manifest.json to get the list of all components and their paths.",
+      "2. For each component, load its schema.json using the path from the manifest.",
+      "3. Validate the schema.json against the 'componentSchema' definition in this file.",
+      "4. Use 'category' to determine the I/O ports (see ioContractsByCategory).",
+      "5. Use 'attributes' to build the configuration form — render each field using its 'type', 'ui:widget', and 'enum'.",
+      "6. Use 'x-dagster-io' for canvas port display and connection type-checking.",
+      "7. Use 'icon' and 'tags' for the component picker UI.",
+      "8. When rendering a field: if 'ui:widget' is present, use it; otherwise auto-select based on 'type' and field name per the 'widgets' section."
+    ]
+  }
+}

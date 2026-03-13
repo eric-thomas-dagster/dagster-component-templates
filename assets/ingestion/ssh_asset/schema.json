@@ -1,0 +1,148 @@
+{
+  "component_type": "dagster_component_templates.SSHAssetComponent",
+  "description": "Run shell commands on a remote host via SSH as a Dagster asset.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset key for this component.",
+      "required": true
+    },
+    "host_env_var": {
+      "type": "string",
+      "label": "Host Env Var",
+      "description": "Name of the environment variable containing the hostname or IP address of the remote host.",
+      "required": true
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Name of the environment variable containing the SSH username.",
+      "required": true
+    },
+    "private_key_env_var": {
+      "type": "string",
+      "label": "Private Key Env Var",
+      "description": "Private Key Env Var",
+      "required": false,
+      "default": null
+    },
+    "private_key_path_env_var": {
+      "type": "string",
+      "label": "Private Key Path Env Var",
+      "description": "Private Key Path Env Var",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Password Env Var",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "description": "SSH port on the remote host.",
+      "required": false,
+      "default": 22
+    },
+    "known_hosts_check": {
+      "type": "boolean",
+      "label": "Known Hosts Check",
+      "description": "Known Hosts Check",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "commands": {
+      "type": "string",
+      "label": "Commands",
+      "description": "Ordered list of shell commands to execute on the remote host.",
+      "required": true
+    },
+    "working_dir": {
+      "type": "string",
+      "label": "Working Dir",
+      "description": "Working Dir",
+      "required": false,
+      "default": null
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Per-command execution timeout in seconds.",
+      "required": false,
+      "default": 300
+    },
+    "fail_on_non_zero": {
+      "type": "boolean",
+      "label": "Fail On Non Zero",
+      "description": "Raise an exception when any command exits with a non-zero status code.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "capture_output": {
+      "type": "boolean",
+      "label": "Capture Output",
+      "description": "Stream each command",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "sftp_upload": {
+      "type": "object",
+      "label": "Sftp Upload",
+      "description": "Sftp Upload",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "sftp_download": {
+      "type": "object",
+      "label": "Sftp Download",
+      "description": "Sftp Download",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": "infrastructure"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Human-readable description surfaced in the Dagster UI.",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "ssh",
+    "asset"
+  ]
+}

@@ -1,0 +1,12 @@
+component_type: dagster_component_templates.TopicModelerComponent
+
+asset_name: topic_modeled_documents
+upstream_asset_key: document_corpus
+group_name: ai
+text_column: body
+output_column: topic_id
+topic_label_column: topic_keywords
+n_topics: 10
+method: lda
+max_features: 1000
+top_words_per_topic: 5

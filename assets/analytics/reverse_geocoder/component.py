@@ -1,0 +1,229 @@
+"""Reverse Geocoder Component.
+
+Reverse geocode latitude/longitude coordinates to human-readable addresses
+using Nominatim (free), Google Maps, or HERE geocoding APIs.
+"""
+
+import os
+import time
+from dataclasses import dataclass
+from typing import Optional, List
+
+import pandas as pd
+from dagster import (
+    AssetExecutionContext,
+    AssetIn,
+    AssetKey,
+    Component,
+    ComponentLoadContext,
+    Definitions,
+    MetadataValue,
+    Model,
+    Resolvable,
+    asset,
+)
+from pydantic import Field
+
+
+@dataclass
+class ReverseGeocoderComponent(Component, Model, Resolvable):
+    """Reverse geocode lat/lng coordinates to addresses in a DataFrame.
+
+    Adds address (and optionally city/country) columns to an upstream DataFrame
+    by performing reverse geocoding using Nominatim, Google Maps, or HERE APIs.
+
+    Example:
+        ```yaml
+        type: dagster_component_templates.ReverseGeocoderComponent
+        attributes:
+          asset_name: locations_with_address
+          upstream_asset_key: gps_events
+          lat_column: latitude
+          lng_column: longitude
+          provider: nominatim
+          output_address_column: address
+          output_city_column: city
+          output_country_column: country
+          group_name: geospatial
+        ```
+    """
+
+    asset_name: str = Field(description="Output Dagster asset name")
+    upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame with lat/lng columns")
+    lat_column: str = Field(default="latitude", description="Column name containing latitude values")
+    lng_column: str = Field(default="longitude", description="Column name containing longitude values")
+    provider: str = Field(
+        default="nominatim",
+        description="Geocoding provider: 'nominatim' (free), 'google' (API key required), 'here' (API key required)"
+    )
+    api_key_env_var: Optional[str] = Field(
+        default=None,
+        description="Environment variable name containing the API key (for paid providers)"
+    )
+    user_agent: str = Field(
+        default="dagster_reverse_geocoder",
+        description="User agent string required for Nominatim requests"
+    )
+    output_address_column: str = Field(default="address", description="Column name for the full resolved address")
+    output_city_column: Optional[str] = Field(default=None, description="Optional column name for the city name")
+    output_country_column: Optional[str] = Field(default=None, description="Optional column name for the country name")
+    timeout: int = Field(default=10, description="Request timeout in seconds")
+    batch_delay: float = Field(default=1.0, description="Seconds to wait between requests to respect rate limits")
+    group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned",
+    )
+    partition_start: Optional[str] = Field(
+        default=None,
+        description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+    )
+    partition_date_column: Optional[str] = Field(
+        default=None,
+        description="Column used to filter upstream DataFrame to the current date partition key.",
+    )
+    partition_values: Optional[str] = Field(
+        default=None,
+        description="Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
+    )
+    partition_static_dim: Optional[str] = Field(
+        default=None,
+        description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
+    )
+    partition_static_column: Optional[str] = Field(
+        default=None,
+        description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
+    )
+
+    @classmethod
+    def get_description(cls) -> str:
+        return "Reverse geocode lat/lng coordinates to human-readable addresses."
+
+    def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        asset_name = self.asset_name
+        upstream_asset_key = self.upstream_asset_key
+        lat_column = self.lat_column
+        lng_column = self.lng_column
+        provider = self.provider
+        api_key_env_var = self.api_key_env_var
+        user_agent = self.user_agent
+        output_address_column = self.output_address_column
+        output_city_column = self.output_city_column
+        output_country_column = self.output_country_column
+        timeout = self.timeout
+        batch_delay = self.batch_delay
+        group_name = self.group_name
+
+        # Build partition definition
+        partitions_def = None
+        if self.partition_type:
+            from dagster import (
+                DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+                MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+                StaticPartitionsDefinition, MultiPartitionsDefinition,
+            )
+            _start = self.partition_start or "2020-01-01"
+            _values = [v.strip() for v in (self.partition_values or "").split(",") if v.strip()]
+            if self.partition_type == "daily":
+                partitions_def = DailyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "weekly":
+                partitions_def = WeeklyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "monthly":
+                partitions_def = MonthlyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "hourly":
+                partitions_def = HourlyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "static":
+                partitions_def = StaticPartitionsDefinition(_values)
+            elif self.partition_type == "multi":
+                _dim = self.partition_static_dim or "segment"
+                partitions_def = MultiPartitionsDefinition({
+                    "date": DailyPartitionsDefinition(start_date=_start),
+                    _dim: StaticPartitionsDefinition(_values),
+                })
+        partition_type = self.partition_type
+        partition_date_column = self.partition_date_column
+        partition_static_column = self.partition_static_column
+        partition_static_dim = self.partition_static_dim
+
+        @asset(
+            name=asset_name,
+            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+            partitions_def=partitions_def,
+            group_name=group_name,
+        )
+        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+            # Filter to current partition if partitioned
+            if context.has_partition_key:
+                _pk = context.partition_key
+                _is_multi = hasattr(_pk, "keys_by_dimension")
+                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                if partition_date_column and partition_date_column in upstream.columns and _date_key:
+                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
+                if partition_static_column and partition_static_column in upstream.columns and _static_key:
+                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
+                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
+                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+            try:
+                from geopy.geocoders import Nominatim, GoogleV3, Here
+            except ImportError:
+                raise ImportError("geopy is required: pip install geopy")
+
+            if provider == "nominatim":
+                geolocator = Nominatim(user_agent=user_agent, timeout=timeout)
+            elif provider == "google":
+                api_key = os.environ.get(api_key_env_var or "GOOGLE_MAPS_API_KEY")
+                geolocator = GoogleV3(api_key=api_key, timeout=timeout)
+            elif provider == "here":
+                api_key = os.environ.get(api_key_env_var or "HERE_API_KEY")
+                geolocator = Here(apikey=api_key, timeout=timeout)
+            else:
+                raise ValueError(f"Unknown provider '{provider}'. Use: nominatim, google, here")
+
+            df = upstream.copy()
+            addresses, cities, countries = [], [], []
+
+            context.log.info(f"Reverse geocoding {len(df)} coordinates using {provider}")
+
+            success_count = 0
+            for i, (_, row) in enumerate(df.iterrows()):
+                try:
+                    loc = geolocator.reverse(f"{row[lat_column]}, {row[lng_column]}")
+                    if loc:
+                        addresses.append(loc.address)
+                        raw = loc.raw.get("address", {})
+                        cities.append(raw.get("city") or raw.get("town") or raw.get("village"))
+                        countries.append(raw.get("country"))
+                        success_count += 1
+                    else:
+                        addresses.append(None)
+                        cities.append(None)
+                        countries.append(None)
+                except Exception as e:
+                    context.log.warning(f"Failed to reverse geocode row {i}: {e}")
+                    addresses.append(None)
+                    cities.append(None)
+                    countries.append(None)
+                time.sleep(batch_delay)
+
+                if (i + 1) % 10 == 0:
+                    context.log.info(f"Progress: {i + 1}/{len(df)} coordinates processed")
+
+            df[output_address_column] = addresses
+            if output_city_column:
+                df[output_city_column] = cities
+            if output_country_column:
+                df[output_country_column] = countries
+
+            success_rate = success_count / len(df) * 100 if len(df) > 0 else 0
+            context.log.info(f"Reverse geocoding complete: {success_count}/{len(df)} succeeded ({success_rate:.1f}%)")
+
+            context.add_output_metadata({
+                "total_rows": MetadataValue.int(len(df)),
+                "geocoded_count": MetadataValue.int(success_count),
+                "success_rate": MetadataValue.float(round(success_rate, 2)),
+                "provider": MetadataValue.text(provider),
+            })
+            return df
+
+        return Definitions(assets=[_asset])

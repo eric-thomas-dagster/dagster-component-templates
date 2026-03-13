@@ -1,0 +1,7 @@
+type: dagster_component_templates.TransposeComponent
+attributes:
+  asset_name: metrics_transposed
+  upstream_asset_key: monthly_metrics
+  index_column: metric_name
+  reset_column_name: field
+  group_name: transforms

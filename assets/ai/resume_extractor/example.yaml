@@ -1,0 +1,31 @@
+type: dagster_component_templates.ResumeExtractorComponent
+attributes:
+  asset_name: extracted_resumes
+  upstream_asset_key: raw_resumes
+
+  # Input column
+  input_column: "text"
+  input_type: "text"  # text | file
+
+  # LLM
+  model: "gpt-4o-mini"
+  api_key_env_var: "OPENAI_API_KEY"
+
+  # Fields to extract
+  output_fields:
+    - "name"
+    - "email"
+    - "phone"
+    - "location"
+    - "summary"
+    - "skills"
+    - "experience"
+    - "education"
+    - "certifications"
+    - "languages"
+
+  # Performance
+  batch_size: 5
+
+  # Organization
+  group_name: "document_extraction"

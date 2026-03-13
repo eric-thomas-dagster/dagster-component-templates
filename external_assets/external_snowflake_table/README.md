@@ -56,7 +56,6 @@ type: dagster_component_templates.SnowflakeTableObservationSensorComponentObserv
 attributes:
   sensor_name: snowflake_table_observer
   asset_key: external/snowflake
-  asset_key: external/snowflake
   account: ACCOUNT
   database: DATABASE
 ```

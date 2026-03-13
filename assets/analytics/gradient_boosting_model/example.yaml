@@ -1,0 +1,20 @@
+component_type: gradient_boosting_model
+description: Predict customer churn using gradient boosting classification.
+
+asset_name: churn_gbm_predictions
+upstream_asset_key: customer_features_enriched
+target_column: churned
+feature_columns:
+  - days_since_last_order
+  - total_orders
+  - avg_order_value
+  - support_tickets_count
+  - email_open_rate
+task_type: classification
+n_estimators: 200
+learning_rate: 0.05
+max_depth: 4
+test_size: 0.2
+random_state: 42
+output_mode: predictions
+group_name: churn_models

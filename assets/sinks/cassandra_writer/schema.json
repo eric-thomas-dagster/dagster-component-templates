@@ -1,0 +1,156 @@
+{
+  "type": "dagster_component_templates.CassandraWriterComponent",
+  "name": "Cassandra Writer",
+  "category": "sink",
+  "description": "Write a DataFrame to an Apache Cassandra table using prepared INSERT CQL statements in batches",
+  "icon": "Database",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "DataFrame to write to Cassandra"
+    },
+    "outputs": {
+      "type": "materialize_result",
+      "description": "Materialization result with row count metadata"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the output asset to create",
+      "placeholder": "write_to_cassandra"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Upstream Asset Key",
+      "description": "Asset key of the upstream DataFrame asset"
+    },
+    "hosts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "required": false,
+      "label": "Hosts",
+      "description": "List of Cassandra host addresses",
+      "default": [
+        "localhost"
+      ]
+    },
+    "port": {
+      "type": "number",
+      "required": false,
+      "label": "Port",
+      "description": "Cassandra port number",
+      "default": 9042
+    },
+    "keyspace": {
+      "type": "string",
+      "required": true,
+      "label": "Keyspace",
+      "description": "Cassandra keyspace name"
+    },
+    "table": {
+      "type": "string",
+      "required": true,
+      "label": "Table",
+      "description": "Cassandra table name to write to"
+    },
+    "if_exists": {
+      "type": "string",
+      "required": false,
+      "label": "If Exists",
+      "description": "Write mode: 'insert' or 'update'",
+      "default": "insert",
+      "enum": [
+        "insert",
+        "update"
+      ]
+    },
+    "username_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "Username Env Var",
+      "description": "Environment variable containing the Cassandra username"
+    },
+    "password_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "Password Env Var",
+      "description": "Environment variable containing the Cassandra password"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "cassandra-driver>=3.25.0"
+    ]
+  },
+  "tags": [
+    "sink",
+    "cassandra",
+    "nosql",
+    "wide-column"
+  ]
+}

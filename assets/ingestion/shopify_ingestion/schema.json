@@ -1,0 +1,556 @@
+{
+  "component_type": "dagster_component_templates.ShopifyIngestionComponent",
+  "description": "Component for ingesting Shopify e-commerce data using dlt.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "required": true
+    },
+    "shop_url": {
+      "type": "string",
+      "label": "Shop Url",
+      "description": "Shop Url",
+      "required": true
+    },
+    "private_app_password": {
+      "type": "string",
+      "label": "Private App Password",
+      "description": "Shopify Admin API access token",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Resources",
+      "description": "Resources",
+      "required": false,
+      "default": "[\"customers\"",
+      "ui:widget": "list"
+    },
+    "start_date": {
+      "type": "string",
+      "label": "Start Date",
+      "description": "Start Date",
+      "required": false,
+      "default": "2000-01-01"
+    },
+    "order_status": {
+      "type": "string",
+      "label": "Order Status",
+      "description": "Order Status",
+      "required": false,
+      "default": "any"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "shopify"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "destination": {
+      "type": "string",
+      "label": "Destination",
+      "description": "Destination",
+      "required": false,
+      "default": null
+    },
+    "snowflake_account": {
+      "type": "string",
+      "label": "Snowflake Account",
+      "description": "Snowflake account identifier",
+      "required": false,
+      "default": null
+    },
+    "snowflake_database": {
+      "type": "string",
+      "label": "Snowflake Database",
+      "description": "Snowflake database name",
+      "required": false,
+      "default": null
+    },
+    "snowflake_schema": {
+      "type": "string",
+      "label": "Snowflake Schema",
+      "description": "Snowflake schema name",
+      "required": false,
+      "default": "public"
+    },
+    "snowflake_warehouse": {
+      "type": "string",
+      "label": "Snowflake Warehouse",
+      "description": "Snowflake warehouse name",
+      "required": false,
+      "default": null
+    },
+    "snowflake_username": {
+      "type": "string",
+      "label": "Snowflake Username",
+      "description": "Snowflake username",
+      "required": false,
+      "default": null
+    },
+    "snowflake_password": {
+      "type": "string",
+      "label": "Snowflake Password",
+      "description": "Snowflake password",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "snowflake_role": {
+      "type": "string",
+      "label": "Snowflake Role",
+      "description": "Snowflake Role",
+      "required": false,
+      "default": null
+    },
+    "bigquery_project_id": {
+      "type": "string",
+      "label": "Bigquery Project Id",
+      "description": "Google Cloud project ID",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "bigquery_dataset": {
+      "type": "string",
+      "label": "Bigquery Dataset",
+      "description": "BigQuery dataset name",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "bigquery_credentials_path": {
+      "type": "string",
+      "label": "Bigquery Credentials Path",
+      "description": "Path to service account JSON",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "bigquery_location": {
+      "type": "string",
+      "label": "Bigquery Location",
+      "description": "BigQuery dataset location",
+      "required": false,
+      "default": "US",
+      "ui:widget": "code"
+    },
+    "postgres_host": {
+      "type": "string",
+      "label": "Postgres Host",
+      "description": "PostgreSQL host",
+      "required": false,
+      "default": "localhost"
+    },
+    "postgres_port": {
+      "type": "integer",
+      "label": "Postgres Port",
+      "description": "PostgreSQL port",
+      "required": false,
+      "default": 5432
+    },
+    "postgres_database": {
+      "type": "string",
+      "label": "Postgres Database",
+      "description": "PostgreSQL database name",
+      "required": false,
+      "default": null
+    },
+    "postgres_username": {
+      "type": "string",
+      "label": "Postgres Username",
+      "description": "PostgreSQL username",
+      "required": false,
+      "default": null
+    },
+    "postgres_password": {
+      "type": "string",
+      "label": "Postgres Password",
+      "description": "PostgreSQL password",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "postgres_schema": {
+      "type": "string",
+      "label": "Postgres Schema",
+      "description": "PostgreSQL schema",
+      "required": false,
+      "default": "public"
+    },
+    "redshift_host": {
+      "type": "string",
+      "label": "Redshift Host",
+      "description": "Redshift cluster endpoint",
+      "required": false,
+      "default": null
+    },
+    "redshift_port": {
+      "type": "integer",
+      "label": "Redshift Port",
+      "description": "Redshift port",
+      "required": false,
+      "default": 5439
+    },
+    "redshift_database": {
+      "type": "string",
+      "label": "Redshift Database",
+      "description": "Redshift database name",
+      "required": false,
+      "default": null
+    },
+    "redshift_username": {
+      "type": "string",
+      "label": "Redshift Username",
+      "description": "Redshift username",
+      "required": false,
+      "default": null
+    },
+    "redshift_password": {
+      "type": "string",
+      "label": "Redshift Password",
+      "description": "Redshift password",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "redshift_schema": {
+      "type": "string",
+      "label": "Redshift Schema",
+      "description": "Redshift schema",
+      "required": false,
+      "default": "public"
+    },
+    "duckdb_database_path": {
+      "type": "string",
+      "label": "Duckdb Database Path",
+      "description": "Path to DuckDB file",
+      "required": false,
+      "default": null
+    },
+    "motherduck_database": {
+      "type": "string",
+      "label": "Motherduck Database",
+      "description": "MotherDuck database name",
+      "required": false,
+      "default": null
+    },
+    "motherduck_token": {
+      "type": "string",
+      "label": "Motherduck Token",
+      "description": "MotherDuck authentication token",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "databricks_server_hostname": {
+      "type": "string",
+      "label": "Databricks Server Hostname",
+      "description": "Databricks workspace hostname",
+      "required": false,
+      "default": null
+    },
+    "databricks_http_path": {
+      "type": "string",
+      "label": "Databricks Http Path",
+      "description": "SQL warehouse HTTP path",
+      "required": false,
+      "default": null
+    },
+    "databricks_access_token": {
+      "type": "string",
+      "label": "Databricks Access Token",
+      "description": "Databricks personal access token",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "databricks_catalog": {
+      "type": "string",
+      "label": "Databricks Catalog",
+      "description": "Unity Catalog name",
+      "required": false,
+      "default": null
+    },
+    "databricks_schema": {
+      "type": "string",
+      "label": "Databricks Schema",
+      "description": "Databricks schema name",
+      "required": false,
+      "default": "default"
+    },
+    "clickhouse_host": {
+      "type": "string",
+      "label": "Clickhouse Host",
+      "description": "ClickHouse server host",
+      "required": false,
+      "default": "localhost"
+    },
+    "clickhouse_port": {
+      "type": "integer",
+      "label": "Clickhouse Port",
+      "description": "ClickHouse server port",
+      "required": false,
+      "default": 9000
+    },
+    "clickhouse_database": {
+      "type": "string",
+      "label": "Clickhouse Database",
+      "description": "ClickHouse database name",
+      "required": false,
+      "default": "default"
+    },
+    "clickhouse_username": {
+      "type": "string",
+      "label": "Clickhouse Username",
+      "description": "ClickHouse username",
+      "required": false,
+      "default": null
+    },
+    "clickhouse_password": {
+      "type": "string",
+      "label": "Clickhouse Password",
+      "description": "ClickHouse password",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "mssql_host": {
+      "type": "string",
+      "label": "Mssql Host",
+      "description": "SQL Server host",
+      "required": false,
+      "default": "localhost",
+      "ui:widget": "code"
+    },
+    "mssql_port": {
+      "type": "integer",
+      "label": "Mssql Port",
+      "description": "SQL Server port",
+      "required": false,
+      "default": 1433
+    },
+    "mssql_database": {
+      "type": "string",
+      "label": "Mssql Database",
+      "description": "SQL Server database name",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "mssql_username": {
+      "type": "string",
+      "label": "Mssql Username",
+      "description": "SQL Server username",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "mssql_password": {
+      "type": "string",
+      "label": "Mssql Password",
+      "description": "SQL Server password",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "athena_query_result_bucket": {
+      "type": "string",
+      "label": "Athena Query Result Bucket",
+      "description": "S3 bucket for query results",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "athena_database": {
+      "type": "string",
+      "label": "Athena Database",
+      "description": "Athena database name",
+      "required": false,
+      "default": "default"
+    },
+    "athena_aws_access_key_id": {
+      "type": "string",
+      "label": "Athena Aws Access Key Id",
+      "description": "AWS access key ID",
+      "required": false,
+      "default": null
+    },
+    "athena_aws_secret_access_key": {
+      "type": "string",
+      "label": "Athena Aws Secret Access Key",
+      "description": "AWS secret access key",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "athena_region": {
+      "type": "string",
+      "label": "Athena Region",
+      "description": "AWS region",
+      "required": false,
+      "default": "us-east-1"
+    },
+    "mysql_host": {
+      "type": "string",
+      "label": "Mysql Host",
+      "description": "MySQL server host",
+      "required": false,
+      "default": "localhost",
+      "ui:widget": "code"
+    },
+    "mysql_port": {
+      "type": "integer",
+      "label": "Mysql Port",
+      "description": "MySQL server port",
+      "required": false,
+      "default": 3306
+    },
+    "mysql_database": {
+      "type": "string",
+      "label": "Mysql Database",
+      "description": "MySQL database name",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "mysql_username": {
+      "type": "string",
+      "label": "Mysql Username",
+      "description": "MySQL username",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "mysql_password": {
+      "type": "string",
+      "label": "Mysql Password",
+      "description": "MySQL password",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "filesystem_bucket_path": {
+      "type": "string",
+      "label": "Filesystem Bucket Path",
+      "description": "Local or S3 path",
+      "required": false,
+      "default": null
+    },
+    "filesystem_format": {
+      "type": "string",
+      "label": "Filesystem Format",
+      "description": "Output file format",
+      "required": false,
+      "default": "parquet"
+    },
+    "synapse_host": {
+      "type": "string",
+      "label": "Synapse Host",
+      "description": "Azure Synapse workspace hostname",
+      "required": false,
+      "default": null
+    },
+    "synapse_database": {
+      "type": "string",
+      "label": "Synapse Database",
+      "description": "Synapse database name",
+      "required": false,
+      "default": null
+    },
+    "synapse_username": {
+      "type": "string",
+      "label": "Synapse Username",
+      "description": "Synapse username",
+      "required": false,
+      "default": null
+    },
+    "synapse_password": {
+      "type": "string",
+      "label": "Synapse Password",
+      "description": "Synapse password",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "use_environment_routing": {
+      "type": "boolean",
+      "label": "Use Environment Routing",
+      "description": "Automatically select destination based on Dagster deployment environment",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "destination_local": {
+      "type": "string",
+      "label": "Destination Local",
+      "description": "Destination for local development",
+      "required": false,
+      "default": null
+    },
+    "destination_branch": {
+      "type": "string",
+      "label": "Destination Branch",
+      "description": "Destination for branch deployments",
+      "required": false,
+      "default": null
+    },
+    "destination_prod": {
+      "type": "string",
+      "label": "Destination Prod",
+      "description": "Destination for production",
+      "required": false,
+      "default": null
+    },
+    "persist_and_return": {
+      "type": "boolean",
+      "label": "Persist And Return",
+      "description": "When destination is set: persist to database AND return DataFrame",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "shopify"
+  ]
+}

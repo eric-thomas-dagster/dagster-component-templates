@@ -1,42 +1,64 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "AcceldataCheckComponent",
-  "description": "Trigger an Acceldata rule execution on demand and surface results as a Dagster asset check.",
-  "type": "object",
-  "required": ["asset_key", "api_url_env_var", "api_token_env_var", "rule_id"],
-  "properties": {
+  "component_type": "dagster_component_templates.AcceldataCheckComponent",
+  "description": "Trigger an Acceldata rule execution and surface results as a Dagster asset check.",
+  "category": "check",
+  "icon": "CheckCircle",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetCheckResult",
+      "description": "Asset check result"
+    }
+  },
+  "attributes": {
     "asset_key": {
       "type": "string",
-      "description": "Asset key to attach this check to (e.g. 'warehouse/orders')"
+      "label": "Asset Key",
+      "description": "Asset key to attach this check to",
+      "required": true
     },
     "api_url_env_var": {
       "type": "string",
-      "description": "Env var with Acceldata API base URL (e.g. https://mycompany.acceldata.io)"
+      "label": "Api Url Env Var",
+      "description": "Api Url Env Var",
+      "required": true
     },
     "api_token_env_var": {
       "type": "string",
-      "description": "Env var with Acceldata API token"
+      "label": "Api Token Env Var",
+      "description": "Env var with Acceldata API token",
+      "required": true,
+      "ui:widget": "password"
     },
     "rule_id": {
       "type": "string",
-      "description": "ID of the Acceldata DQ rule to execute. Find in Acceldata UI: Rules → Rule Details → ID."
+      "label": "Rule Id",
+      "description": "ID of the Acceldata DQ rule to execute. Find in Acceldata UI: Rules \u2192 Rule Details \u2192 ID.",
+      "required": true
     },
     "poll_interval_seconds": {
       "type": "number",
-      "default": 5.0,
-      "description": "Seconds between status polls"
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between status polls",
+      "required": false,
+      "default": 5.0
     },
     "timeout_seconds": {
       "type": "integer",
-      "default": 300,
-      "description": "Max seconds to wait for rule execution"
+      "label": "Timeout Seconds",
+      "description": "Max seconds to wait for rule execution",
+      "required": false,
+      "default": 300
     },
     "severity": {
       "type": "string",
-      "enum": ["ERROR", "WARN"],
-      "default": "ERROR",
-      "description": "Dagster asset check severity when the rule fails"
+      "label": "Severity",
+      "description": "WARN or ERROR",
+      "required": false,
+      "default": "ERROR"
     }
   },
-  "additionalProperties": false
+  "tags": [
+    "check",
+    "acceldata"
+  ]
 }

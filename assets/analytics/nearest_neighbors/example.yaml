@@ -1,0 +1,18 @@
+component_type: nearest_neighbors
+description: Find the 5 most similar products for each product based on behavioral and pricing features.
+
+asset_name: product_neighbors
+upstream_asset_key: product_features_clean
+feature_columns:
+  - price
+  - avg_rating
+  - review_count
+  - sales_rank
+  - click_through_rate
+n_neighbors: 5
+algorithm: auto
+metric: euclidean
+normalize: true
+output_distances: true
+output_indices: true
+group_name: recommendations

@@ -1,0 +1,150 @@
+{
+  "component_type": "dagster_component_templates.TopicModelerComponent",
+  "description": "Assign topic labels to rows using LDA or NMF topic modeling.",
+  "category": "ai",
+  "icon": "Layers",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame with a text column"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with topic_id and topic_keywords columns added"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "text_column": {
+      "type": "string",
+      "label": "Text Column",
+      "description": "Column containing text to model topics from",
+      "required": true
+    },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "description": "Column to write integer topic ID",
+      "required": false,
+      "default": "topic_id"
+    },
+    "topic_label_column": {
+      "type": "string",
+      "label": "Topic Label Column",
+      "description": "Column to write top keywords string for the assigned topic",
+      "required": false,
+      "default": "topic_keywords"
+    },
+    "n_topics": {
+      "type": "integer",
+      "label": "Number of Topics",
+      "description": "Number of topics to discover",
+      "required": false,
+      "default": 10
+    },
+    "method": {
+      "type": "string",
+      "label": "Method",
+      "description": "Topic modeling method",
+      "required": false,
+      "default": "lda",
+      "enum": [
+        "lda",
+        "nmf"
+      ],
+      "ui:widget": "select"
+    },
+    "max_features": {
+      "type": "integer",
+      "label": "Max Features",
+      "description": "Vocabulary size for TF-IDF vectorizer",
+      "required": false,
+      "default": 1000
+    },
+    "top_words_per_topic": {
+      "type": "integer",
+      "label": "Top Words Per Topic",
+      "description": "Number of top keywords to include in topic label",
+      "required": false,
+      "default": 5
+    }
+  },
+  "tags": [
+    "ai",
+    "nlp",
+    "topic-modeling",
+    "lda",
+    "nmf",
+    "unsupervised"
+  ]
+}

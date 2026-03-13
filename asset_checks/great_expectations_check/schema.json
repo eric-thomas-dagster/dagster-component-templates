@@ -1,54 +1,57 @@
 {
-  "type": "dagster_component_templates.GreatExpectationsCheckComponent",
-  "name": "Great Expectations Check",
-  "category": "asset_checks",
-  "description": "Run a Great Expectations expectation suite as a Dagster asset check",
+  "component_type": "dagster_component_templates.GreatExpectationsCheckComponent",
+  "description": "Run a Great Expectations expectation suite as a Dagster asset check.",
+  "category": "check",
   "icon": "CheckCircle",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetCheckResult",
+      "description": "Asset check result"
+    }
+  },
   "attributes": {
     "asset_key": {
       "type": "string",
-      "required": true,
-      "label": "Asset Key"
+      "label": "Asset Key",
+      "description": "Asset key to attach this check to",
+      "required": true
     },
     "ge_context_root_dir": {
       "type": "string",
+      "label": "Ge Context Root Dir",
+      "description": "Path to the Great Expectations project root",
       "required": true,
-      "label": "GE Context Root Dir",
-      "placeholder": "./great_expectations"
+      "ui:widget": "textarea"
     },
     "datasource_name": {
       "type": "string",
-      "required": true,
-      "label": "Datasource Name"
+      "label": "Datasource Name",
+      "description": "GE datasource name",
+      "required": true
     },
     "data_asset_name": {
       "type": "string",
-      "required": true,
-      "label": "Data Asset Name"
+      "label": "Data Asset Name",
+      "description": "GE data asset name",
+      "required": true
     },
     "expectation_suite_name": {
       "type": "string",
-      "required": true,
-      "label": "Expectation Suite Name"
+      "label": "Expectation Suite Name",
+      "description": "GE expectation suite name",
+      "required": true
     },
     "severity": {
       "type": "string",
-      "required": false,
       "label": "Severity",
-      "default": "ERROR",
-      "enum": [
-        "ERROR",
-        "WARN"
-      ]
+      "description": "WARN or ERROR",
+      "required": false,
+      "default": "ERROR"
     }
   },
-  "dependencies": {
-    "pip": [
-      "great-expectations>=0.18.0"
-    ]
-  },
   "tags": [
-    "asset_checks",
-    "data_quality"
+    "check",
+    "great",
+    "expectations"
   ]
 }

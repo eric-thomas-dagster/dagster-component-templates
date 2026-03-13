@@ -1,0 +1,9 @@
+type: dagster_component_templates.CouchdbWriterComponent
+attributes:
+  asset_name: write_orders_to_couchdb
+  upstream_asset_key: processed_orders
+  url_env_var: COUCHDB_URL
+  database: orders
+  if_exists: upsert
+  id_column: order_id
+  group_name: sinks

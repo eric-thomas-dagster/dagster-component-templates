@@ -1,0 +1,269 @@
+{
+  "component_type": "dagster_component_templates.FunnelAnalysisComponent",
+  "description": "Component that analyzes user progression through conversion funnels.",
+  "category": "analytics",
+  "icon": "BarChart2",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Analytics result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the funnel analysis asset to create",
+      "required": true
+    },
+    "event_data_asset": {
+      "type": "string",
+      "label": "Event Data Asset",
+      "description": "Event/activity data with user actions and timestamps",
+      "required": false,
+      "default": ""
+    },
+    "user_data_asset": {
+      "type": "string",
+      "label": "User Data Asset",
+      "description": "User Data Asset",
+      "required": false,
+      "default": ""
+    },
+    "funnel_type": {
+      "type": "string",
+      "label": "Funnel Type",
+      "description": "Funnel Type",
+      "required": false,
+      "default": "linear"
+    },
+    "stage_1_event": {
+      "type": "string",
+      "label": "Stage 1 Event",
+      "description": "Event name for first funnel stage",
+      "required": false,
+      "default": "page_view"
+    },
+    "stage_1_name": {
+      "type": "string",
+      "label": "Stage 1 Name",
+      "description": "Display name for first stage",
+      "required": false,
+      "default": "Awareness"
+    },
+    "stage_2_event": {
+      "type": "string",
+      "label": "Stage 2 Event",
+      "description": "Event name for second funnel stage",
+      "required": false,
+      "default": "signup"
+    },
+    "stage_2_name": {
+      "type": "string",
+      "label": "Stage 2 Name",
+      "description": "Display name for second stage",
+      "required": false,
+      "default": "Signup"
+    },
+    "stage_3_event": {
+      "type": "string",
+      "label": "Stage 3 Event",
+      "description": "Stage 3 Event",
+      "required": false,
+      "default": ""
+    },
+    "stage_3_name": {
+      "type": "string",
+      "label": "Stage 3 Name",
+      "description": "Display name for third stage",
+      "required": false,
+      "default": ""
+    },
+    "stage_4_event": {
+      "type": "string",
+      "label": "Stage 4 Event",
+      "description": "Stage 4 Event",
+      "required": false,
+      "default": ""
+    },
+    "stage_4_name": {
+      "type": "string",
+      "label": "Stage 4 Name",
+      "description": "Display name for fourth stage",
+      "required": false,
+      "default": ""
+    },
+    "stage_5_event": {
+      "type": "string",
+      "label": "Stage 5 Event",
+      "description": "Stage 5 Event",
+      "required": false,
+      "default": ""
+    },
+    "stage_5_name": {
+      "type": "string",
+      "label": "Stage 5 Name",
+      "description": "Display name for fifth stage",
+      "required": false,
+      "default": ""
+    },
+    "funnel_window_days": {
+      "type": "integer",
+      "label": "Funnel Window Days",
+      "description": "Maximum days between first and last stage to count as conversion",
+      "required": false,
+      "default": 30
+    },
+    "analysis_period_days": {
+      "type": "integer",
+      "label": "Analysis Period Days",
+      "description": "Number of days of data to analyze",
+      "required": false,
+      "default": 90
+    },
+    "group_by_cohort": {
+      "type": "boolean",
+      "label": "Group By Cohort",
+      "description": "Group results by weekly/monthly cohorts",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "cohort_period": {
+      "type": "string",
+      "label": "Cohort Period",
+      "description": "Cohort period: daily, weekly, or monthly",
+      "required": false,
+      "default": "weekly"
+    },
+    "segment_by_source": {
+      "type": "boolean",
+      "label": "Segment By Source",
+      "description": "Segment funnel by traffic source/campaign",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "segment_by_attribute": {
+      "type": "string",
+      "label": "Segment By Attribute",
+      "description": "Segment By Attribute",
+      "required": false,
+      "default": ""
+    },
+    "calculate_time_to_convert": {
+      "type": "boolean",
+      "label": "Calculate Time To Convert",
+      "description": "Calculate median time between stages",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "identify_drop_offs": {
+      "type": "boolean",
+      "label": "Identify Drop Offs",
+      "description": "Flag high drop-off stages",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "drop_off_threshold": {
+      "type": "number",
+      "label": "Drop Off Threshold",
+      "description": "Drop Off Threshold",
+      "required": false,
+      "default": 0.5
+    },
+    "include_user_level_data": {
+      "type": "boolean",
+      "label": "Include User Level Data",
+      "description": "Include User Level Data",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": "",
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name",
+      "required": false,
+      "default": "analytics"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "analytics",
+    "funnel",
+    "analysis"
+  ]
+}

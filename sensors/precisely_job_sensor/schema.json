@@ -1,19 +1,73 @@
 {
-  "type": "dagster_component_templates.precisely_job_sensor",
-  "name": "Precisely Job Sensor",
-  "category": "sensors",
-  "description": "Trigger a Dagster job when a Precisely Connect job run completes",
-  "dependencies": {
-    "pip": [
-      "requests>=2.28.0"
-    ]
+  "component_type": "dagster_component_templates.PreciselyJobSensorComponent",
+  "description": "Trigger a Dagster job when a Precisely Connect job run completes.",
+  "category": "sensor",
+  "icon": "Radar",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "Sensor run requests"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique sensor name",
+      "required": true
+    },
+    "job_id": {
+      "type": "string",
+      "label": "Job Id",
+      "description": "Precisely Connect job ID to monitor",
+      "required": true
+    },
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job to trigger when Precisely run completes",
+      "required": true
+    },
+    "host_env_var": {
+      "type": "string",
+      "label": "Host Env Var",
+      "description": "Env var with Precisely Connect host URL",
+      "required": false,
+      "default": null
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "Api Token Env Var",
+      "description": "Env var with Precisely API token",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of a PreciselyResource",
+      "required": false,
+      "default": null
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Seconds between polls",
+      "required": false,
+      "default": 60
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "running or stopped",
+      "required": false,
+      "default": "running"
+    }
   },
   "tags": [
-    "sensors",
+    "sensor",
     "precisely",
-    "etl",
-    "data-integration",
-    "enterprise",
-    "automation"
+    "job"
   ]
 }

@@ -1,9 +1,0 @@
-type: dagster_component_templates.HubSpotIngestionComponent
-attributes:
-  asset_name: hubspot_crm_data
-
-  # Authentication
-  api_key: "{{ env('HUBSPOT_API_KEY') }}"
-
-  # Organization
-  description: "HubSpot CRM data (contacts, companies, deals)"

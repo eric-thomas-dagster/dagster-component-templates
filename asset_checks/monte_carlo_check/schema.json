@@ -1,8 +1,64 @@
 {
-  "type": "dagster_component_templates.monte_carlo_check",
-  "name": "Monte Carlo Check",
-  "category": "asset_checks",
-  "description": "Triggers a Monte Carlo Custom SQL Rule on demand via the pycarlo SDK and surfaces the result as a Dagster asset check.",
-  "dependencies": {"pip": ["pycarlo"]},
-  "tags": ["data-quality", "monte-carlo", "asset-check"]
+  "component_type": "dagster_component_templates.MonteCarloCheckComponent",
+  "description": "Trigger a Monte Carlo custom rule or monitor run and surface results as a Dagster asset check.",
+  "category": "check",
+  "icon": "CheckCircle",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetCheckResult",
+      "description": "Asset check result"
+    }
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Asset key to attach this check to",
+      "required": true
+    },
+    "mcd_id_env_var": {
+      "type": "string",
+      "label": "Mcd Id Env Var",
+      "description": "Env var with Monte Carlo API key ID",
+      "required": true
+    },
+    "mcd_token_env_var": {
+      "type": "string",
+      "label": "Mcd Token Env Var",
+      "description": "Env var with Monte Carlo API token",
+      "required": true
+    },
+    "rule_uuid": {
+      "type": "string",
+      "label": "Rule Uuid",
+      "description": "UUID of the Monte Carlo Custom SQL Rule to execute. ",
+      "required": true
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between status polls",
+      "required": false,
+      "default": 5.0
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Max seconds to wait for rule execution",
+      "required": false,
+      "default": 300
+    },
+    "severity": {
+      "type": "string",
+      "label": "Severity",
+      "description": "WARN or ERROR",
+      "required": false,
+      "default": "ERROR"
+    }
+  },
+  "tags": [
+    "check",
+    "monte",
+    "carlo"
+  ]
 }

@@ -1,0 +1,19 @@
+component_type: linear_regression_model
+description: Predict house sale prices from structural features using linear regression.
+
+asset_name: house_price_predictions
+upstream_asset_key: house_features_clean
+target_column: sale_price
+feature_columns:
+  - sqft_living
+  - sqft_lot
+  - bedrooms
+  - bathrooms
+  - floors
+  - yr_built
+test_size: 0.2
+random_state: 42
+output_mode: predictions
+prediction_column: predicted_sale_price
+normalize: true
+group_name: real_estate_models

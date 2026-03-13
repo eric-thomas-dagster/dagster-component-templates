@@ -1,0 +1,32 @@
+type: dagster_component_templates.MedicalRecordExtractorComponent
+attributes:
+  asset_name: extracted_medical_records
+  upstream_asset_key: raw_medical_records
+
+  # Input column
+  input_column: "text"
+  input_type: "text"  # text | file
+
+  # LLM
+  model: "gpt-4o-mini"
+  api_key_env_var: "OPENAI_API_KEY"
+
+  # Fields to extract
+  output_fields:
+    - "patient_name"
+    - "dob"
+    - "provider"
+    - "visit_date"
+    - "chief_complaint"
+    - "diagnoses"
+    - "icd_codes"
+    - "medications"
+    - "procedures"
+    - "cpt_codes"
+    - "follow_up"
+
+  # Performance
+  batch_size: 5
+
+  # Organization
+  group_name: "document_extraction"

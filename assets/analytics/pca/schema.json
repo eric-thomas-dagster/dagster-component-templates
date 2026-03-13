@@ -1,0 +1,141 @@
+{
+  "component_type": "dagster_component_templates.PcaComponent",
+  "description": "Reduce DataFrame dimensionality using Principal Component Analysis.",
+  "category": "analytics",
+  "icon": "BarChart2",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Analytics result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
+    "feature_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Feature Columns",
+      "description": "List of column names to use as input features for PCA",
+      "required": true,
+      "ui:widget": "list"
+    },
+    "n_components": {
+      "type": "integer",
+      "label": "N Components",
+      "description": "Number of principal components to retain",
+      "required": false,
+      "default": 2
+    },
+    "output_prefix": {
+      "type": "string",
+      "label": "Output Prefix",
+      "description": "Output Prefix",
+      "required": false,
+      "default": "pc_"
+    },
+    "normalize": {
+      "type": "boolean",
+      "label": "Normalize",
+      "description": "Standardize features with StandardScaler before PCA",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "keep_original": {
+      "type": "boolean",
+      "label": "Keep Original",
+      "description": "Retain original feature columns alongside PC columns",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "include_explained_variance": {
+      "type": "boolean",
+      "label": "Include Explained Variance",
+      "description": "Log explained variance ratio to asset metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "analytics",
+    "pca"
+  ]
+}

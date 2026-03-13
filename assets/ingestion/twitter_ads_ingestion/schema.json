@@ -1,0 +1,159 @@
+{
+  "component_type": "dagster_component_templates.TwitterAdsIngestionComponent",
+  "description": "Component for ingesting Twitter/X Ads data using dlt - returns DataFrames.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset that will hold the Twitter Ads data",
+      "required": true
+    },
+    "consumer_key": {
+      "type": "string",
+      "label": "Consumer Key",
+      "description": "Consumer Key",
+      "required": true
+    },
+    "consumer_secret": {
+      "type": "string",
+      "label": "Consumer Secret",
+      "description": "Consumer Secret",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "access_token": {
+      "type": "string",
+      "label": "Access Token",
+      "description": "Twitter Access Token. Use ${TWITTER_ACCESS_TOKEN} for env vars.",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "access_token_secret": {
+      "type": "string",
+      "label": "Access Token Secret",
+      "description": "Twitter Access Token Secret. Use ${TWITTER_ACCESS_TOKEN_SECRET} for env vars.",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "account_ids": {
+      "type": "string",
+      "label": "Account Ids",
+      "description": "Comma-separated list of Twitter Ads Account IDs (e.g., ",
+      "required": true
+    },
+    "resources": {
+      "type": "string",
+      "label": "Resources",
+      "description": "Comma-separated list of resources to extract: accounts, campaigns, line_items, promoted_tweets, tweets, media, analytics",
+      "required": false,
+      "default": "campaigns"
+    },
+    "start_date": {
+      "type": "string",
+      "label": "Start Date",
+      "description": "Start Date",
+      "required": false,
+      "default": null
+    },
+    "end_date": {
+      "type": "string",
+      "label": "End Date",
+      "description": "End Date",
+      "required": false,
+      "default": null
+    },
+    "entity_type": {
+      "type": "string",
+      "label": "Entity Type",
+      "description": "Analytics entity type: ACCOUNT, FUNDING_INSTRUMENT, CAMPAIGN, LINE_ITEM, or PROMOTED_TWEET",
+      "required": false,
+      "default": "CAMPAIGN"
+    },
+    "granularity": {
+      "type": "string",
+      "label": "Granularity",
+      "description": "Analytics granularity: HOUR, DAY, or TOTAL",
+      "required": false,
+      "default": "DAY"
+    },
+    "metric_groups": {
+      "type": "string",
+      "label": "Metric Groups",
+      "description": "Comma-separated metric groups: ENGAGEMENT, BILLING, VIDEO, MOBILE_CONVERSION, WEB_CONVERSION, MEDIA, LIFE_TIME_VALUE_MOBILE_CONVERSION",
+      "required": false,
+      "default": null
+    },
+    "placement": {
+      "type": "string",
+      "label": "Placement",
+      "description": "Placement type: ALL_ON_TWITTER or PUBLISHER_NETWORK",
+      "required": false,
+      "default": "ALL_ON_TWITTER"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "twitter_ads"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "destination": {
+      "type": "string",
+      "label": "Destination",
+      "description": "Optional dlt destination (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "destination_config": {
+      "type": "string",
+      "label": "Destination Config",
+      "description": "Optional destination configuration as connection string or JSON. Required if destination is set.",
+      "required": false,
+      "default": null
+    },
+    "persist_and_return": {
+      "type": "boolean",
+      "label": "Persist And Return",
+      "description": "If True with destination set: persist to database AND return DataFrame. If False: only persist to database.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "twitter",
+    "ads"
+  ]
+}

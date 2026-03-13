@@ -1,0 +1,115 @@
+{
+  "component_type": "dagster_component_templates.S3ToDatabaseAssetComponent",
+  "description": "Component for loading files from S3 into a database table.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "required": true
+    },
+    "database_url": {
+      "type": "string",
+      "label": "Database Url",
+      "description": "Database Url",
+      "required": true
+    },
+    "table_name": {
+      "type": "string",
+      "label": "Table Name",
+      "description": "Name of the database table to write to",
+      "required": true
+    },
+    "schema_name": {
+      "type": "string",
+      "label": "Schema Name",
+      "description": "Schema Name",
+      "required": false,
+      "default": ""
+    },
+    "if_exists": {
+      "type": "string",
+      "label": "If Exists",
+      "description": "How to behave if table exists: ",
+      "required": false,
+      "default": "append"
+    },
+    "aws_region": {
+      "type": "string",
+      "label": "Aws Region",
+      "description": "Aws Region",
+      "required": false,
+      "default": ""
+    },
+    "file_format": {
+      "type": "string",
+      "label": "File Format",
+      "description": "Expected file format: ",
+      "required": false,
+      "default": "csv"
+    },
+    "csv_delimiter": {
+      "type": "string",
+      "label": "Csv Delimiter",
+      "description": "Csv Delimiter",
+      "required": false,
+      "default": ""
+    },
+    "json_orient": {
+      "type": "string",
+      "label": "Json Orient",
+      "description": "JSON orientation: ",
+      "required": false,
+      "default": "records"
+    },
+    "column_mapping": {
+      "type": "string",
+      "label": "Column Mapping",
+      "description": "JSON string for renaming columns, e.g. {\\",
+      "required": false,
+      "default": ""
+    },
+    "dtype_mapping": {
+      "type": "string",
+      "label": "Dtype Mapping",
+      "description": "JSON string for specifying column types, e.g. {\\",
+      "required": false,
+      "default": ""
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description of the asset",
+      "required": false,
+      "default": "",
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name for organization",
+      "required": false,
+      "default": ""
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "database",
+    "asset"
+  ]
+}

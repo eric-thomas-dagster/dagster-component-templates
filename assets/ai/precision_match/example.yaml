@@ -1,0 +1,14 @@
+component_type: precision_match
+description: Standardize product category strings in CRM data against a canonical taxonomy asset.
+
+asset_name: crm_categories_standardized
+upstream_asset_key: crm_products_raw
+column: product_category
+reference_asset_key: canonical_product_taxonomy
+reference_column: category_name
+model: gpt-4o-mini
+api_key_env_var: OPENAI_API_KEY
+output_column: matched_category
+confidence_column: match_confidence
+batch_size: 20
+group_name: data_standardization

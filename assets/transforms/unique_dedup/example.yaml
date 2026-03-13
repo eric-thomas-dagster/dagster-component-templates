@@ -1,0 +1,11 @@
+type: dagster_component_templates.UniqueDedupComponent
+attributes:
+  asset_name: unique_transactions
+  upstream_asset_key: raw_transactions
+  subset:
+    - transaction_id
+    - customer_id
+  keep: first
+  output_mode: unique
+  flag_column: is_duplicate
+  group_name: data_quality

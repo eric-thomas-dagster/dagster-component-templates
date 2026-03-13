@@ -1,0 +1,204 @@
+{
+  "component_type": "dagster_component_templates.DocumentChunkerComponent",
+  "description": "Component for splitting documents into chunks for embeddings and RAG.",
+  "category": "ai",
+  "icon": "Sparkles",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Enriched DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset that will hold the chunked data",
+      "required": true
+    },
+    "strategy": {
+      "type": "string",
+      "label": "Strategy",
+      "description": "Chunking strategy: fixed, semantic, recursive, sentence, token_aware",
+      "required": false,
+      "default": "recursive"
+    },
+    "chunk_size": {
+      "type": "integer",
+      "label": "Chunk Size",
+      "description": "Chunk Size",
+      "required": false,
+      "default": 1000
+    },
+    "chunk_overlap": {
+      "type": "integer",
+      "label": "Chunk Overlap",
+      "description": "Chunk Overlap",
+      "required": false,
+      "default": 200
+    },
+    "source_column": {
+      "type": "string",
+      "label": "Source Column",
+      "description": "Column name containing document text",
+      "required": false,
+      "default": "text"
+    },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "description": "Column name for chunk text",
+      "required": false,
+      "default": "chunk"
+    },
+    "metadata_columns": {
+      "type": "string",
+      "label": "Metadata Columns",
+      "description": "Comma-separated list of columns to preserve as metadata (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "add_chunk_metadata": {
+      "type": "boolean",
+      "label": "Add Chunk Metadata",
+      "description": "Add Chunk Metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "separators": {
+      "type": "string",
+      "label": "Separators",
+      "description": "Separators",
+      "required": false,
+      "default": null
+    },
+    "sentence_tokenizer": {
+      "type": "string",
+      "label": "Sentence Tokenizer",
+      "description": "Sentence Tokenizer",
+      "required": false,
+      "default": "simple"
+    },
+    "tokenizer_model": {
+      "type": "string",
+      "label": "Tokenizer Model",
+      "description": "Model for token counting (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "min_chunk_size": {
+      "type": "integer",
+      "label": "Min Chunk Size",
+      "description": "Minimum chunk size to avoid very small chunks",
+      "required": false,
+      "default": 100
+    },
+    "merge_small_chunks": {
+      "type": "boolean",
+      "label": "Merge Small Chunks",
+      "description": "Merge chunks smaller than min_chunk_size with adjacent chunks",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preserve_sentences": {
+      "type": "boolean",
+      "label": "Preserve Sentences",
+      "description": "Preserve Sentences",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "document_processing"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame with document text to chunk",
+      "required": true
+    }
+  },
+  "tags": [
+    "ai",
+    "document",
+    "chunker"
+  ]
+}

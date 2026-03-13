@@ -1,8 +1,64 @@
 {
-  "type": "dagster_component_templates.sifflet_check",
-  "name": "Sifflet Check",
-  "category": "asset_checks",
-  "description": "Triggers a Sifflet monitor run on demand via the Sifflet REST API and surfaces the result as a Dagster asset check.",
-  "dependencies": {"pip": ["requests>=2.28.0"]},
-  "tags": ["data-quality", "sifflet", "asset-check"]
+  "component_type": "dagster_component_templates.SiffletCheckComponent",
+  "description": "Trigger a Sifflet monitor run and surface results as a Dagster asset check.",
+  "category": "check",
+  "icon": "CheckCircle",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetCheckResult",
+      "description": "Asset check result"
+    }
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Asset key to attach this check to",
+      "required": true
+    },
+    "sifflet_tenant_env_var": {
+      "type": "string",
+      "label": "Sifflet Tenant Env Var",
+      "description": "Env var with Sifflet tenant name (e.g. ",
+      "required": true
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "Api Token Env Var",
+      "description": "Env var with Sifflet API token",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "monitor_id": {
+      "type": "string",
+      "label": "Monitor Id",
+      "description": "UUID of the Sifflet monitor to run. Find in Sifflet UI: Monitor \u2192 Details \u2192 ID.",
+      "required": true
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between status polls",
+      "required": false,
+      "default": 5.0
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Max seconds to wait for monitor run",
+      "required": false,
+      "default": 300
+    },
+    "severity": {
+      "type": "string",
+      "label": "Severity",
+      "description": "WARN or ERROR",
+      "required": false,
+      "default": "ERROR"
+    }
+  },
+  "tags": [
+    "check",
+    "sifflet"
+  ]
 }

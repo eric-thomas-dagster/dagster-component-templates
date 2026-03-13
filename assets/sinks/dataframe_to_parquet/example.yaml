@@ -1,0 +1,11 @@
+type: dagster_component_templates.DataframeToParquetComponent
+attributes:
+  asset_name: write_events_parquet
+  upstream_asset_key: processed_events
+  file_path: ${OUTPUT_DIR}/events.parquet
+  compression: snappy
+  partition_cols:
+    - year
+    - month
+  index: false
+  group_name: output

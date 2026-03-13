@@ -1,0 +1,140 @@
+{
+  "component_type": "dagster_component_templates.CassandraReaderComponent",
+  "description": "Component for executing CQL queries against an Apache Cassandra keyspace.",
+  "category": "source",
+  "icon": "Database",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "Output DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "required": true
+    },
+    "hosts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Hosts",
+      "description": "List of Cassandra host addresses",
+      "required": false,
+      "default": "[\"localhost\"]",
+      "ui:widget": "list"
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "description": "Cassandra port number",
+      "required": false,
+      "default": 9042
+    },
+    "keyspace": {
+      "type": "string",
+      "label": "Keyspace",
+      "description": "Cassandra keyspace name",
+      "required": true
+    },
+    "query": {
+      "type": "string",
+      "label": "Query",
+      "description": "CQL query to execute (e.g. ",
+      "required": true,
+      "ui:widget": "code"
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Environment variable containing the Cassandra username",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Environment variable containing the Cassandra password",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "description": "Upstream asset keys for lineage",
+      "required": false,
+      "default": null,
+      "ui:widget": "list"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "source",
+    "cassandra",
+    "reader"
+  ]
+}

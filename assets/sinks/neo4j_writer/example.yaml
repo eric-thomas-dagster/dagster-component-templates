@@ -1,0 +1,12 @@
+type: dagster_component_templates.Neo4jWriterComponent
+attributes:
+  asset_name: write_people_to_neo4j
+  upstream_asset_key: processed_people
+  uri_env_var: NEO4J_URI
+  username_env_var: NEO4J_USERNAME
+  password_env_var: NEO4J_PASSWORD
+  node_label: Person
+  id_column: person_id
+  merge: true
+  database: neo4j
+  group_name: sinks

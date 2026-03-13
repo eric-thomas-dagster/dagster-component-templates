@@ -1,0 +1,22 @@
+type: dagster_component_templates.WordCloudComponent
+attributes:
+  asset_name: article_word_frequencies
+  upstream_asset_key: raw_articles
+  text_column: body
+
+  # Output mode
+  output_mode: "frequency_table"  # frequency_table | top_n | tfidf
+
+  # Filtering
+  top_n: 100
+  min_frequency: 2
+  min_word_length: 3
+
+  # Stop words
+  language: "english"
+  # stop_words:
+  #   - "also"
+  #   - "said"
+
+  # Organization
+  group_name: "text_mining"

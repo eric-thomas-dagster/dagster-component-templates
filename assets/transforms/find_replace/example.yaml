@@ -1,0 +1,11 @@
+type: dagster_component_templates.FindReplace
+attributes:
+  asset_name: orders_with_region_names
+  upstream_asset_key: orders
+  lookup_asset_key: region_codes
+  lookup_key_column: code
+  lookup_value_column: region_name
+  target_column: region_code
+  output_column: region_name
+  default_value: Unknown
+  group_name: transforms

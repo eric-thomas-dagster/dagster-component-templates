@@ -1,0 +1,23 @@
+{
+  "component_type": "dagster_component_templates.DataikuAssetComponent",
+  "description": "Dataiku DSS scenario component \u2014 one Dagster asset per Dataiku scenario.",
+  "category": "analytics",
+  "icon": "BarChart2",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Analytics result DataFrame"
+    }
+  },
+  "attributes": {},
+  "tags": [
+    "analytics",
+    "dataiku",
+    "asset"
+  ]
+}

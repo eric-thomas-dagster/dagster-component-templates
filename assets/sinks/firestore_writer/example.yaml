@@ -1,0 +1,10 @@
+type: dagster_component_templates.FirestoreWriterComponent
+attributes:
+  asset_name: write_users_to_firestore
+  upstream_asset_key: processed_users
+  collection: users
+  project_id_env_var: GCP_PROJECT_ID
+  credentials_env_var: GOOGLE_APPLICATION_CREDENTIALS
+  id_column: user_id
+  merge: false
+  group_name: sinks

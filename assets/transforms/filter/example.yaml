@@ -1,0 +1,7 @@
+type: dagster_component_templates.FilterComponent
+attributes:
+  asset_name: active_adult_customers
+  upstream_asset_key: raw_customers
+  condition: "age > 18 and status == 'active' and country == 'US'"
+  negate: false
+  group_name: customer_segments

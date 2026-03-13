@@ -1,0 +1,196 @@
+from dataclasses import dataclass, field
+from typing import Optional, List
+import pandas as pd
+from dagster import (
+    AssetExecutionContext,
+    AssetIn,
+    AssetKey,
+    Component,
+    ComponentLoadContext,
+    Definitions,
+    MetadataValue,
+    Model,
+    Resolvable,
+    asset,
+)
+from pydantic import Field
+
+
+@dataclass
+class KeywordExtractorComponent(Component, Model, Resolvable):
+    """Extract keywords and key phrases from a text column using TF-IDF, YAKE, or RAKE."""
+
+    asset_name: str = Field(description="Output Dagster asset name")
+    upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
+    group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned",
+    )
+    partition_start: Optional[str] = Field(
+        default=None,
+        description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+    )
+    partition_date_column: Optional[str] = Field(
+        default=None,
+        description="Column used to filter upstream DataFrame to the current date partition key.",
+    )
+    partition_values: Optional[str] = Field(
+        default=None,
+        description="Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
+    )
+    partition_static_dim: Optional[str] = Field(
+        default=None,
+        description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
+    )
+    partition_static_column: Optional[str] = Field(
+        default=None,
+        description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
+    )
+    text_column: str = Field(description="Column containing text to extract keywords from")
+    output_column: str = Field(default="keywords", description="Column to write list of keyword strings")
+    method: str = Field(
+        default="tfidf",
+        description="Extraction method: tfidf, yake, or rake",
+    )
+    top_n: int = Field(default=10, description="Number of keywords to extract per row")
+    ngram_range: List[int] = Field(
+        default_factory=lambda: [1, 2],
+        description="Min/max n-gram size as [min, max]",
+    )
+    language: str = Field(default="en", description="Language of the text")
+
+    def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        asset_name = self.asset_name
+        upstream_asset_key = self.upstream_asset_key
+        group_name = self.group_name
+        text_column = self.text_column
+        output_column = self.output_column
+        method = self.method
+        top_n = self.top_n
+        ngram_range = self.ngram_range
+        language = self.language
+
+        # Build partition definition
+        partitions_def = None
+        if self.partition_type:
+            from dagster import (
+                DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+                MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+                StaticPartitionsDefinition, MultiPartitionsDefinition,
+            )
+            _start = self.partition_start or "2020-01-01"
+            _values = [v.strip() for v in (self.partition_values or "").split(",") if v.strip()]
+            if self.partition_type == "daily":
+                partitions_def = DailyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "weekly":
+                partitions_def = WeeklyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "monthly":
+                partitions_def = MonthlyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "hourly":
+                partitions_def = HourlyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "static":
+                partitions_def = StaticPartitionsDefinition(_values)
+            elif self.partition_type == "multi":
+                _dim = self.partition_static_dim or "segment"
+                partitions_def = MultiPartitionsDefinition({
+                    "date": DailyPartitionsDefinition(start_date=_start),
+                    _dim: StaticPartitionsDefinition(_values),
+                })
+        partition_type = self.partition_type
+        partition_date_column = self.partition_date_column
+        partition_static_column = self.partition_static_column
+        partition_static_dim = self.partition_static_dim
+
+        @asset(
+            name=asset_name,
+            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+            partitions_def=partitions_def,
+            group_name=group_name,
+        )
+        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+            # Filter to current partition if partitioned
+            if context.has_partition_key:
+                _pk = context.partition_key
+                _is_multi = hasattr(_pk, "keys_by_dimension")
+                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                if partition_date_column and partition_date_column in upstream.columns and _date_key:
+                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
+                if partition_static_column and partition_static_column in upstream.columns and _static_key:
+                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
+                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
+                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+            if text_column not in upstream.columns:
+                raise ValueError(f"Column '{text_column}' not found in DataFrame.")
+
+            df = upstream.copy()
+            texts = df[text_column].fillna("").astype(str).tolist()
+            ng_min = int(ngram_range[0]) if len(ngram_range) > 0 else 1
+            ng_max = int(ngram_range[1]) if len(ngram_range) > 1 else 2
+
+            if method == "tfidf":
+                try:
+                    from sklearn.feature_extraction.text import TfidfVectorizer
+                    import numpy as np
+                except ImportError:
+                    raise ImportError("pip install scikit-learn>=1.0.0")
+
+                vectorizer = TfidfVectorizer(ngram_range=(ng_min, ng_max), max_features=5000)
+                tfidf_matrix = vectorizer.fit_transform(texts)
+                feature_names = vectorizer.get_feature_names_out()
+
+                keywords_list = []
+                for i in range(len(texts)):
+                    row = tfidf_matrix[i].toarray()[0]
+                    top_indices = row.argsort()[::-1][:top_n]
+                    keywords = [feature_names[idx] for idx in top_indices if row[idx] > 0]
+                    keywords_list.append(keywords)
+
+            elif method == "yake":
+                try:
+                    import yake
+                except ImportError:
+                    raise ImportError("pip install yake")
+
+                extractor = yake.KeywordExtractor(
+                    lan=language,
+                    n=ng_max,
+                    top=top_n,
+                    dedupLim=0.9,
+                )
+                keywords_list = []
+                for text in texts:
+                    try:
+                        kws = extractor.extract_keywords(text)
+                        keywords_list.append([kw for kw, score in kws])
+                    except Exception:
+                        keywords_list.append([])
+
+            elif method == "rake":
+                try:
+                    from rake_nltk import Rake
+                except ImportError:
+                    raise ImportError("pip install rake-nltk")
+
+                keywords_list = []
+                for text in texts:
+                    try:
+                        r = Rake(min_length=ng_min, max_length=ng_max)
+                        r.extract_keywords_from_text(text)
+                        phrases = r.get_ranked_phrases()[:top_n]
+                        keywords_list.append(phrases)
+                    except Exception:
+                        keywords_list.append([])
+            else:
+                raise ValueError(f"Unknown method: {method}. Choose from tfidf, yake, rake.")
+
+            df[output_column] = keywords_list
+
+            context.add_output_metadata({
+                "row_count": MetadataValue.int(len(df)),
+                "method": MetadataValue.text(method),
+            })
+            return df
+
+        return Definitions(assets=[_asset])

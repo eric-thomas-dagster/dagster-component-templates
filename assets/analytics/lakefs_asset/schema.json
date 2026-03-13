@@ -1,0 +1,167 @@
+{
+  "component_type": "dagster_component_templates.LakeFSAssetComponent",
+  "description": "Interact with a lakeFS repository for data versioning as a Dagster asset.",
+  "category": "analytics",
+  "icon": "BarChart2",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Analytics result DataFrame"
+    }
+  },
+  "attributes": {
+    "lakefs_endpoint_env_var": {
+      "type": "string",
+      "label": "Lakefs Endpoint Env Var",
+      "description": "Lakefs Endpoint Env Var",
+      "required": false,
+      "default": "LAKEFS_ENDPOINT"
+    },
+    "access_key_env_var": {
+      "type": "string",
+      "label": "Access Key Env Var",
+      "description": "Name of the environment variable holding the lakeFS access key ID.",
+      "required": false,
+      "default": "LAKEFS_ACCESS_KEY_ID"
+    },
+    "secret_key_env_var": {
+      "type": "string",
+      "label": "Secret Key Env Var",
+      "description": "Name of the environment variable holding the lakeFS secret access key.",
+      "required": false,
+      "default": "LAKEFS_SECRET_ACCESS_KEY",
+      "ui:widget": "password"
+    },
+    "repository": {
+      "type": "string",
+      "label": "Repository",
+      "description": "lakeFS repository name.",
+      "required": true
+    },
+    "mode": {
+      "type": "string",
+      "label": "Mode",
+      "description": "Mode",
+      "required": false,
+      "default": "commit"
+    },
+    "branch": {
+      "type": "string",
+      "label": "Branch",
+      "description": "Branch",
+      "required": false,
+      "default": "main"
+    },
+    "destination_branch": {
+      "type": "string",
+      "label": "Destination Branch",
+      "description": "Target branch for merge mode.",
+      "required": false,
+      "default": null
+    },
+    "source_ref": {
+      "type": "string",
+      "label": "Source Ref",
+      "description": "Source Ref",
+      "required": false,
+      "default": null
+    },
+    "commit_message": {
+      "type": "string",
+      "label": "Commit Message",
+      "description": "Commit message used in commit mode.",
+      "required": false,
+      "default": "Dagster materialization commit",
+      "ui:widget": "textarea"
+    },
+    "metadata": {
+      "type": "object",
+      "label": "Metadata",
+      "description": "Metadata",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": "data_versioning"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset key for this component.",
+      "required": true
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys for lineage.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "analytics",
+    "lakefs",
+    "asset"
+  ]
+}

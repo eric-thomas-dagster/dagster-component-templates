@@ -1,0 +1,194 @@
+"""DuckDB Query Reader Asset Component."""
+
+from typing import Optional
+import pandas as pd
+from pathlib import Path
+from dagster import (
+    Component,
+    Resolvable,
+    Model,
+    Definitions,
+    AssetExecutionContext,
+    ComponentLoadContext,
+    AssetKey,
+    asset,
+    Output,
+    MetadataValue,
+)
+from pydantic import Field
+
+
+class DuckDBQueryReaderComponent(Component, Model, Resolvable):
+    """
+    Component for reading data from DuckDB tables using SQL queries.
+
+    This component executes SQL queries against a DuckDB database and returns
+    the results as a pandas DataFrame. Perfect for filtering, aggregating, or
+    joining data from DuckDB tables written by the DuckDB Table Writer component.
+
+    Features:
+    - Full SQL support (SELECT, JOIN, WHERE, GROUP BY, etc.)
+    - Query multiple tables in the same database
+    - Aggregate and transform data with SQL
+    - Create derived assets from queries
+    - No need to load entire tables into memory
+    """
+
+    asset_name: str = Field(description="Name of the asset to create")
+
+    database_path: str = Field(
+        default="data.duckdb",
+        description="Path to the DuckDB database file"
+    )
+
+    query: str = Field(
+        description="SQL query to execute (SELECT statement)"
+    )
+
+    description: Optional[str] = Field(
+        default="",
+        description="Description of the asset"
+    )
+
+    group_name: Optional[str] = Field(
+        default="",
+        description="Asset group name for organization"
+    )
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned",
+    )
+    partition_start: Optional[str] = Field(
+        default=None,
+        description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+    )
+    partition_date_column: Optional[str] = Field(
+        default=None,
+        description="Column used to filter upstream DataFrame to the current date partition key.",
+    )
+    partition_values: Optional[str] = Field(
+        default=None,
+        description="Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
+    )
+    partition_static_dim: Optional[str] = Field(
+        default=None,
+        description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
+    )
+    partition_static_column: Optional[str] = Field(
+        default=None,
+        description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
+    )
+
+    include_sample_metadata: bool = Field(
+        default=False,
+        description="Include sample data preview in metadata (first 5 rows as markdown table and interactive preview)"
+    )
+
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
+
+    def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        """Build Dagster definitions for the DuckDB query reader."""
+
+        # Capture fields for closure
+        asset_name = self.asset_name
+        database_path = self.database_path
+        query = self.query
+        description = self.description or f"Query results from DuckDB"
+        group_name = self.group_name or None
+        include_sample = self.include_sample_metadata
+
+        # Build partition definition
+        partitions_def = None
+        if self.partition_type:
+            from dagster import (
+                DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+                MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+                StaticPartitionsDefinition, MultiPartitionsDefinition,
+            )
+            _start = self.partition_start or "2020-01-01"
+            _values = [v.strip() for v in (self.partition_values or "").split(",") if v.strip()]
+            if self.partition_type == "daily":
+                partitions_def = DailyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "weekly":
+                partitions_def = WeeklyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "monthly":
+                partitions_def = MonthlyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "hourly":
+                partitions_def = HourlyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "static":
+                partitions_def = StaticPartitionsDefinition(_values)
+            elif self.partition_type == "multi":
+                _dim = self.partition_static_dim or "segment"
+                partitions_def = MultiPartitionsDefinition({
+                    "date": DailyPartitionsDefinition(start_date=_start),
+                    _dim: StaticPartitionsDefinition(_values),
+                })
+        partition_type = self.partition_type
+        partition_date_column = self.partition_date_column
+        partition_static_column = self.partition_static_column
+        partition_static_dim = self.partition_static_dim
+
+        @asset(
+            name=asset_name,
+            description=description,
+            partitions_def=partitions_def,
+            group_name=group_name,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+        )
+        def duckdb_reader_asset(context: AssetExecutionContext) -> pd.DataFrame:
+            # Log partition key for source components
+            if context.has_partition_key:
+                context.log.info(f"Running for partition: {context.partition_key}")
+            """Execute SQL query and return results as DataFrame."""
+            import duckdb
+
+            # Check if database exists
+            db_path = Path(database_path)
+            if not db_path.exists():
+                raise FileNotFoundError(
+                    f"DuckDB database not found at {database_path}. "
+                    f"Make sure a DuckDB Table Writer has run first."
+                )
+
+            context.log.info(f"Connecting to DuckDB at {database_path}")
+
+            # Connect to DuckDB
+            con = duckdb.connect(str(db_path), read_only=True)
+
+            try:
+                context.log.info(f"Executing query: {query[:100]}...")
+
+                # Execute query and get DataFrame
+                df = con.execute(query).df()
+
+                context.log.info(
+                    f"Query returned {len(df)} rows and {len(df.columns)} columns"
+                )
+
+                if len(df) > 0:
+                    context.log.info(f"Columns: {', '.join(df.columns.tolist())}")
+                else:
+                    context.log.warning("Query returned no rows")
+
+                if include_sample and len(df) > 0:
+                    # Return with sample metadata
+                    return Output(
+                        value=df,
+                        metadata={
+                            "row_count": len(df),
+                            "columns": df.columns.tolist(),
+                            "sample": MetadataValue.md(df.head().to_markdown()),
+                            "preview": MetadataValue.dataframe(df.head())
+                        }
+                    )
+                else:
+                    return df
+
+            except Exception as e:
+                context.log.error(f"Query execution failed: {str(e)}")
+                raise
+
+            finally:
+                con.close()
+
+        return Definitions(assets=[duckdb_reader_asset])

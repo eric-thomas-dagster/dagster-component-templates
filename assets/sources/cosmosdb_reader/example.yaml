@@ -1,0 +1,9 @@
+type: dagster_component_templates.CosmosdbReaderComponent
+attributes:
+  asset_name: cosmos_active_orders
+  endpoint_env_var: COSMOS_ENDPOINT
+  key_env_var: COSMOS_KEY
+  database: ecommerce
+  container: orders
+  query: "SELECT * FROM c WHERE c.status = 'active'"
+  group_name: sources

@@ -1,0 +1,11 @@
+type: dagster_component_templates.MultiFieldFormulaComponent
+attributes:
+  asset_name: sales_log_transformed
+  upstream_asset_key: raw_sales
+  expression: "np.log1p(upstream['{col}'])"
+  columns:
+    - revenue
+    - quantity
+    - discount
+  output_prefix: log_
+  group_name: feature_engineering

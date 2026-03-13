@@ -1,0 +1,25 @@
+type: dagster_component_templates.MultiRowFormulaComponent
+attributes:
+  asset_name: sales_with_trends
+  upstream_asset_key: daily_sales
+  sort_by: date
+  group_by:
+    - region
+  operations:
+    - output_column: revenue_lag_1
+      column: revenue
+      operation: lag
+      periods: 1
+    - output_column: revenue_rolling_7d
+      column: revenue
+      operation: rolling_mean
+      window: 7
+      min_periods: 1
+    - output_column: revenue_pct_change
+      column: revenue
+      operation: pct_change
+      periods: 1
+    - output_column: revenue_cumsum
+      column: revenue
+      operation: cumsum
+  group_name: time_series

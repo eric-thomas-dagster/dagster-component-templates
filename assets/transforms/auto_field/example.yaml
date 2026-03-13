@@ -1,0 +1,10 @@
+type: dagster_component_templates.AutoFieldComponent
+attributes:
+  asset_name: events_optimized
+  upstream_asset_key: raw_events
+  downcast_integers: true
+  downcast_floats: true
+  convert_strings_to_category: true
+  category_threshold: 0.3
+  parse_dates: true
+  group_name: optimized_data

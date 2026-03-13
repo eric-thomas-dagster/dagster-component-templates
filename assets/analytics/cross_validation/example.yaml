@@ -1,0 +1,17 @@
+component_type: cross_validation
+description: Evaluate a gradient boosting classifier with 10-fold cross-validation on churn data.
+
+asset_name: churn_cv_results
+upstream_asset_key: customer_features_enriched
+target_column: churned
+feature_columns:
+  - days_since_last_order
+  - total_orders
+  - avg_order_value
+  - support_tickets_count
+  - email_open_rate
+model_type: gradient_boosting
+task_type: classification
+cv_folds: 10
+random_state: 42
+group_name: model_evaluation

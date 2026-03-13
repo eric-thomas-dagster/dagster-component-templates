@@ -1,0 +1,14 @@
+component_type: dagster_component_templates.SqlGeneratorComponent
+
+asset_name: generated_sql_queries
+upstream_asset_key: nl_questions
+group_name: ai
+question_column: question
+output_column: generated_sql
+schema_context: |
+  CREATE TABLE orders (id INT, customer_id INT, amount DECIMAL, created_at TIMESTAMP);
+  CREATE TABLE customers (id INT, name VARCHAR, email VARCHAR);
+dialect: postgresql
+model: gpt-4o-mini
+validate_sql: true
+api_key_env_var: OPENAI_API_KEY

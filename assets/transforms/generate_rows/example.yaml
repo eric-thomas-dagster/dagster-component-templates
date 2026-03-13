@@ -1,0 +1,12 @@
+type: dagster_component_templates.GenerateRowsComponent
+attributes:
+  asset_name: products_by_region
+  upstream_asset_key: products
+  mode: cross_join
+  new_rows:
+    - region: North
+    - region: South
+    - region: East
+    - region: West
+  reset_index: true
+  group_name: product_catalog

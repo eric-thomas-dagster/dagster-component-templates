@@ -1,0 +1,153 @@
+{
+  "component_type": "dagster_component_templates.ImageObjectDetectorComponent",
+  "description": "Detect objects in images using HuggingFace DETR models, returning bounding boxes, labels, and confidence scores.",
+  "category": "ai",
+  "icon": "Crosshair",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame with image file paths or URLs"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with detected objects, counts, and bounding boxes"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
+    "image_column": {
+      "type": "string",
+      "label": "Image Column",
+      "description": "Column with image file paths or URLs",
+      "required": true
+    },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "description": "Column for list of {label, confidence, bbox} dicts per row",
+      "required": false,
+      "default": "detected_objects"
+    },
+    "count_column": {
+      "type": "string",
+      "label": "Count Column",
+      "description": "Column for detected object count",
+      "required": false,
+      "default": "object_count"
+    },
+    "model_name": {
+      "type": "string",
+      "label": "Model Name",
+      "description": "HuggingFace DETR model ID",
+      "required": false,
+      "default": "facebook/detr-resnet-50"
+    },
+    "confidence_threshold": {
+      "type": "number",
+      "label": "Confidence Threshold",
+      "description": "Minimum confidence score to include a detection",
+      "required": false,
+      "default": 0.7
+    },
+    "target_labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Target Labels",
+      "description": "Only return detections with these labels e.g. ['person','car']",
+      "required": false,
+      "default": null,
+      "ui:widget": "list"
+    },
+    "device": {
+      "type": "string",
+      "label": "Device",
+      "description": "Compute device: cpu, cuda, or mps",
+      "required": false,
+      "default": "cpu",
+      "enum": [
+        "cpu",
+        "cuda",
+        "mps"
+      ],
+      "ui:widget": "select"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ai",
+    "image",
+    "vision",
+    "object-detection"
+  ]
+}

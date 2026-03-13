@@ -1,0 +1,24 @@
+component_type: neural_network_model
+description: Predict subscription renewal using a two-hidden-layer MLP classifier.
+
+asset_name: renewal_mlp_predictions
+upstream_asset_key: subscription_features
+target_column: renewed
+feature_columns:
+  - months_active
+  - avg_monthly_usage
+  - support_tickets_count
+  - nps_score
+  - plan_tier_encoded
+task_type: classification
+hidden_layer_sizes:
+  - 128
+  - 64
+activation: relu
+max_iter: 500
+learning_rate_init: 0.001
+normalize: true
+test_size: 0.2
+random_state: 42
+output_mode: probabilities
+group_name: renewal_models

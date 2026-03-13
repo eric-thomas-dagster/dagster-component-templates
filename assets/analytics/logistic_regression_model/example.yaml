@@ -1,0 +1,19 @@
+component_type: logistic_regression_model
+description: Classify customer churn risk from behavioral features.
+
+asset_name: churn_predictions
+upstream_asset_key: customer_features_clean
+target_column: churned
+feature_columns:
+  - days_since_last_login
+  - total_orders
+  - avg_order_value
+  - support_tickets_30d
+  - nps_score
+test_size: 0.2
+random_state: 42
+max_iter: 1000
+output_predictions: true
+output_probabilities: true
+normalize: true
+group_name: churn_models

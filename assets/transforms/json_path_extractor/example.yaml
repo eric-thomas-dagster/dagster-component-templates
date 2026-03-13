@@ -1,0 +1,11 @@
+component_type: dagster_component_templates.JsonPathExtractorComponent
+
+asset_name: extracted_user_fields
+upstream_asset_key: raw_events
+group_name: transforms
+extractions:
+  user_id: "$.user.id"
+  user_email: "$.user.email"
+  tags: "$.meta.tags[*]"
+source_column: payload
+drop_source: false

@@ -1,58 +1,64 @@
 {
-  "type": "dagster_component_templates.EventHubsObservationSensorComponent",
-  "name": "Event Hubs Observation Sensor",
-  "category": "sensors",
-  "description": "Emit health observations for an external Event Hub",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.EventHubsObservationSensorComponent",
+  "description": "EventHubsObservationSensorComponent",
+  "category": "observation",
+  "icon": "Eye",
   "x-dagster-io": {
-    "component_type": "observation_sensor"
+    "outputs": {
+      "type": "AssetObservation",
+      "description": "Asset observation events"
+    }
   },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
-      "label": "Sensor Name"
+      "label": "Sensor Name",
+      "description": "Unique sensor name",
+      "required": true
     },
     "asset_key": {
       "type": "string",
-      "required": true,
-      "label": "Asset Key"
+      "label": "Asset Key",
+      "description": "Asset key of the ExternalEventHubsAsset to observe",
+      "required": true
     },
     "namespace": {
       "type": "string",
-      "required": true,
-      "label": "Namespace"
+      "label": "Namespace",
+      "description": "Azure Event Hubs namespace",
+      "required": true
     },
     "eventhub_name": {
       "type": "string",
-      "required": true,
-      "label": "Event Hub Name"
+      "label": "Eventhub Name",
+      "description": "Event Hub name",
+      "required": true
     },
     "connection_string_env_var": {
       "type": "string",
+      "label": "Connection String Env Var",
+      "description": "Env var with connection string",
       "required": false,
-      "label": "Connection String Env Var"
+      "default": null
     },
     "check_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks",
       "required": false,
-      "label": "Check Interval (s)",
       "default": 300
     },
     "resource_key": {
       "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key.",
       "required": false,
-      "label": "Resource Key"
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "azure-eventhub>=5.10.0",
-      "azure-identity>=1.10.0"
-    ]
-  },
   "tags": [
-    "sensors",
-    "observation"
+    "observation",
+    "eventhubs",
+    "sensor"
   ]
 }

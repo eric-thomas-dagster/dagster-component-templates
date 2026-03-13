@@ -1,31 +1,114 @@
 {
-  "type": "dagster_component_templates.AzureStreamAnalyticsComponent",
-  "name": "Azure Stream Analytics",
-  "category": "orchestration",
-  "description": "Import Azure Stream Analytics streaming jobs. Orchestrate real-time analytics workloads.",
-  "version": "1.0.0",
-  "author": "Dagster Community",
-  "icon": "Activity",
+  "component_type": "dagster_component_templates.AzureStreamAnalyticsComponent",
+  "description": "Component for importing Azure Stream Analytics entities as Dagster assets.",
+  "category": "integration",
+  "icon": "Plug",
   "x-dagster-io": {
-    "inputs": {"type": "none", "required": false},
-    "outputs": {"type": "multiple", "description": "Generates assets for each Stream Analytics entity"},
-    "supports_partitions": false
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Integration result"
+    }
   },
   "attributes": {
-    "subscription_id": {"type": "string", "required": true, "label": "Subscription ID", "description": "Azure subscription ID", "placeholder": "12345678-1234-1234-1234-123456789012"},
-    "resource_group_name": {"type": "string", "required": true, "label": "Resource Group", "description": "Azure resource group name", "placeholder": "my-resource-group"},
-    "tenant_id": {"type": "string", "required": false, "label": "Tenant ID", "description": "Azure AD tenant ID (optional)", "placeholder": "{{ env('AZURE_TENANT_ID') }}", "secret": true},
-    "client_id": {"type": "string", "required": false, "label": "Client ID", "description": "Azure AD client/application ID (optional)", "placeholder": "{{ env('AZURE_CLIENT_ID') }}", "secret": true},
-    "client_secret": {"type": "string", "required": false, "label": "Client Secret", "description": "Azure AD client secret (optional)", "placeholder": "{{ env('AZURE_CLIENT_SECRET') }}", "secret": true},
-    "import_streaming_jobs": {"type": "boolean", "required": false, "label": "Import Streaming Jobs", "description": "Import streaming jobs as materializable assets", "default": true},
-    "filter_by_name_pattern": {"type": "string", "required": false, "label": "Filter by Name Pattern", "description": "Regex pattern to filter entities", "placeholder": "^prod_.*"},
-    "exclude_name_pattern": {"type": "string", "required": false, "label": "Exclude Name Pattern", "description": "Regex pattern to exclude entities", "placeholder": "test|dev"},
-    "filter_by_tags": {"type": "string", "required": false, "label": "Filter by Tags", "description": "Comma-separated tag keys to filter entities", "placeholder": "env,team"},
-    "poll_interval_seconds": {"type": "number", "required": false, "label": "Sensor Poll Interval", "description": "Sensor poll interval in seconds", "default": 60, "minimum": 10},
-    "generate_sensor": {"type": "boolean", "required": false, "label": "Generate Observation Sensor", "description": "Create sensor to observe streaming job status", "default": true},
-    "group_name": {"type": "string", "required": false, "label": "Asset Group", "description": "Group name for all imported assets", "default": "azure_stream_analytics"},
-    "description": {"type": "string", "required": false, "label": "Description", "description": "Description for the Azure Stream Analytics component"}
+    "subscription_id": {
+      "type": "string",
+      "label": "Subscription Id",
+      "description": "Azure subscription ID",
+      "required": true,
+      "ui:widget": "code"
+    },
+    "resource_group_name": {
+      "type": "string",
+      "label": "Resource Group Name",
+      "description": "Azure resource group name",
+      "required": true
+    },
+    "tenant_id": {
+      "type": "string",
+      "label": "Tenant Id",
+      "description": "Tenant Id",
+      "required": false,
+      "default": null
+    },
+    "client_id": {
+      "type": "string",
+      "label": "Client Id",
+      "description": "Client Id",
+      "required": false,
+      "default": null
+    },
+    "client_secret": {
+      "type": "string",
+      "label": "Client Secret",
+      "description": "Client Secret",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "import_streaming_jobs": {
+      "type": "boolean",
+      "label": "Import Streaming Jobs",
+      "description": "Import streaming jobs as materializable assets",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "filter_by_name_pattern": {
+      "type": "string",
+      "label": "Filter By Name Pattern",
+      "description": "Regex pattern to filter entities by name",
+      "required": false,
+      "default": null
+    },
+    "exclude_name_pattern": {
+      "type": "string",
+      "label": "Exclude Name Pattern",
+      "description": "Regex pattern to exclude entities by name",
+      "required": false,
+      "default": null
+    },
+    "filter_by_tags": {
+      "type": "string",
+      "label": "Filter By Tags",
+      "description": "Comma-separated tag keys to filter entities (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "description": "Sensor poll interval in seconds",
+      "required": false,
+      "default": 60
+    },
+    "generate_sensor": {
+      "type": "boolean",
+      "label": "Generate Sensor",
+      "description": "Generate observation sensor for streaming job status",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name for all imported assets",
+      "required": false,
+      "default": "azure_stream_analytics"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description for the Azure Stream Analytics component",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    }
   },
-  "dependencies": {"pip": ["azure-identity>=1.12.0", "azure-mgmt-streamanalytics>=2.0.0", "dagster>=1.6.0"]},
-  "tags": ["orchestration", "azure", "stream-analytics", "real-time", "streaming"]
+  "tags": [
+    "integration",
+    "azure",
+    "stream",
+    "analytics"
+  ]
 }

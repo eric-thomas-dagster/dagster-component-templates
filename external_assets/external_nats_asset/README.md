@@ -52,7 +52,6 @@ type: dagster_component_templates.NatsObservationSensorComponent
 attributes:
   sensor_name: nats_asset_observer
   asset_key: external/nats
-  asset_key: external/nats
   servers: SERVERS
   stream_name: my_stream
 ```

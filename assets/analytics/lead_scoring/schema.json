@@ -1,0 +1,267 @@
+{
+  "component_type": "dagster_component_templates.LeadScoringComponent",
+  "description": "Component that scores and qualifies leads for sales prioritization.",
+  "category": "analytics",
+  "icon": "BarChart2",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Analytics result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the lead scoring asset to create",
+      "required": true
+    },
+    "lead_data_asset": {
+      "type": "string",
+      "label": "Lead Data Asset",
+      "description": "Lead/contact data from CRM",
+      "required": false,
+      "default": ""
+    },
+    "behavioral_data_asset": {
+      "type": "string",
+      "label": "Behavioral Data Asset",
+      "description": "Behavioral Data Asset",
+      "required": false,
+      "default": ""
+    },
+    "company_data_asset": {
+      "type": "string",
+      "label": "Company Data Asset",
+      "description": "Company/firmographic data for B2B scoring",
+      "required": false,
+      "default": ""
+    },
+    "scoring_model": {
+      "type": "string",
+      "label": "Scoring Model",
+      "description": "Scoring model: fit_only, intent_only, or combined",
+      "required": false,
+      "default": "combined"
+    },
+    "fit_weight": {
+      "type": "number",
+      "label": "Fit Weight",
+      "description": "Fit Weight",
+      "required": false,
+      "default": 0.4
+    },
+    "intent_weight": {
+      "type": "number",
+      "label": "Intent Weight",
+      "description": "Intent Weight",
+      "required": false,
+      "default": 0.6
+    },
+    "company_size_weight": {
+      "type": "number",
+      "label": "Company Size Weight",
+      "description": "Weight for company size in fit score",
+      "required": false,
+      "default": 0.25
+    },
+    "industry_weight": {
+      "type": "number",
+      "label": "Industry Weight",
+      "description": "Weight for industry match in fit score",
+      "required": false,
+      "default": 0.25
+    },
+    "job_title_weight": {
+      "type": "number",
+      "label": "Job Title Weight",
+      "description": "Weight for job title relevance in fit score",
+      "required": false,
+      "default": 0.25
+    },
+    "geography_weight": {
+      "type": "number",
+      "label": "Geography Weight",
+      "description": "Weight for geography match in fit score",
+      "required": false,
+      "default": 0.15
+    },
+    "budget_weight": {
+      "type": "number",
+      "label": "Budget Weight",
+      "description": "Weight for budget indicators in fit score",
+      "required": false,
+      "default": 0.1
+    },
+    "email_engagement_weight": {
+      "type": "number",
+      "label": "Email Engagement Weight",
+      "description": "Weight for email engagement in intent score",
+      "required": false,
+      "default": 0.25
+    },
+    "website_activity_weight": {
+      "type": "number",
+      "label": "Website Activity Weight",
+      "description": "Weight for website visits in intent score",
+      "required": false,
+      "default": 0.3
+    },
+    "content_consumption_weight": {
+      "type": "number",
+      "label": "Content Consumption Weight",
+      "description": "Weight for content downloads in intent score",
+      "required": false,
+      "default": 0.2
+    },
+    "product_interest_weight": {
+      "type": "number",
+      "label": "Product Interest Weight",
+      "description": "Weight for product page views in intent score",
+      "required": false,
+      "default": 0.25
+    },
+    "mql_threshold": {
+      "type": "number",
+      "label": "Mql Threshold",
+      "description": "Score threshold for Marketing Qualified Lead",
+      "required": false,
+      "default": 50.0
+    },
+    "sql_threshold": {
+      "type": "number",
+      "label": "Sql Threshold",
+      "description": "Score threshold for Sales Qualified Lead",
+      "required": false,
+      "default": 70.0
+    },
+    "hot_lead_threshold": {
+      "type": "number",
+      "label": "Hot Lead Threshold",
+      "description": "Score threshold for hot lead classification",
+      "required": false,
+      "default": 75.0
+    },
+    "warm_lead_threshold": {
+      "type": "number",
+      "label": "Warm Lead Threshold",
+      "description": "Score threshold for warm lead classification",
+      "required": false,
+      "default": 50.0
+    },
+    "include_score_breakdown": {
+      "type": "boolean",
+      "label": "Include Score Breakdown",
+      "description": "Include fit and intent score breakdown",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "calculate_lead_grade": {
+      "type": "boolean",
+      "label": "Calculate Lead Grade",
+      "description": "Calculate Lead Grade",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "apply_time_decay": {
+      "type": "boolean",
+      "label": "Apply Time Decay",
+      "description": "Apply time decay to behavioral signals",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "time_decay_days": {
+      "type": "integer",
+      "label": "Time Decay Days",
+      "description": "Number of days for behavioral signals to decay to 50%",
+      "required": false,
+      "default": 30
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": "",
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name",
+      "required": false,
+      "default": "analytics"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "analytics",
+    "lead",
+    "scoring"
+  ]
+}

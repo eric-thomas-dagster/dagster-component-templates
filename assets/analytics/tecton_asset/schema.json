@@ -1,0 +1,139 @@
+{
+  "component_type": "dagster_component_templates.TectonAssetComponent",
+  "description": "Trigger Tecton feature view materialization jobs via the Tecton SDK.",
+  "category": "analytics",
+  "icon": "BarChart2",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Analytics result DataFrame"
+    }
+  },
+  "attributes": {
+    "workspace": {
+      "type": "string",
+      "label": "Workspace",
+      "description": "Tecton workspace name (e.g. ",
+      "required": true
+    },
+    "tecton_api_key_env_var": {
+      "type": "string",
+      "label": "Tecton Api Key Env Var",
+      "description": "Name of the environment variable holding the Tecton API key.",
+      "required": false,
+      "default": "TECTON_API_KEY"
+    },
+    "tecton_url_env_var": {
+      "type": "string",
+      "label": "Tecton Url Env Var",
+      "description": "Tecton Url Env Var",
+      "required": false,
+      "default": null
+    },
+    "feature_views": {
+      "type": "string",
+      "label": "Feature Views",
+      "description": "Feature Views",
+      "required": false,
+      "default": null
+    },
+    "online": {
+      "type": "boolean",
+      "label": "Online",
+      "description": "Materialize to the online store.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "offline": {
+      "type": "boolean",
+      "label": "Offline",
+      "description": "Materialize to the offline store.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": "feature_store"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset key for this component.",
+      "required": false,
+      "default": "tecton_features"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys for lineage.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "analytics",
+    "tecton",
+    "asset"
+  ]
+}

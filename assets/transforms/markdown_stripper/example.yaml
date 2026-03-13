@@ -1,0 +1,10 @@
+component_type: dagster_component_templates.MarkdownStripperComponent
+
+asset_name: stripped_markdown_docs
+upstream_asset_key: raw_markdown_docs
+group_name: transforms
+columns:
+  - content
+  - summary
+mode: strip
+new_column_suffix: _plain

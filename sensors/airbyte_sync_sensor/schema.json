@@ -1,75 +1,80 @@
 {
-  "type": "dagster_component_templates.AirbyteSyncSensorComponent",
-  "name": "Airbyte Sync Sensor",
-  "category": "sensors",
-  "description": "Trigger a Dagster job when an Airbyte connection sync completes successfully",
-  "icon": "Activity",
+  "component_type": "dagster_component_templates.AirbyteSyncSensorComponent",
+  "description": "Trigger a job when an Airbyte connection sync completes.",
+  "category": "sensor",
+  "icon": "Radar",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "Sensor run requests"
+    }
+  },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
       "label": "Sensor Name",
-      "placeholder": "airbyte_orders_done"
+      "description": "Unique sensor name",
+      "required": true
     },
     "connection_id": {
       "type": "string",
-      "required": true,
-      "label": "Connection ID",
-      "placeholder": "aaaabbbb-cccc-dddd-eeee-ffffffffffff"
+      "label": "Connection Id",
+      "description": "Airbyte connection UUID",
+      "required": true
     },
     "airbyte_url": {
       "type": "string",
+      "label": "Airbyte Url",
+      "description": "Airbyte server URL",
       "required": false,
-      "label": "Airbyte URL",
       "default": "http://localhost:8000"
     },
     "username_env_var": {
       "type": "string",
+      "label": "Username Env Var",
+      "description": "Username Env Var",
       "required": false,
-      "label": "Username Env Var"
+      "default": null
     },
     "password_env_var": {
       "type": "string",
+      "label": "Password Env Var",
+      "description": "Password Env Var",
       "required": false,
-      "label": "Password Env Var"
+      "default": null,
+      "ui:widget": "password"
     },
     "job_name": {
       "type": "string",
-      "required": true,
-      "label": "Dagster Job Name"
+      "label": "Job Name",
+      "description": "Job to trigger when sync completes",
+      "required": true
     },
     "minimum_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Seconds between polls",
       "required": false,
-      "label": "Poll Interval (s)",
       "default": 60
     },
     "default_status": {
       "type": "string",
-      "required": false,
       "label": "Default Status",
-      "default": "running",
-      "enum": [
-        "running",
-        "stopped"
-      ]
+      "description": "running or stopped",
+      "required": false,
+      "default": "running"
     },
     "resource_key": {
       "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key.",
       "required": false,
-      "label": "Resource Key"
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "requests>=2.28.0"
-    ]
-  },
   "tags": [
-    "sensors",
+    "sensor",
     "airbyte",
-    "integration",
-    "etl",
-    "automation"
+    "sync"
   ]
 }

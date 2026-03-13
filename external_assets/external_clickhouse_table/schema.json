@@ -1,8 +1,116 @@
 {
-  "type": "dagster_component_templates.external_clickhouse_table",
-  "name": "External ClickHouse Table",
-  "category": "external_assets",
-  "description": "Declares a ClickHouse table as an observable external asset in Dagster with rich metadata from system tables.",
-  "dependencies": {"pip": ["clickhouse-connect>=0.6.0"]},
-  "tags": ["clickhouse", "external-asset", "sql"]
+  "component_type": "dagster_component_templates.ClickHouseResource",
+  "description": "Resource for connecting to ClickHouse.",
+  "category": "external",
+  "icon": "Link",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "External asset declaration"
+    }
+  },
+  "attributes": {
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "description": "ClickHouse host",
+      "required": true
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "description": "Port",
+      "required": false,
+      "default": 8443
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "description": "ClickHouse username",
+      "required": false,
+      "default": "default"
+    },
+    "password": {
+      "type": "string",
+      "label": "Password",
+      "description": "ClickHouse password",
+      "required": false,
+      "default": "",
+      "ui:widget": "password"
+    },
+    "secure": {
+      "type": "boolean",
+      "label": "Secure",
+      "description": "Secure",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Dagster asset key (e.g. ",
+      "required": true
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "description": "ClickHouse database name",
+      "required": true
+    },
+    "table": {
+      "type": "string",
+      "label": "Table",
+      "description": "ClickHouse table name",
+      "required": true
+    },
+    "host_env_var": {
+      "type": "string",
+      "label": "Host Env Var",
+      "description": "Env var with ClickHouse host",
+      "required": true
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var with ClickHouse username",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var with ClickHouse password",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Human-readable description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": "clickhouse"
+    },
+    "owners": {
+      "type": "string",
+      "label": "Owners",
+      "description": "List of owner emails or team names",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "external",
+    "clickhouse",
+    "table"
+  ]
 }

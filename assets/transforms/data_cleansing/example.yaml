@@ -1,0 +1,15 @@
+type: dagster_component_templates.DataCleansingComponent
+attributes:
+  asset_name: cleansed_customers
+  upstream_asset_key: raw_customers
+  null_handling: fill
+  null_fill_value: "unknown"
+  trim_whitespace: true
+  normalize_case: lower
+  remove_punctuation: false
+  columns:
+    - first_name
+    - last_name
+    - email
+    - city
+  group_name: data_quality

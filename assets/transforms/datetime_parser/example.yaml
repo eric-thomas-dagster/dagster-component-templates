@@ -1,0 +1,11 @@
+type: dagster_component_templates.DatetimeParser
+attributes:
+  asset_name: parsed_order_dates
+  upstream_asset_key: raw_orders
+  date_column: order_date
+  input_format: "%Y-%m-%d"
+  output_format: null
+  output_column: order_date_parsed
+  timezone: America/New_York
+  extract_components: true
+  group_name: transforms

@@ -1,0 +1,32 @@
+type: dagster_component_templates.InsuranceClaimExtractorComponent
+attributes:
+  asset_name: extracted_insurance_claims
+  upstream_asset_key: raw_insurance_claims
+
+  # Input column
+  input_column: "text"
+  input_type: "text"  # text | file
+
+  # LLM
+  model: "gpt-4o-mini"
+  api_key_env_var: "OPENAI_API_KEY"
+
+  # Fields to extract
+  output_fields:
+    - "claim_id"
+    - "policy_number"
+    - "insurer"
+    - "claimant_name"
+    - "claimant_contact"
+    - "incident_date"
+    - "incident_description"
+    - "damage_type"
+    - "claimed_amount"
+    - "adjuster"
+    - "status"
+
+  # Performance
+  batch_size: 5
+
+  # Organization
+  group_name: "document_extraction"

@@ -1,0 +1,179 @@
+{
+  "component_type": "dagster_component_templates.HelmDeployComponent",
+  "description": "Deploy or upgrade a Helm chart as a Dagster asset.",
+  "category": "infrastructure",
+  "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Provisioning result"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "release_name": {
+      "type": "string",
+      "label": "Release Name",
+      "description": "Helm release name",
+      "required": true
+    },
+    "chart": {
+      "type": "string",
+      "label": "Chart",
+      "description": "Chart",
+      "required": true
+    },
+    "namespace": {
+      "type": "string",
+      "label": "Namespace",
+      "description": "Kubernetes namespace to deploy into.",
+      "required": false,
+      "default": "default"
+    },
+    "create_namespace": {
+      "type": "boolean",
+      "label": "Create Namespace",
+      "description": "Create Namespace",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "values_files": {
+      "type": "string",
+      "label": "Values Files",
+      "description": "List of values.yaml files passed as -f to helm upgrade.",
+      "required": false,
+      "default": null
+    },
+    "set_values": {
+      "type": "object",
+      "label": "Set Values",
+      "description": "Key-value pairs passed as --set. Values are coerced to their YAML type by Helm.",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "set_string_values": {
+      "type": "object",
+      "label": "Set String Values",
+      "description": "Key-value pairs passed as --set-string. Values are always treated as strings.",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "version": {
+      "type": "string",
+      "label": "Version",
+      "description": "Version",
+      "required": false,
+      "default": null
+    },
+    "repo_url": {
+      "type": "string",
+      "label": "Repo Url",
+      "description": "Repo Url",
+      "required": false,
+      "default": null
+    },
+    "repo_name": {
+      "type": "string",
+      "label": "Repo Name",
+      "description": "Repo Name",
+      "required": false,
+      "default": null
+    },
+    "kube_context": {
+      "type": "string",
+      "label": "Kube Context",
+      "description": "Kube Context",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "kubeconfig": {
+      "type": "string",
+      "label": "Kubeconfig",
+      "description": "Kubeconfig",
+      "required": false,
+      "default": null
+    },
+    "atomic": {
+      "type": "boolean",
+      "label": "Atomic",
+      "description": "Atomic",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "wait": {
+      "type": "boolean",
+      "label": "Wait",
+      "description": "Wait",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "timeout": {
+      "type": "string",
+      "label": "Timeout",
+      "description": "Timeout",
+      "required": false,
+      "default": "10m"
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "description": "Dry Run",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "helm_bin": {
+      "type": "string",
+      "label": "Helm Bin",
+      "description": "Path to the helm binary (default: ",
+      "required": false,
+      "default": "helm"
+    },
+    "env_vars": {
+      "type": "object",
+      "label": "Env Vars",
+      "description": "Env Vars",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": "infrastructure"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Human-readable description of what this Helm release deploys.",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream Dagster asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "helm",
+    "deploy"
+  ]
+}

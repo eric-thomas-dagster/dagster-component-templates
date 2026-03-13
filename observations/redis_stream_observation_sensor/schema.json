@@ -1,70 +1,81 @@
 {
-  "type": "dagster_component_templates.RedisStreamObservationSensorComponent",
-  "name": "Redis Stream Observation Sensor",
-  "category": "sensors",
-  "description": "Emit health observations for an external Redis Stream",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.RedisStreamObservationSensorComponent",
+  "description": "RedisStreamObservationSensorComponent",
+  "category": "observation",
+  "icon": "Eye",
   "x-dagster-io": {
-    "component_type": "observation_sensor"
+    "outputs": {
+      "type": "AssetObservation",
+      "description": "Asset observation events"
+    }
   },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
-      "label": "Sensor Name"
+      "label": "Sensor Name",
+      "description": "Unique sensor name",
+      "required": true
     },
     "asset_key": {
       "type": "string",
-      "required": true,
-      "label": "Asset Key"
+      "label": "Asset Key",
+      "description": "Asset key of the ExternalRedisStreamAsset to observe",
+      "required": true
     },
     "stream_name": {
       "type": "string",
-      "required": true,
-      "label": "Stream Name"
+      "label": "Stream Name",
+      "description": "Redis stream name",
+      "required": true
     },
     "host": {
       "type": "string",
-      "required": false,
       "label": "Host",
+      "description": "Redis host",
+      "required": false,
       "default": "localhost"
     },
     "port": {
-      "type": "number",
-      "required": false,
+      "type": "integer",
       "label": "Port",
+      "description": "Redis port",
+      "required": false,
       "default": 6379
     },
     "db": {
-      "type": "number",
+      "type": "integer",
+      "label": "Db",
+      "description": "Redis database index",
       "required": false,
-      "label": "DB Index",
       "default": 0
     },
     "password_env_var": {
       "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var with Redis password",
       "required": false,
-      "label": "Password Env Var"
+      "default": null,
+      "ui:widget": "password"
     },
     "check_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks",
       "required": false,
-      "label": "Check Interval (s)",
       "default": 60
     },
     "resource_key": {
       "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key.",
       "required": false,
-      "label": "Resource Key"
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "redis>=4.0.0"
-    ]
-  },
   "tags": [
-    "sensors",
-    "observation"
+    "observation",
+    "redis",
+    "stream",
+    "sensor"
   ]
 }

@@ -1,90 +1,90 @@
 {
-  "type": "dagster_component_templates.ServiceNowSensorComponent",
-  "name": "ServiceNow Sensor",
-  "category": "sensors",
-  "description": "Trigger a Dagster job when ServiceNow records match a target state",
-  "icon": "Activity",
+  "component_type": "dagster_component_templates.ServiceNowSensorComponent",
+  "description": "Trigger a job when ServiceNow records match a target state.",
+  "category": "sensor",
+  "icon": "Radar",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "Sensor run requests"
+    }
+  },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
       "label": "Sensor Name",
-      "placeholder": "snow_change_approved"
+      "description": "Unique sensor name",
+      "required": true
     },
     "instance_env_var": {
       "type": "string",
-      "required": true,
       "label": "Instance Env Var",
-      "placeholder": "SNOW_INSTANCE"
+      "description": "Instance Env Var",
+      "required": true
     },
     "username_env_var": {
       "type": "string",
-      "required": true,
       "label": "Username Env Var",
-      "placeholder": "SNOW_USERNAME"
+      "description": "Env var with ServiceNow username",
+      "required": true
     },
     "password_env_var": {
       "type": "string",
-      "required": true,
       "label": "Password Env Var",
-      "placeholder": "SNOW_PASSWORD"
+      "description": "Env var with ServiceNow password",
+      "required": true,
+      "ui:widget": "password"
     },
     "table": {
       "type": "string",
-      "required": true,
       "label": "Table",
-      "placeholder": "change_request"
+      "description": "Table",
+      "required": true
     },
     "sysparm_query": {
       "type": "string",
+      "label": "Sysparm Query",
+      "description": "ServiceNow encoded query string to filter records",
       "required": true,
-      "label": "Query",
-      "placeholder": "state=approved^assignment_group=data_engineering"
+      "ui:widget": "code"
     },
     "job_name": {
       "type": "string",
-      "required": true,
-      "label": "Job Name"
+      "label": "Job Name",
+      "description": "Job to trigger when matching records are found",
+      "required": true
     },
     "sysparm_fields": {
       "type": "string",
+      "label": "Sysparm Fields",
+      "description": "Comma-separated fields to return",
       "required": false,
-      "label": "Fields",
-      "default": "sys_id,number,state,short_description,sys_updated_on"
+      "default": "sys_id"
     },
     "minimum_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Seconds between polls",
       "required": false,
-      "label": "Poll Interval (s)",
       "default": 120
     },
     "default_status": {
       "type": "string",
-      "required": false,
       "label": "Default Status",
-      "default": "running",
-      "enum": [
-        "running",
-        "stopped"
-      ]
+      "description": "running or stopped",
+      "required": false,
+      "default": "running"
     },
     "resource_key": {
       "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key.",
       "required": false,
-      "label": "Resource Key"
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "requests>=2.28.0"
-    ]
-  },
   "tags": [
-    "sensors",
-    "servicenow",
-    "itsm",
-    "change-management",
-    "enterprise",
-    "automation"
+    "sensor",
+    "servicenow"
   ]
 }

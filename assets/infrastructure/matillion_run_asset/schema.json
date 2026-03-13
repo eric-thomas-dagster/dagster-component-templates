@@ -1,0 +1,129 @@
+{
+  "component_type": "dagster_component_templates.MatillionResource",
+  "description": "Resource for connecting to the Matillion ETL REST API.",
+  "category": "infrastructure",
+  "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Provisioning result"
+    }
+  },
+  "attributes": {
+    "instance_url": {
+      "type": "string",
+      "label": "Instance Url",
+      "description": "Instance Url",
+      "required": true
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "description": "Matillion username",
+      "required": true
+    },
+    "password": {
+      "type": "string",
+      "label": "Password",
+      "description": "Matillion password",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Dagster asset key (e.g. ",
+      "required": true
+    },
+    "project": {
+      "type": "string",
+      "label": "Project",
+      "description": "Matillion project name",
+      "required": true
+    },
+    "version": {
+      "type": "string",
+      "label": "Version",
+      "description": "Matillion project version name",
+      "required": false,
+      "default": "default"
+    },
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Matillion job name to run",
+      "required": true
+    },
+    "instance_url_env_var": {
+      "type": "string",
+      "label": "Instance Url Env Var",
+      "description": "Env var with Matillion instance URL",
+      "required": false,
+      "default": null
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var with Matillion username",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var with Matillion password",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of a MatillionResource",
+      "required": false,
+      "default": null
+    },
+    "variables": {
+      "type": "object",
+      "label": "Variables",
+      "description": "Job variable overrides passed at runtime",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between status polls",
+      "required": false,
+      "default": 10.0
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Max seconds to wait for job completion",
+      "required": false,
+      "default": 3600
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": "matillion"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "matillion",
+    "run",
+    "asset"
+  ]
+}

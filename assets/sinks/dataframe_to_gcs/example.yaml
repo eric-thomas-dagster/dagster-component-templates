@@ -1,0 +1,11 @@
+type: dagster_component_templates.DataframeToGcsComponent
+attributes:
+  asset_name: gcs_session_data
+  upstream_asset_key: processed_session_data
+  bucket_env_var: GCS_BUCKET
+  blob_path: analytics/sessions/output.parquet
+  format: parquet
+  credentials_env_var: GOOGLE_APPLICATION_CREDENTIALS
+  compression: snappy
+  project_env_var: GCP_PROJECT_ID
+  group_name: storage_sinks

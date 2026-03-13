@@ -54,7 +54,6 @@ type: dagster_component_templates.RabbitmqObservationSensorComponent
 attributes:
   sensor_name: rabbitmq_asset_observer
   asset_key: external/rabbitmq
-  asset_key: external/rabbitmq
   host: my-rabbitmq.internal
   queue_name: my_queue
 ```

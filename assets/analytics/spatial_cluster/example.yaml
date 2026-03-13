@@ -1,0 +1,13 @@
+component_type: spatial_cluster
+description: Cluster store visit events by geographic proximity using DBSCAN.
+
+asset_name: store_visits_clustered
+upstream_asset_key: store_visits
+lat_column: latitude
+lng_column: longitude
+algorithm: dbscan
+eps_km: 0.5
+min_samples: 5
+output_column: spatial_cluster
+include_cluster_center: true
+group_name: geospatial

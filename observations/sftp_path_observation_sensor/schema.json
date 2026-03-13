@@ -1,72 +1,86 @@
 {
-  "type": "dagster_component_templates.SftpPathObservationSensorComponent",
-  "name": "SFTP Path Observation Sensor",
-  "category": "observations",
-  "description": "Emit health observations for an external SFTP path",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.SftpPathObservationSensorComponent",
+  "description": "Emit health observations for an external SFTP path.",
+  "category": "observation",
+  "icon": "Eye",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetObservation",
+      "description": "Asset observation events"
+    }
+  },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
-      "label": "Sensor Name"
+      "label": "Sensor Name",
+      "description": "Unique sensor name",
+      "required": true
     },
     "asset_key": {
       "type": "string",
-      "required": true,
-      "label": "Asset Key"
+      "label": "Asset Key",
+      "description": "Asset key of the ExternalSftpPathAsset to observe",
+      "required": true
     },
     "host": {
       "type": "string",
-      "required": true,
-      "label": "Host"
+      "label": "Host",
+      "description": "SFTP host",
+      "required": true
     },
     "port": {
-      "type": "number",
-      "required": false,
+      "type": "integer",
       "label": "Port",
+      "description": "SFTP port",
+      "required": false,
       "default": 22
     },
     "remote_path": {
       "type": "string",
-      "required": true,
-      "label": "Remote Path"
+      "label": "Remote Path",
+      "description": "Remote directory path",
+      "required": true
     },
     "username_env_var": {
       "type": "string",
-      "required": true,
-      "label": "Username Env Var"
+      "label": "Username Env Var",
+      "description": "Env var with SFTP username",
+      "required": true
     },
     "password_env_var": {
       "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var with SFTP password",
       "required": false,
-      "label": "Password Env Var"
+      "default": null,
+      "ui:widget": "password"
     },
     "private_key_env_var": {
       "type": "string",
+      "label": "Private Key Env Var",
+      "description": "Env var with path to SSH private key",
       "required": false,
-      "label": "Private Key Env Var"
+      "default": null
     },
     "check_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks",
       "required": false,
-      "label": "Check Interval (s)",
       "default": 300
     },
     "resource_key": {
       "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key.",
       "required": false,
-      "label": "Resource Key"
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "paramiko>=3.0.0"
-    ]
-  },
   "tags": [
-    "observations",
+    "observation",
     "sftp",
-    "files",
-    "monitoring"
+    "path",
+    "sensor"
   ]
 }

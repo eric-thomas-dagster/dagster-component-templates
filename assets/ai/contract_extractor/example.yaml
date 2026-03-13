@@ -1,0 +1,30 @@
+type: dagster_component_templates.ContractExtractorComponent
+attributes:
+  asset_name: extracted_contracts
+  upstream_asset_key: raw_contracts
+
+  # Input column
+  input_column: "text"
+  input_type: "text"  # text | file
+
+  # LLM
+  model: "gpt-4o-mini"
+  api_key_env_var: "OPENAI_API_KEY"
+
+  # Fields to extract
+  output_fields:
+    - "contract_type"
+    - "parties"
+    - "effective_date"
+    - "expiration_date"
+    - "governing_law"
+    - "payment_terms"
+    - "termination_clause"
+    - "liability_cap"
+    - "signatures"
+
+  # Performance
+  batch_size: 5
+
+  # Organization
+  group_name: "document_extraction"

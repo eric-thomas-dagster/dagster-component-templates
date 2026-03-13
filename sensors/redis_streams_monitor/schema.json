@@ -1,139 +1,111 @@
 {
-  "type": "dagster_component_templates.RedisStreamsMonitorSensorComponent",
-  "name": "Redis Streams Monitor",
-  "category": "sensors",
-  "description": "Monitor a Redis Stream for new entries and trigger jobs when entries are detected",
-  "icon": "Activity",
+  "component_type": "dagster_component_templates.RedisStreamsMonitorSensorComponent",
+  "description": "Component for monitoring a Redis Stream for new entries.",
+  "category": "sensor",
+  "icon": "Radar",
   "x-dagster-io": {
-    "component_type": "sensor",
-    "triggers": {
-      "type": "redis_streams",
-      "description": "Triggers when new entries are detected in the monitored Redis Stream"
-    },
     "outputs": {
-      "type": "run_config",
-      "description": "Passes entry information (stream_name, entry_id, fields, host, port) to triggered jobs via run_config"
+      "type": "RunRequest",
+      "description": "Sensor run requests"
     }
   },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
       "label": "Sensor Name",
       "description": "Unique name for this sensor",
-      "placeholder": "redis_stream_sensor"
+      "required": true
     },
     "stream_name": {
       "type": "string",
-      "required": true,
       "label": "Stream Name",
-      "description": "Name of the Redis Stream to monitor",
-      "placeholder": "events:incoming"
+      "description": "Name of the Redis Stream to monitor (e.g., ",
+      "required": true
     },
     "job_name": {
       "type": "string",
-      "required": true,
       "label": "Job Name",
       "description": "Name of the job to trigger when entries are detected",
-      "placeholder": "process_stream_entries_job"
+      "required": true
     },
     "host": {
       "type": "string",
-      "required": false,
       "label": "Host",
       "description": "Redis host",
-      "default": "localhost",
-      "placeholder": "localhost"
+      "required": false,
+      "default": "localhost"
     },
     "port": {
-      "type": "number",
-      "required": false,
+      "type": "integer",
       "label": "Port",
       "description": "Redis port",
-      "default": 6379,
-      "placeholder": "6379"
+      "required": false,
+      "default": 6379
     },
     "db": {
-      "type": "number",
-      "required": false,
-      "label": "Database Index",
+      "type": "integer",
+      "label": "Db",
       "description": "Redis database index",
-      "default": 0,
-      "placeholder": "0"
+      "required": false,
+      "default": 0
     },
     "password_env_var": {
       "type": "string",
-      "required": false,
       "label": "Password Env Var",
       "description": "Name of the environment variable containing the Redis password",
-      "placeholder": "REDIS_PASSWORD"
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
     },
     "use_tls": {
       "type": "boolean",
-      "required": false,
-      "label": "Use TLS",
+      "label": "Use Tls",
       "description": "Whether to use TLS for the Redis connection",
-      "default": false
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
     },
     "max_entries_per_poll": {
-      "type": "number",
-      "required": false,
+      "type": "integer",
       "label": "Max Entries Per Poll",
       "description": "Maximum number of stream entries to read per evaluation",
-      "default": 100,
-      "minimum": 1,
-      "placeholder": "100"
+      "required": false,
+      "default": 100
     },
     "start_from_beginning": {
       "type": "boolean",
-      "required": false,
       "label": "Start From Beginning",
-      "description": "On first run, read from the beginning of the stream. If false, only reads entries that arrive after the sensor starts.",
-      "default": false
+      "description": "On first run, read from the beginning of the stream. ",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
     },
     "minimum_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum Interval Seconds",
       "required": false,
-      "label": "Minimum Interval (seconds)",
-      "description": "Minimum time between sensor evaluations",
-      "default": 30,
-      "minimum": 1,
-      "placeholder": "30"
-    },
-    "default_status": {
-      "type": "string",
-      "required": false,
-      "label": "Default Status",
-      "description": "Default status of the sensor",
-      "default": "running",
-      "enum": [
-        "running",
-        "stopped"
-      ],
-      "enumLabels": {
-        "running": "Running (sensor actively monitors)",
-        "stopped": "Stopped (sensor is paused)"
-      }
+      "default": 30
     },
     "resource_key": {
       "type": "string",
-      "required": false,
       "label": "Resource Key",
-      "description": "Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key> is used instead of creating a connection from the other fields. See README for the expected interface.",
-      "placeholder": "my_aws_resource"
+      "description": "Optional Dagster resource key providing a pre-configured client. ",
+      "required": false,
+      "default": null
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Default Status",
+      "required": false,
+      "default": "running"
     }
   },
-  "dependencies": {
-    "pip": [
-      "redis>=4.0.0"
-    ]
-  },
   "tags": [
-    "sensors",
+    "sensor",
     "redis",
     "streams",
-    "messaging",
-    "monitoring",
-    "automation"
+    "monitor"
   ]
 }

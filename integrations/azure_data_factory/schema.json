@@ -1,145 +1,19 @@
 {
-  "type": "dagster_component_templates.AzureDataFactoryComponent",
-  "name": "Azure Data Factory",
-  "category": "orchestration",
-  "description": "Import Azure Data Factory pipelines and triggers as Dagster assets. Uses StateBackedComponent to cache the pipeline list at prepare time so code-server reloads are fast.",
-  "version": "2.0.0",
-  "author": "Dagster Community",
-  "icon": "Cloud",
+  "component_type": "dagster_component_templates.AzureDataFactoryResource",
+  "description": "Shared Azure Data Factory connection config.",
+  "category": "integration",
+  "icon": "Plug",
   "x-dagster-io": {
-    "inputs": {"type": "none", "required": false},
-    "outputs": {"type": "multiple", "description": "Generates one asset per ADF pipeline and/or trigger"},
-    "supports_partitions": false
-  },
-  "attributes": {
-    "subscription_id": {
-      "type": "string",
-      "required": true,
-      "label": "Subscription ID",
-      "description": "Azure subscription ID",
-      "placeholder": "12345678-1234-1234-1234-123456789012"
-    },
-    "resource_group_name": {
-      "type": "string",
-      "required": true,
-      "label": "Resource Group",
-      "description": "Azure resource group name",
-      "placeholder": "my-resource-group"
-    },
-    "factory_name": {
-      "type": "string",
-      "required": true,
-      "label": "Data Factory Name",
-      "description": "Azure Data Factory name",
-      "placeholder": "my-data-factory"
-    },
-    "tenant_id": {
-      "type": "string",
-      "required": false,
-      "label": "Tenant ID",
-      "description": "Azure AD tenant ID (optional — uses DefaultAzureCredential if absent)",
-      "placeholder": "{{ env('AZURE_TENANT_ID') }}",
-      "secret": true
-    },
-    "client_id": {
-      "type": "string",
-      "required": false,
-      "label": "Client ID",
-      "description": "Azure AD client/application ID (optional)",
-      "placeholder": "{{ env('AZURE_CLIENT_ID') }}",
-      "secret": true
-    },
-    "client_secret": {
-      "type": "string",
-      "required": false,
-      "label": "Client Secret",
-      "description": "Azure AD client secret (optional)",
-      "placeholder": "{{ env('AZURE_CLIENT_SECRET') }}",
-      "secret": true
-    },
-    "import_pipelines": {
-      "type": "boolean",
-      "required": false,
-      "label": "Import Pipelines",
-      "description": "Import pipelines as materializable assets",
-      "default": true
-    },
-    "import_triggers": {
-      "type": "boolean",
-      "required": false,
-      "label": "Import Triggers",
-      "description": "Import triggers as materializable assets",
-      "default": false
-    },
-    "filter_by_name_pattern": {
-      "type": "string",
-      "required": false,
-      "label": "Filter by Name Pattern",
-      "description": "Regex pattern to include only matching entities",
-      "placeholder": "^prod_.*"
-    },
-    "exclude_name_pattern": {
-      "type": "string",
-      "required": false,
-      "label": "Exclude Name Pattern",
-      "description": "Regex pattern to exclude matching entities",
-      "placeholder": "test|dev"
-    },
-    "filter_by_tags": {
-      "type": "string",
-      "required": false,
-      "label": "Filter by Tags",
-      "description": "Comma-separated tag keys that entities must possess",
-      "placeholder": "env,team"
-    },
-    "generate_sensor": {
-      "type": "boolean",
-      "required": false,
-      "label": "Generate Observation Sensor",
-      "description": "Create a sensor to observe external pipeline runs and trigger runs",
-      "default": true
-    },
-    "poll_interval_seconds": {
-      "type": "number",
-      "required": false,
-      "label": "Sensor Poll Interval (s)",
-      "description": "How often the observation sensor checks for new runs",
-      "default": 60,
-      "minimum": 10
-    },
-    "group_name": {
-      "type": "string",
-      "required": false,
-      "label": "Asset Group",
-      "description": "Dagster asset group name for all imported assets",
-      "default": "azure_data_factory"
-    },
-    "description": {
-      "type": "string",
-      "required": false,
-      "label": "Description",
-      "description": "Optional description for the Azure Data Factory component"
-    },
-    "defs_state": {
-      "type": "object",
-      "required": false,
-      "label": "Defs State Config",
-      "description": "StateBackedComponent cache configuration. Defaults to local filesystem cache. Set to a custom path or remote backend if needed.",
-      "properties": {
-        "path": {
-          "type": "string",
-          "description": "Directory path for the local filesystem cache",
-          "placeholder": ".dagster/adf_state"
-        }
-      }
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Integration result"
     }
   },
-  "dependencies": {
-    "pip": [
-      "azure-identity>=1.12.0",
-      "azure-mgmt-datafactory>=4.0.0",
-      "dagster>=1.8.0"
-    ]
-  },
-  "tags": ["orchestration", "azure", "data-factory", "etl", "pipelines", "state-backed"]
+  "attributes": {},
+  "tags": [
+    "integration",
+    "azure",
+    "data",
+    "factory"
+  ]
 }

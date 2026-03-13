@@ -1,0 +1,14 @@
+type: dagster_component_templates.LitellmBatchCompletionComponent
+attributes:
+  asset_name: classified_support_tickets
+  upstream_asset_key: raw_support_tickets
+  text_column: body
+  output_column: sentiment_label
+  model: gpt-4o-mini
+  system_prompt: "Classify the sentiment of this support ticket as positive, neutral, or negative. Respond with one word only."
+  prompt_template: "Support ticket: {body}"
+  max_tokens: 50
+  temperature: 0.0
+  max_workers: 8
+  api_key_env_var: OPENAI_API_KEY
+  group_name: ai_enrichment

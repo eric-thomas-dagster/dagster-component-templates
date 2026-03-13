@@ -1,0 +1,18 @@
+{
+  "component_type": "dagster_component_templates.OpenAPIAssetComponent",
+  "description": "Create one Dagster asset per OpenAPI tag group, backed by a cached spec.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {},
+  "tags": [
+    "ingestion",
+    "openapi",
+    "asset"
+  ]
+}

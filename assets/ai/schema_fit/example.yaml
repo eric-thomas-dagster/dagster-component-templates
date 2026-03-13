@@ -1,0 +1,23 @@
+type: dagster_component_templates.SchemaFitComponent
+attributes:
+  asset_name: normalized_customers
+  upstream_asset_key: raw_crm_export
+
+  # Target schema: column_name → description
+  target_schema:
+    customer_id: "unique customer identifier"
+    full_name: "first and last name combined"
+    email_address: "customer email"
+    phone_number: "customer phone in E.164 format"
+    created_at: "account creation timestamp as ISO 8601"
+    country_code: "ISO 3166-1 alpha-2 country code"
+
+  # LLM
+  model: "gpt-4o-mini"
+  api_key_env_var: "OPENAI_API_KEY"
+
+  # Context rows sent to LLM
+  sample_rows: 3
+
+  # Organization
+  group_name: "genai"

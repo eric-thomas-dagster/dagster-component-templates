@@ -1,0 +1,205 @@
+{
+  "component_type": "dagster_component_templates.RAGPipelineComponent",
+  "description": "Component for RAG pipeline.",
+  "category": "ai",
+  "icon": "Sparkles",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Enriched DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "required": true
+    },
+    "vector_store_provider": {
+      "type": "string",
+      "label": "Vector Store Provider",
+      "description": "Vector store provider",
+      "required": true
+    },
+    "collection_name": {
+      "type": "string",
+      "label": "Collection Name",
+      "description": "Collection name",
+      "required": true
+    },
+    "llm_provider": {
+      "type": "string",
+      "label": "Llm Provider",
+      "description": "LLM provider",
+      "required": true
+    },
+    "llm_model": {
+      "type": "string",
+      "label": "Llm Model",
+      "description": "LLM model",
+      "required": true
+    },
+    "embedding_provider": {
+      "type": "string",
+      "label": "Embedding Provider",
+      "description": "Embedding provider",
+      "required": false,
+      "default": "openai"
+    },
+    "embedding_model": {
+      "type": "string",
+      "label": "Embedding Model",
+      "description": "Embedding model",
+      "required": false,
+      "default": "text-embedding-3-small"
+    },
+    "top_k": {
+      "type": "integer",
+      "label": "Top K",
+      "description": "Number of documents to retrieve",
+      "required": false,
+      "default": 5
+    },
+    "vector_store_connection": {
+      "type": "string",
+      "label": "Vector Store Connection",
+      "description": "Vector store connection",
+      "required": false,
+      "default": null
+    },
+    "llm_api_key": {
+      "type": "string",
+      "label": "Llm Api Key",
+      "description": "LLM API key with ${VAR_NAME} syntax",
+      "required": false,
+      "default": null
+    },
+    "embedding_api_key": {
+      "type": "string",
+      "label": "Embedding Api Key",
+      "description": "Embedding API key with ${VAR_NAME} syntax",
+      "required": false,
+      "default": null
+    },
+    "include_sources": {
+      "type": "boolean",
+      "label": "Include Sources",
+      "description": "Include source documents",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature",
+      "description": "LLM temperature",
+      "required": false,
+      "default": 0.7
+    },
+    "query_column": {
+      "type": "string",
+      "label": "Query Column",
+      "description": "Column name containing query text",
+      "required": false,
+      "default": "query",
+      "ui:widget": "code"
+    },
+    "answer_column": {
+      "type": "string",
+      "label": "Answer Column",
+      "description": "Column name for generated answers",
+      "required": false,
+      "default": "answer"
+    },
+    "sources_column": {
+      "type": "string",
+      "label": "Sources Column",
+      "description": "Column name for retrieved source documents",
+      "required": false,
+      "default": "sources"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame with query text",
+      "required": true
+    }
+  },
+  "tags": [
+    "ai",
+    "rag",
+    "pipeline"
+  ]
+}

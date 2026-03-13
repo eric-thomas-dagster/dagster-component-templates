@@ -1,64 +1,71 @@
 {
-  "type": "dagster_component_templates.AdlsObservationSensorComponent",
-  "name": "ADLS Observation Sensor",
-  "category": "sensors",
-  "description": "Emit health observations for an external ADLS asset",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.AdlsObservationSensorComponent",
+  "description": "AdlsObservationSensorComponent",
+  "category": "observation",
+  "icon": "Eye",
   "x-dagster-io": {
-    "component_type": "observation_sensor"
+    "outputs": {
+      "type": "AssetObservation",
+      "description": "Asset observation events"
+    }
   },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
-      "label": "Sensor Name"
+      "label": "Sensor Name",
+      "description": "Unique sensor name",
+      "required": true
     },
     "asset_key": {
       "type": "string",
-      "required": true,
-      "label": "Asset Key"
+      "label": "Asset Key",
+      "description": "Asset key of the ExternalAdlsAsset to observe",
+      "required": true
     },
     "account_name": {
       "type": "string",
-      "required": true,
-      "label": "Account Name"
+      "label": "Account Name",
+      "description": "Azure storage account name",
+      "required": true
     },
     "container_name": {
       "type": "string",
-      "required": true,
-      "label": "Container Name"
+      "label": "Container Name",
+      "description": "ADLS container / filesystem name",
+      "required": true
     },
     "path_prefix": {
       "type": "string",
-      "required": false,
       "label": "Path Prefix",
+      "description": "Path prefix within the container",
+      "required": false,
       "default": ""
     },
     "connection_string_env_var": {
       "type": "string",
+      "label": "Connection String Env Var",
+      "description": "Connection String Env Var",
       "required": false,
-      "label": "Connection String Env Var"
+      "default": null
     },
     "check_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks",
       "required": false,
-      "label": "Check Interval (s)",
       "default": 300
     },
     "resource_key": {
       "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key.",
       "required": false,
-      "label": "Resource Key"
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "azure-storage-file-datalake>=12.0.0",
-      "azure-identity>=1.10.0"
-    ]
-  },
   "tags": [
-    "sensors",
-    "observation"
+    "observation",
+    "adls",
+    "sensor"
   ]
 }

@@ -1,0 +1,15 @@
+type: dagster_component_templates.TextToColumns
+attributes:
+  asset_name: split_address_fields
+  upstream_asset_key: raw_addresses
+  column: full_address
+  delimiter: ","
+  max_splits: null
+  output_columns:
+    - street
+    - city
+    - state
+    - zip
+  expand_to_rows: false
+  strip_whitespace: true
+  group_name: transforms

@@ -1,0 +1,167 @@
+{
+  "component_type": "dagster_component_templates.GoogleAdsIngestionComponent",
+  "description": "Component for ingesting Google Ads data using dlt - returns DataFrames.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset that will hold the Google Ads data",
+      "required": true
+    },
+    "customer_id": {
+      "type": "string",
+      "label": "Customer Id",
+      "description": "Customer Id",
+      "required": true
+    },
+    "developer_token": {
+      "type": "string",
+      "label": "Developer Token",
+      "description": "Google Ads API Developer Token. Use ${GOOGLE_ADS_DEV_TOKEN} for env vars.",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "client_id": {
+      "type": "string",
+      "label": "Client Id",
+      "description": "Google OAuth Client ID. Use ${GOOGLE_ADS_CLIENT_ID} for env vars.",
+      "required": true
+    },
+    "client_secret": {
+      "type": "string",
+      "label": "Client Secret",
+      "description": "Google OAuth Client Secret. Use ${GOOGLE_ADS_CLIENT_SECRET} for env vars.",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "refresh_token": {
+      "type": "string",
+      "label": "Refresh Token",
+      "description": "Google OAuth Refresh Token. Use ${GOOGLE_ADS_REFRESH_TOKEN} for env vars.",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "use_service_account": {
+      "type": "boolean",
+      "label": "Use Service Account",
+      "description": "Use service account instead of OAuth credentials",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project Id",
+      "description": "Project Id",
+      "required": false,
+      "default": null
+    },
+    "service_account_email": {
+      "type": "string",
+      "label": "Service Account Email",
+      "description": "Service Account Email",
+      "required": false,
+      "default": null
+    },
+    "private_key": {
+      "type": "string",
+      "label": "Private Key",
+      "description": "Private Key",
+      "required": false,
+      "default": null
+    },
+    "impersonated_email": {
+      "type": "string",
+      "label": "Impersonated Email",
+      "description": "Email to impersonate for service account delegation",
+      "required": false,
+      "default": null
+    },
+    "resources": {
+      "type": "string",
+      "label": "Resources",
+      "description": "Comma-separated list of resources to extract: customers, campaigns, ad_groups, ads, keywords, change_events",
+      "required": false,
+      "default": "customers"
+    },
+    "start_date": {
+      "type": "string",
+      "label": "Start Date",
+      "description": "Start Date",
+      "required": false,
+      "default": null
+    },
+    "end_date": {
+      "type": "string",
+      "label": "End Date",
+      "description": "End Date",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "google_ads"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "destination": {
+      "type": "string",
+      "label": "Destination",
+      "description": "Optional dlt destination (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "destination_config": {
+      "type": "string",
+      "label": "Destination Config",
+      "description": "Optional destination configuration as connection string or JSON. Required if destination is set.",
+      "required": false,
+      "default": null
+    },
+    "persist_and_return": {
+      "type": "boolean",
+      "label": "Persist And Return",
+      "description": "If True with destination set: persist to database AND return DataFrame. If False: only persist to database.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "google",
+    "ads"
+  ]
+}

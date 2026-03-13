@@ -1,0 +1,21 @@
+type: dagster_component_templates.OcrExtractorComponent
+attributes:
+  asset_name: ocr_extracted_text
+  upstream_asset_key: raw_document_images
+
+  # Input
+  image_column: "file_path"
+
+  # Output
+  output_column: "ocr_text"
+  confidence_column: "ocr_confidence"
+
+  # Tesseract settings
+  language: "eng"
+  psm: 6  # 3=auto, 6=single block, 11=single line
+
+  # Preprocessing
+  preprocessed: false  # auto-preprocess with PIL grayscale + threshold
+
+  # Organization
+  group_name: "vision"

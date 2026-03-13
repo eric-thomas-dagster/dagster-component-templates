@@ -1,0 +1,12 @@
+type: dagster_component_templates.LitellmImageGenerationComponent
+attributes:
+  asset_name: product_hero_images
+  upstream_asset_key: product_descriptions
+  prompt_column: description
+  output_column: image_url
+  model: dall-e-3
+  size: 1024x1024
+  quality: hd
+  response_format: url
+  api_key_env_var: OPENAI_API_KEY
+  group_name: ai_media

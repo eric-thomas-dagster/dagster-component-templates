@@ -52,7 +52,6 @@ type: dagster_component_templates.SharePointLibraryObservationSensorComponent
 attributes:
   sensor_name: sharepoint_library_observer
   asset_key: external/sharepoint_library
-  asset_key: external/sharepoint_library
   site_url: SITE_URL
   library_name: my_library
 ```

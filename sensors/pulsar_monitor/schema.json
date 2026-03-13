@@ -1,144 +1,100 @@
 {
-  "type": "dagster_component_templates.PulsarMonitorSensorComponent",
-  "name": "Apache Pulsar Monitor",
-  "category": "sensors",
-  "description": "Monitor an Apache Pulsar topic for new messages and trigger jobs when messages are detected",
-  "icon": "Activity",
+  "component_type": "dagster_component_templates.PulsarMonitorSensorComponent",
+  "description": "Component for monitoring an Apache Pulsar topic for new messages.",
+  "category": "sensor",
+  "icon": "Radar",
   "x-dagster-io": {
-    "component_type": "sensor",
-    "triggers": {
-      "type": "pulsar",
-      "description": "Triggers when new messages are detected on the Pulsar topic"
-    },
     "outputs": {
-      "type": "run_config",
-      "description": "Passes message information (topic, message_id, data, publish_timestamp_ms, partition_key, properties) to triggered jobs via run_config"
+      "type": "RunRequest",
+      "description": "Sensor run requests"
     }
   },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
       "label": "Sensor Name",
       "description": "Unique name for this sensor",
-      "placeholder": "pulsar_events_sensor"
+      "required": true
     },
     "service_url": {
       "type": "string",
-      "required": true,
-      "label": "Service URL",
-      "description": "Pulsar service URL",
-      "placeholder": "pulsar://localhost:6650"
+      "label": "Service Url",
+      "description": "Pulsar service URL (e.g., ",
+      "required": true
     },
     "topic": {
       "type": "string",
-      "required": true,
       "label": "Topic",
-      "description": "Pulsar topic name",
-      "placeholder": "persistent://public/default/my-topic"
+      "description": "Pulsar topic name (e.g., ",
+      "required": true
     },
     "subscription_name": {
       "type": "string",
-      "required": true,
       "label": "Subscription Name",
       "description": "Durable subscription name. Pulsar tracks the position per subscription.",
-      "placeholder": "dagster-sensor-sub"
+      "required": true,
+      "ui:widget": "code"
     },
     "job_name": {
       "type": "string",
-      "required": true,
       "label": "Job Name",
       "description": "Name of the job to trigger when messages are detected",
-      "placeholder": "process_pulsar_messages_job"
+      "required": true
     },
     "subscription_type": {
       "type": "string",
-      "required": false,
       "label": "Subscription Type",
-      "description": "Pulsar subscription type",
+      "description": "Subscription type: Exclusive, Shared, Failover, or Key_Shared",
+      "required": false,
       "default": "Shared",
-      "enum": [
-        "Exclusive",
-        "Shared",
-        "Failover",
-        "Key_Shared"
-      ],
-      "enumLabels": {
-        "Exclusive": "Exclusive (single consumer)",
-        "Shared": "Shared (multiple consumers, round-robin)",
-        "Failover": "Failover (active/standby)",
-        "Key_Shared": "Key_Shared (partitioned by key)"
-      }
+      "ui:widget": "code"
     },
     "max_messages_per_poll": {
-      "type": "number",
-      "required": false,
+      "type": "integer",
       "label": "Max Messages Per Poll",
       "description": "Maximum number of messages to consume per evaluation",
-      "default": 100,
-      "minimum": 1,
-      "placeholder": "100"
+      "required": false,
+      "default": 100
     },
     "receive_timeout_ms": {
-      "type": "number",
-      "required": false,
-      "label": "Receive Timeout (ms)",
+      "type": "integer",
+      "label": "Receive Timeout Ms",
       "description": "Milliseconds to wait for each message before stopping the poll",
-      "default": 5000,
-      "minimum": 100,
-      "placeholder": "5000"
+      "required": false,
+      "default": 5000
     },
     "jwt_token_env_var": {
       "type": "string",
-      "required": false,
-      "label": "JWT Token Env Var",
+      "label": "Jwt Token Env Var",
       "description": "Name of the environment variable containing a JWT auth token",
-      "placeholder": "PULSAR_JWT_TOKEN"
+      "required": false,
+      "default": null
     },
     "minimum_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum Interval Seconds",
       "required": false,
-      "label": "Minimum Interval (seconds)",
-      "description": "Minimum time between sensor evaluations",
-      "default": 30,
-      "minimum": 1,
-      "placeholder": "30"
-    },
-    "default_status": {
-      "type": "string",
-      "required": false,
-      "label": "Default Status",
-      "description": "Default status of the sensor",
-      "default": "running",
-      "enum": [
-        "running",
-        "stopped"
-      ],
-      "enumLabels": {
-        "running": "Running (sensor actively monitors)",
-        "stopped": "Stopped (sensor is paused)"
-      }
+      "default": 30
     },
     "resource_key": {
       "type": "string",
-      "required": false,
       "label": "Resource Key",
-      "description": "Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key> is used instead of creating a connection from the other fields. See README for the expected interface.",
-      "placeholder": "my_aws_resource"
+      "description": "Optional Dagster resource key providing a pre-configured client. ",
+      "required": false,
+      "default": null
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Default Status",
+      "required": false,
+      "default": "running"
     }
   },
-  "dependencies": {
-    "pip": [
-      "pulsar-client>=3.0.0"
-    ]
-  },
   "tags": [
-    "sensors",
+    "sensor",
     "pulsar",
-    "apache",
-    "streaming",
-    "messaging",
-    "monitoring",
-    "automation"
+    "monitor"
   ]
 }

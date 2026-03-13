@@ -1,0 +1,154 @@
+{
+  "component_type": "dagster_component_templates.DataframeToS3Component",
+  "description": "Write a DataFrame to Amazon S3 as Parquet, CSV, or JSON.",
+  "category": "sink",
+  "icon": "ArrowDownToLine",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame to write"
+    },
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Write confirmation with metadata"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
+    "bucket_env_var": {
+      "type": "string",
+      "label": "Bucket Env Var",
+      "description": "Env var containing the S3 bucket name",
+      "required": false,
+      "default": "S3_BUCKET"
+    },
+    "key": {
+      "type": "string",
+      "label": "Key",
+      "description": "S3 object key / path within bucket e.g. data/output/results.parquet",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "format": {
+      "type": "string",
+      "label": "Format",
+      "description": "Output format: ",
+      "required": false,
+      "default": "parquet"
+    },
+    "aws_access_key_env_var": {
+      "type": "string",
+      "label": "Aws Access Key Env Var",
+      "description": "Env var with AWS access key ID. None = use IAM role or ~/.aws/credentials",
+      "required": false,
+      "default": null
+    },
+    "aws_secret_key_env_var": {
+      "type": "string",
+      "label": "Aws Secret Key Env Var",
+      "description": "Env var with AWS secret access key",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "aws_region": {
+      "type": "string",
+      "label": "Aws Region",
+      "description": "AWS region e.g. ",
+      "required": false,
+      "default": null
+    },
+    "compression": {
+      "type": "string",
+      "label": "Compression",
+      "description": "Compression codec. For parquet: ",
+      "required": false,
+      "default": null
+    },
+    "partition_cols": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Partition Cols",
+      "description": "Partition Cols",
+      "required": false,
+      "default": null,
+      "ui:widget": "list"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "sink",
+    "dataframe"
+  ]
+}

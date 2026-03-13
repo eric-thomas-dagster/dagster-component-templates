@@ -1,117 +1,84 @@
 {
-  "type": "dagster_component_templates.SQLMonitorSensorComponent",
-  "name": "SQL Monitor",
-  "category": "sensors",
-  "description": "Monitor a SQL database table for new or updated rows using a watermark column and trigger jobs when changes are detected",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.SQLMonitorSensorComponent",
+  "description": "Component for monitoring a SQL database table for new or updated rows.",
+  "category": "sensor",
+  "icon": "Radar",
   "x-dagster-io": {
-    "component_type": "sensor",
-    "triggers": {
-      "type": "sql",
-      "description": "Triggers when rows newer than the watermark are found in the monitored table"
-    },
     "outputs": {
-      "type": "run_config",
-      "description": "Passes row information (table_name, watermark_column, watermark_value, row_id, row as JSON) to triggered jobs via run_config"
+      "type": "RunRequest",
+      "description": "Sensor run requests"
     }
   },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
       "label": "Sensor Name",
       "description": "Unique name for this sensor",
-      "placeholder": "orders_table_sensor"
+      "required": true
     },
     "connection_string_env_var": {
       "type": "string",
-      "required": true,
       "label": "Connection String Env Var",
-      "description": "Name of the environment variable containing the SQLAlchemy connection string",
-      "placeholder": "DATABASE_URL"
+      "description": "Name of the environment variable containing the SQLAlchemy connection string ",
+      "required": true
     },
     "table_name": {
       "type": "string",
-      "required": true,
       "label": "Table Name",
-      "description": "Name of the table to monitor. Use 'schema.table' for non-default schemas.",
-      "placeholder": "orders"
+      "description": "Name of the table to monitor. Use ",
+      "required": true
     },
     "watermark_column": {
       "type": "string",
-      "required": true,
       "label": "Watermark Column",
-      "description": "Column used to detect new/updated rows (e.g., 'updated_at', 'created_at', 'id')",
-      "placeholder": "updated_at"
+      "description": "Column used to detect new/updated rows (e.g., ",
+      "required": true
     },
     "job_name": {
       "type": "string",
-      "required": true,
       "label": "Job Name",
       "description": "Name of the job to trigger when new rows are detected",
-      "placeholder": "process_new_orders_job"
+      "required": true
     },
     "id_column": {
       "type": "string",
+      "label": "Id Column",
+      "description": "Primary key column used as the run_key for deduplication. ",
       "required": false,
-      "label": "ID Column",
-      "description": "Primary key column used as the run_key for deduplication. Defaults to the watermark_column if not set.",
-      "placeholder": "id"
+      "default": null
     },
     "batch_size": {
-      "type": "number",
-      "required": false,
+      "type": "integer",
       "label": "Batch Size",
       "description": "Maximum number of rows to return per sensor evaluation",
-      "default": 100,
-      "minimum": 1,
-      "placeholder": "100"
+      "required": false,
+      "default": 100
     },
     "minimum_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum Interval Seconds",
       "required": false,
-      "label": "Minimum Interval (seconds)",
-      "description": "Minimum time between sensor evaluations",
-      "default": 60,
-      "minimum": 1,
-      "placeholder": "60"
-    },
-    "default_status": {
-      "type": "string",
-      "required": false,
-      "label": "Default Status",
-      "description": "Default status of the sensor",
-      "default": "running",
-      "enum": [
-        "running",
-        "stopped"
-      ],
-      "enumLabels": {
-        "running": "Running (sensor actively monitors)",
-        "stopped": "Stopped (sensor is paused)"
-      }
+      "default": 60
     },
     "resource_key": {
       "type": "string",
-      "required": false,
       "label": "Resource Key",
-      "description": "Optional Dagster resource key providing a pre-configured client. When set, context.resources.<resource_key> is used instead of creating a connection from the other fields. See README for the expected interface.",
-      "placeholder": "my_aws_resource"
+      "description": "Optional Dagster resource key providing a pre-configured client. ",
+      "required": false,
+      "default": null
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Default Status",
+      "required": false,
+      "default": "running"
     }
   },
-  "dependencies": {
-    "pip": [
-      "sqlalchemy>=2.0.0"
-    ]
-  },
   "tags": [
-    "sensors",
+    "sensor",
     "sql",
-    "database",
-    "postgres",
-    "mysql",
-    "snowflake",
-    "monitoring",
-    "automation"
+    "monitor"
   ]
 }

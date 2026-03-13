@@ -1,0 +1,177 @@
+{
+  "component_type": "dagster_component_templates.GoogleAnalyticsIngestionComponent",
+  "description": "Component for ingesting Google Analytics 4 data using dlt - returns DataFrames.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset that will hold the Google Analytics data",
+      "required": true
+    },
+    "property_id": {
+      "type": "string",
+      "label": "Property Id",
+      "description": "Google Analytics 4 Property ID (numeric, e.g., ",
+      "required": true
+    },
+    "credentials_json": {
+      "type": "string",
+      "label": "Credentials Json",
+      "description": "Service account credentials as JSON string. Use ${GOOGLE_ANALYTICS_CREDENTIALS} for env vars.",
+      "required": false,
+      "default": null
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project Id",
+      "description": "Project Id",
+      "required": false,
+      "default": null
+    },
+    "client_email": {
+      "type": "string",
+      "label": "Client Email",
+      "description": "Client Email",
+      "required": false,
+      "default": null
+    },
+    "private_key": {
+      "type": "string",
+      "label": "Private Key",
+      "description": "Private Key",
+      "required": false,
+      "default": null
+    },
+    "use_oauth": {
+      "type": "boolean",
+      "label": "Use Oauth",
+      "description": "Use OAuth instead of service account authentication",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "client_id": {
+      "type": "string",
+      "label": "Client Id",
+      "description": "Client Id",
+      "required": false,
+      "default": null
+    },
+    "client_secret": {
+      "type": "string",
+      "label": "Client Secret",
+      "description": "Client Secret",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "refresh_token": {
+      "type": "string",
+      "label": "Refresh Token",
+      "description": "Refresh Token",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "dimensions": {
+      "type": "string",
+      "label": "Dimensions",
+      "description": "Comma-separated list of dimensions (e.g., ",
+      "required": false,
+      "default": "date"
+    },
+    "metrics": {
+      "type": "string",
+      "label": "Metrics",
+      "description": "Comma-separated list of metrics (e.g., ",
+      "required": false,
+      "default": "sessions"
+    },
+    "start_date": {
+      "type": "string",
+      "label": "Start Date",
+      "description": "Start Date",
+      "required": false,
+      "default": "2024-01-01"
+    },
+    "end_date": {
+      "type": "string",
+      "label": "End Date",
+      "description": "End Date",
+      "required": false,
+      "default": null
+    },
+    "rows_per_page": {
+      "type": "integer",
+      "label": "Rows Per Page",
+      "description": "Rows Per Page",
+      "required": false,
+      "default": 10000
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "google_analytics"
+    },
+    "include_sample_metadata": {
+      "type": "boolean",
+      "label": "Include Sample Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "destination": {
+      "type": "string",
+      "label": "Destination",
+      "description": "Optional dlt destination (e.g., ",
+      "required": false,
+      "default": null
+    },
+    "destination_config": {
+      "type": "string",
+      "label": "Destination Config",
+      "description": "Optional destination configuration as connection string or JSON. Required if destination is set.",
+      "required": false,
+      "default": null
+    },
+    "persist_and_return": {
+      "type": "boolean",
+      "label": "Persist And Return",
+      "description": "If True with destination set: persist to database AND return DataFrame. If False: only persist to database.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "google",
+    "analytics"
+  ]
+}

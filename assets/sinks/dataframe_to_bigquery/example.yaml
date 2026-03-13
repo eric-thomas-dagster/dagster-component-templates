@@ -1,0 +1,10 @@
+type: dagster_component_templates.DataframeToBigqueryComponent
+attributes:
+  asset_name: bigquery_events
+  upstream_asset_key: processed_events
+  table_id: my-gcp-project.analytics.events
+  write_disposition: WRITE_TRUNCATE
+  credentials_env_var: GOOGLE_APPLICATION_CREDENTIALS
+  location: US
+  chunksize: 50000
+  group_name: warehouse_sinks

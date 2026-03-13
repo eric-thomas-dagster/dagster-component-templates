@@ -1,0 +1,8 @@
+type: dagster_component_templates.PineconeReaderComponent
+attributes:
+  asset_name: pinecone_results
+  index_name: my-embeddings
+  query_text: "product recommendations for electronics"
+  n_results: 10
+  include_metadata: true
+  group_name: sources

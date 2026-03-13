@@ -1,0 +1,148 @@
+{
+  "type": "dagster_component_templates.Neo4jWriterComponent",
+  "name": "Neo4j Writer",
+  "category": "sink",
+  "description": "Write a DataFrame to Neo4j as graph nodes using MERGE or CREATE with efficient UNWIND batch processing",
+  "icon": "Share2",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "DataFrame to write to Neo4j as nodes"
+    },
+    "outputs": {
+      "type": "materialize_result",
+      "description": "Materialization result with row count metadata"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "label": "Asset Name",
+      "description": "Name of the output asset to create",
+      "placeholder": "write_to_neo4j"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "required": true,
+      "label": "Upstream Asset Key",
+      "description": "Asset key of the upstream DataFrame asset"
+    },
+    "uri_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "URI Env Var",
+      "description": "Environment variable containing the Neo4j connection URI",
+      "default": "NEO4J_URI"
+    },
+    "username_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "Username Env Var",
+      "description": "Environment variable containing the Neo4j username",
+      "default": "NEO4J_USERNAME"
+    },
+    "password_env_var": {
+      "type": "string",
+      "required": false,
+      "label": "Password Env Var",
+      "description": "Environment variable containing the Neo4j password",
+      "default": "NEO4J_PASSWORD"
+    },
+    "node_label": {
+      "type": "string",
+      "required": true,
+      "label": "Node Label",
+      "description": "Neo4j node label to assign to created nodes"
+    },
+    "id_column": {
+      "type": "string",
+      "required": true,
+      "label": "ID Column",
+      "description": "DataFrame column to use as the node identity property for MERGE"
+    },
+    "merge": {
+      "type": "boolean",
+      "required": false,
+      "label": "Merge",
+      "description": "If true, use MERGE to create or update nodes; if false, use CREATE",
+      "default": true
+    },
+    "database": {
+      "type": "string",
+      "required": false,
+      "label": "Database",
+      "description": "Neo4j database name (None = default database)"
+    },
+    "group_name": {
+      "type": "string",
+      "required": false,
+      "label": "Group Name",
+      "description": "Asset group for organization"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    }
+  },
+  "dependencies": {
+    "pip": [
+      "pandas>=1.5.0",
+      "neo4j>=5.0.0"
+    ]
+  },
+  "tags": [
+    "sink",
+    "neo4j",
+    "graph-database",
+    "cypher"
+  ]
+}

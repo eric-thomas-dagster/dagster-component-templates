@@ -1,0 +1,27 @@
+type: dagster_component_templates.ZeroShotClassifierComponent
+attributes:
+  asset_name: classified_support_tickets
+  upstream_asset_key: raw_support_tickets
+  text_column: ticket_body
+
+  # Classification labels
+  candidate_labels:
+    - "billing"
+    - "technical_issue"
+    - "account_access"
+    - "feature_request"
+    - "general_inquiry"
+
+  # Model
+  model_name: "facebook/bart-large-mnli"
+
+  # Output
+  output_column: "ticket_category"
+  output_scores: true
+  multi_label: false
+
+  # Performance
+  batch_size: 8
+
+  # Organization
+  group_name: "text_mining"

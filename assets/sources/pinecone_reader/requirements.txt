@@ -1,0 +1,4 @@
+dagster
+pandas>=1.5.0
+pinecone-client>=3.0.0
+openai>=1.0.0

@@ -1,0 +1,14 @@
+type: dagster_component_templates.SummarizeComponent
+attributes:
+  asset_name: revenue_by_region
+  upstream_asset_key: sales_data
+  group_by:
+    - region
+    - product_category
+  aggregations:
+    revenue: sum
+    order_count: count
+    avg_order_value: mean
+    min_order: min
+    max_order: max
+  group_name: transforms

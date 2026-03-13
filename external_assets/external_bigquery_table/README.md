@@ -54,7 +54,6 @@ type: dagster_component_templates.BigQueryTableObservationSensorComponentObserva
 attributes:
   sensor_name: bigquery_table_observer
   asset_key: external/bigquery
-  asset_key: external/bigquery
   project_id: PROJECT_ID
   dataset_id: DATASET_ID
 ```

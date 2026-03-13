@@ -1,0 +1,13 @@
+component_type: dagster_component_templates.TypeCoercerComponent
+
+asset_name: typed_records
+upstream_asset_key: raw_records
+group_name: transforms
+type_map:
+  age: int
+  score: float
+  active: bool
+  created_at: datetime
+  tags: json
+errors: coerce
+datetime_format: "%Y-%m-%dT%H:%M:%S"

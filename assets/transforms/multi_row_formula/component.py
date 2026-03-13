@@ -1,0 +1,193 @@
+"""Multi-Row Formula Asset Component.
+
+Apply formulas that reference neighboring rows — lag, lead, rolling windows,
+differences, cumulative sums, and percent changes.
+"""
+from dataclasses import dataclass
+from typing import Optional, List, Dict, Any
+
+import pandas as pd
+from dagster import (
+    AssetExecutionContext,
+    AssetIn,
+    AssetKey,
+    Component,
+    ComponentLoadContext,
+    Definitions,
+    Model,
+    Resolvable,
+    asset,
+)
+from pydantic import Field
+
+
+@dataclass
+class MultiRowFormulaComponent(Component, Model, Resolvable):
+    """Apply formulas that reference neighboring rows.
+
+    Supports lag/lead offsets, rolling window aggregations (mean, sum, min, max, std),
+    differences, percent changes, and cumulative operations. Can operate within groups
+    after optionally sorting the DataFrame first.
+    """
+
+    asset_name: str = Field(description="Output Dagster asset name")
+    upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
+    operations: List[Dict[str, Any]] = Field(
+        description=(
+            "List of operation dicts. Each dict requires: "
+            "output_column (str), column (str), operation (str: lag|lead|rolling_mean|"
+            "rolling_sum|rolling_min|rolling_max|rolling_std|diff|pct_change|cumsum|cummax|cummin). "
+            "Optional: periods (int, default 1), window (int, default 3), min_periods (int, default 1)."
+        )
+    )
+    sort_by: Optional[str] = Field(
+        default=None,
+        description="Sort by this column before applying operations",
+    )
+    group_by: Optional[List[str]] = Field(
+        default=None,
+        description="Apply operations within these groups",
+    )
+    group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned",
+    )
+    partition_start: Optional[str] = Field(
+        default=None,
+        description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+    )
+    partition_date_column: Optional[str] = Field(
+        default=None,
+        description="Column used to filter upstream DataFrame to the current date partition key.",
+    )
+    partition_values: Optional[str] = Field(
+        default=None,
+        description="Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
+    )
+    partition_static_dim: Optional[str] = Field(
+        default=None,
+        description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
+    )
+    partition_static_column: Optional[str] = Field(
+        default=None,
+        description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
+    )
+
+    @classmethod
+    def get_description(cls) -> str:
+        return (
+            "Apply formulas referencing neighboring rows — lag, lead, rolling windows, "
+            "differences, cumulative sums, and percent changes."
+        )
+
+    def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        asset_name = self.asset_name
+        upstream_asset_key = self.upstream_asset_key
+        operations = self.operations
+        sort_by = self.sort_by
+        group_by = self.group_by
+        group_name = self.group_name
+
+        # Build partition definition
+        partitions_def = None
+        if self.partition_type:
+            from dagster import (
+                DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+                MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+                StaticPartitionsDefinition, MultiPartitionsDefinition,
+            )
+            _start = self.partition_start or "2020-01-01"
+            _values = [v.strip() for v in (self.partition_values or "").split(",") if v.strip()]
+            if self.partition_type == "daily":
+                partitions_def = DailyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "weekly":
+                partitions_def = WeeklyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "monthly":
+                partitions_def = MonthlyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "hourly":
+                partitions_def = HourlyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "static":
+                partitions_def = StaticPartitionsDefinition(_values)
+            elif self.partition_type == "multi":
+                _dim = self.partition_static_dim or "segment"
+                partitions_def = MultiPartitionsDefinition({
+                    "date": DailyPartitionsDefinition(start_date=_start),
+                    _dim: StaticPartitionsDefinition(_values),
+                })
+        partition_type = self.partition_type
+        partition_date_column = self.partition_date_column
+        partition_static_column = self.partition_static_column
+        partition_static_dim = self.partition_static_dim
+
+        @asset(
+            name=asset_name,
+            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+            partitions_def=partitions_def,
+            group_name=group_name,
+            description=MultiRowFormulaComponent.get_description(),
+        )
+        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+            # Filter to current partition if partitioned
+            if context.has_partition_key:
+                _pk = context.partition_key
+                _is_multi = hasattr(_pk, "keys_by_dimension")
+                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                if partition_date_column and partition_date_column in upstream.columns and _date_key:
+                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
+                if partition_static_column and partition_static_column in upstream.columns and _static_key:
+                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
+                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
+                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+            df = upstream.copy()
+
+            if sort_by:
+                df = df.sort_values(sort_by).reset_index(drop=True)
+
+            for op in operations:
+                col = op["column"]
+                out = op["output_column"]
+                operation = op["operation"]
+                periods = op.get("periods", 1)
+                window = op.get("window", 3)
+                min_p = op.get("min_periods", 1)
+
+                if group_by:
+                    g = df.groupby(group_by)[col]
+                else:
+                    g = df[col]
+
+                if operation == "lag":
+                    df[out] = g.shift(periods)
+                elif operation == "lead":
+                    df[out] = g.shift(-periods)
+                elif operation == "rolling_mean":
+                    df[out] = g.rolling(window, min_periods=min_p).mean()
+                elif operation == "rolling_sum":
+                    df[out] = g.rolling(window, min_periods=min_p).sum()
+                elif operation == "rolling_min":
+                    df[out] = g.rolling(window, min_periods=min_p).min()
+                elif operation == "rolling_max":
+                    df[out] = g.rolling(window, min_periods=min_p).max()
+                elif operation == "rolling_std":
+                    df[out] = g.rolling(window, min_periods=min_p).std()
+                elif operation == "diff":
+                    df[out] = g.diff(periods)
+                elif operation == "pct_change":
+                    df[out] = g.pct_change(periods)
+                elif operation == "cumsum":
+                    df[out] = g.cumsum()
+                elif operation == "cummax":
+                    df[out] = g.cummax()
+                elif operation == "cummin":
+                    df[out] = g.cummin()
+                else:
+                    context.log.warning(f"Unknown operation '{operation}' for column '{col}', skipping.")
+
+                context.log.info(f"Applied '{operation}' on '{col}' -> '{out}'")
+
+            context.log.info(f"Multi-row formula complete. Output shape: {df.shape}")
+            return df
+
+        return Definitions(assets=[_asset])

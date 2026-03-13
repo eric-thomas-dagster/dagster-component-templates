@@ -1,0 +1,138 @@
+{
+  "component_type": "dagster_component_templates.ServiceBusToDatabaseAssetComponent",
+  "description": "Drain messages from an Azure Service Bus queue/subscription and write to a database.",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Ingestion result with row count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "connection_string_env_var": {
+      "type": "string",
+      "label": "Connection String Env Var",
+      "description": "Env var with Service Bus connection string",
+      "required": true
+    },
+    "queue_name": {
+      "type": "string",
+      "label": "Queue Name",
+      "description": "Queue Name",
+      "required": false,
+      "default": null
+    },
+    "topic_name": {
+      "type": "string",
+      "label": "Topic Name",
+      "description": "Topic name",
+      "required": false,
+      "default": null
+    },
+    "subscription_name": {
+      "type": "string",
+      "label": "Subscription Name",
+      "description": "Subscription Name",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "database_url_env_var": {
+      "type": "string",
+      "label": "Database Url Env Var",
+      "description": "Env var with SQLAlchemy database URL",
+      "required": true
+    },
+    "table_name": {
+      "type": "string",
+      "label": "Table Name",
+      "description": "Destination table name",
+      "required": true
+    },
+    "schema_name": {
+      "type": "string",
+      "label": "Schema Name",
+      "description": "Destination schema name",
+      "required": false,
+      "default": null
+    },
+    "if_exists": {
+      "type": "string",
+      "label": "If Exists",
+      "description": "fail, replace, or append",
+      "required": false,
+      "default": "append"
+    },
+    "max_messages": {
+      "type": "integer",
+      "label": "Max Messages",
+      "description": "Max messages to consume per run",
+      "required": false,
+      "default": 5000
+    },
+    "max_wait_seconds": {
+      "type": "number",
+      "label": "Max Wait Seconds",
+      "description": "Max seconds to wait per receive call",
+      "required": false,
+      "default": 5.0
+    },
+    "column_mapping": {
+      "type": "object",
+      "label": "Column Mapping",
+      "description": "Rename columns: {old: new}",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name",
+      "required": false,
+      "default": "ingestion"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "none, daily, weekly, or monthly",
+      "required": false,
+      "default": "none"
+    },
+    "partition_start_date": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "Partition Start Date",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "string",
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on (e.g. [",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ingestion",
+    "servicebus",
+    "database",
+    "asset"
+  ]
+}

@@ -1,64 +1,71 @@
 {
-  "type": "dagster_component_templates.MqttObservationSensorComponent",
-  "name": "MQTT Observation Sensor",
-  "category": "sensors",
-  "description": "Emit health observations for an external MQTT broker/topic",
-  "icon": "Database",
+  "component_type": "dagster_component_templates.MqttObservationSensorComponent",
+  "description": "MqttObservationSensorComponent",
+  "category": "observation",
+  "icon": "Eye",
   "x-dagster-io": {
-    "component_type": "observation_sensor"
+    "outputs": {
+      "type": "AssetObservation",
+      "description": "Asset observation events"
+    }
   },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
-      "label": "Sensor Name"
+      "label": "Sensor Name",
+      "description": "Unique sensor name",
+      "required": true
     },
     "asset_key": {
       "type": "string",
-      "required": true,
-      "label": "Asset Key"
+      "label": "Asset Key",
+      "description": "Asset key of the ExternalMqttAsset to observe",
+      "required": true
     },
     "broker_host": {
       "type": "string",
-      "required": true,
-      "label": "Broker Host"
+      "label": "Broker Host",
+      "description": "MQTT broker hostname",
+      "required": true
     },
     "topic": {
       "type": "string",
-      "required": true,
-      "label": "Topic"
+      "label": "Topic",
+      "description": "MQTT topic to subscribe to",
+      "required": true
     },
     "broker_port": {
-      "type": "number",
-      "required": false,
+      "type": "integer",
       "label": "Broker Port",
+      "description": "MQTT broker port",
+      "required": false,
       "default": 1883
     },
     "connect_timeout_seconds": {
       "type": "number",
+      "label": "Connect Timeout Seconds",
+      "description": "Seconds to wait for connection",
       "required": false,
-      "label": "Connect Timeout (s)",
       "default": 5.0
     },
     "check_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks",
       "required": false,
-      "label": "Check Interval (s)",
       "default": 300
     },
     "resource_key": {
       "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key.",
       "required": false,
-      "label": "Resource Key"
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "paho-mqtt>=1.6.1"
-    ]
-  },
   "tags": [
-    "sensors",
-    "observation"
+    "observation",
+    "mqtt",
+    "sensor"
   ]
 }

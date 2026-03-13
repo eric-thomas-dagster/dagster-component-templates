@@ -1,0 +1,12 @@
+type: dagster_component_templates.RunningTotalComponent
+attributes:
+  asset_name: cumulative_revenue_by_region
+  upstream_asset_key: daily_sales
+  value_column: revenue
+  output_column: cumulative_revenue
+  group_by:
+    - region
+  sort_by: sale_date
+  sort_ascending: true
+  agg_function: sum
+  group_name: transforms

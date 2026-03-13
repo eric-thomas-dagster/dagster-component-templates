@@ -1,72 +1,71 @@
 {
-  "type": "dagster_component_templates.FivetranSyncSensorComponent",
-  "name": "Fivetran Sync Sensor",
-  "category": "sensors",
-  "description": "Trigger a Dagster job when a Fivetran connector sync completes",
-  "icon": "Activity",
+  "component_type": "dagster_component_templates.FivetranSyncSensorComponent",
+  "description": "Trigger a job when a Fivetran connector sync completes.",
+  "category": "sensor",
+  "icon": "Radar",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "Sensor run requests"
+    }
+  },
   "attributes": {
     "sensor_name": {
       "type": "string",
-      "required": true,
       "label": "Sensor Name",
-      "placeholder": "fivetran_orders_done"
+      "description": "Unique sensor name",
+      "required": true
     },
     "connector_id": {
       "type": "string",
-      "required": true,
-      "label": "Connector ID",
-      "placeholder": "abc123xyz"
+      "label": "Connector Id",
+      "description": "Fivetran connector ID",
+      "required": true
     },
     "api_key_env_var": {
       "type": "string",
-      "required": true,
-      "label": "API Key Env Var",
-      "placeholder": "FIVETRAN_API_KEY"
+      "label": "Api Key Env Var",
+      "description": "Env var containing the Fivetran API key",
+      "required": true
     },
     "api_secret_env_var": {
       "type": "string",
+      "label": "Api Secret Env Var",
+      "description": "Env var containing the Fivetran API secret",
       "required": true,
-      "label": "API Secret Env Var",
-      "placeholder": "FIVETRAN_API_SECRET"
+      "ui:widget": "password"
     },
     "job_name": {
       "type": "string",
-      "required": true,
       "label": "Job Name",
-      "placeholder": "process_synced_data_job"
+      "description": "Job to trigger when sync completes",
+      "required": true
     },
     "minimum_interval_seconds": {
-      "type": "number",
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Seconds between polls",
       "required": false,
-      "label": "Poll Interval (s)",
       "default": 60
     },
     "default_status": {
       "type": "string",
-      "required": false,
       "label": "Default Status",
-      "default": "running",
-      "enum": [
-        "running",
-        "stopped"
-      ]
+      "description": "running or stopped",
+      "required": false,
+      "default": "running"
     },
     "resource_key": {
       "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key.",
       "required": false,
-      "label": "Resource Key"
+      "default": null
     }
   },
-  "dependencies": {
-    "pip": [
-      "requests>=2.28.0"
-    ]
-  },
   "tags": [
-    "sensors",
+    "sensor",
     "fivetran",
-    "integration",
-    "etl",
-    "automation"
+    "sync"
   ]
 }

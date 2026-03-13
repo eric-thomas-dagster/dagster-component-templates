@@ -1,0 +1,10 @@
+type: dagster_component_templates.PgvectorReaderComponent
+attributes:
+  asset_name: similar_documents
+  table_name: document_embeddings
+  query_text: "machine learning fundamentals"
+  database_url_env_var: DATABASE_URL
+  embedding_column: embedding
+  n_results: 20
+  distance_metric: cosine
+  group_name: sources

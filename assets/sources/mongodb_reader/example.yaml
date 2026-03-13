@@ -1,0 +1,12 @@
+type: dagster_component_templates.MongodbReaderComponent
+attributes:
+  asset_name: mongo_users
+  connection_string_env_var: MONGODB_URI
+  database: mydb
+  collection: users
+  query:
+    active: true
+  limit: 500
+  sort_field: created_at
+  sort_direction: -1
+  group_name: sources

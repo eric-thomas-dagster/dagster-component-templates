@@ -1,0 +1,10 @@
+type: dagster_component_templates.LitellmAudioTranscriptionComponent
+attributes:
+  asset_name: transcribed_customer_calls
+  upstream_asset_key: customer_call_recordings
+  audio_path_column: recording_path
+  output_column: transcription
+  model: whisper-1
+  language: en
+  api_key_env_var: OPENAI_API_KEY
+  group_name: ai_audio

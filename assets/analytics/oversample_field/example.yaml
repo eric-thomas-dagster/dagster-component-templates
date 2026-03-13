@@ -1,0 +1,16 @@
+component_type: oversample_field
+description: Balance a highly imbalanced churn dataset using SMOTE before model training.
+
+asset_name: churn_balanced_features
+upstream_asset_key: customer_features_enriched
+target_column: churned
+method: smote
+sampling_strategy: auto
+random_state: 42
+feature_columns:
+  - days_since_last_order
+  - total_orders
+  - avg_order_value
+  - support_tickets_count
+  - email_open_rate
+group_name: data_preparation

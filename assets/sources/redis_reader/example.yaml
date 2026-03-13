@@ -1,0 +1,10 @@
+type: dagster_component_templates.RedisReaderComponent
+attributes:
+  asset_name: redis_user_sessions
+  host_env_var: REDIS_HOST
+  port: 6379
+  db: 0
+  key_pattern: "session:*"
+  data_type: hash
+  limit: 1000
+  group_name: sources

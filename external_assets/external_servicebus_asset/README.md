@@ -53,7 +53,6 @@ type: dagster_component_templates.ServiceBusObservationSensorComponent
 attributes:
   sensor_name: servicebus_asset_observer
   asset_key: external/servicebus
-  asset_key: external/servicebus
   namespace: my_namespace
 ```
 

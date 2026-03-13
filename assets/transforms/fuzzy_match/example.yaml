@@ -1,0 +1,10 @@
+type: dagster_component_templates.FuzzyMatch
+attributes:
+  asset_name: deduplicated_companies
+  upstream_asset_key: raw_company_names
+  column: company_name
+  threshold: 0.85
+  mode: deduplicate
+  output_column: fuzzy_group
+  keep: first
+  group_name: transforms

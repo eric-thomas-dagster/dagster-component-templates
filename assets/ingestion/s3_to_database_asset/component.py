@@ -1,6 +1,6 @@
 """S3 to Database Asset Component."""
 
-from typing import Optional
+from typing import Dict, List, Optional
 import boto3
 import pandas as pd
 from io import BytesIO
@@ -89,6 +89,26 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
         default="",
         description="Asset group name for organization"
     )
+    owners: Optional[List[str]] = Field(
+        default=None,
+        description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
+    )
+    asset_tags: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'}",
+    )
+    kinds: Optional[List[str]] = Field(
+        default=None,
+        description="Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set.",
+    )
+    freshness_max_lag_minutes: Optional[int] = Field(
+        default=None,
+        description="Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
+    )
+    freshness_cron: Optional[str] = Field(
+        default=None,
+        description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
+    )
 
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
@@ -134,10 +154,51 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
             s3_size: Optional[int] = None
             s3_last_modified: Optional[str] = None
 
+        # Infer kinds from component name if not explicitly set
+        _comp_name = "s3_to_database_asset"  # component directory name
+        _kind_map = {
+            "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
+            "postgres": "postgres", "postgresql": "postgres", "mysql": "mysql",
+            "s3": "s3", "adls": "azure", "azure": "azure", "gcs": "gcp",
+            "google": "gcp", "databricks": "databricks", "dbt": "dbt",
+            "kafka": "kafka", "mongodb": "mongodb", "redis": "redis",
+            "neo4j": "neo4j", "elasticsearch": "elasticsearch", "pinecone": "pinecone",
+            "chromadb": "chromadb", "pgvector": "postgres",
+        }
+        _inferred_kinds = self.kinds or []
+        if not _inferred_kinds:
+            _comp_lower = asset_name.lower()
+            for keyword, kind in _kind_map.items():
+                if keyword in _comp_lower:
+                    _inferred_kinds.append(kind)
+            if not _inferred_kinds:
+                _inferred_kinds = ["python"]
+
+        # Build combined tags: user tags + kind tags
+        _all_tags = dict(self.asset_tags or {})
+        for _kind in _inferred_kinds:
+            _all_tags[f"dagster/kind/{_kind}"] = ""
+
+        # Build freshness policy
+        _freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from dagster import FreshnessPolicy
+            _freshness_policy = FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
+
+        owners = self.owners or []
+        column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
+
+
         @asset(
             name=asset_name,
             description=description or f"S3 to Database: {table_name}",
-            group_name=group_name,
+                        owners=owners,
+            tags=_all_tags,
+            freshness_policy=_freshness_policy,
+group_name=group_name,
             metadata={
                 "table": table_name,
                 "schema": schema_name,
@@ -256,7 +317,8 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
                     metadata={
                         "row_count": MetadataValue.int(len(df)),
                         "table": MetadataValue.text(table_name),
-                    }
+                    
+                        "dagster/row_count": MetadataValue.int(len(df)),}
                 )
 
             except Exception as e:

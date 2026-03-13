@@ -4,7 +4,7 @@ Ingest Slack workspace data using dlt (data load tool).
 Extracts messages, channels, and users.
 """
 
-from typing import Optional, List
+from typing import Dict, List, Optional
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
@@ -71,6 +71,26 @@ class SlackIngestionComponent(Component, Model, Resolvable):
     group_name: Optional[str] = Field(
         default="slack",
         description="Asset group for organization"
+    )
+    owners: Optional[List[str]] = Field(
+        default=None,
+        description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
+    )
+    asset_tags: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'}",
+    )
+    kinds: Optional[List[str]] = Field(
+        default=None,
+        description="Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set.",
+    )
+    freshness_max_lag_minutes: Optional[int] = Field(
+        default=None,
+        description="Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
+    )
+    freshness_cron: Optional[str] = Field(
+        default=None,
+        description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
     )
 
     include_sample_metadata: bool = Field(
@@ -257,10 +277,51 @@ class SlackIngestionComponent(Component, Model, Resolvable):
         destination = self.destination
         persist_and_return = self.persist_and_return
 
+        # Infer kinds from component name if not explicitly set
+        _comp_name = "slack_ingestion"  # component directory name
+        _kind_map = {
+            "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
+            "postgres": "postgres", "postgresql": "postgres", "mysql": "mysql",
+            "s3": "s3", "adls": "azure", "azure": "azure", "gcs": "gcp",
+            "google": "gcp", "databricks": "databricks", "dbt": "dbt",
+            "kafka": "kafka", "mongodb": "mongodb", "redis": "redis",
+            "neo4j": "neo4j", "elasticsearch": "elasticsearch", "pinecone": "pinecone",
+            "chromadb": "chromadb", "pgvector": "postgres",
+        }
+        _inferred_kinds = self.kinds or []
+        if not _inferred_kinds:
+            _comp_lower = asset_name.lower()
+            for keyword, kind in _kind_map.items():
+                if keyword in _comp_lower:
+                    _inferred_kinds.append(kind)
+            if not _inferred_kinds:
+                _inferred_kinds = ["python"]
+
+        # Build combined tags: user tags + kind tags
+        _all_tags = dict(self.asset_tags or {})
+        for _kind in _inferred_kinds:
+            _all_tags[f"dagster/kind/{_kind}"] = ""
+
+        # Build freshness policy
+        _freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from dagster import FreshnessPolicy
+            _freshness_policy = FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
+
+        owners = self.owners or []
+        column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
+
+
         @asset(
             name=asset_name,
             description=description,
-            group_name=group_name,
+                        owners=owners,
+            tags=_all_tags,
+            freshness_policy=_freshness_policy,
+group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def slack_ingestion_asset(context: AssetExecutionContext) -> pd.DataFrame:

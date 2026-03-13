@@ -6,7 +6,7 @@ enriching each point with attributes from the region it falls within.
 
 import json
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Dict, List, Optional
 
 import pandas as pd
 from dagster import (
@@ -85,6 +85,30 @@ class SpatialJoinComponent(Component, Model, Resolvable):
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
+    owners: Optional[List[str]] = Field(
+        default=None,
+        description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
+    )
+    asset_tags: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'}",
+    )
+    kinds: Optional[List[str]] = Field(
+        default=None,
+        description="Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set.",
+    )
+    freshness_max_lag_minutes: Optional[int] = Field(
+        default=None,
+        description="Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
+    )
+    freshness_cron: Optional[str] = Field(
+        default=None,
+        description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
+    )
+    column_lineage: Optional[Dict[str, List[str]]] = Field(
+        default=None,
+        description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
+    )
 
     @classmethod
     def get_description(cls) -> str:
@@ -131,6 +155,44 @@ class SpatialJoinComponent(Component, Model, Resolvable):
         partition_static_column = self.partition_static_column
         partition_static_dim = self.partition_static_dim
 
+        # Infer kinds from component name if not explicitly set
+        _comp_name = "spatial_join"  # component directory name
+        _kind_map = {
+            "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
+            "postgres": "postgres", "postgresql": "postgres", "mysql": "mysql",
+            "s3": "s3", "adls": "azure", "azure": "azure", "gcs": "gcp",
+            "google": "gcp", "databricks": "databricks", "dbt": "dbt",
+            "kafka": "kafka", "mongodb": "mongodb", "redis": "redis",
+            "neo4j": "neo4j", "elasticsearch": "elasticsearch", "pinecone": "pinecone",
+            "chromadb": "chromadb", "pgvector": "postgres",
+        }
+        _inferred_kinds = self.kinds or []
+        if not _inferred_kinds:
+            _comp_lower = asset_name.lower()
+            for keyword, kind in _kind_map.items():
+                if keyword in _comp_lower:
+                    _inferred_kinds.append(kind)
+            if not _inferred_kinds:
+                _inferred_kinds = ["python"]
+
+        # Build combined tags: user tags + kind tags
+        _all_tags = dict(self.asset_tags or {})
+        for _kind in _inferred_kinds:
+            _all_tags[f"dagster/kind/{_kind}"] = ""
+
+        # Build freshness policy
+        _freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from dagster import FreshnessPolicy
+            _freshness_policy = FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
+
+        owners = self.owners or []
+        column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
+
+
         @asset(
             name=asset_name,
             ins={
@@ -138,7 +200,10 @@ class SpatialJoinComponent(Component, Model, Resolvable):
                 "regions_df": AssetIn(key=AssetKey.from_user_string(regions_asset_key)),
             },
             partitions_def=partitions_def,
-            group_name=group_name,
+                        owners=owners,
+            tags=_all_tags,
+            freshness_policy=_freshness_policy,
+group_name=group_name,
         )
         def _asset(
             context: AssetExecutionContext,
@@ -183,12 +248,36 @@ class SpatialJoinComponent(Component, Model, Resolvable):
             result_df = pd.DataFrame(result.drop(columns=["geometry"]))
 
             context.log.info(f"Spatial join complete: {len(result_df)} rows in result")
-            context.add_output_metadata({
-                "input_points": MetadataValue.int(len(upstream)),
-                "input_regions": MetadataValue.int(len(regions_df)),
-                "output_rows": MetadataValue.int(len(result_df)),
-                "join_type": MetadataValue.text(how),
-            })
+
+            # Build column schema metadata
+            from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
+            _col_schema = TableSchema(columns=[
+                TableColumn(name=str(col), type=str(result_df.dtypes[col]))
+                for col in result_df.columns
+            ])
+            _metadata = {
+                "dagster/row_count": MetadataValue.int(len(result_df)),
+                "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+            }
+            if column_lineage:
+                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
+                if _upstream_key:
+                    _lineage_deps = {}
+                    for out_col, in_cols in column_lineage.items():
+                        _lineage_deps[out_col] = [
+                            TableColumnDep(asset_key=_upstream_key, column_name=ic)
+                            for ic in in_cols
+                        ]
+                    _metadata["dagster/column_lineage"] = MetadataValue.table_column_lineage(
+                        TableColumnLineage(_lineage_deps)
+                    )
+            context.add_output_metadata(_metadata)
             return result_df
 
-        return Definitions(assets=[_asset])
+        from dagster import build_column_schema_change_checks
+
+
+        _schema_checks = build_column_schema_change_checks(assets=[_asset])
+
+
+        return Definitions(assets=[_asset], asset_checks=list(_schema_checks))

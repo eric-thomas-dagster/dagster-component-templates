@@ -1,0 +1,23 @@
+{
+  "component_type": "dagster_component_templates.HaystackPipelineComponent",
+  "description": "Run a Haystack NLP pipeline against a text column for question answering, summarization, translation, or classification.",
+  "category": "ai",
+  "icon": "GitBranch",
+  "x-dagster-io": {
+    "inputs": {"type": "dataframe", "required": true, "description": "Input DataFrame with a text column"},
+    "outputs": {"type": "dataframe", "description": "DataFrame with Haystack pipeline output column added"}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "description": "Output Dagster asset name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "description": "Upstream asset key providing a DataFrame", "required": true},
+    "group_name": {"type": "string", "label": "Group Name", "description": "Dagster asset group name", "required": false, "default": null},
+    "text_column": {"type": "string", "label": "Text Column", "description": "Column containing input text", "required": true},
+    "output_column": {"type": "string", "label": "Output Column", "description": "Column to write pipeline output", "required": false, "default": "haystack_output"},
+    "pipeline_type": {"type": "string", "label": "Pipeline Type", "description": "Haystack pipeline type to run", "required": false, "default": "extractive_qa", "enum": ["extractive_qa", "abstractive_qa", "summarization", "translation", "zero_shot_classification"], "ui:widget": "select"},
+    "query_column": {"type": "string", "label": "Query Column", "description": "For QA pipelines, column with per-row questions", "required": false, "default": null},
+    "query": {"type": "string", "label": "Query", "description": "Fixed question for all rows (QA pipelines only)", "required": false, "default": null, "ui:widget": "textarea"},
+    "model_name": {"type": "string", "label": "Model Name", "description": "Override the default model for the chosen pipeline type", "required": false, "default": null},
+    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "description": "Environment variable name containing the API key", "required": false, "default": null, "ui:widget": "password"}
+  },
+  "tags": ["ai", "nlp", "haystack", "question-answering", "summarization", "classification"]
+}

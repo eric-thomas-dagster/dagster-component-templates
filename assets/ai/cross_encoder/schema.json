@@ -1,0 +1,21 @@
+{
+  "component_type": "dagster_component_templates.CrossEncoderComponent",
+  "description": "Score text pairs using a cross-encoder model for accurate reranking and relevance scoring.",
+  "category": "ai",
+  "icon": "BarChart2",
+  "x-dagster-io": {
+    "inputs": {"type": "dataframe", "required": true, "description": "Input DataFrame with query and document columns"},
+    "outputs": {"type": "dataframe", "description": "DataFrame with cross-encoder relevance score column added"}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "description": "Output Dagster asset name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "description": "Upstream asset key providing a DataFrame", "required": true},
+    "group_name": {"type": "string", "label": "Group Name", "description": "Dagster asset group name", "required": false, "default": null},
+    "query_column": {"type": "string", "label": "Query Column", "description": "Column containing queries or reference texts", "required": true},
+    "document_column": {"type": "string", "label": "Document Column", "description": "Column containing documents or candidates to score", "required": true},
+    "output_column": {"type": "string", "label": "Output Column", "description": "Column to write float relevance score", "required": false, "default": "cross_encoder_score"},
+    "model_name": {"type": "string", "label": "Model Name", "description": "Cross-encoder model name from sentence-transformers hub", "required": false, "default": "cross-encoder/ms-marco-MiniLM-L-6-v2"},
+    "batch_size": {"type": "integer", "label": "Batch Size", "description": "Batch size for model inference", "required": false, "default": 32}
+  },
+  "tags": ["ai", "nlp", "reranking", "cross-encoder", "relevance-scoring", "sentence-transformers"]
+}

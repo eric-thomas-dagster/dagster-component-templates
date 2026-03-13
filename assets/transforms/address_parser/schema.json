@@ -1,0 +1,21 @@
+{
+  "component_type": "dagster_component_templates.AddressParserComponent",
+  "description": "Parse free-form address strings into structured components: street, city, state, zip, and country.",
+  "category": "transformation",
+  "icon": "MapPin",
+  "x-dagster-io": {
+    "inputs": {"type": "dataframe", "required": true, "description": "Input DataFrame with a column of full address strings"},
+    "outputs": {"type": "dataframe", "description": "DataFrame with structured address component columns added"}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "description": "Output Dagster asset name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "description": "Upstream asset key providing a DataFrame", "required": true},
+    "group_name": {"type": "string", "label": "Group Name", "description": "Dagster asset group name", "required": false, "default": null},
+    "address_column": {"type": "string", "label": "Address Column", "description": "Column containing full address strings", "required": true},
+    "output_columns": {"type": "object", "label": "Output Columns", "description": "Mapping of component name to output column name", "required": false, "default": null, "ui:widget": "key-value"},
+    "country_hint": {"type": "string", "label": "Country Hint", "description": "ISO country code hint for parser (e.g. US)", "required": false, "default": "US"},
+    "backend": {"type": "string", "label": "Backend", "description": "Address parsing backend", "required": false, "default": "usaddress", "enum": ["usaddress", "postal", "libpostal"], "ui:widget": "select"},
+    "drop_source": {"type": "boolean", "label": "Drop Source", "description": "Drop the source address column after parsing", "required": false, "default": false}
+  },
+  "tags": ["transformation", "address", "parsing", "geocoding", "usaddress"]
+}

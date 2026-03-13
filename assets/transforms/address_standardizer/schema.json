@@ -1,0 +1,23 @@
+{
+  "component_type": "dagster_component_templates.AddressStandardizerComponent",
+  "description": "Standardize and validate address components to USPS-style format, normalizing abbreviations, casing, and ZIP formatting.",
+  "category": "transformation",
+  "icon": "CheckSquare",
+  "x-dagster-io": {
+    "inputs": {"type": "dataframe", "required": true, "description": "Input DataFrame with address component columns"},
+    "outputs": {"type": "dataframe", "description": "DataFrame with standardized address columns added"}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "description": "Output Dagster asset name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "description": "Upstream asset key providing a DataFrame", "required": true},
+    "group_name": {"type": "string", "label": "Group Name", "description": "Dagster asset group name", "required": false, "default": null},
+    "street_column": {"type": "string", "label": "Street Column", "description": "Column containing street address", "required": false, "default": null},
+    "city_column": {"type": "string", "label": "City Column", "description": "Column containing city name", "required": false, "default": null},
+    "state_column": {"type": "string", "label": "State Column", "description": "Column containing state name or abbreviation", "required": false, "default": null},
+    "zip_column": {"type": "string", "label": "ZIP Column", "description": "Column containing ZIP/postal code", "required": false, "default": null},
+    "country_column": {"type": "string", "label": "Country Column", "description": "Column containing country name or code", "required": false, "default": null},
+    "output_prefix": {"type": "string", "label": "Output Prefix", "description": "Prefix for standardized output column names", "required": false, "default": "std_"},
+    "validate": {"type": "boolean", "label": "Validate", "description": "Add a {output_prefix}valid column marking rows with potential issues", "required": false, "default": false}
+  },
+  "tags": ["transformation", "address", "standardization", "usps", "normalization"]
+}

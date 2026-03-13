@@ -184,5 +184,9 @@
     "source",
     "cassandra",
     "reader"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": true
+  }
 }

@@ -144,5 +144,9 @@
   "tags": [
     "ingestion",
     "salesforce"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

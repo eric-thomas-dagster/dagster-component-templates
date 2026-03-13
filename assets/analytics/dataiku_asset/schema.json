@@ -19,5 +19,9 @@
     "analytics",
     "dataiku",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": true,
+    "right": true
+  }
 }

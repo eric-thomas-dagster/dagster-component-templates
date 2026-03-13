@@ -67,5 +67,9 @@
     "sensor",
     "coalesce",
     "job"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

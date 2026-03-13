@@ -14,5 +14,9 @@
     "ingestion",
     "openapi",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

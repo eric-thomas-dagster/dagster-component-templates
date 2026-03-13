@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.SnowflakeWorkspaceComponent",
   "description": "Component for importing Snowflake workspace entities as Dagster assets.",
   "category": "integration",
-  "icon": "Plug",
+  "icon": "si:snowflake",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -191,5 +191,9 @@
     "integration",
     "snowflake",
     "workspace"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

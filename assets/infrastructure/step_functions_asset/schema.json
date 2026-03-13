@@ -15,5 +15,9 @@
     "step",
     "functions",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

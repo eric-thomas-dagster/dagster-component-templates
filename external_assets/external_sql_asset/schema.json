@@ -48,5 +48,9 @@
     "external",
     "sql",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": true
+  }
 }

@@ -57,5 +57,9 @@
     "redis",
     "stream",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": true
+  }
 }

@@ -191,5 +191,9 @@
     "vectors",
     "semantic-search",
     "nlp"
-  ]
+  ],
+  "connectors": {
+    "left": true,
+    "right": true
+  }
 }

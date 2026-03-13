@@ -48,5 +48,9 @@
     "external",
     "pulsar",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": true
+  }
 }

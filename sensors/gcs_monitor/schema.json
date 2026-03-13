@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.GCSMonitorSensorComponent",
   "description": "Component for monitoring a Google Cloud Storage bucket prefix for new objects.",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:googlecloud",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",
@@ -75,5 +75,9 @@
     "sensor",
     "gcs",
     "monitor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

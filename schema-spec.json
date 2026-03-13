@@ -515,5 +515,77 @@
       "7. Use 'icon' and 'tags' for the component picker UI.",
       "8. When rendering a field: if 'ui:widget' is present, use it; otherwise auto-select based on 'type' and field name per the 'widgets' section."
     ]
+  },
+  "connectors": {
+    "description": "Explicitly declares which connector ports are shown in the canvas editor. The UI reads this directly \u2014 do not infer from x-dagster-io.",
+    "left": "Whether this component can receive an upstream input connection (left port). False = no left connector shown.",
+    "right": "Whether this component can provide an output that downstream components can depend on (right port). False = no right connector shown.",
+    "byCategory": {
+      "transformation": {
+        "left": true,
+        "right": true,
+        "note": "Receives DataFrame, emits DataFrame"
+      },
+      "source": {
+        "left": false,
+        "right": true,
+        "note": "No upstream needed, emits DataFrame"
+      },
+      "sink": {
+        "left": true,
+        "right": false,
+        "note": "Receives DataFrame, terminal write"
+      },
+      "ingestion": {
+        "left": false,
+        "right": false,
+        "note": "Self-contained, no data ports"
+      },
+      "analytics": {
+        "left": true,
+        "right": true,
+        "note": "Receives DataFrame, emits DataFrame"
+      },
+      "ai": {
+        "left": true,
+        "right": true,
+        "note": "Receives DataFrame, emits DataFrame"
+      },
+      "infrastructure": {
+        "left": false,
+        "right": false,
+        "note": "Deployment/ops, no data ports"
+      },
+      "dbt": {
+        "left": false,
+        "right": false,
+        "note": "Managed by dbt, no explicit ports"
+      },
+      "external": {
+        "left": false,
+        "right": true,
+        "note": "Declared externally, downstream can depend on it but nothing feeds into it"
+      },
+      "sensor": {
+        "left": false,
+        "right": false,
+        "note": "Event-driven, no data ports"
+      },
+      "observation": {
+        "left": false,
+        "right": false,
+        "note": "Observes assets, no data ports"
+      },
+      "check": {
+        "left": true,
+        "right": false,
+        "note": "Checks an asset, no output"
+      },
+      "integration": {
+        "left": false,
+        "right": false,
+        "note": "Platform integration, no data ports"
+      }
+    }
   }
 }

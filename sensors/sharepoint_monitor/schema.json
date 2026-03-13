@@ -93,5 +93,9 @@
     "sensor",
     "sharepoint",
     "monitor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

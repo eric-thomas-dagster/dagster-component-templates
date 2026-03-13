@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.KafkaMonitorSensorComponent",
   "description": "Component for monitoring a Kafka topic for new messages.",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:apachekafka",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",
@@ -109,5 +109,9 @@
     "sensor",
     "kafka",
     "monitor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.GooglePubSubComponent",
   "description": "Component for importing Google Cloud Pub/Sub entities as Dagster assets.",
   "category": "integration",
-  "icon": "Plug",
+  "icon": "si:googlepubsub",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -88,5 +88,9 @@
     "integration",
     "google",
     "pubsub"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

@@ -198,5 +198,9 @@
     "analytics",
     "pgvector",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": true,
+    "right": true
+  }
 }

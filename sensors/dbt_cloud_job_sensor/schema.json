@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.DbtCloudJobSensorComponent",
   "description": "Trigger a Dagster job when a dbt Cloud job run completes.",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:dbt",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",
@@ -68,5 +68,9 @@
     "dbt",
     "cloud",
     "job"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

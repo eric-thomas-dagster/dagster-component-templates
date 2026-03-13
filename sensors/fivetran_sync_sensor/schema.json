@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.FivetranSyncSensorComponent",
   "description": "Trigger a job when a Fivetran connector sync completes.",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:fivetran",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",
@@ -67,5 +67,9 @@
     "sensor",
     "fivetran",
     "sync"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

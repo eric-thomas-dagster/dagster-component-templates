@@ -15,5 +15,9 @@
     "terraform",
     "cloud",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

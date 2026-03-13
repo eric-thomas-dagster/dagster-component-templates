@@ -42,5 +42,9 @@
   "tags": [
     "ingestion",
     "document"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

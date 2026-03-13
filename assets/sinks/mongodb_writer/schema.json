@@ -164,5 +164,9 @@
     "sink",
     "mongodb",
     "writer"
-  ]
+  ],
+  "connectors": {
+    "left": true,
+    "right": false
+  }
 }

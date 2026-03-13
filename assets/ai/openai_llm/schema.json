@@ -305,5 +305,9 @@
     "ai",
     "openai",
     "llm"
-  ]
+  ],
+  "connectors": {
+    "left": true,
+    "right": true
+  }
 }

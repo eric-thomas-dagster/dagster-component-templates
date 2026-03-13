@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.DatabricksTableObservationSensorComponent",
   "description": "Emit health observations for an external Databricks Delta table.",
   "category": "observation",
-  "icon": "Eye",
+  "icon": "si:databricks",
   "x-dagster-io": {
     "outputs": {
       "type": "AssetObservation",
@@ -79,5 +79,9 @@
     "databricks",
     "table",
     "sensor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

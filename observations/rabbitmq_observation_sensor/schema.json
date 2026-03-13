@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.RabbitmqObservationSensorComponent",
   "description": "RabbitmqObservationSensorComponent",
   "category": "observation",
-  "icon": "Eye",
+  "icon": "si:rabbitmq",
   "x-dagster-io": {
     "outputs": {
       "type": "AssetObservation",
@@ -82,5 +82,9 @@
     "observation",
     "rabbitmq",
     "sensor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

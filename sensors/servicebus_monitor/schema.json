@@ -91,5 +91,9 @@
     "sensor",
     "servicebus",
     "monitor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

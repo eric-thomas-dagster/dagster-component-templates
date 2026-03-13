@@ -61,5 +61,9 @@
     "external",
     "databricks",
     "table"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": true
+  }
 }

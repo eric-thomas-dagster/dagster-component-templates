@@ -148,5 +148,9 @@
   "tags": [
     "ingestion",
     "stripe"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

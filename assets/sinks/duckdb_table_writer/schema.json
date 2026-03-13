@@ -154,5 +154,9 @@
     "duckdb",
     "table",
     "writer"
-  ]
+  ],
+  "connectors": {
+    "left": true,
+    "right": false
+  }
 }

@@ -32,7 +32,7 @@
     "job_id": {
       "type": "string",
       "label": "Job Id",
-      "description": "Precisely Connect job ID. Find in Precisely UI: Jobs → Job Details → ID.",
+      "description": "Precisely Connect job ID. Find in Precisely UI: Jobs \u2192 Job Details \u2192 ID.",
       "required": true
     },
     "host_env_var": {
@@ -92,7 +92,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -140,5 +140,9 @@
     "precisely",
     "run",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

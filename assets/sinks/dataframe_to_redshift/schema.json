@@ -194,5 +194,9 @@
     "sink",
     "dataframe",
     "redshift"
-  ]
+  ],
+  "connectors": {
+    "left": true,
+    "right": false
+  }
 }

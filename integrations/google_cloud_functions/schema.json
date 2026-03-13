@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.GoogleCloudFunctionsComponent",
   "description": "Component for importing Google Cloud Functions as Dagster assets.",
   "category": "integration",
-  "icon": "Plug",
+  "icon": "si:googlecloud",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -73,5 +73,9 @@
     "google",
     "cloud",
     "functions"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

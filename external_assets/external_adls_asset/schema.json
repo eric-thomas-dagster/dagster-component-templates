@@ -55,5 +55,9 @@
     "external",
     "adls",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": true
+  }
 }

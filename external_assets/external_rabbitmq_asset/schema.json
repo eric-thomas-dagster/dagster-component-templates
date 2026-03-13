@@ -55,5 +55,9 @@
     "external",
     "rabbitmq",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": true
+  }
 }

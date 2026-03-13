@@ -149,5 +149,9 @@
     "infrastructure",
     "modal",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

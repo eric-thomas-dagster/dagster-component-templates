@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.SnowflakeTableObservationSensorComponent",
   "description": "Emit health observations for an external Snowflake table.",
   "category": "observation",
-  "icon": "Eye",
+  "icon": "si:snowflake",
   "x-dagster-io": {
     "outputs": {
       "type": "AssetObservation",
@@ -87,5 +87,9 @@
     "snowflake",
     "table",
     "sensor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

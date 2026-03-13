@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.RedisStreamsMonitorSensorComponent",
   "description": "Component for monitoring a Redis Stream for new entries.",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:redis",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",
@@ -107,5 +107,9 @@
     "redis",
     "streams",
     "monitor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

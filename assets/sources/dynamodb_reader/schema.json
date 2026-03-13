@@ -188,5 +188,9 @@
     "source",
     "dynamodb",
     "reader"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": true
+  }
 }

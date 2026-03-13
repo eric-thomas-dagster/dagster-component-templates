@@ -108,5 +108,9 @@
     "sensor",
     "nats",
     "monitor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

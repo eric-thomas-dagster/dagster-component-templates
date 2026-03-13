@@ -174,5 +174,9 @@
     "source",
     "neo4j",
     "reader"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": true
+  }
 }

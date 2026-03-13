@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.DatabricksWorkspaceComponent",
   "description": "Component for importing Databricks workspace entities as Dagster assets.",
   "category": "integration",
-  "icon": "Plug",
+  "icon": "si:databricks",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -126,5 +126,9 @@
     "integration",
     "databricks",
     "workspace"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

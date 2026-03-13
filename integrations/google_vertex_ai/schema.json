@@ -118,5 +118,9 @@
     "integration",
     "google",
     "vertex"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

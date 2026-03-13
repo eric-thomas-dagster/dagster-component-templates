@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.KafkaObservationSensorComponent",
   "description": "KafkaObservationSensorComponent",
   "category": "observation",
-  "icon": "Eye",
+  "icon": "si:apachekafka",
   "x-dagster-io": {
     "outputs": {
       "type": "AssetObservation",
@@ -53,5 +53,9 @@
     "observation",
     "kafka",
     "sensor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

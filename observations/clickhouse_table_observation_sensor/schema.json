@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.ClickHouseTableObservationSensorComponent",
   "description": "Emit health observations for an external ClickHouse table.",
   "category": "observation",
-  "icon": "Eye",
+  "icon": "si:clickhouse",
   "x-dagster-io": {
     "outputs": {
       "type": "AssetObservation",
@@ -90,5 +90,9 @@
     "clickhouse",
     "table",
     "sensor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

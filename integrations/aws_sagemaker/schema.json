@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.AWSSageMakerComponent",
   "description": "Component for importing AWS SageMaker entities as Dagster assets.",
   "category": "integration",
-  "icon": "Plug",
+  "icon": "si:amazonsagemaker",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -127,5 +127,9 @@
     "integration",
     "aws",
     "sagemaker"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

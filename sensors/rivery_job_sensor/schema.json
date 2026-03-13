@@ -69,5 +69,9 @@
     "sensor",
     "rivery",
     "job"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

@@ -75,5 +75,9 @@
     "sensor",
     "kinesis",
     "monitor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

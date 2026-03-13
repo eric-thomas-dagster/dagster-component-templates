@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.TwilioNotificationSensor",
   "description": "Component that sends SMS or WhatsApp notifications when Dagster assets",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:twilio",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",
@@ -99,5 +99,9 @@
     "sensor",
     "twilio",
     "notification"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

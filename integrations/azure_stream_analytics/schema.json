@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.AzureStreamAnalyticsComponent",
   "description": "Component for importing Azure Stream Analytics entities as Dagster assets.",
   "category": "integration",
-  "icon": "Plug",
+  "icon": "si:microsoftazure",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -110,5 +110,9 @@
     "azure",
     "stream",
     "analytics"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

@@ -55,5 +55,9 @@
   "tags": [
     "check",
     "freshness"
-  ]
+  ],
+  "connectors": {
+    "left": true,
+    "right": false
+  }
 }

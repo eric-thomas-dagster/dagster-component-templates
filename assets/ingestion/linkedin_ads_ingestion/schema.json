@@ -162,5 +162,9 @@
     "ingestion",
     "linkedin",
     "ads"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

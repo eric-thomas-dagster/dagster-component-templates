@@ -48,5 +48,9 @@
     "external",
     "eventhubs",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": true
+  }
 }

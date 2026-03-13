@@ -95,5 +95,9 @@
     "sensor",
     "abinitio",
     "job"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

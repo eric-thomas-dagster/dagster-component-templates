@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.AWSKinesisComponent",
   "description": "Component for importing AWS Kinesis entities as Dagster assets.",
   "category": "integration",
-  "icon": "Plug",
+  "icon": "si:amazonkinesis",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -111,5 +111,9 @@
     "integration",
     "aws",
     "kinesis"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

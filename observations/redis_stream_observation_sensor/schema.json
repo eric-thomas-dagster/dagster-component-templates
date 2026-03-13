@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.RedisStreamObservationSensorComponent",
   "description": "RedisStreamObservationSensorComponent",
   "category": "observation",
-  "icon": "Eye",
+  "icon": "si:redis",
   "x-dagster-io": {
     "outputs": {
       "type": "AssetObservation",
@@ -77,5 +77,9 @@
     "redis",
     "stream",
     "sensor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

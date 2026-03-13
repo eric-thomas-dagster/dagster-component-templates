@@ -60,5 +60,9 @@
     "observation",
     "sql",
     "sensor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

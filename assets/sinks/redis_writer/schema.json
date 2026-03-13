@@ -190,5 +190,9 @@
     "redis",
     "cache",
     "key-value"
-  ]
+  ],
+  "connectors": {
+    "left": true,
+    "right": false
+  }
 }

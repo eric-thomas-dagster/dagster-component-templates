@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.ADLSMonitorSensorComponent",
   "description": "Component for monitoring Azure Data Lake Storage Gen2 for new files.",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:microsoftazure",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",
@@ -89,5 +89,9 @@
     "sensor",
     "adls",
     "monitor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

@@ -94,7 +94,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -149,5 +149,9 @@
     "infrastructure",
     "hashicorp",
     "vault"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

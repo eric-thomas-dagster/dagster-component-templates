@@ -214,5 +214,9 @@
     "analytics",
     "wandb",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": true,
+    "right": true
+  }
 }

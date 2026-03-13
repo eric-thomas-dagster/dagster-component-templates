@@ -80,5 +80,9 @@
     "sensor",
     "sql",
     "monitor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

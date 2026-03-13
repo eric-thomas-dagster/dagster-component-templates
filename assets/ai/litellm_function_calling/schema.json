@@ -184,5 +184,9 @@
     "function-calling",
     "tool-use",
     "routing"
-  ]
+  ],
+  "connectors": {
+    "left": true,
+    "right": true
+  }
 }

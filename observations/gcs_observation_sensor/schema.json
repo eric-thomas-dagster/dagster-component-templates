@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.GcsObservationSensorComponent",
   "description": "GcsObservationSensorComponent",
   "category": "observation",
-  "icon": "Eye",
+  "icon": "si:googlecloud",
   "x-dagster-io": {
     "outputs": {
       "type": "AssetObservation",
@@ -61,5 +61,9 @@
     "observation",
     "gcs",
     "sensor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

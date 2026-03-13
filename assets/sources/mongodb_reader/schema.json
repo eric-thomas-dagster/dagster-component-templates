@@ -194,5 +194,9 @@
     "source",
     "mongodb",
     "reader"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": true
+  }
 }

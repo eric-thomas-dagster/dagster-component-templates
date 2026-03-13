@@ -207,5 +207,9 @@
     "jupyter",
     "notebook",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": true,
+    "right": true
+  }
 }

@@ -42,5 +42,9 @@
     "ingestion",
     "support",
     "ticket"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

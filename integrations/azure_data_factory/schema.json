@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.AzureDataFactoryResource",
   "description": "Shared Azure Data Factory connection config.",
   "category": "integration",
-  "icon": "Plug",
+  "icon": "si:microsoftazure",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -15,5 +15,9 @@
     "azure",
     "data",
     "factory"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

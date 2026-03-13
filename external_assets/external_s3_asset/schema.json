@@ -55,5 +55,9 @@
   "tags": [
     "external",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": true
+  }
 }

@@ -196,5 +196,9 @@
     "ingestion",
     "twitter",
     "ads"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

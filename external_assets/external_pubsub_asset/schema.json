@@ -48,5 +48,9 @@
     "external",
     "pubsub",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": true
+  }
 }

@@ -607,5 +607,9 @@
     "data",
     "quality",
     "checks"
-  ]
+  ],
+  "connectors": {
+    "left": true,
+    "right": false
+  }
 }

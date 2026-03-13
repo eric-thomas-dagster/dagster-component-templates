@@ -112,5 +112,9 @@
     "external",
     "clickhouse",
     "table"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": true
+  }
 }

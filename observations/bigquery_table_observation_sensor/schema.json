@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.BigQueryTableObservationSensorComponent",
   "description": "Emit health observations for an external BigQuery table.",
   "category": "observation",
-  "icon": "Eye",
+  "icon": "si:googlebigquery",
   "x-dagster-io": {
     "outputs": {
       "type": "AssetObservation",
@@ -60,5 +60,9 @@
     "bigquery",
     "table",
     "sensor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

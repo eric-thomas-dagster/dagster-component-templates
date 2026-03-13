@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.AdlsObservationSensorComponent",
   "description": "AdlsObservationSensorComponent",
   "category": "observation",
-  "icon": "Eye",
+  "icon": "si:microsoftazure",
   "x-dagster-io": {
     "outputs": {
       "type": "AssetObservation",
@@ -67,5 +67,9 @@
     "observation",
     "adls",
     "sensor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

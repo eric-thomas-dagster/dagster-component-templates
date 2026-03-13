@@ -48,5 +48,9 @@
     "external",
     "sharepoint",
     "library"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": true
+  }
 }

@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.GoogleBigQueryComponent",
   "description": "Component for importing BigQuery entities as Dagster assets.",
   "category": "integration",
-  "icon": "Plug",
+  "icon": "si:googlebigquery",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -141,5 +141,9 @@
     "integration",
     "google",
     "bigquery"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

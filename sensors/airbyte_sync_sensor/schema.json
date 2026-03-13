@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.AirbyteSyncSensorComponent",
   "description": "Trigger a job when an Airbyte connection sync completes.",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:airbyte",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",
@@ -76,5 +76,9 @@
     "sensor",
     "airbyte",
     "sync"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

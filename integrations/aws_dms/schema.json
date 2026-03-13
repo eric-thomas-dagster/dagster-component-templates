@@ -118,5 +118,9 @@
     "integration",
     "aws",
     "dms"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

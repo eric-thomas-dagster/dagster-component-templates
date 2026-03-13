@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.SlackNotificationSensorComponent",
   "description": "Monitor Slack channels for new messages and trigger jobs.",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:slack",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",
@@ -68,5 +68,9 @@
     "sensor",
     "slack",
     "notification"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

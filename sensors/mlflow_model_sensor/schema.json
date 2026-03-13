@@ -61,5 +61,9 @@
     "sensor",
     "mlflow",
     "model"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

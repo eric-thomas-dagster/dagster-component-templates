@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.DatabricksWorkspaceResource",
   "description": "Resource for interacting with Databricks workspace.",
   "category": "integration",
-  "icon": "Plug",
+  "icon": "si:databricks",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -62,5 +62,9 @@
     "databricks",
     "asset",
     "bundle"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

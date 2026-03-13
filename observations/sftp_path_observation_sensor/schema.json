@@ -82,5 +82,9 @@
     "sftp",
     "path",
     "sensor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

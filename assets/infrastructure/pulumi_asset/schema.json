@@ -157,5 +157,9 @@
     "infrastructure",
     "pulumi",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

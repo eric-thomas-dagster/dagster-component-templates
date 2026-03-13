@@ -185,5 +185,9 @@
     "neo4j",
     "graph-database",
     "cypher"
-  ]
+  ],
+  "connectors": {
+    "left": true,
+    "right": false
+  }
 }

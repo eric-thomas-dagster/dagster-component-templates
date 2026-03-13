@@ -60,5 +60,9 @@
     "observation",
     "nats",
     "sensor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

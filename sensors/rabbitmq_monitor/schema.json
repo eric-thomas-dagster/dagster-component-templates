@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.RabbitMQMonitorSensorComponent",
   "description": "Component for polling a RabbitMQ queue for new messages.",
   "category": "sensor",
-  "icon": "Radar",
+  "icon": "si:rabbitmq",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",
@@ -104,5 +104,9 @@
     "sensor",
     "rabbitmq",
     "monitor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

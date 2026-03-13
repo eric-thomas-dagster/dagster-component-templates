@@ -20,5 +20,9 @@
     "warehouse",
     "schema",
     "assets"
-  ]
+  ],
+  "connectors": {
+    "left": true,
+    "right": true
+  }
 }

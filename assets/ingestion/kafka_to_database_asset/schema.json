@@ -195,5 +195,9 @@
     "kafka",
     "database",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

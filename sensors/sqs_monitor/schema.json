@@ -75,5 +75,9 @@
     "sensor",
     "sqs",
     "monitor"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

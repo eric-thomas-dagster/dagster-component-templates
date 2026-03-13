@@ -55,5 +55,9 @@
     "external",
     "mqtt",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": true
+  }
 }

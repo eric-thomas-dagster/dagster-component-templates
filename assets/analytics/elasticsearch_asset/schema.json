@@ -207,5 +207,9 @@
     "analytics",
     "elasticsearch",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": true,
+    "right": true
+  }
 }

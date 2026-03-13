@@ -190,5 +190,9 @@
     "analytics",
     "rfm",
     "segmentation"
-  ]
+  ],
+  "connectors": {
+    "left": true,
+    "right": true
+  }
 }

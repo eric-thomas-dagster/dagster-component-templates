@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.GoogleCloudRunJobsComponent",
   "description": "Component for importing Google Cloud Run Jobs as Dagster assets.",
   "category": "integration",
-  "icon": "Plug",
+  "icon": "si:googlecloud",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -74,5 +74,9 @@
     "cloud",
     "run",
     "jobs"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

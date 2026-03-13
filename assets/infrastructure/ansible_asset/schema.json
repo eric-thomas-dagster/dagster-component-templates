@@ -216,5 +216,9 @@
     "infrastructure",
     "ansible",
     "asset"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": false
+  }
 }

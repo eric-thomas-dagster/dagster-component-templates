@@ -60,5 +60,9 @@
     "external",
     "snowflake",
     "table"
-  ]
+  ],
+  "connectors": {
+    "left": false,
+    "right": true
+  }
 }

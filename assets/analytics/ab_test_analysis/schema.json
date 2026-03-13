@@ -217,9 +217,5 @@
     "analytics",
     "test",
     "analysis"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

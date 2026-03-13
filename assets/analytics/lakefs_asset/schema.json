@@ -211,9 +211,5 @@
     "analytics",
     "lakefs",
     "asset"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

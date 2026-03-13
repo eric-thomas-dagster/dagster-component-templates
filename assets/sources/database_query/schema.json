@@ -178,9 +178,5 @@
     "source",
     "database",
     "query"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

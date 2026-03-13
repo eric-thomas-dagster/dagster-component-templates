@@ -283,9 +283,5 @@
     "ai",
     "text",
     "moderator"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

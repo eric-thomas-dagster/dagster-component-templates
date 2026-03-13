@@ -224,9 +224,5 @@
     "ollama",
     "inference",
     "asset"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

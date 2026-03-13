@@ -176,9 +176,5 @@
     "analytics",
     "feast",
     "asset"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

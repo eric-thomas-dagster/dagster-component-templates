@@ -67,9 +67,5 @@
     "observation",
     "pulsar",
     "sensor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

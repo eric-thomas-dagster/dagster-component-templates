@@ -60,9 +60,5 @@
   "tags": [
     "observation",
     "sensor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

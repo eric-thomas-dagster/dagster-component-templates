@@ -143,9 +143,5 @@
   "tags": [
     "ingestion",
     "matomo"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

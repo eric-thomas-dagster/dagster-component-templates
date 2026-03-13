@@ -184,9 +184,5 @@
     "ai",
     "invoice",
     "extractor"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

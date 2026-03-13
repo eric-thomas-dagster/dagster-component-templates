@@ -191,9 +191,5 @@
     "crm",
     "data",
     "standardizer"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

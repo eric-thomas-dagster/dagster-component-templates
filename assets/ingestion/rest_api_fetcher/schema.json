@@ -201,9 +201,5 @@
     "rest",
     "api",
     "fetcher"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

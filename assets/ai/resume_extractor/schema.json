@@ -190,9 +190,5 @@
     "extraction",
     "resume",
     "hr"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

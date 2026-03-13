@@ -152,9 +152,5 @@
   "tags": [
     "transformation",
     "filter"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

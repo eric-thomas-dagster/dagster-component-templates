@@ -179,9 +179,5 @@
     "nlp",
     "language-detection",
     "multilingual"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

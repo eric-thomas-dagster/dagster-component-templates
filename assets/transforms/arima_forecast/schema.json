@@ -192,9 +192,5 @@
     "transformation",
     "arima",
     "forecast"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

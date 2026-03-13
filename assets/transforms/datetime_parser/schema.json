@@ -180,9 +180,5 @@
     "transformation",
     "datetime",
     "parser"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

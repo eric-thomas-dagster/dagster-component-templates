@@ -60,9 +60,5 @@
     "observation",
     "eventhubs",
     "sensor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

@@ -222,9 +222,5 @@
     "analytics",
     "text",
     "preprocessing"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

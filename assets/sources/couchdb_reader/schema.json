@@ -177,9 +177,5 @@
     "source",
     "couchdb",
     "reader"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

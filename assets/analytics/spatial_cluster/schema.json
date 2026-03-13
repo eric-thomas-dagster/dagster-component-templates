@@ -195,9 +195,5 @@
     "analytics",
     "spatial",
     "cluster"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

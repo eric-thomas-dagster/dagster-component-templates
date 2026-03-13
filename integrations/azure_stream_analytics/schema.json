@@ -110,9 +110,5 @@
     "azure",
     "stream",
     "analytics"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

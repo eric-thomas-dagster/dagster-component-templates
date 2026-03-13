@@ -141,9 +141,5 @@
     "integration",
     "google",
     "bigquery"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

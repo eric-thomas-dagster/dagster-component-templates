@@ -178,9 +178,5 @@
     "validation",
     "json-schema",
     "data-quality"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

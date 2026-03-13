@@ -214,9 +214,5 @@
     "batch",
     "completion",
     "parallel"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

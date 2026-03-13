@@ -90,9 +90,5 @@
     "clickhouse",
     "table",
     "sensor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

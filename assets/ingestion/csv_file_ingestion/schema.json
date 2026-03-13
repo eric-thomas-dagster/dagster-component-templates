@@ -163,9 +163,5 @@
     "ingestion",
     "csv",
     "file"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

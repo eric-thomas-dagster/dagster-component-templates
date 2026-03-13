@@ -178,9 +178,5 @@
     "analytics",
     "coordinate",
     "transformer"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

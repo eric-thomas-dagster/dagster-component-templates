@@ -176,9 +176,5 @@
     "analytics",
     "oversample",
     "field"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

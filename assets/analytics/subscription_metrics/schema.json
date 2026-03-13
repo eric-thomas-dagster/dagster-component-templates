@@ -169,9 +169,5 @@
     "analytics",
     "subscription",
     "metrics"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

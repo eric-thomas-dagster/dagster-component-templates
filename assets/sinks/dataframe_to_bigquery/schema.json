@@ -165,9 +165,5 @@
     "sink",
     "dataframe",
     "bigquery"
-  ],
-  "connectors": {
-    "left": true,
-    "right": false
-  }
+  ]
 }

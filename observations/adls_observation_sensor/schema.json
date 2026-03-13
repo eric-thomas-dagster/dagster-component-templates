@@ -67,9 +67,5 @@
     "observation",
     "adls",
     "sensor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

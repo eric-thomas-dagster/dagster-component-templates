@@ -14,9 +14,5 @@
     "infrastructure",
     "autosys",
     "asset"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

@@ -137,9 +137,5 @@
   "tags": [
     "ingestion",
     "workable"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

@@ -135,9 +135,5 @@
   "tags": [
     "ingestion",
     "mongodb"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

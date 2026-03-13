@@ -167,9 +167,5 @@
     "pdf",
     "text-extraction",
     "ocr"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

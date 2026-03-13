@@ -173,9 +173,5 @@
   "tags": [
     "transformation",
     "sample"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

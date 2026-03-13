@@ -164,9 +164,5 @@
     "dataframe",
     "from",
     "sql"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

@@ -190,9 +190,5 @@
     "analytics",
     "ecommerce",
     "standardizer"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

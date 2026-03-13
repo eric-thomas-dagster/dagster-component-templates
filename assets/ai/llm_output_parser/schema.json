@@ -205,9 +205,5 @@
     "llm",
     "output",
     "parser"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

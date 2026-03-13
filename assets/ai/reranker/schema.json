@@ -276,9 +276,5 @@
   "tags": [
     "ai",
     "reranker"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

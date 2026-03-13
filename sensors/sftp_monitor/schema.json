@@ -95,9 +95,5 @@
     "sensor",
     "sftp",
     "monitor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

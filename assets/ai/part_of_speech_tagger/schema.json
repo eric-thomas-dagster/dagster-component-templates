@@ -175,9 +175,5 @@
     "part",
     "speech",
     "tagger"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

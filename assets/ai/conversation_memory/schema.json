@@ -191,9 +191,5 @@
     "ai",
     "conversation",
     "memory"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

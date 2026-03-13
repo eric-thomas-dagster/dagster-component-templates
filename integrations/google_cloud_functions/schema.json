@@ -73,9 +73,5 @@
     "google",
     "cloud",
     "functions"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

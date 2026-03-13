@@ -76,9 +76,5 @@
     "observation",
     "servicebus",
     "sensor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

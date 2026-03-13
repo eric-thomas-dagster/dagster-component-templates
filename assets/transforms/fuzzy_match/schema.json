@@ -172,9 +172,5 @@
     "transformation",
     "fuzzy",
     "match"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

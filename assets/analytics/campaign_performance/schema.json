@@ -232,9 +232,5 @@
     "analytics",
     "campaign",
     "performance"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -190,9 +190,5 @@
     "extraction",
     "legal",
     "documents"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

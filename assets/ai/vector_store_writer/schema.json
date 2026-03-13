@@ -214,9 +214,5 @@
     "vector",
     "store",
     "writer"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

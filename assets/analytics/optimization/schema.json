@@ -190,9 +190,5 @@
   "tags": [
     "analytics",
     "optimization"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

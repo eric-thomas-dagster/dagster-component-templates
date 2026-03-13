@@ -183,9 +183,5 @@
     "analytics",
     "simulation",
     "sampling"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

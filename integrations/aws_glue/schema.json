@@ -14,9 +14,5 @@
     "integration",
     "aws",
     "glue"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

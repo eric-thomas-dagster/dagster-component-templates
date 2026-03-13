@@ -216,9 +216,5 @@
     "infrastructure",
     "helm",
     "deploy"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

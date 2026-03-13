@@ -179,9 +179,5 @@
   "tags": [
     "transformation",
     "filler"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

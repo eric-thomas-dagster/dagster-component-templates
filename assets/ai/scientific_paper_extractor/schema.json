@@ -190,9 +190,5 @@
     "extraction",
     "research",
     "academic"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

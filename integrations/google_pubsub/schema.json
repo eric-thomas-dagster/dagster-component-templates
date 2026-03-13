@@ -88,9 +88,5 @@
     "integration",
     "google",
     "pubsub"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

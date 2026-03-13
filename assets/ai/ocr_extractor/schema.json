@@ -180,9 +180,5 @@
     "image",
     "ocr",
     "vision"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -170,9 +170,5 @@
     "transformation",
     "cross",
     "tab"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

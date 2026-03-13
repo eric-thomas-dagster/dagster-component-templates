@@ -190,9 +190,5 @@
     "extraction",
     "hr",
     "recruiting"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

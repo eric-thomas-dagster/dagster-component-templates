@@ -82,9 +82,5 @@
     "observation",
     "rabbitmq",
     "sensor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

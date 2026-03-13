@@ -188,9 +188,5 @@
   "tags": [
     "analytics",
     "compare"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

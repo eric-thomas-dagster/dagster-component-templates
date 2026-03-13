@@ -129,9 +129,5 @@
   "tags": [
     "ingestion",
     "notion"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

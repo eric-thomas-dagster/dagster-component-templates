@@ -248,9 +248,5 @@
     "ai",
     "document",
     "chunker"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

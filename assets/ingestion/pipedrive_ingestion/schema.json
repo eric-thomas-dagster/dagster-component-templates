@@ -131,9 +131,5 @@
   "tags": [
     "ingestion",
     "pipedrive"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

@@ -76,9 +76,5 @@
     "sensor",
     "airbyte",
     "sync"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

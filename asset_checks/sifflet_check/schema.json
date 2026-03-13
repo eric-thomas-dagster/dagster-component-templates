@@ -60,9 +60,5 @@
   "tags": [
     "check",
     "sifflet"
-  ],
-  "connectors": {
-    "left": true,
-    "right": false
-  }
+  ]
 }

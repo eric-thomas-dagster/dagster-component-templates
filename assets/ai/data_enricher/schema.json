@@ -186,9 +186,5 @@
     "enrichment",
     "classification",
     "structured-output"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

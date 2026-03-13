@@ -197,9 +197,5 @@
     "structured-output",
     "extraction",
     "json"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -206,9 +206,5 @@
     "analytics",
     "chromadb",
     "asset"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

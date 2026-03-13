@@ -220,9 +220,5 @@
     "ai",
     "text",
     "chunker"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -183,9 +183,5 @@
     "extraction",
     "structured-output",
     "pydantic"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

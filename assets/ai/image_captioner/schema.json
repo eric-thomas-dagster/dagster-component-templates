@@ -183,9 +183,5 @@
     "image-captioning",
     "llm",
     "multimodal"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

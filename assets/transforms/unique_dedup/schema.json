@@ -170,9 +170,5 @@
     "transformation",
     "unique",
     "dedup"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

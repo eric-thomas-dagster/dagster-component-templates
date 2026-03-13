@@ -170,9 +170,5 @@
     "markdown",
     "text-processing",
     "plaintext"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

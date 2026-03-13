@@ -164,9 +164,5 @@
     "sink",
     "dataframe",
     "parquet"
-  ],
-  "connectors": {
-    "left": true,
-    "right": false
-  }
+  ]
 }

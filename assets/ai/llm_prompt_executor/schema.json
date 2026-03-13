@@ -232,9 +232,5 @@
     "llm",
     "prompt",
     "executor"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

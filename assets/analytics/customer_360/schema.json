@@ -197,9 +197,5 @@
     "analytics",
     "customer",
     "360"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

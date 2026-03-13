@@ -82,9 +82,5 @@
     "parsing",
     "geocoding",
     "usaddress"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

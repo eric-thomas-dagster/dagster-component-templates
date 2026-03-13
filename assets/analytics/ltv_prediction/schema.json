@@ -205,9 +205,5 @@
     "analytics",
     "ltv",
     "prediction"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

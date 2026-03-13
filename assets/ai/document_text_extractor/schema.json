@@ -209,9 +209,5 @@
     "document",
     "text",
     "extractor"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

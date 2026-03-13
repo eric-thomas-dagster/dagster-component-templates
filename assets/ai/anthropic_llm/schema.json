@@ -299,9 +299,5 @@
     "ai",
     "anthropic",
     "llm"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

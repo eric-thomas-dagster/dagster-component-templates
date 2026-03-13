@@ -174,9 +174,5 @@
     "metadata",
     "exif",
     "vision"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -155,9 +155,5 @@
   "tags": [
     "transformation",
     "formula"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -100,9 +100,5 @@
     "question-answering",
     "summarization",
     "classification"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

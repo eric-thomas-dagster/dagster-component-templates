@@ -176,9 +176,5 @@
     "transformation",
     "select",
     "columns"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

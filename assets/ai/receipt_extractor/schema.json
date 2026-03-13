@@ -190,9 +190,5 @@
     "extraction",
     "receipt",
     "finance"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

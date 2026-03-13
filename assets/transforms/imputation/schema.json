@@ -169,9 +169,5 @@
   "tags": [
     "transformation",
     "imputation"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

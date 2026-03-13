@@ -261,9 +261,5 @@
     "ai",
     "embeddings",
     "generator"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

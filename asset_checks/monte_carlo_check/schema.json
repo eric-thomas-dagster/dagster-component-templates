@@ -60,9 +60,5 @@
     "check",
     "monte",
     "carlo"
-  ],
-  "connectors": {
-    "left": true,
-    "right": false
-  }
+  ]
 }

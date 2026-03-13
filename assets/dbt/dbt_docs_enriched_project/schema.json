@@ -15,9 +15,5 @@
     "docs",
     "enriched",
     "project"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

@@ -186,9 +186,5 @@
     "analytics",
     "survival",
     "analysis"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

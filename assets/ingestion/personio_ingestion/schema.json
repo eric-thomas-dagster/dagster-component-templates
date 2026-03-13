@@ -137,9 +137,5 @@
   "tags": [
     "ingestion",
     "personio"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

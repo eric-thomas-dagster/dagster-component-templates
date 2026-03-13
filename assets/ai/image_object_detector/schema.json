@@ -197,9 +197,5 @@
     "image",
     "vision",
     "object-detection"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

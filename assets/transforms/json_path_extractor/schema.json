@@ -161,9 +161,5 @@
     "json",
     "jsonpath",
     "extraction"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

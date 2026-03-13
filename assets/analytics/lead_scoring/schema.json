@@ -311,9 +311,5 @@
     "analytics",
     "lead",
     "scoring"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

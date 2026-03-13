@@ -191,9 +191,5 @@
     "ai",
     "word",
     "cloud"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

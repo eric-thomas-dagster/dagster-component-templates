@@ -54,9 +54,5 @@
     "observation",
     "kinesis",
     "sensor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

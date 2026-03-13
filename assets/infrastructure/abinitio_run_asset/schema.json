@@ -153,9 +153,5 @@
     "abinitio",
     "run",
     "asset"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

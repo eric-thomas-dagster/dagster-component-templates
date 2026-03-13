@@ -182,9 +182,5 @@
     "dataframe",
     "from",
     "csv"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

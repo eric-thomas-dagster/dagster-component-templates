@@ -198,9 +198,5 @@
     "support",
     "ticket",
     "standardizer"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

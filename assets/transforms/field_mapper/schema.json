@@ -165,9 +165,5 @@
     "rename",
     "mapping",
     "schema"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

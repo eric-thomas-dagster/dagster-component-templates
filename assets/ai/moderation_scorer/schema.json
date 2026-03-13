@@ -40,9 +40,5 @@
     "ai",
     "moderation",
     "scorer"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

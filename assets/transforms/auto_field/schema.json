@@ -188,9 +188,5 @@
     "transformation",
     "auto",
     "field"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

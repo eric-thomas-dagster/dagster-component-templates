@@ -222,9 +222,5 @@
     "neural",
     "network",
     "model"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

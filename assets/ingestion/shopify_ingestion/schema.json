@@ -593,9 +593,5 @@
   "tags": [
     "ingestion",
     "shopify"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

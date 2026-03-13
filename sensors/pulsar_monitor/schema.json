@@ -96,9 +96,5 @@
     "sensor",
     "pulsar",
     "monitor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

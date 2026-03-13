@@ -186,9 +186,5 @@
     "sink",
     "dataframe",
     "databricks"
-  ],
-  "connectors": {
-    "left": true,
-    "right": false
-  }
+  ]
 }

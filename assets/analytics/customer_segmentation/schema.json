@@ -220,9 +220,5 @@
     "analytics",
     "customer",
     "segmentation"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

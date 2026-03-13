@@ -126,9 +126,5 @@
     "integration",
     "databricks",
     "workspace"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

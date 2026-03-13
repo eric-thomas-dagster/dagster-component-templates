@@ -154,9 +154,5 @@
   "tags": [
     "transformation",
     "summarize"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

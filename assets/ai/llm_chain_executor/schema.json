@@ -193,9 +193,5 @@
     "llm",
     "chain",
     "executor"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

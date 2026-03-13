@@ -188,9 +188,5 @@
     "source",
     "redis",
     "reader"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

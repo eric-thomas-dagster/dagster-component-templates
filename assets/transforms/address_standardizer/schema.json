@@ -90,9 +90,5 @@
     "standardization",
     "usps",
     "normalization"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

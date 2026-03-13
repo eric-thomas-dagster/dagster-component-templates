@@ -312,9 +312,5 @@
     "analytics",
     "priority",
     "scorer"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -194,9 +194,5 @@
     "keywords",
     "tfidf",
     "text-mining"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

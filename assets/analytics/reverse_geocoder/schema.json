@@ -208,9 +208,5 @@
     "analytics",
     "reverse",
     "geocoder"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -53,9 +53,5 @@
     "observation",
     "kafka",
     "sensor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

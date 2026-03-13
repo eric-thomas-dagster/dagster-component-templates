@@ -131,9 +131,5 @@
   "tags": [
     "ingestion",
     "asana"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

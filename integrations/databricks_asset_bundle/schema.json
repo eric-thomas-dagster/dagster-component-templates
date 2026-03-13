@@ -62,9 +62,5 @@
     "databricks",
     "asset",
     "bundle"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

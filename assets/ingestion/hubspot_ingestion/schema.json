@@ -146,9 +146,5 @@
   "tags": [
     "ingestion",
     "hubspot"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

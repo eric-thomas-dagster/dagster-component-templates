@@ -95,9 +95,5 @@
     "integration",
     "google",
     "datastream"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

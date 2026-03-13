@@ -200,9 +200,5 @@
     "text-to-sql",
     "llm",
     "nlp"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

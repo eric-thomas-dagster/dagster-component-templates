@@ -49,9 +49,5 @@
     "external",
     "kinesis",
     "asset"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

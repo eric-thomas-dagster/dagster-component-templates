@@ -185,9 +185,5 @@
     "bounding",
     "box",
     "filter"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

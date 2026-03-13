@@ -191,9 +191,5 @@
   "tags": [
     "transformation",
     "record"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

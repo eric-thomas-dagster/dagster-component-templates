@@ -238,9 +238,5 @@
     "transformation",
     "file",
     "transformer"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -187,9 +187,5 @@
     "analytics",
     "point",
     "polygon"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

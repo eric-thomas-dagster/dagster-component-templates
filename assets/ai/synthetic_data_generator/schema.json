@@ -170,9 +170,5 @@
     "synthetic",
     "data",
     "generator"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

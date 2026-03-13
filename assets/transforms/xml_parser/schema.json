@@ -159,9 +159,5 @@
     "transformation",
     "xml",
     "parser"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

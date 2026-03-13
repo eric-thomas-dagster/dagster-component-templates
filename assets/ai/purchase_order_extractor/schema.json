@@ -190,9 +190,5 @@
     "extraction",
     "procurement",
     "finance"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

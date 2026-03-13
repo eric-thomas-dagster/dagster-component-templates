@@ -201,9 +201,5 @@
     "sink",
     "dataframe",
     "snowflake"
-  ],
-  "connectors": {
-    "left": true,
-    "right": false
-  }
+  ]
 }

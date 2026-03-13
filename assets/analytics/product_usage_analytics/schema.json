@@ -206,9 +206,5 @@
     "analytics",
     "product",
     "usage"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

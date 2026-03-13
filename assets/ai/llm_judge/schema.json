@@ -198,9 +198,5 @@
     "quality-assessment",
     "litellm",
     "testing"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

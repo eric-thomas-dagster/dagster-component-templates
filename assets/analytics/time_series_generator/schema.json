@@ -196,9 +196,5 @@
     "time",
     "series",
     "generator"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

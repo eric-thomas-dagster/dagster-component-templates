@@ -135,9 +135,5 @@
   "tags": [
     "ingestion",
     "airtable"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

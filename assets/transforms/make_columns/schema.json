@@ -165,9 +165,5 @@
     "transformation",
     "make",
     "columns"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

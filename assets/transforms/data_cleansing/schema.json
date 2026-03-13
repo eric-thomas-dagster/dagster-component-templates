@@ -186,9 +186,5 @@
     "transformation",
     "data",
     "cleansing"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

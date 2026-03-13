@@ -74,9 +74,5 @@
     "cloud",
     "run",
     "jobs"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

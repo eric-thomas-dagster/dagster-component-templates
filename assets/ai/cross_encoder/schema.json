@@ -75,9 +75,5 @@
     "cross-encoder",
     "relevance-scoring",
     "sentence-transformers"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

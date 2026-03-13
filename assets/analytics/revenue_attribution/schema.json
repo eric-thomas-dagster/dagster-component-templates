@@ -183,9 +183,5 @@
     "analytics",
     "revenue",
     "attribution"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

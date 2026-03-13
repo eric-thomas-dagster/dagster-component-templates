@@ -54,9 +54,5 @@
     "observation",
     "sqs",
     "sensor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

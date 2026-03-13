@@ -165,9 +165,5 @@
     "duckdb",
     "query",
     "reader"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

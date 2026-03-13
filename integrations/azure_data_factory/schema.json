@@ -15,9 +15,5 @@
     "azure",
     "data",
     "factory"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

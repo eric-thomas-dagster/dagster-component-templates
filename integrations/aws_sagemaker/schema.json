@@ -127,9 +127,5 @@
     "integration",
     "aws",
     "sagemaker"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

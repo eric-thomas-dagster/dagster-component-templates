@@ -214,9 +214,5 @@
     "ingestion",
     "google",
     "analytics"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

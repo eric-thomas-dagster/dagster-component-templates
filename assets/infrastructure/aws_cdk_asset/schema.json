@@ -188,9 +188,5 @@
     "aws",
     "cdk",
     "asset"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

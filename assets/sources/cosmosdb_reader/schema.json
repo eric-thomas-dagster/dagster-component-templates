@@ -179,9 +179,5 @@
     "source",
     "cosmosdb",
     "reader"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

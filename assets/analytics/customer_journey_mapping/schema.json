@@ -213,9 +213,5 @@
     "customer",
     "journey",
     "mapping"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

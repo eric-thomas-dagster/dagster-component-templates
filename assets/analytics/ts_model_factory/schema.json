@@ -202,9 +202,5 @@
     "analytics",
     "model",
     "factory"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

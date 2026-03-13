@@ -181,9 +181,5 @@
     "source",
     "wandb",
     "reader"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

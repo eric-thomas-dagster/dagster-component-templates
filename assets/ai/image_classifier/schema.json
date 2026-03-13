@@ -204,9 +204,5 @@
     "image",
     "vision",
     "classification"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

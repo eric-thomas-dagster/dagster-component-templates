@@ -184,9 +184,5 @@
     "analytics",
     "distance",
     "calculator"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -184,9 +184,5 @@
     "document",
     "layout",
     "vision"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -190,9 +190,5 @@
     "extraction",
     "logistics",
     "shipping"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

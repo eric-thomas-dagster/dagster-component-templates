@@ -53,9 +53,5 @@
     "check",
     "great",
     "expectations"
-  ],
-  "connectors": {
-    "left": true,
-    "right": false
-  }
+  ]
 }

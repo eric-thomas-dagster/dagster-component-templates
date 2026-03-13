@@ -178,9 +178,5 @@
   "tags": [
     "transformation",
     "arrange"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

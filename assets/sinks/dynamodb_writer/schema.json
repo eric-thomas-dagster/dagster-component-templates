@@ -159,9 +159,5 @@
     "sink",
     "dynamodb",
     "writer"
-  ],
-  "connectors": {
-    "left": true,
-    "right": false
-  }
+  ]
 }

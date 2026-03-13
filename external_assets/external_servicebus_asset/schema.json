@@ -56,9 +56,5 @@
     "external",
     "servicebus",
     "asset"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

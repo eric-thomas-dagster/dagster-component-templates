@@ -205,9 +205,5 @@
     "source",
     "pgvector",
     "reader"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

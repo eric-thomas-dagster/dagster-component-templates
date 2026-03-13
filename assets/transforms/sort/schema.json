@@ -181,9 +181,5 @@
   "tags": [
     "transformation",
     "sort"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

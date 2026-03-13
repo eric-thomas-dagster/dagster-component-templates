@@ -204,9 +204,5 @@
     "ingestion",
     "google",
     "ads"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

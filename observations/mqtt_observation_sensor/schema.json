@@ -67,9 +67,5 @@
     "observation",
     "mqtt",
     "sensor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

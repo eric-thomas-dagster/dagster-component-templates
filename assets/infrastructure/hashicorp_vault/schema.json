@@ -149,9 +149,5 @@
     "infrastructure",
     "hashicorp",
     "vault"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

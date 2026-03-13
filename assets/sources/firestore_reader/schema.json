@@ -183,9 +183,5 @@
     "source",
     "firestore",
     "reader"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

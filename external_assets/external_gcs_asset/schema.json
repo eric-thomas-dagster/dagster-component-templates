@@ -56,9 +56,5 @@
     "external",
     "gcs",
     "asset"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

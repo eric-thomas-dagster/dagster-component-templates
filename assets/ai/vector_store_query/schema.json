@@ -210,9 +210,5 @@
     "vector",
     "store",
     "query"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

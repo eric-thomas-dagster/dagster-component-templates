@@ -227,9 +227,5 @@
     "multi",
     "touch",
     "attribution"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

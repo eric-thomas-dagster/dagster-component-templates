@@ -164,9 +164,5 @@
     "transformation",
     "count",
     "records"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

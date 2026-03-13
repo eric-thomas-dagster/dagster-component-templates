@@ -176,9 +176,5 @@
     "whisper",
     "litellm",
     "speech-to-text"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

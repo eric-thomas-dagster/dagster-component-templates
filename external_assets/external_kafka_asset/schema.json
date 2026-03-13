@@ -48,9 +48,5 @@
     "external",
     "kafka",
     "asset"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

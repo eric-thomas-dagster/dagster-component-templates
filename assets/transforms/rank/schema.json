@@ -184,9 +184,5 @@
   "tags": [
     "transformation",
     "rank"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

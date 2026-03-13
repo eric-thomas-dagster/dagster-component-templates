@@ -208,9 +208,5 @@
     "dall-e",
     "stable-diffusion",
     "multimodal"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -87,9 +87,5 @@
     "snowflake",
     "table",
     "sensor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

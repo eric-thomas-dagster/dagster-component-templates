@@ -54,9 +54,5 @@
     "external",
     "bigquery",
     "table"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

@@ -190,9 +190,5 @@
     "extraction",
     "medical",
     "healthcare"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

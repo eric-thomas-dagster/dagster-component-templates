@@ -177,9 +177,5 @@
     "email",
     "parsing",
     "rfc2822"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

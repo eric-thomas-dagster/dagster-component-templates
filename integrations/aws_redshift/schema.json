@@ -131,9 +131,5 @@
     "integration",
     "aws",
     "redshift"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

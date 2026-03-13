@@ -60,9 +60,5 @@
   "tags": [
     "check",
     "acceldata"
-  ],
-  "connectors": {
-    "left": true,
-    "right": false
-  }
+  ]
 }

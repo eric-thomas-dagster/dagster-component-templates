@@ -278,9 +278,5 @@
     "transformation",
     "dataframe",
     "transformer"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

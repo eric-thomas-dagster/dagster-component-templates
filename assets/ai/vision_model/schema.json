@@ -265,9 +265,5 @@
     "ai",
     "vision",
     "model"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -171,9 +171,5 @@
     "gcp",
     "nosql",
     "document-database"
-  ],
-  "connectors": {
-    "left": true,
-    "right": false
-  }
+  ]
 }

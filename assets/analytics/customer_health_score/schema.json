@@ -256,9 +256,5 @@
     "customer",
     "health",
     "score"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

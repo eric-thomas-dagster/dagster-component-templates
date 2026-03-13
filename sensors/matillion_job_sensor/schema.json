@@ -89,9 +89,5 @@
     "sensor",
     "matillion",
     "job"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

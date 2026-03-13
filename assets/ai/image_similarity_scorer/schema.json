@@ -187,9 +187,5 @@
     "vision",
     "similarity",
     "embeddings"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

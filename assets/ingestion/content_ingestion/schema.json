@@ -35,9 +35,5 @@
   "tags": [
     "ingestion",
     "content"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

@@ -184,9 +184,5 @@
     "ingestion",
     "tiktok",
     "ads"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

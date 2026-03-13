@@ -49,9 +49,5 @@
     "external",
     "sqs",
     "asset"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

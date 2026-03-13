@@ -184,9 +184,5 @@
     "transformation",
     "running",
     "total"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

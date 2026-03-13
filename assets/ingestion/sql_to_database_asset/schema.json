@@ -182,9 +182,5 @@
     "sql",
     "database",
     "asset"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

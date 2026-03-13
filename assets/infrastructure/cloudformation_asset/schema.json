@@ -171,9 +171,5 @@
     "infrastructure",
     "cloudformation",
     "asset"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

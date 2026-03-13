@@ -183,9 +183,5 @@
     "analytics",
     "tecton",
     "asset"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

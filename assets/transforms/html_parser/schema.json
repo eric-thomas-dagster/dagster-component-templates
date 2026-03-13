@@ -184,9 +184,5 @@
     "html",
     "parsing",
     "text-extraction"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

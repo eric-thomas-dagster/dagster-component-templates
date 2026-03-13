@@ -182,9 +182,5 @@
     "speech-to-text",
     "whisper",
     "transcription"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

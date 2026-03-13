@@ -194,9 +194,5 @@
     "lda",
     "nmf",
     "unsupervised"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -195,9 +195,5 @@
     "vision",
     "llm",
     "extraction"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

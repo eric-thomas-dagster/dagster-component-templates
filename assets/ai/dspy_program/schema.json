@@ -190,9 +190,5 @@
     "prompt-optimization",
     "chain-of-thought",
     "nlp"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

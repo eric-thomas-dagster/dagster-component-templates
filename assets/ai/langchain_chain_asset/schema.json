@@ -240,9 +240,5 @@
     "langchain",
     "chain",
     "asset"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

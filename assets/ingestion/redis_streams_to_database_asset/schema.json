@@ -174,9 +174,5 @@
     "streams",
     "database",
     "asset"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

@@ -187,9 +187,5 @@
     "merge",
     "join",
     "combine"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

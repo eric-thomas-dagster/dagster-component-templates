@@ -189,9 +189,5 @@
     "similarity",
     "embeddings",
     "tfidf"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

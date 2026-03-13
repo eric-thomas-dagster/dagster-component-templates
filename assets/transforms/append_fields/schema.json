@@ -155,9 +155,5 @@
     "transformation",
     "append",
     "fields"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

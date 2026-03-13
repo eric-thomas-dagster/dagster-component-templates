@@ -204,9 +204,5 @@
     "gradient",
     "boosting",
     "model"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

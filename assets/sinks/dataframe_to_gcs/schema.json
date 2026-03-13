@@ -172,9 +172,5 @@
     "sink",
     "dataframe",
     "gcs"
-  ],
-  "connectors": {
-    "left": true,
-    "right": false
-  }
+  ]
 }

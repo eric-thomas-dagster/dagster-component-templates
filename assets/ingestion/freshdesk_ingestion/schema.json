@@ -136,9 +136,5 @@
   "tags": [
     "ingestion",
     "freshdesk"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

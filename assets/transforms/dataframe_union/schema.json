@@ -157,9 +157,5 @@
     "transformation",
     "dataframe",
     "union"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

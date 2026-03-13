@@ -192,9 +192,5 @@
     "analytics",
     "means",
     "clustering"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -19,9 +19,5 @@
     "sink",
     "polytomic",
     "asset"
-  ],
-  "connectors": {
-    "left": true,
-    "right": false
-  }
+  ]
 }

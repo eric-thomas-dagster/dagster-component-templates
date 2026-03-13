@@ -131,9 +131,5 @@
   "tags": [
     "ingestion",
     "slack"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

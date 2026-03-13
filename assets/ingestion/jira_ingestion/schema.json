@@ -143,9 +143,5 @@
   "tags": [
     "ingestion",
     "jira"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

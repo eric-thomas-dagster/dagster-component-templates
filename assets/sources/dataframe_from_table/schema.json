@@ -177,9 +177,5 @@
     "dataframe",
     "from",
     "table"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

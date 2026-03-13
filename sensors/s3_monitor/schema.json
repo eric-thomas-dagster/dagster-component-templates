@@ -74,9 +74,5 @@
   "tags": [
     "sensor",
     "monitor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

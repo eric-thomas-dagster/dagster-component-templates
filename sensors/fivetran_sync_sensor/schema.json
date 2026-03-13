@@ -67,9 +67,5 @@
     "sensor",
     "fivetran",
     "sync"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

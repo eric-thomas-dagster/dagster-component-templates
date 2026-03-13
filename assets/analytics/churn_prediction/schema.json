@@ -211,9 +211,5 @@
     "analytics",
     "churn",
     "prediction"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

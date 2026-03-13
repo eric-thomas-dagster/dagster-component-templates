@@ -147,9 +147,5 @@
   "tags": [
     "ingestion",
     "github"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

@@ -61,9 +61,5 @@
     "observation",
     "pubsub",
     "sensor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

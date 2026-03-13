@@ -192,9 +192,5 @@
     "analytics",
     "model",
     "comparison"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

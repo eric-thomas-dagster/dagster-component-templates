@@ -222,9 +222,5 @@
     "ai",
     "text",
     "classifier"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

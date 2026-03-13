@@ -131,9 +131,5 @@
     "integration",
     "azure",
     "synapse"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

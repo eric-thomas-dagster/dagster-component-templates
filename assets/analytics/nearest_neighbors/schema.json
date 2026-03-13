@@ -193,9 +193,5 @@
     "analytics",
     "nearest",
     "neighbors"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

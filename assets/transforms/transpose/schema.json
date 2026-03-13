@@ -151,9 +151,5 @@
   "tags": [
     "transformation",
     "transpose"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

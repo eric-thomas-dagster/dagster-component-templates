@@ -109,9 +109,5 @@
     "sensor",
     "kafka",
     "monitor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

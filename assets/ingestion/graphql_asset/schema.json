@@ -14,9 +14,5 @@
     "ingestion",
     "graphql",
     "asset"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

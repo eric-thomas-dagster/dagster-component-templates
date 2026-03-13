@@ -167,9 +167,5 @@
     "pubsub",
     "database",
     "asset"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

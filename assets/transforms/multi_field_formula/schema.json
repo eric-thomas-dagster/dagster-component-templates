@@ -170,9 +170,5 @@
     "multi",
     "field",
     "formula"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

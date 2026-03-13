@@ -197,9 +197,5 @@
     "decision",
     "tree",
     "model"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

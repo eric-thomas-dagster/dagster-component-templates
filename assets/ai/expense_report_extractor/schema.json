@@ -190,9 +190,5 @@
     "extraction",
     "expenses",
     "finance"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

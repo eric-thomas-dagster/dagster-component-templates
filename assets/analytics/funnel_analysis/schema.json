@@ -313,9 +313,5 @@
     "analytics",
     "funnel",
     "analysis"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -68,9 +68,5 @@
     "dbt",
     "cloud",
     "job"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

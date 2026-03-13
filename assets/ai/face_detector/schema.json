@@ -186,9 +186,5 @@
     "image",
     "vision",
     "face-detection"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -190,9 +190,5 @@
     "extraction",
     "insurance",
     "claims"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

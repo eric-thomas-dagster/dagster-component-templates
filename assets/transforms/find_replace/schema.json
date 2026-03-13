@@ -176,9 +176,5 @@
     "transformation",
     "find",
     "replace"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

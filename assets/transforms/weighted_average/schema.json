@@ -168,9 +168,5 @@
     "transformation",
     "weighted",
     "average"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

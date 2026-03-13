@@ -178,9 +178,5 @@
     "sink",
     "dataframe",
     "adls"
-  ],
-  "connectors": {
-    "left": true,
-    "right": false
-  }
+  ]
 }

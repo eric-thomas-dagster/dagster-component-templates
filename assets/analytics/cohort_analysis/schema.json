@@ -197,9 +197,5 @@
     "analytics",
     "cohort",
     "analysis"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

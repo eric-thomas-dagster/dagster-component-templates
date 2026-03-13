@@ -86,9 +86,5 @@
   "tags": [
     "sensor",
     "servicenow"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

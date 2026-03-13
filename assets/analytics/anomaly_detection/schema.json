@@ -203,9 +203,5 @@
     "analytics",
     "anomaly",
     "detection"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

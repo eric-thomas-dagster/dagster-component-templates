@@ -82,9 +82,5 @@
     "sensor",
     "eventhubs",
     "monitor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

@@ -46,9 +46,5 @@
   "tags": [
     "check",
     "soda"
-  ],
-  "connectors": {
-    "left": true,
-    "right": false
-  }
+  ]
 }

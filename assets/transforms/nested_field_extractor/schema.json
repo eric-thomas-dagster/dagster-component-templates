@@ -168,9 +168,5 @@
     "nested",
     "dot-path",
     "extraction"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

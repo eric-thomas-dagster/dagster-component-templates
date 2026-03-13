@@ -171,9 +171,5 @@
     "transformation",
     "generate",
     "rows"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

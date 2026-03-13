@@ -184,9 +184,5 @@
     "ingestion",
     "pinterest",
     "ads"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

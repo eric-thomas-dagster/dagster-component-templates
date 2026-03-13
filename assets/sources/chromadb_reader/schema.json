@@ -202,9 +202,5 @@
     "source",
     "chromadb",
     "reader"
-  ],
-  "connectors": {
-    "left": false,
-    "right": true
-  }
+  ]
 }

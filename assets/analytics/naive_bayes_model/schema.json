@@ -192,9 +192,5 @@
     "naive",
     "bayes",
     "model"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

@@ -194,9 +194,5 @@
     "analytics",
     "topic",
     "modeling"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

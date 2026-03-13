@@ -191,9 +191,5 @@
     "linear",
     "regression",
     "model"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

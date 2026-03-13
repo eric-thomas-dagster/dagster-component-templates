@@ -191,9 +191,5 @@
   "tags": [
     "sink",
     "dataframe"
-  ],
-  "connectors": {
-    "left": true,
-    "right": false
-  }
+  ]
 }

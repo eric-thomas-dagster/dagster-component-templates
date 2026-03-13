@@ -231,9 +231,5 @@
     "analytics",
     "product",
     "recommendations"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

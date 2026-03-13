@@ -157,9 +157,5 @@
     "analytics",
     "lift",
     "chart"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

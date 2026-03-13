@@ -62,9 +62,5 @@
     "sensor",
     "filesystem",
     "monitor"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

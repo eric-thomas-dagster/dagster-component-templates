@@ -182,9 +182,5 @@
     "ai",
     "synthetic",
     "data"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

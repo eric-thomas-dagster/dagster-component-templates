@@ -197,9 +197,5 @@
     "analytics",
     "product",
     "standardizer"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

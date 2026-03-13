@@ -69,9 +69,5 @@
     "sensor",
     "precisely",
     "job"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

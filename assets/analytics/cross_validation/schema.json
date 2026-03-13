@@ -189,9 +189,5 @@
     "analytics",
     "cross",
     "validation"
-  ],
-  "connectors": {
-    "left": true,
-    "right": true
-  }
+  ]
 }

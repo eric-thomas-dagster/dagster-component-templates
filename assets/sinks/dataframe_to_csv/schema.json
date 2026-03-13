@@ -171,9 +171,5 @@
     "sink",
     "dataframe",
     "csv"
-  ],
-  "connectors": {
-    "left": true,
-    "right": false
-  }
+  ]
 }

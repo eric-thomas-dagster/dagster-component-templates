@@ -165,9 +165,5 @@
     "sink",
     "dataframe",
     "table"
-  ],
-  "connectors": {
-    "left": true,
-    "right": false
-  }
+  ]
 }

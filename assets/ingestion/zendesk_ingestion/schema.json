@@ -143,9 +143,5 @@
   "tags": [
     "ingestion",
     "zendesk"
-  ],
-  "connectors": {
-    "left": false,
-    "right": false
-  }
+  ]
 }

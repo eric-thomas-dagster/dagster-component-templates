@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ChromadbAssetComponent",
+  "description": "Read documents from a relational database, generate OpenAI embeddings, and upsert them into a ChromaDB collection as a Dagster asset.",
+  "category": "assets",
+  "tags": ["assets", "vector-store", "chromadb", "embeddings", "openai", "rag"],
+  "type": "object",
+  "required": ["asset_name", "collection_name", "database_url_env_var", "source_table", "id_column", "text_column"],
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "description": "Dagster asset key for this component."
+    },
+    "chroma_host": {
+      "type": "string",
+      "default": "localhost",
+      "description": "Hostname of the ChromaDB server."
+    },
+    "chroma_port": {
+      "type": "integer",
+      "default": 8000,
+      "description": "Port of the ChromaDB HTTP server."
+    },
+    "chroma_api_key_env_var": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Env var containing the Chroma Cloud API key."
+    },
+    "collection_name": {
+      "type": "string",
+      "description": "ChromaDB collection to get-or-create and upsert documents into."
+    },
+    "database_url_env_var": {
+      "type": "string",
+      "description": "Env var containing a SQLAlchemy-compatible source database URL."
+    },
+    "source_table": {
+      "type": "string",
+      "description": "Source table to read documents from. Accepts schema.table or bare table."
+    },
+    "id_column": {
+      "type": "string",
+      "description": "Primary key column. Values are used as ChromaDB document IDs."
+    },
+    "text_column": {
+      "type": "string",
+      "description": "Column containing the document text to embed."
+    },
+    "metadata_columns": {
+      "type": ["array", "null"],
+      "default": null,
+      "items": { "type": "string" },
+      "description": "Additional columns to store as ChromaDB document metadata."
+    },
+    "embedding_model": {
+      "type": "string",
+      "default": "text-embedding-3-small",
+      "description": "OpenAI embedding model name."
+    },
+    "openai_api_key_env_var": {
+      "type": "string",
+      "default": "OPENAI_API_KEY",
+      "description": "Env var containing the OpenAI API key."
+    },
+    "batch_size": {
+      "type": "integer",
+      "default": 100,
+      "description": "Documents per OpenAI API request and ChromaDB upsert batch."
+    },
+    "group_name": {
+      "type": "string",
+      "default": "vector_store",
+      "description": "Dagster asset group name."
+    },
+    "deps": {
+      "type": ["array", "null"],
+      "default": null,
+      "items": { "type": "string" },
+      "description": "Upstream asset keys for lineage."
+    }
+  },
+  "additionalProperties": false
+}

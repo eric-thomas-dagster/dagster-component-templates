@@ -1,0 +1,4 @@
+dagster
+chromadb
+openai
+sqlalchemy

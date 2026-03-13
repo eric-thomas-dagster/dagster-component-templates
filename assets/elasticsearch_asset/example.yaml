@@ -1,0 +1,12 @@
+type: dagster_component_templates.ElasticsearchAssetComponent
+attributes:
+  asset_name: product_search_index
+  elasticsearch_url_env_var: ELASTICSEARCH_URL
+  index_name: products
+  mode: index
+  source_database_url_env_var: DATABASE_URL
+  source_table_name: products
+  id_field: product_id
+  group_name: search
+  deps:
+    - raw/products

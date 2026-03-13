@@ -1,0 +1,10 @@
+{
+  "type": "dagster_component_templates.wandb_asset",
+  "name": "Weights & Biases Asset",
+  "category": "assets",
+  "description": "Logs metrics from a database table or uploads file artifacts to Weights & Biases, supporting log_metrics and log_artifact modes",
+  "dependencies": {
+    "pip": ["wandb>=0.17.0", "sqlalchemy>=2.0.0"]
+  },
+  "tags": ["assets", "ml", "wandb", "metrics", "artifacts", "tracking"]
+}

@@ -1,0 +1,16 @@
+type: dagster_component_templates.SnowflakeCortexAssetComponent
+attributes:
+  asset_name: support_ticket_sentiment
+  snowflake_account_env_var: SNOWFLAKE_ACCOUNT
+  snowflake_user_env_var: SNOWFLAKE_USER
+  snowflake_password_env_var: SNOWFLAKE_PASSWORD
+  snowflake_database: ANALYTICS
+  snowflake_schema: PUBLIC
+  source_table: RAW_SUPPORT_TICKETS
+  target_table: ENRICHED_SUPPORT_TICKETS
+  cortex_function: SENTIMENT
+  text_column: ticket_body
+  output_column: sentiment_score
+  group_name: ai_enrichment
+  deps:
+    - raw/support_tickets

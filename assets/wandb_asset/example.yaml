@@ -1,0 +1,20 @@
+type: dagster_component_templates.WandbAssetComponent
+attributes:
+  asset_name: model_training_run
+  project: churn-prediction
+  entity: my-team
+  mode: log_metrics
+  wandb_api_key_env_var: WANDB_API_KEY
+  database_url_env_var: DATABASE_URL
+  source_table: model_training_results
+  metrics_columns:
+    - train_loss
+    - val_loss
+    - accuracy
+  step_column: epoch
+  tags:
+    - production
+    - v2
+  group_name: ml_tracking
+  deps:
+    - marts/training_data

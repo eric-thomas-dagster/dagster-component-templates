@@ -1,0 +1,20 @@
+type: dagster_component_templates.ChromadbAssetComponent
+attributes:
+  asset_name: product_chroma_collection
+  chroma_host: localhost
+  chroma_port: 8000
+  collection_name: products
+  database_url_env_var: DATABASE_URL
+  source_table: public.products
+  id_column: product_id
+  text_column: description
+  metadata_columns:
+    - name
+    - category
+    - price
+  embedding_model: text-embedding-3-small
+  openai_api_key_env_var: OPENAI_API_KEY
+  batch_size: 100
+  group_name: vector_store
+  deps:
+    - raw/products

@@ -1,0 +1,14 @@
+type: dagster_component_templates.TectonAssetComponent
+attributes:
+  asset_name: tecton_features
+  workspace: production
+  tecton_api_key_env_var: TECTON_API_KEY
+  feature_views:
+    - user_features
+    - item_features
+  online: true
+  offline: true
+  group_name: feature_store
+  deps:
+    - marts/users
+    - marts/items

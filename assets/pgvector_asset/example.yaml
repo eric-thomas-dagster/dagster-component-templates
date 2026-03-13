@@ -1,0 +1,16 @@
+type: dagster_component_templates.PgvectorAssetComponent
+attributes:
+  asset_name: product_description_embeddings
+  database_url_env_var: POSTGRES_URL
+  source_table: public.products
+  id_column: product_id
+  text_column: description
+  target_table: product_embeddings
+  embedding_model: text-embedding-3-small
+  openai_api_key_env_var: OPENAI_API_KEY
+  dimensions: 1536
+  batch_size: 100
+  if_exists: upsert
+  group_name: vector_store
+  deps:
+    - raw/products

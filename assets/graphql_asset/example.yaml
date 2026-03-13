@@ -1,0 +1,26 @@
+type: dagster_component_templates.GraphQLAssetComponent
+attributes:
+  asset_name: github_data
+  endpoint_env_var: GITHUB_GRAPHQL_URL
+  api_key_env_var: GITHUB_TOKEN
+  database_url_env_var: DATABASE_URL
+  queries:
+    - name: issues
+      query: |
+        query($owner: String!, $repo: String!, $cursor: String) {
+          repository(owner: $owner, name: $repo) {
+            issues(first: 100, after: $cursor) {
+              nodes { number title state createdAt }
+              pageInfo { endCursor hasNextPage }
+            }
+          }
+        }
+      variables:
+        owner: my-org
+        repo: my-repo
+      data_path: data.repository.issues.nodes
+  paginate: true
+  page_size: 100
+  group_name: github
+  deps:
+    - raw/repositories

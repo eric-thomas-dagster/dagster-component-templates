@@ -1,0 +1,12 @@
+type: dagster_component_templates.FeastAssetComponent
+attributes:
+  asset_name: customer_features
+  feature_store_repo_path: ./feature_repo
+  feature_views:
+    - customer_stats
+    - transaction_features
+  incremental: true
+  group_name: feature_store
+  deps:
+    - marts/customers
+    - marts/transactions

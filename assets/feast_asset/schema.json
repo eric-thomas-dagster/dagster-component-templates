@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FeastAssetComponent",
+  "description": "Materialize features from a source table into a Feast feature store via materialize_incremental or materialize.",
+  "category": "assets",
+  "tags": ["assets", "feature-store", "feast", "ml", "machine-learning", "features"],
+  "type": "object",
+  "required": ["asset_name"],
+  "properties": {
+    "asset_name": {
+      "type": "string",
+      "default": "feast_features",
+      "description": "Dagster asset key for this component."
+    },
+    "feature_store_repo_path": {
+      "type": "string",
+      "default": ".",
+      "description": "Path to the Feast repository directory that contains feature_store.yaml."
+    },
+    "feature_views": {
+      "type": ["array", "null"],
+      "default": null,
+      "items": { "type": "string" },
+      "description": "Specific feature view names to materialize. When null all feature views are materialized."
+    },
+    "incremental": {
+      "type": "boolean",
+      "default": true,
+      "description": "Use materialize_incremental (from last materialization) when true, or full-range materialize when false."
+    },
+    "start_date_env_var": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Name of an environment variable holding an ISO-8601 start date. Required when incremental is false."
+    },
+    "end_date_offset_days": {
+      "type": "integer",
+      "default": 0,
+      "description": "Days before UTC now to use as end_date. 0 means current UTC time."
+    },
+    "group_name": {
+      "type": ["string", "null"],
+      "default": "feature_store",
+      "description": "Dagster asset group name."
+    },
+    "deps": {
+      "type": ["array", "null"],
+      "default": null,
+      "items": { "type": "string" },
+      "description": "Upstream asset keys for lineage."
+    }
+  },
+  "additionalProperties": false
+}

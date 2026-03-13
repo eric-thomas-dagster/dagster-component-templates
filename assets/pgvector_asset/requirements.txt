@@ -1,0 +1,5 @@
+dagster
+openai
+pgvector
+sqlalchemy
+psycopg2-binary

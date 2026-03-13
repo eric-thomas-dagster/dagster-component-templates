@@ -1,6 +1,6 @@
 # Dagster Component Templates
 
-A community library of 186+ reusable [Dagster component](https://docs.dagster.io/guides/components) templates covering data ingestion, AI/LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, and enterprise tool integrations — all configurable via YAML with no Python required.
+A community library of 195+ reusable [Dagster component](https://docs.dagster.io/guides/components) templates covering data ingestion, AI/LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, and enterprise tool integrations — all configurable via YAML with no Python required.
 
 ## What are Dagster Components?
 
@@ -19,7 +19,7 @@ attributes:
 
 ## Component Library
 
-### Assets (134)
+### Assets (143)
 
 **Ingestion — cloud storage**
 `s3_to_database_asset` · `gcs_to_database_asset` · `adls_to_database_asset`
@@ -28,10 +28,10 @@ attributes:
 `kafka_to_database_asset` · `sqs_to_database_asset` · `kinesis_to_database_asset` · `eventhubs_to_database_asset` · `servicebus_to_database_asset` · `rabbitmq_to_database_asset` · `pubsub_to_database_asset` · `redis_streams_to_database_asset` · `nats_to_database_asset` · `pulsar_to_database_asset` · `mqtt_to_database_asset`
 
 **Ingestion — files & databases**
-`sftp_to_database_asset` · `sql_to_database_asset` · `csv_file_ingestion` · `rest_api_fetcher` · `openapi_asset`
+`sftp_to_database_asset` · `sql_to_database_asset` · `csv_file_ingestion` · `rest_api_fetcher` · `openapi_asset` · `graphql_asset`
 
 **AI / LLM enrichment**
-`litellm_inference_asset` · `ollama_inference_asset` · `langchain_chain_asset` · `llm_prompt_executor` · `llm_chain_executor` · `document_summarizer` · `entity_extractor` · `embeddings_generator` · `moderation_scorer` · `anthropic_llm` · `conversation_memory`
+`litellm_inference_asset` · `ollama_inference_asset` · `langchain_chain_asset` · `llm_prompt_executor` · `llm_chain_executor` · `document_summarizer` · `entity_extractor` · `embeddings_generator` · `moderation_scorer` · `anthropic_llm` · `conversation_memory` · `snowflake_cortex_asset`
 
 **dbt**
 `dbt_docs_enriched_project` — extends `DbtProjectComponent` with exposures, metrics, semantic models, contracts, source freshness, and clickable dbt docs links on every asset
@@ -49,7 +49,16 @@ attributes:
 `jupyter_notebook_asset` · `modal_asset`
 
 **Vector stores**
-`pinecone_asset`
+`pinecone_asset` · `pgvector_asset` · `chromadb_asset` · `elasticsearch_asset`
+
+**Feature stores**
+`feast_asset` · `tecton_asset`
+
+**ML experiment tracking**
+`wandb_asset`
+
+**Data versioning**
+`lakefs_asset`
 
 **Reverse ETL**
 `polytomic_asset`

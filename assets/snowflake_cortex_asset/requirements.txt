@@ -1,0 +1,3 @@
+dagster>=1.8.0
+snowflake-connector-python>=3.6.0
+snowflake-sqlalchemy>=1.5.0

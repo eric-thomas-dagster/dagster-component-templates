@@ -174,6 +174,12 @@ class SelectColumnsComponent(Component, Model, Resolvable):
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
 
+        # Build-time column lineage: each selected column comes from same-named upstream col
+        if not column_lineage:
+            _cols_list = self.columns if hasattr(self, 'columns') else (self.column_names if hasattr(self, 'column_names') else [])
+            if _cols_list:
+                column_lineage = {col: [col] for col in _cols_list}
+
         @asset(
             name=asset_name,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},

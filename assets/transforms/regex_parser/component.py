@@ -168,6 +168,12 @@ class RegexParser(Component, Model, Resolvable):
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
 
+        # Build-time lineage: extracted columns come from the source column
+        if not column_lineage and hasattr(self, 'source_column') and self.source_column:
+            _output_cols = list((self.output_columns or {}).keys()) if hasattr(self, 'output_columns') else []
+            if _output_cols:
+                column_lineage = {col: [self.source_column] for col in _output_cols}
+
         @asset(
             name=asset_name,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},

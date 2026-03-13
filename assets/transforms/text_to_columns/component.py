@@ -166,6 +166,10 @@ class TextToColumns(Component, Model, Resolvable):
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
 
+        # Build-time lineage: split columns come from the source column
+        if not column_lineage and hasattr(self, 'column') and self.column and hasattr(self, 'new_columns') and self.new_columns:
+            column_lineage = {col: [self.column] for col in self.new_columns}
+
         @asset(
             name=asset_name,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},

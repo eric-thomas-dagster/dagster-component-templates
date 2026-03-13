@@ -188,6 +188,11 @@ class RankComponent(Component, Model, Resolvable):
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
 
+        # Build-time lineage: rank column derived from the sort column
+        if not column_lineage and hasattr(self, 'sort_column') and self.sort_column:
+            _rank_col = self.rank_column if hasattr(self, 'rank_column') and self.rank_column else "rank"
+            column_lineage = {_rank_col: [self.sort_column]}
+
         @asset(
             name=asset_name,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
@@ -236,11 +241,22 @@ group_name=group_name,
                 "dagster/row_count": MetadataValue.int(len(df)),
                 "dagster/column_schema": MetadataValue.table_schema(_col_schema),
             }
-            if column_lineage:
+            # Use explicit lineage, or auto-infer passthrough columns at runtime
+            _effective_lineage = column_lineage
+            if not _effective_lineage:
+                try:
+                    _upstream_cols = set(upstream.columns)
+                    _effective_lineage = {
+                        col: [col] for col in _col_schema.columns_by_name
+                        if col in _upstream_cols
+                    }
+                except Exception:
+                    pass
+            if _effective_lineage:
                 _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
                 if _upstream_key:
                     _lineage_deps = {}
-                    for out_col, in_cols in column_lineage.items():
+                    for out_col, in_cols in _effective_lineage.items():
                         _lineage_deps[out_col] = [
                             TableColumnDep(asset_key=_upstream_key, column_name=ic)
                             for ic in in_cols

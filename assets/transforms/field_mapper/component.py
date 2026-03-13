@@ -160,6 +160,10 @@ class FieldMapperComponent(Component, Model, Resolvable):
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
 
+        # Build-time column lineage: each new column name comes from its old column name
+        if not column_lineage and self.mapping:
+            column_lineage = {new: [old] for old, new in self.mapping.items()}
+
         @asset(
             name=asset_name,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},

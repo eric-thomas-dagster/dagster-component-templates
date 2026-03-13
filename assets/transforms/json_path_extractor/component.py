@@ -160,6 +160,10 @@ class JsonPathExtractorComponent(Component, Model, Resolvable):
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
 
+        # Build-time lineage: extracted columns come from the source column
+        if not column_lineage and hasattr(self, 'source_column') and self.source_column and hasattr(self, 'extractions') and self.extractions:
+            column_lineage = {col: [self.source_column] for col in self.extractions.keys()}
+
         @asset(
             name=asset_name,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},

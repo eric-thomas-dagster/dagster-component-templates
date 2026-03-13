@@ -1,5 +1,62 @@
 # External S3 Asset
 
-Declares an S3 bucket prefix as an observable external asset.
+Declares a S3 resource as an external asset in the Dagster asset graph — making it visible for lineage without materializing it from Dagster.
 
-Use with `S3ObservationSensorComponent` for health metrics and `S3MonitorSensorComponent` to trigger jobs.
+## What this does
+
+External assets represent data sources managed outside of Dagster. Adding one to your project:
+- Makes the S3 resource visible as a node in the **Dagster asset graph**
+- Enables downstream assets to declare `deps` on it, drawing lineage edges
+- Records connection metadata in the **Asset Catalog**
+
+This component does not read from or write to S3. It is a **lineage declaration only**.
+
+## Fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `asset_key` | `str` | `**required**` | Dagster asset key for this source |
+| `bucket_name` | `str` | `**required**` | S3 bucket name |
+| `prefix` | `str` | `""` | Key prefix |
+| `region_name` | `Optional[str]` | `None` | AWS region |
+| `group_name` | `Optional[str]` | `None` | Dagster asset group name |
+| `description` | `Optional[str]` | `None` | Human-readable description |
+
+## Example
+
+```yaml
+type: dagster_component_templates.ExternalS3Asset
+attributes:
+  asset_key: my_service/asset
+  bucket_name: my_bucket_name
+  # prefix: ""  # optional
+  # region_name: None  # optional
+  # group_name: None  # optional
+  # description: None  # optional
+```
+
+## Pair with the observation sensor
+
+Use the companion observation sensor to periodically health-check the resource and record metrics as `AssetObservation` events:
+
+```yaml
+# 1. Declare the external asset (lineage node)
+type: dagster_component_templates.ExternalS3Asset
+attributes:
+  asset_key: external/s3
+  bucket_name: my_bucket
+
+---
+
+# 2. Observe it on a schedule
+type: dagster_component_templates.S3ObservationSensorComponent
+attributes:
+  sensor_name: s3_asset_observer
+  asset_key: external/s3
+  asset_key: external/s3
+  bucket_name: my_bucket
+```
+
+## Requirements
+
+No additional packages required — this component only creates a `dg.AssetSpec`.

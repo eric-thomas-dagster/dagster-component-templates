@@ -1,4 +1,0 @@
-{
-    "dagster.graphqlUrl": "http://localhost:3001/graphql",
-    "dagster.webserverUrl": "http://localhost:3001"
-}

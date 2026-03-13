@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Generation scripts (one-off tooling, not part of the library)
+add_*.py
+update_*.py
+create_*.py
+fix_*.py
+generate_*.py
+create_*.sh
+
+# Dagster
+.dagster/

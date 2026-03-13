@@ -2856,7 +2856,7 @@
       "description": "Declare an S3 bucket prefix as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_s3_asset",
+      "path": "external_assets/external_s3_asset",
       "tags": [
         "external_asset",
         "s3",
@@ -2881,7 +2881,7 @@
       "description": "Declare an Azure Data Lake Storage path as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_adls_asset",
+      "path": "external_assets/external_adls_asset",
       "tags": [
         "external_asset",
         "adls",
@@ -2906,7 +2906,7 @@
       "description": "Declare a GCS bucket prefix as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_gcs_asset",
+      "path": "external_assets/external_gcs_asset",
       "tags": [
         "external_asset",
         "gcs",
@@ -2931,7 +2931,7 @@
       "description": "Declare a Kafka topic as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_kafka_asset",
+      "path": "external_assets/external_kafka_asset",
       "tags": [
         "external_asset",
         "kafka",
@@ -2955,7 +2955,7 @@
       "description": "Declare an SQS queue as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_sqs_asset",
+      "path": "external_assets/external_sqs_asset",
       "tags": [
         "external_asset",
         "sqs",
@@ -2980,7 +2980,7 @@
       "description": "Declare a Kinesis stream as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_kinesis_asset",
+      "path": "external_assets/external_kinesis_asset",
       "tags": [
         "external_asset",
         "kinesis",
@@ -3005,7 +3005,7 @@
       "description": "Declare a Google Cloud Pub/Sub topic as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_pubsub_asset",
+      "path": "external_assets/external_pubsub_asset",
       "tags": [
         "external_asset",
         "pubsub",
@@ -3030,7 +3030,7 @@
       "description": "Declare an Azure Event Hub as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_eventhubs_asset",
+      "path": "external_assets/external_eventhubs_asset",
       "tags": [
         "external_asset",
         "eventhubs",
@@ -3055,7 +3055,7 @@
       "description": "Declare an Azure Service Bus queue or topic as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_servicebus_asset",
+      "path": "external_assets/external_servicebus_asset",
       "tags": [
         "external_asset",
         "servicebus",
@@ -3080,7 +3080,7 @@
       "description": "Declare a RabbitMQ queue as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_rabbitmq_asset",
+      "path": "external_assets/external_rabbitmq_asset",
       "tags": [
         "external_asset",
         "rabbitmq",
@@ -3105,7 +3105,7 @@
       "description": "Declare an MQTT broker topic as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_mqtt_asset",
+      "path": "external_assets/external_mqtt_asset",
       "tags": [
         "external_asset",
         "mqtt",
@@ -3130,7 +3130,7 @@
       "description": "Declare a Redis Stream as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_redis_stream_asset",
+      "path": "external_assets/external_redis_stream_asset",
       "tags": [
         "external_asset",
         "redis",
@@ -3154,7 +3154,7 @@
       "description": "Declare an Apache Pulsar topic as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_pulsar_asset",
+      "path": "external_assets/external_pulsar_asset",
       "tags": [
         "external_asset",
         "pulsar",
@@ -3178,7 +3178,7 @@
       "description": "Declare a NATS JetStream stream as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_nats_asset",
+      "path": "external_assets/external_nats_asset",
       "tags": [
         "external_asset",
         "nats",
@@ -3203,7 +3203,7 @@
       "description": "Declare a SQL database table as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_sql_asset",
+      "path": "external_assets/external_sql_asset",
       "tags": [
         "external_asset",
         "sql",
@@ -3227,7 +3227,7 @@
       "description": "Emit health observations for an external S3 asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "s3_observation_sensor",
+      "path": "observations/s3_observation_sensor",
       "tags": [
         "observation",
         "s3",
@@ -3252,7 +3252,7 @@
       "description": "Emit health observations for an external ADLS asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "adls_observation_sensor",
+      "path": "observations/adls_observation_sensor",
       "tags": [
         "observation",
         "adls",
@@ -3278,7 +3278,7 @@
       "description": "Emit health observations for an external GCS asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "gcs_observation_sensor",
+      "path": "observations/gcs_observation_sensor",
       "tags": [
         "observation",
         "gcs",
@@ -3303,7 +3303,7 @@
       "description": "Emit health observations for an external Kafka topic",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "kafka_observation_sensor",
+      "path": "observations/kafka_observation_sensor",
       "tags": [
         "observation",
         "kafka",
@@ -3328,7 +3328,7 @@
       "description": "Emit health observations for an external SQS queue",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "sqs_observation_sensor",
+      "path": "observations/sqs_observation_sensor",
       "tags": [
         "observation",
         "sqs",
@@ -3353,7 +3353,7 @@
       "description": "Emit health observations for an external Kinesis stream",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "kinesis_observation_sensor",
+      "path": "observations/kinesis_observation_sensor",
       "tags": [
         "observation",
         "kinesis",
@@ -3378,7 +3378,7 @@
       "description": "Emit health observations for an external Pub/Sub topic",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "pubsub_observation_sensor",
+      "path": "observations/pubsub_observation_sensor",
       "tags": [
         "observation",
         "pubsub",
@@ -3403,7 +3403,7 @@
       "description": "Emit health observations for an external Event Hub",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "eventhubs_observation_sensor",
+      "path": "observations/eventhubs_observation_sensor",
       "tags": [
         "observation",
         "eventhubs",
@@ -3429,7 +3429,7 @@
       "description": "Emit health observations for an external Service Bus queue or topic",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "servicebus_observation_sensor",
+      "path": "observations/servicebus_observation_sensor",
       "tags": [
         "observation",
         "servicebus",
@@ -3455,7 +3455,7 @@
       "description": "Emit health observations for an external RabbitMQ queue",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "rabbitmq_observation_sensor",
+      "path": "observations/rabbitmq_observation_sensor",
       "tags": [
         "observation",
         "rabbitmq",
@@ -3480,7 +3480,7 @@
       "description": "Emit health observations for an external MQTT broker/topic",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "mqtt_observation_sensor",
+      "path": "observations/mqtt_observation_sensor",
       "tags": [
         "observation",
         "mqtt",
@@ -3505,7 +3505,7 @@
       "description": "Emit health observations for an external Redis Stream",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "redis_stream_observation_sensor",
+      "path": "observations/redis_stream_observation_sensor",
       "tags": [
         "observation",
         "redis",
@@ -3530,7 +3530,7 @@
       "description": "Emit health observations for an external Pulsar topic",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "pulsar_observation_sensor",
+      "path": "observations/pulsar_observation_sensor",
       "tags": [
         "observation",
         "pulsar",
@@ -3555,7 +3555,7 @@
       "description": "Emit health observations for an external NATS JetStream stream",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "nats_observation_sensor",
+      "path": "observations/nats_observation_sensor",
       "tags": [
         "observation",
         "nats",
@@ -3580,7 +3580,7 @@
       "description": "Emit health observations for an external SQL table",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "sql_observation_sensor",
+      "path": "observations/sql_observation_sensor",
       "tags": [
         "observation",
         "sql",
@@ -3605,7 +3605,7 @@
       "description": "Attach a Dagster FreshnessPolicy to an asset for continuous SLA monitoring",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "freshness_check",
+      "path": "asset_checks/freshness_check",
       "tags": [
         "asset_checks",
         "freshness",
@@ -3631,7 +3631,7 @@
       "description": "Run a Great Expectations expectation suite as a Dagster asset check",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "great_expectations_check",
+      "path": "asset_checks/great_expectations_check",
       "tags": [
         "asset_checks",
         "data_quality",
@@ -3655,7 +3655,7 @@
       "description": "Run a Soda scan as a Dagster asset check",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "soda_check",
+      "path": "asset_checks/soda_check",
       "tags": [
         "asset_checks",
         "data_quality",
@@ -3679,7 +3679,7 @@
       "description": "Trigger a Dagster job when a Fivetran connector sync completes",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "fivetran_sync_sensor",
+      "path": "sensors/fivetran_sync_sensor",
       "tags": [
         "sensors",
         "fivetran",
@@ -3705,7 +3705,7 @@
       "description": "Trigger a Dagster job when a dbt Cloud job run completes",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "dbt_cloud_job_sensor",
+      "path": "sensors/dbt_cloud_job_sensor",
       "tags": [
         "sensors",
         "dbt",
@@ -3730,7 +3730,7 @@
       "description": "Trigger a Dagster job when an Airbyte connection sync completes",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "airbyte_sync_sensor",
+      "path": "sensors/airbyte_sync_sensor",
       "tags": [
         "sensors",
         "airbyte",
@@ -3756,7 +3756,7 @@
       "description": "Monitor a SharePoint document library for new or modified files",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "sharepoint_monitor",
+      "path": "sensors/sharepoint_monitor",
       "tags": [
         "sensors",
         "sharepoint",
@@ -3782,7 +3782,7 @@
       "description": "Monitor an SFTP directory for new files",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "sftp_monitor",
+      "path": "sensors/sftp_monitor",
       "tags": [
         "sensors",
         "sftp",
@@ -3809,7 +3809,7 @@
       "description": "Trigger a Dagster job when ServiceNow records match a target state",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "servicenow_sensor",
+      "path": "sensors/servicenow_sensor",
       "tags": [
         "sensors",
         "servicenow",
@@ -3835,7 +3835,7 @@
       "description": "Declare a Snowflake table as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_snowflake_table",
+      "path": "external_assets/external_snowflake_table",
       "tags": [
         "external_assets",
         "snowflake",
@@ -3860,7 +3860,7 @@
       "description": "Declare a BigQuery table as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_bigquery_table",
+      "path": "external_assets/external_bigquery_table",
       "tags": [
         "external_assets",
         "bigquery",
@@ -3885,7 +3885,7 @@
       "description": "Declare a Databricks Delta table as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_databricks_table",
+      "path": "external_assets/external_databricks_table",
       "tags": [
         "external_assets",
         "databricks",
@@ -3910,7 +3910,7 @@
       "description": "Declare an SFTP directory as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_sftp_path",
+      "path": "external_assets/external_sftp_path",
       "tags": [
         "external_assets",
         "sftp",
@@ -3935,7 +3935,7 @@
       "description": "Declare a SharePoint document library as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_sharepoint_library",
+      "path": "external_assets/external_sharepoint_library",
       "tags": [
         "external_assets",
         "sharepoint",
@@ -3960,7 +3960,7 @@
       "description": "Emit health observations for an external Snowflake table",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "snowflake_table_observation_sensor",
+      "path": "observations/snowflake_table_observation_sensor",
       "tags": [
         "observations",
         "snowflake",
@@ -3985,7 +3985,7 @@
       "description": "Emit health observations for an external BigQuery table",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "bigquery_table_observation_sensor",
+      "path": "observations/bigquery_table_observation_sensor",
       "tags": [
         "observations",
         "bigquery",
@@ -4010,7 +4010,7 @@
       "description": "Emit health observations for an external Databricks Delta table",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "databricks_table_observation_sensor",
+      "path": "observations/databricks_table_observation_sensor",
       "tags": [
         "observations",
         "databricks",
@@ -4035,7 +4035,7 @@
       "description": "Emit health observations for an external SFTP path",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "sftp_path_observation_sensor",
+      "path": "observations/sftp_path_observation_sensor",
       "tags": [
         "observations",
         "sftp",
@@ -4060,7 +4060,7 @@
       "description": "Trigger a Monte Carlo custom SQL rule on demand and surface results as a Dagster asset check",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "monte_carlo_check",
+      "path": "asset_checks/monte_carlo_check",
       "tags": [
         "asset_checks",
         "data_quality",
@@ -4085,7 +4085,7 @@
       "description": "Trigger a Sifflet monitor run on demand and surface results as a Dagster asset check",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "sifflet_check",
+      "path": "asset_checks/sifflet_check",
       "tags": [
         "asset_checks",
         "data_quality",
@@ -4110,7 +4110,7 @@
       "description": "Trigger an Acceldata DQ rule execution on demand and surface results as a Dagster asset check",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "acceldata_check",
+      "path": "asset_checks/acceldata_check",
       "tags": [
         "asset_checks",
         "data_quality",
@@ -4135,7 +4135,7 @@
       "description": "Trigger a Dagster job when a Coalesce job run completes",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "coalesce_job_sensor",
+      "path": "sensors/coalesce_job_sensor",
       "tags": [
         "sensors",
         "coalesce",
@@ -4160,7 +4160,7 @@
       "description": "Create one Dagster asset per Coalesce node, mirroring the Coalesce DAG",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "coalesce_run_asset",
+      "path": "assets/coalesce_run_asset",
       "tags": [
         "assets",
         "coalesce",
@@ -4186,7 +4186,7 @@
       "description": "Trigger a Dagster job when an Ab Initio EME job run completes",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "abinitio_job_sensor",
+      "path": "sensors/abinitio_job_sensor",
       "tags": [
         "sensors",
         "abinitio",
@@ -4212,7 +4212,7 @@
       "description": "Declare a ClickHouse table as an observable external asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "external_clickhouse_table",
+      "path": "external_assets/external_clickhouse_table",
       "tags": [
         "external_assets",
         "clickhouse",
@@ -4237,7 +4237,7 @@
       "description": "Emit health observations for an external ClickHouse table",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "clickhouse_table_observation_sensor",
+      "path": "observations/clickhouse_table_observation_sensor",
       "tags": [
         "observations",
         "clickhouse",
@@ -4262,7 +4262,7 @@
       "description": "Submit an Ab Initio graph or job on demand and surface it as a Dagster asset materialization",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "abinitio_run_asset",
+      "path": "assets/abinitio_run_asset",
       "tags": [
         "assets",
         "abinitio",
@@ -4288,7 +4288,7 @@
       "description": "Trigger a Matillion ETL job on demand and surface results as a Dagster asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "matillion_run_asset",
+      "path": "assets/matillion_run_asset",
       "tags": [
         "assets",
         "matillion",
@@ -4313,7 +4313,7 @@
       "description": "Trigger a Dagster job when a Matillion ETL job run completes",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "matillion_job_sensor",
+      "path": "sensors/matillion_job_sensor",
       "tags": [
         "sensors",
         "matillion",
@@ -4338,7 +4338,7 @@
       "description": "Trigger a Rivery river (pipeline) run on demand and surface results as a Dagster asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "rivery_run_asset",
+      "path": "assets/rivery_run_asset",
       "tags": [
         "assets",
         "rivery",
@@ -4363,7 +4363,7 @@
       "description": "Trigger a Dagster job when a Rivery river run completes",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "rivery_job_sensor",
+      "path": "sensors/rivery_job_sensor",
       "tags": [
         "sensors",
         "rivery",
@@ -4388,7 +4388,7 @@
       "description": "Trigger a Precisely Connect job on demand and surface results as a Dagster asset",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "precisely_run_asset",
+      "path": "assets/precisely_run_asset",
       "tags": [
         "assets",
         "precisely",
@@ -4414,7 +4414,7 @@
       "description": "Trigger a Dagster job when a Precisely Connect job run completes",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "precisely_job_sensor",
+      "path": "sensors/precisely_job_sensor",
       "tags": [
         "sensors",
         "precisely",
@@ -4441,7 +4441,7 @@
       "description": "Read a file from Azure Data Lake Storage and write it to a database table",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "adls_to_database_asset",
+      "path": "assets/adls_to_database_asset",
       "tags": [
         "assets",
         "adls",
@@ -4469,7 +4469,7 @@
       "description": "Read a file from Google Cloud Storage and write it to a database table",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "gcs_to_database_asset",
+      "path": "assets/gcs_to_database_asset",
       "tags": [
         "assets",
         "gcs",
@@ -4497,7 +4497,7 @@
       "description": "Download a file from SFTP and write it to a database table",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "sftp_to_database_asset",
+      "path": "assets/sftp_to_database_asset",
       "tags": [
         "assets",
         "sftp",
@@ -4525,7 +4525,7 @@
       "description": "Consume a batch of messages from a Kafka topic and write them to a database table",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "kafka_to_database_asset",
+      "path": "assets/kafka_to_database_asset",
       "tags": [
         "assets",
         "kafka",
@@ -4553,7 +4553,7 @@
       "description": "Drain messages from an SQS queue and write them to a database table",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "sqs_to_database_asset",
+      "path": "assets/sqs_to_database_asset",
       "tags": [
         "assets",
         "sqs",
@@ -5307,6 +5307,348 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/graphql_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/graphql_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/graphql_asset/requirements.txt"
+    },
+    {
+      "id": "enhanced_data_quality_checks",
+      "name": "Enhanced Data Quality Checks",
+      "category": "asset_check",
+      "description": "Dagster component: enhanced_data_quality_checks",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "asset_checks/enhanced_data_quality_checks",
+      "tags": [
+        "enhanced_data_quality_checks"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/enhanced_data_quality_checks/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/enhanced_data_quality_checks/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/enhanced_data_quality_checks/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/enhanced_data_quality_checks/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/enhanced_data_quality_checks/requirements.txt"
+    },
+    {
+      "id": "aws_dms",
+      "name": "Aws Dms",
+      "category": "integration",
+      "description": "Dagster component: aws_dms",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/aws_dms",
+      "tags": [
+        "aws_dms"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_dms/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_dms/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_dms/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_dms/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_dms/requirements.txt"
+    },
+    {
+      "id": "aws_glue",
+      "name": "Aws Glue",
+      "category": "integration",
+      "description": "Dagster component: aws_glue",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/aws_glue",
+      "tags": [
+        "aws_glue"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_glue/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_glue/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_glue/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_glue/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_glue/requirements.txt"
+    },
+    {
+      "id": "aws_kinesis",
+      "name": "Aws Kinesis",
+      "category": "integration",
+      "description": "Dagster component: aws_kinesis",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/aws_kinesis",
+      "tags": [
+        "aws_kinesis"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_kinesis/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_kinesis/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_kinesis/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_kinesis/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_kinesis/requirements.txt"
+    },
+    {
+      "id": "aws_redshift",
+      "name": "Aws Redshift",
+      "category": "integration",
+      "description": "Dagster component: aws_redshift",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/aws_redshift",
+      "tags": [
+        "aws_redshift"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_redshift/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_redshift/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_redshift/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_redshift/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_redshift/requirements.txt"
+    },
+    {
+      "id": "aws_sagemaker",
+      "name": "Aws Sagemaker",
+      "category": "integration",
+      "description": "Dagster component: aws_sagemaker",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/aws_sagemaker",
+      "tags": [
+        "aws_sagemaker"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_sagemaker/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_sagemaker/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_sagemaker/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_sagemaker/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_sagemaker/requirements.txt"
+    },
+    {
+      "id": "azure_data_factory",
+      "name": "Azure Data Factory",
+      "category": "integration",
+      "description": "Dagster component: azure_data_factory",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/azure_data_factory",
+      "tags": [
+        "azure_data_factory"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_data_factory/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_data_factory/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_data_factory/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_data_factory/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_data_factory/requirements.txt"
+    },
+    {
+      "id": "azure_stream_analytics",
+      "name": "Azure Stream Analytics",
+      "category": "integration",
+      "description": "Dagster component: azure_stream_analytics",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/azure_stream_analytics",
+      "tags": [
+        "azure_stream_analytics"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_stream_analytics/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_stream_analytics/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_stream_analytics/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_stream_analytics/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_stream_analytics/requirements.txt"
+    },
+    {
+      "id": "azure_synapse",
+      "name": "Azure Synapse",
+      "category": "integration",
+      "description": "Dagster component: azure_synapse",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/azure_synapse",
+      "tags": [
+        "azure_synapse"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_synapse/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_synapse/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_synapse/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_synapse/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_synapse/requirements.txt"
+    },
+    {
+      "id": "databricks_asset_bundle",
+      "name": "Databricks Asset Bundle",
+      "category": "integration",
+      "description": "Dagster component: databricks_asset_bundle",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/databricks_asset_bundle",
+      "tags": [
+        "databricks_bundle"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_asset_bundle/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_asset_bundle/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_asset_bundle/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_asset_bundle/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_asset_bundle/requirements.txt"
+    },
+    {
+      "id": "databricks_workspace",
+      "name": "Databricks Workspace",
+      "category": "integration",
+      "description": "Dagster component: databricks_workspace",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/databricks_workspace",
+      "tags": [
+        "databricks_workspace"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_workspace/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_workspace/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_workspace/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_workspace/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_workspace/requirements.txt"
+    },
+    {
+      "id": "google_bigquery",
+      "name": "Google Bigquery",
+      "category": "integration",
+      "description": "Dagster component: google_bigquery",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/google_bigquery",
+      "tags": [
+        "google_bigquery"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_bigquery/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_bigquery/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_bigquery/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_bigquery/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_bigquery/requirements.txt"
+    },
+    {
+      "id": "google_cloud_functions",
+      "name": "Google Cloud Functions",
+      "category": "integration",
+      "description": "Dagster component: google_cloud_functions",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/google_cloud_functions",
+      "tags": [
+        "google_cloud_functions"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_functions/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_functions/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_functions/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_functions/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_functions/requirements.txt"
+    },
+    {
+      "id": "google_cloud_run_jobs",
+      "name": "Google Cloud Run Jobs",
+      "category": "integration",
+      "description": "Dagster component: google_cloud_run_jobs",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/google_cloud_run_jobs",
+      "tags": [
+        "google_cloud_run_jobs"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_run_jobs/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_run_jobs/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_run_jobs/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_run_jobs/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_run_jobs/requirements.txt"
+    },
+    {
+      "id": "google_dataflow",
+      "name": "Google Dataflow",
+      "category": "integration",
+      "description": "Dagster component: google_dataflow",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/google_dataflow",
+      "tags": [
+        "google_dataflow"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_dataflow/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_dataflow/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_dataflow/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_dataflow/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_dataflow/requirements.txt"
+    },
+    {
+      "id": "google_datastream",
+      "name": "Google Datastream",
+      "category": "integration",
+      "description": "Dagster component: google_datastream",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/google_datastream",
+      "tags": [
+        "google_datastream"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_datastream/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_datastream/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_datastream/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_datastream/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_datastream/requirements.txt"
+    },
+    {
+      "id": "google_pubsub",
+      "name": "Google Pubsub",
+      "category": "integration",
+      "description": "Dagster component: google_pubsub",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/google_pubsub",
+      "tags": [
+        "google_pubsub"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_pubsub/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_pubsub/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_pubsub/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_pubsub/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_pubsub/requirements.txt"
+    },
+    {
+      "id": "google_vertex_ai",
+      "name": "Google Vertex Ai",
+      "category": "integration",
+      "description": "Dagster component: google_vertex_ai",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/google_vertex_ai",
+      "tags": [
+        "google_vertex_ai"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_vertex_ai/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_vertex_ai/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_vertex_ai/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_vertex_ai/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_vertex_ai/requirements.txt"
+    },
+    {
+      "id": "snowflake_workspace",
+      "name": "Snowflake Workspace",
+      "category": "integration",
+      "description": "Dagster component: snowflake_workspace",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/snowflake_workspace",
+      "tags": [
+        "snowflake_workspace"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_workspace/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_workspace/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_workspace/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_workspace/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_workspace/requirements.txt"
     }
   ]
 }

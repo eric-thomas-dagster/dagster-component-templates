@@ -125,7 +125,7 @@ class WorkableIngestionComponent(Component, Model, Resolvable):
             # Fallback to main destination field
             return self.destination
 
-(self) -> dict:
+    def _build_destination_config(self) -> dict:
         """Build dlt destination config from structured fields."""
         if not self.destination:
             return {}
@@ -251,9 +251,8 @@ class WorkableIngestionComponent(Component, Model, Resolvable):
                     "host": self.synapse_host,
                 }
             }
-
 
-def build_defs(self, context: ComponentLoadContext) -> Definitions:
+    def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         api_token = self.api_token
         subdomain = self.subdomain

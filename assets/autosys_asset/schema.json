@@ -1,0 +1,8 @@
+{
+  "type": "dagster_component_templates.autosys_asset",
+  "name": "AutoSys Asset",
+  "category": "assets",
+  "description": "Connects to a CA/Broadcom AutoSys enterprise job scheduler (REST API v12+ or CLI fallback) and creates one Dagster asset per discovered job. Box jobs are expanded into visual sub-DAGs with condition-based dependency edges. File Watcher jobs are represented as external source assets. Enables lineage visualization, modern alerting, and gradual migration away from AutoSys scheduling.",
+  "dependencies": {"pip": ["requests>=2.28.0"]},
+  "tags": ["assets", "autosys", "enterprise", "scheduler", "iac", "state-backed", "legacy-migration"]
+}

@@ -1,6 +1,6 @@
 # Dagster Component Templates
 
-A community library of 185+ reusable [Dagster component](https://docs.dagster.io/guides/components) templates covering data ingestion, AI/LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, and enterprise tool integrations — all configurable via YAML with no Python required.
+A community library of 186+ reusable [Dagster component](https://docs.dagster.io/guides/components) templates covering data ingestion, AI/LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, and enterprise tool integrations — all configurable via YAML with no Python required.
 
 ## What are Dagster Components?
 
@@ -19,7 +19,7 @@ attributes:
 
 ## Component Library
 
-### Assets (133)
+### Assets (134)
 
 **Ingestion — cloud storage**
 `s3_to_database_asset` · `gcs_to_database_asset` · `adls_to_database_asset`
@@ -37,7 +37,7 @@ attributes:
 `dbt_docs_enriched_project` — extends `DbtProjectComponent` with exposures, metrics, semantic models, contracts, source freshness, and clickable dbt docs links on every asset
 
 **Enterprise orchestration**
-`coalesce_run_asset` · `abinitio_run_asset` · `matillion_run_asset` · `rivery_run_asset` · `precisely_run_asset` · `step_functions_asset` · `dataiku_asset`
+`coalesce_run_asset` · `abinitio_run_asset` · `matillion_run_asset` · `rivery_run_asset` · `precisely_run_asset` · `step_functions_asset` · `dataiku_asset` · `autosys_asset`
 
 **Infrastructure as Code** *(provision resources before pipeline runs)*
 `terraform_asset` · `terraform_cloud_asset` · `cloudformation_asset` · `ansible_asset` · `pulumi_asset` · `helm_deploy` · `aws_cdk_asset`
@@ -127,7 +127,7 @@ component_name/
 
 Several components that discover resources from external APIs use Dagster's `StateBackedComponent` pattern. The API call happens **once at prepare time** and is cached to disk — code-server reloads are instant with zero network calls.
 
-Components using this pattern: `coalesce_run_asset`, `azure_data_factory`, `aws_glue`, `databricks_workspace`, `openapi_asset`, `warehouse_schema_assets`, `step_functions_asset`, `dataiku_asset`, `polytomic_asset`
+Components using this pattern: `coalesce_run_asset`, `azure_data_factory`, `aws_glue`, `databricks_workspace`, `openapi_asset`, `warehouse_schema_assets`, `step_functions_asset`, `dataiku_asset`, `polytomic_asset`, `autosys_asset`, `terraform_cloud_asset`
 
 To refresh the cached state after adding pipelines/jobs in the external system:
 

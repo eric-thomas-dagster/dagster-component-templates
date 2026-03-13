@@ -4975,6 +4975,15 @@
       "tags": ["sensors", "mlflow", "ml", "model-registry", "trigger"]
     },
     {
+      "id": "autosys_asset",
+      "name": "AutoSys Asset",
+      "type": "dagster_component_templates.AutoSysAssetComponent",
+      "category": "assets",
+      "description": "Discover AutoSys jobs and Box Jobs at prepare time, create one Dagster asset per job with full dependency graph from JIL conditions. REST API (v12+) with CLI fallback. Replaces AutoSys's text-based JIL with visual Dagster lineage.",
+      "path": "assets/autosys_asset",
+      "tags": ["assets", "autosys", "enterprise", "scheduler", "state-backed", "legacy-migration"]
+    },
+    {
       "id": "twilio_notification",
       "name": "Twilio Notification Sensor",
       "type": "dagster_component_templates.TwilioNotificationSensor",

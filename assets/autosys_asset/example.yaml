@@ -1,0 +1,39 @@
+# REST API example — Finance ETL jobs (AutoSys v12+)
+type: dagster_component_templates.AutoSysAssetComponent
+attributes:
+  host: autosys.internal.company.com
+  port: 9443
+  username_env_var: AUTOSYS_USER
+  password_env_var: AUTOSYS_PASSWORD
+  job_filter: "FINANCE_ETL_*"
+  expand_box_jobs: true
+  box_completion_asset: true
+  map_conditions: true
+  group_name: autosys_finance
+  poll_interval_seconds: 30
+  job_timeout_seconds: 7200
+
+---
+
+# Token auth variant
+# type: dagster_component_templates.AutoSysAssetComponent
+# attributes:
+#   host: autosys.internal.company.com
+#   port: 9443
+#   token_env_var: AUTOSYS_TOKEN
+#   job_filter: "FINANCE_ETL_*"
+#   group_name: autosys_finance
+
+---
+
+# CLI-only example (no REST API / older AutoSys version)
+# type: dagster_component_templates.AutoSysAssetComponent
+# attributes:
+#   host: autosys-server
+#   use_cli: true
+#   autosys_instance: PROD
+#   job_filter: "ETL_*"
+#   group_name: autosys
+#   expand_box_jobs: true
+#   box_completion_asset: true
+#   map_conditions: true

@@ -6,3 +6,22 @@ attributes:
   asset_key_prefix: coalesce
   group_name: coalesce_transforms
   timeout_seconds: 3600
+
+  # Optional: override AssetSpec for specific Coalesce nodes
+  assets_by_node_name:
+    # Rename a node's asset key and add metadata
+    orders_transform:
+      key: finance/orders_clean
+      description: "Cleaned and validated orders from Coalesce ETL"
+      group_name: finance
+      metadata:
+        owner: finance-team
+        sla_hours: "6"
+      tags:
+        dagster/storage_kind: snowflake
+    # One node that produces multiple Dagster assets
+    customer_rollup:
+      - key: finance/customer_mrr
+        description: "Monthly recurring revenue by customer"
+      - key: finance/customer_arr
+        description: "Annual recurring revenue by customer"

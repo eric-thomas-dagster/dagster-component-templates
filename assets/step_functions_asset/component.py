@@ -88,6 +88,34 @@ def _list_state_machines(
     return machines
 
 
+def _merge_spec(base: dg.AssetSpec, ov: dict) -> dg.AssetSpec:
+    """Merge an override dict into a base AssetSpec."""
+    extra_deps = [dg.AssetKey.from_user_string(d) for d in ov.get("deps", [])]
+    return dg.AssetSpec(
+        key=dg.AssetKey.from_user_string(ov["key"]) if "key" in ov else base.key,
+        description=ov.get("description", base.description),
+        group_name=ov.get("group_name", base.group_name),
+        metadata={**(base.metadata or {}), **(ov.get("metadata") or {})},
+        tags={**(base.tags or {}), **(ov.get("tags") or {})},
+        kinds=set(ov["kinds"]) if "kinds" in ov else base.kinds,
+        deps=list(base.deps or []) + extra_deps,
+    )
+
+
+def _apply_item_overrides(
+    default_spec: dg.AssetSpec,
+    item_name: str,
+    overrides: Optional[dict],
+) -> list[dg.AssetSpec]:
+    """Apply assets_by_X overrides. Returns list (usually 1, but >1 if one item → multiple assets)."""
+    if not overrides or item_name not in overrides:
+        return [default_spec]
+    ov = overrides[item_name]
+    if isinstance(ov, list):
+        return [_merge_spec(default_spec, o) for o in ov]
+    return [_merge_spec(default_spec, ov)]
+
+
 def _build_step_functions_defs(
     machines: list[dict],
     region_name: str,
@@ -98,6 +126,7 @@ def _build_step_functions_defs(
     wait_for_completion: bool,
     poll_interval_seconds: int,
     execution_timeout_seconds: int,
+    assets_by_state_machine_name: Optional[dict] = None,
 ) -> dg.Definitions:
     """Build one @dg.asset per state machine (no network calls at def-build time)."""
     from dagster import AssetExecutionContext
@@ -112,10 +141,10 @@ def _build_step_functions_defs(
         sm_arn = sm["arn"]
         sm_name = sm["name"]
 
-        @dg.asset(
+        default_spec = dg.AssetSpec(
             key=asset_key,
-            group_name=group_name,
             description=f"AWS Step Functions state machine: {sm_name}",
+            group_name=group_name,
             kinds={"aws", "step_functions"},
             metadata={
                 "step_functions/state_machine_arn": dg.MetadataValue.text(sm_arn),
@@ -123,62 +152,144 @@ def _build_step_functions_defs(
                 "step_functions/region": dg.MetadataValue.text(region_name),
             },
         )
-        def _asset(
-            context: AssetExecutionContext,
-            _arn=sm_arn,
-            _name=sm_name,
-            _wait=wait_for_completion,
-            _poll=poll_interval_seconds,
-            _timeout=execution_timeout_seconds,
-            _region=region_name,
-            _profile=aws_profile,
-            _role=role_arn,
-        ) -> dg.MaterializeResult:
-            sfn = _make_boto3_client(_region, _profile, _role)
+        expanded_specs = _apply_item_overrides(default_spec, sm_name, assets_by_state_machine_name)
 
-            context.log.info(f"Starting Step Functions execution for: {_name}")
-            start_resp = sfn.start_execution(
-                stateMachineArn=_arn,
-                input=json.dumps({}),
+        if len(expanded_specs) == 1:
+            spec = expanded_specs[0]
+
+            @dg.asset(
+                key=spec.key,
+                group_name=spec.group_name,
+                description=spec.description,
+                metadata=dict(spec.metadata or {}),
+                tags=dict(spec.tags or {}),
+                kinds=spec.kinds or {"aws", "step_functions"},
+                deps=list(spec.deps or []),
             )
-            execution_arn = start_resp["executionArn"]
-            context.log.info(f"Execution started: {execution_arn}")
+            def _asset(
+                context: AssetExecutionContext,
+                _arn=sm_arn,
+                _name=sm_name,
+                _wait=wait_for_completion,
+                _poll=poll_interval_seconds,
+                _timeout=execution_timeout_seconds,
+                _region=region_name,
+                _profile=aws_profile,
+                _role=role_arn,
+            ) -> dg.MaterializeResult:
+                sfn = _make_boto3_client(_region, _profile, _role)
 
-            if not _wait:
+                context.log.info(f"Starting Step Functions execution for: {_name}")
+                start_resp = sfn.start_execution(
+                    stateMachineArn=_arn,
+                    input=json.dumps({}),
+                )
+                execution_arn = start_resp["executionArn"]
+                context.log.info(f"Execution started: {execution_arn}")
+
+                if not _wait:
+                    return dg.MaterializeResult(
+                        metadata={
+                            "execution_arn": dg.MetadataValue.text(execution_arn),
+                            "status": dg.MetadataValue.text("RUNNING"),
+                        }
+                    )
+
+                elapsed = 0
+                status = "RUNNING"
+                while elapsed < _timeout:
+                    time.sleep(_poll)
+                    elapsed += _poll
+                    desc = sfn.describe_execution(executionArn=execution_arn)
+                    status = desc["status"]
+                    context.log.info(
+                        f"Execution {execution_arn} status: {status} "
+                        f"(elapsed {elapsed}s)"
+                    )
+                    if status in terminal_statuses:
+                        break
+
+                if status != "SUCCEEDED":
+                    raise Exception(
+                        f"Step Functions execution {execution_arn} ended with status: {status}"
+                    )
+
                 return dg.MaterializeResult(
                     metadata={
                         "execution_arn": dg.MetadataValue.text(execution_arn),
-                        "status": dg.MetadataValue.text("RUNNING"),
+                        "status": dg.MetadataValue.text(status),
                     }
                 )
 
-            elapsed = 0
-            status = "RUNNING"
-            while elapsed < _timeout:
-                time.sleep(_poll)
-                elapsed += _poll
-                desc = sfn.describe_execution(executionArn=execution_arn)
-                status = desc["status"]
-                context.log.info(
-                    f"Execution {execution_arn} status: {status} "
-                    f"(elapsed {elapsed}s)"
+            assets.append(_asset)
+
+        else:
+            # One state machine → multiple Dagster assets
+            _expanded_specs = expanded_specs
+
+            @dg.multi_asset(specs=_expanded_specs, name=f"sfn_{safe_name}_multi")
+            def _multi_asset(
+                context: AssetExecutionContext,
+                _arn=sm_arn,
+                _name=sm_name,
+                _wait=wait_for_completion,
+                _poll=poll_interval_seconds,
+                _timeout=execution_timeout_seconds,
+                _region=region_name,
+                _profile=aws_profile,
+                _role=role_arn,
+                _specs=_expanded_specs,
+            ):
+                sfn = _make_boto3_client(_region, _profile, _role)
+
+                context.log.info(f"Starting Step Functions execution for: {_name}")
+                start_resp = sfn.start_execution(
+                    stateMachineArn=_arn,
+                    input=json.dumps({}),
                 )
-                if status in terminal_statuses:
-                    break
+                execution_arn = start_resp["executionArn"]
+                context.log.info(f"Execution started: {execution_arn}")
 
-            if status != "SUCCEEDED":
-                raise Exception(
-                    f"Step Functions execution {execution_arn} ended with status: {status}"
-                )
+                if not _wait:
+                    for spec in _specs:
+                        yield dg.MaterializeResult(
+                            asset_key=spec.key,
+                            metadata={
+                                "execution_arn": dg.MetadataValue.text(execution_arn),
+                                "status": dg.MetadataValue.text("RUNNING"),
+                            },
+                        )
+                    return
 
-            return dg.MaterializeResult(
-                metadata={
-                    "execution_arn": dg.MetadataValue.text(execution_arn),
-                    "status": dg.MetadataValue.text(status),
-                }
-            )
+                elapsed = 0
+                status = "RUNNING"
+                while elapsed < _timeout:
+                    time.sleep(_poll)
+                    elapsed += _poll
+                    desc = sfn.describe_execution(executionArn=execution_arn)
+                    status = desc["status"]
+                    context.log.info(
+                        f"Execution {execution_arn} status: {status} "
+                        f"(elapsed {elapsed}s)"
+                    )
+                    if status in terminal_statuses:
+                        break
 
-        assets.append(_asset)
+                if status != "SUCCEEDED":
+                    raise Exception(
+                        f"Step Functions execution {execution_arn} ended with status: {status}"
+                    )
+
+                for spec in _specs:
+                    yield dg.MaterializeResult(
+                        asset_key=spec.key,
+                        metadata={
+                            "execution_arn": dg.MetadataValue.text(execution_arn),
+                            "status": dg.MetadataValue.text(status),
+                        },
+                    )
+
+            assets.append(_multi_asset)
 
     if not assets:
         return dg.Definitions()
@@ -251,6 +362,10 @@ if _HAS_STATE_BACKED:
             default=3600,
             description="Maximum seconds to wait for an execution before raising",
         )
+        assets_by_state_machine_name: Optional[dict] = dg.Field(
+            default=None,
+            description="Override AssetSpec per state machine name. Value can be a single override dict or a list of dicts (one item → multiple assets).",
+        )
         defs_state: ResolvedDefsStateConfig = field(
             default_factory=ResolvedDefsStateConfig
         )
@@ -291,6 +406,7 @@ if _HAS_STATE_BACKED:
                 wait_for_completion=self.wait_for_completion,
                 poll_interval_seconds=self.poll_interval_seconds,
                 execution_timeout_seconds=self.execution_timeout_seconds,
+                assets_by_state_machine_name=self.assets_by_state_machine_name,
             )
 
 
@@ -313,6 +429,7 @@ else:
         wait_for_completion: bool = dg.Field(default=True)
         poll_interval_seconds: int = dg.Field(default=10)
         execution_timeout_seconds: int = dg.Field(default=3600)
+        assets_by_state_machine_name: Optional[dict] = dg.Field(default=None)
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             sfn = _make_boto3_client(self.region_name, self.aws_profile, self.role_arn)
@@ -327,4 +444,5 @@ else:
                 wait_for_completion=self.wait_for_completion,
                 poll_interval_seconds=self.poll_interval_seconds,
                 execution_timeout_seconds=self.execution_timeout_seconds,
+                assets_by_state_machine_name=self.assets_by_state_machine_name,
             )

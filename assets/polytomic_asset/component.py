@@ -60,6 +60,34 @@ def _list_syncs(api_key: str) -> list[dict]:
     return resp.json().get("data", [])
 
 
+def _merge_spec(base: dg.AssetSpec, ov: dict) -> dg.AssetSpec:
+    """Merge an override dict into a base AssetSpec."""
+    extra_deps = [dg.AssetKey.from_user_string(d) for d in ov.get("deps", [])]
+    return dg.AssetSpec(
+        key=dg.AssetKey.from_user_string(ov["key"]) if "key" in ov else base.key,
+        description=ov.get("description", base.description),
+        group_name=ov.get("group_name", base.group_name),
+        metadata={**(base.metadata or {}), **(ov.get("metadata") or {})},
+        tags={**(base.tags or {}), **(ov.get("tags") or {})},
+        kinds=set(ov["kinds"]) if "kinds" in ov else base.kinds,
+        deps=list(base.deps or []) + extra_deps,
+    )
+
+
+def _apply_item_overrides(
+    default_spec: dg.AssetSpec,
+    item_name: str,
+    overrides: Optional[dict],
+) -> list[dg.AssetSpec]:
+    """Apply assets_by_X overrides. Returns list (usually 1, but >1 if one item → multiple assets)."""
+    if not overrides or item_name not in overrides:
+        return [default_spec]
+    ov = overrides[item_name]
+    if isinstance(ov, list):
+        return [_merge_spec(default_spec, o) for o in ov]
+    return [_merge_spec(default_spec, ov)]
+
+
 # ── Core defs builder ─────────────────────────────────────────────────────────
 
 def _build_polytomic_defs(
@@ -70,6 +98,7 @@ def _build_polytomic_defs(
     wait_for_completion: bool,
     poll_interval_seconds: int,
     sync_timeout_seconds: int,
+    assets_by_sync_name: Optional[dict] = None,
 ) -> dg.Definitions:
     """Build Definitions from a cached list of Polytomic sync dicts (no network calls)."""
     from dagster import AssetExecutionContext
@@ -100,11 +129,10 @@ def _build_polytomic_defs(
         _target_connection = target_connection
         _target_object = target_object
 
-        @dg.asset(
-            name=asset_key.path[-1],
-            key_prefix=asset_key.path[:-1] if len(asset_key.path) > 1 else None,
-            group_name=group_name,
+        default_spec = dg.AssetSpec(
+            key=asset_key,
             description=description,
+            group_name=group_name,
             kinds={"polytomic"},
             metadata={
                 "polytomic/sync_id": dg.MetadataValue.text(_sync_id),
@@ -113,84 +141,189 @@ def _build_polytomic_defs(
                 "polytomic/target_object": dg.MetadataValue.text(_target_object),
             },
         )
-        def _asset_fn(
-            context: AssetExecutionContext,
-            *,
-            __sync_id=_sync_id,
-            __name=_name,
-            __api_key_env_var=api_key_env_var,
-            __wait=wait_for_completion,
-            __poll=poll_interval_seconds,
-            __timeout=sync_timeout_seconds,
-        ) -> dg.MaterializeResult:
-            api_key = os.environ[__api_key_env_var]
-            headers = _polytomic_headers(api_key)
+        expanded_specs = _apply_item_overrides(default_spec, name, assets_by_sync_name)
 
-            context.log.info(f"Starting Polytomic sync '{__name}' (id={__sync_id})")
-            start_resp = requests.post(
-                f"{_POLYTOMIC_BASE_URL}/syncs/{__sync_id}/executions",
-                headers=headers,
-                timeout=30,
+        if len(expanded_specs) == 1:
+            spec = expanded_specs[0]
+
+            @dg.asset(
+                key=spec.key,
+                group_name=spec.group_name,
+                description=spec.description,
+                metadata=dict(spec.metadata or {}),
+                tags=dict(spec.tags or {}),
+                kinds=spec.kinds or {"polytomic"},
+                deps=list(spec.deps or []),
             )
-            start_resp.raise_for_status()
-            sync_run_id: str = start_resp.json()["data"]["sync_run_id"]
-            context.log.info(f"Polytomic sync run started: {sync_run_id}")
+            def _asset_fn(
+                context: AssetExecutionContext,
+                *,
+                __sync_id=_sync_id,
+                __name=_name,
+                __api_key_env_var=api_key_env_var,
+                __wait=wait_for_completion,
+                __poll=poll_interval_seconds,
+                __timeout=sync_timeout_seconds,
+            ) -> dg.MaterializeResult:
+                api_key = os.environ[__api_key_env_var]
+                headers = _polytomic_headers(api_key)
 
-            if not __wait:
+                context.log.info(f"Starting Polytomic sync '{__name}' (id={__sync_id})")
+                start_resp = requests.post(
+                    f"{_POLYTOMIC_BASE_URL}/syncs/{__sync_id}/executions",
+                    headers=headers,
+                    timeout=30,
+                )
+                start_resp.raise_for_status()
+                sync_run_id: str = start_resp.json()["data"]["sync_run_id"]
+                context.log.info(f"Polytomic sync run started: {sync_run_id}")
+
+                if not __wait:
+                    return dg.MaterializeResult(
+                        metadata={
+                            "sync_id": dg.MetadataValue.text(__sync_id),
+                            "sync_run_id": dg.MetadataValue.text(sync_run_id),
+                            "status": dg.MetadataValue.text("triggered"),
+                            "records_processed": dg.MetadataValue.int(0),
+                        }
+                    )
+
+                elapsed = 0
+                status = "pending"
+                records_processed = 0
+                while elapsed < __timeout:
+                    time.sleep(__poll)
+                    elapsed += __poll
+                    status_resp = requests.get(
+                        f"{_POLYTOMIC_BASE_URL}/syncs/{__sync_id}/executions/{sync_run_id}",
+                        headers=headers,
+                        timeout=30,
+                    )
+                    status_resp.raise_for_status()
+                    run_data = status_resp.json().get("data", {})
+                    status = run_data.get("status", "unknown")
+                    records_processed = run_data.get("records_processed", 0) or 0
+                    errors = run_data.get("errors") or []
+                    context.log.info(
+                        f"Polytomic sync run {sync_run_id} status: {status} "
+                        f"(records_processed={records_processed})"
+                    )
+                    if status == "succeeded":
+                        break
+                    if status in ("failed", "cancelled", "error"):
+                        error_detail = "; ".join(str(e) for e in errors) if errors else status
+                        raise Exception(
+                            f"Polytomic sync run {sync_run_id} ended with status '{status}': "
+                            f"{error_detail}"
+                        )
+
+                if elapsed >= __timeout and status not in ("succeeded",):
+                    raise Exception(
+                        f"Polytomic sync run {sync_run_id} timed out after {__timeout}s "
+                        f"(last status: {status})"
+                    )
+
                 return dg.MaterializeResult(
                     metadata={
                         "sync_id": dg.MetadataValue.text(__sync_id),
                         "sync_run_id": dg.MetadataValue.text(sync_run_id),
-                        "status": dg.MetadataValue.text("triggered"),
-                        "records_processed": dg.MetadataValue.int(0),
+                        "records_processed": dg.MetadataValue.int(records_processed),
+                        "status": dg.MetadataValue.text(status),
                     }
                 )
 
-            elapsed = 0
-            status = "pending"
-            records_processed = 0
-            while elapsed < __timeout:
-                time.sleep(__poll)
-                elapsed += __poll
-                status_resp = requests.get(
-                    f"{_POLYTOMIC_BASE_URL}/syncs/{__sync_id}/executions/{sync_run_id}",
+            assets.append(_asset_fn)
+
+        else:
+            # One sync → multiple Dagster assets
+            _expanded_specs = expanded_specs
+            _safe_name = sanitized
+
+            @dg.multi_asset(specs=_expanded_specs, name=f"{_safe_name}_multi")
+            def _multi_asset_fn(
+                context: AssetExecutionContext,
+                *,
+                __sync_id=_sync_id,
+                __name=_name,
+                __api_key_env_var=api_key_env_var,
+                __wait=wait_for_completion,
+                __poll=poll_interval_seconds,
+                __timeout=sync_timeout_seconds,
+                __specs=_expanded_specs,
+            ):
+                api_key = os.environ[__api_key_env_var]
+                headers = _polytomic_headers(api_key)
+
+                context.log.info(f"Starting Polytomic sync '{__name}' (id={__sync_id})")
+                start_resp = requests.post(
+                    f"{_POLYTOMIC_BASE_URL}/syncs/{__sync_id}/executions",
                     headers=headers,
                     timeout=30,
                 )
-                status_resp.raise_for_status()
-                run_data = status_resp.json().get("data", {})
-                status = run_data.get("status", "unknown")
-                records_processed = run_data.get("records_processed", 0) or 0
-                errors = run_data.get("errors") or []
-                context.log.info(
-                    f"Polytomic sync run {sync_run_id} status: {status} "
-                    f"(records_processed={records_processed})"
-                )
-                if status == "succeeded":
-                    break
-                if status in ("failed", "cancelled", "error"):
-                    error_detail = "; ".join(str(e) for e in errors) if errors else status
+                start_resp.raise_for_status()
+                sync_run_id: str = start_resp.json()["data"]["sync_run_id"]
+                context.log.info(f"Polytomic sync run started: {sync_run_id}")
+
+                if not __wait:
+                    for spec in __specs:
+                        yield dg.MaterializeResult(
+                            asset_key=spec.key,
+                            metadata={
+                                "sync_id": dg.MetadataValue.text(__sync_id),
+                                "sync_run_id": dg.MetadataValue.text(sync_run_id),
+                                "status": dg.MetadataValue.text("triggered"),
+                                "records_processed": dg.MetadataValue.int(0),
+                            },
+                        )
+                    return
+
+                elapsed = 0
+                status = "pending"
+                records_processed = 0
+                while elapsed < __timeout:
+                    time.sleep(__poll)
+                    elapsed += __poll
+                    status_resp = requests.get(
+                        f"{_POLYTOMIC_BASE_URL}/syncs/{__sync_id}/executions/{sync_run_id}",
+                        headers=headers,
+                        timeout=30,
+                    )
+                    status_resp.raise_for_status()
+                    run_data = status_resp.json().get("data", {})
+                    status = run_data.get("status", "unknown")
+                    records_processed = run_data.get("records_processed", 0) or 0
+                    errors = run_data.get("errors") or []
+                    context.log.info(
+                        f"Polytomic sync run {sync_run_id} status: {status} "
+                        f"(records_processed={records_processed})"
+                    )
+                    if status == "succeeded":
+                        break
+                    if status in ("failed", "cancelled", "error"):
+                        error_detail = "; ".join(str(e) for e in errors) if errors else status
+                        raise Exception(
+                            f"Polytomic sync run {sync_run_id} ended with status '{status}': "
+                            f"{error_detail}"
+                        )
+
+                if elapsed >= __timeout and status not in ("succeeded",):
                     raise Exception(
-                        f"Polytomic sync run {sync_run_id} ended with status '{status}': "
-                        f"{error_detail}"
+                        f"Polytomic sync run {sync_run_id} timed out after {__timeout}s "
+                        f"(last status: {status})"
                     )
 
-            if elapsed >= __timeout and status not in ("succeeded",):
-                raise Exception(
-                    f"Polytomic sync run {sync_run_id} timed out after {__timeout}s "
-                    f"(last status: {status})"
-                )
+                for spec in __specs:
+                    yield dg.MaterializeResult(
+                        asset_key=spec.key,
+                        metadata={
+                            "sync_id": dg.MetadataValue.text(__sync_id),
+                            "sync_run_id": dg.MetadataValue.text(sync_run_id),
+                            "records_processed": dg.MetadataValue.int(records_processed),
+                            "status": dg.MetadataValue.text(status),
+                        },
+                    )
 
-            return dg.MaterializeResult(
-                metadata={
-                    "sync_id": dg.MetadataValue.text(__sync_id),
-                    "sync_run_id": dg.MetadataValue.text(sync_run_id),
-                    "records_processed": dg.MetadataValue.int(records_processed),
-                    "status": dg.MetadataValue.text(status),
-                }
-            )
-
-        assets.append(_asset_fn)
+            assets.append(_multi_asset_fn)
 
     if not assets:
         return dg.Definitions()
@@ -261,6 +394,10 @@ if _HAS_STATE_BACKED:
             default=7200,
             description="Maximum seconds to wait before raising a timeout error.",
         )
+        assets_by_sync_name: Optional[dict] = dg.Field(
+            default=None,
+            description="Override AssetSpec per sync name. Value can be a single override dict or a list of dicts (one sync → multiple assets).",
+        )
         defs_state: ResolvedDefsStateConfig = field(
             default_factory=ResolvedDefsStateConfig
         )
@@ -324,6 +461,7 @@ if _HAS_STATE_BACKED:
                 wait_for_completion=self.wait_for_completion,
                 poll_interval_seconds=self.poll_interval_seconds,
                 sync_timeout_seconds=self.sync_timeout_seconds,
+                assets_by_sync_name=self.assets_by_sync_name,
             )
 
 else:
@@ -345,6 +483,7 @@ else:
         wait_for_completion: bool = dg.Field(default=True)
         poll_interval_seconds: int = dg.Field(default=15)
         sync_timeout_seconds: int = dg.Field(default=7200)
+        assets_by_sync_name: Optional[dict] = dg.Field(default=None)
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             api_key = os.environ[self.api_key_env_var]
@@ -376,4 +515,5 @@ else:
                 wait_for_completion=self.wait_for_completion,
                 poll_interval_seconds=self.poll_interval_seconds,
                 sync_timeout_seconds=self.sync_timeout_seconds,
+                assets_by_sync_name=self.assets_by_sync_name,
             )

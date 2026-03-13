@@ -116,6 +116,36 @@ def _extract_table_refs(job: Dict[str, Any], catalog_keys: set) -> List[str]:
     return refs
 
 
+# ── AssetSpec override helpers ─────────────────────────────────────────────────
+
+def _merge_spec(base: dg.AssetSpec, ov: dict) -> dg.AssetSpec:
+    """Merge an override dict into a base AssetSpec."""
+    extra_deps = [dg.AssetKey.from_user_string(d) for d in ov.get("deps", [])]
+    return dg.AssetSpec(
+        key=dg.AssetKey.from_user_string(ov["key"]) if "key" in ov else base.key,
+        description=ov.get("description", base.description),
+        group_name=ov.get("group_name", base.group_name),
+        metadata={**(base.metadata or {}), **(ov.get("metadata") or {})},
+        tags={**(base.tags or {}), **(ov.get("tags") or {})},
+        kinds=set(ov["kinds"]) if "kinds" in ov else base.kinds,
+        deps=list(base.deps or []) + extra_deps,
+    )
+
+
+def _apply_job_overrides(
+    default_spec: dg.AssetSpec,
+    job_name: str,
+    overrides: Optional[dict],
+) -> list:
+    """Apply assets_by_job_name overrides. Returns list (usually 1, but >1 if one job → multiple assets)."""
+    if not overrides or job_name not in overrides:
+        return [default_spec]
+    ov = overrides[job_name]
+    if isinstance(ov, list):
+        return [_merge_spec(default_spec, o) for o in ov]
+    return [_merge_spec(default_spec, ov)]
+
+
 # ── Core defs builder (no network calls) ──────────────────────────────────────
 
 def _build_glue_defs(
@@ -133,6 +163,7 @@ def _build_glue_defs(
     filter_by_name_pattern: Optional[str],
     exclude_name_pattern: Optional[str],
     filter_by_tags: Optional[str],
+    assets_by_job_name: Optional[dict] = None,
 ) -> dg.Definitions:
     """Build Definitions from cached state dict with zero network calls."""
 
@@ -192,22 +223,24 @@ def _build_glue_defs(
             assets_list.append(_catalog_asset)
 
     # ── Glue Jobs (materializable) ─────────────────────────────────────────────
+    # Build all job specs first, tracking spec_key_to_job_name for execution routing
+    job_specs: list = []
+    spec_key_to_job_name: Dict[tuple, str] = {}
     job_metadata: Dict[str, Dict[str, Any]] = {}
 
     for job in state.get("jobs", []):
         job_name: str = job["name"]
-        asset_key = f"glue_job_{_sanitize(job_name)}"
+        asset_key_str = f"glue_job_{_sanitize(job_name)}"
         if key_prefix:
-            asset_key = f"{_sanitize(key_prefix)}_{asset_key}"
+            asset_key_str = f"{_sanitize(key_prefix)}_{asset_key_str}"
 
         table_deps = _extract_table_refs(
             {"DefaultArguments": job.get("default_arguments", {})},
             catalog_table_keys,
         )
-        job_metadata[asset_key] = {"job_name": job_name}
 
-        @dg.asset(
-            name=asset_key,
+        default_spec = dg.AssetSpec(
+            key=dg.AssetKey([asset_key_str]),
             group_name=group_name,
             description=job.get("description") or f"AWS Glue job: {job_name}",
             metadata={
@@ -219,59 +252,78 @@ def _build_glue_defs(
                 "entity_type": "glue_job",
                 "upstream_tables": dg.MetadataValue.int(len(table_deps)),
             },
-            deps=table_deps if table_deps else None,
             tags=job.get("tags") or {},
+            deps=[dg.AssetKey([d]) for d in table_deps] if table_deps else [],
         )
-        def _job_asset(
+
+        expanded = _apply_job_overrides(default_spec, job_name, assets_by_job_name)
+        for spec in expanded:
+            job_specs.append(spec)
+            spec_key_to_job_name[tuple(spec.key.path)] = job_name
+
+        # Track for sensor (use original asset_key_str as sensor key)
+        job_metadata[asset_key_str] = {"job_name": job_name}
+
+    if job_specs:
+        @dg.multi_asset(
+            specs=job_specs,
+            name=f"{_sanitize(group_name)}_glue_jobs",
+        )
+        def _glue_jobs_multi_asset(
             context: dg.AssetExecutionContext,
-            _job_name=job_name,
-            _table_deps=table_deps,
+            _spec_key_to_job_name=spec_key_to_job_name,
             _creds=creds,
             _poll=poll_interval_seconds,
         ):
+            # Group selected keys by job name
+            job_to_selected_keys: Dict[str, list] = {}
+            for key in context.selected_asset_keys:
+                jname = _spec_key_to_job_name.get(tuple(key.path))
+                if jname:
+                    job_to_selected_keys.setdefault(jname, []).append(key)
+
             client = _make_glue_client(**_creds)
 
-            # Start job run
-            response = client.start_job_run(JobName=_job_name)
-            run_id: str = response["JobRunId"]
-            context.log.info(f"Started Glue job '{_job_name}', run ID: {run_id}")
+            for job_name, keys in job_to_selected_keys.items():
+                # Start job run
+                response = client.start_job_run(JobName=job_name)
+                run_id: str = response["JobRunId"]
+                context.log.info(f"Started Glue job '{job_name}', run ID: {run_id}")
 
-            # Poll until terminal state
-            terminal = {"SUCCEEDED", "FAILED", "STOPPED", "TIMEOUT", "ERROR"}
-            started_at = datetime.utcnow()
-            while True:
-                time.sleep(_poll)
-                run_info = client.get_job_run(JobName=_job_name, RunId=run_id)
-                job_run = run_info["JobRun"]
-                state_val: str = job_run.get("JobRunState", "")
-                context.log.info(f"Glue job '{_job_name}' run {run_id} state: {state_val}")
-                if state_val in terminal:
-                    break
+                # Poll until terminal state
+                terminal = {"SUCCEEDED", "FAILED", "STOPPED", "TIMEOUT", "ERROR"}
+                while True:
+                    time.sleep(_poll)
+                    run_info = client.get_job_run(JobName=job_name, RunId=run_id)
+                    job_run = run_info["JobRun"]
+                    state_val: str = job_run.get("JobRunState", "")
+                    context.log.info(f"Glue job '{job_name}' run {run_id} state: {state_val}")
+                    if state_val in terminal:
+                        break
 
-            execution_time = job_run.get("ExecutionTime")
-            if state_val != "SUCCEEDED":
-                raise Exception(
-                    f"Glue job '{_job_name}' run {run_id} ended with state: {state_val}"
-                )
+                execution_time = job_run.get("ExecutionTime")
+                if state_val != "SUCCEEDED":
+                    raise Exception(
+                        f"Glue job '{job_name}' run {run_id} ended with state: {state_val}"
+                    )
 
-            return dg.MaterializeResult(
-                metadata={
-                    "run_id": dg.MetadataValue.text(run_id),
-                    "job_run_state": dg.MetadataValue.text(state_val),
-                    "execution_time_seconds": dg.MetadataValue.int(int(execution_time or 0)),
-                    "started_on": dg.MetadataValue.text(
-                        str(job_run.get("StartedOn")) if job_run.get("StartedOn") else ""
-                    ),
-                    "completed_on": dg.MetadataValue.text(
-                        str(job_run.get("CompletedOn")) if job_run.get("CompletedOn") else ""
-                    ),
-                    "upstream_tables": dg.MetadataValue.text(
-                        ", ".join(_table_deps) if _table_deps else "None detected"
-                    ),
-                }
-            )
+                for key in keys:
+                    yield dg.MaterializeResult(
+                        asset_key=key,
+                        metadata={
+                            "run_id": dg.MetadataValue.text(run_id),
+                            "job_run_state": dg.MetadataValue.text(state_val),
+                            "execution_time_seconds": dg.MetadataValue.int(int(execution_time or 0)),
+                            "started_on": dg.MetadataValue.text(
+                                str(job_run.get("StartedOn")) if job_run.get("StartedOn") else ""
+                            ),
+                            "completed_on": dg.MetadataValue.text(
+                                str(job_run.get("CompletedOn")) if job_run.get("CompletedOn") else ""
+                            ),
+                        },
+                    )
 
-        assets_list.append(_job_asset)
+        assets_list.append(_glue_jobs_multi_asset)
 
     # ── Glue Crawlers (materializable) ─────────────────────────────────────────
     crawler_metadata: Dict[str, Dict[str, Any]] = {}
@@ -590,6 +642,9 @@ if _HAS_STATE_BACKED:
         poll_interval_seconds: int = 30
         generate_sensor: bool = True
 
+        # ── Per-job AssetSpec overrides ────────────────────────────────────────
+        assets_by_job_name: Optional[dict] = None
+
         # ── State backing ─────────────────────────────────────────────────────
         defs_state: ResolvedDefsStateConfig = field(
             default_factory=DefsStateConfigArgs.local_filesystem
@@ -804,6 +859,7 @@ if _HAS_STATE_BACKED:
                 filter_by_name_pattern=self.filter_by_name_pattern,
                 exclude_name_pattern=self.exclude_name_pattern,
                 filter_by_tags=self.filter_by_tags,
+                assets_by_job_name=self.assets_by_job_name,
             )
 
 else:
@@ -846,6 +902,7 @@ else:
         key_prefix: Optional[str] = dg.Field(default=None)
         poll_interval_seconds: int = dg.Field(default=30)
         generate_sensor: bool = dg.Field(default=True)
+        assets_by_job_name: Optional[dict] = dg.Field(default=None)
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             """Discover AWS Glue entities at load time and build Definitions."""
@@ -1001,4 +1058,5 @@ else:
                 filter_by_name_pattern=self.filter_by_name_pattern,
                 exclude_name_pattern=self.exclude_name_pattern,
                 filter_by_tags=self.filter_by_tags,
+                assets_by_job_name=self.assets_by_job_name,
             )

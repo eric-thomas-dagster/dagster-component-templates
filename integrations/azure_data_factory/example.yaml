@@ -51,3 +51,25 @@ attributes:
   import_pipelines: true
   import_triggers: true
   group_name: adf_managed_identity
+
+---
+# Optional: override AssetSpec for specific ADF pipelines
+type: dagster_component_templates.AzureDataFactoryComponent
+attributes:
+  subscription_id: "12345678-1234-1234-1234-123456789012"
+  resource_group_name: my-resource-group
+  factory_name: my-data-factory
+  import_pipelines: true
+  group_name: adf_prod
+  assets_by_pipeline_name:
+    CopyCustomerData:
+      key: raw/customers
+      description: "Customer data copied by ADF"
+      group_name: raw
+      metadata:
+        owner: platform-team
+    DailyAggregationPipeline:
+      - key: marts/daily_revenue
+        description: "Daily revenue aggregation"
+      - key: marts/daily_users
+        description: "Daily active users"

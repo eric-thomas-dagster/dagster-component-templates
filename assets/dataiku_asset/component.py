@@ -53,6 +53,34 @@ def _asset_key(project_key: str, scenario_id: str, key_prefix: Optional[str]) ->
     return dg.AssetKey(parts)
 
 
+def _merge_spec(base: dg.AssetSpec, ov: dict) -> dg.AssetSpec:
+    """Merge an override dict into a base AssetSpec."""
+    extra_deps = [dg.AssetKey.from_user_string(d) for d in ov.get("deps", [])]
+    return dg.AssetSpec(
+        key=dg.AssetKey.from_user_string(ov["key"]) if "key" in ov else base.key,
+        description=ov.get("description", base.description),
+        group_name=ov.get("group_name", base.group_name),
+        metadata={**(base.metadata or {}), **(ov.get("metadata") or {})},
+        tags={**(base.tags or {}), **(ov.get("tags") or {})},
+        kinds=set(ov["kinds"]) if "kinds" in ov else base.kinds,
+        deps=list(base.deps or []) + extra_deps,
+    )
+
+
+def _apply_item_overrides(
+    default_spec: dg.AssetSpec,
+    item_name: str,
+    overrides: Optional[dict],
+) -> list[dg.AssetSpec]:
+    """Apply assets_by_X overrides. Returns list (usually 1, but >1 if one item → multiple assets)."""
+    if not overrides or item_name not in overrides:
+        return [default_spec]
+    ov = overrides[item_name]
+    if isinstance(ov, list):
+        return [_merge_spec(default_spec, o) for o in ov]
+    return [_merge_spec(default_spec, ov)]
+
+
 # ── Core build logic (shared between StateBackedComponent and fallback) ────────
 
 def _build_dataiku_defs(
@@ -64,6 +92,7 @@ def _build_dataiku_defs(
     wait_for_completion: bool,
     poll_interval_seconds: int,
     scenario_timeout_seconds: int,
+    assets_by_scenario_name: Optional[dict] = None,
 ) -> dg.Definitions:
     """Build Definitions from a cached scenario map — no network calls at asset-spec time."""
 
@@ -73,88 +102,171 @@ def _build_dataiku_defs(
         for scenario in scenarios:
             scenario_id: str = scenario["id"]
             scenario_name: str = scenario.get("name", scenario_id)
-            asset_key = _asset_key(project_key, scenario_id, key_prefix)
+            computed_asset_key = _asset_key(project_key, scenario_id, key_prefix)
+
+            default_spec = dg.AssetSpec(
+                key=computed_asset_key,
+                description=f"Dataiku scenario '{scenario_name}' in project '{project_key}'",
+                group_name=group_name,
+                kinds={"dataiku"},
+                metadata={
+                    "dataiku/project_key": dg.MetadataValue.text(project_key),
+                    "dataiku/scenario_id": dg.MetadataValue.text(scenario_id),
+                    "dataiku/scenario_name": dg.MetadataValue.text(scenario_name),
+                },
+            )
+            expanded_specs = _apply_item_overrides(default_spec, scenario_name, assets_by_scenario_name)
 
             # Capture loop variables in default args to avoid closure issues
             def _make_asset(
                 _project_key: str = project_key,
                 _scenario_id: str = scenario_id,
                 _scenario_name: str = scenario_name,
-                _asset_key: dg.AssetKey = asset_key,
+                _expanded_specs: list = expanded_specs,
             ):
-                @dg.asset(
-                    key=_asset_key,
-                    group_name=group_name,
-                    description=f"Dataiku scenario '{_scenario_name}' in project '{_project_key}'",
-                    kinds={"dataiku"},
-                    metadata={
-                        "dataiku/project_key": dg.MetadataValue.text(_project_key),
-                        "dataiku/scenario_id": dg.MetadataValue.text(_scenario_id),
-                        "dataiku/scenario_name": dg.MetadataValue.text(_scenario_name),
-                    },
-                )
-                def _dataiku_scenario_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
-                    host = os.environ[host_env_var].rstrip("/")
-                    api_key = os.environ[api_key_env_var]
-                    auth = (api_key, "")
+                if len(_expanded_specs) == 1:
+                    spec = _expanded_specs[0]
 
-                    # Trigger the scenario
-                    run_url = (
-                        f"{host}/api/projects/{_project_key}/scenarios/{_scenario_id}/run/"
+                    @dg.asset(
+                        key=spec.key,
+                        group_name=spec.group_name,
+                        description=spec.description,
+                        metadata=dict(spec.metadata or {}),
+                        tags=dict(spec.tags or {}),
+                        kinds=spec.kinds or {"dataiku"},
+                        deps=list(spec.deps or []),
                     )
-                    context.log.info(
-                        f"Triggering Dataiku scenario '{_scenario_name}' "
-                        f"(project={_project_key}, id={_scenario_id})"
-                    )
-                    run_resp = requests.post(run_url, auth=auth, timeout=30)
-                    run_resp.raise_for_status()
-                    run_data = run_resp.json()
-                    context.log.info(f"Scenario run triggered: {run_data}")
+                    def _dataiku_scenario_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+                        host = os.environ[host_env_var].rstrip("/")
+                        api_key = os.environ[api_key_env_var]
+                        auth = (api_key, "")
 
-                    outcome = "triggered"
-
-                    if wait_for_completion:
-                        status_url = (
-                            f"{host}/api/projects/{_project_key}/scenarios/"
-                            f"{_scenario_id}/last-finished-run/"
+                        # Trigger the scenario
+                        run_url = (
+                            f"{host}/api/projects/{_project_key}/scenarios/{_scenario_id}/run/"
                         )
-                        elapsed = 0
-                        # Give the scenario a moment to start before first poll
-                        time.sleep(min(poll_interval_seconds, 5))
-                        while elapsed < scenario_timeout_seconds:
-                            status_resp = requests.get(status_url, auth=auth, timeout=30)
-                            status_resp.raise_for_status()
-                            status_data = status_resp.json()
-                            outcome = status_data.get("result", {}).get("outcome", "RUNNING")
-                            context.log.info(
-                                f"Scenario '{_scenario_name}' status: {outcome} "
-                                f"(elapsed={elapsed}s)"
+                        context.log.info(
+                            f"Triggering Dataiku scenario '{_scenario_name}' "
+                            f"(project={_project_key}, id={_scenario_id})"
+                        )
+                        run_resp = requests.post(run_url, auth=auth, timeout=30)
+                        run_resp.raise_for_status()
+                        run_data = run_resp.json()
+                        context.log.info(f"Scenario run triggered: {run_data}")
+
+                        outcome = "triggered"
+
+                        if wait_for_completion:
+                            status_url = (
+                                f"{host}/api/projects/{_project_key}/scenarios/"
+                                f"{_scenario_id}/last-finished-run/"
                             )
-                            if outcome == "SUCCESS":
-                                break
-                            if outcome in ("FAILED", "ABORTED"):
-                                raise Exception(
-                                    f"Dataiku scenario '{_scenario_name}' "
-                                    f"(project={_project_key}) ended with outcome: {outcome}"
+                            elapsed = 0
+                            # Give the scenario a moment to start before first poll
+                            time.sleep(min(poll_interval_seconds, 5))
+                            while elapsed < scenario_timeout_seconds:
+                                status_resp = requests.get(status_url, auth=auth, timeout=30)
+                                status_resp.raise_for_status()
+                                status_data = status_resp.json()
+                                outcome = status_data.get("result", {}).get("outcome", "RUNNING")
+                                context.log.info(
+                                    f"Scenario '{_scenario_name}' status: {outcome} "
+                                    f"(elapsed={elapsed}s)"
                                 )
-                            time.sleep(poll_interval_seconds)
-                            elapsed += poll_interval_seconds
-                        else:
-                            raise Exception(
-                                f"Dataiku scenario '{_scenario_name}' timed out after "
-                                f"{scenario_timeout_seconds}s"
+                                if outcome == "SUCCESS":
+                                    break
+                                if outcome in ("FAILED", "ABORTED"):
+                                    raise Exception(
+                                        f"Dataiku scenario '{_scenario_name}' "
+                                        f"(project={_project_key}) ended with outcome: {outcome}"
+                                    )
+                                time.sleep(poll_interval_seconds)
+                                elapsed += poll_interval_seconds
+                            else:
+                                raise Exception(
+                                    f"Dataiku scenario '{_scenario_name}' timed out after "
+                                    f"{scenario_timeout_seconds}s"
+                                )
+
+                        return dg.MaterializeResult(
+                            metadata={
+                                "project": dg.MetadataValue.text(_project_key),
+                                "scenario": dg.MetadataValue.text(_scenario_id),
+                                "scenario_name": dg.MetadataValue.text(_scenario_name),
+                                "outcome": dg.MetadataValue.text(outcome),
+                            }
+                        )
+
+                    return _dataiku_scenario_asset
+
+                else:
+                    # One scenario → multiple Dagster assets
+                    _safe_scenario = _sanitize(_scenario_name)
+
+                    @dg.multi_asset(specs=_expanded_specs, name=f"{_safe_scenario}_multi")
+                    def _dataiku_scenario_multi_asset(context: dg.AssetExecutionContext):
+                        host = os.environ[host_env_var].rstrip("/")
+                        api_key = os.environ[api_key_env_var]
+                        auth = (api_key, "")
+
+                        # Trigger the scenario
+                        run_url = (
+                            f"{host}/api/projects/{_project_key}/scenarios/{_scenario_id}/run/"
+                        )
+                        context.log.info(
+                            f"Triggering Dataiku scenario '{_scenario_name}' "
+                            f"(project={_project_key}, id={_scenario_id})"
+                        )
+                        run_resp = requests.post(run_url, auth=auth, timeout=30)
+                        run_resp.raise_for_status()
+                        run_data = run_resp.json()
+                        context.log.info(f"Scenario run triggered: {run_data}")
+
+                        outcome = "triggered"
+
+                        if wait_for_completion:
+                            status_url = (
+                                f"{host}/api/projects/{_project_key}/scenarios/"
+                                f"{_scenario_id}/last-finished-run/"
+                            )
+                            elapsed = 0
+                            time.sleep(min(poll_interval_seconds, 5))
+                            while elapsed < scenario_timeout_seconds:
+                                status_resp = requests.get(status_url, auth=auth, timeout=30)
+                                status_resp.raise_for_status()
+                                status_data = status_resp.json()
+                                outcome = status_data.get("result", {}).get("outcome", "RUNNING")
+                                context.log.info(
+                                    f"Scenario '{_scenario_name}' status: {outcome} "
+                                    f"(elapsed={elapsed}s)"
+                                )
+                                if outcome == "SUCCESS":
+                                    break
+                                if outcome in ("FAILED", "ABORTED"):
+                                    raise Exception(
+                                        f"Dataiku scenario '{_scenario_name}' "
+                                        f"(project={_project_key}) ended with outcome: {outcome}"
+                                    )
+                                time.sleep(poll_interval_seconds)
+                                elapsed += poll_interval_seconds
+                            else:
+                                raise Exception(
+                                    f"Dataiku scenario '{_scenario_name}' timed out after "
+                                    f"{scenario_timeout_seconds}s"
+                                )
+
+                        for spec in _expanded_specs:
+                            yield dg.MaterializeResult(
+                                asset_key=spec.key,
+                                metadata={
+                                    "project": dg.MetadataValue.text(_project_key),
+                                    "scenario": dg.MetadataValue.text(_scenario_id),
+                                    "scenario_name": dg.MetadataValue.text(_scenario_name),
+                                    "outcome": dg.MetadataValue.text(outcome),
+                                },
                             )
 
-                    return dg.MaterializeResult(
-                        metadata={
-                            "project": dg.MetadataValue.text(_project_key),
-                            "scenario": dg.MetadataValue.text(_scenario_id),
-                            "scenario_name": dg.MetadataValue.text(_scenario_name),
-                            "outcome": dg.MetadataValue.text(outcome),
-                        }
-                    )
-
-                return _dataiku_scenario_asset
+                    return _dataiku_scenario_multi_asset
 
             assets.append(_make_asset())
 
@@ -293,6 +405,10 @@ if _HAS_STATE_BACKED:
             default=7200,
             description="Maximum seconds to wait for a scenario to finish.",
         )
+        assets_by_scenario_name: Optional[dict] = dg.Field(
+            default=None,
+            description="Override AssetSpec per scenario name. Value can be a single override dict or a list of dicts (one scenario → multiple assets).",
+        )
         defs_state: ResolvedDefsStateConfig = field(
             default_factory=ResolvedDefsStateConfig
         )
@@ -340,6 +456,7 @@ if _HAS_STATE_BACKED:
                 wait_for_completion=self.wait_for_completion,
                 poll_interval_seconds=self.poll_interval_seconds,
                 scenario_timeout_seconds=self.scenario_timeout_seconds,
+                assets_by_scenario_name=self.assets_by_scenario_name,
             )
 
 else:
@@ -366,6 +483,7 @@ else:
         wait_for_completion: bool = dg.Field(default=True)
         poll_interval_seconds: int = dg.Field(default=10)
         scenario_timeout_seconds: int = dg.Field(default=7200)
+        assets_by_scenario_name: Optional[dict] = dg.Field(default=None)
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             host = os.environ[self.host_env_var]
@@ -387,4 +505,5 @@ else:
                 wait_for_completion=self.wait_for_completion,
                 poll_interval_seconds=self.poll_interval_seconds,
                 scenario_timeout_seconds=self.scenario_timeout_seconds,
+                assets_by_scenario_name=self.assets_by_scenario_name,
             )

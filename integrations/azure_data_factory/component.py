@@ -181,6 +181,36 @@ def _fetch_triggers(
     return result
 
 
+# ── assets_by_pipeline_name helpers ───────────────────────────────────────────
+
+def _merge_spec(base: dg.AssetSpec, ov: dict) -> dg.AssetSpec:
+    """Merge an override dict into a base AssetSpec."""
+    extra_deps = [dg.AssetKey.from_user_string(d) for d in ov.get("deps", [])]
+    return dg.AssetSpec(
+        key=dg.AssetKey.from_user_string(ov["key"]) if "key" in ov else base.key,
+        description=ov.get("description", base.description),
+        group_name=ov.get("group_name", base.group_name),
+        metadata={**(base.metadata or {}), **(ov.get("metadata") or {})},
+        tags={**(base.tags or {}), **(ov.get("tags") or {})},
+        kinds=set(ov["kinds"]) if "kinds" in ov else base.kinds,
+        deps=list(base.deps or []) + extra_deps,
+    )
+
+
+def _apply_pipeline_overrides(
+    default_spec: dg.AssetSpec,
+    pipeline_name: str,
+    overrides: Optional[dict],
+) -> list:
+    """Apply assets_by_pipeline_name overrides. Returns list (1 usually, >1 if one pipeline -> multiple assets)."""
+    if not overrides or pipeline_name not in overrides:
+        return [default_spec]
+    ov = overrides[pipeline_name]
+    if isinstance(ov, list):
+        return [_merge_spec(default_spec, o) for o in ov]
+    return [_merge_spec(default_spec, ov)]
+
+
 # ── Core definition builder (no network calls) ────────────────────────────────
 
 def _build_adf_defs(
@@ -199,6 +229,7 @@ def _build_adf_defs(
     poll_interval_seconds: int,
     filter_by_name_pattern: Optional[str],
     exclude_name_pattern: Optional[str],
+    assets_by_pipeline_name: Optional[dict] = None,
 ) -> dg.Definitions:
     """Build Dagster Definitions from pre-fetched ADF metadata (no network calls)."""
     assets: list = []
@@ -209,10 +240,11 @@ def _build_adf_defs(
         for pipeline_meta in pipelines:
             pipeline_name = pipeline_meta["name"]
 
-            @dg.asset(
-                name=f"adf_pipeline_{pipeline_name}",
-                group_name=group_name,
+            # Build the default AssetSpec for this pipeline
+            default_spec = dg.AssetSpec(
+                key=dg.AssetKey([f"adf_pipeline_{pipeline_name}"]),
                 description=pipeline_meta.get("description") or f"ADF pipeline: {pipeline_name}",
+                group_name=group_name,
                 metadata={
                     "pipeline_name": dg.MetadataValue.text(pipeline_name),
                     "factory_name": dg.MetadataValue.text(factory_name),
@@ -226,7 +258,22 @@ def _build_adf_defs(
                 },
                 kinds={"azure", "adf"},
             )
-            def pipeline_asset(
+
+            # Apply any user overrides (may expand to multiple specs)
+            expanded_specs = _apply_pipeline_overrides(
+                default_spec, pipeline_name, assets_by_pipeline_name
+            )
+
+            # Build a spec_key_path tuple -> pipeline_name mapping for the execution body
+            spec_key_to_pipeline: Dict[tuple, str] = {
+                tuple(spec.key.path): pipeline_name for spec in expanded_specs
+            }
+
+            @dg.multi_asset(
+                specs=expanded_specs,
+                name=f"adf_pipeline_{pipeline_name}",
+            )
+            def pipeline_multi_asset(
                 context: dg.AssetExecutionContext,
                 _pipeline_name: str = pipeline_name,
                 _subscription_id: str = subscription_id,
@@ -235,73 +282,94 @@ def _build_adf_defs(
                 _tenant_id: Optional[str] = tenant_id,
                 _client_id: Optional[str] = client_id,
                 _client_secret: Optional[str] = client_secret,
+                _spec_key_to_pipeline: Dict[tuple, str] = spec_key_to_pipeline,
+                _expanded_specs: list = expanded_specs,
             ):
                 """Trigger an Azure Data Factory pipeline run and wait for completion."""
                 adf_client = _get_adf_client(
                     _subscription_id, _tenant_id, _client_id, _client_secret
                 )
 
-                run_response = adf_client.pipelines.create_run(
-                    _resource_group_name,
-                    _factory_name,
-                    _pipeline_name,
+                # Determine which ADF pipelines need to run for the selected asset keys
+                selected_keys = set(
+                    tuple(k.path) for k in context.selected_asset_keys
                 )
-                run_id = run_response.run_id
-                context.log.info(f"Pipeline run started. Run ID: {run_id}")
+                pipelines_to_run: Dict[str, list] = {}
+                for key_path, p_name in _spec_key_to_pipeline.items():
+                    if key_path in selected_keys:
+                        pipelines_to_run.setdefault(p_name, []).append(key_path)
 
-                max_wait_seconds = 3600  # 60 minutes
-                poll_interval = 30
-                elapsed = 0
-
-                while elapsed < max_wait_seconds:
-                    pipeline_run = adf_client.pipeline_runs.get(
+                for p_name, key_paths in pipelines_to_run.items():
+                    run_response = adf_client.pipelines.create_run(
                         _resource_group_name,
                         _factory_name,
-                        run_id,
+                        p_name,
                     )
-                    status = pipeline_run.status
-                    context.log.info(f"Pipeline run status: {status}")
+                    run_id = run_response.run_id
+                    context.log.info(f"Pipeline run started. Run ID: {run_id}")
 
-                    if status in ("Succeeded", "Failed", "Cancelled"):
-                        duration_seconds = 0.0
-                        if pipeline_run.run_end and pipeline_run.run_start:
-                            duration_seconds = (
-                                pipeline_run.run_end - pipeline_run.run_start
-                            ).total_seconds()
+                    max_wait_seconds = 3600  # 60 minutes
+                    poll_interval = 30
+                    elapsed = 0
 
-                        metadata: Dict[str, Any] = {
-                            "run_id": dg.MetadataValue.text(run_id),
-                            "status": dg.MetadataValue.text(status),
-                            "pipeline_name": dg.MetadataValue.text(_pipeline_name),
-                            "start_time": dg.MetadataValue.text(str(pipeline_run.run_start)),
-                            "end_time": dg.MetadataValue.text(str(pipeline_run.run_end)),
-                            "duration_seconds": dg.MetadataValue.float(duration_seconds),
-                        }
+                    while elapsed < max_wait_seconds:
+                        pipeline_run = adf_client.pipeline_runs.get(
+                            _resource_group_name,
+                            _factory_name,
+                            run_id,
+                        )
+                        status = pipeline_run.status
+                        context.log.info(f"Pipeline run status: {status}")
 
-                        if status == "Failed":
-                            error_msg = getattr(pipeline_run, "message", None) or "Pipeline failed"
-                            metadata["error"] = dg.MetadataValue.text(error_msg)
-                            raise Exception(
-                                f"ADF pipeline '{_pipeline_name}' failed: {error_msg}"
+                        if status in ("Succeeded", "Failed", "Cancelled"):
+                            duration_seconds = 0.0
+                            if pipeline_run.run_end and pipeline_run.run_start:
+                                duration_seconds = (
+                                    pipeline_run.run_end - pipeline_run.run_start
+                                ).total_seconds()
+
+                            run_metadata: Dict[str, Any] = {
+                                "run_id": dg.MetadataValue.text(run_id),
+                                "status": dg.MetadataValue.text(status),
+                                "pipeline_name": dg.MetadataValue.text(p_name),
+                                "start_time": dg.MetadataValue.text(str(pipeline_run.run_start)),
+                                "end_time": dg.MetadataValue.text(str(pipeline_run.run_end)),
+                                "duration_seconds": dg.MetadataValue.float(duration_seconds),
+                            }
+
+                            if status == "Failed":
+                                error_msg = getattr(pipeline_run, "message", None) or "Pipeline failed"
+                                run_metadata["error"] = dg.MetadataValue.text(error_msg)
+                                raise Exception(
+                                    f"ADF pipeline '{p_name}' failed: {error_msg}"
+                                )
+
+                            # Yield MaterializeResult for all asset keys produced by this pipeline
+                            for key_path in key_paths:
+                                yield dg.MaterializeResult(
+                                    asset_key=dg.AssetKey(list(key_path)),
+                                    metadata=run_metadata,
+                                )
+                            break
+
+                        time.sleep(poll_interval)
+                        elapsed += poll_interval
+
+                    else:
+                        context.log.warning(
+                            f"Pipeline run timed out after {max_wait_seconds // 60} minutes"
+                        )
+                        for key_path in key_paths:
+                            yield dg.MaterializeResult(
+                                asset_key=dg.AssetKey(list(key_path)),
+                                metadata={
+                                    "run_id": dg.MetadataValue.text(run_id),
+                                    "status": dg.MetadataValue.text("Timeout"),
+                                    "pipeline_name": dg.MetadataValue.text(p_name),
+                                },
                             )
 
-                        return dg.MaterializeResult(metadata=metadata)
-
-                    time.sleep(poll_interval)
-                    elapsed += poll_interval
-
-                context.log.warning(
-                    f"Pipeline run timed out after {max_wait_seconds // 60} minutes"
-                )
-                return dg.MaterializeResult(
-                    metadata={
-                        "run_id": dg.MetadataValue.text(run_id),
-                        "status": dg.MetadataValue.text("Timeout"),
-                        "pipeline_name": dg.MetadataValue.text(_pipeline_name),
-                    }
-                )
-
-            assets.append(pipeline_asset)
+            assets.append(pipeline_multi_asset)
 
     # ── Trigger assets ─────────────────────────────────────────────────────────
     if import_triggers:
@@ -499,6 +567,9 @@ if _HAS_STATE_BACKED:
         group_name: str = "azure_data_factory"
         description: Optional[str] = None
 
+        # ── Per-pipeline asset overrides ───────────────────────────────────────
+        assets_by_pipeline_name: Optional[dict] = None
+
         # ── State backing ─────────────────────────────────────────────────────
         defs_state: ResolvedDefsStateConfig = field(
             default_factory=DefsStateConfigArgs.local_filesystem
@@ -584,6 +655,7 @@ if _HAS_STATE_BACKED:
                 poll_interval_seconds=self.poll_interval_seconds,
                 filter_by_name_pattern=self.filter_by_name_pattern,
                 exclude_name_pattern=self.exclude_name_pattern,
+                assets_by_pipeline_name=self.assets_by_pipeline_name,
             )
 
 else:
@@ -644,6 +716,16 @@ else:
         group_name: str = dg.Field(default="azure_data_factory", description="Asset group name")
         description: Optional[str] = dg.Field(default=None, description="Component description")
 
+        assets_by_pipeline_name: Optional[dict] = dg.Field(
+            default=None,
+            description=(
+                "Override or expand AssetSpecs for specific ADF pipelines. "
+                "Keys are ADF pipeline names; values are either a single spec-override dict "
+                "or a list of spec-override dicts (one pipeline -> multiple Dagster assets). "
+                "Supported keys per override: key, description, group_name, metadata, tags, kinds, deps."
+            ),
+        )
+
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             """Build Definitions by calling the ADF API at load time."""
             client = _get_adf_client(
@@ -692,4 +774,5 @@ else:
                 poll_interval_seconds=self.poll_interval_seconds,
                 filter_by_name_pattern=self.filter_by_name_pattern,
                 exclude_name_pattern=self.exclude_name_pattern,
+                assets_by_pipeline_name=self.assets_by_pipeline_name,
             )

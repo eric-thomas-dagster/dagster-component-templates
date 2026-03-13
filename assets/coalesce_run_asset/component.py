@@ -87,6 +87,34 @@ class CoalesceResource(dg.ConfigurableResource):
 
 # ── Component ─────────────────────────────────────────────────────────────────
 
+def _merge_spec(base: dg.AssetSpec, ov: dict) -> dg.AssetSpec:
+    """Merge an override dict into a base AssetSpec."""
+    extra_deps = [dg.AssetKey.from_user_string(d) for d in ov.get("deps", [])]
+    return dg.AssetSpec(
+        key=dg.AssetKey.from_user_string(ov["key"]) if "key" in ov else base.key,
+        description=ov.get("description", base.description),
+        group_name=ov.get("group_name", base.group_name),
+        metadata={**(base.metadata or {}), **(ov.get("metadata") or {})},
+        tags={**(base.tags or {}), **(ov.get("tags") or {})},
+        kinds=set(ov["kinds"]) if "kinds" in ov else base.kinds,
+        deps=list(base.deps or []) + extra_deps,
+    )
+
+
+def _apply_node_overrides(
+    default_spec: dg.AssetSpec,
+    node_name: str,
+    overrides: Optional[dict],
+) -> list[dg.AssetSpec]:
+    """Apply assets_by_node_name overrides. Returns list (usually 1, but >1 if one node → multiple assets)."""
+    if not overrides or node_name not in overrides:
+        return [default_spec]
+    ov = overrides[node_name]
+    if isinstance(ov, list):
+        return [_merge_spec(default_spec, o) for o in ov]
+    return [_merge_spec(default_spec, ov)]
+
+
 def _build_coalesce_defs(
     nodes: list[dict],
     environment_id: str,
@@ -96,6 +124,7 @@ def _build_coalesce_defs(
     group_name: Optional[str],
     poll_interval: int,
     timeout: int,
+    assets_by_node_name: Optional[dict] = None,
 ) -> dg.Definitions:
     """Build Definitions from a list of Coalesce node dicts (no network calls)."""
     from dagster import AssetExecutionContext
@@ -109,14 +138,15 @@ def _build_coalesce_defs(
         node_key_map[node_id] = dg.AssetKey([p for p in parts if p])
 
     specs: list[dg.AssetSpec] = []
+    spec_key_to_node_id: dict[tuple, str] = {}  # AssetKey.path tuple → node_id
+
     for node in nodes:
         node_id = node.get("nodeId", node.get("id", ""))
         name = node.get("name", node_id)
         source_ids = node.get("sourceNodeIds", [])
-
         dep_keys = [node_key_map[sid] for sid in source_ids if sid in node_key_map]
 
-        specs.append(dg.AssetSpec(
+        default_spec = dg.AssetSpec(
             key=node_key_map[node_id],
             description=node.get("description"),
             group_name=group_name or "coalesce",
@@ -126,7 +156,12 @@ def _build_coalesce_defs(
                 "coalesce/node_id": dg.MetadataValue.text(node_id),
                 "coalesce/node_type": dg.MetadataValue.text(node.get("type", "")),
             },
-        ))
+        )
+
+        expanded = _apply_node_overrides(default_spec, name, assets_by_node_name)
+        for spec in expanded:
+            specs.append(spec)
+            spec_key_to_node_id[tuple(spec.key.path)] = node_id
 
     if not specs:
         return dg.Definitions()
@@ -138,46 +173,51 @@ def _build_coalesce_defs(
         token = os.environ[api_token_env_var]
         headers = {"Authorization": f"Bearer {token}"}
 
-        # Determine which node IDs to materialize (selected assets)
-        selected_node_ids = []
-        reverse_map = {v: k for k, v in node_key_map.items()}
+        # Group selected asset keys by node_id (one node may map to multiple assets)
+        node_id_to_keys: dict[str, list[dg.AssetKey]] = {}
         for key in context.selected_asset_keys:
-            node_id = reverse_map.get(key)
-            if node_id:
-                selected_node_ids.append(node_id)
+            nid = spec_key_to_node_id.get(tuple(key.path))
+            if nid:
+                node_id_to_keys.setdefault(nid, []).append(key)
 
-        context.log.info(f"Starting Coalesce run for {len(selected_node_ids)} nodes")
-        run_url = f"{api_base_url}/scheduler/startRun"
-        run_resp = requests.post(run_url, headers=headers, json={
-            "environmentID": environment_id,
-            "parameterOverride": {"nodeIds": selected_node_ids},
-        }, timeout=30)
-        run_resp.raise_for_status()
-        run_counter = run_resp.json()["runCounter"]
-        context.log.info(f"Coalesce run started: {run_counter}")
+        context.log.info(f"Starting Coalesce run for {len(node_id_to_keys)} nodes")
 
-        elapsed = 0
-        while elapsed < timeout:
-            time.sleep(poll_interval)
-            elapsed += poll_interval
-            status_resp = requests.get(
-                f"{api_base_url}/scheduler/runStatus",
-                headers=headers,
-                params={"runCounter": run_counter},
-                timeout=30,
-            )
-            status_resp.raise_for_status()
-            status = status_resp.json().get("runStatus", "")
-            context.log.info(f"Coalesce run {run_counter} status: {status}")
-            if status == "succeeded":
-                break
-            if status in ("failed", "cancelled", "error"):
-                raise Exception(f"Coalesce run {run_counter} {status}")
+        for node_id, keys in node_id_to_keys.items():
+            run_url = f"{api_base_url}/scheduler/startRun"
+            run_resp = requests.post(run_url, headers=headers, json={
+                "environmentID": environment_id,
+                "parameterOverride": {"nodeIds": [node_id]},
+            }, timeout=30)
+            run_resp.raise_for_status()
+            run_counter = run_resp.json()["runCounter"]
+            context.log.info(f"Coalesce run started: {run_counter} for node {node_id}")
 
-        return dg.MaterializeResult(metadata={
-            "run_counter": dg.MetadataValue.text(run_counter),
-            "nodes_run": len(selected_node_ids),
-        })
+            elapsed = 0
+            while elapsed < timeout:
+                time.sleep(poll_interval)
+                elapsed += poll_interval
+                status_resp = requests.get(
+                    f"{api_base_url}/scheduler/runStatus",
+                    headers=headers,
+                    params={"runCounter": run_counter},
+                    timeout=30,
+                )
+                status_resp.raise_for_status()
+                status = status_resp.json().get("runStatus", "")
+                context.log.info(f"Coalesce run {run_counter} status: {status}")
+                if status == "succeeded":
+                    break
+                if status in ("failed", "cancelled", "error"):
+                    raise Exception(f"Coalesce run {run_counter} {status}")
+
+            for key in keys:
+                yield dg.MaterializeResult(
+                    asset_key=key,
+                    metadata={
+                        "run_counter": dg.MetadataValue.text(run_counter),
+                        "node_id": dg.MetadataValue.text(node_id),
+                    },
+                )
 
     return dg.Definitions(assets=[coalesce_project])
 
@@ -208,6 +248,7 @@ if _HAS_STATE_BACKED:
         group_name: Optional[str] = "coalesce"
         poll_interval_seconds: int = 10
         timeout_seconds: int = 1800
+        assets_by_node_name: Optional[dict] = None
         defs_state: ResolvedDefsStateConfig = field(
             default_factory=DefsStateConfigArgs.local_filesystem
         )
@@ -251,6 +292,7 @@ if _HAS_STATE_BACKED:
                 group_name=self.group_name,
                 poll_interval=self.poll_interval_seconds,
                 timeout=self.timeout_seconds,
+                assets_by_node_name=self.assets_by_node_name,
             )
 
 else:
@@ -268,6 +310,7 @@ else:
         group_name: Optional[str] = dg.Field(default="coalesce")
         poll_interval_seconds: int = dg.Field(default=10)
         timeout_seconds: int = dg.Field(default=1800)
+        assets_by_node_name: Optional[dict] = dg.Field(default=None)
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             token = os.environ[self.api_token_env_var]
@@ -286,4 +329,5 @@ else:
                 group_name=self.group_name,
                 poll_interval=self.poll_interval_seconds,
                 timeout=self.timeout_seconds,
+                assets_by_node_name=self.assets_by_node_name,
             )

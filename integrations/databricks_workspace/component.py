@@ -13,6 +13,7 @@ from databricks.sdk.service.jobs import Job
 from databricks.sdk.service.pipelines import PipelineStateInfo
 from databricks.sdk.service.serving import ServingEndpoint
 
+import dagster as dg
 from dagster import (
     Component,
     ComponentLoadContext,
@@ -27,8 +28,37 @@ from dagster import (
     Resolvable,
     Model,
     MetadataValue,
+    MaterializeResult,
 )
 from pydantic import Field
+
+
+def _merge_spec(base: dg.AssetSpec, ov: dict) -> dg.AssetSpec:
+    """Merge an override dict into a base AssetSpec."""
+    extra_deps = [dg.AssetKey.from_user_string(d) for d in ov.get("deps", [])]
+    return dg.AssetSpec(
+        key=dg.AssetKey.from_user_string(ov["key"]) if "key" in ov else base.key,
+        description=ov.get("description", base.description),
+        group_name=ov.get("group_name", base.group_name),
+        metadata={**(base.metadata or {}), **(ov.get("metadata") or {})},
+        tags={**(base.tags or {}), **(ov.get("tags") or {})},
+        kinds=set(ov["kinds"]) if "kinds" in ov else base.kinds,
+        deps=list(base.deps or []) + extra_deps,
+    )
+
+
+def _apply_job_overrides(
+    default_spec: dg.AssetSpec,
+    job_name: str,
+    overrides: Optional[dict],
+) -> list:
+    """Apply assets_by_job_name overrides. Returns list (1 usually, >1 if one job -> multiple assets)."""
+    if not overrides or job_name not in overrides:
+        return [default_spec]
+    ov = overrides[job_name]
+    if isinstance(ov, list):
+        return [_merge_spec(default_spec, o) for o in ov]
+    return [_merge_spec(default_spec, ov)]
 
 
 class DatabricksWorkspaceComponent(Component, Model, Resolvable):
@@ -124,6 +154,16 @@ class DatabricksWorkspaceComponent(Component, Model, Resolvable):
         description="Description for the Databricks workspace component"
     )
 
+    assets_by_job_name: Optional[dict] = Field(
+        default=None,
+        description=(
+            "Override AssetSpec for specific Databricks jobs, keyed by job name. "
+            "Each value may be a single override dict or a list of dicts (to produce "
+            "multiple Dagster assets from one job). Supported keys per override: "
+            "key, description, group_name, metadata, tags, kinds, deps."
+        )
+    )
+
     def _create_client(self) -> WorkspaceClient:
         """Create and return a Databricks workspace client."""
         return WorkspaceClient(
@@ -212,6 +252,9 @@ class DatabricksWorkspaceComponent(Component, Model, Resolvable):
                         continue
                     jobs_to_import.append(job)
 
+                # Maps spec key tuple -> job dict (for multi-asset execution lookup)
+                spec_key_to_job: Dict[tuple, dict] = {}
+
                 # Second pass: create assets
                 for job in jobs_to_import:
                     job_id = job.job_id
@@ -221,11 +264,39 @@ class DatabricksWorkspaceComponent(Component, Model, Resolvable):
 
                     is_root = self._is_root_job(job, jobs_to_import)
 
-                    # Store metadata for sensor
-                    job_metadata[asset_key] = {
+                    # Build default AssetSpec
+                    default_spec = dg.AssetSpec(
+                        key=dg.AssetKey([asset_key]),
+                        description=f"Databricks job: {job_name}",
+                        group_name=self.group_name,
+                        metadata={
+                            "databricks_job_id": job_id,
+                            "databricks_job_name": job_name,
+                            "databricks_workspace": self.workspace_url,
+                            "entity_type": "job",
+                        },
+                    )
+
+                    # Apply assets_by_job_name overrides (keyed by original job name)
+                    expanded_specs = _apply_job_overrides(
+                        default_spec, job_name, self.assets_by_job_name
+                    )
+
+                    # Register spec -> job mapping so the execution body can find job_id
+                    job_dict = {
                         'job_id': job_id,
                         'job_name': job_name,
-                        'is_root': is_root
+                        'is_root': is_root,
+                    }
+                    for spec in expanded_specs:
+                        spec_key_to_job[tuple(spec.key.path)] = job_dict
+
+                    # Store metadata for sensor (use first spec key for backwards compat)
+                    sensor_key = tuple(expanded_specs[0].key.path)
+                    job_metadata["/".join(sensor_key)] = {
+                        'job_id': job_id,
+                        'job_name': job_name,
+                        'is_root': is_root,
                     }
 
                     if is_root:
@@ -252,14 +323,22 @@ class DatabricksWorkspaceComponent(Component, Model, Resolvable):
                             # Wait for completion (with timeout)
                             run_result = client.jobs.wait_get_run_job_terminated_or_skipped(run_id=run.run_id)
 
-                            metadata = {
+                            run_metadata = {
                                 "run_id": run.run_id,
                                 "run_state": str(run_result.state.life_cycle_state),
                                 "run_url": run_result.run_page_url,
                             }
 
                             context.log.info(f"Job completed with state: {run_result.state.life_cycle_state}")
-                            return metadata
+
+                            # Yield MaterializeResult for all specs mapped to this job
+                            selected_keys = [
+                                dg.AssetKey(list(k))
+                                for k, jd in spec_key_to_job.items()
+                                if jd['job_id'] == job_id
+                            ]
+                            for ak in selected_keys:
+                                yield MaterializeResult(asset_key=ak, metadata=run_metadata)
 
                         assets_list.append(_job_asset)
 

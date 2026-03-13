@@ -39,3 +39,18 @@ attributes:
   # Organization
   group_name: databricks_workspace
   description: Complete Databricks workspace import with all entity types
+
+  # Optional: override AssetSpec for specific Databricks jobs
+  assets_by_job_name:
+    ETL - Daily Ingestion:
+      key: raw/daily_ingest
+      description: "Daily data ingestion via Databricks"
+      group_name: raw
+      metadata:
+        owner: platform-team
+        schedule: daily
+    ML Training Job:
+      - key: models/churn_model
+        description: "Churn prediction model artifact"
+      - key: models/churn_model_metrics
+        description: "Churn model evaluation metrics"

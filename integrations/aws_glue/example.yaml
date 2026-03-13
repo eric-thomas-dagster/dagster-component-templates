@@ -41,3 +41,20 @@ attributes:
   # Observation sensor
   generate_sensor: true
   poll_interval_seconds: 60
+
+  # Optional: override AssetSpec for specific Glue jobs
+  assets_by_job_name:
+    etl-orders-prod:
+      key: raw/orders
+      description: "Raw orders loaded by Glue ETL"
+      group_name: raw
+      metadata:
+        owner: data-engineering
+        sla_hours: "4"
+      tags:
+        dagster/storage_kind: s3
+    customer-export-job:
+      - key: exports/customers_us
+        description: "US customer export"
+      - key: exports/customers_eu
+        description: "EU customer export"

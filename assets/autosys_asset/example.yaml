@@ -12,6 +12,22 @@ attributes:
   group_name: autosys_finance
   poll_interval_seconds: 30
   job_timeout_seconds: 7200
+  # Optional: override AssetSpec for specific AutoSys jobs
+  assets_by_job_name:
+    FINANCE_ETL_LOAD_ORDERS:
+      key: finance/orders_loaded
+      description: "Orders loaded from source system by AutoSys"
+      group_name: finance
+      metadata:
+        owner: finance-team
+        sla_hours: "4"
+      deps:
+        - raw/orders_extract
+    FINANCE_ETL_EXPORT:
+      - key: finance/orders_export_us
+        description: "US orders export"
+      - key: finance/orders_export_eu
+        description: "EU orders export"
 
 ---
 

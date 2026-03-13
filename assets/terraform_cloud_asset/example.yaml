@@ -6,3 +6,17 @@ attributes:
   group_name: infrastructure
   auto_apply: true
   message: "Triggered by Dagster pipeline"
+  # Optional: override AssetSpec for specific HCP Terraform workspaces
+  assets_by_workspace_name:
+    prod-vpc:
+      key: infra/production_vpc
+      description: "Production VPC provisioned by Terraform Cloud"
+      group_name: infrastructure
+      metadata:
+        owner: platform-team
+        environment: production
+    prod-rds:
+      - key: infra/production_db
+        description: "Production RDS instance"
+      - key: infra/production_db_replica
+        description: "Production RDS read replica"

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -121,6 +122,34 @@ def _apply_filters(
     return result
 
 
+def _merge_spec(base: dg.AssetSpec, ov: dict) -> dg.AssetSpec:
+    """Merge an override dict into a base AssetSpec."""
+    extra_deps = [dg.AssetKey.from_user_string(d) for d in ov.get("deps", [])]
+    return dg.AssetSpec(
+        key=dg.AssetKey.from_user_string(ov["key"]) if "key" in ov else base.key,
+        description=ov.get("description", base.description),
+        group_name=ov.get("group_name", base.group_name),
+        metadata={**(base.metadata or {}), **(ov.get("metadata") or {})},
+        tags={**(base.tags or {}), **(ov.get("tags") or {})},
+        kinds=set(ov["kinds"]) if "kinds" in ov else base.kinds,
+        deps=list(base.deps or []) + extra_deps,
+    )
+
+
+def _apply_workspace_overrides(
+    default_spec: dg.AssetSpec,
+    workspace_name: str,
+    overrides: Optional[dict],
+) -> list[dg.AssetSpec]:
+    """Apply assets_by_workspace_name overrides. Returns list (1 usually, >1 if one workspace -> multiple assets)."""
+    if not overrides or workspace_name not in overrides:
+        return [default_spec]
+    ov = overrides[workspace_name]
+    if isinstance(ov, list):
+        return [_merge_spec(default_spec, o) for o in ov]
+    return [_merge_spec(default_spec, ov)]
+
+
 # ── Core execution helper ──────────────────────────────────────────────────────
 
 def _build_terraform_defs(
@@ -133,6 +162,7 @@ def _build_terraform_defs(
     message: str,
     poll_interval_seconds: int,
     run_timeout_seconds: int,
+    assets_by_workspace_name: Optional[dict] = None,
 ) -> dg.Definitions:
     """Build Definitions from a list of workspace records (no network calls)."""
     from dagster import AssetExecutionContext
@@ -149,7 +179,7 @@ def _build_terraform_defs(
         key_parts = [key_prefix, ws_name] if key_prefix else [ws_name]
         asset_key = dg.AssetKey([p for p in key_parts if p])
 
-        spec = dg.AssetSpec(
+        default_spec = dg.AssetSpec(
             key=asset_key,
             description=ws.get("description") or f"HCP Terraform workspace: {ws_name}",
             group_name=group_name,
@@ -166,6 +196,8 @@ def _build_terraform_defs(
             },
         )
 
+        expanded = _apply_workspace_overrides(default_spec, ws_name, assets_by_workspace_name)
+
         # Capture loop variables in closure
         _ws_id = ws_id
         _ws_name = ws_name
@@ -176,101 +208,213 @@ def _build_terraform_defs(
         _poll_interval = poll_interval_seconds
         _timeout = run_timeout_seconds
 
-        @dg.asset(spec=spec)
-        def _terraform_workspace_asset(
-            context: AssetExecutionContext,
-            *,
-            __ws_id=_ws_id,
-            __ws_name=_ws_name,
-            __api_token_env_var=_api_token_env_var,
-            __plan_only=_plan_only,
-            __auto_apply=_auto_apply,
-            __message=_message,
-            __poll_interval=_poll_interval,
-            __timeout=_timeout,
-        ) -> dg.MaterializeResult:
-            token = os.environ[__api_token_env_var]
-            headers = _tfc_headers(token)
+        if len(expanded) == 1:
+            # Single spec — use @dg.asset with the (possibly overridden) spec
+            _spec = expanded[0]
 
-            # Create a run
-            run_url = f"{_TFC_BASE_URL}/workspaces/{__ws_id}/runs"
-            run_body = {
-                "data": {
-                    "type": "runs",
-                    "attributes": {
-                        "message": __message,
-                        "plan-only": __plan_only,
-                        "auto-apply": __auto_apply,
-                    },
-                    "relationships": {
-                        "workspace": {
-                            "data": {"type": "workspaces", "id": __ws_id}
-                        }
-                    },
+            @dg.asset(spec=_spec)
+            def _terraform_workspace_asset(
+                context: AssetExecutionContext,
+                *,
+                __ws_id=_ws_id,
+                __ws_name=_ws_name,
+                __api_token_env_var=_api_token_env_var,
+                __plan_only=_plan_only,
+                __auto_apply=_auto_apply,
+                __message=_message,
+                __poll_interval=_poll_interval,
+                __timeout=_timeout,
+            ) -> dg.MaterializeResult:
+                token = os.environ[__api_token_env_var]
+                headers = _tfc_headers(token)
+
+                # Create a run
+                run_url = f"{_TFC_BASE_URL}/workspaces/{__ws_id}/runs"
+                run_body = {
+                    "data": {
+                        "type": "runs",
+                        "attributes": {
+                            "message": __message,
+                            "plan-only": __plan_only,
+                            "auto-apply": __auto_apply,
+                        },
+                        "relationships": {
+                            "workspace": {
+                                "data": {"type": "workspaces", "id": __ws_id}
+                            }
+                        },
+                    }
                 }
-            }
-            context.log.info(
-                f"Creating Terraform run for workspace '{__ws_name}' ({__ws_id})"
+                context.log.info(
+                    f"Creating Terraform run for workspace '{__ws_name}' ({__ws_id})"
+                )
+                run_resp = requests.post(run_url, headers=headers, json=run_body, timeout=30)
+                run_resp.raise_for_status()
+                run_id = run_resp.json()["data"]["id"]
+                context.log.info(f"Run created: {run_id}")
+
+                # Poll for completion
+                elapsed = 0
+                last_status: Optional[str] = None
+                while elapsed < __timeout:
+                    time.sleep(__poll_interval)
+                    elapsed += __poll_interval
+
+                    status_resp = requests.get(
+                        f"{_TFC_BASE_URL}/runs/{run_id}",
+                        headers=headers,
+                        timeout=30,
+                    )
+                    status_resp.raise_for_status()
+                    status = status_resp.json()["data"]["attributes"]["status"]
+
+                    if status != last_status:
+                        context.log.info(f"Run {run_id} status: {status}")
+                        last_status = status
+
+                    if status in _TERMINAL_STATUSES:
+                        break
+                else:
+                    raise Exception(
+                        f"Terraform run {run_id} timed out after {__timeout}s "
+                        f"(last status: {last_status})"
+                    )
+
+                if status not in _SUCCESS_STATUSES:
+                    raise Exception(
+                        f"Terraform run {run_id} finished with status '{status}' "
+                        f"for workspace '{__ws_name}'"
+                    )
+
+                # Fetch apply metadata on success
+                apply_id: Optional[str] = None
+                if status == "applied":
+                    apply_resp = requests.get(
+                        f"{_TFC_BASE_URL}/runs/{run_id}/apply",
+                        headers=headers,
+                        timeout=30,
+                    )
+                    if apply_resp.ok:
+                        apply_id = apply_resp.json().get("data", {}).get("id")
+
+                return dg.MaterializeResult(
+                    metadata={
+                        "run_id": dg.MetadataValue.text(run_id),
+                        "status": dg.MetadataValue.text(status),
+                        "workspace": dg.MetadataValue.text(__ws_name),
+                        "apply_id": dg.MetadataValue.text(apply_id or ""),
+                    }
+                )
+
+            assets.append(_terraform_workspace_asset)
+
+        else:
+            # Multiple specs — one workspace run yields MaterializeResult for each spec key
+            _expanded_specs = expanded
+            _safe_name = re.sub(r"[^a-zA-Z0-9_]", "_", ws_name)
+
+            @dg.multi_asset(
+                specs=_expanded_specs,
+                name=f"tfc_{_safe_name}_multi",
             )
-            run_resp = requests.post(run_url, headers=headers, json=run_body, timeout=30)
-            run_resp.raise_for_status()
-            run_id = run_resp.json()["data"]["id"]
-            context.log.info(f"Run created: {run_id}")
+            def _terraform_workspace_multi_asset(
+                context: AssetExecutionContext,
+                *,
+                __ws_id=_ws_id,
+                __ws_name=_ws_name,
+                __api_token_env_var=_api_token_env_var,
+                __plan_only=_plan_only,
+                __auto_apply=_auto_apply,
+                __message=_message,
+                __poll_interval=_poll_interval,
+                __timeout=_timeout,
+                __specs=_expanded_specs,
+            ):
+                token = os.environ[__api_token_env_var]
+                headers = _tfc_headers(token)
 
-            # Poll for completion
-            elapsed = 0
-            last_status: Optional[str] = None
-            while elapsed < __timeout:
-                time.sleep(__poll_interval)
-                elapsed += __poll_interval
-
-                status_resp = requests.get(
-                    f"{_TFC_BASE_URL}/runs/{run_id}",
-                    headers=headers,
-                    timeout=30,
-                )
-                status_resp.raise_for_status()
-                status = status_resp.json()["data"]["attributes"]["status"]
-
-                if status != last_status:
-                    context.log.info(f"Run {run_id} status: {status}")
-                    last_status = status
-
-                if status in _TERMINAL_STATUSES:
-                    break
-            else:
-                raise Exception(
-                    f"Terraform run {run_id} timed out after {__timeout}s "
-                    f"(last status: {last_status})"
-                )
-
-            if status not in _SUCCESS_STATUSES:
-                raise Exception(
-                    f"Terraform run {run_id} finished with status '{status}' "
-                    f"for workspace '{__ws_name}'"
-                )
-
-            # Fetch apply metadata on success
-            apply_id: Optional[str] = None
-            if status == "applied":
-                apply_resp = requests.get(
-                    f"{_TFC_BASE_URL}/runs/{run_id}/apply",
-                    headers=headers,
-                    timeout=30,
-                )
-                if apply_resp.ok:
-                    apply_id = apply_resp.json().get("data", {}).get("id")
-
-            return dg.MaterializeResult(
-                metadata={
-                    "run_id": dg.MetadataValue.text(run_id),
-                    "status": dg.MetadataValue.text(status),
-                    "workspace": dg.MetadataValue.text(__ws_name),
-                    "apply_id": dg.MetadataValue.text(apply_id or ""),
+                # Create a run
+                run_url = f"{_TFC_BASE_URL}/workspaces/{__ws_id}/runs"
+                run_body = {
+                    "data": {
+                        "type": "runs",
+                        "attributes": {
+                            "message": __message,
+                            "plan-only": __plan_only,
+                            "auto-apply": __auto_apply,
+                        },
+                        "relationships": {
+                            "workspace": {
+                                "data": {"type": "workspaces", "id": __ws_id}
+                            }
+                        },
+                    }
                 }
-            )
+                context.log.info(
+                    f"Creating Terraform run for workspace '{__ws_name}' ({__ws_id})"
+                )
+                run_resp = requests.post(run_url, headers=headers, json=run_body, timeout=30)
+                run_resp.raise_for_status()
+                run_id = run_resp.json()["data"]["id"]
+                context.log.info(f"Run created: {run_id}")
 
-        assets.append(_terraform_workspace_asset)
+                # Poll for completion
+                elapsed = 0
+                last_status: Optional[str] = None
+                while elapsed < __timeout:
+                    time.sleep(__poll_interval)
+                    elapsed += __poll_interval
+
+                    status_resp = requests.get(
+                        f"{_TFC_BASE_URL}/runs/{run_id}",
+                        headers=headers,
+                        timeout=30,
+                    )
+                    status_resp.raise_for_status()
+                    status = status_resp.json()["data"]["attributes"]["status"]
+
+                    if status != last_status:
+                        context.log.info(f"Run {run_id} status: {status}")
+                        last_status = status
+
+                    if status in _TERMINAL_STATUSES:
+                        break
+                else:
+                    raise Exception(
+                        f"Terraform run {run_id} timed out after {__timeout}s "
+                        f"(last status: {last_status})"
+                    )
+
+                if status not in _SUCCESS_STATUSES:
+                    raise Exception(
+                        f"Terraform run {run_id} finished with status '{status}' "
+                        f"for workspace '{__ws_name}'"
+                    )
+
+                # Fetch apply metadata on success
+                apply_id: Optional[str] = None
+                if status == "applied":
+                    apply_resp = requests.get(
+                        f"{_TFC_BASE_URL}/runs/{run_id}/apply",
+                        headers=headers,
+                        timeout=30,
+                    )
+                    if apply_resp.ok:
+                        apply_id = apply_resp.json().get("data", {}).get("id")
+
+                # Yield MaterializeResult for each output spec key
+                for spec in __specs:
+                    yield dg.MaterializeResult(
+                        asset_key=spec.key,
+                        metadata={
+                            "run_id": dg.MetadataValue.text(run_id),
+                            "status": dg.MetadataValue.text(status),
+                            "workspace": dg.MetadataValue.text(__ws_name),
+                            "apply_id": dg.MetadataValue.text(apply_id or ""),
+                        },
+                    )
+
+            assets.append(_terraform_workspace_multi_asset)
 
     return dg.Definitions(assets=assets)
 
@@ -316,6 +460,7 @@ if _HAS_STATE_BACKED:
         message: str = "Triggered by Dagster"
         poll_interval_seconds: int = 15
         run_timeout_seconds: int = 3600
+        assets_by_workspace_name: Optional[dict] = None
         defs_state: ResolvedDefsStateConfig = field(
             default_factory=DefsStateConfigArgs.local_filesystem
         )
@@ -363,6 +508,7 @@ if _HAS_STATE_BACKED:
                 message=self.message,
                 poll_interval_seconds=self.poll_interval_seconds,
                 run_timeout_seconds=self.run_timeout_seconds,
+                assets_by_workspace_name=self.assets_by_workspace_name,
             )
 
 else:
@@ -402,6 +548,10 @@ else:
         message: str = dg.Field(default="Triggered by Dagster")
         poll_interval_seconds: int = dg.Field(default=15)
         run_timeout_seconds: int = dg.Field(default=3600)
+        assets_by_workspace_name: Optional[dict] = dg.Field(
+            default=None,
+            description="Override AssetSpec for specific HCP Terraform workspaces by name",
+        )
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             token = os.environ[self.api_token_env_var]
@@ -423,4 +573,5 @@ else:
                 message=self.message,
                 poll_interval_seconds=self.poll_interval_seconds,
                 run_timeout_seconds=self.run_timeout_seconds,
+                assets_by_workspace_name=self.assets_by_workspace_name,
             )

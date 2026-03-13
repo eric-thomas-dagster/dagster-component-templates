@@ -424,6 +424,36 @@ def _run_and_poll(
     })
 
 
+# ── Override helpers ──────────────────────────────────────────────────────────
+
+def _merge_spec(base: dg.AssetSpec, ov: dict) -> dg.AssetSpec:
+    """Merge an override dict into a base AssetSpec."""
+    extra_deps = [dg.AssetKey.from_user_string(d) for d in ov.get("deps", [])]
+    return dg.AssetSpec(
+        key=dg.AssetKey.from_user_string(ov["key"]) if "key" in ov else base.key,
+        description=ov.get("description", base.description),
+        group_name=ov.get("group_name", base.group_name),
+        metadata={**(base.metadata or {}), **(ov.get("metadata") or {})},
+        tags={**(base.tags or {}), **(ov.get("tags") or {})},
+        kinds=set(ov["kinds"]) if "kinds" in ov else base.kinds,
+        deps=list(base.deps or []) + extra_deps,
+    )
+
+
+def _apply_job_overrides(
+    default_spec: dg.AssetSpec,
+    job_name: str,
+    overrides: Optional[dict],
+) -> list[dg.AssetSpec]:
+    """Apply assets_by_job_name overrides. Returns list (1 usually, >1 if one job → multiple assets)."""
+    if not overrides or job_name not in overrides:
+        return [default_spec]
+    ov = overrides[job_name]
+    if isinstance(ov, list):
+        return [_merge_spec(default_spec, o) for o in ov]
+    return [_merge_spec(default_spec, ov)]
+
+
 # ── Defs builder ──────────────────────────────────────────────────────────────
 
 def _build_autosys_defs(
@@ -446,6 +476,7 @@ def _build_autosys_defs(
     force_start: bool,
     poll_interval_seconds: int,
     job_timeout_seconds: int,
+    assets_by_job_name: Optional[dict] = None,
 ) -> dg.Definitions:
     """Build Definitions from a cached list of AutoSys job dicts (no network calls)."""
     if not jobs:
@@ -468,7 +499,7 @@ def _build_autosys_defs(
     # ── File Watcher jobs → external AssetSpec (source assets) ──
     fw_jobs = [j for j in jobs if j.get("type", "").upper() == "FW"]
     for job in fw_jobs:
-        spec = dg.AssetSpec(
+        default_spec = dg.AssetSpec(
             key=_asset_key(job["name"]),
             description=job.get("description") or f"AutoSys File Watcher job: {job['name']}",
             group_name=group_name,
@@ -480,7 +511,8 @@ def _build_autosys_defs(
                 "autosys/box": dg.MetadataValue.text(job.get("box_name") or ""),
             },
         )
-        assets.append(spec)
+        expanded = _apply_job_overrides(default_spec, job["name"], assets_by_job_name)
+        assets.extend(expanded)
         emitted.add(job["name"])
 
     # ── BOX jobs ──
@@ -667,12 +699,12 @@ def _build_autosys_defs(
         _job_name = job_name
         _job = job
 
-        @dg.asset(
-            name=_sanitize(_job_name),
-            key_prefix=[key_prefix] if key_prefix else [],
-            group_name=group_name,
-            deps=dep_keys,
+        _default_spec = dg.AssetSpec(
+            key=_asset_key(_job_name),
             description=_job.get("description") or f"AutoSys {job_type} job: {_job_name}",
+            group_name=group_name,
+            kinds={"autosys"},
+            deps=dep_keys,
             metadata={
                 "autosys/job_name": dg.MetadataValue.text(_job_name),
                 "autosys/job_type": dg.MetadataValue.text(job_type),
@@ -681,30 +713,82 @@ def _build_autosys_defs(
                 "autosys/box": dg.MetadataValue.text(_job.get("box_name") or ""),
                 "autosys/condition": dg.MetadataValue.text(_job.get("condition") or ""),
             },
-            kinds={"autosys"},
         )
-        def _cmd_asset_fn(
-            context: dg.AssetExecutionContext,
-            _jname=_job_name,
-            _jmachine=_job.get("machine"),
-        ) -> dg.MaterializeResult:
-            return _run_and_poll(
-                context=context,
-                job_name=_jname,
-                machine=_jmachine,
-                use_rest=use_rest,
-                host=host, port=port,
-                use_ssl=use_ssl, verify_ssl=verify_ssl,
-                username_env_var=username_env_var,
-                password_env_var=password_env_var,
-                token_env_var=token_env_var,
-                autosys_instance=autosys_instance,
-                force_start=force_start,
-                poll_interval_seconds=poll_interval_seconds,
-                job_timeout_seconds=job_timeout_seconds,
-            )
+        _expanded = _apply_job_overrides(_default_spec, _job_name, assets_by_job_name)
 
-        assets.append(_cmd_asset_fn)
+        if len(_expanded) == 1:
+            _spec = _expanded[0]
+
+            @dg.asset(
+                key=_spec.key,
+                group_name=_spec.group_name,
+                deps=list(_spec.deps or []),
+                description=_spec.description,
+                metadata=dict(_spec.metadata or {}),
+                tags=dict(_spec.tags or {}),
+                kinds=set(_spec.kinds or set()),
+            )
+            def _cmd_asset_fn(
+                context: dg.AssetExecutionContext,
+                _jname=_job_name,
+                _jmachine=_job.get("machine"),
+            ) -> dg.MaterializeResult:
+                return _run_and_poll(
+                    context=context,
+                    job_name=_jname,
+                    machine=_jmachine,
+                    use_rest=use_rest,
+                    host=host, port=port,
+                    use_ssl=use_ssl, verify_ssl=verify_ssl,
+                    username_env_var=username_env_var,
+                    password_env_var=password_env_var,
+                    token_env_var=token_env_var,
+                    autosys_instance=autosys_instance,
+                    force_start=force_start,
+                    poll_interval_seconds=poll_interval_seconds,
+                    job_timeout_seconds=job_timeout_seconds,
+                )
+
+            assets.append(_cmd_asset_fn)
+        else:
+            # One AutoSys job → multiple Dagster assets via multi_asset
+            _safe_name = _sanitize(_job_name)
+            _multi_specs = _expanded
+            _multi_jname = _job_name
+            _multi_jmachine = _job.get("machine")
+
+            @dg.multi_asset(
+                name=f"autosys_{_safe_name}_multi",
+                specs=_multi_specs,
+            )
+            def _cmd_multi_asset_fn(
+                context: dg.AssetExecutionContext,
+                _jname=_multi_jname,
+                _jmachine=_multi_jmachine,
+                _specs=_multi_specs,
+            ):
+                result = _run_and_poll(
+                    context=context,
+                    job_name=_jname,
+                    machine=_jmachine,
+                    use_rest=use_rest,
+                    host=host, port=port,
+                    use_ssl=use_ssl, verify_ssl=verify_ssl,
+                    username_env_var=username_env_var,
+                    password_env_var=password_env_var,
+                    token_env_var=token_env_var,
+                    autosys_instance=autosys_instance,
+                    force_start=force_start,
+                    poll_interval_seconds=poll_interval_seconds,
+                    job_timeout_seconds=job_timeout_seconds,
+                )
+                for spec in _specs:
+                    yield dg.MaterializeResult(
+                        asset_key=spec.key,
+                        metadata=result.metadata or {},
+                    )
+
+            assets.append(_cmd_multi_asset_fn)
 
     return dg.Definitions(assets=assets)
 
@@ -839,6 +923,17 @@ if _HAS_STATE_BACKED:
             default=7200,
             description="Maximum seconds to wait for a job to complete before raising",
         )
+
+        # ── Per-job overrides ──────────────────────────────────────────────
+        assets_by_job_name: Optional[dict] = dg.Field(
+            default=None,
+            description=(
+                "Override AssetSpec for specific AutoSys job names. Keys are AutoSys job "
+                "names; values are dicts (or lists of dicts for one-job→multiple-assets) "
+                "with optional fields: key, description, group_name, metadata, tags, kinds, deps."
+            ),
+        )
+
         defs_state: ResolvedDefsStateConfig = field(
             default_factory=DefsStateConfigArgs.local_filesystem
         )
@@ -977,6 +1072,7 @@ if _HAS_STATE_BACKED:
                 force_start=self.force_start,
                 poll_interval_seconds=self.poll_interval_seconds,
                 job_timeout_seconds=self.job_timeout_seconds,
+                assets_by_job_name=self.assets_by_job_name,
             )
 
 else:
@@ -1009,6 +1105,7 @@ else:
         force_start: bool = dg.Field(default=False)
         poll_interval_seconds: int = dg.Field(default=30)
         job_timeout_seconds: int = dg.Field(default=7200)
+        assets_by_job_name: Optional[dict] = dg.Field(default=None)
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             import tempfile
@@ -1052,6 +1149,7 @@ else:
                 force_start=self.force_start,
                 poll_interval_seconds=self.poll_interval_seconds,
                 job_timeout_seconds=self.job_timeout_seconds,
+                assets_by_job_name=self.assets_by_job_name,
             )
 
 

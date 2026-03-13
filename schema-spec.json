@@ -4,15 +4,22 @@
   "title": "Dagster Component Schema Specification",
   "description": "Master specification for all component schema.json files in dagster-component-templates. A UI editor reads this file to understand the valid structure, field types, widgets, and I/O contracts for every component.",
   "version": "1.0.0",
-
   "componentSchema": {
     "description": "The structure every component's schema.json must follow",
-    "required": ["component_type", "description", "category", "attributes"],
+    "required": [
+      "component_type",
+      "description",
+      "category",
+      "attributes"
+    ],
     "properties": {
       "component_type": {
         "type": "string",
         "description": "Fully-qualified Python class path. Format: 'dagster_component_templates.<ClassName>'",
-        "examples": ["dagster_component_templates.SummarizeComponent", "dagster_component_templates.CsvSinkComponent"]
+        "examples": [
+          "dagster_component_templates.SummarizeComponent",
+          "dagster_component_templates.CsvSinkComponent"
+        ]
       },
       "description": {
         "type": "string",
@@ -20,7 +27,7 @@
       },
       "category": {
         "type": "string",
-        "description": "Functional category — controls folder, I/O contract, and UI grouping.",
+        "description": "Functional category \u2014 controls folder, I/O contract, and UI grouping.",
         "enum": [
           "transformation",
           "source",
@@ -40,7 +47,13 @@
       "icon": {
         "type": "string",
         "description": "Lucide icon name to display in the UI. See 'icons' section for valid values.",
-        "examples": ["Database", "Filter", "BarChart2", "Cpu", "Globe"]
+        "examples": [
+          "Database",
+          "Filter",
+          "BarChart2",
+          "Cpu",
+          "Globe"
+        ]
       },
       "x-dagster-io": {
         "description": "Declares the data I/O contract for this component. Drives port display and type-checking in the canvas editor.",
@@ -55,13 +68,20 @@
       },
       "tags": {
         "type": "array",
-        "items": { "type": "string" },
+        "items": {
+          "type": "string"
+        },
         "description": "Search/filter tags shown in the component picker.",
-        "examples": [["transformation", "filter", "rows"]]
+        "examples": [
+          [
+            "transformation",
+            "filter",
+            "rows"
+          ]
+        ]
       }
     }
   },
-
   "ioContract": {
     "description": "Specifies what data types flow in and out of a component. Used by the canvas editor to validate connections between components.",
     "properties": {
@@ -70,8 +90,12 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["dataframe", "string", "any"],
-            "description": "'dataframe' is the most common — the component receives a pandas DataFrame via the Dagster IO manager."
+            "enum": [
+              "dataframe",
+              "string",
+              "any"
+            ],
+            "description": "'dataframe' is the most common \u2014 the component receives a pandas DataFrame via the Dagster IO manager."
           },
           "required": {
             "type": "boolean",
@@ -88,7 +112,12 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["dataframe", "MaterializeResult", "string", "any"],
+            "enum": [
+              "dataframe",
+              "MaterializeResult",
+              "string",
+              "any"
+            ],
             "description": "'dataframe' = passes a pandas DataFrame downstream via IO manager. 'MaterializeResult' = terminal sink/ingestion, returns metadata only."
           },
           "description": {
@@ -99,14 +128,24 @@
       }
     }
   },
-
   "fieldDescriptor": {
     "description": "Describes one configurable attribute. The UI editor uses this to render the correct input widget and validate values.",
-    "required": ["type", "label", "description"],
+    "required": [
+      "type",
+      "label",
+      "description"
+    ],
     "properties": {
       "type": {
         "type": "string",
-        "enum": ["string", "integer", "number", "boolean", "array", "object"],
+        "enum": [
+          "string",
+          "integer",
+          "number",
+          "boolean",
+          "array",
+          "object"
+        ],
         "description": "JSON Schema primitive type for this field."
       },
       "label": {
@@ -126,8 +165,21 @@
       },
       "enum": {
         "type": "array",
-        "description": "Restricts valid values to this list. When present, the UI renders a 'select' dropdown (or 'radio' for ≤3 short values).",
-        "examples": [["repeat", "append", "cross_join"], ["sum", "mean", "count", "min", "max"]]
+        "description": "Restricts valid values to this list. When present, the UI renders a 'select' dropdown (or 'radio' for \u22643 short values).",
+        "examples": [
+          [
+            "repeat",
+            "append",
+            "cross_join"
+          ],
+          [
+            "sum",
+            "mean",
+            "count",
+            "min",
+            "max"
+          ]
+        ]
       },
       "items": {
         "description": "For type='array', describes each element. Typically {\"type\": \"string\"} or {\"type\": \"object\"}."
@@ -151,7 +203,6 @@
       }
     }
   },
-
   "widgets": {
     "description": "All valid ui:widget values, when they are auto-selected, and when to manually set them.",
     "text": {
@@ -199,36 +250,75 @@
       "autoSelected": "fields named password, secret, api_token, access_token, auth_token, or ending in _password/_secret/_token"
     }
   },
-
   "ioContractsByCategory": {
     "description": "Standard I/O contracts by category. All components in a category should conform to the same contract so they are interchangeable in the canvas editor.",
     "transformation": {
-      "inputs": { "type": "dataframe", "required": true, "description": "Input DataFrame" },
-      "outputs": { "type": "dataframe", "description": "Transformed DataFrame" }
+      "inputs": {
+        "type": "dataframe",
+        "required": true,
+        "description": "Input DataFrame"
+      },
+      "outputs": {
+        "type": "dataframe",
+        "description": "Transformed DataFrame"
+      }
     },
     "source": {
-      "outputs": { "type": "dataframe", "description": "Output DataFrame" }
+      "outputs": {
+        "type": "dataframe",
+        "description": "Output DataFrame"
+      }
     },
     "sink": {
-      "inputs": { "type": "dataframe", "required": true, "description": "DataFrame to write" },
-      "outputs": { "type": "MaterializeResult", "description": "Write confirmation with metadata" }
+      "inputs": {
+        "type": "dataframe",
+        "required": true,
+        "description": "DataFrame to write"
+      },
+      "outputs": {
+        "type": "MaterializeResult",
+        "description": "Write confirmation with metadata"
+      }
     },
     "ingestion": {
-      "outputs": { "type": "MaterializeResult", "description": "Ingestion result with row count" }
+      "outputs": {
+        "type": "MaterializeResult",
+        "description": "Ingestion result with row count"
+      }
     },
     "analytics": {
-      "inputs": { "type": "dataframe", "required": true, "description": "Input DataFrame" },
-      "outputs": { "type": "dataframe", "description": "Analytics result DataFrame" }
+      "inputs": {
+        "type": "dataframe",
+        "required": true,
+        "description": "Input DataFrame"
+      },
+      "outputs": {
+        "type": "dataframe",
+        "description": "Analytics result DataFrame"
+      }
     },
     "ai": {
-      "inputs": { "type": "dataframe", "required": true, "description": "Input DataFrame" },
-      "outputs": { "type": "dataframe", "description": "Processed DataFrame" }
+      "inputs": {
+        "type": "dataframe",
+        "required": true,
+        "description": "Input DataFrame"
+      },
+      "outputs": {
+        "type": "dataframe",
+        "description": "Processed DataFrame"
+      }
     },
     "infrastructure": {
-      "outputs": { "type": "MaterializeResult", "description": "Deployment or operation result" }
+      "outputs": {
+        "type": "MaterializeResult",
+        "description": "Deployment or operation result"
+      }
     },
     "dbt": {
-      "outputs": { "type": "MaterializeResult", "description": "dbt run result" }
+      "outputs": {
+        "type": "MaterializeResult",
+        "description": "dbt run result"
+      }
     },
     "sensor": {},
     "external": {},
@@ -236,45 +326,183 @@
     "check": {},
     "integration": {}
   },
-
   "icons": {
-    "description": "Recommended Lucide icon names by category. Any valid Lucide icon name is accepted.",
-    "transformation": ["Shuffle", "Filter", "SortAsc", "Columns", "GitMerge", "Scissors", "Type", "Hash", "Calculator", "RefreshCw", "ArrowRightLeft", "Rows", "PlusSquare", "Minus", "Braces"],
-    "source": ["Database", "Table", "FileText", "Globe", "Server", "HardDrive", "FileJson", "Sheet", "Inbox"],
-    "sink": ["Download", "Save", "Upload", "HardDrive", "FileOutput", "Database", "Archive"],
-    "ingestion": ["Upload", "CloudUpload", "Inbox", "Import", "ArrowDownToLine"],
-    "analytics": ["BarChart2", "PieChart", "TrendingUp", "Activity", "Sigma", "Target", "GitBranch", "Crosshair", "Map"],
-    "ai": ["Cpu", "Brain", "MessageSquare", "Sparkles", "Wand2", "Eye", "Search", "Tag"],
-    "infrastructure": ["Server", "Cloud", "GitBranch", "Shield", "Settings", "Terminal", "Layers"],
-    "sensor": ["Bell", "Radio", "Wifi", "Clock"],
-    "external": ["ExternalLink", "Link", "Globe"],
-    "observation": ["Eye", "Activity", "Monitor"],
-    "check": ["CheckCircle", "AlertTriangle", "Shield"],
-    "integration": ["Plug", "Link2", "Zap"]
+    "description": "Icon name for this component. Two icon sets are supported: Lucide (default, geometric UI icons) and Simple Icons (brand/technology logos). Prefix Simple Icons with \"si:\" \u2014 e.g. \"si:snowflake\", \"si:mongodb\", \"si:postgresql\". Lucide icons use no prefix \u2014 e.g. \"Database\", \"Filter\", \"BarChart2\". Browse Lucide at lucide.dev and Simple Icons at simpleicons.org.",
+    "transformation": [
+      "Shuffle",
+      "Filter",
+      "SortAsc",
+      "Columns",
+      "GitMerge",
+      "Scissors",
+      "Type",
+      "Hash",
+      "Calculator",
+      "RefreshCw",
+      "ArrowRightLeft",
+      "Rows",
+      "PlusSquare",
+      "Minus",
+      "Braces"
+    ],
+    "source": [
+      "Database",
+      "Table",
+      "FileText",
+      "Globe",
+      "Server",
+      "HardDrive",
+      "FileJson",
+      "Sheet",
+      "Inbox"
+    ],
+    "sink": [
+      "Download",
+      "Save",
+      "Upload",
+      "HardDrive",
+      "FileOutput",
+      "Database",
+      "Archive"
+    ],
+    "ingestion": [
+      "Upload",
+      "CloudUpload",
+      "Inbox",
+      "Import",
+      "ArrowDownToLine"
+    ],
+    "analytics": [
+      "BarChart2",
+      "PieChart",
+      "TrendingUp",
+      "Activity",
+      "Sigma",
+      "Target",
+      "GitBranch",
+      "Crosshair",
+      "Map"
+    ],
+    "ai": [
+      "Cpu",
+      "Brain",
+      "MessageSquare",
+      "Sparkles",
+      "Wand2",
+      "Eye",
+      "Search",
+      "Tag"
+    ],
+    "infrastructure": [
+      "Server",
+      "Cloud",
+      "GitBranch",
+      "Shield",
+      "Settings",
+      "Terminal",
+      "Layers"
+    ],
+    "sensor": [
+      "Bell",
+      "Radio",
+      "Wifi",
+      "Clock"
+    ],
+    "external": [
+      "ExternalLink",
+      "Link",
+      "Globe"
+    ],
+    "observation": [
+      "Eye",
+      "Activity",
+      "Monitor"
+    ],
+    "check": [
+      "CheckCircle",
+      "AlertTriangle",
+      "Shield"
+    ],
+    "integration": [
+      "Plug",
+      "Link2",
+      "Zap"
+    ],
+    "sets": {
+      "lucide": {
+        "prefix": null,
+        "example": "Database",
+        "url": "https://lucide.dev",
+        "description": "Geometric UI icons. Use for generic components (transforms, analytics, AI) where no brand logo applies."
+      },
+      "simpleicons": {
+        "prefix": "si:",
+        "example": "si:snowflake",
+        "url": "https://simpleicons.org",
+        "description": "Brand and technology logos. Use for components that connect to a specific technology or SaaS product."
+      }
+    }
   },
-
   "componentRegistry": {
     "description": "All component categories and their folder locations within the repository.",
     "folders": {
-      "assets/ingestion": { "category": "ingestion", "count": 49 },
-      "assets/sources": { "category": "source", "count": 18 },
-      "assets/transforms": { "category": "transformation", "count": 38 },
-      "assets/sinks": { "category": "sink", "count": 23 },
-      "assets/analytics": { "category": "analytics", "count": 69 },
-      "assets/ai": { "category": "ai", "count": 34 },
-      "assets/infrastructure": { "category": "infrastructure", "count": 16 },
-      "assets/dbt": { "category": "dbt", "count": 1 },
-      "sensors": { "category": "sensor", "count": 30 },
-      "external_assets": { "category": "external", "count": 21 },
-      "observations": { "category": "observation", "count": 20 },
-      "asset_checks": { "category": "check", "count": 7 },
-      "integrations": { "category": "integration", "count": 18 }
+      "assets/ingestion": {
+        "category": "ingestion",
+        "count": 49
+      },
+      "assets/sources": {
+        "category": "source",
+        "count": 18
+      },
+      "assets/transforms": {
+        "category": "transformation",
+        "count": 38
+      },
+      "assets/sinks": {
+        "category": "sink",
+        "count": 23
+      },
+      "assets/analytics": {
+        "category": "analytics",
+        "count": 69
+      },
+      "assets/ai": {
+        "category": "ai",
+        "count": 34
+      },
+      "assets/infrastructure": {
+        "category": "infrastructure",
+        "count": 16
+      },
+      "assets/dbt": {
+        "category": "dbt",
+        "count": 1
+      },
+      "sensors": {
+        "category": "sensor",
+        "count": 30
+      },
+      "external_assets": {
+        "category": "external",
+        "count": 21
+      },
+      "observations": {
+        "category": "observation",
+        "count": 20
+      },
+      "asset_checks": {
+        "category": "check",
+        "count": 7
+      },
+      "integrations": {
+        "category": "integration",
+        "count": 18
+      }
     },
     "totalComponents": 342,
     "manifestFile": "manifest.json",
     "manifestDescription": "Full registry of all components with paths and GitHub raw URLs. Updated when new components are added."
   },
-
   "parsingInstructions": {
     "description": "How a UI editor should load and parse components from this repository.",
     "steps": [
@@ -282,7 +510,7 @@
       "2. For each component, load its schema.json using the path from the manifest.",
       "3. Validate the schema.json against the 'componentSchema' definition in this file.",
       "4. Use 'category' to determine the I/O ports (see ioContractsByCategory).",
-      "5. Use 'attributes' to build the configuration form — render each field using its 'type', 'ui:widget', and 'enum'.",
+      "5. Use 'attributes' to build the configuration form \u2014 render each field using its 'type', 'ui:widget', and 'enum'.",
       "6. Use 'x-dagster-io' for canvas port display and connection type-checking.",
       "7. Use 'icon' and 'tags' for the component picker UI.",
       "8. When rendering a field: if 'ui:widget' is present, use it; otherwise auto-select based on 'type' and field name per the 'widgets' section."

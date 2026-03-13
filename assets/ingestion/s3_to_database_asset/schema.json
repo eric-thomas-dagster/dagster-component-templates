@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.S3ToDatabaseAssetComponent",
   "description": "Component for loading files from S3 into a database table.",
   "category": "ingestion",
-  "icon": "ArrowUpFromLine",
+  "icon": "si:amazons3",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -105,7 +105,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

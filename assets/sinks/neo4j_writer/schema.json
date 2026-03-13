@@ -3,7 +3,7 @@
   "name": "Neo4j Writer",
   "category": "sink",
   "description": "Write a DataFrame to Neo4j as graph nodes using MERGE or CREATE with efficient UNWIND batch processing",
-  "icon": "Share2",
+  "icon": "si:neo4j",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",
@@ -84,7 +84,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
       "required": false,
       "default": null,
       "enum": [
@@ -138,7 +138,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

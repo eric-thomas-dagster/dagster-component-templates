@@ -74,7 +74,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/airtable_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/airtable_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/airtable_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:airtable"
     },
     {
       "id": "anomaly_detection",
@@ -122,7 +122,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_llm/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_llm/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_llm/requirements.txt",
-      "icon": "Sparkles"
+      "icon": "si:anthropic"
     },
     {
       "id": "asana_ingestion",
@@ -147,7 +147,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/asana_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/asana_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/asana_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:asana"
     },
     {
       "id": "campaign_performance",
@@ -414,7 +414,7 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_segmentation/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_segmentation/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_segmentation/example.yaml",
-      "icon": "BarChart2"
+      "icon": "si:segment"
     },
     {
       "id": "database_query",
@@ -629,7 +629,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/duckdb_query_reader/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/duckdb_query_reader/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/duckdb_query_reader/requirements.txt",
-      "icon": "Database"
+      "icon": "si:duckdb"
     },
     {
       "id": "duckdb_table_writer",
@@ -656,7 +656,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/duckdb_table_writer/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/duckdb_table_writer/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/duckdb_table_writer/requirements.txt",
-      "icon": "ArrowDownToLine"
+      "icon": "si:duckdb"
     },
     {
       "id": "ecommerce_standardizer",
@@ -792,7 +792,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/facebook_ads_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/facebook_ads_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/facebook_ads_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:facebook"
     },
     {
       "id": "file_transformer",
@@ -844,7 +844,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/freshdesk_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/freshdesk_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/freshdesk_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:freshdesk"
     },
     {
       "id": "funnel_analysis",
@@ -895,7 +895,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/github_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/github_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/github_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:github"
     },
     {
       "id": "google_ads_ingestion",
@@ -947,7 +947,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_analytics_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_analytics_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_analytics_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:googleanalytics"
     },
     {
       "id": "google_sheets_ingestion",
@@ -998,7 +998,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/hubspot_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/hubspot_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/hubspot_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:hubspot"
     },
     {
       "id": "jira_ingestion",
@@ -1023,7 +1023,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jira_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jira_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jira_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:jira"
     },
     {
       "id": "lead_scoring",
@@ -1071,7 +1071,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/linkedin_ads_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/linkedin_ads_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/linkedin_ads_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:linkedin"
     },
     {
       "id": "llm_chain_executor",
@@ -1278,7 +1278,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/mongodb_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/mongodb_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/mongodb_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:mongodb"
     },
     {
       "id": "multi_touch_attribution",
@@ -1326,7 +1326,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/notion_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/notion_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/notion_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:notion"
     },
     {
       "id": "openai_llm",
@@ -1352,7 +1352,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_llm/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_llm/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_llm/requirements.txt",
-      "icon": "Sparkles"
+      "icon": "si:openai"
     },
     {
       "id": "personio_ingestion",
@@ -1688,7 +1688,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/rfm_segmentation/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/rfm_segmentation/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/rfm_segmentation/requirements.txt",
-      "icon": "BarChart2"
+      "icon": "si:segment"
     },
     {
       "id": "s3_to_database_asset",
@@ -1716,7 +1716,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/s3_to_database_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/s3_to_database_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/s3_to_database_asset/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:amazons3"
     },
     {
       "id": "salesforce_ingestion",
@@ -1742,7 +1742,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/salesforce_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/salesforce_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/salesforce_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:salesforce"
     },
     {
       "id": "sentiment_analyzer",
@@ -1794,7 +1794,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/shopify_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/shopify_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/shopify_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:shopify"
     },
     {
       "id": "slack_ingestion",
@@ -1819,7 +1819,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/slack_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/slack_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/slack_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:slack"
     },
     {
       "id": "stripe_ingestion",
@@ -1844,7 +1844,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/stripe_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/stripe_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/stripe_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:stripe"
     },
     {
       "id": "subscription_metrics",
@@ -2088,7 +2088,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tiktok_ads_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tiktok_ads_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tiktok_ads_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:tiktok"
     },
     {
       "id": "time_series_generator",
@@ -2141,7 +2141,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/twitter_ads_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/twitter_ads_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/twitter_ads_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:x"
     },
     {
       "id": "vector_store_query",
@@ -2281,7 +2281,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/zendesk_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/zendesk_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/zendesk_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:zendesk"
     },
     {
       "id": "filesystem_monitor",
@@ -2326,7 +2326,7 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/example.yaml",
-      "icon": "Radar"
+      "icon": "si:slack"
     },
     {
       "id": "s3_monitor",
@@ -2376,7 +2376,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/adls_monitor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/adls_monitor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/adls_monitor/requirements.txt",
-      "icon": "Radar"
+      "icon": "si:microsoftazure"
     },
     {
       "id": "kafka_monitor",
@@ -2401,7 +2401,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/kafka_monitor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/kafka_monitor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/kafka_monitor/requirements.txt",
-      "icon": "Radar"
+      "icon": "si:apachekafka"
     },
     {
       "id": "gcs_monitor",
@@ -2426,7 +2426,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/gcs_monitor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/gcs_monitor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/gcs_monitor/requirements.txt",
-      "icon": "Radar"
+      "icon": "si:googlecloud"
     },
     {
       "id": "sqs_monitor",
@@ -2578,7 +2578,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rabbitmq_monitor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rabbitmq_monitor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rabbitmq_monitor/requirements.txt",
-      "icon": "Radar"
+      "icon": "si:rabbitmq"
     },
     {
       "id": "mqtt_monitor",
@@ -2629,7 +2629,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/redis_streams_monitor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/redis_streams_monitor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/redis_streams_monitor/requirements.txt",
-      "icon": "Radar"
+      "icon": "si:redis"
     },
     {
       "id": "pulsar_monitor",
@@ -2753,7 +2753,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_adls_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_adls_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_adls_asset/requirements.txt",
-      "icon": "Link"
+      "icon": "si:microsoftazure"
     },
     {
       "id": "external_gcs_asset",
@@ -2778,7 +2778,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_gcs_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_gcs_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_gcs_asset/requirements.txt",
-      "icon": "Link"
+      "icon": "si:googlecloud"
     },
     {
       "id": "external_kafka_asset",
@@ -2803,7 +2803,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_kafka_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_kafka_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_kafka_asset/requirements.txt",
-      "icon": "Link"
+      "icon": "si:apachekafka"
     },
     {
       "id": "external_sqs_asset",
@@ -2953,7 +2953,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_rabbitmq_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_rabbitmq_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_rabbitmq_asset/requirements.txt",
-      "icon": "Link"
+      "icon": "si:rabbitmq"
     },
     {
       "id": "external_mqtt_asset",
@@ -3004,7 +3004,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_redis_stream_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_redis_stream_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_redis_stream_asset/requirements.txt",
-      "icon": "Link"
+      "icon": "si:redis"
     },
     {
       "id": "external_pulsar_asset",
@@ -3129,7 +3129,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/adls_observation_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/adls_observation_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/adls_observation_sensor/requirements.txt",
-      "icon": "Eye"
+      "icon": "si:microsoftazure"
     },
     {
       "id": "gcs_observation_sensor",
@@ -3154,7 +3154,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/gcs_observation_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/gcs_observation_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/gcs_observation_sensor/requirements.txt",
-      "icon": "Eye"
+      "icon": "si:googlecloud"
     },
     {
       "id": "kafka_observation_sensor",
@@ -3179,7 +3179,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/kafka_observation_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/kafka_observation_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/kafka_observation_sensor/requirements.txt",
-      "icon": "Eye"
+      "icon": "si:apachekafka"
     },
     {
       "id": "sqs_observation_sensor",
@@ -3331,7 +3331,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/rabbitmq_observation_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/rabbitmq_observation_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/rabbitmq_observation_sensor/requirements.txt",
-      "icon": "Eye"
+      "icon": "si:rabbitmq"
     },
     {
       "id": "mqtt_observation_sensor",
@@ -3382,7 +3382,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/redis_stream_observation_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/redis_stream_observation_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/redis_stream_observation_sensor/requirements.txt",
-      "icon": "Eye"
+      "icon": "si:redis"
     },
     {
       "id": "pulsar_observation_sensor",
@@ -3555,7 +3555,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/fivetran_sync_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/fivetran_sync_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/fivetran_sync_sensor/requirements.txt",
-      "icon": "Radar"
+      "icon": "si:fivetran"
     },
     {
       "id": "dbt_cloud_job_sensor",
@@ -3581,7 +3581,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dbt_cloud_job_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dbt_cloud_job_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dbt_cloud_job_sensor/requirements.txt",
-      "icon": "Radar"
+      "icon": "si:dbt"
     },
     {
       "id": "airbyte_sync_sensor",
@@ -3606,7 +3606,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/airbyte_sync_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/airbyte_sync_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/airbyte_sync_sensor/requirements.txt",
-      "icon": "Radar"
+      "icon": "si:airbyte"
     },
     {
       "id": "sharepoint_monitor",
@@ -3705,7 +3705,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_snowflake_table/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_snowflake_table/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_snowflake_table/requirements.txt",
-      "icon": "Link"
+      "icon": "si:snowflake"
     },
     {
       "id": "external_bigquery_table",
@@ -3730,7 +3730,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_bigquery_table/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_bigquery_table/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_bigquery_table/requirements.txt",
-      "icon": "Link"
+      "icon": "si:googlebigquery"
     },
     {
       "id": "external_databricks_table",
@@ -3755,7 +3755,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_databricks_table/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_databricks_table/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_databricks_table/requirements.txt",
-      "icon": "Link"
+      "icon": "si:databricks"
     },
     {
       "id": "external_sftp_path",
@@ -3831,7 +3831,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/snowflake_table_observation_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/snowflake_table_observation_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/snowflake_table_observation_sensor/requirements.txt",
-      "icon": "Eye"
+      "icon": "si:snowflake"
     },
     {
       "id": "bigquery_table_observation_sensor",
@@ -3857,7 +3857,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/bigquery_table_observation_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/bigquery_table_observation_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/bigquery_table_observation_sensor/requirements.txt",
-      "icon": "Eye"
+      "icon": "si:googlebigquery"
     },
     {
       "id": "databricks_table_observation_sensor",
@@ -3883,7 +3883,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/databricks_table_observation_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/databricks_table_observation_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/databricks_table_observation_sensor/requirements.txt",
-      "icon": "Eye"
+      "icon": "si:databricks"
     },
     {
       "id": "sftp_path_observation_sensor",
@@ -4083,7 +4083,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_clickhouse_table/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_clickhouse_table/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_clickhouse_table/requirements.txt",
-      "icon": "Link"
+      "icon": "si:clickhouse"
     },
     {
       "id": "clickhouse_table_observation_sensor",
@@ -4109,7 +4109,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/clickhouse_table_observation_sensor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/clickhouse_table_observation_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/clickhouse_table_observation_sensor/requirements.txt",
-      "icon": "Eye"
+      "icon": "si:clickhouse"
     },
     {
       "id": "abinitio_run_asset",
@@ -4316,7 +4316,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/adls_to_database_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/adls_to_database_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/adls_to_database_asset/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:microsoftazure"
     },
     {
       "id": "gcs_to_database_asset",
@@ -4344,7 +4344,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gcs_to_database_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gcs_to_database_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gcs_to_database_asset/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:googlecloud"
     },
     {
       "id": "sftp_to_database_asset",
@@ -4400,7 +4400,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kafka_to_database_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kafka_to_database_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kafka_to_database_asset/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "si:apachekafka"
     },
     {
       "id": "sqs_to_database_asset",
@@ -4470,7 +4470,7 @@
         "database",
         "asset"
       ],
-      "icon": "ArrowUpFromLine"
+      "icon": "si:rabbitmq"
     },
     {
       "name": "Pub/Sub to Database",
@@ -4513,7 +4513,7 @@
         "database",
         "asset"
       ],
-      "icon": "ArrowUpFromLine"
+      "icon": "si:redis"
     },
     {
       "name": "SQL to Database",
@@ -4583,7 +4583,7 @@
         "enriched",
         "project"
       ],
-      "icon": "Package"
+      "icon": "si:dbt"
     },
     {
       "name": "LiteLLM Inference Asset",
@@ -4597,7 +4597,7 @@
         "inference",
         "asset"
       ],
-      "icon": "Sparkles"
+      "icon": "si:openai"
     },
     {
       "name": "Ollama Inference Asset",
@@ -4754,7 +4754,7 @@
         "ansible",
         "asset"
       ],
-      "icon": "Server"
+      "icon": "si:ansible"
     },
     {
       "id": "pulumi_asset",
@@ -4768,7 +4768,7 @@
         "pulumi",
         "asset"
       ],
-      "icon": "Server"
+      "icon": "si:pulumi"
     },
     {
       "id": "helm_deploy",
@@ -4840,7 +4840,7 @@
         "notebook",
         "asset"
       ],
-      "icon": "BarChart2"
+      "icon": "si:jupyter"
     },
     {
       "id": "modal_asset",
@@ -4854,7 +4854,7 @@
         "modal",
         "asset"
       ],
-      "icon": "Server"
+      "icon": "si:modal"
     },
     {
       "id": "pinecone_asset",
@@ -4868,7 +4868,7 @@
         "pinecone",
         "asset"
       ],
-      "icon": "BarChart2"
+      "icon": "si:pinecone"
     },
     {
       "id": "mlflow_model_sensor",
@@ -4910,7 +4910,7 @@
         "twilio",
         "notification"
       ],
-      "icon": "Radar"
+      "icon": "si:twilio"
     },
     {
       "id": "elasticsearch_asset",
@@ -4935,7 +4935,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/elasticsearch_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/elasticsearch_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/elasticsearch_asset/requirements.txt",
-      "icon": "BarChart2"
+      "icon": "si:elasticsearch"
     },
     {
       "id": "pgvector_asset",
@@ -4961,7 +4961,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pgvector_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pgvector_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pgvector_asset/requirements.txt",
-      "icon": "BarChart2"
+      "icon": "si:postgresql"
     },
     {
       "id": "chromadb_asset",
@@ -5079,7 +5079,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/wandb_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/wandb_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/wandb_asset/requirements.txt",
-      "icon": "BarChart2"
+      "icon": "si:weightsandbiases"
     },
     {
       "id": "snowflake_cortex_asset",
@@ -5104,7 +5104,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/snowflake_cortex_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/snowflake_cortex_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/snowflake_cortex_asset/requirements.txt",
-      "icon": "Sparkles"
+      "icon": "si:snowflake"
     },
     {
       "id": "graphql_asset",
@@ -5194,7 +5194,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_glue/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_glue/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_glue/requirements.txt",
-      "icon": "Plug"
+      "icon": "si:awsglue"
     },
     {
       "id": "aws_kinesis",
@@ -5215,7 +5215,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_kinesis/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_kinesis/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_kinesis/requirements.txt",
-      "icon": "Plug"
+      "icon": "si:amazonkinesis"
     },
     {
       "id": "aws_redshift",
@@ -5236,7 +5236,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_redshift/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_redshift/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_redshift/requirements.txt",
-      "icon": "Plug"
+      "icon": "si:amazonredshift"
     },
     {
       "id": "aws_sagemaker",
@@ -5257,7 +5257,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_sagemaker/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_sagemaker/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_sagemaker/requirements.txt",
-      "icon": "Plug"
+      "icon": "si:amazonsagemaker"
     },
     {
       "id": "azure_data_factory",
@@ -5279,7 +5279,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_data_factory/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_data_factory/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_data_factory/requirements.txt",
-      "icon": "Plug"
+      "icon": "si:microsoftazure"
     },
     {
       "id": "azure_stream_analytics",
@@ -5301,7 +5301,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_stream_analytics/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_stream_analytics/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_stream_analytics/requirements.txt",
-      "icon": "Plug"
+      "icon": "si:microsoftazure"
     },
     {
       "id": "azure_synapse",
@@ -5322,7 +5322,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_synapse/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_synapse/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_synapse/requirements.txt",
-      "icon": "Plug"
+      "icon": "si:microsoftazure"
     },
     {
       "id": "databricks_asset_bundle",
@@ -5344,7 +5344,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_asset_bundle/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_asset_bundle/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_asset_bundle/requirements.txt",
-      "icon": "Plug"
+      "icon": "si:databricks"
     },
     {
       "id": "databricks_workspace",
@@ -5365,7 +5365,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_workspace/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_workspace/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_workspace/requirements.txt",
-      "icon": "Plug"
+      "icon": "si:databricks"
     },
     {
       "id": "google_bigquery",
@@ -5386,7 +5386,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_bigquery/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_bigquery/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_bigquery/requirements.txt",
-      "icon": "Plug"
+      "icon": "si:googlebigquery"
     },
     {
       "id": "google_cloud_functions",
@@ -5408,7 +5408,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_functions/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_functions/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_functions/requirements.txt",
-      "icon": "Plug"
+      "icon": "si:googlecloud"
     },
     {
       "id": "google_cloud_run_jobs",
@@ -5431,7 +5431,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_run_jobs/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_run_jobs/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_run_jobs/requirements.txt",
-      "icon": "Plug"
+      "icon": "si:googlecloud"
     },
     {
       "id": "google_dataflow",
@@ -5494,7 +5494,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_pubsub/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_pubsub/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_pubsub/requirements.txt",
-      "icon": "Plug"
+      "icon": "si:googlepubsub"
     },
     {
       "id": "google_vertex_ai",
@@ -5536,7 +5536,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_workspace/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_workspace/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_workspace/requirements.txt",
-      "icon": "Plug"
+      "icon": "si:snowflake"
     },
     {
       "id": "dataframe_from_table",
@@ -6146,7 +6146,7 @@
         "regression",
         "model"
       ],
-      "icon": "BarChart2"
+      "icon": "si:linear"
     },
     {
       "id": "logistic_regression_model",
@@ -6346,7 +6346,7 @@
         "dataframe",
         "snowflake"
       ],
-      "icon": "ArrowDownToLine"
+      "icon": "si:snowflake"
     },
     {
       "id": "dataframe_to_bigquery",
@@ -6364,7 +6364,7 @@
         "dataframe",
         "bigquery"
       ],
-      "icon": "ArrowDownToLine"
+      "icon": "si:googlebigquery"
     },
     {
       "id": "dataframe_to_redshift",
@@ -6382,7 +6382,7 @@
         "dataframe",
         "redshift"
       ],
-      "icon": "ArrowDownToLine"
+      "icon": "si:amazonredshift"
     },
     {
       "id": "dataframe_to_databricks",
@@ -6400,7 +6400,7 @@
         "dataframe",
         "databricks"
       ],
-      "icon": "ArrowDownToLine"
+      "icon": "si:databricks"
     },
     {
       "id": "dataframe_to_s3",
@@ -6435,7 +6435,7 @@
         "dataframe",
         "adls"
       ],
-      "icon": "ArrowDownToLine"
+      "icon": "si:microsoftazure"
     },
     {
       "id": "dataframe_to_gcs",
@@ -6453,7 +6453,7 @@
         "dataframe",
         "gcs"
       ],
-      "icon": "ArrowDownToLine"
+      "icon": "si:googlecloud"
     },
     {
       "id": "optimization",
@@ -6559,7 +6559,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/pgvector_reader/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/pgvector_reader/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/pgvector_reader/requirements.txt",
-      "icon": "Database"
+      "icon": "si:postgresql"
     },
     {
       "id": "pinecone_reader",
@@ -6586,7 +6586,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/pinecone_reader/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/pinecone_reader/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/pinecone_reader/requirements.txt",
-      "icon": "Database"
+      "icon": "si:pinecone"
     },
     {
       "id": "elasticsearch_reader",
@@ -6612,7 +6612,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/elasticsearch_reader/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/elasticsearch_reader/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/elasticsearch_reader/requirements.txt",
-      "icon": "Database"
+      "icon": "si:elasticsearch"
     },
     {
       "id": "chromadb_reader",
@@ -6664,14 +6664,14 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/wandb_reader/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/wandb_reader/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/wandb_reader/requirements.txt",
-      "icon": "Database"
+      "icon": "si:weightsandbiases"
     },
     {
       "path": "assets/sources/cassandra_reader",
       "component_type": "dagster_component_templates.CassandraReaderComponent",
       "description": "Component for executing CQL queries against an Apache Cassandra keyspace.",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/sources/cassandra_reader/schema.json",
-      "icon": "Database",
+      "icon": "si:apachecassandra",
       "category": "source",
       "tags": [
         "source",
@@ -6684,7 +6684,7 @@
       "component_type": "dagster_component_templates.CosmosdbReaderComponent",
       "description": "Component for querying items from an Azure Cosmos DB container.",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/sources/cosmosdb_reader/schema.json",
-      "icon": "Database",
+      "icon": "si:microsoftazure",
       "category": "source",
       "tags": [
         "source",
@@ -6697,7 +6697,7 @@
       "component_type": "dagster_component_templates.CouchdbReaderComponent",
       "description": "Component for querying documents from an Apache CouchDB database.",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/sources/couchdb_reader/schema.json",
-      "icon": "Database",
+      "icon": "si:apachecouchdb",
       "category": "source",
       "tags": [
         "source",
@@ -6710,7 +6710,7 @@
       "component_type": "dagster_component_templates.DynamodbReaderComponent",
       "description": "Component for reading items from an AWS DynamoDB table.",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/sources/dynamodb_reader/schema.json",
-      "icon": "Database",
+      "icon": "si:amazondynamodb",
       "category": "source",
       "tags": [
         "source",
@@ -6723,7 +6723,7 @@
       "component_type": "dagster_component_templates.FirestoreReaderComponent",
       "description": "Component for reading documents from a Google Cloud Firestore collection.",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/sources/firestore_reader/schema.json",
-      "icon": "Database",
+      "icon": "si:firebase",
       "category": "source",
       "tags": [
         "source",
@@ -6736,7 +6736,7 @@
       "component_type": "dagster_component_templates.MongodbReaderComponent",
       "description": "Component for reading documents from a MongoDB collection.",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/sources/mongodb_reader/schema.json",
-      "icon": "Database",
+      "icon": "si:mongodb",
       "category": "source",
       "tags": [
         "source",
@@ -6749,7 +6749,7 @@
       "component_type": "dagster_component_templates.Neo4jReaderComponent",
       "description": "Component for executing Cypher queries against a Neo4j graph database.",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/sources/neo4j_reader/schema.json",
-      "icon": "Database",
+      "icon": "si:neo4j",
       "category": "source",
       "tags": [
         "source",
@@ -6762,7 +6762,7 @@
       "component_type": "dagster_component_templates.RedisReaderComponent",
       "description": "Component for reading keys from a Redis instance.",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/sources/redis_reader/schema.json",
-      "icon": "Database",
+      "icon": "si:redis",
       "category": "source",
       "tags": [
         "source",
@@ -6915,7 +6915,7 @@
       "component_type": "dagster_component_templates.cassandra_writer",
       "description": "Write a DataFrame to an Apache Cassandra table using prepared INSERT CQL statements in batches",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/sinks/cassandra_writer/schema.json",
-      "icon": "Database",
+      "icon": "si:apachecassandra",
       "category": "sink",
       "tags": [
         "sink",
@@ -6929,7 +6929,7 @@
       "component_type": "dagster_component_templates.cosmosdb_writer",
       "description": "Write a DataFrame to an Azure Cosmos DB container with upsert or insert mode",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/sinks/cosmosdb_writer/schema.json",
-      "icon": "Database",
+      "icon": "si:microsoftazure",
       "category": "sink",
       "tags": [
         "sink",
@@ -6944,7 +6944,7 @@
       "component_type": "dagster_component_templates.DynamodbWriterComponent",
       "description": "Component for writing a DataFrame to an AWS DynamoDB table.",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/sinks/dynamodb_writer/schema.json",
-      "icon": "ArrowDownToLine",
+      "icon": "si:amazondynamodb",
       "category": "sink",
       "tags": [
         "sink",
@@ -6957,7 +6957,7 @@
       "component_type": "dagster_component_templates.firestore_writer",
       "description": "Write a DataFrame to a Google Cloud Firestore collection using batch writes with merge or overwrite support",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/sinks/firestore_writer/schema.json",
-      "icon": "Database",
+      "icon": "si:firebase",
       "category": "sink",
       "tags": [
         "sink",
@@ -6972,7 +6972,7 @@
       "component_type": "dagster_component_templates.MongodbWriterComponent",
       "description": "Component for writing a DataFrame to a MongoDB collection.",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/sinks/mongodb_writer/schema.json",
-      "icon": "ArrowDownToLine",
+      "icon": "si:mongodb",
       "category": "sink",
       "tags": [
         "sink",
@@ -6985,7 +6985,7 @@
       "component_type": "dagster_component_templates.redis_writer",
       "description": "Write a DataFrame to Redis as hashes, strings, or list values with optional TTL support",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/sinks/redis_writer/schema.json",
-      "icon": "Database",
+      "icon": "si:redis",
       "category": "sink",
       "tags": [
         "sink",
@@ -7482,7 +7482,7 @@
       "component_type": "dagster_component_templates.LitellmBatchCompletionComponent",
       "description": "Process a DataFrame column row-by-row through any LLM using LiteLLM with parallel threads, fallback routing, and cost tracking.",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/ai/litellm_batch_completion/schema.json",
-      "icon": "Zap",
+      "icon": "si:openai",
       "category": "ai",
       "tags": [
         "ai",
@@ -7498,7 +7498,7 @@
       "component_type": "dagster_component_templates.LitellmStructuredOutputComponent",
       "description": "Extract structured JSON data from text using LiteLLM's JSON mode and expand extracted fields as new DataFrame columns.",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/ai/litellm_structured_output/schema.json",
-      "icon": "Braces",
+      "icon": "si:openai",
       "category": "ai",
       "tags": [
         "ai",
@@ -7514,7 +7514,7 @@
       "component_type": "dagster_component_templates.LitellmFunctionCallingComponent",
       "description": "Use LiteLLM function/tool calling to invoke structured tool definitions against each DataFrame row and write tool call results as JSON.",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/ai/litellm_function_calling/schema.json",
-      "icon": "Wrench",
+      "icon": "si:openai",
       "category": "ai",
       "tags": [
         "ai",
@@ -7530,7 +7530,7 @@
       "component_type": "dagster_component_templates.LitellmImageGenerationComponent",
       "description": "Generate images from text prompts in a DataFrame column using LiteLLM, supporting DALL-E, Stable Diffusion, and other image generation models.",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/ai/litellm_image_generation/schema.json",
-      "icon": "Image",
+      "icon": "si:openai",
       "category": "ai",
       "tags": [
         "ai",
@@ -7546,7 +7546,7 @@
       "component_type": "dagster_component_templates.LitellmAudioTranscriptionComponent",
       "description": "Transcribe audio files referenced in a DataFrame column using Whisper via LiteLLM and write transcription text to a new column.",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/ai/litellm_audio_transcription/schema.json",
-      "icon": "Mic",
+      "icon": "si:openai",
       "category": "ai",
       "tags": [
         "ai",
@@ -7562,7 +7562,7 @@
       "component_type": "dagster_component_templates.LitellmEmbeddingBatchComponent",
       "description": "Generate embedding vectors for a text column using LiteLLM with configurable batching, fallback model routing, and optional dimension control.",
       "schema_url": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/assets/ai/litellm_embedding_batch/schema.json",
-      "icon": "Layers",
+      "icon": "si:openai",
       "category": "ai",
       "tags": [
         "ai",

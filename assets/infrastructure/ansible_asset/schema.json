@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.AnsibleAssetComponent",
   "description": "Run an Ansible playbook as a Dagster asset.",
   "category": "infrastructure",
-  "icon": "Server",
+  "icon": "si:ansible",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -161,7 +161,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

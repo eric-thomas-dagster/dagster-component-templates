@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.DbtDocsEnrichedProjectComponent",
   "description": "Extends DbtProjectComponent with rich dbt docs metadata on every asset.",
   "category": "dbt",
-  "icon": "Package",
+  "icon": "si:dbt",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe",

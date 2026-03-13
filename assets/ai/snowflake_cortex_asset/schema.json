@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.SnowflakeCortexAssetComponent",
   "description": "Run a Snowflake Cortex LLM function on a table and write results to a new table.",
   "category": "ai",
-  "icon": "Sparkles",
+  "icon": "si:snowflake",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",

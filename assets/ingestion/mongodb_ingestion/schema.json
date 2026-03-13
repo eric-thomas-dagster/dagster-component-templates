@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.MongoDBIngestionComponent",
   "description": "Component for ingesting MongoDB database data using dlt.",
   "category": "ingestion",
-  "icon": "ArrowUpFromLine",
+  "icon": "si:mongodb",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -59,7 +59,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

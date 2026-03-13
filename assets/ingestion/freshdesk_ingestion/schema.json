@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.FreshdeskIngestionComponent",
   "description": "Component for ingesting Freshdesk customer support data using dlt.",
   "category": "ingestion",
-  "icon": "ArrowUpFromLine",
+  "icon": "si:freshdesk",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -60,7 +60,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

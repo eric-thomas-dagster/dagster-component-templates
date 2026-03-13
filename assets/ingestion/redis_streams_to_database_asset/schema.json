@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.RedisStreamsToDatabaseAssetComponent",
   "description": "Read entries from a Redis Stream and write them to a database table.",
   "category": "ingestion",
-  "icon": "ArrowUpFromLine",
+  "icon": "si:redis",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -103,7 +103,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

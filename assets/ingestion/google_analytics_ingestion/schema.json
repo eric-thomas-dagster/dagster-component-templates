@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.GoogleAnalyticsIngestionComponent",
   "description": "Component for ingesting Google Analytics 4 data using dlt - returns DataFrames.",
   "category": "ingestion",
-  "icon": "ArrowUpFromLine",
+  "icon": "si:googleanalytics",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -137,7 +137,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

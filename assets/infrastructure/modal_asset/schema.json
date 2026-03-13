@@ -2,7 +2,7 @@
   "component_type": "dagster_component_templates.ModalAssetComponent",
   "description": "Trigger a Modal function as a Dagster asset.",
   "category": "infrastructure",
-  "icon": "Server",
+  "icon": "si:modal",
   "x-dagster-io": {
     "outputs": {
       "type": "MaterializeResult",
@@ -94,7 +94,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

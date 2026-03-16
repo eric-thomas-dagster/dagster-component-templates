@@ -37,5 +37,6 @@
     "mongodb",
     "database",
     "nosql"
-  ]
+  ],
+  "icon": "si:mongodb"
 }

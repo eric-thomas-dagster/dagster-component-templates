@@ -42,5 +42,6 @@
     "neo4j",
     "database",
     "graph"
-  ]
+  ],
+  "icon": "si:neo4j"
 }

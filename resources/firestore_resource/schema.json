@@ -37,5 +37,6 @@
     "gcp",
     "database",
     "nosql"
-  ]
+  ],
+  "icon": "si:firebase"
 }

@@ -52,5 +52,6 @@
     "mysql",
     "database",
     "sql"
-  ]
+  ],
+  "icon": "si:mysql"
 }

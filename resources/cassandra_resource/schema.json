@@ -51,5 +51,6 @@
     "cassandra",
     "database",
     "nosql"
-  ]
+  ],
+  "icon": "si:apachecassandra"
 }

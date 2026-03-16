@@ -2,17 +2,66 @@
   "component_type": "dagster_component_templates.SFTPResourceComponent",
   "description": "Register an SFTP resource for reading and writing files over SSH",
   "category": "resource",
-  "icon": "Server",
+  "icon": "si:openssh",
   "x-dagster-io": {},
-  "x-dagster-provides": ["sftp_resource"],
+  "x-dagster-provides": [
+    "sftp_resource"
+  ],
   "attributes": {
-    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource.", "required": false, "default": "sftp_resource"},
-    "host": {"type": "string", "label": "Host", "description": "SFTP server hostname or IP", "required": true},
-    "port": {"type": "integer", "label": "Port", "description": "SFTP port", "required": false, "default": 22},
-    "username": {"type": "string", "label": "Username", "description": "SSH username", "required": true},
-    "password_env_var": {"type": "string", "label": "Password Env Var", "description": "Environment variable holding the SSH password", "required": false, "default": null, "ui:widget": "password"},
-    "private_key_env_var": {"type": "string", "label": "Private Key Env Var", "description": "Environment variable holding the SSH private key PEM string", "required": false, "default": null, "ui:widget": "password"},
-    "private_key_path": {"type": "string", "label": "Private Key Path", "description": "Path to SSH private key file on disk", "required": false, "default": null}
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource.",
+      "required": false,
+      "default": "sftp_resource"
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "description": "SFTP server hostname or IP",
+      "required": true
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "description": "SFTP port",
+      "required": false,
+      "default": 22
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "description": "SSH username",
+      "required": true
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Environment variable holding the SSH password",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "private_key_env_var": {
+      "type": "string",
+      "label": "Private Key Env Var",
+      "description": "Environment variable holding the SSH private key PEM string",
+      "required": false,
+      "default": null,
+      "ui:widget": "password"
+    },
+    "private_key_path": {
+      "type": "string",
+      "label": "Private Key Path",
+      "description": "Path to SSH private key file on disk",
+      "required": false,
+      "default": null
+    }
   },
-  "tags": ["resource", "sftp", "ssh", "file-transfer"]
+  "tags": [
+    "resource",
+    "sftp",
+    "ssh",
+    "file-transfer"
+  ]
 }

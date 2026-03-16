@@ -42,5 +42,6 @@
     "aws",
     "database",
     "nosql"
-  ]
+  ],
+  "icon": "si:amazondynamodb"
 }

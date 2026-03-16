@@ -8288,7 +8288,7 @@
     },
     {
       "id": "aws_s3_resource",
-      "name": "Aws S3 Resource",
+      "name": "AWS S3 Resource",
       "category": "resource",
       "description": "Register a dagster-aws S3Resource for use by other components",
       "version": "1.0.0",
@@ -8316,7 +8316,7 @@
     },
     {
       "id": "bigquery_resource",
-      "name": "Bigquery Resource",
+      "name": "BigQuery Resource",
       "category": "resource",
       "description": "Register a dagster-gcp BigQueryResource for use by other components",
       "version": "1.0.0",
@@ -8344,7 +8344,7 @@
     },
     {
       "id": "postgres_resource",
-      "name": "Postgres Resource",
+      "name": "PostgreSQL Resource",
       "category": "resource",
       "description": "Register a PostgreSQL resource for use by other components",
       "version": "1.0.0",
@@ -8428,7 +8428,7 @@
     },
     {
       "id": "dbt_cloud_resource",
-      "name": "Dbt Cloud Resource",
+      "name": "dbt Cloud Resource",
       "category": "resource",
       "description": "Register a dagster-dbt DbtCloudClientResource for use by other components",
       "version": "1.0.0",
@@ -8456,7 +8456,7 @@
     },
     {
       "id": "gcs_resource",
-      "name": "Gcs Resource",
+      "name": "GCS Resource",
       "category": "resource",
       "description": "Register a dagster-gcp GCSResource for use by other components",
       "version": "1.0.0",
@@ -8484,7 +8484,7 @@
     },
     {
       "id": "http_resource",
-      "name": "Http Resource",
+      "name": "HTTP Resource",
       "category": "resource",
       "description": "Register an HTTP resource (base URL + auth header) for use by other components",
       "version": "1.0.0",
@@ -8505,7 +8505,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/http_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/http_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/http_resource/requirements.txt",
-      "icon": "Globe",
+      "icon": "si:curl",
       "x-dagster-provides": [
         "http_resource"
       ]
@@ -8540,7 +8540,7 @@
     },
     {
       "id": "smtp_resource",
-      "name": "Smtp Resource",
+      "name": "SMTP Resource",
       "category": "resource",
       "description": "Register an SMTP resource for sending emails from other components",
       "version": "1.0.0",
@@ -8559,7 +8559,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/smtp_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/smtp_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/smtp_resource/requirements.txt",
-      "icon": "Mail",
+      "icon": "si:gmail",
       "x-dagster-provides": [
         "smtp_resource"
       ]
@@ -8617,7 +8617,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/chroma_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/chroma_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/chroma_resource/requirements.txt",
-      "icon": "si:chroma",
+      "icon": "si:chromatic",
       "x-dagster-provides": [
         "chroma_resource"
       ]
@@ -8653,7 +8653,7 @@
     },
     {
       "id": "gemini_resource",
-      "name": "Gemini Resource",
+      "name": "Google Gemini Resource",
       "category": "resource",
       "description": "Register a dagster-gemini GeminiResource for use by other components",
       "version": "1.0.0",
@@ -8683,7 +8683,7 @@
     },
     {
       "id": "github_resource",
-      "name": "Github Resource",
+      "name": "GitHub Resource",
       "category": "resource",
       "description": "Register a dagster-github GithubResource for use by other components",
       "version": "1.0.0",
@@ -8712,7 +8712,7 @@
     },
     {
       "id": "openai_resource",
-      "name": "Openai Resource",
+      "name": "OpenAI Resource",
       "category": "resource",
       "description": "Register a dagster-openai OpenAIResource for use by other components",
       "version": "1.0.0",
@@ -8741,7 +8741,7 @@
     },
     {
       "id": "pagerduty_resource",
-      "name": "Pagerduty Resource",
+      "name": "PagerDuty Resource",
       "category": "resource",
       "description": "Register a dagster-pagerduty PagerDutyService for use by other components",
       "version": "1.0.0",
@@ -8770,7 +8770,7 @@
     },
     {
       "id": "pyspark_resource",
-      "name": "Pyspark Resource",
+      "name": "PySpark Resource",
       "category": "resource",
       "description": "Register a dagster-pyspark PySparkResource for use by other components",
       "version": "1.0.0",
@@ -8828,7 +8828,7 @@
     },
     {
       "id": "redshift_resource",
-      "name": "Redshift Resource",
+      "name": "Amazon Redshift Resource",
       "category": "resource",
       "description": "Register a dagster-aws RedshiftClientResource for use by other components",
       "version": "1.0.0",
@@ -9022,7 +9022,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cassandra_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cassandra_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cassandra_resource/requirements.txt",
-      "icon": "Plug",
+      "icon": "si:apachecassandra",
       "x-dagster-provides": [
         "cassandra_resource"
       ]
@@ -9052,14 +9052,14 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cosmosdb_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cosmosdb_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cosmosdb_resource/requirements.txt",
-      "icon": "Plug",
+      "icon": "si:azurecosmosdb",
       "x-dagster-provides": [
         "cosmosdb_resource"
       ]
     },
     {
       "id": "couchdb_resource",
-      "name": "CouchDB Resource",
+      "name": "Apache CouchDB Resource",
       "category": "resource",
       "description": "Register a CouchDB resource for document-oriented database access via HTTP",
       "version": "1.0.0",
@@ -9081,7 +9081,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/couchdb_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/couchdb_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/couchdb_resource/requirements.txt",
-      "icon": "Plug",
+      "icon": "si:apachecouchdb",
       "x-dagster-provides": [
         "couchdb_resource"
       ]
@@ -9110,14 +9110,14 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/duckdb_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/duckdb_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/duckdb_resource/requirements.txt",
-      "icon": "Plug",
+      "icon": "si:duckdb",
       "x-dagster-provides": [
         "duckdb_resource"
       ]
     },
     {
       "id": "dynamodb_resource",
-      "name": "AWS DynamoDB Resource",
+      "name": "Amazon DynamoDB Resource",
       "category": "resource",
       "description": "Register an AWS DynamoDB resource for serverless key-value and document storage",
       "version": "1.0.0",
@@ -9140,7 +9140,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dynamodb_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dynamodb_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dynamodb_resource/requirements.txt",
-      "icon": "Plug",
+      "icon": "si:amazondynamodb",
       "x-dagster-provides": [
         "dynamodb_resource"
       ]
@@ -9169,7 +9169,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/elasticsearch_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/elasticsearch_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/elasticsearch_resource/requirements.txt",
-      "icon": "Plug",
+      "icon": "si:elastic",
       "x-dagster-provides": [
         "elasticsearch_resource"
       ]
@@ -9228,7 +9228,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/firestore_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/firestore_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/firestore_resource/requirements.txt",
-      "icon": "Plug",
+      "icon": "si:firebase",
       "x-dagster-provides": [
         "firestore_resource"
       ]
@@ -9489,7 +9489,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mongodb_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mongodb_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mongodb_resource/requirements.txt",
-      "icon": "Plug",
+      "icon": "si:mongodb",
       "x-dagster-provides": [
         "mongodb_resource"
       ]
@@ -9518,7 +9518,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mysql_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mysql_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mysql_resource/requirements.txt",
-      "icon": "Plug",
+      "icon": "si:mysql",
       "x-dagster-provides": [
         "mysql_resource"
       ]
@@ -9547,7 +9547,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/neo4j_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/neo4j_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/neo4j_resource/requirements.txt",
-      "icon": "Plug",
+      "icon": "si:neo4j",
       "x-dagster-provides": [
         "neo4j_resource"
       ]
@@ -9663,7 +9663,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redis_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redis_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redis_resource/requirements.txt",
-      "icon": "Plug",
+      "icon": "si:redis",
       "x-dagster-provides": [
         "redis_resource"
       ]
@@ -9692,7 +9692,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sftp_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sftp_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sftp_resource/requirements.txt",
-      "icon": "Server",
+      "icon": "si:openssh",
       "x-dagster-provides": [
         "sftp_resource"
       ]

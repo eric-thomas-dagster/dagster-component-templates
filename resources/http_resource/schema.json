@@ -2,31 +2,44 @@
   "component_type": "dagster_component_templates.HTTPResourceComponent",
   "description": "Register an HTTP resource (base URL + auth header) for use by other components",
   "category": "resource",
-  "icon": "Globe",
+  "icon": "si:curl",
   "x-dagster-io": {},
-  "x-dagster-provides": ["http_resource"],
+  "x-dagster-provides": [
+    "http_resource"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Key used to register this resource. Other components reference it via resource_key.",
-      "required": false, "default": "http_resource"
+      "required": false,
+      "default": "http_resource"
     },
     "base_url": {
-      "type": "string", "label": "Base URL",
+      "type": "string",
+      "label": "Base URL",
       "description": "Base URL for all requests, e.g. 'https://api.example.com/v1'",
       "required": true
     },
     "auth_header_env_var": {
-      "type": "string", "label": "Auth Header Env Var",
+      "type": "string",
+      "label": "Auth Header Env Var",
       "description": "Env var containing the Authorization header value, e.g. 'Bearer token123'",
-      "required": false, "default": null,
+      "required": false,
+      "default": null,
       "ui:widget": "password"
     },
     "timeout_seconds": {
-      "type": "integer", "label": "Timeout Seconds",
+      "type": "integer",
+      "label": "Timeout Seconds",
       "description": "Request timeout in seconds",
-      "required": false, "default": 30
+      "required": false,
+      "default": 30
     }
   },
-  "tags": ["resource", "http", "api"]
+  "tags": [
+    "resource",
+    "http",
+    "api"
+  ]
 }

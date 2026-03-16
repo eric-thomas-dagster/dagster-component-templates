@@ -36,5 +36,6 @@
     "couchdb",
     "database",
     "nosql"
-  ]
+  ],
+  "icon": "si:apachecouchdb"
 }

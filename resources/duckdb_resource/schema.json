@@ -30,5 +30,6 @@
     "duckdb",
     "database",
     "analytics"
-  ]
+  ],
+  "icon": "si:duckdb"
 }

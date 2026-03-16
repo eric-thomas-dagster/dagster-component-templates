@@ -50,5 +50,6 @@
     "redis",
     "database",
     "cache"
-  ]
+  ],
+  "icon": "si:redis"
 }

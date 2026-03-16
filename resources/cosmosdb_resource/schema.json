@@ -38,5 +38,6 @@
     "azure",
     "database",
     "nosql"
-  ]
+  ],
+  "icon": "si:azurecosmosdb"
 }

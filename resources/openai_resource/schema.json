@@ -1,0 +1,13 @@
+{
+  "component_type": "dagster_component_templates.OpenAIResourceComponent",
+  "description": "Register a dagster-openai OpenAIResource for use by other components",
+  "category": "resource",
+  "icon": "si:openai",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["openai_resource"],
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource. Other components reference it via resource_key.", "required": false, "default": "openai_resource"},
+    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "description": "Environment variable holding the OpenAI API key", "required": false, "default": "OPENAI_API_KEY", "ui:widget": "password"}
+  },
+  "tags": ["resource", "openai", "llm", "ai"]
+}

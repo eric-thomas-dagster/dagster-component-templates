@@ -1,0 +1,19 @@
+{
+  "component_type": "dagster_component_templates.RedshiftResourceComponent",
+  "description": "Register a dagster-aws RedshiftClientResource for use by other components",
+  "category": "resource",
+  "icon": "si:amazonredshift",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["redshift_resource"],
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource. Other components reference it via resource_key.", "required": false, "default": "redshift_resource"},
+    "host": {"type": "string", "label": "Host", "description": "Redshift cluster endpoint", "required": true},
+    "port": {"type": "integer", "label": "Port", "description": "Redshift port", "required": false, "default": 5439},
+    "database": {"type": "string", "label": "Database", "description": "Database name", "required": true},
+    "user": {"type": "string", "label": "User", "description": "Database user", "required": true},
+    "password_env_var": {"type": "string", "label": "Password Env Var", "description": "Environment variable holding the Redshift password", "required": true, "ui:widget": "password"},
+    "schema_name": {"type": "string", "label": "Schema Name", "description": "Default schema", "required": false, "default": null},
+    "autocommit": {"type": "boolean", "label": "Autocommit", "description": "Enable autocommit mode", "required": false, "default": false, "ui:widget": "checkbox"}
+  },
+  "tags": ["resource", "aws", "redshift"]
+}

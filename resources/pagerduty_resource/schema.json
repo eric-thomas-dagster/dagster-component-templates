@@ -1,0 +1,13 @@
+{
+  "component_type": "dagster_component_templates.PagerDutyResourceComponent",
+  "description": "Register a dagster-pagerduty PagerDutyService for use by other components",
+  "category": "resource",
+  "icon": "si:pagerduty",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["pagerduty_resource"],
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource. Other components reference it via resource_key.", "required": false, "default": "pagerduty_resource"},
+    "routing_key_env_var": {"type": "string", "label": "Routing Key Env Var", "description": "Environment variable holding the PagerDuty Events API v2 routing key (integration key)", "required": true, "ui:widget": "password"}
+  },
+  "tags": ["resource", "pagerduty", "alerting", "notification"]
+}

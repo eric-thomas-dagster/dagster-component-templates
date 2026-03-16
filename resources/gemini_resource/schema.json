@@ -1,0 +1,13 @@
+{
+  "component_type": "dagster_component_templates.GeminiResourceComponent",
+  "description": "Register a dagster-gemini GeminiResource for use by other components",
+  "category": "resource",
+  "icon": "si:googlegemini",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["gemini_resource"],
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource. Other components reference it via resource_key.", "required": false, "default": "gemini_resource"},
+    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "description": "Environment variable holding the Google Gemini API key", "required": false, "default": "GEMINI_API_KEY", "ui:widget": "password"}
+  },
+  "tags": ["resource", "gemini", "google", "llm", "ai"]
+}

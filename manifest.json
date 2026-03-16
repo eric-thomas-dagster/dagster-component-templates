@@ -8435,6 +8435,213 @@
       "x-dagster-provides": [
         "smtp_resource"
       ]
+    },
+    {
+      "path": "resources/anthropic_resource",
+      "component_type": "dagster_component_templates.AnthropicResourceComponent",
+      "category": "resource",
+      "icon": "si:anthropic",
+      "description": "Register a dagster-anthropic AnthropicResource for use by other components",
+      "tags": [
+        "resource",
+        "anthropic",
+        "llm",
+        "ai"
+      ],
+      "x-dagster-provides": [
+        "anthropic_resource"
+      ]
+    },
+    {
+      "path": "resources/chroma_resource",
+      "component_type": "dagster_component_templates.ChromaResourceComponent",
+      "category": "resource",
+      "icon": "si:chroma",
+      "description": "Register a dagster-chroma ChromaResource for use by other components",
+      "tags": [
+        "resource",
+        "chroma",
+        "vector-db",
+        "ai"
+      ],
+      "x-dagster-provides": [
+        "chroma_resource"
+      ]
+    },
+    {
+      "path": "resources/datadog_resource",
+      "component_type": "dagster_component_templates.DatadogResourceComponent",
+      "category": "resource",
+      "icon": "si:datadog",
+      "description": "Register a dagster-datadog DatadogResource for use by other components",
+      "tags": [
+        "resource",
+        "datadog",
+        "monitoring",
+        "observability"
+      ],
+      "x-dagster-provides": [
+        "datadog_resource"
+      ]
+    },
+    {
+      "path": "resources/gemini_resource",
+      "component_type": "dagster_component_templates.GeminiResourceComponent",
+      "category": "resource",
+      "icon": "si:googlegemini",
+      "description": "Register a dagster-gemini GeminiResource for use by other components",
+      "tags": [
+        "resource",
+        "gemini",
+        "google",
+        "llm",
+        "ai"
+      ],
+      "x-dagster-provides": [
+        "gemini_resource"
+      ]
+    },
+    {
+      "path": "resources/github_resource",
+      "component_type": "dagster_component_templates.GithubResourceComponent",
+      "category": "resource",
+      "icon": "si:github",
+      "description": "Register a dagster-github GithubResource for use by other components",
+      "tags": [
+        "resource",
+        "github",
+        "vcs",
+        "devops"
+      ],
+      "x-dagster-provides": [
+        "github_resource"
+      ]
+    },
+    {
+      "path": "resources/openai_resource",
+      "component_type": "dagster_component_templates.OpenAIResourceComponent",
+      "category": "resource",
+      "icon": "si:openai",
+      "description": "Register a dagster-openai OpenAIResource for use by other components",
+      "tags": [
+        "resource",
+        "openai",
+        "llm",
+        "ai"
+      ],
+      "x-dagster-provides": [
+        "openai_resource"
+      ]
+    },
+    {
+      "path": "resources/pagerduty_resource",
+      "component_type": "dagster_component_templates.PagerDutyResourceComponent",
+      "category": "resource",
+      "icon": "si:pagerduty",
+      "description": "Register a dagster-pagerduty PagerDutyService for use by other components",
+      "tags": [
+        "resource",
+        "pagerduty",
+        "alerting",
+        "notification"
+      ],
+      "x-dagster-provides": [
+        "pagerduty_resource"
+      ]
+    },
+    {
+      "path": "resources/pyspark_resource",
+      "component_type": "dagster_component_templates.PySparkResourceComponent",
+      "category": "resource",
+      "icon": "si:apachespark",
+      "description": "Register a dagster-pyspark PySparkResource for use by other components",
+      "tags": [
+        "resource",
+        "spark",
+        "pyspark",
+        "big-data"
+      ],
+      "x-dagster-provides": [
+        "pyspark_resource"
+      ]
+    },
+    {
+      "path": "resources/qdrant_resource",
+      "component_type": "dagster_component_templates.QdrantResourceComponent",
+      "category": "resource",
+      "icon": "si:qdrant",
+      "description": "Register a dagster-qdrant QdrantResource for use by other components",
+      "tags": [
+        "resource",
+        "qdrant",
+        "vector-db",
+        "ai"
+      ],
+      "x-dagster-provides": [
+        "qdrant_resource"
+      ]
+    },
+    {
+      "path": "resources/redshift_resource",
+      "component_type": "dagster_component_templates.RedshiftResourceComponent",
+      "category": "resource",
+      "icon": "si:amazonredshift",
+      "description": "Register a dagster-aws RedshiftClientResource for use by other components",
+      "tags": [
+        "resource",
+        "aws",
+        "redshift"
+      ],
+      "x-dagster-provides": [
+        "redshift_resource"
+      ]
+    },
+    {
+      "path": "resources/salesforce_resource",
+      "component_type": "dagster_component_templates.SalesforceResourceComponent",
+      "category": "resource",
+      "icon": "si:salesforce",
+      "description": "Register a dagster-salesforce SalesforceResource for use by other components",
+      "tags": [
+        "resource",
+        "salesforce",
+        "crm"
+      ],
+      "x-dagster-provides": [
+        "salesforce_resource"
+      ]
+    },
+    {
+      "path": "resources/twilio_resource",
+      "component_type": "dagster_component_templates.TwilioResourceComponent",
+      "category": "resource",
+      "icon": "si:twilio",
+      "description": "Register a dagster-twilio TwilioResource for use by other components",
+      "tags": [
+        "resource",
+        "twilio",
+        "sms",
+        "notification"
+      ],
+      "x-dagster-provides": [
+        "twilio_resource"
+      ]
+    },
+    {
+      "path": "resources/weaviate_resource",
+      "component_type": "dagster_component_templates.WeaviateResourceComponent",
+      "category": "resource",
+      "icon": "si:weaviate",
+      "description": "Register a dagster-weaviate WeaviateResource for use by other components",
+      "tags": [
+        "resource",
+        "weaviate",
+        "vector-db",
+        "ai"
+      ],
+      "x-dagster-provides": [
+        "weaviate_resource"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/schema-spec.json",

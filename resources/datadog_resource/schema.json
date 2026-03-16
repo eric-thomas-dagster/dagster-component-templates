@@ -1,0 +1,14 @@
+{
+  "component_type": "dagster_component_templates.DatadogResourceComponent",
+  "description": "Register a dagster-datadog DatadogResource for use by other components",
+  "category": "resource",
+  "icon": "si:datadog",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["datadog_resource"],
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource. Other components reference it via resource_key.", "required": false, "default": "datadog_resource"},
+    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "description": "Environment variable holding the Datadog API key", "required": true, "ui:widget": "password"},
+    "app_key_env_var": {"type": "string", "label": "App Key Env Var", "description": "Environment variable holding the Datadog application key", "required": false, "default": null, "ui:widget": "password"}
+  },
+  "tags": ["resource", "datadog", "monitoring", "observability"]
+}

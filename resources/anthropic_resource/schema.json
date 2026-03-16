@@ -1,0 +1,13 @@
+{
+  "component_type": "dagster_component_templates.AnthropicResourceComponent",
+  "description": "Register a dagster-anthropic AnthropicResource for use by other components",
+  "category": "resource",
+  "icon": "si:anthropic",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["anthropic_resource"],
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource. Other components reference it via resource_key.", "required": false, "default": "anthropic_resource"},
+    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "description": "Environment variable holding the Anthropic API key", "required": false, "default": "ANTHROPIC_API_KEY", "ui:widget": "password"}
+  },
+  "tags": ["resource", "anthropic", "llm", "ai"]
+}

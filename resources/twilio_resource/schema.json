@@ -1,0 +1,14 @@
+{
+  "component_type": "dagster_component_templates.TwilioResourceComponent",
+  "description": "Register a dagster-twilio TwilioResource for use by other components",
+  "category": "resource",
+  "icon": "si:twilio",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["twilio_resource"],
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource. Other components reference it via resource_key.", "required": false, "default": "twilio_resource"},
+    "account_sid_env_var": {"type": "string", "label": "Account SID Env Var", "description": "Environment variable holding the Twilio Account SID", "required": true},
+    "auth_token_env_var": {"type": "string", "label": "Auth Token Env Var", "description": "Environment variable holding the Twilio Auth Token", "required": true, "ui:widget": "password"}
+  },
+  "tags": ["resource", "twilio", "sms", "notification"]
+}

@@ -1,0 +1,6 @@
+type: dagster_component_templates.GCSParquetIOManagerComponent
+attributes:
+  resource_key: io_manager
+  bucket: my-gcs-bucket
+  prefix: dagster/assets
+  project: my-gcp-project

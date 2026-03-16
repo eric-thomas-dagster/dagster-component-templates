@@ -1,0 +1,26 @@
+{
+  "component_type": "dagster_component_templates.DuckDBIOManagerComponent",
+  "description": "Register a DuckDBPandasIOManager so assets are automatically stored in and loaded from a local DuckDB file",
+  "category": "io_manager",
+  "icon": "si:duckdb",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["io_manager"],
+  "attributes": {
+    "resource_key": {
+      "type": "string", "label": "Resource Key",
+      "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
+      "required": false, "default": "io_manager"
+    },
+    "database": {
+      "type": "string", "label": "Database",
+      "description": "Path to the DuckDB database file, e.g. 'data/warehouse.duckdb'",
+      "required": false, "default": "dagster.duckdb"
+    },
+    "schema_name": {
+      "type": "string", "label": "Schema Name",
+      "description": "Schema within the DuckDB database for asset tables",
+      "required": false, "default": "main"
+    }
+  },
+  "tags": ["io_manager", "duckdb", "local", "analytics", "embedded"]
+}

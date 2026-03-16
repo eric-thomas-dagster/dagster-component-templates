@@ -10091,6 +10091,223 @@
       "x-dagster-provides": [
         "io_manager"
       ]
+    },
+    {
+      "id": "snowflake_io_manager",
+      "name": "Snowflake IO Manager",
+      "category": "io_manager",
+      "description": "Register a SnowflakePandasIOManager so assets are automatically stored in and loaded from Snowflake",
+      "version": "0.1.0",
+      "author": "Dagster Labs",
+      "path": "io_managers/snowflake_io_manager",
+      "tags": [
+        "io_manager",
+        "snowflake",
+        "warehouse",
+        "cloud"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster-snowflake-pandas>=0.22.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_io_manager/requirements.txt",
+      "icon": "si:snowflake",
+      "x-dagster-provides": [
+        "io_manager"
+      ]
+    },
+    {
+      "id": "duckdb_io_manager",
+      "name": "DuckDB IO Manager",
+      "category": "io_manager",
+      "description": "Register a DuckDBPandasIOManager so assets are automatically stored in and loaded from a local DuckDB file",
+      "version": "0.1.0",
+      "author": "Dagster Labs",
+      "path": "io_managers/duckdb_io_manager",
+      "tags": [
+        "io_manager",
+        "duckdb",
+        "local",
+        "analytics",
+        "embedded"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster-duckdb-pandas>=0.22.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/duckdb_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/duckdb_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/duckdb_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/duckdb_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/duckdb_io_manager/requirements.txt",
+      "icon": "si:duckdb",
+      "x-dagster-provides": [
+        "io_manager"
+      ]
+    },
+    {
+      "id": "delta_lake_io_manager",
+      "name": "Delta Lake IO Manager",
+      "category": "io_manager",
+      "description": "Register a DeltaLakePandasIOManager so assets are stored as Delta tables on local disk, S3, GCS, or Azure ADLS",
+      "version": "0.1.0",
+      "author": "Dagster Labs",
+      "path": "io_managers/delta_lake_io_manager",
+      "tags": [
+        "io_manager",
+        "delta-lake",
+        "parquet",
+        "lakehouse",
+        "multi-cloud"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster-deltalake-pandas>=0.4.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/delta_lake_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/delta_lake_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/delta_lake_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/delta_lake_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/delta_lake_io_manager/requirements.txt",
+      "icon": "si:delta",
+      "x-dagster-provides": [
+        "io_manager"
+      ]
+    },
+    {
+      "id": "s3_parquet_io_manager",
+      "name": "S3 Parquet IO Manager",
+      "category": "io_manager",
+      "description": "Register an IO manager that stores assets as Parquet files on Amazon S3",
+      "version": "0.1.0",
+      "author": "Dagster Labs",
+      "path": "io_managers/s3_parquet_io_manager",
+      "tags": [
+        "io_manager",
+        "s3",
+        "aws",
+        "parquet",
+        "object-storage"
+      ],
+      "dependencies": {
+        "pip": [
+          "s3fs>=2023.1.0",
+          "pandas>=1.5.0",
+          "pyarrow>=12.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/s3_parquet_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/s3_parquet_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/s3_parquet_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/s3_parquet_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/s3_parquet_io_manager/requirements.txt",
+      "icon": "si:amazons3",
+      "x-dagster-provides": [
+        "io_manager"
+      ]
+    },
+    {
+      "id": "gcs_parquet_io_manager",
+      "name": "GCS Parquet IO Manager",
+      "category": "io_manager",
+      "description": "Register an IO manager that stores assets as Parquet files on Google Cloud Storage",
+      "version": "0.1.0",
+      "author": "Dagster Labs",
+      "path": "io_managers/gcs_parquet_io_manager",
+      "tags": [
+        "io_manager",
+        "gcs",
+        "gcp",
+        "google",
+        "parquet",
+        "object-storage"
+      ],
+      "dependencies": {
+        "pip": [
+          "gcsfs>=2023.1.0",
+          "pandas>=1.5.0",
+          "pyarrow>=12.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/gcs_parquet_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/gcs_parquet_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/gcs_parquet_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/gcs_parquet_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/gcs_parquet_io_manager/requirements.txt",
+      "icon": "si:googlecloudstorage",
+      "x-dagster-provides": [
+        "io_manager"
+      ]
+    },
+    {
+      "id": "postgres_io_manager",
+      "name": "PostgreSQL IO Manager",
+      "category": "io_manager",
+      "description": "Register a PostgreSQL IO manager so assets are automatically stored in and loaded from Postgres tables",
+      "version": "0.1.0",
+      "author": "Dagster Labs",
+      "path": "io_managers/postgres_io_manager",
+      "tags": [
+        "io_manager",
+        "postgres",
+        "postgresql",
+        "sql",
+        "database"
+      ],
+      "dependencies": {
+        "pip": [
+          "psycopg2-binary>=2.9.0",
+          "sqlalchemy>=2.0.0",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/postgres_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/postgres_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/postgres_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/postgres_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/postgres_io_manager/requirements.txt",
+      "icon": "si:postgresql",
+      "x-dagster-provides": [
+        "io_manager"
+      ]
+    },
+    {
+      "id": "databricks_io_manager",
+      "name": "Databricks IO Manager",
+      "category": "io_manager",
+      "description": "Register a Databricks IO manager that reads and writes DataFrames as Unity Catalog Delta tables via Databricks SQL",
+      "version": "0.1.0",
+      "author": "Dagster Labs",
+      "path": "io_managers/databricks_io_manager",
+      "tags": [
+        "io_manager",
+        "databricks",
+        "delta-lake",
+        "unity-catalog",
+        "spark"
+      ],
+      "dependencies": {
+        "pip": [
+          "databricks-sql-connector>=3.0.0",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/databricks_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/databricks_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/databricks_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/databricks_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/databricks_io_manager/requirements.txt",
+      "icon": "si:databricks",
+      "x-dagster-provides": [
+        "io_manager"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/schema-spec.json",

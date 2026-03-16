@@ -1,0 +1,37 @@
+{
+  "component_type": "dagster_component_templates.GCSParquetIOManagerComponent",
+  "description": "Register an IO manager that stores assets as Parquet files on Google Cloud Storage",
+  "category": "io_manager",
+  "icon": "si:googlecloudstorage",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["io_manager"],
+  "attributes": {
+    "resource_key": {
+      "type": "string", "label": "Resource Key",
+      "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
+      "required": false, "default": "io_manager"
+    },
+    "bucket": {
+      "type": "string", "label": "Bucket",
+      "description": "GCS bucket to store Parquet files in",
+      "required": true
+    },
+    "prefix": {
+      "type": "string", "label": "Prefix",
+      "description": "GCS object prefix for asset files, e.g. 'dagster/assets'",
+      "required": false, "default": "assets"
+    },
+    "project": {
+      "type": "string", "label": "Project",
+      "description": "GCP project ID (uses default project if not set)",
+      "required": false, "default": null
+    },
+    "gcp_credentials_env_var": {
+      "type": "string", "label": "GCP Credentials Env Var",
+      "description": "Environment variable holding a JSON service account key (uses ADC if not set)",
+      "required": false, "default": null,
+      "ui:widget": "password"
+    }
+  },
+  "tags": ["io_manager", "gcs", "gcp", "google", "parquet", "object-storage"]
+}

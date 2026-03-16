@@ -1,0 +1,9 @@
+type: dagster_component_templates.SnowflakeIOManagerComponent
+attributes:
+  resource_key: io_manager
+  account: xy12345.us-east-1
+  user: dagster_user
+  password_env_var: SNOWFLAKE_PASSWORD
+  database: ANALYTICS
+  warehouse: COMPUTE_WH
+  schema_name: PUBLIC

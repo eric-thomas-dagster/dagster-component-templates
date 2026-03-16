@@ -1,0 +1,8 @@
+type: dagster_component_templates.DatabricksIOManagerComponent
+attributes:
+  resource_key: io_manager
+  server_hostname: adb-1234567890.12.azuredatabricks.net
+  http_path: /sql/1.0/warehouses/abc123def456
+  access_token_env_var: DATABRICKS_TOKEN
+  catalog: main
+  schema_name: dagster_assets

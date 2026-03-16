@@ -1,0 +1,52 @@
+{
+  "component_type": "dagster_component_templates.SnowflakeIOManagerComponent",
+  "description": "Register a SnowflakePandasIOManager so assets are automatically stored in and loaded from Snowflake",
+  "category": "io_manager",
+  "icon": "si:snowflake",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["io_manager"],
+  "attributes": {
+    "resource_key": {
+      "type": "string", "label": "Resource Key",
+      "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
+      "required": false, "default": "io_manager"
+    },
+    "account": {
+      "type": "string", "label": "Account",
+      "description": "Snowflake account identifier, e.g. 'xy12345.us-east-1'",
+      "required": true
+    },
+    "user": {
+      "type": "string", "label": "User",
+      "description": "Snowflake username",
+      "required": true
+    },
+    "password_env_var": {
+      "type": "string", "label": "Password Env Var",
+      "description": "Environment variable holding the Snowflake password",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "database": {
+      "type": "string", "label": "Database",
+      "description": "Snowflake database to store assets in",
+      "required": true
+    },
+    "warehouse": {
+      "type": "string", "label": "Warehouse",
+      "description": "Snowflake virtual warehouse",
+      "required": false, "default": null
+    },
+    "schema_name": {
+      "type": "string", "label": "Schema Name",
+      "description": "Default schema for asset tables",
+      "required": false, "default": "PUBLIC"
+    },
+    "role": {
+      "type": "string", "label": "Role",
+      "description": "Snowflake role to use",
+      "required": false, "default": null
+    }
+  },
+  "tags": ["io_manager", "snowflake", "warehouse", "cloud"]
+}

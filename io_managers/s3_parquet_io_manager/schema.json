@@ -1,0 +1,48 @@
+{
+  "component_type": "dagster_component_templates.S3ParquetIOManagerComponent",
+  "description": "Register an IO manager that stores assets as Parquet files on Amazon S3",
+  "category": "io_manager",
+  "icon": "si:amazons3",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["io_manager"],
+  "attributes": {
+    "resource_key": {
+      "type": "string", "label": "Resource Key",
+      "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
+      "required": false, "default": "io_manager"
+    },
+    "bucket": {
+      "type": "string", "label": "Bucket",
+      "description": "S3 bucket to store Parquet files in",
+      "required": true
+    },
+    "prefix": {
+      "type": "string", "label": "Prefix",
+      "description": "S3 key prefix for asset files, e.g. 'dagster/assets'",
+      "required": false, "default": "assets"
+    },
+    "region_name": {
+      "type": "string", "label": "Region Name",
+      "description": "AWS region, e.g. 'us-east-1'",
+      "required": false, "default": null
+    },
+    "aws_access_key_env_var": {
+      "type": "string", "label": "AWS Access Key Env Var",
+      "description": "Environment variable for AWS access key (uses instance role if not set)",
+      "required": false, "default": null,
+      "ui:widget": "password"
+    },
+    "aws_secret_key_env_var": {
+      "type": "string", "label": "AWS Secret Key Env Var",
+      "description": "Environment variable for AWS secret key",
+      "required": false, "default": null,
+      "ui:widget": "password"
+    },
+    "endpoint_url": {
+      "type": "string", "label": "Endpoint URL",
+      "description": "Custom S3-compatible endpoint URL (e.g. for MinIO: 'http://localhost:9000')",
+      "required": false, "default": null
+    }
+  },
+  "tags": ["io_manager", "s3", "aws", "parquet", "object-storage"]
+}

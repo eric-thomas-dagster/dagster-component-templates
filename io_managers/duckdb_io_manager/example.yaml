@@ -1,0 +1,5 @@
+type: dagster_component_templates.DuckDBIOManagerComponent
+attributes:
+  resource_key: io_manager
+  database: data/warehouse.duckdb
+  schema_name: main

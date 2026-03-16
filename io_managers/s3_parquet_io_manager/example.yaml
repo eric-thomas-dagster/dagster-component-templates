@@ -1,0 +1,8 @@
+type: dagster_component_templates.S3ParquetIOManagerComponent
+attributes:
+  resource_key: io_manager
+  bucket: my-data-bucket
+  prefix: dagster/assets
+  region_name: us-east-1
+  aws_access_key_env_var: AWS_ACCESS_KEY_ID
+  aws_secret_key_env_var: AWS_SECRET_ACCESS_KEY

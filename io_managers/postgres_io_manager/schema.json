@@ -1,0 +1,54 @@
+{
+  "component_type": "dagster_component_templates.PostgresIOManagerComponent",
+  "description": "Register a PostgreSQL IO manager so assets are automatically stored in and loaded from Postgres tables",
+  "category": "io_manager",
+  "icon": "si:postgresql",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["io_manager"],
+  "attributes": {
+    "resource_key": {
+      "type": "string", "label": "Resource Key",
+      "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
+      "required": false, "default": "io_manager"
+    },
+    "host": {
+      "type": "string", "label": "Host",
+      "description": "PostgreSQL host",
+      "required": false, "default": "localhost"
+    },
+    "port": {
+      "type": "integer", "label": "Port",
+      "description": "PostgreSQL port",
+      "required": false, "default": 5432
+    },
+    "database": {
+      "type": "string", "label": "Database",
+      "description": "PostgreSQL database name",
+      "required": true
+    },
+    "user": {
+      "type": "string", "label": "User",
+      "description": "PostgreSQL username",
+      "required": true
+    },
+    "password_env_var": {
+      "type": "string", "label": "Password Env Var",
+      "description": "Environment variable holding the PostgreSQL password",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "schema_name": {
+      "type": "string", "label": "Schema Name",
+      "description": "Schema for asset tables",
+      "required": false, "default": "public"
+    },
+    "if_exists": {
+      "type": "string", "label": "If Exists",
+      "description": "Behavior when table already exists: 'replace', 'append', or 'fail'",
+      "required": false, "default": "replace",
+      "enum": ["replace", "append", "fail"],
+      "ui:widget": "select"
+    }
+  },
+  "tags": ["io_manager", "postgres", "postgresql", "sql", "database"]
+}

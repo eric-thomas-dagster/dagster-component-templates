@@ -1,0 +1,25 @@
+{
+  "component_type": "dagster_component_templates.HubSpotResourceComponent",
+  "description": "Register a HubSpotResource wrapping the hubspot-api-client for use by other components",
+  "category": "resource",
+  "icon": "si:hubspot",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["hubspot_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "hubspot_resource"
+    },
+    "access_token_env_var": {
+      "type": "string",
+      "label": "Access Token Env Var",
+      "description": "Env var holding HubSpot private app access token",
+      "required": true,
+      "ui:widget": "password"
+    }
+  },
+  "tags": ["resource", "hubspot", "crm", "marketing"]
+}

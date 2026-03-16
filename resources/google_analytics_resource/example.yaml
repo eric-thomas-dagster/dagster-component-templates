@@ -1,0 +1,5 @@
+type: dagster_component_templates.GoogleAnalyticsResourceComponent
+attributes:
+  resource_key: google_analytics_resource
+  property_id: "123456789"
+  gcp_credentials_env_var: GCP_SERVICE_ACCOUNT_JSON

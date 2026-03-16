@@ -1,0 +1,4 @@
+type: dagster_component_templates.KafkaResourceComponent
+attributes:
+  resource_key: kafka_resource
+  bootstrap_servers: broker1:9092,broker2:9092

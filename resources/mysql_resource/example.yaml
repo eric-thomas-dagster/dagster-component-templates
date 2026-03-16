@@ -1,0 +1,9 @@
+type: mysql_resource.component.MySQLResourceComponent
+attributes:
+  resource_key: mysql_resource
+  host: my-mysql-host.example.com
+  port: 3306
+  database: my_database
+  username: my_user
+  password_env_var: MYSQL_PASSWORD
+  ssl_disabled: false

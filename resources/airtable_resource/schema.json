@@ -1,0 +1,25 @@
+{
+  "component_type": "dagster_component_templates.AirtableResourceComponent",
+  "description": "Register an AirtableResource wrapping the pyairtable client for use by other components",
+  "category": "resource",
+  "icon": "si:airtable",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["airtable_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "airtable_resource"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding Airtable personal access token",
+      "required": true,
+      "ui:widget": "password"
+    }
+  },
+  "tags": ["resource", "airtable", "database", "no-code"]
+}

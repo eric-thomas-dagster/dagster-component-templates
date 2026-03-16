@@ -1,0 +1,5 @@
+type: dagster_component_templates.SFTPResourceComponent
+attributes:
+  resource_key: sftp_resource
+  host: sftp.example.com
+  username: deploy

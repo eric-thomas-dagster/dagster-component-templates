@@ -1,0 +1,45 @@
+{
+  "component_type": "dagster_component_templates.FacebookAdsResourceComponent",
+  "description": "Register a FacebookAdsResource wrapping the Facebook Business SDK for use by other components",
+  "category": "resource",
+  "icon": "si:facebook",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["facebook_ads_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "facebook_ads_resource"
+    },
+    "app_id_env_var": {
+      "type": "string",
+      "label": "App ID Env Var",
+      "description": "Env var holding Facebook App ID",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "app_secret_env_var": {
+      "type": "string",
+      "label": "App Secret Env Var",
+      "description": "Env var holding Facebook App Secret",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "access_token_env_var": {
+      "type": "string",
+      "label": "Access Token Env Var",
+      "description": "Env var holding long-lived access token",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "ad_account_id": {
+      "type": "string",
+      "label": "Ad Account ID",
+      "description": "Facebook Ad Account ID e.g. 'act_123456789'",
+      "required": true
+    }
+  },
+  "tags": ["resource", "facebook", "ads", "marketing"]
+}

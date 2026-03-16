@@ -1,0 +1,44 @@
+{
+  "x-dagster-io": {},
+  "x-dagster-provides": ["cassandra_resource"],
+  "category": "resource",
+  "title": "CassandraResourceComponent",
+  "type": "object",
+  "properties": {
+    "resource_key": {
+      "type": "string",
+      "default": "cassandra_resource",
+      "description": "The key under which the Cassandra resource is registered."
+    },
+    "hosts": {
+      "type": "string",
+      "description": "Comma-separated list of Cassandra contact points (e.g. 'host1,host2')."
+    },
+    "port": {
+      "type": "integer",
+      "default": 9042,
+      "description": "Cassandra native transport port."
+    },
+    "keyspace": {
+      "type": "string",
+      "default": "",
+      "description": "Default keyspace to connect to (optional)."
+    },
+    "username": {
+      "type": "string",
+      "default": "",
+      "description": "Username for authentication (optional)."
+    },
+    "password_env_var": {
+      "type": "string",
+      "description": "Name of the environment variable holding the Cassandra password.",
+      "ui:widget": "password"
+    },
+    "ssl": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether to enable SSL for the connection."
+    }
+  },
+  "required": ["hosts"]
+}

@@ -1,0 +1,7 @@
+type: dagster_component_templates.FacebookAdsResourceComponent
+attributes:
+  resource_key: facebook_ads_resource
+  app_id_env_var: FACEBOOK_APP_ID
+  app_secret_env_var: FACEBOOK_APP_SECRET
+  access_token_env_var: FACEBOOK_ACCESS_TOKEN
+  ad_account_id: act_123456789

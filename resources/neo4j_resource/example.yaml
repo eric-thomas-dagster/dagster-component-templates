@@ -1,0 +1,7 @@
+type: neo4j_resource.component.Neo4jResourceComponent
+attributes:
+  resource_key: neo4j_resource
+  uri: "bolt://localhost:7687"
+  username: neo4j
+  password_env_var: NEO4J_PASSWORD
+  database: neo4j

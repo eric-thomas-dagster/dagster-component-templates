@@ -1,0 +1,16 @@
+{
+  "component_type": "dagster_component_templates.MLflowResourceComponent",
+  "description": "Register an MLflow resource for experiment tracking and model registry",
+  "category": "resource",
+  "icon": "si:mlflow",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["mlflow_resource"],
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource.", "required": false, "default": "mlflow_resource"},
+    "tracking_uri": {"type": "string", "label": "Tracking URI", "description": "MLflow tracking server URI, e.g. 'http://localhost:5000' or 'databricks'", "required": true},
+    "experiment_name": {"type": "string", "label": "Experiment Name", "description": "Default experiment name", "required": false, "default": null},
+    "username_env_var": {"type": "string", "label": "Username Env Var", "description": "Environment variable holding the MLflow server username", "required": false, "default": null},
+    "password_env_var": {"type": "string", "label": "Password Env Var", "description": "Environment variable holding the MLflow server password", "required": false, "default": null, "ui:widget": "password"}
+  },
+  "tags": ["resource", "mlflow", "ml", "experiment-tracking"]
+}

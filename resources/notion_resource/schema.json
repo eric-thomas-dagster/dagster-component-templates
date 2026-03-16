@@ -1,0 +1,25 @@
+{
+  "component_type": "dagster_component_templates.NotionResourceComponent",
+  "description": "Register a NotionResource wrapping the notion-client SDK for use by other components",
+  "category": "resource",
+  "icon": "si:notion",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["notion_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "notion_resource"
+    },
+    "token_env_var": {
+      "type": "string",
+      "label": "Token Env Var",
+      "description": "Env var holding Notion integration token",
+      "required": true,
+      "ui:widget": "password"
+    }
+  },
+  "tags": ["resource", "notion", "productivity", "no-code"]
+}

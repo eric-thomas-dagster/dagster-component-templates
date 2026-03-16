@@ -1,0 +1,6 @@
+type: dagster_component_templates.ZendeskResourceComponent
+attributes:
+  resource_key: zendesk_resource
+  subdomain: mycompany
+  email: admin@mycompany.com
+  api_token_env_var: ZENDESK_API_TOKEN

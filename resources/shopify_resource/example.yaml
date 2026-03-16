@@ -1,0 +1,6 @@
+type: dagster_component_templates.ShopifyResourceComponent
+attributes:
+  resource_key: shopify_resource
+  shop_url: mystore.myshopify.com
+  access_token_env_var: SHOPIFY_ACCESS_TOKEN
+  api_version: "2024-01"

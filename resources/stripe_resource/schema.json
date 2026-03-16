@@ -1,0 +1,25 @@
+{
+  "component_type": "dagster_component_templates.StripeResourceComponent",
+  "description": "Register a StripeResource wrapping the Stripe Python SDK for use by other components",
+  "category": "resource",
+  "icon": "si:stripe",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["stripe_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "stripe_resource"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding Stripe secret key (sk_live_... or sk_test_...)",
+      "required": true,
+      "ui:widget": "password"
+    }
+  },
+  "tags": ["resource", "stripe", "payments", "billing"]
+}

@@ -8287,23 +8287,18 @@
       "icon": "FileText"
     },
     {
-      "path": "resources/aws_s3_resource",
-      "component_type": "dagster_component_templates.S3ResourceComponent",
+      "id": "aws_s3_resource",
+      "name": "Aws S3 Resource",
       "category": "resource",
-      "icon": "si:amazons3",
       "description": "Register a dagster-aws S3Resource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/aws_s3_resource",
       "tags": [
         "resource",
         "aws",
         "s3"
       ],
-      "x-dagster-provides": [
-        "s3_resource"
-      ],
-      "id": "aws_s3_resource",
-      "name": "AWS S3 Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-aws"
@@ -8313,26 +8308,25 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/aws_s3_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/aws_s3_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/aws_s3_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/aws_s3_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/aws_s3_resource/requirements.txt",
+      "icon": "si:amazons3",
+      "x-dagster-provides": [
+        "s3_resource"
+      ]
     },
     {
-      "path": "resources/bigquery_resource",
-      "component_type": "dagster_component_templates.BigQueryResourceComponent",
+      "id": "bigquery_resource",
+      "name": "Bigquery Resource",
       "category": "resource",
-      "icon": "si:googlebigquery",
       "description": "Register a dagster-gcp BigQueryResource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/bigquery_resource",
       "tags": [
         "resource",
         "gcp",
         "bigquery"
       ],
-      "x-dagster-provides": [
-        "bigquery_resource"
-      ],
-      "id": "bigquery_resource",
-      "name": "BigQuery Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-gcp"
@@ -8342,26 +8336,25 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/bigquery_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/bigquery_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/bigquery_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/bigquery_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/bigquery_resource/requirements.txt",
+      "icon": "si:googlebigquery",
+      "x-dagster-provides": [
+        "bigquery_resource"
+      ]
     },
     {
-      "path": "resources/postgres_resource",
-      "component_type": "dagster_component_templates.PostgresResourceComponent",
+      "id": "postgres_resource",
+      "name": "Postgres Resource",
       "category": "resource",
-      "icon": "si:postgresql",
       "description": "Register a PostgreSQL resource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/postgres_resource",
       "tags": [
         "resource",
         "postgres",
         "database"
       ],
-      "x-dagster-provides": [
-        "postgres_resource"
-      ],
-      "id": "postgres_resource",
-      "name": "PostgreSQL Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "psycopg2-binary"
@@ -8371,26 +8364,25 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/postgres_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/postgres_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/postgres_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/postgres_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/postgres_resource/requirements.txt",
+      "icon": "si:postgresql",
+      "x-dagster-provides": [
+        "postgres_resource"
+      ]
     },
     {
-      "path": "resources/snowflake_resource",
-      "component_type": "dagster_component_templates.SnowflakeResourceComponent",
+      "id": "snowflake_resource",
+      "name": "Snowflake Resource",
       "category": "resource",
-      "icon": "si:snowflake",
       "description": "Register a dagster-snowflake SnowflakeResource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/snowflake_resource",
       "tags": [
         "resource",
         "snowflake",
         "warehouse"
       ],
-      "x-dagster-provides": [
-        "snowflake_resource"
-      ],
-      "id": "snowflake_resource",
-      "name": "Snowflake Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-snowflake"
@@ -8400,26 +8392,25 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/snowflake_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/snowflake_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/snowflake_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/snowflake_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/snowflake_resource/requirements.txt",
+      "icon": "si:snowflake",
+      "x-dagster-provides": [
+        "snowflake_resource"
+      ]
     },
     {
-      "path": "resources/databricks_resource",
-      "component_type": "dagster_component_templates.DatabricksResourceComponent",
+      "id": "databricks_resource",
+      "name": "Databricks Resource",
       "category": "resource",
-      "icon": "si:databricks",
       "description": "Register a Databricks workspace resource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/databricks_resource",
       "tags": [
         "resource",
         "databricks",
         "spark"
       ],
-      "x-dagster-provides": [
-        "databricks_resource"
-      ],
-      "id": "databricks_resource",
-      "name": "Databricks Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-databricks"
@@ -8429,26 +8420,25 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/databricks_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/databricks_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/databricks_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/databricks_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/databricks_resource/requirements.txt",
+      "icon": "si:databricks",
+      "x-dagster-provides": [
+        "databricks_resource"
+      ]
     },
     {
-      "path": "resources/dbt_cloud_resource",
-      "component_type": "dagster_component_templates.DbtCloudResourceComponent",
+      "id": "dbt_cloud_resource",
+      "name": "Dbt Cloud Resource",
       "category": "resource",
-      "icon": "si:dbt",
       "description": "Register a dagster-dbt DbtCloudClientResource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/dbt_cloud_resource",
       "tags": [
         "resource",
         "dbt",
         "analytics"
       ],
-      "x-dagster-provides": [
-        "dbt_cloud_resource"
-      ],
-      "id": "dbt_cloud_resource",
-      "name": "dbt Cloud Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-dbt"
@@ -8458,26 +8448,25 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dbt_cloud_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dbt_cloud_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dbt_cloud_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dbt_cloud_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dbt_cloud_resource/requirements.txt",
+      "icon": "si:dbt",
+      "x-dagster-provides": [
+        "dbt_cloud_resource"
+      ]
     },
     {
-      "path": "resources/gcs_resource",
-      "component_type": "dagster_component_templates.GCSResourceComponent",
+      "id": "gcs_resource",
+      "name": "Gcs Resource",
       "category": "resource",
-      "icon": "si:googlecloudstorage",
       "description": "Register a dagster-gcp GCSResource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/gcs_resource",
       "tags": [
         "resource",
         "gcp",
         "gcs"
       ],
-      "x-dagster-provides": [
-        "gcs_resource"
-      ],
-      "id": "gcs_resource",
-      "name": "GCS Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-gcp"
@@ -8487,26 +8476,25 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gcs_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gcs_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gcs_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gcs_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gcs_resource/requirements.txt",
+      "icon": "si:googlecloudstorage",
+      "x-dagster-provides": [
+        "gcs_resource"
+      ]
     },
     {
-      "path": "resources/http_resource",
-      "component_type": "dagster_component_templates.HTTPResourceComponent",
+      "id": "http_resource",
+      "name": "Http Resource",
       "category": "resource",
-      "icon": "Globe",
       "description": "Register an HTTP resource (base URL + auth header) for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/http_resource",
       "tags": [
         "resource",
         "http",
         "api"
       ],
-      "x-dagster-provides": [
-        "http_resource"
-      ],
-      "id": "http_resource",
-      "name": "HTTP Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "requests"
@@ -8516,26 +8504,25 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/http_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/http_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/http_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/http_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/http_resource/requirements.txt",
+      "icon": "Globe",
+      "x-dagster-provides": [
+        "http_resource"
+      ]
     },
     {
-      "path": "resources/slack_resource",
-      "component_type": "dagster_component_templates.SlackResourceComponent",
+      "id": "slack_resource",
+      "name": "Slack Resource",
       "category": "resource",
-      "icon": "si:slack",
       "description": "Register a dagster-slack SlackResource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/slack_resource",
       "tags": [
         "resource",
         "slack",
         "notification"
       ],
-      "x-dagster-provides": [
-        "slack_resource"
-      ],
-      "id": "slack_resource",
-      "name": "Slack Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-slack"
@@ -8545,26 +8532,25 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/slack_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/slack_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/slack_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/slack_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/slack_resource/requirements.txt",
+      "icon": "si:slack",
+      "x-dagster-provides": [
+        "slack_resource"
+      ]
     },
     {
-      "path": "resources/smtp_resource",
-      "component_type": "dagster_component_templates.SMTPResourceComponent",
+      "id": "smtp_resource",
+      "name": "Smtp Resource",
       "category": "resource",
-      "icon": "Mail",
       "description": "Register an SMTP resource for sending emails from other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/smtp_resource",
       "tags": [
         "resource",
         "smtp",
         "email"
       ],
-      "x-dagster-provides": [
-        "smtp_resource"
-      ],
-      "id": "smtp_resource",
-      "name": "SMTP Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": []
       },
@@ -8572,27 +8558,26 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/smtp_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/smtp_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/smtp_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/smtp_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/smtp_resource/requirements.txt",
+      "icon": "Mail",
+      "x-dagster-provides": [
+        "smtp_resource"
+      ]
     },
     {
-      "path": "resources/anthropic_resource",
-      "component_type": "dagster_component_templates.AnthropicResourceComponent",
+      "id": "anthropic_resource",
+      "name": "Anthropic Resource",
       "category": "resource",
-      "icon": "si:anthropic",
       "description": "Register a dagster-anthropic AnthropicResource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/anthropic_resource",
       "tags": [
         "resource",
         "anthropic",
         "llm",
         "ai"
       ],
-      "x-dagster-provides": [
-        "anthropic_resource"
-      ],
-      "id": "anthropic_resource",
-      "name": "Anthropic Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-anthropic"
@@ -8602,27 +8587,26 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/anthropic_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/anthropic_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/anthropic_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/anthropic_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/anthropic_resource/requirements.txt",
+      "icon": "si:anthropic",
+      "x-dagster-provides": [
+        "anthropic_resource"
+      ]
     },
     {
-      "path": "resources/chroma_resource",
-      "component_type": "dagster_component_templates.ChromaResourceComponent",
+      "id": "chroma_resource",
+      "name": "Chroma Resource",
       "category": "resource",
-      "icon": "si:chroma",
       "description": "Register a dagster-chroma ChromaResource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/chroma_resource",
       "tags": [
         "resource",
         "chroma",
         "vector-db",
         "ai"
       ],
-      "x-dagster-provides": [
-        "chroma_resource"
-      ],
-      "id": "chroma_resource",
-      "name": "Chroma Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-chroma"
@@ -8632,27 +8616,26 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/chroma_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/chroma_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/chroma_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/chroma_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/chroma_resource/requirements.txt",
+      "icon": "si:chroma",
+      "x-dagster-provides": [
+        "chroma_resource"
+      ]
     },
     {
-      "path": "resources/datadog_resource",
-      "component_type": "dagster_component_templates.DatadogResourceComponent",
+      "id": "datadog_resource",
+      "name": "Datadog Resource",
       "category": "resource",
-      "icon": "si:datadog",
       "description": "Register a dagster-datadog DatadogResource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/datadog_resource",
       "tags": [
         "resource",
         "datadog",
         "monitoring",
         "observability"
       ],
-      "x-dagster-provides": [
-        "datadog_resource"
-      ],
-      "id": "datadog_resource",
-      "name": "Datadog Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-datadog"
@@ -8662,14 +8645,20 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/datadog_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/datadog_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/datadog_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/datadog_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/datadog_resource/requirements.txt",
+      "icon": "si:datadog",
+      "x-dagster-provides": [
+        "datadog_resource"
+      ]
     },
     {
-      "path": "resources/gemini_resource",
-      "component_type": "dagster_component_templates.GeminiResourceComponent",
+      "id": "gemini_resource",
+      "name": "Gemini Resource",
       "category": "resource",
-      "icon": "si:googlegemini",
       "description": "Register a dagster-gemini GeminiResource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/gemini_resource",
       "tags": [
         "resource",
         "gemini",
@@ -8677,13 +8666,6 @@
         "llm",
         "ai"
       ],
-      "x-dagster-provides": [
-        "gemini_resource"
-      ],
-      "id": "gemini_resource",
-      "name": "Gemini Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-gemini"
@@ -8693,27 +8675,26 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gemini_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gemini_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gemini_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gemini_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gemini_resource/requirements.txt",
+      "icon": "si:googlegemini",
+      "x-dagster-provides": [
+        "gemini_resource"
+      ]
     },
     {
-      "path": "resources/github_resource",
-      "component_type": "dagster_component_templates.GithubResourceComponent",
+      "id": "github_resource",
+      "name": "Github Resource",
       "category": "resource",
-      "icon": "si:github",
       "description": "Register a dagster-github GithubResource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/github_resource",
       "tags": [
         "resource",
         "github",
         "vcs",
         "devops"
       ],
-      "x-dagster-provides": [
-        "github_resource"
-      ],
-      "id": "github_resource",
-      "name": "GitHub Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-github"
@@ -8723,27 +8704,26 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/github_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/github_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/github_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/github_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/github_resource/requirements.txt",
+      "icon": "si:github",
+      "x-dagster-provides": [
+        "github_resource"
+      ]
     },
     {
-      "path": "resources/openai_resource",
-      "component_type": "dagster_component_templates.OpenAIResourceComponent",
+      "id": "openai_resource",
+      "name": "Openai Resource",
       "category": "resource",
-      "icon": "si:openai",
       "description": "Register a dagster-openai OpenAIResource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/openai_resource",
       "tags": [
         "resource",
         "openai",
         "llm",
         "ai"
       ],
-      "x-dagster-provides": [
-        "openai_resource"
-      ],
-      "id": "openai_resource",
-      "name": "OpenAI Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-openai"
@@ -8753,27 +8733,26 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/openai_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/openai_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/openai_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/openai_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/openai_resource/requirements.txt",
+      "icon": "si:openai",
+      "x-dagster-provides": [
+        "openai_resource"
+      ]
     },
     {
-      "path": "resources/pagerduty_resource",
-      "component_type": "dagster_component_templates.PagerDutyResourceComponent",
+      "id": "pagerduty_resource",
+      "name": "Pagerduty Resource",
       "category": "resource",
-      "icon": "si:pagerduty",
       "description": "Register a dagster-pagerduty PagerDutyService for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/pagerduty_resource",
       "tags": [
         "resource",
         "pagerduty",
         "alerting",
         "notification"
       ],
-      "x-dagster-provides": [
-        "pagerduty_resource"
-      ],
-      "id": "pagerduty_resource",
-      "name": "PagerDuty Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-pagerduty"
@@ -8783,27 +8762,26 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pagerduty_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pagerduty_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pagerduty_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pagerduty_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pagerduty_resource/requirements.txt",
+      "icon": "si:pagerduty",
+      "x-dagster-provides": [
+        "pagerduty_resource"
+      ]
     },
     {
-      "path": "resources/pyspark_resource",
-      "component_type": "dagster_component_templates.PySparkResourceComponent",
+      "id": "pyspark_resource",
+      "name": "Pyspark Resource",
       "category": "resource",
-      "icon": "si:apachespark",
       "description": "Register a dagster-pyspark PySparkResource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/pyspark_resource",
       "tags": [
         "resource",
         "spark",
         "pyspark",
         "big-data"
       ],
-      "x-dagster-provides": [
-        "pyspark_resource"
-      ],
-      "id": "pyspark_resource",
-      "name": "PySpark Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-pyspark"
@@ -8813,27 +8791,26 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pyspark_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pyspark_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pyspark_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pyspark_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pyspark_resource/requirements.txt",
+      "icon": "si:apachespark",
+      "x-dagster-provides": [
+        "pyspark_resource"
+      ]
     },
     {
-      "path": "resources/qdrant_resource",
-      "component_type": "dagster_component_templates.QdrantResourceComponent",
+      "id": "qdrant_resource",
+      "name": "Qdrant Resource",
       "category": "resource",
-      "icon": "si:qdrant",
       "description": "Register a dagster-qdrant QdrantResource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/qdrant_resource",
       "tags": [
         "resource",
         "qdrant",
         "vector-db",
         "ai"
       ],
-      "x-dagster-provides": [
-        "qdrant_resource"
-      ],
-      "id": "qdrant_resource",
-      "name": "Qdrant Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-qdrant"
@@ -8843,26 +8820,25 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qdrant_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qdrant_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qdrant_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qdrant_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/qdrant_resource/requirements.txt",
+      "icon": "si:qdrant",
+      "x-dagster-provides": [
+        "qdrant_resource"
+      ]
     },
     {
-      "path": "resources/redshift_resource",
-      "component_type": "dagster_component_templates.RedshiftResourceComponent",
+      "id": "redshift_resource",
+      "name": "Redshift Resource",
       "category": "resource",
-      "icon": "si:amazonredshift",
       "description": "Register a dagster-aws RedshiftClientResource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/redshift_resource",
       "tags": [
         "resource",
         "aws",
         "redshift"
       ],
-      "x-dagster-provides": [
-        "redshift_resource"
-      ],
-      "id": "redshift_resource",
-      "name": "AWS Redshift Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-aws"
@@ -8872,26 +8848,25 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redshift_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redshift_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redshift_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redshift_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redshift_resource/requirements.txt",
+      "icon": "si:amazonredshift",
+      "x-dagster-provides": [
+        "redshift_resource"
+      ]
     },
     {
-      "path": "resources/salesforce_resource",
-      "component_type": "dagster_component_templates.SalesforceResourceComponent",
+      "id": "salesforce_resource",
+      "name": "Salesforce Resource",
       "category": "resource",
-      "icon": "si:salesforce",
       "description": "Register a dagster-salesforce SalesforceResource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/salesforce_resource",
       "tags": [
         "resource",
         "salesforce",
         "crm"
       ],
-      "x-dagster-provides": [
-        "salesforce_resource"
-      ],
-      "id": "salesforce_resource",
-      "name": "Salesforce Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-salesforce"
@@ -8901,27 +8876,26 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/salesforce_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/salesforce_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/salesforce_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/salesforce_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/salesforce_resource/requirements.txt",
+      "icon": "si:salesforce",
+      "x-dagster-provides": [
+        "salesforce_resource"
+      ]
     },
     {
-      "path": "resources/twilio_resource",
-      "component_type": "dagster_component_templates.TwilioResourceComponent",
+      "id": "twilio_resource",
+      "name": "Twilio Resource",
       "category": "resource",
-      "icon": "si:twilio",
       "description": "Register a dagster-twilio TwilioResource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/twilio_resource",
       "tags": [
         "resource",
         "twilio",
         "sms",
         "notification"
       ],
-      "x-dagster-provides": [
-        "twilio_resource"
-      ],
-      "id": "twilio_resource",
-      "name": "Twilio Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-twilio"
@@ -8931,27 +8905,26 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/twilio_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/twilio_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/twilio_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/twilio_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/twilio_resource/requirements.txt",
+      "icon": "si:twilio",
+      "x-dagster-provides": [
+        "twilio_resource"
+      ]
     },
     {
-      "path": "resources/weaviate_resource",
-      "component_type": "dagster_component_templates.WeaviateResourceComponent",
+      "id": "weaviate_resource",
+      "name": "Weaviate Resource",
       "category": "resource",
-      "icon": "si:weaviate",
       "description": "Register a dagster-weaviate WeaviateResource for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/weaviate_resource",
       "tags": [
         "resource",
         "weaviate",
         "vector-db",
         "ai"
       ],
-      "x-dagster-provides": [
-        "weaviate_resource"
-      ],
-      "id": "weaviate_resource",
-      "name": "Weaviate Resource",
-      "version": "1.0.0",
-      "author": "Dagster Community",
       "dependencies": {
         "pip": [
           "dagster-weaviate"
@@ -8961,7 +8934,848 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/weaviate_resource/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/weaviate_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/weaviate_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/weaviate_resource/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/weaviate_resource/requirements.txt",
+      "icon": "si:weaviate",
+      "x-dagster-provides": [
+        "weaviate_resource"
+      ]
+    },
+    {
+      "id": "airtable_resource",
+      "name": "Airtable Resource",
+      "category": "resource",
+      "description": "Register an AirtableResource wrapping the pyairtable client for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/airtable_resource",
+      "tags": [
+        "resource",
+        "airtable",
+        "database",
+        "no-code"
+      ],
+      "dependencies": {
+        "pip": [
+          "pyairtable"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/airtable_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/airtable_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/airtable_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/airtable_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/airtable_resource/requirements.txt",
+      "icon": "si:airtable",
+      "x-dagster-provides": [
+        "airtable_resource"
+      ]
+    },
+    {
+      "id": "asana_resource",
+      "name": "Asana Resource",
+      "category": "resource",
+      "description": "Register an AsanaResource wrapping the Asana Python SDK for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/asana_resource",
+      "tags": [
+        "resource",
+        "asana",
+        "project-management",
+        "tasks"
+      ],
+      "dependencies": {
+        "pip": [
+          "asana"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/asana_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/asana_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/asana_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/asana_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/asana_resource/requirements.txt",
+      "icon": "si:asana",
+      "x-dagster-provides": [
+        "asana_resource"
+      ]
+    },
+    {
+      "id": "cassandra_resource",
+      "name": "Cassandra Resource",
+      "category": "resource",
+      "description": "Cassandra Resource",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/cassandra_resource",
+      "tags": [
+        "resource"
+      ],
+      "dependencies": {
+        "pip": [
+          "cassandra-driver"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cassandra_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cassandra_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cassandra_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cassandra_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cassandra_resource/requirements.txt",
+      "icon": "Plug",
+      "x-dagster-provides": [
+        "cassandra_resource"
+      ]
+    },
+    {
+      "id": "cosmosdb_resource",
+      "name": "CosmosDB Resource",
+      "category": "resource",
+      "description": "CosmosDB Resource",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/cosmosdb_resource",
+      "tags": [
+        "resource"
+      ],
+      "dependencies": {
+        "pip": [
+          "azure-cosmos"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cosmosdb_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cosmosdb_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cosmosdb_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cosmosdb_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/cosmosdb_resource/requirements.txt",
+      "icon": "Plug",
+      "x-dagster-provides": [
+        "cosmosdb_resource"
+      ]
+    },
+    {
+      "id": "couchdb_resource",
+      "name": "CouchDB Resource",
+      "category": "resource",
+      "description": "CouchDB Resource",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/couchdb_resource",
+      "tags": [
+        "resource"
+      ],
+      "dependencies": {
+        "pip": [
+          "couchdb"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/couchdb_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/couchdb_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/couchdb_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/couchdb_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/couchdb_resource/requirements.txt",
+      "icon": "Plug",
+      "x-dagster-provides": [
+        "couchdb_resource"
+      ]
+    },
+    {
+      "id": "duckdb_resource",
+      "name": "DuckDB Resource",
+      "category": "resource",
+      "description": "DuckDB Resource",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/duckdb_resource",
+      "tags": [
+        "resource"
+      ],
+      "dependencies": {
+        "pip": [
+          "duckdb"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/duckdb_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/duckdb_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/duckdb_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/duckdb_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/duckdb_resource/requirements.txt",
+      "icon": "Plug",
+      "x-dagster-provides": [
+        "duckdb_resource"
+      ]
+    },
+    {
+      "id": "dynamodb_resource",
+      "name": "DynamoDB Resource",
+      "category": "resource",
+      "description": "DynamoDB Resource",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/dynamodb_resource",
+      "tags": [
+        "resource"
+      ],
+      "dependencies": {
+        "pip": [
+          "boto3"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dynamodb_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dynamodb_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dynamodb_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dynamodb_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dynamodb_resource/requirements.txt",
+      "icon": "Plug",
+      "x-dagster-provides": [
+        "dynamodb_resource"
+      ]
+    },
+    {
+      "id": "elasticsearch_resource",
+      "name": "Elasticsearch Resource",
+      "category": "resource",
+      "description": "Elasticsearch Resource",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/elasticsearch_resource",
+      "tags": [
+        "resource"
+      ],
+      "dependencies": {
+        "pip": [
+          "elasticsearch>=8.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/elasticsearch_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/elasticsearch_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/elasticsearch_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/elasticsearch_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/elasticsearch_resource/requirements.txt",
+      "icon": "Plug",
+      "x-dagster-provides": [
+        "elasticsearch_resource"
+      ]
+    },
+    {
+      "id": "facebook_ads_resource",
+      "name": "Facebook Ads Resource",
+      "category": "resource",
+      "description": "Register a FacebookAdsResource wrapping the Facebook Business SDK for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/facebook_ads_resource",
+      "tags": [
+        "resource",
+        "facebook",
+        "ads",
+        "marketing"
+      ],
+      "dependencies": {
+        "pip": [
+          "facebook-business"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/facebook_ads_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/facebook_ads_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/facebook_ads_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/facebook_ads_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/facebook_ads_resource/requirements.txt",
+      "icon": "si:facebook",
+      "x-dagster-provides": [
+        "facebook_ads_resource"
+      ]
+    },
+    {
+      "id": "firestore_resource",
+      "name": "Firestore Resource",
+      "category": "resource",
+      "description": "Firestore Resource",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/firestore_resource",
+      "tags": [
+        "resource"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-firestore"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/firestore_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/firestore_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/firestore_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/firestore_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/firestore_resource/requirements.txt",
+      "icon": "Plug",
+      "x-dagster-provides": [
+        "firestore_resource"
+      ]
+    },
+    {
+      "id": "freshdesk_resource",
+      "name": "Freshdesk Resource",
+      "category": "resource",
+      "description": "Register a FreshdeskResource for the Freshdesk REST API for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/freshdesk_resource",
+      "tags": [
+        "resource",
+        "freshdesk",
+        "support",
+        "customer-service"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/freshdesk_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/freshdesk_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/freshdesk_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/freshdesk_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/freshdesk_resource/requirements.txt",
+      "icon": "si:freshdesk",
+      "x-dagster-provides": [
+        "freshdesk_resource"
+      ]
+    },
+    {
+      "id": "google_analytics_resource",
+      "name": "Google Analytics Resource",
+      "category": "resource",
+      "description": "Register a GoogleAnalyticsResource wrapping the GA4 Data API client for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/google_analytics_resource",
+      "tags": [
+        "resource",
+        "google",
+        "analytics",
+        "ga4"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-analytics-data"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/google_analytics_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/google_analytics_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/google_analytics_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/google_analytics_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/google_analytics_resource/requirements.txt",
+      "icon": "si:googleanalytics",
+      "x-dagster-provides": [
+        "google_analytics_resource"
+      ]
+    },
+    {
+      "id": "google_sheets_resource",
+      "name": "Google Sheets Resource",
+      "category": "resource",
+      "description": "Register a GoogleSheetsResource wrapping the gspread client for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/google_sheets_resource",
+      "tags": [
+        "resource",
+        "google",
+        "sheets",
+        "spreadsheet"
+      ],
+      "dependencies": {
+        "pip": [
+          "gspread"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/google_sheets_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/google_sheets_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/google_sheets_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/google_sheets_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/google_sheets_resource/requirements.txt",
+      "icon": "si:googlesheets",
+      "x-dagster-provides": [
+        "google_sheets_resource"
+      ]
+    },
+    {
+      "id": "hubspot_resource",
+      "name": "HubSpot Resource",
+      "category": "resource",
+      "description": "Register a HubSpotResource wrapping the hubspot-api-client for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/hubspot_resource",
+      "tags": [
+        "resource",
+        "hubspot",
+        "crm",
+        "marketing"
+      ],
+      "dependencies": {
+        "pip": [
+          "hubspot-api-client"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/hubspot_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/hubspot_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/hubspot_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/hubspot_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/hubspot_resource/requirements.txt",
+      "icon": "si:hubspot",
+      "x-dagster-provides": [
+        "hubspot_resource"
+      ]
+    },
+    {
+      "id": "jira_resource",
+      "name": "Jira Resource",
+      "category": "resource",
+      "description": "Register a JiraResource wrapping the Jira Python client for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/jira_resource",
+      "tags": [
+        "resource",
+        "jira",
+        "project-management",
+        "atlassian"
+      ],
+      "dependencies": {
+        "pip": [
+          "jira"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/jira_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/jira_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/jira_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/jira_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/jira_resource/requirements.txt",
+      "icon": "si:jira",
+      "x-dagster-provides": [
+        "jira_resource"
+      ]
+    },
+    {
+      "id": "kafka_resource",
+      "name": "Apache Kafka Resource",
+      "category": "resource",
+      "description": "Register a Kafka resource providing producer and consumer factories",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/kafka_resource",
+      "tags": [
+        "resource",
+        "kafka",
+        "streaming",
+        "messaging"
+      ],
+      "dependencies": {
+        "pip": [
+          "kafka-python>=2.0.2"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/kafka_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/kafka_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/kafka_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/kafka_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/kafka_resource/requirements.txt",
+      "icon": "si:apachekafka",
+      "x-dagster-provides": [
+        "kafka_resource"
+      ]
+    },
+    {
+      "id": "linkedin_ads_resource",
+      "name": "LinkedIn Ads Resource",
+      "category": "resource",
+      "description": "Register a LinkedInAdsResource for the LinkedIn Marketing API for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/linkedin_ads_resource",
+      "tags": [
+        "resource",
+        "linkedin",
+        "ads",
+        "marketing"
+      ],
+      "dependencies": {
+        "pip": [
+          "linkedin-api"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/linkedin_ads_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/linkedin_ads_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/linkedin_ads_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/linkedin_ads_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/linkedin_ads_resource/requirements.txt",
+      "icon": "si:linkedin",
+      "x-dagster-provides": [
+        "linkedin_ads_resource"
+      ]
+    },
+    {
+      "id": "mlflow_resource",
+      "name": "MLflow Resource",
+      "category": "resource",
+      "description": "Register an MLflow resource for experiment tracking and model registry",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/mlflow_resource",
+      "tags": [
+        "resource",
+        "mlflow",
+        "ml",
+        "experiment-tracking"
+      ],
+      "dependencies": {
+        "pip": [
+          "mlflow"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mlflow_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mlflow_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mlflow_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mlflow_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mlflow_resource/requirements.txt",
+      "icon": "si:mlflow",
+      "x-dagster-provides": [
+        "mlflow_resource"
+      ]
+    },
+    {
+      "id": "mongodb_resource",
+      "name": "MongoDB Resource",
+      "category": "resource",
+      "description": "MongoDB Resource",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/mongodb_resource",
+      "tags": [
+        "resource"
+      ],
+      "dependencies": {
+        "pip": [
+          "pymongo"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mongodb_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mongodb_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mongodb_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mongodb_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mongodb_resource/requirements.txt",
+      "icon": "Plug",
+      "x-dagster-provides": [
+        "mongodb_resource"
+      ]
+    },
+    {
+      "id": "mysql_resource",
+      "name": "MySQL Resource",
+      "category": "resource",
+      "description": "MySQL Resource",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/mysql_resource",
+      "tags": [
+        "resource"
+      ],
+      "dependencies": {
+        "pip": [
+          "mysql-connector-python"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mysql_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mysql_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mysql_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mysql_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mysql_resource/requirements.txt",
+      "icon": "Plug",
+      "x-dagster-provides": [
+        "mysql_resource"
+      ]
+    },
+    {
+      "id": "neo4j_resource",
+      "name": "Neo4j Resource",
+      "category": "resource",
+      "description": "Neo4j Resource",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/neo4j_resource",
+      "tags": [
+        "resource"
+      ],
+      "dependencies": {
+        "pip": [
+          "neo4j"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/neo4j_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/neo4j_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/neo4j_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/neo4j_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/neo4j_resource/requirements.txt",
+      "icon": "Plug",
+      "x-dagster-provides": [
+        "neo4j_resource"
+      ]
+    },
+    {
+      "id": "notion_resource",
+      "name": "Notion Resource",
+      "category": "resource",
+      "description": "Register a NotionResource wrapping the notion-client SDK for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/notion_resource",
+      "tags": [
+        "resource",
+        "notion",
+        "productivity",
+        "no-code"
+      ],
+      "dependencies": {
+        "pip": [
+          "notion-client"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/notion_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/notion_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/notion_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/notion_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/notion_resource/requirements.txt",
+      "icon": "si:notion",
+      "x-dagster-provides": [
+        "notion_resource"
+      ]
+    },
+    {
+      "id": "personio_resource",
+      "name": "Personio Resource",
+      "category": "resource",
+      "description": "Register a PersonioResource wrapping the personio-py client for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/personio_resource",
+      "tags": [
+        "resource",
+        "personio",
+        "hr",
+        "people-ops"
+      ],
+      "dependencies": {
+        "pip": [
+          "personio-py"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/personio_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/personio_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/personio_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/personio_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/personio_resource/requirements.txt",
+      "icon": "si:personio",
+      "x-dagster-provides": [
+        "personio_resource"
+      ]
+    },
+    {
+      "id": "pipedrive_resource",
+      "name": "Pipedrive Resource",
+      "category": "resource",
+      "description": "Register a PipedriveResource for the Pipedrive CRM API for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/pipedrive_resource",
+      "tags": [
+        "resource",
+        "pipedrive",
+        "crm",
+        "sales"
+      ],
+      "dependencies": {
+        "pip": [
+          "pipedrive-python-lib"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pipedrive_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pipedrive_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pipedrive_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pipedrive_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/pipedrive_resource/requirements.txt",
+      "icon": "si:pipedrive",
+      "x-dagster-provides": [
+        "pipedrive_resource"
+      ]
+    },
+    {
+      "id": "redis_resource",
+      "name": "Redis Resource",
+      "category": "resource",
+      "description": "Redis Resource",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/redis_resource",
+      "tags": [
+        "resource"
+      ],
+      "dependencies": {
+        "pip": [
+          "redis>=4.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redis_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redis_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redis_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redis_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/redis_resource/requirements.txt",
+      "icon": "Plug",
+      "x-dagster-provides": [
+        "redis_resource"
+      ]
+    },
+    {
+      "id": "sftp_resource",
+      "name": "SFTP Resource",
+      "category": "resource",
+      "description": "Register an SFTP resource for reading and writing files over SSH",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/sftp_resource",
+      "tags": [
+        "resource",
+        "sftp",
+        "ssh",
+        "file-transfer"
+      ],
+      "dependencies": {
+        "pip": [
+          "paramiko"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sftp_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sftp_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sftp_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sftp_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sftp_resource/requirements.txt",
+      "icon": "Server",
+      "x-dagster-provides": [
+        "sftp_resource"
+      ]
+    },
+    {
+      "id": "shopify_resource",
+      "name": "Shopify Resource",
+      "category": "resource",
+      "description": "Register a ShopifyResource wrapping the ShopifyAPI client for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/shopify_resource",
+      "tags": [
+        "resource",
+        "shopify",
+        "ecommerce",
+        "retail"
+      ],
+      "dependencies": {
+        "pip": [
+          "ShopifyAPI"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/shopify_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/shopify_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/shopify_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/shopify_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/shopify_resource/requirements.txt",
+      "icon": "si:shopify",
+      "x-dagster-provides": [
+        "shopify_resource"
+      ]
+    },
+    {
+      "id": "stripe_resource",
+      "name": "Stripe Resource",
+      "category": "resource",
+      "description": "Register a StripeResource wrapping the Stripe Python SDK for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/stripe_resource",
+      "tags": [
+        "resource",
+        "stripe",
+        "payments",
+        "billing"
+      ],
+      "dependencies": {
+        "pip": [
+          "stripe"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/stripe_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/stripe_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/stripe_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/stripe_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/stripe_resource/requirements.txt",
+      "icon": "si:stripe",
+      "x-dagster-provides": [
+        "stripe_resource"
+      ]
+    },
+    {
+      "id": "wandb_resource",
+      "name": "Weights & Biases Resource",
+      "category": "resource",
+      "description": "Register a Weights & Biases resource for experiment tracking",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/wandb_resource",
+      "tags": [
+        "resource",
+        "wandb",
+        "ml",
+        "experiment-tracking"
+      ],
+      "dependencies": {
+        "pip": [
+          "wandb"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/wandb_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/wandb_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/wandb_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/wandb_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/wandb_resource/requirements.txt",
+      "icon": "si:weightsandbiases",
+      "x-dagster-provides": [
+        "wandb_resource"
+      ]
+    },
+    {
+      "id": "zendesk_resource",
+      "name": "Zendesk Resource",
+      "category": "resource",
+      "description": "Register a ZendeskResource wrapping the Zenpy client for use by other components",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/zendesk_resource",
+      "tags": [
+        "resource",
+        "zendesk",
+        "support",
+        "customer-service"
+      ],
+      "dependencies": {
+        "pip": [
+          "zenpy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/zendesk_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/zendesk_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/zendesk_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/zendesk_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/zendesk_resource/requirements.txt",
+      "icon": "si:zendesk",
+      "x-dagster-provides": [
+        "zendesk_resource"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/schema-spec.json",

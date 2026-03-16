@@ -1,0 +1,30 @@
+{
+  "x-dagster-io": {},
+  "x-dagster-provides": ["mongodb_resource"],
+  "category": "resource",
+  "title": "MongoDBResourceComponent",
+  "type": "object",
+  "properties": {
+    "resource_key": {
+      "type": "string",
+      "default": "mongodb_resource",
+      "description": "The key under which the MongoDB resource is registered."
+    },
+    "connection_string_env_var": {
+      "type": "string",
+      "description": "Name of the environment variable holding the MongoDB connection URI (e.g. mongodb+srv://user:pass@cluster).",
+      "ui:widget": "password"
+    },
+    "database": {
+      "type": "string",
+      "default": "",
+      "description": "Default database name (optional)."
+    },
+    "tls": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether to enable TLS/SSL for the connection."
+    }
+  },
+  "required": ["connection_string_env_var"]
+}

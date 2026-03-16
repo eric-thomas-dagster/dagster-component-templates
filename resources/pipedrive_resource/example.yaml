@@ -1,0 +1,5 @@
+type: dagster_component_templates.PipedriveResourceComponent
+attributes:
+  resource_key: pipedrive_resource
+  api_token_env_var: PIPEDRIVE_API_TOKEN
+  company_domain: mycompany

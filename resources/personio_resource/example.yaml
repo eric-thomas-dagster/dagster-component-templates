@@ -1,0 +1,5 @@
+type: dagster_component_templates.PersonioResourceComponent
+attributes:
+  resource_key: personio_resource
+  client_id_env_var: PERSONIO_CLIENT_ID
+  client_secret_env_var: PERSONIO_CLIENT_SECRET

@@ -1,0 +1,4 @@
+type: dagster_component_templates.MLflowResourceComponent
+attributes:
+  resource_key: mlflow_resource
+  tracking_uri: http://localhost:5000

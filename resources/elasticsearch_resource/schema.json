@@ -1,0 +1,39 @@
+{
+  "x-dagster-io": {},
+  "x-dagster-provides": ["elasticsearch_resource"],
+  "category": "resource",
+  "title": "ElasticsearchResourceComponent",
+  "type": "object",
+  "properties": {
+    "resource_key": {
+      "type": "string",
+      "default": "elasticsearch_resource",
+      "description": "The key under which the Elasticsearch resource is registered."
+    },
+    "hosts": {
+      "type": "string",
+      "description": "Elasticsearch host URL (e.g. https://my-cluster.es.io:9243)."
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "description": "Name of the environment variable holding the Elasticsearch API key.",
+      "ui:widget": "password"
+    },
+    "username": {
+      "type": "string",
+      "default": "",
+      "description": "Username for basic auth (optional)."
+    },
+    "password_env_var": {
+      "type": "string",
+      "description": "Name of the environment variable holding the password for basic auth.",
+      "ui:widget": "password"
+    },
+    "verify_certs": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether to verify TLS certificates."
+    }
+  },
+  "required": ["hosts"]
+}

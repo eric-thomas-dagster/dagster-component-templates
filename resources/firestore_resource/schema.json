@@ -1,0 +1,29 @@
+{
+  "x-dagster-io": {},
+  "x-dagster-provides": ["firestore_resource"],
+  "category": "resource",
+  "title": "FirestoreResourceComponent",
+  "type": "object",
+  "properties": {
+    "resource_key": {
+      "type": "string",
+      "default": "firestore_resource",
+      "description": "The key under which the Firestore resource is registered."
+    },
+    "project": {
+      "type": "string",
+      "description": "Google Cloud project ID."
+    },
+    "gcp_credentials_env_var": {
+      "type": "string",
+      "description": "Name of the environment variable holding the service account JSON string.",
+      "ui:widget": "password"
+    },
+    "database": {
+      "type": "string",
+      "default": "(default)",
+      "description": "Firestore database ID (use '(default)' for the default database)."
+    }
+  },
+  "required": ["project"]
+}

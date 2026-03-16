@@ -1,0 +1,6 @@
+type: dagster_component_templates.JiraResourceComponent
+attributes:
+  resource_key: jira_resource
+  server_url: https://mycompany.atlassian.net
+  username: admin@mycompany.com
+  api_token_env_var: JIRA_API_TOKEN

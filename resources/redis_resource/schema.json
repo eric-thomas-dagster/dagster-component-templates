@@ -1,0 +1,45 @@
+{
+  "x-dagster-io": {},
+  "x-dagster-provides": ["redis_resource"],
+  "category": "resource",
+  "title": "RedisResourceComponent",
+  "type": "object",
+  "properties": {
+    "resource_key": {
+      "type": "string",
+      "default": "redis_resource",
+      "description": "The key under which the Redis resource is registered."
+    },
+    "host": {
+      "type": "string",
+      "default": "localhost",
+      "description": "Redis server hostname."
+    },
+    "port": {
+      "type": "integer",
+      "default": 6379,
+      "description": "Redis server port."
+    },
+    "db": {
+      "type": "integer",
+      "default": 0,
+      "description": "Redis database index."
+    },
+    "password_env_var": {
+      "type": "string",
+      "description": "Name of the environment variable holding the Redis password.",
+      "ui:widget": "password"
+    },
+    "ssl": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether to use SSL/TLS for the connection."
+    },
+    "url_env_var": {
+      "type": "string",
+      "description": "Name of the environment variable holding a full Redis URL (overrides host/port/db).",
+      "ui:widget": "password"
+    }
+  },
+  "required": []
+}

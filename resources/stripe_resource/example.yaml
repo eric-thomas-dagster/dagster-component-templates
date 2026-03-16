@@ -1,0 +1,4 @@
+type: dagster_component_templates.StripeResourceComponent
+attributes:
+  resource_key: stripe_resource
+  api_key_env_var: STRIPE_API_KEY

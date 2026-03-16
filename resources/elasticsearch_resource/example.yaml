@@ -1,0 +1,6 @@
+type: elasticsearch_resource.component.ElasticsearchResourceComponent
+attributes:
+  resource_key: elasticsearch_resource
+  hosts: "https://my-cluster.es.io:9243"
+  api_key_env_var: ELASTICSEARCH_API_KEY
+  verify_certs: true

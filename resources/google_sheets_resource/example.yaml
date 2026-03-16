@@ -1,0 +1,5 @@
+type: dagster_component_templates.GoogleSheetsResourceComponent
+attributes:
+  resource_key: google_sheets_resource
+  gcp_credentials_env_var: GCP_SERVICE_ACCOUNT_JSON
+  scopes: https://www.googleapis.com/auth/spreadsheets

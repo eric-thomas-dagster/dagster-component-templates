@@ -1,0 +1,4 @@
+type: dagster_component_templates.HubSpotResourceComponent
+attributes:
+  resource_key: hubspot_resource
+  access_token_env_var: HUBSPOT_ACCESS_TOKEN

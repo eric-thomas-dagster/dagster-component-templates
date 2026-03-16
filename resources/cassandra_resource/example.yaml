@@ -1,0 +1,8 @@
+type: cassandra_resource.component.CassandraResourceComponent
+attributes:
+  resource_key: cassandra_resource
+  hosts: "host1,host2"
+  port: 9042
+  keyspace: my_keyspace
+  username: cassandra
+  password_env_var: CASSANDRA_PASSWORD

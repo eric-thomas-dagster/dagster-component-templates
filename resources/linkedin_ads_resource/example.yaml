@@ -1,0 +1,5 @@
+type: dagster_component_templates.LinkedInAdsResourceComponent
+attributes:
+  resource_key: linkedin_ads_resource
+  access_token_env_var: LINKEDIN_ACCESS_TOKEN
+  ad_account_id: "123456789"

@@ -1,0 +1,6 @@
+type: firestore_resource.component.FirestoreResourceComponent
+attributes:
+  resource_key: firestore_resource
+  project: my-gcp-project
+  gcp_credentials_env_var: GCP_SERVICE_ACCOUNT_JSON
+  database: "(default)"

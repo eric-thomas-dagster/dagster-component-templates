@@ -1,0 +1,25 @@
+{
+  "x-dagster-io": {},
+  "x-dagster-provides": ["duckdb_resource"],
+  "category": "resource",
+  "title": "DuckDBResourceComponent",
+  "type": "object",
+  "properties": {
+    "resource_key": {
+      "type": "string",
+      "default": "duckdb_resource",
+      "description": "The key under which the DuckDB resource is registered."
+    },
+    "database": {
+      "type": "string",
+      "default": ":memory:",
+      "description": "DuckDB database path. Use ':memory:' for in-memory."
+    },
+    "read_only": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether to open the database in read-only mode."
+    }
+  },
+  "required": []
+}

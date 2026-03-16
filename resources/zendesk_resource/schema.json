@@ -1,0 +1,37 @@
+{
+  "component_type": "dagster_component_templates.ZendeskResourceComponent",
+  "description": "Register a ZendeskResource wrapping the Zenpy client for use by other components",
+  "category": "resource",
+  "icon": "si:zendesk",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["zendesk_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "zendesk_resource"
+    },
+    "subdomain": {
+      "type": "string",
+      "label": "Subdomain",
+      "description": "Zendesk subdomain e.g. 'mycompany'",
+      "required": true
+    },
+    "email": {
+      "type": "string",
+      "label": "Email",
+      "description": "Zendesk agent email address",
+      "required": true
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "API Token Env Var",
+      "description": "Env var holding Zendesk API token",
+      "required": true,
+      "ui:widget": "password"
+    }
+  },
+  "tags": ["resource", "zendesk", "support", "customer-service"]
+}

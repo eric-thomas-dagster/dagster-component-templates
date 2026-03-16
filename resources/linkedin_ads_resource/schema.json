@@ -1,0 +1,31 @@
+{
+  "component_type": "dagster_component_templates.LinkedInAdsResourceComponent",
+  "description": "Register a LinkedInAdsResource for the LinkedIn Marketing API for use by other components",
+  "category": "resource",
+  "icon": "si:linkedin",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["linkedin_ads_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "linkedin_ads_resource"
+    },
+    "access_token_env_var": {
+      "type": "string",
+      "label": "Access Token Env Var",
+      "description": "Env var holding LinkedIn OAuth2 access token",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "ad_account_id": {
+      "type": "string",
+      "label": "Ad Account ID",
+      "description": "LinkedIn Ad Account ID",
+      "required": false
+    }
+  },
+  "tags": ["resource", "linkedin", "ads", "marketing"]
+}

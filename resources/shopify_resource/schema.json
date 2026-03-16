@@ -1,0 +1,38 @@
+{
+  "component_type": "dagster_component_templates.ShopifyResourceComponent",
+  "description": "Register a ShopifyResource wrapping the ShopifyAPI client for use by other components",
+  "category": "resource",
+  "icon": "si:shopify",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["shopify_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "shopify_resource"
+    },
+    "shop_url": {
+      "type": "string",
+      "label": "Shop URL",
+      "description": "Shopify store URL e.g. mystore.myshopify.com",
+      "required": true
+    },
+    "access_token_env_var": {
+      "type": "string",
+      "label": "Access Token Env Var",
+      "description": "Env var holding Shopify Admin API access token",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "api_version": {
+      "type": "string",
+      "label": "API Version",
+      "description": "Shopify API version",
+      "required": false,
+      "default": "2024-01"
+    }
+  },
+  "tags": ["resource", "shopify", "ecommerce", "retail"]
+}

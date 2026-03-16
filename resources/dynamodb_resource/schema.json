@@ -1,0 +1,34 @@
+{
+  "x-dagster-io": {},
+  "x-dagster-provides": ["dynamodb_resource"],
+  "category": "resource",
+  "title": "DynamoDBResourceComponent",
+  "type": "object",
+  "properties": {
+    "resource_key": {
+      "type": "string",
+      "default": "dynamodb_resource",
+      "description": "The key under which the DynamoDB resource is registered."
+    },
+    "region_name": {
+      "type": "string",
+      "description": "AWS region name (e.g. us-east-1)."
+    },
+    "aws_access_key_id_env_var": {
+      "type": "string",
+      "description": "Name of the environment variable holding the AWS access key ID.",
+      "ui:widget": "password"
+    },
+    "aws_secret_access_key_env_var": {
+      "type": "string",
+      "description": "Name of the environment variable holding the AWS secret access key.",
+      "ui:widget": "password"
+    },
+    "endpoint_url": {
+      "type": "string",
+      "default": "",
+      "description": "Custom endpoint URL (e.g. http://localhost:8000 for DynamoDB Local)."
+    }
+  },
+  "required": ["region_name"]
+}

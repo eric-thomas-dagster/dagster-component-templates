@@ -1,0 +1,34 @@
+{
+  "x-dagster-io": {},
+  "x-dagster-provides": ["neo4j_resource"],
+  "category": "resource",
+  "title": "Neo4jResourceComponent",
+  "type": "object",
+  "properties": {
+    "resource_key": {
+      "type": "string",
+      "default": "neo4j_resource",
+      "description": "The key under which the Neo4j resource is registered."
+    },
+    "uri": {
+      "type": "string",
+      "description": "Neo4j connection URI (e.g. bolt://localhost:7687)."
+    },
+    "username": {
+      "type": "string",
+      "default": "neo4j",
+      "description": "Neo4j username."
+    },
+    "password_env_var": {
+      "type": "string",
+      "description": "Name of the environment variable holding the Neo4j password.",
+      "ui:widget": "password"
+    },
+    "database": {
+      "type": "string",
+      "default": "neo4j",
+      "description": "Target Neo4j database name."
+    }
+  },
+  "required": ["uri", "password_env_var"]
+}

@@ -1,0 +1,6 @@
+type: dynamodb_resource.component.DynamoDBResourceComponent
+attributes:
+  resource_key: dynamodb_resource
+  region_name: us-east-1
+  aws_access_key_id_env_var: AWS_ACCESS_KEY_ID
+  aws_secret_access_key_env_var: AWS_SECRET_ACCESS_KEY

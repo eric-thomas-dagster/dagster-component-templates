@@ -1,0 +1,32 @@
+{
+  "component_type": "dagster_component_templates.GoogleSheetsResourceComponent",
+  "description": "Register a GoogleSheetsResource wrapping the gspread client for use by other components",
+  "category": "resource",
+  "icon": "si:googlesheets",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["google_sheets_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "google_sheets_resource"
+    },
+    "gcp_credentials_env_var": {
+      "type": "string",
+      "label": "GCP Credentials Env Var",
+      "description": "Env var holding GCP service account JSON string",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "scopes": {
+      "type": "string",
+      "label": "Scopes",
+      "description": "OAuth scopes for the Google Sheets API",
+      "required": false,
+      "default": "https://www.googleapis.com/auth/spreadsheets"
+    }
+  },
+  "tags": ["resource", "google", "sheets", "spreadsheet"]
+}

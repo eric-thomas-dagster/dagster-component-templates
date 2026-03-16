@@ -1,0 +1,6 @@
+type: couchdb_resource.component.CouchDBResourceComponent
+attributes:
+  resource_key: couchdb_resource
+  url: "http://localhost:5984"
+  username: admin
+  password_env_var: COUCHDB_PASSWORD

@@ -1,0 +1,29 @@
+{
+  "x-dagster-io": {},
+  "x-dagster-provides": ["couchdb_resource"],
+  "category": "resource",
+  "title": "CouchDBResourceComponent",
+  "type": "object",
+  "properties": {
+    "resource_key": {
+      "type": "string",
+      "default": "couchdb_resource",
+      "description": "The key under which the CouchDB resource is registered."
+    },
+    "url": {
+      "type": "string",
+      "description": "CouchDB server URL (e.g. http://localhost:5984)."
+    },
+    "username": {
+      "type": "string",
+      "default": "",
+      "description": "Username for authentication (optional)."
+    },
+    "password_env_var": {
+      "type": "string",
+      "description": "Name of the environment variable holding the CouchDB password.",
+      "ui:widget": "password"
+    }
+  },
+  "required": ["url"]
+}

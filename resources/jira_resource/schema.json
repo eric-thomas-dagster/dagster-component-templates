@@ -1,0 +1,37 @@
+{
+  "component_type": "dagster_component_templates.JiraResourceComponent",
+  "description": "Register a JiraResource wrapping the Jira Python client for use by other components",
+  "category": "resource",
+  "icon": "si:jira",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["jira_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "jira_resource"
+    },
+    "server_url": {
+      "type": "string",
+      "label": "Server URL",
+      "description": "Jira server URL e.g. https://mycompany.atlassian.net",
+      "required": true
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "description": "Jira username (email)",
+      "required": true
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "API Token Env Var",
+      "description": "Env var holding Jira API token",
+      "required": true,
+      "ui:widget": "password"
+    }
+  },
+  "tags": ["resource", "jira", "project-management", "atlassian"]
+}

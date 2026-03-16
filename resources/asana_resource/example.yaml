@@ -1,0 +1,5 @@
+type: dagster_component_templates.AsanaResourceComponent
+attributes:
+  resource_key: asana_resource
+  access_token_env_var: ASANA_ACCESS_TOKEN
+  workspace_gid: "1234567890123456"

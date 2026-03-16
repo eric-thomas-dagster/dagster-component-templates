@@ -1,0 +1,31 @@
+{
+  "component_type": "dagster_component_templates.PipedriveResourceComponent",
+  "description": "Register a PipedriveResource for the Pipedrive CRM API for use by other components",
+  "category": "resource",
+  "icon": "si:pipedrive",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["pipedrive_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "pipedrive_resource"
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "API Token Env Var",
+      "description": "Env var holding Pipedrive API token",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "company_domain": {
+      "type": "string",
+      "label": "Company Domain",
+      "description": "Company domain e.g. 'mycompany'",
+      "required": false
+    }
+  },
+  "tags": ["resource", "pipedrive", "crm", "sales"]
+}

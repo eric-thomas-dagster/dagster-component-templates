@@ -1,0 +1,31 @@
+{
+  "component_type": "dagster_component_templates.GoogleAnalyticsResourceComponent",
+  "description": "Register a GoogleAnalyticsResource wrapping the GA4 Data API client for use by other components",
+  "category": "resource",
+  "icon": "si:googleanalytics",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["google_analytics_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "google_analytics_resource"
+    },
+    "property_id": {
+      "type": "string",
+      "label": "Property ID",
+      "description": "GA4 property ID e.g. '123456789'",
+      "required": true
+    },
+    "gcp_credentials_env_var": {
+      "type": "string",
+      "label": "GCP Credentials Env Var",
+      "description": "Env var holding GCP service account JSON string",
+      "required": true,
+      "ui:widget": "password"
+    }
+  },
+  "tags": ["resource", "google", "analytics", "ga4"]
+}

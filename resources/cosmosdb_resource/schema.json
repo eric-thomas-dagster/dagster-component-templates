@@ -1,0 +1,29 @@
+{
+  "x-dagster-io": {},
+  "x-dagster-provides": ["cosmosdb_resource"],
+  "category": "resource",
+  "title": "CosmosDBResourceComponent",
+  "type": "object",
+  "properties": {
+    "resource_key": {
+      "type": "string",
+      "default": "cosmosdb_resource",
+      "description": "The key under which the Cosmos DB resource is registered."
+    },
+    "endpoint": {
+      "type": "string",
+      "description": "Cosmos DB account endpoint (e.g. https://myaccount.documents.azure.com:443/)."
+    },
+    "key_env_var": {
+      "type": "string",
+      "description": "Name of the environment variable holding the Cosmos DB account key.",
+      "ui:widget": "password"
+    },
+    "database_name": {
+      "type": "string",
+      "default": "",
+      "description": "Default database name (optional)."
+    }
+  },
+  "required": ["endpoint", "key_env_var"]
+}

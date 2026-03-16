@@ -1,0 +1,5 @@
+type: dagster_component_templates.FreshdeskResourceComponent
+attributes:
+  resource_key: freshdesk_resource
+  domain: mycompany.freshdesk.com
+  api_key_env_var: FRESHDESK_API_KEY

@@ -1,0 +1,32 @@
+{
+  "component_type": "dagster_component_templates.PersonioResourceComponent",
+  "description": "Register a PersonioResource wrapping the personio-py client for use by other components",
+  "category": "resource",
+  "icon": "si:personio",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["personio_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "personio_resource"
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client ID Env Var",
+      "description": "Env var holding Personio client ID",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var holding Personio client secret",
+      "required": true,
+      "ui:widget": "password"
+    }
+  },
+  "tags": ["resource", "personio", "hr", "people-ops"]
+}

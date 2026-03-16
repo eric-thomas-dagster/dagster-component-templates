@@ -1,0 +1,42 @@
+{
+  "x-dagster-io": {},
+  "x-dagster-provides": ["mysql_resource"],
+  "category": "resource",
+  "title": "MySQLResourceComponent",
+  "type": "object",
+  "properties": {
+    "resource_key": {
+      "type": "string",
+      "default": "mysql_resource",
+      "description": "The key under which the MySQL resource is registered."
+    },
+    "host": {
+      "type": "string",
+      "description": "MySQL server hostname."
+    },
+    "port": {
+      "type": "integer",
+      "default": 3306,
+      "description": "MySQL server port."
+    },
+    "database": {
+      "type": "string",
+      "description": "Target database name."
+    },
+    "username": {
+      "type": "string",
+      "description": "MySQL username."
+    },
+    "password_env_var": {
+      "type": "string",
+      "description": "Name of the environment variable holding the MySQL password.",
+      "ui:widget": "password"
+    },
+    "ssl_disabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether to disable SSL for the connection."
+    }
+  },
+  "required": ["host", "database", "username", "password_env_var"]
+}

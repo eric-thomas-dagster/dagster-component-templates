@@ -1,0 +1,6 @@
+type: cosmosdb_resource.component.CosmosDBResourceComponent
+attributes:
+  resource_key: cosmosdb_resource
+  endpoint: "https://myaccount.documents.azure.com:443/"
+  key_env_var: COSMOS_KEY
+  database_name: my_database

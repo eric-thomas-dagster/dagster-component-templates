@@ -1,6 +1,8 @@
-# DynamoDBResourceComponent
+# AWS DynamoDB Resource
 
-A Dagster component that provides a DynamoDB `ConfigurableResource` backed by `boto3`.
+Register an AWS DynamoDB resource for serverless key-value and document storage
+
+A Dagster resource component that provides a DynamoDB `ConfigurableResource` backed by `boto3`.
 
 ## Installation
 

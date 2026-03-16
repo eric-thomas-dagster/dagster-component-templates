@@ -1,6 +1,8 @@
-# MySQLResourceComponent
+# MySQL Resource
 
-A Dagster component that provides a MySQL `ConfigurableResource` backed by `mysql-connector-python`.
+Register a MySQL resource for relational database access
+
+A Dagster resource component that provides a MySQL `ConfigurableResource` backed by `mysql-connector-python`.
 
 ## Installation
 

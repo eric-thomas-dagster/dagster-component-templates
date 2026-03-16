@@ -1,4 +1,4 @@
-type: redis_resource.component.RedisResourceComponent
+type: dagster_component_templates.RedisResourceComponent
 attributes:
   resource_key: redis_resource
   host: localhost

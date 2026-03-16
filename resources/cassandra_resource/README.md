@@ -1,6 +1,8 @@
-# CassandraResourceComponent
+# Apache Cassandra Resource
 
-A Dagster component that provides a Cassandra `ConfigurableResource` backed by `cassandra-driver`.
+Register an Apache Cassandra resource for high-throughput distributed database access
+
+A Dagster resource component that provides a Cassandra `ConfigurableResource` backed by `cassandra-driver`.
 
 ## Installation
 

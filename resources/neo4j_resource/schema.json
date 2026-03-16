@@ -1,6 +1,8 @@
 {
   "x-dagster-io": {},
-  "x-dagster-provides": ["neo4j_resource"],
+  "x-dagster-provides": [
+    "neo4j_resource"
+  ],
   "category": "resource",
   "title": "Neo4jResourceComponent",
   "type": "object",
@@ -30,5 +32,15 @@
       "description": "Target Neo4j database name."
     }
   },
-  "required": ["uri", "password_env_var"]
+  "required": [
+    "uri",
+    "password_env_var"
+  ],
+  "description": "Register a Neo4j resource for graph database queries via the Bolt protocol",
+  "tags": [
+    "resource",
+    "neo4j",
+    "database",
+    "graph"
+  ]
 }

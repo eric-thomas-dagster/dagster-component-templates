@@ -1,4 +1,4 @@
-# MLflowResourceComponent
+# Mlflow Resource
 
 Registers an [MLflow](https://mlflow.org) resource for experiment tracking and model registry in your Dagster project.
 

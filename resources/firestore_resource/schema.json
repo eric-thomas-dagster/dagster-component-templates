@@ -1,6 +1,8 @@
 {
   "x-dagster-io": {},
-  "x-dagster-provides": ["firestore_resource"],
+  "x-dagster-provides": [
+    "firestore_resource"
+  ],
   "category": "resource",
   "title": "FirestoreResourceComponent",
   "type": "object",
@@ -25,5 +27,15 @@
       "description": "Firestore database ID (use '(default)' for the default database)."
     }
   },
-  "required": ["project"]
+  "required": [
+    "project"
+  ],
+  "description": "Register a Google Cloud Firestore resource for serverless document database access",
+  "tags": [
+    "resource",
+    "firestore",
+    "gcp",
+    "database",
+    "nosql"
+  ]
 }

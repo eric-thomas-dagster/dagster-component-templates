@@ -1,4 +1,4 @@
-type: couchdb_resource.component.CouchDBResourceComponent
+type: dagster_component_templates.CouchDBResourceComponent
 attributes:
   resource_key: couchdb_resource
   url: "http://localhost:5984"

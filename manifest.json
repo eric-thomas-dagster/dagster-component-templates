@@ -9000,14 +9000,17 @@
     },
     {
       "id": "cassandra_resource",
-      "name": "Cassandra Resource",
+      "name": "Apache Cassandra Resource",
       "category": "resource",
-      "description": "Cassandra Resource",
+      "description": "Register an Apache Cassandra resource for high-throughput distributed database access",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "resources/cassandra_resource",
       "tags": [
-        "resource"
+        "resource",
+        "cassandra",
+        "database",
+        "nosql"
       ],
       "dependencies": {
         "pip": [
@@ -9026,14 +9029,18 @@
     },
     {
       "id": "cosmosdb_resource",
-      "name": "CosmosDB Resource",
+      "name": "Azure Cosmos DB Resource",
       "category": "resource",
-      "description": "CosmosDB Resource",
+      "description": "Register an Azure Cosmos DB resource for globally distributed multi-model database access",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "resources/cosmosdb_resource",
       "tags": [
-        "resource"
+        "resource",
+        "cosmosdb",
+        "azure",
+        "database",
+        "nosql"
       ],
       "dependencies": {
         "pip": [
@@ -9054,12 +9061,15 @@
       "id": "couchdb_resource",
       "name": "CouchDB Resource",
       "category": "resource",
-      "description": "CouchDB Resource",
+      "description": "Register a CouchDB resource for document-oriented database access via HTTP",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "resources/couchdb_resource",
       "tags": [
-        "resource"
+        "resource",
+        "couchdb",
+        "database",
+        "nosql"
       ],
       "dependencies": {
         "pip": [
@@ -9080,12 +9090,15 @@
       "id": "duckdb_resource",
       "name": "DuckDB Resource",
       "category": "resource",
-      "description": "DuckDB Resource",
+      "description": "Register a DuckDB resource for fast in-process analytical queries",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "resources/duckdb_resource",
       "tags": [
-        "resource"
+        "resource",
+        "duckdb",
+        "database",
+        "analytics"
       ],
       "dependencies": {
         "pip": [
@@ -9104,14 +9117,18 @@
     },
     {
       "id": "dynamodb_resource",
-      "name": "DynamoDB Resource",
+      "name": "AWS DynamoDB Resource",
       "category": "resource",
-      "description": "DynamoDB Resource",
+      "description": "Register an AWS DynamoDB resource for serverless key-value and document storage",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "resources/dynamodb_resource",
       "tags": [
-        "resource"
+        "resource",
+        "dynamodb",
+        "aws",
+        "database",
+        "nosql"
       ],
       "dependencies": {
         "pip": [
@@ -9132,12 +9149,15 @@
       "id": "elasticsearch_resource",
       "name": "Elasticsearch Resource",
       "category": "resource",
-      "description": "Elasticsearch Resource",
+      "description": "Register an Elasticsearch resource for full-text search and analytics",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "resources/elasticsearch_resource",
       "tags": [
-        "resource"
+        "resource",
+        "elasticsearch",
+        "search",
+        "database"
       ],
       "dependencies": {
         "pip": [
@@ -9185,14 +9205,18 @@
     },
     {
       "id": "firestore_resource",
-      "name": "Firestore Resource",
+      "name": "Google Firestore Resource",
       "category": "resource",
-      "description": "Firestore Resource",
+      "description": "Register a Google Cloud Firestore resource for serverless document database access",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "resources/firestore_resource",
       "tags": [
-        "resource"
+        "resource",
+        "firestore",
+        "gcp",
+        "database",
+        "nosql"
       ],
       "dependencies": {
         "pip": [
@@ -9445,12 +9469,15 @@
       "id": "mongodb_resource",
       "name": "MongoDB Resource",
       "category": "resource",
-      "description": "MongoDB Resource",
+      "description": "Register a MongoDB resource for flexible document database access via pymongo",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "resources/mongodb_resource",
       "tags": [
-        "resource"
+        "resource",
+        "mongodb",
+        "database",
+        "nosql"
       ],
       "dependencies": {
         "pip": [
@@ -9471,12 +9498,15 @@
       "id": "mysql_resource",
       "name": "MySQL Resource",
       "category": "resource",
-      "description": "MySQL Resource",
+      "description": "Register a MySQL resource for relational database access",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "resources/mysql_resource",
       "tags": [
-        "resource"
+        "resource",
+        "mysql",
+        "database",
+        "sql"
       ],
       "dependencies": {
         "pip": [
@@ -9497,12 +9527,15 @@
       "id": "neo4j_resource",
       "name": "Neo4j Resource",
       "category": "resource",
-      "description": "Neo4j Resource",
+      "description": "Register a Neo4j resource for graph database queries via the Bolt protocol",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "resources/neo4j_resource",
       "tags": [
-        "resource"
+        "resource",
+        "neo4j",
+        "database",
+        "graph"
       ],
       "dependencies": {
         "pip": [
@@ -9610,12 +9643,15 @@
       "id": "redis_resource",
       "name": "Redis Resource",
       "category": "resource",
-      "description": "Redis Resource",
+      "description": "Register a Redis resource for in-memory key-value store and pub/sub access",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "resources/redis_resource",
       "tags": [
-        "resource"
+        "resource",
+        "redis",
+        "database",
+        "cache"
       ],
       "dependencies": {
         "pip": [

@@ -1,4 +1,4 @@
-# WandbResourceComponent
+# Wandb Resource
 
 Registers a [Weights & Biases](https://wandb.ai) resource for experiment tracking in your Dagster project.
 

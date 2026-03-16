@@ -1,6 +1,8 @@
 {
   "x-dagster-io": {},
-  "x-dagster-provides": ["redis_resource"],
+  "x-dagster-provides": [
+    "redis_resource"
+  ],
   "category": "resource",
   "title": "RedisResourceComponent",
   "type": "object",
@@ -41,5 +43,12 @@
       "ui:widget": "password"
     }
   },
-  "required": []
+  "required": [],
+  "description": "Register a Redis resource for in-memory key-value store and pub/sub access",
+  "tags": [
+    "resource",
+    "redis",
+    "database",
+    "cache"
+  ]
 }

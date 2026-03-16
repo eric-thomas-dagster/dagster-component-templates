@@ -1,6 +1,8 @@
-# ElasticsearchResourceComponent
+# Elasticsearch Resource
 
-A Dagster component that provides an Elasticsearch `ConfigurableResource` backed by the official `elasticsearch` Python client.
+Register an Elasticsearch resource for full-text search and analytics
+
+A Dagster resource component that provides an Elasticsearch `ConfigurableResource` backed by the official `elasticsearch` Python client.
 
 ## Installation
 

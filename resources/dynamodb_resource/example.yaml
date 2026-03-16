@@ -1,4 +1,4 @@
-type: dynamodb_resource.component.DynamoDBResourceComponent
+type: dagster_component_templates.DynamoDBResourceComponent
 attributes:
   resource_key: dynamodb_resource
   region_name: us-east-1

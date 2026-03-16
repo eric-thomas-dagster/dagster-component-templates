@@ -1,6 +1,8 @@
-# MongoDBResourceComponent
+# MongoDB Resource
 
-A Dagster component that provides a MongoDB `ConfigurableResource` backed by `pymongo`.
+Register a MongoDB resource for flexible document database access via pymongo
+
+A Dagster resource component that provides a MongoDB `ConfigurableResource` backed by `pymongo`.
 
 ## Installation
 

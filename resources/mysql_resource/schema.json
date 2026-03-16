@@ -1,6 +1,8 @@
 {
   "x-dagster-io": {},
-  "x-dagster-provides": ["mysql_resource"],
+  "x-dagster-provides": [
+    "mysql_resource"
+  ],
   "category": "resource",
   "title": "MySQLResourceComponent",
   "type": "object",
@@ -38,5 +40,17 @@
       "description": "Whether to disable SSL for the connection."
     }
   },
-  "required": ["host", "database", "username", "password_env_var"]
+  "required": [
+    "host",
+    "database",
+    "username",
+    "password_env_var"
+  ],
+  "description": "Register a MySQL resource for relational database access",
+  "tags": [
+    "resource",
+    "mysql",
+    "database",
+    "sql"
+  ]
 }

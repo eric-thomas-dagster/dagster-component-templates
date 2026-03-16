@@ -1,4 +1,4 @@
-type: firestore_resource.component.FirestoreResourceComponent
+type: dagster_component_templates.FirestoreResourceComponent
 attributes:
   resource_key: firestore_resource
   project: my-gcp-project

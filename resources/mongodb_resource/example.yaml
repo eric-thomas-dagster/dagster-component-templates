@@ -1,4 +1,4 @@
-type: mongodb_resource.component.MongoDBResourceComponent
+type: dagster_component_templates.MongoDBResourceComponent
 attributes:
   resource_key: mongodb_resource
   connection_string_env_var: MONGODB_CONNECTION_STRING

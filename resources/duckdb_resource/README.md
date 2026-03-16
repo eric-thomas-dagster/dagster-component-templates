@@ -1,6 +1,8 @@
-# DuckDBResourceComponent
+# DuckDB Resource
 
-A Dagster component that provides a DuckDB `ConfigurableResource` backed by `duckdb`.
+Register a DuckDB resource for fast in-process analytical queries
+
+A Dagster resource component that provides a DuckDB `ConfigurableResource` backed by `duckdb`.
 
 ## Installation
 

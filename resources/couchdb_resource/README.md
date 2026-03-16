@@ -1,6 +1,8 @@
-# CouchDBResourceComponent
+# CouchDB Resource
 
-A Dagster component that provides a CouchDB `ConfigurableResource` backed by the `couchdb` Python library.
+Register a CouchDB resource for document-oriented database access via HTTP
+
+A Dagster resource component that provides a CouchDB `ConfigurableResource` backed by the `couchdb` Python library.
 
 ## Installation
 

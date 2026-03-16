@@ -1,6 +1,8 @@
 {
   "x-dagster-io": {},
-  "x-dagster-provides": ["cosmosdb_resource"],
+  "x-dagster-provides": [
+    "cosmosdb_resource"
+  ],
   "category": "resource",
   "title": "CosmosDBResourceComponent",
   "type": "object",
@@ -25,5 +27,16 @@
       "description": "Default database name (optional)."
     }
   },
-  "required": ["endpoint", "key_env_var"]
+  "required": [
+    "endpoint",
+    "key_env_var"
+  ],
+  "description": "Register an Azure Cosmos DB resource for globally distributed multi-model database access",
+  "tags": [
+    "resource",
+    "cosmosdb",
+    "azure",
+    "database",
+    "nosql"
+  ]
 }

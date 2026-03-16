@@ -1,6 +1,8 @@
 {
   "x-dagster-io": {},
-  "x-dagster-provides": ["couchdb_resource"],
+  "x-dagster-provides": [
+    "couchdb_resource"
+  ],
   "category": "resource",
   "title": "CouchDBResourceComponent",
   "type": "object",
@@ -25,5 +27,14 @@
       "ui:widget": "password"
     }
   },
-  "required": ["url"]
+  "required": [
+    "url"
+  ],
+  "description": "Register a CouchDB resource for document-oriented database access via HTTP",
+  "tags": [
+    "resource",
+    "couchdb",
+    "database",
+    "nosql"
+  ]
 }

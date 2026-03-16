@@ -1,6 +1,8 @@
-# RedisResourceComponent
+# Redis Resource
 
-A Dagster component that provides a Redis `ConfigurableResource` backed by `redis-py`.
+Register a Redis resource for in-memory key-value store and pub/sub access
+
+A Dagster resource component that provides a Redis `ConfigurableResource` backed by `redis-py`.
 
 ## Installation
 

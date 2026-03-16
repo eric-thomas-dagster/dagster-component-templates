@@ -1,6 +1,8 @@
 {
   "x-dagster-io": {},
-  "x-dagster-provides": ["dynamodb_resource"],
+  "x-dagster-provides": [
+    "dynamodb_resource"
+  ],
   "category": "resource",
   "title": "DynamoDBResourceComponent",
   "type": "object",
@@ -30,5 +32,15 @@
       "description": "Custom endpoint URL (e.g. http://localhost:8000 for DynamoDB Local)."
     }
   },
-  "required": ["region_name"]
+  "required": [
+    "region_name"
+  ],
+  "description": "Register an AWS DynamoDB resource for serverless key-value and document storage",
+  "tags": [
+    "resource",
+    "dynamodb",
+    "aws",
+    "database",
+    "nosql"
+  ]
 }

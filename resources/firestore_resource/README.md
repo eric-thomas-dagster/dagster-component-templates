@@ -1,6 +1,8 @@
-# FirestoreResourceComponent
+# Google Firestore Resource
 
-A Dagster component that provides a Google Cloud Firestore `ConfigurableResource` backed by `google-cloud-firestore`.
+Register a Google Cloud Firestore resource for serverless document database access
+
+A Dagster resource component that provides a Google Cloud Firestore `ConfigurableResource` backed by `google-cloud-firestore`.
 
 ## Installation
 

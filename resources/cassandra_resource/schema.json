@@ -1,6 +1,8 @@
 {
   "x-dagster-io": {},
-  "x-dagster-provides": ["cassandra_resource"],
+  "x-dagster-provides": [
+    "cassandra_resource"
+  ],
   "category": "resource",
   "title": "CassandraResourceComponent",
   "type": "object",
@@ -40,5 +42,14 @@
       "description": "Whether to enable SSL for the connection."
     }
   },
-  "required": ["hosts"]
+  "required": [
+    "hosts"
+  ],
+  "description": "Register an Apache Cassandra resource for high-throughput distributed database access",
+  "tags": [
+    "resource",
+    "cassandra",
+    "database",
+    "nosql"
+  ]
 }

@@ -1,4 +1,4 @@
-type: cassandra_resource.component.CassandraResourceComponent
+type: dagster_component_templates.CassandraResourceComponent
 attributes:
   resource_key: cassandra_resource
   hosts: "host1,host2"

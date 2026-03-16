@@ -1,4 +1,4 @@
-# SFTPResourceComponent
+# Sftp Resource
 
 Registers an SFTP resource for reading and writing files over SSH in your Dagster project.
 

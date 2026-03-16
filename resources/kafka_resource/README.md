@@ -1,4 +1,4 @@
-# KafkaResourceComponent
+# Kafka Resource
 
 Registers a [Kafka](https://kafka.apache.org) resource providing producer and consumer factories in your Dagster project.
 

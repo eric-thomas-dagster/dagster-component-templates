@@ -1,6 +1,8 @@
-# CosmosDBResourceComponent
+# Azure Cosmos DB Resource
 
-A Dagster component that provides an Azure Cosmos DB `ConfigurableResource` backed by the `azure-cosmos` SDK.
+Register an Azure Cosmos DB resource for globally distributed multi-model database access
+
+A Dagster resource component that provides an Azure Cosmos DB `ConfigurableResource` backed by the `azure-cosmos` SDK.
 
 ## Installation
 

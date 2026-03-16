@@ -1,6 +1,8 @@
 {
   "x-dagster-io": {},
-  "x-dagster-provides": ["mongodb_resource"],
+  "x-dagster-provides": [
+    "mongodb_resource"
+  ],
   "category": "resource",
   "title": "MongoDBResourceComponent",
   "type": "object",
@@ -26,5 +28,14 @@
       "description": "Whether to enable TLS/SSL for the connection."
     }
   },
-  "required": ["connection_string_env_var"]
+  "required": [
+    "connection_string_env_var"
+  ],
+  "description": "Register a MongoDB resource for flexible document database access via pymongo",
+  "tags": [
+    "resource",
+    "mongodb",
+    "database",
+    "nosql"
+  ]
 }

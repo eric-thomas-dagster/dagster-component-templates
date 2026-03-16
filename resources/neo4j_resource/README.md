@@ -1,6 +1,8 @@
-# Neo4jResourceComponent
+# Neo4j Resource
 
-A Dagster component that provides a Neo4j `ConfigurableResource` backed by the official `neo4j` Python driver.
+Register a Neo4j resource for graph database queries via the Bolt protocol
+
+A Dagster resource component that provides a Neo4j `ConfigurableResource` backed by the official `neo4j` Python driver.
 
 ## Installation
 

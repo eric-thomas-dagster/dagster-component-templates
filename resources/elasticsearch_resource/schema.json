@@ -1,6 +1,8 @@
 {
   "x-dagster-io": {},
-  "x-dagster-provides": ["elasticsearch_resource"],
+  "x-dagster-provides": [
+    "elasticsearch_resource"
+  ],
   "category": "resource",
   "title": "ElasticsearchResourceComponent",
   "type": "object",
@@ -35,5 +37,14 @@
       "description": "Whether to verify TLS certificates."
     }
   },
-  "required": ["hosts"]
+  "required": [
+    "hosts"
+  ],
+  "description": "Register an Elasticsearch resource for full-text search and analytics",
+  "tags": [
+    "resource",
+    "elasticsearch",
+    "search",
+    "database"
+  ]
 }

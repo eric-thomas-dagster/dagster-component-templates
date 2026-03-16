@@ -1,4 +1,4 @@
-type: mysql_resource.component.MySQLResourceComponent
+type: dagster_component_templates.MySQLResourceComponent
 attributes:
   resource_key: mysql_resource
   host: my-mysql-host.example.com

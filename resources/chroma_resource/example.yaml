@@ -1,0 +1,3 @@
+type: dagster_component_templates.ChromaResourceComponent
+attributes:
+  resource_key: chroma_resource

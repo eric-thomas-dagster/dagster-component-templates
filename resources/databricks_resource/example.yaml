@@ -1,0 +1,5 @@
+type: dagster_component_templates.DatabricksResourceComponent
+attributes:
+  resource_key: databricks_resource
+  host: <host>
+  token_env_var: MY_TOKEN_ENV_VAR

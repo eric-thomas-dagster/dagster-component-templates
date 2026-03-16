@@ -1,0 +1,4 @@
+type: dagster_component_templates.DatadogResourceComponent
+attributes:
+  resource_key: datadog_resource
+  api_key_env_var: MY_API_KEY_ENV_VAR

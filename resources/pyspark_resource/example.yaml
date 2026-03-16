@@ -1,0 +1,3 @@
+type: dagster_component_templates.PySparkResourceComponent
+attributes:
+  resource_key: pyspark_resource

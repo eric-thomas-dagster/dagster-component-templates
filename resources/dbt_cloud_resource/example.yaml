@@ -1,0 +1,5 @@
+type: dagster_component_templates.DbtCloudResourceComponent
+attributes:
+  resource_key: dbt_cloud_resource
+  auth_token_env_var: MY_AUTH_TOKEN_ENV_VAR
+  account_id: 0

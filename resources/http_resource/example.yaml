@@ -1,0 +1,4 @@
+type: dagster_component_templates.HTTPResourceComponent
+attributes:
+  resource_key: http_resource
+  base_url: <base_url>

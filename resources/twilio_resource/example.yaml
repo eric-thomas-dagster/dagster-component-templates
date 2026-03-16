@@ -1,0 +1,5 @@
+type: dagster_component_templates.TwilioResourceComponent
+attributes:
+  resource_key: twilio_resource
+  account_sid_env_var: <account_sid_env_var>
+  auth_token_env_var: MY_AUTH_TOKEN_ENV_VAR

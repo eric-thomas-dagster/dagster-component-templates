@@ -1,0 +1,4 @@
+type: dagster_component_templates.PagerDutyResourceComponent
+attributes:
+  resource_key: pagerduty_resource
+  routing_key_env_var: MY_ROUTING_KEY_ENV_VAR

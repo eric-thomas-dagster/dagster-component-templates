@@ -1,0 +1,6 @@
+type: dagster_component_templates.GithubResourceComponent
+attributes:
+  resource_key: github_resource
+  github_app_id: 0
+  github_app_private_rsa_key_env_var: MY_GITHUB_APP_PRIVATE_RSA_KEY_ENV_VAR
+  github_installation_id: 0

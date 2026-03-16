@@ -1,0 +1,5 @@
+type: dagster_component_templates.SalesforceResourceComponent
+attributes:
+  resource_key: salesforce_resource
+  username: <username>
+  password_env_var: MY_PASSWORD_ENV_VAR

@@ -61,5 +61,6 @@
   "tags": [
     "observation",
     "sensor"
-  ]
+  ],
+  "name": "S3 Observation Sensor"
 }

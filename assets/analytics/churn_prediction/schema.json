@@ -211,5 +211,6 @@
     "analytics",
     "churn",
     "prediction"
-  ]
+  ],
+  "name": "Churn Prediction"
 }

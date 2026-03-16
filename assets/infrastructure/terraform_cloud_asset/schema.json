@@ -15,5 +15,6 @@
     "terraform",
     "cloud",
     "asset"
-  ]
+  ],
+  "name": "Terraform Cloud Asset"
 }

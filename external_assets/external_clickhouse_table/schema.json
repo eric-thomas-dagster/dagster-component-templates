@@ -83,7 +83,7 @@
       "description": "Env var with ClickHouse password",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "description": {
       "type": "string",
@@ -112,5 +112,6 @@
     "external",
     "clickhouse",
     "table"
-  ]
+  ],
+  "name": "External Clickhouse Table"
 }

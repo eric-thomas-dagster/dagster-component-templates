@@ -61,7 +61,7 @@
       "description": "Env var with Matillion password",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "resource_key": {
       "type": "string",
@@ -90,5 +90,6 @@
     "sensor",
     "matillion",
     "job"
-  ]
+  ],
+  "name": "Matillion Job Sensor"
 }

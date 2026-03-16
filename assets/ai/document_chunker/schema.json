@@ -248,5 +248,6 @@
     "ai",
     "document",
     "chunker"
-  ]
+  ],
+  "name": "Document Chunker"
 }

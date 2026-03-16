@@ -4,34 +4,51 @@
   "category": "resource",
   "icon": "si:amazons3",
   "x-dagster-io": {},
-  "x-dagster-provides": ["s3_resource"],
+  "x-dagster-provides": [
+    "s3_resource"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Key used to register this resource. Other components reference it via resource_key.",
-      "required": false, "default": "s3_resource"
+      "required": false,
+      "default": "s3_resource"
     },
     "region_name": {
-      "type": "string", "label": "Region Name",
+      "type": "string",
+      "label": "Region Name",
       "description": "AWS region, e.g. 'us-east-1'",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     },
     "aws_access_key_id_env_var": {
-      "type": "string", "label": "AWS Access Key ID Env Var",
+      "type": "string",
+      "label": "AWS Access Key ID Env Var",
       "description": "Environment variable holding the AWS access key ID",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     },
     "aws_secret_access_key_env_var": {
-      "type": "string", "label": "AWS Secret Access Key Env Var",
+      "type": "string",
+      "label": "AWS Secret Access Key Env Var",
       "description": "Environment variable holding the AWS secret access key",
-      "required": false, "default": null,
-      "ui:widget": "password"
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
     },
     "endpoint_url": {
-      "type": "string", "label": "Endpoint URL",
+      "type": "string",
+      "label": "Endpoint URL",
       "description": "Custom endpoint URL for MinIO or LocalStack, e.g. 'http://localhost:9000'",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     }
   },
-  "tags": ["resource", "aws", "s3"]
+  "tags": [
+    "resource",
+    "aws",
+    "s3"
+  ],
+  "name": "AWS S3 Resource"
 }

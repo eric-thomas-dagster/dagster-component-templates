@@ -61,5 +61,6 @@
     "external",
     "databricks",
     "table"
-  ]
+  ],
+  "name": "External Databricks Table"
 }

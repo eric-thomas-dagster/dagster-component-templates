@@ -4,14 +4,58 @@
   "category": "resource",
   "icon": "si:apachekafka",
   "x-dagster-io": {},
-  "x-dagster-provides": ["kafka_resource"],
+  "x-dagster-provides": [
+    "kafka_resource"
+  ],
   "attributes": {
-    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource.", "required": false, "default": "kafka_resource"},
-    "bootstrap_servers": {"type": "string", "label": "Bootstrap Servers", "description": "Comma-separated Kafka broker addresses, e.g. 'broker1:9092,broker2:9092'", "required": true},
-    "security_protocol": {"type": "string", "label": "Security Protocol", "description": "Security protocol: PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL", "required": false, "default": "PLAINTEXT"},
-    "sasl_mechanism": {"type": "string", "label": "SASL Mechanism", "description": "SASL mechanism: PLAIN, SCRAM-SHA-256, SCRAM-SHA-512", "required": false, "default": null},
-    "sasl_username_env_var": {"type": "string", "label": "SASL Username Env Var", "description": "Environment variable holding the SASL username", "required": false, "default": null},
-    "sasl_password_env_var": {"type": "string", "label": "SASL Password Env Var", "description": "Environment variable holding the SASL password", "required": false, "default": null, "ui:widget": "password"}
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource.",
+      "required": false,
+      "default": "kafka_resource"
+    },
+    "bootstrap_servers": {
+      "type": "string",
+      "label": "Bootstrap Servers",
+      "description": "Comma-separated Kafka broker addresses, e.g. 'broker1:9092,broker2:9092'",
+      "required": true
+    },
+    "security_protocol": {
+      "type": "string",
+      "label": "Security Protocol",
+      "description": "Security protocol: PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL",
+      "required": false,
+      "default": "PLAINTEXT"
+    },
+    "sasl_mechanism": {
+      "type": "string",
+      "label": "SASL Mechanism",
+      "description": "SASL mechanism: PLAIN, SCRAM-SHA-256, SCRAM-SHA-512",
+      "required": false,
+      "default": null
+    },
+    "sasl_username_env_var": {
+      "type": "string",
+      "label": "SASL Username Env Var",
+      "description": "Environment variable holding the SASL username",
+      "required": false,
+      "default": null
+    },
+    "sasl_password_env_var": {
+      "type": "string",
+      "label": "SASL Password Env Var",
+      "description": "Environment variable holding the SASL password",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    }
   },
-  "tags": ["resource", "kafka", "streaming", "messaging"]
+  "tags": [
+    "resource",
+    "kafka",
+    "streaming",
+    "messaging"
+  ],
+  "name": "Kafka Resource"
 }

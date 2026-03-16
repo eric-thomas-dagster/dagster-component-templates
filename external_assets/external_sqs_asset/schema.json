@@ -49,5 +49,6 @@
     "external",
     "sqs",
     "asset"
-  ]
+  ],
+  "name": "External Sqs Asset"
 }

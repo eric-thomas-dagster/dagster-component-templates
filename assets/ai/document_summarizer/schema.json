@@ -216,5 +216,6 @@
     "ai",
     "document",
     "summarizer"
-  ]
+  ],
+  "name": "Document Summarizer"
 }

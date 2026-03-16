@@ -82,5 +82,6 @@
     "parsing",
     "geocoding",
     "usaddress"
-  ]
+  ],
+  "name": "Address Parser"
 }

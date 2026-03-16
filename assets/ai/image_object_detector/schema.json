@@ -197,5 +197,6 @@
     "image",
     "vision",
     "object-detection"
-  ]
+  ],
+  "name": "Image Object Detector"
 }

@@ -194,5 +194,6 @@
     "analytics",
     "topic",
     "modeling"
-  ]
+  ],
+  "name": "Topic Modeling"
 }

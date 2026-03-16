@@ -61,7 +61,7 @@
       "description": "Env var with Ab Initio EME password",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "resource_key": {
       "type": "string",
@@ -154,5 +154,6 @@
     "abinitio",
     "run",
     "asset"
-  ]
+  ],
+  "name": "Abinitio Run Asset"
 }

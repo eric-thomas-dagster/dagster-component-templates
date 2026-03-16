@@ -33,7 +33,7 @@
       "label": "Api Token Env Var",
       "description": "Env var containing the Coalesce API token",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "job_name": {
       "type": "string",
@@ -68,5 +68,6 @@
     "sensor",
     "coalesce",
     "job"
-  ]
+  ],
+  "name": "Coalesce Job Sensor"
 }

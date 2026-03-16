@@ -141,5 +141,6 @@
     "integration",
     "google",
     "bigquery"
-  ]
+  ],
+  "name": "Google BigQuery"
 }

@@ -68,5 +68,6 @@
     "observation",
     "adls",
     "sensor"
-  ]
+  ],
+  "name": "Adls Observation Sensor"
 }

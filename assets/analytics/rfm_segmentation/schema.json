@@ -190,5 +190,6 @@
     "analytics",
     "rfm",
     "segmentation"
-  ]
+  ],
+  "name": "Rfm Segmentation"
 }

@@ -154,5 +154,6 @@
     "duckdb",
     "table",
     "writer"
-  ]
+  ],
+  "name": "DuckDB Table Writer"
 }

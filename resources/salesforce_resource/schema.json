@@ -4,15 +4,66 @@
   "category": "resource",
   "icon": "si:salesforce",
   "x-dagster-io": {},
-  "x-dagster-provides": ["salesforce_resource"],
+  "x-dagster-provides": [
+    "salesforce_resource"
+  ],
   "attributes": {
-    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource. Other components reference it via resource_key.", "required": false, "default": "salesforce_resource"},
-    "username": {"type": "string", "label": "Username", "description": "Salesforce username (email)", "required": true},
-    "password_env_var": {"type": "string", "label": "Password Env Var", "description": "Environment variable holding the Salesforce password", "required": true, "ui:widget": "password"},
-    "security_token_env_var": {"type": "string", "label": "Security Token Env Var", "description": "Environment variable holding the Salesforce security token", "required": false, "default": null, "ui:widget": "password"},
-    "domain": {"type": "string", "label": "Domain", "description": "Salesforce domain: 'test' for sandbox, 'login' for production (default), or custom domain", "required": false, "default": null},
-    "consumer_key_env_var": {"type": "string", "label": "Consumer Key Env Var", "description": "Environment variable holding the Connected App consumer key (for OAuth)", "required": false, "default": null, "ui:widget": "password"},
-    "consumer_secret_env_var": {"type": "string", "label": "Consumer Secret Env Var", "description": "Environment variable holding the Connected App consumer secret (for OAuth)", "required": false, "default": null, "ui:widget": "password"}
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "salesforce_resource"
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "description": "Salesforce username (email)",
+      "required": true
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Environment variable holding the Salesforce password",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "security_token_env_var": {
+      "type": "string",
+      "label": "Security Token Env Var",
+      "description": "Environment variable holding the Salesforce security token",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "domain": {
+      "type": "string",
+      "label": "Domain",
+      "description": "Salesforce domain: 'test' for sandbox, 'login' for production (default), or custom domain",
+      "required": false,
+      "default": null
+    },
+    "consumer_key_env_var": {
+      "type": "string",
+      "label": "Consumer Key Env Var",
+      "description": "Environment variable holding the Connected App consumer key (for OAuth)",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "consumer_secret_env_var": {
+      "type": "string",
+      "label": "Consumer Secret Env Var",
+      "description": "Environment variable holding the Connected App consumer secret (for OAuth)",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    }
   },
-  "tags": ["resource", "salesforce", "crm"]
+  "tags": [
+    "resource",
+    "salesforce",
+    "crm"
+  ],
+  "name": "Salesforce Resource"
 }

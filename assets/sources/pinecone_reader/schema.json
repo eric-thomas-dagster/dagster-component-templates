@@ -229,5 +229,6 @@
     "source",
     "pinecone",
     "reader"
-  ]
+  ],
+  "name": "Pinecone Reader"
 }

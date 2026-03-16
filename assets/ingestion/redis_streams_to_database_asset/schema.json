@@ -174,5 +174,6 @@
     "streams",
     "database",
     "asset"
-  ]
+  ],
+  "name": "Redis Streams To Database Asset"
 }

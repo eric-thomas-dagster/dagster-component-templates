@@ -165,5 +165,6 @@
     "sink",
     "dataframe",
     "bigquery"
-  ]
+  ],
+  "name": "Dataframe To BigQuery"
 }

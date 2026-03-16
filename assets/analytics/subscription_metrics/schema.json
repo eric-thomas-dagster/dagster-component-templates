@@ -169,5 +169,6 @@
     "analytics",
     "subscription",
     "metrics"
-  ]
+  ],
+  "name": "Subscription Metrics"
 }

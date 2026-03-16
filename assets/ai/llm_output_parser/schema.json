@@ -205,5 +205,6 @@
     "llm",
     "output",
     "parser"
-  ]
+  ],
+  "name": "LLM Output Parser"
 }

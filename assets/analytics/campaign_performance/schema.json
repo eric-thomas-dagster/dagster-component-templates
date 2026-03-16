@@ -232,5 +232,6 @@
     "analytics",
     "campaign",
     "performance"
-  ]
+  ],
+  "name": "Campaign Performance"
 }

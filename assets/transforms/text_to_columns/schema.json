@@ -185,5 +185,6 @@
     "transformation",
     "text",
     "columns"
-  ]
+  ],
+  "name": "Text To Columns"
 }

@@ -143,5 +143,6 @@
   "tags": [
     "ingestion",
     "matomo"
-  ]
+  ],
+  "name": "Matomo Ingestion"
 }

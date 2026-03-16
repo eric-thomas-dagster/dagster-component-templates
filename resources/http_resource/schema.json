@@ -27,7 +27,7 @@
       "description": "Env var containing the Authorization header value, e.g. 'Bearer token123'",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "timeout_seconds": {
       "type": "integer",
@@ -41,5 +41,6 @@
     "resource",
     "http",
     "api"
-  ]
+  ],
+  "name": "HTTP Resource"
 }

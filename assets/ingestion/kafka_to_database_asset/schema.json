@@ -102,7 +102,7 @@
       "description": "Env var with SASL password",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "column_mapping": {
       "type": "object",
@@ -195,5 +195,6 @@
     "kafka",
     "database",
     "asset"
-  ]
+  ],
+  "name": "Kafka To Database Asset"
 }

@@ -4,7 +4,9 @@
   "category": "resource",
   "icon": "si:googlesheets",
   "x-dagster-io": {},
-  "x-dagster-provides": ["google_sheets_resource"],
+  "x-dagster-provides": [
+    "google_sheets_resource"
+  ],
   "attributes": {
     "resource_key": {
       "type": "string",
@@ -18,7 +20,7 @@
       "label": "GCP Credentials Env Var",
       "description": "Env var holding GCP service account JSON string",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "scopes": {
       "type": "string",
@@ -28,5 +30,11 @@
       "default": "https://www.googleapis.com/auth/spreadsheets"
     }
   },
-  "tags": ["resource", "google", "sheets", "spreadsheet"]
+  "tags": [
+    "resource",
+    "google",
+    "sheets",
+    "spreadsheet"
+  ],
+  "name": "Google Sheets Resource"
 }

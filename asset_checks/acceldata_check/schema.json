@@ -27,7 +27,7 @@
       "label": "Api Token Env Var",
       "description": "Env var with Acceldata API token",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "rule_id": {
       "type": "string",
@@ -60,5 +60,6 @@
   "tags": [
     "check",
     "acceldata"
-  ]
+  ],
+  "name": "Acceldata Check"
 }

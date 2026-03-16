@@ -4,11 +4,38 @@
   "category": "resource",
   "icon": "si:weaviate",
   "x-dagster-io": {},
-  "x-dagster-provides": ["weaviate_resource"],
+  "x-dagster-provides": [
+    "weaviate_resource"
+  ],
   "attributes": {
-    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource. Other components reference it via resource_key.", "required": false, "default": "weaviate_resource"},
-    "url": {"type": "string", "label": "URL", "description": "Weaviate instance URL, e.g. 'https://my-cluster.weaviate.network' or 'http://localhost:8080'", "required": false, "default": null},
-    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "description": "Environment variable holding the Weaviate API key (for Weaviate Cloud)", "required": false, "default": null, "ui:widget": "password"}
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "weaviate_resource"
+    },
+    "url": {
+      "type": "string",
+      "label": "URL",
+      "description": "Weaviate instance URL, e.g. 'https://my-cluster.weaviate.network' or 'http://localhost:8080'",
+      "required": false,
+      "default": null
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Environment variable holding the Weaviate API key (for Weaviate Cloud)",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    }
   },
-  "tags": ["resource", "weaviate", "vector-db", "ai"]
+  "tags": [
+    "resource",
+    "weaviate",
+    "vector-db",
+    "ai"
+  ],
+  "name": "Weaviate Resource"
 }

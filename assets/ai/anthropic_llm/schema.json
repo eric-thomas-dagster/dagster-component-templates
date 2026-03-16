@@ -299,5 +299,6 @@
     "ai",
     "anthropic",
     "llm"
-  ]
+  ],
+  "name": "Anthropic LLM"
 }

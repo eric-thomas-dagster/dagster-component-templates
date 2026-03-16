@@ -185,5 +185,6 @@
     "bounding",
     "box",
     "filter"
-  ]
+  ],
+  "name": "Bounding Box Filter"
 }

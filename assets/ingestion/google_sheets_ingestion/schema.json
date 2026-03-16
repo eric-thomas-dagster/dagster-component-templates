@@ -137,5 +137,6 @@
     "ingestion",
     "google",
     "sheets"
-  ]
+  ],
+  "name": "Google Sheets Ingestion"
 }

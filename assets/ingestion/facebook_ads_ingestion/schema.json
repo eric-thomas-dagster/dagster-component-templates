@@ -184,5 +184,6 @@
     "ingestion",
     "facebook",
     "ads"
-  ]
+  ],
+  "name": "Facebook Ads Ingestion"
 }

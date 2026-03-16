@@ -48,7 +48,7 @@
       "description": "Env var with Precisely API token",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "resource_key": {
       "type": "string",
@@ -141,5 +141,6 @@
     "precisely",
     "run",
     "asset"
-  ]
+  ],
+  "name": "Precisely Run Asset"
 }

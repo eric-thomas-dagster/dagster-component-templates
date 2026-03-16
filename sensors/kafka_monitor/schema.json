@@ -88,7 +88,7 @@
       "description": "Name of the environment variable containing the SASL password",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "resource_key": {
       "type": "string",
@@ -110,5 +110,6 @@
     "sensor",
     "kafka",
     "monitor"
-  ]
+  ],
+  "name": "Kafka Monitor"
 }

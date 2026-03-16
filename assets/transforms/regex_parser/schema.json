@@ -189,5 +189,6 @@
     "transformation",
     "regex",
     "parser"
-  ]
+  ],
+  "name": "Regex Parser"
 }

@@ -168,5 +168,6 @@
     "json",
     "flatten",
     "normalization"
-  ]
+  ],
+  "name": "Json Flatten"
 }

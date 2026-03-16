@@ -4,7 +4,6 @@
     "elasticsearch_resource"
   ],
   "category": "resource",
-  "title": "ElasticsearchResourceComponent",
   "type": "object",
   "properties": {
     "resource_key": {
@@ -47,5 +46,6 @@
     "search",
     "database"
   ],
-  "icon": "si:elastic"
+  "icon": "si:elastic",
+  "name": "Elasticsearch Resource"
 }

@@ -4,7 +4,6 @@
     "duckdb_resource"
   ],
   "category": "resource",
-  "title": "DuckDBResourceComponent",
   "type": "object",
   "properties": {
     "resource_key": {
@@ -31,5 +30,6 @@
     "database",
     "analytics"
   ],
-  "icon": "si:duckdb"
+  "icon": "si:duckdb",
+  "name": "DuckDB Resource"
 }

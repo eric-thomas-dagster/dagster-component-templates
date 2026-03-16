@@ -4,7 +4,9 @@
   "category": "resource",
   "icon": "si:jira",
   "x-dagster-io": {},
-  "x-dagster-provides": ["jira_resource"],
+  "x-dagster-provides": [
+    "jira_resource"
+  ],
   "attributes": {
     "resource_key": {
       "type": "string",
@@ -30,8 +32,14 @@
       "label": "API Token Env Var",
       "description": "Env var holding Jira API token",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     }
   },
-  "tags": ["resource", "jira", "project-management", "atlassian"]
+  "tags": [
+    "resource",
+    "jira",
+    "project-management",
+    "atlassian"
+  ],
+  "name": "Jira Resource"
 }

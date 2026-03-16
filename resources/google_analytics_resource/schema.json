@@ -4,7 +4,9 @@
   "category": "resource",
   "icon": "si:googleanalytics",
   "x-dagster-io": {},
-  "x-dagster-provides": ["google_analytics_resource"],
+  "x-dagster-provides": [
+    "google_analytics_resource"
+  ],
   "attributes": {
     "resource_key": {
       "type": "string",
@@ -24,8 +26,14 @@
       "label": "GCP Credentials Env Var",
       "description": "Env var holding GCP service account JSON string",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     }
   },
-  "tags": ["resource", "google", "analytics", "ga4"]
+  "tags": [
+    "resource",
+    "google",
+    "analytics",
+    "ga4"
+  ],
+  "name": "Google Analytics Resource"
 }

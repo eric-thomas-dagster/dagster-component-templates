@@ -61,5 +61,6 @@
     "observation",
     "eventhubs",
     "sensor"
-  ]
+  ],
+  "name": "Eventhubs Observation Sensor"
 }

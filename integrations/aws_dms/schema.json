@@ -118,5 +118,6 @@
     "integration",
     "aws",
     "dms"
-  ]
+  ],
+  "name": "AWS Dms"
 }

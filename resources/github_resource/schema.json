@@ -4,12 +4,42 @@
   "category": "resource",
   "icon": "si:github",
   "x-dagster-io": {},
-  "x-dagster-provides": ["github_resource"],
+  "x-dagster-provides": [
+    "github_resource"
+  ],
   "attributes": {
-    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource. Other components reference it via resource_key.", "required": false, "default": "github_resource"},
-    "github_app_id": {"type": "integer", "label": "GitHub App ID", "description": "GitHub App ID (numeric)", "required": true},
-    "github_app_private_rsa_key_env_var": {"type": "string", "label": "Private RSA Key Env Var", "description": "Environment variable holding the GitHub App private RSA key (PEM format)", "required": true, "ui:widget": "password"},
-    "github_installation_id": {"type": "integer", "label": "Installation ID", "description": "GitHub App installation ID (numeric)", "required": true}
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "github_resource"
+    },
+    "github_app_id": {
+      "type": "integer",
+      "label": "GitHub App ID",
+      "description": "GitHub App ID (numeric)",
+      "required": true
+    },
+    "github_app_private_rsa_key_env_var": {
+      "type": "string",
+      "label": "Private RSA Key Env Var",
+      "description": "Environment variable holding the GitHub App private RSA key (PEM format)",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "github_installation_id": {
+      "type": "integer",
+      "label": "Installation ID",
+      "description": "GitHub App installation ID (numeric)",
+      "required": true
+    }
   },
-  "tags": ["resource", "github", "vcs", "devops"]
+  "tags": [
+    "resource",
+    "github",
+    "vcs",
+    "devops"
+  ],
+  "name": "GitHub Resource"
 }

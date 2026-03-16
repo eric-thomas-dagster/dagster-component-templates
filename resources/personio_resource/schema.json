@@ -4,7 +4,9 @@
   "category": "resource",
   "icon": "si:personio",
   "x-dagster-io": {},
-  "x-dagster-provides": ["personio_resource"],
+  "x-dagster-provides": [
+    "personio_resource"
+  ],
   "attributes": {
     "resource_key": {
       "type": "string",
@@ -18,15 +20,21 @@
       "label": "Client ID Env Var",
       "description": "Env var holding Personio client ID",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "client_secret_env_var": {
       "type": "string",
       "label": "Client Secret Env Var",
       "description": "Env var holding Personio client secret",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     }
   },
-  "tags": ["resource", "personio", "hr", "people-ops"]
+  "tags": [
+    "resource",
+    "personio",
+    "hr",
+    "people-ops"
+  ],
+  "name": "Personio Resource"
 }

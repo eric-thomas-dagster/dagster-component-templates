@@ -4,49 +4,69 @@
   "category": "io_manager",
   "icon": "si:amazonredshift",
   "x-dagster-io": {},
-  "x-dagster-provides": ["io_manager"],
+  "x-dagster-provides": [
+    "io_manager"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
-      "required": false, "default": "io_manager"
+      "required": false,
+      "default": "io_manager"
     },
     "host": {
-      "type": "string", "label": "Host",
+      "type": "string",
+      "label": "Host",
       "description": "Redshift cluster endpoint host",
       "required": true
     },
     "port": {
-      "type": "integer", "label": "Port",
+      "type": "integer",
+      "label": "Port",
       "description": "Redshift port (default 5439)",
-      "required": false, "default": 5439
+      "required": false,
+      "default": 5439
     },
     "database": {
-      "type": "string", "label": "Database",
+      "type": "string",
+      "label": "Database",
       "description": "Redshift database name",
       "required": true
     },
     "user": {
-      "type": "string", "label": "User",
+      "type": "string",
+      "label": "User",
       "description": "Redshift username",
       "required": true
     },
     "password_env_var": {
-      "type": "string", "label": "Password Env Var",
+      "type": "string",
+      "label": "Password Env Var",
       "description": "Environment variable holding the Redshift password",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "schema_name": {
-      "type": "string", "label": "Schema Name",
+      "type": "string",
+      "label": "Schema Name",
       "description": "Default schema for asset tables",
-      "required": false, "default": "public"
+      "required": false,
+      "default": "public"
     },
     "s3_bucket": {
-      "type": "string", "label": "S3 Bucket",
+      "type": "string",
+      "label": "S3 Bucket",
       "description": "S3 bucket for UNLOAD/COPY staging (required for large datasets)",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     }
   },
-  "tags": ["io_manager", "redshift", "aws", "warehouse"]
+  "tags": [
+    "io_manager",
+    "redshift",
+    "aws",
+    "warehouse"
+  ],
+  "name": "Redshift IO Manager"
 }

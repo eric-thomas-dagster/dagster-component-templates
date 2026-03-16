@@ -176,5 +176,6 @@
     "transformation",
     "find",
     "replace"
-  ]
+  ],
+  "name": "Find Replace"
 }

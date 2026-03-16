@@ -208,5 +208,6 @@
     "analytics",
     "reverse",
     "geocoder"
-  ]
+  ],
+  "name": "Reverse Geocoder"
 }

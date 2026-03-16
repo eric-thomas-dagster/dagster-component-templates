@@ -197,5 +197,6 @@
     "analytics",
     "cohort",
     "analysis"
-  ]
+  ],
+  "name": "Cohort Analysis"
 }

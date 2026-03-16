@@ -55,5 +55,6 @@
   "tags": [
     "external",
     "asset"
-  ]
+  ],
+  "name": "External S3 Asset"
 }

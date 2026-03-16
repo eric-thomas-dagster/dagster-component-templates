@@ -4,10 +4,32 @@
   "category": "resource",
   "icon": "si:googlegemini",
   "x-dagster-io": {},
-  "x-dagster-provides": ["gemini_resource"],
+  "x-dagster-provides": [
+    "gemini_resource"
+  ],
   "attributes": {
-    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource. Other components reference it via resource_key.", "required": false, "default": "gemini_resource"},
-    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "description": "Environment variable holding the Google Gemini API key", "required": false, "default": "GEMINI_API_KEY", "ui:widget": "password"}
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "gemini_resource"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Environment variable holding the Google Gemini API key",
+      "required": false,
+      "default": "GEMINI_API_KEY",
+      "ui:widget": "env_var"
+    }
   },
-  "tags": ["resource", "gemini", "google", "llm", "ai"]
+  "tags": [
+    "resource",
+    "gemini",
+    "google",
+    "llm",
+    "ai"
+  ],
+  "name": "Gemini Resource"
 }

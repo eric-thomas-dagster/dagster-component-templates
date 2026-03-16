@@ -184,5 +184,6 @@
     "analytics",
     "distance",
     "calculator"
-  ]
+  ],
+  "name": "Distance Calculator"
 }

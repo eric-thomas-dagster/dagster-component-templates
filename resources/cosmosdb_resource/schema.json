@@ -4,7 +4,6 @@
     "cosmosdb_resource"
   ],
   "category": "resource",
-  "title": "CosmosDBResourceComponent",
   "type": "object",
   "properties": {
     "resource_key": {
@@ -39,5 +38,6 @@
     "database",
     "nosql"
   ],
-  "icon": "si:azurecosmosdb"
+  "icon": "si:azurecosmosdb",
+  "name": "CosmosDB Resource"
 }

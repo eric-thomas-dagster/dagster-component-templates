@@ -172,5 +172,6 @@
     "sink",
     "dataframe",
     "gcs"
-  ]
+  ],
+  "name": "Dataframe To GCS"
 }

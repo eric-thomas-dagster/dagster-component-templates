@@ -299,5 +299,6 @@
     "ai",
     "entity",
     "extractor"
-  ]
+  ],
+  "name": "Entity Extractor"
 }

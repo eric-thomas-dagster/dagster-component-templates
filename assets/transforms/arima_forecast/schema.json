@@ -192,5 +192,6 @@
     "transformation",
     "arima",
     "forecast"
-  ]
+  ],
+  "name": "Arima Forecast"
 }

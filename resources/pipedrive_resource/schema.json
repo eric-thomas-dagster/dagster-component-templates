@@ -4,7 +4,9 @@
   "category": "resource",
   "icon": "si:pipedrive",
   "x-dagster-io": {},
-  "x-dagster-provides": ["pipedrive_resource"],
+  "x-dagster-provides": [
+    "pipedrive_resource"
+  ],
   "attributes": {
     "resource_key": {
       "type": "string",
@@ -18,7 +20,7 @@
       "label": "API Token Env Var",
       "description": "Env var holding Pipedrive API token",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "company_domain": {
       "type": "string",
@@ -27,5 +29,11 @@
       "required": false
     }
   },
-  "tags": ["resource", "pipedrive", "crm", "sales"]
+  "tags": [
+    "resource",
+    "pipedrive",
+    "crm",
+    "sales"
+  ],
+  "name": "Pipedrive Resource"
 }

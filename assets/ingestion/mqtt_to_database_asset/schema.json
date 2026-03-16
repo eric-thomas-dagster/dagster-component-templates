@@ -48,7 +48,7 @@
       "description": "Env var with MQTT password",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "use_tls": {
       "type": "boolean",
@@ -196,5 +196,6 @@
     "mqtt",
     "database",
     "asset"
-  ]
+  ],
+  "name": "Mqtt To Database Asset"
 }

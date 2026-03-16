@@ -4,7 +4,6 @@
     "couchdb_resource"
   ],
   "category": "resource",
-  "title": "CouchDBResourceComponent",
   "type": "object",
   "properties": {
     "resource_key": {
@@ -37,5 +36,6 @@
     "database",
     "nosql"
   ],
-  "icon": "si:apachecouchdb"
+  "icon": "si:apachecouchdb",
+  "name": "CouchDB Resource"
 }

@@ -165,5 +165,6 @@
     "rename",
     "mapping",
     "schema"
-  ]
+  ],
+  "name": "Field Mapper"
 }

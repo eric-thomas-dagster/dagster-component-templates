@@ -4,44 +4,61 @@
   "category": "resource",
   "icon": "si:postgresql",
   "x-dagster-io": {},
-  "x-dagster-provides": ["postgres_resource"],
+  "x-dagster-provides": [
+    "postgres_resource"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Key used to register this resource. Other components reference it via resource_key.",
-      "required": false, "default": "postgres_resource"
+      "required": false,
+      "default": "postgres_resource"
     },
     "host": {
-      "type": "string", "label": "Host",
+      "type": "string",
+      "label": "Host",
       "description": "PostgreSQL host",
       "required": true
     },
     "port": {
-      "type": "integer", "label": "Port",
+      "type": "integer",
+      "label": "Port",
       "description": "PostgreSQL port",
-      "required": false, "default": 5432
+      "required": false,
+      "default": 5432
     },
     "database": {
-      "type": "string", "label": "Database",
+      "type": "string",
+      "label": "Database",
       "description": "Database name",
       "required": true
     },
     "username": {
-      "type": "string", "label": "Username",
+      "type": "string",
+      "label": "Username",
       "description": "Database username",
       "required": true
     },
     "password_env_var": {
-      "type": "string", "label": "Password Env Var",
+      "type": "string",
+      "label": "Password Env Var",
       "description": "Environment variable holding the database password",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "sslmode": {
-      "type": "string", "label": "SSL Mode",
+      "type": "string",
+      "label": "SSL Mode",
       "description": "SSL mode: disable, allow, prefer, require, verify-ca, verify-full",
-      "required": false, "default": "prefer"
+      "required": false,
+      "default": "prefer"
     }
   },
-  "tags": ["resource", "postgres", "database"]
+  "tags": [
+    "resource",
+    "postgres",
+    "database"
+  ],
+  "name": "PostgreSQL Resource"
 }

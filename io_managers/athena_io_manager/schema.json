@@ -4,45 +4,66 @@
   "category": "io_manager",
   "icon": "si:amazonwebservices",
   "x-dagster-io": {},
-  "x-dagster-provides": ["io_manager"],
+  "x-dagster-provides": [
+    "io_manager"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
-      "required": false, "default": "io_manager"
+      "required": false,
+      "default": "io_manager"
     },
     "database": {
-      "type": "string", "label": "Database",
+      "type": "string",
+      "label": "Database",
       "description": "Athena database (Glue catalog database)",
       "required": true
     },
     "s3_staging_dir": {
-      "type": "string", "label": "S3 Staging Dir",
+      "type": "string",
+      "label": "S3 Staging Dir",
       "description": "S3 URI for Athena query results, e.g. 's3://my-bucket/athena-results/'",
       "required": true
     },
     "s3_output_location": {
-      "type": "string", "label": "S3 Output Location",
+      "type": "string",
+      "label": "S3 Output Location",
       "description": "S3 URI prefix where Parquet assets are written, e.g. 's3://my-bucket/assets/'",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     },
     "region_name": {
-      "type": "string", "label": "Region Name",
+      "type": "string",
+      "label": "Region Name",
       "description": "AWS region, e.g. 'us-east-1'",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     },
     "aws_access_key_env_var": {
-      "type": "string", "label": "AWS Access Key Env Var",
+      "type": "string",
+      "label": "AWS Access Key Env Var",
       "description": "Environment variable for AWS access key (uses instance role if not set)",
-      "required": false, "default": null,
-      "ui:widget": "password"
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
     },
     "aws_secret_key_env_var": {
-      "type": "string", "label": "AWS Secret Key Env Var",
+      "type": "string",
+      "label": "AWS Secret Key Env Var",
       "description": "Environment variable for AWS secret key",
-      "required": false, "default": null,
-      "ui:widget": "password"
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
     }
   },
-  "tags": ["io_manager", "athena", "aws", "s3", "parquet"]
+  "tags": [
+    "io_manager",
+    "athena",
+    "aws",
+    "s3",
+    "parquet"
+  ],
+  "name": "Athena IO Manager"
 }

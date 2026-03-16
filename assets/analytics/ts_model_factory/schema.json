@@ -202,5 +202,6 @@
     "analytics",
     "model",
     "factory"
-  ]
+  ],
+  "name": "Ts Model Factory"
 }

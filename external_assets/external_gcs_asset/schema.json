@@ -56,5 +56,6 @@
     "external",
     "gcs",
     "asset"
-  ]
+  ],
+  "name": "External GCS Asset"
 }

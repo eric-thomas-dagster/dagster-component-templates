@@ -14,5 +14,6 @@
     "ingestion",
     "graphql",
     "asset"
-  ]
+  ],
+  "name": "Graphql Asset"
 }

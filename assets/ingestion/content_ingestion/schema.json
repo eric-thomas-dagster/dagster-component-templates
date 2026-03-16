@@ -35,5 +35,6 @@
   "tags": [
     "ingestion",
     "content"
-  ]
+  ],
+  "name": "Content Ingestion"
 }

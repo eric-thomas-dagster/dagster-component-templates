@@ -276,5 +276,6 @@
     "ai",
     "sentiment",
     "analyzer"
-  ]
+  ],
+  "name": "Sentiment Analyzer"
 }

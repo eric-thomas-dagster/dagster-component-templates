@@ -19,5 +19,6 @@
     "sink",
     "polytomic",
     "asset"
-  ]
+  ],
+  "name": "Polytomic Asset"
 }

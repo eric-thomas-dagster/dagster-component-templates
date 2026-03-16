@@ -45,7 +45,7 @@
       "label": "Client Secret Env Var",
       "description": "Env var with Azure app client secret",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "folder_path": {
       "type": "string",
@@ -94,5 +94,6 @@
     "sensor",
     "sharepoint",
     "monitor"
-  ]
+  ],
+  "name": "Sharepoint Monitor"
 }

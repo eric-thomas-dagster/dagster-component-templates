@@ -42,7 +42,7 @@
       "description": "Password Env Var",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "job_name": {
       "type": "string",
@@ -77,5 +77,6 @@
     "sensor",
     "airbyte",
     "sync"
-  ]
+  ],
+  "name": "Airbyte Sync Sensor"
 }

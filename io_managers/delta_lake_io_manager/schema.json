@@ -4,58 +4,84 @@
   "category": "io_manager",
   "icon": "si:delta",
   "x-dagster-io": {},
-  "x-dagster-provides": ["io_manager"],
+  "x-dagster-provides": [
+    "io_manager"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
-      "required": false, "default": "io_manager"
+      "required": false,
+      "default": "io_manager"
     },
     "root_uri": {
-      "type": "string", "label": "Root URI",
+      "type": "string",
+      "label": "Root URI",
       "description": "Root path for Delta tables, e.g. '/data/delta', 's3://bucket/delta', 'az://container/delta'",
       "required": true
     },
     "schema_name": {
-      "type": "string", "label": "Schema Name",
+      "type": "string",
+      "label": "Schema Name",
       "description": "Default schema (subdirectory) under root_uri",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     },
     "aws_access_key_env_var": {
-      "type": "string", "label": "AWS Access Key Env Var",
+      "type": "string",
+      "label": "AWS Access Key Env Var",
       "description": "Environment variable for AWS access key (S3 storage)",
-      "required": false, "default": null,
-      "ui:widget": "password"
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
     },
     "aws_secret_key_env_var": {
-      "type": "string", "label": "AWS Secret Key Env Var",
+      "type": "string",
+      "label": "AWS Secret Key Env Var",
       "description": "Environment variable for AWS secret key (S3 storage)",
-      "required": false, "default": null,
-      "ui:widget": "password"
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
     },
     "aws_region": {
-      "type": "string", "label": "AWS Region",
+      "type": "string",
+      "label": "AWS Region",
       "description": "AWS region for S3 storage, e.g. 'us-east-1'",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     },
     "azure_storage_account_env_var": {
-      "type": "string", "label": "Azure Storage Account Env Var",
+      "type": "string",
+      "label": "Azure Storage Account Env Var",
       "description": "Environment variable for Azure storage account name",
-      "required": false, "default": null,
-      "ui:widget": "password"
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
     },
     "azure_storage_key_env_var": {
-      "type": "string", "label": "Azure Storage Key Env Var",
+      "type": "string",
+      "label": "Azure Storage Key Env Var",
       "description": "Environment variable for Azure storage account key",
-      "required": false, "default": null,
-      "ui:widget": "password"
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
     },
     "gcp_credentials_env_var": {
-      "type": "string", "label": "GCP Credentials Env Var",
+      "type": "string",
+      "label": "GCP Credentials Env Var",
       "description": "Environment variable holding a GCS service account JSON key",
-      "required": false, "default": null,
-      "ui:widget": "password"
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
     }
   },
-  "tags": ["io_manager", "delta-lake", "parquet", "lakehouse", "multi-cloud"]
+  "tags": [
+    "io_manager",
+    "delta-lake",
+    "parquet",
+    "lakehouse",
+    "multi-cloud"
+  ],
+  "name": "Delta Lake IO Manager"
 }

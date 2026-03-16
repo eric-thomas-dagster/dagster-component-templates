@@ -171,5 +171,6 @@
     "sink",
     "dataframe",
     "csv"
-  ]
+  ],
+  "name": "Dataframe To CSV"
 }

@@ -61,5 +61,6 @@
     "observation",
     "sql",
     "sensor"
-  ]
+  ],
+  "name": "SQL Observation Sensor"
 }

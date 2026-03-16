@@ -167,5 +167,6 @@
     "type-casting",
     "coercion",
     "data-quality"
-  ]
+  ],
+  "name": "Type Coercer"
 }

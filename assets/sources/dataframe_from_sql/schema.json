@@ -164,5 +164,6 @@
     "dataframe",
     "from",
     "sql"
-  ]
+  ],
+  "name": "Dataframe From SQL"
 }

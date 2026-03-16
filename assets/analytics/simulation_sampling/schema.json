@@ -183,5 +183,6 @@
     "analytics",
     "simulation",
     "sampling"
-  ]
+  ],
+  "name": "Simulation Sampling"
 }

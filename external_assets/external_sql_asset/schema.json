@@ -48,5 +48,6 @@
     "external",
     "sql",
     "asset"
-  ]
+  ],
+  "name": "External SQL Asset"
 }

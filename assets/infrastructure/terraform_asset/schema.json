@@ -173,5 +173,6 @@
     "infrastructure",
     "terraform",
     "asset"
-  ]
+  ],
+  "name": "Terraform Asset"
 }

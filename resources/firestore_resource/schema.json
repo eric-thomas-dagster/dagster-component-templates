@@ -4,7 +4,6 @@
     "firestore_resource"
   ],
   "category": "resource",
-  "title": "FirestoreResourceComponent",
   "type": "object",
   "properties": {
     "resource_key": {
@@ -38,5 +37,6 @@
     "database",
     "nosql"
   ],
-  "icon": "si:firebase"
+  "icon": "si:firebase",
+  "name": "Firestore Resource"
 }

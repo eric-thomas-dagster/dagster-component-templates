@@ -82,7 +82,7 @@
       "description": "Env var with AWS secret access key",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "column_mapping": {
       "type": "object",
@@ -175,5 +175,6 @@
     "kinesis",
     "database",
     "asset"
-  ]
+  ],
+  "name": "Kinesis To Database Asset"
 }

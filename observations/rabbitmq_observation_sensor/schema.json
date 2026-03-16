@@ -61,7 +61,7 @@
       "description": "Env var with password",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "check_interval_seconds": {
       "type": "integer",
@@ -83,5 +83,6 @@
     "observation",
     "rabbitmq",
     "sensor"
-  ]
+  ],
+  "name": "Rabbitmq Observation Sensor"
 }

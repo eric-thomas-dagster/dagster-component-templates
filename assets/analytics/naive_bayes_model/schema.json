@@ -192,5 +192,6 @@
     "naive",
     "bayes",
     "model"
-  ]
+  ],
+  "name": "Naive Bayes Model"
 }

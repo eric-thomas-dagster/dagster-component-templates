@@ -4,7 +4,9 @@
   "category": "resource",
   "icon": "si:freshdesk",
   "x-dagster-io": {},
-  "x-dagster-provides": ["freshdesk_resource"],
+  "x-dagster-provides": [
+    "freshdesk_resource"
+  ],
   "attributes": {
     "resource_key": {
       "type": "string",
@@ -24,8 +26,14 @@
       "label": "API Key Env Var",
       "description": "Env var holding Freshdesk API key",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     }
   },
-  "tags": ["resource", "freshdesk", "support", "customer-service"]
+  "tags": [
+    "resource",
+    "freshdesk",
+    "support",
+    "customer-service"
+  ],
+  "name": "Freshdesk Resource"
 }

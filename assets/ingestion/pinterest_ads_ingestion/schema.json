@@ -184,5 +184,6 @@
     "ingestion",
     "pinterest",
     "ads"
-  ]
+  ],
+  "name": "Pinterest Ads Ingestion"
 }

@@ -48,5 +48,6 @@
     "external",
     "sftp",
     "path"
-  ]
+  ],
+  "name": "External SFTP Path"
 }

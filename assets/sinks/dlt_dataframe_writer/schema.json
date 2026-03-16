@@ -610,5 +610,6 @@
     "dlt",
     "dataframe",
     "writer"
-  ]
+  ],
+  "name": "Dlt Dataframe Writer"
 }

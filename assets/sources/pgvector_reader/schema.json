@@ -205,5 +205,6 @@
     "source",
     "pgvector",
     "reader"
-  ]
+  ],
+  "name": "pgvector Reader"
 }

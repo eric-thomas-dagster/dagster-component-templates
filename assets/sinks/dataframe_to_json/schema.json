@@ -167,5 +167,6 @@
     "sink",
     "dataframe",
     "json"
-  ]
+  ],
+  "name": "Dataframe To Json"
 }

@@ -186,5 +186,6 @@
     "sink",
     "dataframe",
     "databricks"
-  ]
+  ],
+  "name": "Dataframe To Databricks"
 }

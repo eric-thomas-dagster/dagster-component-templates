@@ -193,5 +193,6 @@
     "nlp",
     "redaction",
     "presidio"
-  ]
+  ],
+  "name": "Pii Redactor"
 }

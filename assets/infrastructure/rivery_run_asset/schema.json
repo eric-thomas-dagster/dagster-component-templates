@@ -42,7 +42,7 @@
       "description": "Env var with Rivery API token",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "resource_key": {
       "type": "string",
@@ -127,5 +127,6 @@
     "rivery",
     "run",
     "asset"
-  ]
+  ],
+  "name": "Rivery Run Asset"
 }

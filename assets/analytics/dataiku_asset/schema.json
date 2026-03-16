@@ -19,5 +19,6 @@
     "analytics",
     "dataiku",
     "asset"
-  ]
+  ],
+  "name": "Dataiku Asset"
 }

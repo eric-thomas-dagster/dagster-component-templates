@@ -153,5 +153,6 @@
     "adls",
     "database",
     "asset"
-  ]
+  ],
+  "name": "Adls To Database Asset"
 }

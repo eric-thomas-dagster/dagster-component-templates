@@ -54,5 +54,6 @@
     "observation",
     "kafka",
     "sensor"
-  ]
+  ],
+  "name": "Kafka Observation Sensor"
 }

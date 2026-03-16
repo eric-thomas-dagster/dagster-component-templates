@@ -183,5 +183,6 @@
     "source",
     "firestore",
     "reader"
-  ]
+  ],
+  "name": "Firestore Reader"
 }

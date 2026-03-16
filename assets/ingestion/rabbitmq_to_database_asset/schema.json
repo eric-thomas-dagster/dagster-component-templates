@@ -159,5 +159,6 @@
     "rabbitmq",
     "database",
     "asset"
-  ]
+  ],
+  "name": "Rabbitmq To Database Asset"
 }

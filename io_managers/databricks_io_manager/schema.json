@@ -4,44 +4,64 @@
   "category": "io_manager",
   "icon": "si:databricks",
   "x-dagster-io": {},
-  "x-dagster-provides": ["io_manager"],
+  "x-dagster-provides": [
+    "io_manager"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
-      "required": false, "default": "io_manager"
+      "required": false,
+      "default": "io_manager"
     },
     "server_hostname": {
-      "type": "string", "label": "Server Hostname",
+      "type": "string",
+      "label": "Server Hostname",
       "description": "Databricks workspace hostname, e.g. 'adb-1234567890.12.azuredatabricks.net'",
       "required": true
     },
     "http_path": {
-      "type": "string", "label": "HTTP Path",
+      "type": "string",
+      "label": "HTTP Path",
       "description": "HTTP path to the SQL warehouse or cluster, e.g. '/sql/1.0/warehouses/abc123'",
       "required": true
     },
     "access_token_env_var": {
-      "type": "string", "label": "Access Token Env Var",
+      "type": "string",
+      "label": "Access Token Env Var",
       "description": "Environment variable holding the Databricks personal access token",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "catalog": {
-      "type": "string", "label": "Catalog",
+      "type": "string",
+      "label": "Catalog",
       "description": "Unity Catalog catalog name",
-      "required": false, "default": "main"
+      "required": false,
+      "default": "main"
     },
     "schema_name": {
-      "type": "string", "label": "Schema Name",
+      "type": "string",
+      "label": "Schema Name",
       "description": "Unity Catalog schema (database) for asset tables",
-      "required": false, "default": "default"
+      "required": false,
+      "default": "default"
     },
     "staging_location": {
-      "type": "string", "label": "Staging Location",
+      "type": "string",
+      "label": "Staging Location",
       "description": "Cloud storage URI for staging data, e.g. 's3://bucket/staging' or 'abfss://container@account.dfs.core.windows.net/staging'",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     }
   },
-  "tags": ["io_manager", "databricks", "delta-lake", "unity-catalog", "spark"]
+  "tags": [
+    "io_manager",
+    "databricks",
+    "delta-lake",
+    "unity-catalog",
+    "spark"
+  ],
+  "name": "Databricks IO Manager"
 }

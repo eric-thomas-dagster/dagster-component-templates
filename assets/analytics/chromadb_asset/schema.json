@@ -206,5 +206,6 @@
     "analytics",
     "chromadb",
     "asset"
-  ]
+  ],
+  "name": "Chromadb Asset"
 }

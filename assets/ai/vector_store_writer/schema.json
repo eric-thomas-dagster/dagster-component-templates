@@ -214,5 +214,6 @@
     "vector",
     "store",
     "writer"
-  ]
+  ],
+  "name": "Vector Store Writer"
 }

@@ -56,5 +56,6 @@
     "external",
     "servicebus",
     "asset"
-  ]
+  ],
+  "name": "External Servicebus Asset"
 }

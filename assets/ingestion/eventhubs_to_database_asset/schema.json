@@ -166,5 +166,6 @@
     "eventhubs",
     "database",
     "asset"
-  ]
+  ],
+  "name": "Eventhubs To Database Asset"
 }

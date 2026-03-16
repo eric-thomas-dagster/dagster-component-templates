@@ -192,5 +192,6 @@
     "analytics",
     "means",
     "clustering"
-  ]
+  ],
+  "name": "K Means Clustering"
 }

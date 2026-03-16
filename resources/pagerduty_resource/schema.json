@@ -4,10 +4,30 @@
   "category": "resource",
   "icon": "si:pagerduty",
   "x-dagster-io": {},
-  "x-dagster-provides": ["pagerduty_resource"],
+  "x-dagster-provides": [
+    "pagerduty_resource"
+  ],
   "attributes": {
-    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource. Other components reference it via resource_key.", "required": false, "default": "pagerduty_resource"},
-    "routing_key_env_var": {"type": "string", "label": "Routing Key Env Var", "description": "Environment variable holding the PagerDuty Events API v2 routing key (integration key)", "required": true, "ui:widget": "password"}
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "pagerduty_resource"
+    },
+    "routing_key_env_var": {
+      "type": "string",
+      "label": "Routing Key Env Var",
+      "description": "Environment variable holding the PagerDuty Events API v2 routing key (integration key)",
+      "required": true,
+      "ui:widget": "env_var"
+    }
   },
-  "tags": ["resource", "pagerduty", "alerting", "notification"]
+  "tags": [
+    "resource",
+    "pagerduty",
+    "alerting",
+    "notification"
+  ],
+  "name": "PagerDuty Resource"
 }

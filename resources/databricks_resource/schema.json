@@ -4,29 +4,42 @@
   "category": "resource",
   "icon": "si:databricks",
   "x-dagster-io": {},
-  "x-dagster-provides": ["databricks_resource"],
+  "x-dagster-provides": [
+    "databricks_resource"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Key used to register this resource. Other components reference it via resource_key.",
-      "required": false, "default": "databricks_resource"
+      "required": false,
+      "default": "databricks_resource"
     },
     "host": {
-      "type": "string", "label": "Host",
+      "type": "string",
+      "label": "Host",
       "description": "Databricks workspace URL, e.g. 'https://adb-1234567890.azuredatabricks.net'",
       "required": true
     },
     "token_env_var": {
-      "type": "string", "label": "Token Env Var",
+      "type": "string",
+      "label": "Token Env Var",
       "description": "Environment variable holding the Databricks personal access token",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "cluster_id": {
-      "type": "string", "label": "Cluster ID",
+      "type": "string",
+      "label": "Cluster ID",
       "description": "Default cluster ID for job submissions",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     }
   },
-  "tags": ["resource", "databricks", "spark"]
+  "tags": [
+    "resource",
+    "databricks",
+    "spark"
+  ],
+  "name": "Databricks Resource"
 }

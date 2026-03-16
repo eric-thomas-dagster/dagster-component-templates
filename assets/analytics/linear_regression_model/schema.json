@@ -191,5 +191,6 @@
     "linear",
     "regression",
     "model"
-  ]
+  ],
+  "name": "Linear Regression Model"
 }

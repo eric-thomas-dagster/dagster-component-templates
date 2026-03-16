@@ -48,5 +48,6 @@
     "external",
     "sharepoint",
     "library"
-  ]
+  ],
+  "name": "External Sharepoint Library"
 }

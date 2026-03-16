@@ -36,7 +36,7 @@
       "description": "Environment variable containing the Neo4j password",
       "required": false,
       "default": "NEO4J_PASSWORD",
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "query": {
       "type": "string",
@@ -174,5 +174,6 @@
     "source",
     "neo4j",
     "reader"
-  ]
+  ],
+  "name": "Neo4j Reader"
 }

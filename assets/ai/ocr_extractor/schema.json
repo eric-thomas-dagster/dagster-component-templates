@@ -180,5 +180,6 @@
     "image",
     "ocr",
     "vision"
-  ]
+  ],
+  "name": "Ocr Extractor"
 }

@@ -135,5 +135,6 @@
   "tags": [
     "ingestion",
     "airtable"
-  ]
+  ],
+  "name": "Airtable Ingestion"
 }

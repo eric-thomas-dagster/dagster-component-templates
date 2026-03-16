@@ -4,7 +4,6 @@
     "redis_resource"
   ],
   "category": "resource",
-  "title": "RedisResourceComponent",
   "type": "object",
   "properties": {
     "resource_key": {
@@ -51,5 +50,6 @@
     "database",
     "cache"
   ],
-  "icon": "si:redis"
+  "icon": "si:redis",
+  "name": "Redis Resource"
 }

@@ -167,5 +167,6 @@
     "pubsub",
     "database",
     "asset"
-  ]
+  ],
+  "name": "Pubsub To Database Asset"
 }

@@ -4,7 +4,6 @@
     "dynamodb_resource"
   ],
   "category": "resource",
-  "title": "DynamoDBResourceComponent",
   "type": "object",
   "properties": {
     "resource_key": {
@@ -43,5 +42,6 @@
     "database",
     "nosql"
   ],
-  "icon": "si:amazondynamodb"
+  "icon": "si:amazondynamodb",
+  "name": "DynamoDB Resource"
 }

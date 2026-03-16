@@ -48,5 +48,6 @@
     "external",
     "pubsub",
     "asset"
-  ]
+  ],
+  "name": "External Pubsub Asset"
 }

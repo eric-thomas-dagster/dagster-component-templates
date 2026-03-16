@@ -193,5 +193,6 @@
     "llm",
     "chain",
     "executor"
-  ]
+  ],
+  "name": "LLM Chain Executor"
 }

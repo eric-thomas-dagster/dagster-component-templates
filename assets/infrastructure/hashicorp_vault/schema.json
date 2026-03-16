@@ -36,7 +36,7 @@
       "description": "Secret Id Env Var",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "namespace": {
       "type": "string",
@@ -149,5 +149,6 @@
     "infrastructure",
     "hashicorp",
     "vault"
-  ]
+  ],
+  "name": "Hashicorp Vault"
 }

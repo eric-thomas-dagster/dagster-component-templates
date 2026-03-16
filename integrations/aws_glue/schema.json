@@ -14,5 +14,6 @@
     "integration",
     "aws",
     "glue"
-  ]
+  ],
+  "name": "AWS Glue"
 }

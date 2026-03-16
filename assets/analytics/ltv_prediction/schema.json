@@ -205,5 +205,6 @@
     "analytics",
     "ltv",
     "prediction"
-  ]
+  ],
+  "name": "Ltv Prediction"
 }

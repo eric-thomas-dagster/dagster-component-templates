@@ -198,5 +198,6 @@
     "analytics",
     "pgvector",
     "asset"
-  ]
+  ],
+  "name": "pgvector Asset"
 }

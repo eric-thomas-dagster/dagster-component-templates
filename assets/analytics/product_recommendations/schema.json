@@ -231,5 +231,6 @@
     "analytics",
     "product",
     "recommendations"
-  ]
+  ],
+  "name": "Product Recommendations"
 }

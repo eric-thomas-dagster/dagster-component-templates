@@ -55,7 +55,7 @@
       "description": "Env var with Redis password",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "check_interval_seconds": {
       "type": "integer",
@@ -78,5 +78,6 @@
     "redis",
     "stream",
     "sensor"
-  ]
+  ],
+  "name": "Redis Stream Observation Sensor"
 }

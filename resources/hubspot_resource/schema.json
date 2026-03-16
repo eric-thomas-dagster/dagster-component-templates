@@ -4,7 +4,9 @@
   "category": "resource",
   "icon": "si:hubspot",
   "x-dagster-io": {},
-  "x-dagster-provides": ["hubspot_resource"],
+  "x-dagster-provides": [
+    "hubspot_resource"
+  ],
   "attributes": {
     "resource_key": {
       "type": "string",
@@ -18,8 +20,14 @@
       "label": "Access Token Env Var",
       "description": "Env var holding HubSpot private app access token",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     }
   },
-  "tags": ["resource", "hubspot", "crm", "marketing"]
+  "tags": [
+    "resource",
+    "hubspot",
+    "crm",
+    "marketing"
+  ],
+  "name": "HubSpot Resource"
 }

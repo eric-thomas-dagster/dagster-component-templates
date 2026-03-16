@@ -76,5 +76,6 @@
     "sensor",
     "kinesis",
     "monitor"
-  ]
+  ],
+  "name": "Kinesis Monitor"
 }

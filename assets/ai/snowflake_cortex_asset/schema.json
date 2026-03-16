@@ -20,5 +20,6 @@
     "snowflake",
     "cortex",
     "asset"
-  ]
+  ],
+  "name": "Snowflake Cortex Asset"
 }

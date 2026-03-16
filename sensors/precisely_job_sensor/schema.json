@@ -41,7 +41,7 @@
       "description": "Env var with Precisely API token",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "resource_key": {
       "type": "string",
@@ -70,5 +70,6 @@
     "sensor",
     "precisely",
     "job"
-  ]
+  ],
+  "name": "Precisely Job Sensor"
 }

@@ -110,5 +110,6 @@
     "azure",
     "stream",
     "analytics"
-  ]
+  ],
+  "name": "Azure Stream Analytics"
 }

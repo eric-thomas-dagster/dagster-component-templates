@@ -178,5 +178,6 @@
     "validation",
     "json-schema",
     "data-quality"
-  ]
+  ],
+  "name": "Schema Validator"
 }

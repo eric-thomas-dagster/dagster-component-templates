@@ -55,5 +55,6 @@
   "tags": [
     "check",
     "freshness"
-  ]
+  ],
+  "name": "Freshness Check"
 }

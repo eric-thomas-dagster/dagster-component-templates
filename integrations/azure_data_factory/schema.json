@@ -15,5 +15,6 @@
     "azure",
     "data",
     "factory"
-  ]
+  ],
+  "name": "Azure Data Factory"
 }

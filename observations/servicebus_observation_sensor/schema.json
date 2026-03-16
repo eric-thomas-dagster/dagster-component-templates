@@ -77,5 +77,6 @@
     "observation",
     "servicebus",
     "sensor"
-  ]
+  ],
+  "name": "Servicebus Observation Sensor"
 }

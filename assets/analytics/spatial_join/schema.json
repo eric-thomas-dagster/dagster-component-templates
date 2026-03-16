@@ -172,5 +172,6 @@
     "analytics",
     "spatial",
     "join"
-  ]
+  ],
+  "name": "Spatial Join"
 }

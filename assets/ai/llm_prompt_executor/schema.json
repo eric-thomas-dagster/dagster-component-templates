@@ -232,5 +232,6 @@
     "llm",
     "prompt",
     "executor"
-  ]
+  ],
+  "name": "LLM Prompt Executor"
 }

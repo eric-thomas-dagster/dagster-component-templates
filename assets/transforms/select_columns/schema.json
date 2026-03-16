@@ -176,5 +176,6 @@
     "transformation",
     "select",
     "columns"
-  ]
+  ],
+  "name": "Select Columns"
 }

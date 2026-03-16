@@ -593,5 +593,6 @@
   "tags": [
     "ingestion",
     "shopify"
-  ]
+  ],
+  "name": "Shopify Ingestion"
 }

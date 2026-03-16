@@ -305,5 +305,6 @@
     "ai",
     "openai",
     "llm"
-  ]
+  ],
+  "name": "OpenAI LLM"
 }

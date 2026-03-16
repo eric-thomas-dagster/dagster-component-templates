@@ -155,5 +155,6 @@
     "transformation",
     "append",
     "fields"
-  ]
+  ],
+  "name": "Append Fields"
 }

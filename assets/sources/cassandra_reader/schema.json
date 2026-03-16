@@ -60,7 +60,7 @@
       "description": "Environment variable containing the Cassandra password",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "deps": {
       "type": "array",
@@ -184,5 +184,6 @@
     "source",
     "cassandra",
     "reader"
-  ]
+  ],
+  "name": "Cassandra Reader"
 }

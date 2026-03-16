@@ -168,5 +168,6 @@
     "nested",
     "dot-path",
     "extraction"
-  ]
+  ],
+  "name": "Nested Field Extractor"
 }

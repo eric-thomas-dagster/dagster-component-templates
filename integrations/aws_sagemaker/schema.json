@@ -127,5 +127,6 @@
     "integration",
     "aws",
     "sagemaker"
-  ]
+  ],
+  "name": "AWS Sagemaker"
 }

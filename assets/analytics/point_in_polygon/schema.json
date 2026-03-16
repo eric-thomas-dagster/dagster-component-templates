@@ -187,5 +187,6 @@
     "analytics",
     "point",
     "polygon"
-  ]
+  ],
+  "name": "Point In Polygon"
 }

@@ -165,5 +165,6 @@
     "duckdb",
     "query",
     "reader"
-  ]
+  ],
+  "name": "DuckDB Query Reader"
 }

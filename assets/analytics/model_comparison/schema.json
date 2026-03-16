@@ -192,5 +192,6 @@
     "analytics",
     "model",
     "comparison"
-  ]
+  ],
+  "name": "Model Comparison"
 }

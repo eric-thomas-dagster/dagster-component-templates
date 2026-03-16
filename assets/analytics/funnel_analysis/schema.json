@@ -313,5 +313,6 @@
     "analytics",
     "funnel",
     "analysis"
-  ]
+  ],
+  "name": "Funnel Analysis"
 }

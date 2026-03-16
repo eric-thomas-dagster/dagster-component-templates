@@ -15,5 +15,6 @@
     "docs",
     "enriched",
     "project"
-  ]
+  ],
+  "name": "dbt Docs Enriched Project"
 }

@@ -168,5 +168,6 @@
     "transformation",
     "weighted",
     "average"
-  ]
+  ],
+  "name": "Weighted Average"
 }

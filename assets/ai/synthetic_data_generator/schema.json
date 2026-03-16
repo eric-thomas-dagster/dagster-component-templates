@@ -170,5 +170,6 @@
     "synthetic",
     "data",
     "generator"
-  ]
+  ],
+  "name": "Synthetic Data Generator"
 }

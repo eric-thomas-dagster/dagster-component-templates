@@ -4,51 +4,77 @@
   "category": "io_manager",
   "icon": "si:postgresql",
   "x-dagster-io": {},
-  "x-dagster-provides": ["io_manager"],
+  "x-dagster-provides": [
+    "io_manager"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
-      "required": false, "default": "io_manager"
+      "required": false,
+      "default": "io_manager"
     },
     "host": {
-      "type": "string", "label": "Host",
+      "type": "string",
+      "label": "Host",
       "description": "PostgreSQL host",
-      "required": false, "default": "localhost"
+      "required": false,
+      "default": "localhost"
     },
     "port": {
-      "type": "integer", "label": "Port",
+      "type": "integer",
+      "label": "Port",
       "description": "PostgreSQL port",
-      "required": false, "default": 5432
+      "required": false,
+      "default": 5432
     },
     "database": {
-      "type": "string", "label": "Database",
+      "type": "string",
+      "label": "Database",
       "description": "PostgreSQL database name",
       "required": true
     },
     "user": {
-      "type": "string", "label": "User",
+      "type": "string",
+      "label": "User",
       "description": "PostgreSQL username",
       "required": true
     },
     "password_env_var": {
-      "type": "string", "label": "Password Env Var",
+      "type": "string",
+      "label": "Password Env Var",
       "description": "Environment variable holding the PostgreSQL password",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "schema_name": {
-      "type": "string", "label": "Schema Name",
+      "type": "string",
+      "label": "Schema Name",
       "description": "Schema for asset tables",
-      "required": false, "default": "public"
+      "required": false,
+      "default": "public"
     },
     "if_exists": {
-      "type": "string", "label": "If Exists",
+      "type": "string",
+      "label": "If Exists",
       "description": "Behavior when table already exists: 'replace', 'append', or 'fail'",
-      "required": false, "default": "replace",
-      "enum": ["replace", "append", "fail"],
+      "required": false,
+      "default": "replace",
+      "enum": [
+        "replace",
+        "append",
+        "fail"
+      ],
       "ui:widget": "select"
     }
   },
-  "tags": ["io_manager", "postgres", "postgresql", "sql", "database"]
+  "tags": [
+    "io_manager",
+    "postgres",
+    "postgresql",
+    "sql",
+    "database"
+  ],
+  "name": "PostgreSQL IO Manager"
 }

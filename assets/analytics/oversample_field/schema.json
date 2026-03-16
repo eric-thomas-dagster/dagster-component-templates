@@ -176,5 +176,6 @@
     "analytics",
     "oversample",
     "field"
-  ]
+  ],
+  "name": "Oversample Field"
 }

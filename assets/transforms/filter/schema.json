@@ -152,5 +152,6 @@
   "tags": [
     "transformation",
     "filter"
-  ]
+  ],
+  "name": "Filter"
 }

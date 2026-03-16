@@ -4,7 +4,9 @@
   "category": "resource",
   "icon": "si:asana",
   "x-dagster-io": {},
-  "x-dagster-provides": ["asana_resource"],
+  "x-dagster-provides": [
+    "asana_resource"
+  ],
   "attributes": {
     "resource_key": {
       "type": "string",
@@ -18,7 +20,7 @@
       "label": "Access Token Env Var",
       "description": "Env var holding Asana personal access token",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "workspace_gid": {
       "type": "string",
@@ -27,5 +29,11 @@
       "required": false
     }
   },
-  "tags": ["resource", "asana", "project-management", "tasks"]
+  "tags": [
+    "resource",
+    "asana",
+    "project-management",
+    "tasks"
+  ],
+  "name": "Asana Resource"
 }

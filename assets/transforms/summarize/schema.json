@@ -154,5 +154,6 @@
   "tags": [
     "transformation",
     "summarize"
-  ]
+  ],
+  "name": "Summarize"
 }

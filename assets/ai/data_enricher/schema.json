@@ -177,7 +177,7 @@
       "description": "Environment variable name containing the API key",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     }
   },
   "tags": [
@@ -186,5 +186,6 @@
     "enrichment",
     "classification",
     "structured-output"
-  ]
+  ],
+  "name": "Data Enricher"
 }

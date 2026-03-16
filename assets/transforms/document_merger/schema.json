@@ -187,5 +187,6 @@
     "merge",
     "join",
     "combine"
-  ]
+  ],
+  "name": "Document Merger"
 }

@@ -4,29 +4,46 @@
   "category": "io_manager",
   "icon": "si:duckdb",
   "x-dagster-io": {},
-  "x-dagster-provides": ["io_manager"],
+  "x-dagster-provides": [
+    "io_manager"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
-      "required": false, "default": "io_manager"
+      "required": false,
+      "default": "io_manager"
     },
     "motherduck_token_env_var": {
-      "type": "string", "label": "MotherDuck Token Env Var",
+      "type": "string",
+      "label": "MotherDuck Token Env Var",
       "description": "Environment variable holding the MotherDuck service token",
-      "required": false, "default": "MOTHERDUCK_TOKEN",
-      "ui:widget": "password"
+      "required": false,
+      "default": "MOTHERDUCK_TOKEN",
+      "ui:widget": "env_var"
     },
     "database": {
-      "type": "string", "label": "Database",
+      "type": "string",
+      "label": "Database",
       "description": "MotherDuck database name, e.g. 'my_db'",
-      "required": false, "default": "my_db"
+      "required": false,
+      "default": "my_db"
     },
     "schema_name": {
-      "type": "string", "label": "Schema Name",
+      "type": "string",
+      "label": "Schema Name",
       "description": "Schema within the MotherDuck database",
-      "required": false, "default": "main"
+      "required": false,
+      "default": "main"
     }
   },
-  "tags": ["io_manager", "motherduck", "duckdb", "serverless", "analytics"]
+  "tags": [
+    "io_manager",
+    "motherduck",
+    "duckdb",
+    "serverless",
+    "analytics"
+  ],
+  "name": "MotherDuck IO Manager"
 }

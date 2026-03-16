@@ -4,7 +4,6 @@
     "neo4j_resource"
   ],
   "category": "resource",
-  "title": "Neo4jResourceComponent",
   "type": "object",
   "properties": {
     "resource_key": {
@@ -43,5 +42,6 @@
     "database",
     "graph"
   ],
-  "icon": "si:neo4j"
+  "icon": "si:neo4j",
+  "name": "Neo4j Resource"
 }

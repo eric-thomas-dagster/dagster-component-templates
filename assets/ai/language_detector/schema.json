@@ -179,5 +179,6 @@
     "nlp",
     "language-detection",
     "multilingual"
-  ]
+  ],
+  "name": "Language Detector"
 }

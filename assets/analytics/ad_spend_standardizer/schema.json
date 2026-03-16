@@ -199,5 +199,6 @@
     "analytics",
     "spend",
     "standardizer"
-  ]
+  ],
+  "name": "Ad Spend Standardizer"
 }

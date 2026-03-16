@@ -137,5 +137,6 @@
   "tags": [
     "ingestion",
     "workable"
-  ]
+  ],
+  "name": "Workable Ingestion"
 }

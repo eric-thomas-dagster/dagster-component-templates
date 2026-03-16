@@ -4,10 +4,31 @@
   "category": "resource",
   "icon": "si:anthropic",
   "x-dagster-io": {},
-  "x-dagster-provides": ["anthropic_resource"],
+  "x-dagster-provides": [
+    "anthropic_resource"
+  ],
   "attributes": {
-    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource. Other components reference it via resource_key.", "required": false, "default": "anthropic_resource"},
-    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "description": "Environment variable holding the Anthropic API key", "required": false, "default": "ANTHROPIC_API_KEY", "ui:widget": "password"}
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "anthropic_resource"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Environment variable holding the Anthropic API key",
+      "required": false,
+      "default": "ANTHROPIC_API_KEY",
+      "ui:widget": "env_var"
+    }
   },
-  "tags": ["resource", "anthropic", "llm", "ai"]
+  "tags": [
+    "resource",
+    "anthropic",
+    "llm",
+    "ai"
+  ],
+  "name": "Anthropic Resource"
 }

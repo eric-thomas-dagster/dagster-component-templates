@@ -182,5 +182,6 @@
     "sql",
     "database",
     "asset"
-  ]
+  ],
+  "name": "SQL To Database Asset"
 }

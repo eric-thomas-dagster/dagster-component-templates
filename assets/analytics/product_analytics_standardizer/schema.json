@@ -197,5 +197,6 @@
     "analytics",
     "product",
     "standardizer"
-  ]
+  ],
+  "name": "Product Analytics Standardizer"
 }

@@ -4,19 +4,29 @@
   "category": "resource",
   "icon": "si:slack",
   "x-dagster-io": {},
-  "x-dagster-provides": ["slack_resource"],
+  "x-dagster-provides": [
+    "slack_resource"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Key used to register this resource. Other components reference it via resource_key.",
-      "required": false, "default": "slack_resource"
+      "required": false,
+      "default": "slack_resource"
     },
     "token_env_var": {
-      "type": "string", "label": "Token Env Var",
+      "type": "string",
+      "label": "Token Env Var",
       "description": "Environment variable holding the Slack bot token (xoxb-...)",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     }
   },
-  "tags": ["resource", "slack", "notification"]
+  "tags": [
+    "resource",
+    "slack",
+    "notification"
+  ],
+  "name": "Slack Resource"
 }

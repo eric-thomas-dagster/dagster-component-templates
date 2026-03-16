@@ -228,5 +228,6 @@
     "analytics",
     "pinecone",
     "asset"
-  ]
+  ],
+  "name": "Pinecone Asset"
 }

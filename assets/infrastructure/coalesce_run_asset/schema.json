@@ -15,5 +15,6 @@
     "coalesce",
     "run",
     "asset"
-  ]
+  ],
+  "name": "Coalesce Run Asset"
 }

@@ -154,5 +154,6 @@
     "gcs",
     "database",
     "asset"
-  ]
+  ],
+  "name": "GCS To Database Asset"
 }

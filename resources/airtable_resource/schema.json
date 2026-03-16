@@ -4,7 +4,9 @@
   "category": "resource",
   "icon": "si:airtable",
   "x-dagster-io": {},
-  "x-dagster-provides": ["airtable_resource"],
+  "x-dagster-provides": [
+    "airtable_resource"
+  ],
   "attributes": {
     "resource_key": {
       "type": "string",
@@ -18,8 +20,14 @@
       "label": "API Key Env Var",
       "description": "Env var holding Airtable personal access token",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     }
   },
-  "tags": ["resource", "airtable", "database", "no-code"]
+  "tags": [
+    "resource",
+    "airtable",
+    "database",
+    "no-code"
+  ],
+  "name": "Airtable Resource"
 }

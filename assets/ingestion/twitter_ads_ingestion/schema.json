@@ -196,5 +196,6 @@
     "ingestion",
     "twitter",
     "ads"
-  ]
+  ],
+  "name": "Twitter Ads Ingestion"
 }

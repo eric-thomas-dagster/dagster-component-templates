@@ -239,5 +239,6 @@
     "litellm",
     "inference",
     "asset"
-  ]
+  ],
+  "name": "Litellm Inference Asset"
 }

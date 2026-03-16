@@ -172,5 +172,6 @@
     "transformation",
     "fuzzy",
     "match"
-  ]
+  ],
+  "name": "Fuzzy Match"
 }

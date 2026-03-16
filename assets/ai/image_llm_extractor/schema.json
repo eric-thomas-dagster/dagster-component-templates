@@ -68,7 +68,7 @@
       "description": "Environment variable holding the API key",
       "required": false,
       "default": "OPENAI_API_KEY",
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "input_type": {
       "type": "string",
@@ -195,5 +195,6 @@
     "vision",
     "llm",
     "extraction"
-  ]
+  ],
+  "name": "Image LLM Extractor"
 }

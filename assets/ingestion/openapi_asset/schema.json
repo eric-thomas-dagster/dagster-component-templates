@@ -14,5 +14,6 @@
     "ingestion",
     "openapi",
     "asset"
-  ]
+  ],
+  "name": "Openapi Asset"
 }

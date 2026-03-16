@@ -191,5 +191,6 @@
     "ai",
     "word",
     "cloud"
-  ]
+  ],
+  "name": "Word Cloud"
 }

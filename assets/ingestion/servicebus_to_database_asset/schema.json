@@ -175,5 +175,6 @@
     "servicebus",
     "database",
     "asset"
-  ]
+  ],
+  "name": "Servicebus To Database Asset"
 }

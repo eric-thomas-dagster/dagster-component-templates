@@ -170,5 +170,6 @@
     "multi",
     "field",
     "formula"
-  ]
+  ],
+  "name": "Multi Field Formula"
 }

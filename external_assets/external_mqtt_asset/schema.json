@@ -55,5 +55,6 @@
     "external",
     "mqtt",
     "asset"
-  ]
+  ],
+  "name": "External Mqtt Asset"
 }

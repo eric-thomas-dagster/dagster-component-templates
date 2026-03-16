@@ -214,5 +214,6 @@
     "analytics",
     "wandb",
     "asset"
-  ]
+  ],
+  "name": "Weights & Biases Asset"
 }

@@ -180,5 +180,6 @@
     "transformation",
     "datetime",
     "parser"
-  ]
+  ],
+  "name": "Datetime Parser"
 }

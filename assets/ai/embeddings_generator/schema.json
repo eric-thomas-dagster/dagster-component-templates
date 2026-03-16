@@ -261,5 +261,6 @@
     "ai",
     "embeddings",
     "generator"
-  ]
+  ],
+  "name": "Embeddings Generator"
 }

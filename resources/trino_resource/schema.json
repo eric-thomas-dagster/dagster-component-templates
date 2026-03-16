@@ -4,44 +4,67 @@
   "category": "resource",
   "icon": "si:trino",
   "x-dagster-io": {},
-  "x-dagster-provides": ["trino_resource"],
+  "x-dagster-provides": [
+    "trino_resource"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Key used to register this resource. Other components reference it via resource_key.",
-      "required": false, "default": "trino_resource"
+      "required": false,
+      "default": "trino_resource"
     },
     "host": {
-      "type": "string", "label": "Host",
+      "type": "string",
+      "label": "Host",
       "description": "Trino coordinator host",
-      "required": false, "default": "localhost"
+      "required": false,
+      "default": "localhost"
     },
     "port": {
-      "type": "integer", "label": "Port",
+      "type": "integer",
+      "label": "Port",
       "description": "Trino coordinator port",
-      "required": false, "default": 8080
+      "required": false,
+      "default": 8080
     },
     "user": {
-      "type": "string", "label": "User",
+      "type": "string",
+      "label": "User",
       "description": "Trino user name",
-      "required": false, "default": "dagster"
+      "required": false,
+      "default": "dagster"
     },
     "catalog": {
-      "type": "string", "label": "Catalog",
+      "type": "string",
+      "label": "Catalog",
       "description": "Default catalog, e.g. 'iceberg', 'hive', 'delta'",
-      "required": false, "default": "iceberg"
+      "required": false,
+      "default": "iceberg"
     },
     "schema_name": {
-      "type": "string", "label": "Schema Name",
+      "type": "string",
+      "label": "Schema Name",
       "description": "Default schema within the catalog",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     },
     "password_env_var": {
-      "type": "string", "label": "Password Env Var",
+      "type": "string",
+      "label": "Password Env Var",
       "description": "Environment variable holding the Trino password (for basic auth)",
-      "required": false, "default": null,
-      "ui:widget": "password"
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
     }
   },
-  "tags": ["resource", "trino", "sql", "lakehouse", "iceberg"]
+  "tags": [
+    "resource",
+    "trino",
+    "sql",
+    "lakehouse",
+    "iceberg"
+  ],
+  "name": "Trino Resource"
 }

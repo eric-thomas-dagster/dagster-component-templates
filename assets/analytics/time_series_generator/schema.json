@@ -196,5 +196,6 @@
     "time",
     "series",
     "generator"
-  ]
+  ],
+  "name": "Time Series Generator"
 }

@@ -204,5 +204,6 @@
     "ai",
     "precision",
     "match"
-  ]
+  ],
+  "name": "Precision Match"
 }

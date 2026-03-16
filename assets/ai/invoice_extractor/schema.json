@@ -184,5 +184,6 @@
     "ai",
     "invoice",
     "extractor"
-  ]
+  ],
+  "name": "Invoice Extractor"
 }

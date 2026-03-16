@@ -256,5 +256,6 @@
     "customer",
     "health",
     "score"
-  ]
+  ],
+  "name": "Customer Health Score"
 }

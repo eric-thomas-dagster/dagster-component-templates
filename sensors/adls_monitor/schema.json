@@ -90,5 +90,6 @@
     "sensor",
     "adls",
     "monitor"
-  ]
+  ],
+  "name": "Adls Monitor"
 }

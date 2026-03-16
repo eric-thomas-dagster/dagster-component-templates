@@ -283,5 +283,6 @@
     "ai",
     "text",
     "moderator"
-  ]
+  ],
+  "name": "Text Moderator"
 }

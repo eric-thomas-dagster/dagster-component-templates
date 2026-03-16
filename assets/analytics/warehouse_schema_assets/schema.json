@@ -20,5 +20,6 @@
     "warehouse",
     "schema",
     "assets"
-  ]
+  ],
+  "name": "Warehouse Schema Assets"
 }

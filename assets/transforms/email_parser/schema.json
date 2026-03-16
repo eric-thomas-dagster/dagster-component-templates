@@ -177,5 +177,6 @@
     "email",
     "parsing",
     "rfc2822"
-  ]
+  ],
+  "name": "Email Parser"
 }

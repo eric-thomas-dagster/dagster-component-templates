@@ -199,5 +199,6 @@
   "tags": [
     "analytics",
     "geocoder"
-  ]
+  ],
+  "name": "Geocoder"
 }

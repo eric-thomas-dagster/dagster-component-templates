@@ -69,5 +69,6 @@
     "sensor",
     "pubsub",
     "monitor"
-  ]
+  ],
+  "name": "Pubsub Monitor"
 }

@@ -35,7 +35,7 @@
       "description": "Name of the environment variable holding the lakeFS secret access key.",
       "required": false,
       "default": "LAKEFS_SECRET_ACCESS_KEY",
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "repository": {
       "type": "string",
@@ -211,5 +211,6 @@
     "analytics",
     "lakefs",
     "asset"
-  ]
+  ],
+  "name": "Lakefs Asset"
 }

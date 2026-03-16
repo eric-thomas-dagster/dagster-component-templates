@@ -15,5 +15,6 @@
     "step",
     "functions",
     "asset"
-  ]
+  ],
+  "name": "Step Functions Asset"
 }

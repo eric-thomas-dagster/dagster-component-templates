@@ -4,7 +4,9 @@
   "category": "resource",
   "icon": "si:shopify",
   "x-dagster-io": {},
-  "x-dagster-provides": ["shopify_resource"],
+  "x-dagster-provides": [
+    "shopify_resource"
+  ],
   "attributes": {
     "resource_key": {
       "type": "string",
@@ -24,7 +26,7 @@
       "label": "Access Token Env Var",
       "description": "Env var holding Shopify Admin API access token",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "api_version": {
       "type": "string",
@@ -34,5 +36,11 @@
       "default": "2024-01"
     }
   },
-  "tags": ["resource", "shopify", "ecommerce", "retail"]
+  "tags": [
+    "resource",
+    "shopify",
+    "ecommerce",
+    "retail"
+  ],
+  "name": "Shopify Resource"
 }

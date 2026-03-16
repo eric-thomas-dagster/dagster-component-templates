@@ -58,7 +58,7 @@
       "description": "Env var with password",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "warehouse": {
       "type": "string",
@@ -88,5 +88,6 @@
     "snowflake",
     "table",
     "sensor"
-  ]
+  ],
+  "name": "Snowflake Table Observation Sensor"
 }

@@ -74,7 +74,7 @@
       "description": "Env var containing Redshift password",
       "required": false,
       "default": "REDSHIFT_PASSWORD",
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "if_exists": {
       "type": "string",
@@ -194,5 +194,6 @@
     "sink",
     "dataframe",
     "redshift"
-  ]
+  ],
+  "name": "Dataframe To Redshift"
 }

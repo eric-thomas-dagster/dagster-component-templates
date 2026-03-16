@@ -60,5 +60,6 @@
     "external",
     "snowflake",
     "table"
-  ]
+  ],
+  "name": "External Snowflake Table"
 }

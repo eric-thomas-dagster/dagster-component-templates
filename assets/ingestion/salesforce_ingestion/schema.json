@@ -144,5 +144,6 @@
   "tags": [
     "ingestion",
     "salesforce"
-  ]
+  ],
+  "name": "Salesforce Ingestion"
 }

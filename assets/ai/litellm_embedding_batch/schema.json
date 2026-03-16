@@ -75,7 +75,7 @@
       "description": "Env var name for API key",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "group_name": {
       "type": "string",
@@ -191,5 +191,6 @@
     "vectors",
     "semantic-search",
     "nlp"
-  ]
+  ],
+  "name": "Litellm Embedding Batch"
 }

@@ -162,5 +162,6 @@
     "ingestion",
     "linkedin",
     "ads"
-  ]
+  ],
+  "name": "LinkedIn Ads Ingestion"
 }

@@ -59,7 +59,7 @@
       "description": "Environment variable name holding the API key",
       "required": false,
       "default": "OPENAI_API_KEY",
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "output_fields": {
       "type": "array",
@@ -190,5 +190,6 @@
     "extraction",
     "research",
     "academic"
-  ]
+  ],
+  "name": "Scientific Paper Extractor"
 }

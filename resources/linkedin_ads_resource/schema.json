@@ -4,7 +4,9 @@
   "category": "resource",
   "icon": "si:linkedin",
   "x-dagster-io": {},
-  "x-dagster-provides": ["linkedin_ads_resource"],
+  "x-dagster-provides": [
+    "linkedin_ads_resource"
+  ],
   "attributes": {
     "resource_key": {
       "type": "string",
@@ -18,7 +20,7 @@
       "label": "Access Token Env Var",
       "description": "Env var holding LinkedIn OAuth2 access token",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "ad_account_id": {
       "type": "string",
@@ -27,5 +29,11 @@
       "required": false
     }
   },
-  "tags": ["resource", "linkedin", "ads", "marketing"]
+  "tags": [
+    "resource",
+    "linkedin",
+    "ads",
+    "marketing"
+  ],
+  "name": "LinkedIn Ads Resource"
 }

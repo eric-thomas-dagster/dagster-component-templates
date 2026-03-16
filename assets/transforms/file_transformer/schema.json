@@ -238,5 +238,6 @@
     "transformation",
     "file",
     "transformer"
-  ]
+  ],
+  "name": "File Transformer"
 }

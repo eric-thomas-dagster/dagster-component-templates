@@ -200,5 +200,6 @@
     "logistic",
     "regression",
     "model"
-  ]
+  ],
+  "name": "Logistic Regression Model"
 }

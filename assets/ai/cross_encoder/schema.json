@@ -75,5 +75,6 @@
     "cross-encoder",
     "relevance-scoring",
     "sentence-transformers"
-  ]
+  ],
+  "name": "Cross Encoder"
 }

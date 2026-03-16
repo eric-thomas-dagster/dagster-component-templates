@@ -178,5 +178,6 @@
     "source",
     "database",
     "query"
-  ]
+  ],
+  "name": "Database Query"
 }

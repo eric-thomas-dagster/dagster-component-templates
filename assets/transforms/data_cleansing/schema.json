@@ -186,5 +186,6 @@
     "transformation",
     "data",
     "cleansing"
-  ]
+  ],
+  "name": "Data Cleansing"
 }

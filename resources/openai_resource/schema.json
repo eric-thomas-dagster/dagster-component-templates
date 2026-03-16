@@ -4,10 +4,31 @@
   "category": "resource",
   "icon": "si:openai",
   "x-dagster-io": {},
-  "x-dagster-provides": ["openai_resource"],
+  "x-dagster-provides": [
+    "openai_resource"
+  ],
   "attributes": {
-    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource. Other components reference it via resource_key.", "required": false, "default": "openai_resource"},
-    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "description": "Environment variable holding the OpenAI API key", "required": false, "default": "OPENAI_API_KEY", "ui:widget": "password"}
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "openai_resource"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Environment variable holding the OpenAI API key",
+      "required": false,
+      "default": "OPENAI_API_KEY",
+      "ui:widget": "env_var"
+    }
   },
-  "tags": ["resource", "openai", "llm", "ai"]
+  "tags": [
+    "resource",
+    "openai",
+    "llm",
+    "ai"
+  ],
+  "name": "OpenAI Resource"
 }

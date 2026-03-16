@@ -126,5 +126,6 @@
     "integration",
     "databricks",
     "workspace"
-  ]
+  ],
+  "name": "Databricks Workspace"
 }

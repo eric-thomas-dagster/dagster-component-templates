@@ -184,5 +184,6 @@
     "html",
     "parsing",
     "text-extraction"
-  ]
+  ],
+  "name": "Html Parser"
 }

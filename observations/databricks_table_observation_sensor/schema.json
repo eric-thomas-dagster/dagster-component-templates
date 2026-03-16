@@ -80,5 +80,6 @@
     "databricks",
     "table",
     "sensor"
-  ]
+  ],
+  "name": "Databricks Table Observation Sensor"
 }

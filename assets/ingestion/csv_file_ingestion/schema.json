@@ -163,5 +163,6 @@
     "ingestion",
     "csv",
     "file"
-  ]
+  ],
+  "name": "CSV File Ingestion"
 }

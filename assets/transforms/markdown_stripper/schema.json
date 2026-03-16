@@ -170,5 +170,6 @@
     "markdown",
     "text-processing",
     "plaintext"
-  ]
+  ],
+  "name": "Markdown Stripper"
 }

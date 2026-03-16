@@ -34,7 +34,7 @@
       "description": "Env var with Rivery API token",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "region": {
       "type": "string",
@@ -70,5 +70,6 @@
     "sensor",
     "rivery",
     "job"
-  ]
+  ],
+  "name": "Rivery Job Sensor"
 }

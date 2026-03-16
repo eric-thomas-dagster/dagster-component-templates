@@ -240,5 +240,6 @@
     "langchain",
     "chain",
     "asset"
-  ]
+  ],
+  "name": "Langchain Chain Asset"
 }

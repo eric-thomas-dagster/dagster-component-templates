@@ -42,5 +42,6 @@
     "ingestion",
     "support",
     "ticket"
-  ]
+  ],
+  "name": "Support Ticket Ingestion"
 }

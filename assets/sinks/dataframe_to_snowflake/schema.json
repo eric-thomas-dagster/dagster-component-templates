@@ -81,7 +81,7 @@
       "description": "Env var containing Snowflake password",
       "required": false,
       "default": "SNOWFLAKE_PASSWORD",
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "if_exists": {
       "type": "string",
@@ -201,5 +201,6 @@
     "sink",
     "dataframe",
     "snowflake"
-  ]
+  ],
+  "name": "Dataframe To Snowflake"
 }

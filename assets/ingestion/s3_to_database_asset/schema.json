@@ -152,5 +152,6 @@
     "ingestion",
     "database",
     "asset"
-  ]
+  ],
+  "name": "S3 To Database Asset"
 }

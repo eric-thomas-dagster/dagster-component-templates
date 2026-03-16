@@ -4,24 +4,35 @@
   "category": "resource",
   "icon": "si:dbt",
   "x-dagster-io": {},
-  "x-dagster-provides": ["dbt_cloud_resource"],
+  "x-dagster-provides": [
+    "dbt_cloud_resource"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Key used to register this resource. Other components reference it via resource_key.",
-      "required": false, "default": "dbt_cloud_resource"
+      "required": false,
+      "default": "dbt_cloud_resource"
     },
     "auth_token_env_var": {
-      "type": "string", "label": "Auth Token Env Var",
+      "type": "string",
+      "label": "Auth Token Env Var",
       "description": "Environment variable holding the dbt Cloud API token",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "account_id": {
-      "type": "integer", "label": "Account ID",
+      "type": "integer",
+      "label": "Account ID",
       "description": "dbt Cloud account ID (numeric)",
       "required": true
     }
   },
-  "tags": ["resource", "dbt", "analytics"]
+  "tags": [
+    "resource",
+    "dbt",
+    "analytics"
+  ],
+  "name": "dbt Cloud Resource"
 }

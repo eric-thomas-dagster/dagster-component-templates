@@ -55,5 +55,6 @@
     "external",
     "adls",
     "asset"
-  ]
+  ],
+  "name": "External Adls Asset"
 }

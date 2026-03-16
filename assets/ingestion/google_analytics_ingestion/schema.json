@@ -214,5 +214,6 @@
     "ingestion",
     "google",
     "analytics"
-  ]
+  ],
+  "name": "Google Analytics Ingestion"
 }

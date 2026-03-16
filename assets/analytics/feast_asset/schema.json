@@ -176,5 +176,6 @@
     "analytics",
     "feast",
     "asset"
-  ]
+  ],
+  "name": "Feast Asset"
 }

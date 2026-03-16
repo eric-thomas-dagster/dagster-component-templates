@@ -165,5 +165,6 @@
     "sink",
     "dataframe",
     "table"
-  ]
+  ],
+  "name": "Dataframe To Table"
 }

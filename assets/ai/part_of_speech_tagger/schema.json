@@ -175,5 +175,6 @@
     "part",
     "speech",
     "tagger"
-  ]
+  ],
+  "name": "Part Of Speech Tagger"
 }

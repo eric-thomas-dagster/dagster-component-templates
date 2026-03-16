@@ -197,5 +197,6 @@
     "decision",
     "tree",
     "model"
-  ]
+  ],
+  "name": "Decision Tree Model"
 }

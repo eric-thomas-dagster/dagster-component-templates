@@ -4,12 +4,45 @@
   "category": "resource",
   "icon": "si:apachespark",
   "x-dagster-io": {},
-  "x-dagster-provides": ["pyspark_resource"],
+  "x-dagster-provides": [
+    "pyspark_resource"
+  ],
   "attributes": {
-    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource. Other components reference it via resource_key.", "required": false, "default": "pyspark_resource"},
-    "master": {"type": "string", "label": "Master", "description": "Spark master URL, e.g. 'local[*]' or 'spark://host:7077'", "required": false, "default": null},
-    "app_name": {"type": "string", "label": "App Name", "description": "Spark application name", "required": false, "default": "dagster"},
-    "spark_config": {"type": "object", "label": "Spark Config", "description": "Spark configuration key-value pairs, e.g. {'spark.executor.memory': '4g'}", "required": false, "default": null, "ui:widget": "key-value"}
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "pyspark_resource"
+    },
+    "master": {
+      "type": "string",
+      "label": "Master",
+      "description": "Spark master URL, e.g. 'local[*]' or 'spark://host:7077'",
+      "required": false,
+      "default": null
+    },
+    "app_name": {
+      "type": "string",
+      "label": "App Name",
+      "description": "Spark application name",
+      "required": false,
+      "default": "dagster"
+    },
+    "spark_config": {
+      "type": "object",
+      "label": "Spark Config",
+      "description": "Spark configuration key-value pairs, e.g. {'spark.executor.memory': '4g'}",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    }
   },
-  "tags": ["resource", "spark", "pyspark", "big-data"]
+  "tags": [
+    "resource",
+    "spark",
+    "pyspark",
+    "big-data"
+  ],
+  "name": "PySpark Resource"
 }

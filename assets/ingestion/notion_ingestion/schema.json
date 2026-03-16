@@ -129,5 +129,6 @@
   "tags": [
     "ingestion",
     "notion"
-  ]
+  ],
+  "name": "Notion Ingestion"
 }

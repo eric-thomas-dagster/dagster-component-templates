@@ -174,7 +174,7 @@
       "description": "Environment variable name containing the API key",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     }
   },
   "tags": [
@@ -183,5 +183,6 @@
     "image-captioning",
     "llm",
     "multimodal"
-  ]
+  ],
+  "name": "Image Captioner"
 }

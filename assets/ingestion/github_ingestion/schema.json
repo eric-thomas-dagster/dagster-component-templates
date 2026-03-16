@@ -147,5 +147,6 @@
   "tags": [
     "ingestion",
     "github"
-  ]
+  ],
+  "name": "GitHub Ingestion"
 }

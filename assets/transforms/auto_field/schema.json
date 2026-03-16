@@ -188,5 +188,6 @@
     "transformation",
     "auto",
     "field"
-  ]
+  ],
+  "name": "Auto Field"
 }

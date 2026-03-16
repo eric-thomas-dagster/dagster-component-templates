@@ -212,5 +212,6 @@
     "event",
     "data",
     "standardizer"
-  ]
+  ],
+  "name": "Event Data Standardizer"
 }

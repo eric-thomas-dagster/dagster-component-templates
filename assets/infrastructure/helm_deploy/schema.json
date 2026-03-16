@@ -216,5 +216,6 @@
     "infrastructure",
     "helm",
     "deploy"
-  ]
+  ],
+  "name": "Helm Deploy"
 }

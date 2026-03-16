@@ -33,7 +33,7 @@
       "label": "Password Env Var",
       "description": "Env var with ServiceNow password",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "table": {
       "type": "string",
@@ -87,5 +87,6 @@
   "tags": [
     "sensor",
     "servicenow"
-  ]
+  ],
+  "name": "Servicenow Sensor"
 }

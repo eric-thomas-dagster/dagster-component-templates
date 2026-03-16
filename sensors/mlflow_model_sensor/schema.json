@@ -61,5 +61,6 @@
     "sensor",
     "mlflow",
     "model"
-  ]
+  ],
+  "name": "MLflow Model Sensor"
 }

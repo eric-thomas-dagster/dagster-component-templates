@@ -189,5 +189,6 @@
     "similarity",
     "embeddings",
     "tfidf"
-  ]
+  ],
+  "name": "Text Similarity"
 }

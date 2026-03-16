@@ -74,5 +74,6 @@
     "cloud",
     "run",
     "jobs"
-  ]
+  ],
+  "name": "Google Cloud Run Jobs"
 }

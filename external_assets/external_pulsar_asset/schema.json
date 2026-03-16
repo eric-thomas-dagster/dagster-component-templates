@@ -48,5 +48,6 @@
     "external",
     "pulsar",
     "asset"
-  ]
+  ],
+  "name": "External Pulsar Asset"
 }

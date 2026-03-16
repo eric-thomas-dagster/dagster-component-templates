@@ -27,7 +27,7 @@
       "label": "Auth Token Env Var",
       "description": "Auth Token Env Var",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "from_number": {
       "type": "string",
@@ -99,5 +99,6 @@
     "sensor",
     "twilio",
     "notification"
-  ]
+  ],
+  "name": "Twilio Notification"
 }

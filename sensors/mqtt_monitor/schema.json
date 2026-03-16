@@ -90,7 +90,7 @@
       "description": "Name of the environment variable containing the MQTT password",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "minimum_interval_seconds": {
       "type": "integer",
@@ -119,5 +119,6 @@
     "sensor",
     "mqtt",
     "monitor"
-  ]
+  ],
+  "name": "Mqtt Monitor"
 }

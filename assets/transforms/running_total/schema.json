@@ -184,5 +184,6 @@
     "transformation",
     "running",
     "total"
-  ]
+  ],
+  "name": "Running Total"
 }

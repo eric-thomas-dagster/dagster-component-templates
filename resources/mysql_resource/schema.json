@@ -4,7 +4,6 @@
     "mysql_resource"
   ],
   "category": "resource",
-  "title": "MySQLResourceComponent",
   "type": "object",
   "properties": {
     "resource_key": {
@@ -53,5 +52,6 @@
     "database",
     "sql"
   ],
-  "icon": "si:mysql"
+  "icon": "si:mysql",
+  "name": "MySQL Resource"
 }

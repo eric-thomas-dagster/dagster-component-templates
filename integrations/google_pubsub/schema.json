@@ -88,5 +88,6 @@
     "integration",
     "google",
     "pubsub"
-  ]
+  ],
+  "name": "Google Pubsub"
 }

@@ -194,5 +194,6 @@
     "source",
     "mongodb",
     "reader"
-  ]
+  ],
+  "name": "MongoDB Reader"
 }

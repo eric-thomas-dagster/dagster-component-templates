@@ -76,5 +76,6 @@
     "sensor",
     "sqs",
     "monitor"
-  ]
+  ],
+  "name": "Sqs Monitor"
 }

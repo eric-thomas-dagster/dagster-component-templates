@@ -185,5 +185,6 @@
     "privacy",
     "nlp",
     "presidio"
-  ]
+  ],
+  "name": "Pii Detector"
 }

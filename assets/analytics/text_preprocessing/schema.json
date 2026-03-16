@@ -222,5 +222,6 @@
     "analytics",
     "text",
     "preprocessing"
-  ]
+  ],
+  "name": "Text Preprocessing"
 }

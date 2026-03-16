@@ -210,5 +210,6 @@
     "analytics",
     "propensity",
     "scoring"
-  ]
+  ],
+  "name": "Propensity Scoring"
 }

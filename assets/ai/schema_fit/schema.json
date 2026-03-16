@@ -173,5 +173,6 @@
     "ai",
     "schema",
     "fit"
-  ]
+  ],
+  "name": "Schema Fit"
 }

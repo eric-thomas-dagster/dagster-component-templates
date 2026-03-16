@@ -165,5 +165,6 @@
     "transformation",
     "make",
     "columns"
-  ]
+  ],
+  "name": "Make Columns"
 }

@@ -170,5 +170,6 @@
     "transformation",
     "cross",
     "tab"
-  ]
+  ],
+  "name": "Cross Tab"
 }

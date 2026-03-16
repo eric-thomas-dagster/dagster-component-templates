@@ -118,5 +118,6 @@
     "integration",
     "google",
     "vertex"
-  ]
+  ],
+  "name": "Google Vertex AI"
 }

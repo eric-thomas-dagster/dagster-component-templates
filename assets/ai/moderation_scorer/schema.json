@@ -40,5 +40,6 @@
     "ai",
     "moderation",
     "scorer"
-  ]
+  ],
+  "name": "Moderation Scorer"
 }

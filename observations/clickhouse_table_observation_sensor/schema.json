@@ -61,7 +61,7 @@
       "description": "Env var with ClickHouse password",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "resource_key": {
       "type": "string",
@@ -91,5 +91,6 @@
     "clickhouse",
     "table",
     "sensor"
-  ]
+  ],
+  "name": "Clickhouse Table Observation Sensor"
 }

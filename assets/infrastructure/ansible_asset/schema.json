@@ -94,7 +94,7 @@
       "description": "Vault Password Env Var",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "ssh_private_key_env_var": {
       "type": "string",
@@ -216,5 +216,6 @@
     "infrastructure",
     "ansible",
     "asset"
-  ]
+  ],
+  "name": "Ansible Asset"
 }

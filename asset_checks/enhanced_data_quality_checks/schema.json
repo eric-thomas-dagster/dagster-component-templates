@@ -608,5 +608,6 @@
     "data",
     "quality",
     "checks"
-  ]
+  ],
+  "name": "Enhanced Data Quality Checks"
 }

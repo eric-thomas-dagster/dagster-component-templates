@@ -312,5 +312,6 @@
     "analytics",
     "priority",
     "scorer"
-  ]
+  ],
+  "name": "Priority Scorer"
 }

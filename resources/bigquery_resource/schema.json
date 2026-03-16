@@ -4,34 +4,50 @@
   "category": "resource",
   "icon": "si:googlebigquery",
   "x-dagster-io": {},
-  "x-dagster-provides": ["bigquery_resource"],
+  "x-dagster-provides": [
+    "bigquery_resource"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Key used to register this resource. Other components reference it via resource_key.",
-      "required": false, "default": "bigquery_resource"
+      "required": false,
+      "default": "bigquery_resource"
     },
     "project": {
-      "type": "string", "label": "Project",
+      "type": "string",
+      "label": "Project",
       "description": "GCP project ID",
       "required": true
     },
     "location": {
-      "type": "string", "label": "Location",
+      "type": "string",
+      "label": "Location",
       "description": "BigQuery location, e.g. 'US' or 'EU'",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     },
     "gcp_credentials_env_var": {
-      "type": "string", "label": "GCP Credentials Env Var",
+      "type": "string",
+      "label": "GCP Credentials Env Var",
       "description": "Env var containing GCP service account JSON string",
-      "required": false, "default": null,
-      "ui:widget": "password"
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
     },
     "dataset": {
-      "type": "string", "label": "Dataset",
+      "type": "string",
+      "label": "Dataset",
       "description": "Default dataset",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     }
   },
-  "tags": ["resource", "gcp", "bigquery"]
+  "tags": [
+    "resource",
+    "gcp",
+    "bigquery"
+  ],
+  "name": "BigQuery Resource"
 }

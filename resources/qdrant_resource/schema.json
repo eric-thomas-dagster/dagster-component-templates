@@ -4,13 +4,52 @@
   "category": "resource",
   "icon": "si:qdrant",
   "x-dagster-io": {},
-  "x-dagster-provides": ["qdrant_resource"],
+  "x-dagster-provides": [
+    "qdrant_resource"
+  ],
   "attributes": {
-    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource. Other components reference it via resource_key.", "required": false, "default": "qdrant_resource"},
-    "url": {"type": "string", "label": "URL", "description": "Qdrant URL, e.g. 'https://xyz.qdrant.io' or 'http://localhost:6333'", "required": false, "default": null},
-    "host": {"type": "string", "label": "Host", "description": "Qdrant host (alternative to url)", "required": false, "default": null},
-    "port": {"type": "integer", "label": "Port", "description": "Qdrant REST port", "required": false, "default": 6333},
-    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "description": "Environment variable holding the Qdrant API key (for Qdrant Cloud)", "required": false, "default": null, "ui:widget": "password"}
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "qdrant_resource"
+    },
+    "url": {
+      "type": "string",
+      "label": "URL",
+      "description": "Qdrant URL, e.g. 'https://xyz.qdrant.io' or 'http://localhost:6333'",
+      "required": false,
+      "default": null
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "description": "Qdrant host (alternative to url)",
+      "required": false,
+      "default": null
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "description": "Qdrant REST port",
+      "required": false,
+      "default": 6333
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Environment variable holding the Qdrant API key (for Qdrant Cloud)",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    }
   },
-  "tags": ["resource", "qdrant", "vector-db", "ai"]
+  "tags": [
+    "resource",
+    "qdrant",
+    "vector-db",
+    "ai"
+  ],
+  "name": "Qdrant Resource"
 }

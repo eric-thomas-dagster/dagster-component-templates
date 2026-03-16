@@ -4,40 +4,61 @@
   "category": "io_manager",
   "icon": "si:minio",
   "x-dagster-io": {},
-  "x-dagster-provides": ["io_manager"],
+  "x-dagster-provides": [
+    "io_manager"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
-      "required": false, "default": "io_manager"
+      "required": false,
+      "default": "io_manager"
     },
     "endpoint_url": {
-      "type": "string", "label": "Endpoint URL",
+      "type": "string",
+      "label": "Endpoint URL",
       "description": "MinIO endpoint URL, e.g. 'http://localhost:9000'",
-      "required": false, "default": "http://localhost:9000"
+      "required": false,
+      "default": "http://localhost:9000"
     },
     "access_key_env_var": {
-      "type": "string", "label": "Access Key Env Var",
+      "type": "string",
+      "label": "Access Key Env Var",
       "description": "Environment variable holding the MinIO access key",
-      "required": false, "default": "MINIO_ACCESS_KEY",
-      "ui:widget": "password"
+      "required": false,
+      "default": "MINIO_ACCESS_KEY",
+      "ui:widget": "env_var"
     },
     "secret_key_env_var": {
-      "type": "string", "label": "Secret Key Env Var",
+      "type": "string",
+      "label": "Secret Key Env Var",
       "description": "Environment variable holding the MinIO secret key",
-      "required": false, "default": "MINIO_SECRET_KEY",
-      "ui:widget": "password"
+      "required": false,
+      "default": "MINIO_SECRET_KEY",
+      "ui:widget": "env_var"
     },
     "bucket": {
-      "type": "string", "label": "Bucket",
+      "type": "string",
+      "label": "Bucket",
       "description": "S3/MinIO bucket to store Delta tables in",
-      "required": false, "default": "lake"
+      "required": false,
+      "default": "lake"
     },
     "prefix": {
-      "type": "string", "label": "Prefix",
+      "type": "string",
+      "label": "Prefix",
       "description": "Key prefix within the bucket for asset tables",
-      "required": false, "default": "assets"
+      "required": false,
+      "default": "assets"
     }
   },
-  "tags": ["io_manager", "minio", "delta-lake", "s3", "lakehouse"]
+  "tags": [
+    "io_manager",
+    "minio",
+    "delta-lake",
+    "s3",
+    "lakehouse"
+  ],
+  "name": "MinIO IO Manager"
 }

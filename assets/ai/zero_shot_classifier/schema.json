@@ -193,5 +193,6 @@
     "zero",
     "shot",
     "classifier"
-  ]
+  ],
+  "name": "Zero Shot Classifier"
 }

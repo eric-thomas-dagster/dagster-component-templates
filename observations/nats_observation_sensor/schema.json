@@ -61,5 +61,6 @@
     "observation",
     "nats",
     "sensor"
-  ]
+  ],
+  "name": "Nats Observation Sensor"
 }

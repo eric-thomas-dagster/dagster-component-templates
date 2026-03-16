@@ -227,5 +227,6 @@
     "multi",
     "touch",
     "attribution"
-  ]
+  ],
+  "name": "Multi Touch Attribution"
 }

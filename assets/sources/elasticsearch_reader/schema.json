@@ -203,5 +203,6 @@
     "source",
     "elasticsearch",
     "reader"
-  ]
+  ],
+  "name": "Elasticsearch Reader"
 }

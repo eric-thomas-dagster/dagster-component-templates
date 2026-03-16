@@ -4,44 +4,67 @@
   "category": "io_manager",
   "icon": "si:trino",
   "x-dagster-io": {},
-  "x-dagster-provides": ["io_manager"],
+  "x-dagster-provides": [
+    "io_manager"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
-      "required": false, "default": "io_manager"
+      "required": false,
+      "default": "io_manager"
     },
     "host": {
-      "type": "string", "label": "Host",
+      "type": "string",
+      "label": "Host",
       "description": "Trino coordinator host",
-      "required": false, "default": "localhost"
+      "required": false,
+      "default": "localhost"
     },
     "port": {
-      "type": "integer", "label": "Port",
+      "type": "integer",
+      "label": "Port",
       "description": "Trino coordinator port",
-      "required": false, "default": 8080
+      "required": false,
+      "default": 8080
     },
     "user": {
-      "type": "string", "label": "User",
+      "type": "string",
+      "label": "User",
       "description": "Trino user name",
-      "required": false, "default": "dagster"
+      "required": false,
+      "default": "dagster"
     },
     "catalog": {
-      "type": "string", "label": "Catalog",
+      "type": "string",
+      "label": "Catalog",
       "description": "Trino catalog, e.g. 'iceberg', 'hive', 'delta'",
-      "required": false, "default": "iceberg"
+      "required": false,
+      "default": "iceberg"
     },
     "schema_name": {
-      "type": "string", "label": "Schema Name",
+      "type": "string",
+      "label": "Schema Name",
       "description": "Default schema for asset tables",
-      "required": false, "default": "default"
+      "required": false,
+      "default": "default"
     },
     "password_env_var": {
-      "type": "string", "label": "Password Env Var",
+      "type": "string",
+      "label": "Password Env Var",
       "description": "Environment variable holding the Trino password",
-      "required": false, "default": null,
-      "ui:widget": "password"
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
     }
   },
-  "tags": ["io_manager", "trino", "sql", "lakehouse", "iceberg"]
+  "tags": [
+    "io_manager",
+    "trino",
+    "sql",
+    "lakehouse",
+    "iceberg"
+  ],
+  "name": "Trino IO Manager"
 }

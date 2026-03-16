@@ -177,5 +177,6 @@
     "source",
     "couchdb",
     "reader"
-  ]
+  ],
+  "name": "CouchDB Reader"
 }

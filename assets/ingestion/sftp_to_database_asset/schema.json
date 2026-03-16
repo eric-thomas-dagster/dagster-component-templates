@@ -34,7 +34,7 @@
       "description": "Env var with SFTP password",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "private_key_env_var": {
       "type": "string",
@@ -181,5 +181,6 @@
     "sftp",
     "database",
     "asset"
-  ]
+  ],
+  "name": "SFTP To Database Asset"
 }

@@ -62,5 +62,6 @@
     "databricks",
     "asset",
     "bundle"
-  ]
+  ],
+  "name": "Databricks Asset Bundle"
 }

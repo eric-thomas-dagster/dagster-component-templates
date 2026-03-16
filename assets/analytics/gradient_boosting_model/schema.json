@@ -204,5 +204,6 @@
     "gradient",
     "boosting",
     "model"
-  ]
+  ],
+  "name": "Gradient Boosting Model"
 }

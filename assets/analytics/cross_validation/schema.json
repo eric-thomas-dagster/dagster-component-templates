@@ -189,5 +189,6 @@
     "analytics",
     "cross",
     "validation"
-  ]
+  ],
+  "name": "Cross Validation"
 }

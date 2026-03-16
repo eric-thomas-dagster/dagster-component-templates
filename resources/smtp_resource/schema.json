@@ -39,7 +39,7 @@
       "label": "Password Env Var",
       "description": "Environment variable holding the SMTP password",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "use_tls": {
       "type": "boolean",
@@ -54,5 +54,6 @@
     "resource",
     "smtp",
     "email"
-  ]
+  ],
+  "name": "SMTP Resource"
 }

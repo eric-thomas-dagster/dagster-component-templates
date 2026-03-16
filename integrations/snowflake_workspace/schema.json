@@ -191,5 +191,6 @@
     "integration",
     "snowflake",
     "workspace"
-  ]
+  ],
+  "name": "Snowflake Workspace"
 }

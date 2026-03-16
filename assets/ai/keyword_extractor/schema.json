@@ -194,5 +194,6 @@
     "keywords",
     "tfidf",
     "text-mining"
-  ]
+  ],
+  "name": "Keyword Extractor"
 }

@@ -48,5 +48,6 @@
     "external",
     "kafka",
     "asset"
-  ]
+  ],
+  "name": "External Kafka Asset"
 }

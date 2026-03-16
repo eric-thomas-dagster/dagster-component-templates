@@ -161,5 +161,6 @@
     "json",
     "jsonpath",
     "extraction"
-  ]
+  ],
+  "name": "Json Path Extractor"
 }

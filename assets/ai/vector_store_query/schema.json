@@ -210,5 +210,6 @@
     "vector",
     "store",
     "query"
-  ]
+  ],
+  "name": "Vector Store Query"
 }

@@ -167,5 +167,6 @@
     "pdf",
     "text-extraction",
     "ocr"
-  ]
+  ],
+  "name": "Pdf Text Extractor"
 }

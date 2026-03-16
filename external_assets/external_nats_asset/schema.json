@@ -48,5 +48,6 @@
     "external",
     "nats",
     "asset"
-  ]
+  ],
+  "name": "External Nats Asset"
 }

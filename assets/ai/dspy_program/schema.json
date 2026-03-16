@@ -74,7 +74,7 @@
       "description": "Env var name for API key",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "group_name": {
       "type": "string",
@@ -190,5 +190,6 @@
     "prompt-optimization",
     "chain-of-thought",
     "nlp"
-  ]
+  ],
+  "name": "Dspy Program"
 }

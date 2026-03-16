@@ -209,5 +209,6 @@
     "document",
     "text",
     "extractor"
-  ]
+  ],
+  "name": "Document Text Extractor"
 }

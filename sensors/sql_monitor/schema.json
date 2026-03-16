@@ -81,5 +81,6 @@
     "sensor",
     "sql",
     "monitor"
-  ]
+  ],
+  "name": "SQL Monitor"
 }

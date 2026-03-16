@@ -60,5 +60,6 @@
     "check",
     "monte",
     "carlo"
-  ]
+  ],
+  "name": "Monte Carlo Check"
 }

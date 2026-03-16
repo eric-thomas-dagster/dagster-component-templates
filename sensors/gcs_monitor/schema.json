@@ -76,5 +76,6 @@
     "sensor",
     "gcs",
     "monitor"
-  ]
+  ],
+  "name": "GCS Monitor"
 }

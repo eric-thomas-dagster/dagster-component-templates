@@ -68,5 +68,6 @@
     "observation",
     "mqtt",
     "sensor"
-  ]
+  ],
+  "name": "Mqtt Observation Sensor"
 }

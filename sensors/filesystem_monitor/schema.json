@@ -62,5 +62,6 @@
     "sensor",
     "filesystem",
     "monitor"
-  ]
+  ],
+  "name": "Filesystem Monitor"
 }

@@ -143,5 +143,6 @@
   "tags": [
     "ingestion",
     "jira"
-  ]
+  ],
+  "name": "Jira Ingestion"
 }

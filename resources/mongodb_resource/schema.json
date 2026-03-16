@@ -4,7 +4,6 @@
     "mongodb_resource"
   ],
   "category": "resource",
-  "title": "MongoDBResourceComponent",
   "type": "object",
   "properties": {
     "resource_key": {
@@ -38,5 +37,6 @@
     "database",
     "nosql"
   ],
-  "icon": "si:mongodb"
+  "icon": "si:mongodb",
+  "name": "MongoDB Resource"
 }

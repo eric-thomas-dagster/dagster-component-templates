@@ -35,7 +35,7 @@
       "description": "Environment variable holding the Chroma API key",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "local_path": {
       "type": "string",
@@ -50,5 +50,6 @@
     "chroma",
     "vector-db",
     "ai"
-  ]
+  ],
+  "name": "Chroma Resource"
 }

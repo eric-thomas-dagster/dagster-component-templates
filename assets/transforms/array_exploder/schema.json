@@ -160,5 +160,6 @@
     "array",
     "explode",
     "unnest"
-  ]
+  ],
+  "name": "Array Exploder"
 }

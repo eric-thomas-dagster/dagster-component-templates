@@ -68,5 +68,6 @@
     "observation",
     "pulsar",
     "sensor"
-  ]
+  ],
+  "name": "Pulsar Observation Sensor"
 }

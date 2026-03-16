@@ -4,7 +4,9 @@
   "category": "resource",
   "icon": "si:stripe",
   "x-dagster-io": {},
-  "x-dagster-provides": ["stripe_resource"],
+  "x-dagster-provides": [
+    "stripe_resource"
+  ],
   "attributes": {
     "resource_key": {
       "type": "string",
@@ -18,8 +20,14 @@
       "label": "API Key Env Var",
       "description": "Env var holding Stripe secret key (sk_live_... or sk_test_...)",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     }
   },
-  "tags": ["resource", "stripe", "payments", "billing"]
+  "tags": [
+    "resource",
+    "stripe",
+    "payments",
+    "billing"
+  ],
+  "name": "Stripe Resource"
 }

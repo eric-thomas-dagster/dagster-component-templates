@@ -57,5 +57,6 @@
     "redis",
     "stream",
     "asset"
-  ]
+  ],
+  "name": "External Redis Stream Asset"
 }

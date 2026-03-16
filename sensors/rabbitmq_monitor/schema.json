@@ -61,7 +61,7 @@
       "description": "Name of the environment variable containing the RabbitMQ password",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "use_tls": {
       "type": "boolean",
@@ -105,5 +105,6 @@
     "sensor",
     "rabbitmq",
     "monitor"
-  ]
+  ],
+  "name": "Rabbitmq Monitor"
 }

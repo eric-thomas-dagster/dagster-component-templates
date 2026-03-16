@@ -40,7 +40,7 @@
       "description": "Environment variable holding the SSH password",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "private_key_env_var": {
       "type": "string",
@@ -48,7 +48,7 @@
       "description": "Environment variable holding the SSH private key PEM string",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "private_key_path": {
       "type": "string",
@@ -63,5 +63,6 @@
     "sftp",
     "ssh",
     "file-transfer"
-  ]
+  ],
+  "name": "SFTP Resource"
 }

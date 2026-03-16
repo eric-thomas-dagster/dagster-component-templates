@@ -4,49 +4,69 @@
   "category": "resource",
   "icon": "si:snowflake",
   "x-dagster-io": {},
-  "x-dagster-provides": ["snowflake_resource"],
+  "x-dagster-provides": [
+    "snowflake_resource"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Key used to register this resource. Other components reference it via resource_key.",
-      "required": false, "default": "snowflake_resource"
+      "required": false,
+      "default": "snowflake_resource"
     },
     "account": {
-      "type": "string", "label": "Account",
+      "type": "string",
+      "label": "Account",
       "description": "Snowflake account identifier, e.g. 'xy12345.us-east-1'",
       "required": true
     },
     "user": {
-      "type": "string", "label": "User",
+      "type": "string",
+      "label": "User",
       "description": "Snowflake username",
       "required": true
     },
     "password_env_var": {
-      "type": "string", "label": "Password Env Var",
+      "type": "string",
+      "label": "Password Env Var",
       "description": "Environment variable holding the Snowflake password",
       "required": true,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "database": {
-      "type": "string", "label": "Database",
+      "type": "string",
+      "label": "Database",
       "description": "Default database",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     },
     "warehouse": {
-      "type": "string", "label": "Warehouse",
+      "type": "string",
+      "label": "Warehouse",
       "description": "Default warehouse",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     },
     "role": {
-      "type": "string", "label": "Role",
+      "type": "string",
+      "label": "Role",
       "description": "Default role",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     },
     "schema_name": {
-      "type": "string", "label": "Schema Name",
+      "type": "string",
+      "label": "Schema Name",
       "description": "Default schema",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     }
   },
-  "tags": ["resource", "snowflake", "warehouse"]
+  "tags": [
+    "resource",
+    "snowflake",
+    "warehouse"
+  ],
+  "name": "Snowflake Resource"
 }

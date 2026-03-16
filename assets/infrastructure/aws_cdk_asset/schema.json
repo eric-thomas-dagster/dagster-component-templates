@@ -188,5 +188,6 @@
     "aws",
     "cdk",
     "asset"
-  ]
+  ],
+  "name": "AWS Cdk Asset"
 }

@@ -55,7 +55,7 @@
       "description": "Name of the environment variable containing the Redis password",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "use_tls": {
       "type": "boolean",
@@ -108,5 +108,6 @@
     "redis",
     "streams",
     "monitor"
-  ]
+  ],
+  "name": "Redis Streams Monitor"
 }

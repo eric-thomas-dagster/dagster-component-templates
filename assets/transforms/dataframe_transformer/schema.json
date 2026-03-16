@@ -278,5 +278,6 @@
     "transformation",
     "dataframe",
     "transformer"
-  ]
+  ],
+  "name": "Dataframe Transformer"
 }

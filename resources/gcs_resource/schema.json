@@ -4,24 +4,36 @@
   "category": "resource",
   "icon": "si:googlecloudstorage",
   "x-dagster-io": {},
-  "x-dagster-provides": ["gcs_resource"],
+  "x-dagster-provides": [
+    "gcs_resource"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Key used to register this resource. Other components reference it via resource_key.",
-      "required": false, "default": "gcs_resource"
+      "required": false,
+      "default": "gcs_resource"
     },
     "project": {
-      "type": "string", "label": "Project",
+      "type": "string",
+      "label": "Project",
       "description": "GCP project ID",
       "required": true
     },
     "gcp_credentials_env_var": {
-      "type": "string", "label": "GCP Credentials Env Var",
+      "type": "string",
+      "label": "GCP Credentials Env Var",
       "description": "Env var containing GCP service account JSON string",
-      "required": false, "default": null,
-      "ui:widget": "password"
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
     }
   },
-  "tags": ["resource", "gcp", "gcs"]
+  "tags": [
+    "resource",
+    "gcp",
+    "gcs"
+  ],
+  "name": "GCS Resource"
 }

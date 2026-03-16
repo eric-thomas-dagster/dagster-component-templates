@@ -204,5 +204,6 @@
     "random",
     "forest",
     "model"
-  ]
+  ],
+  "name": "Random Forest Model"
 }

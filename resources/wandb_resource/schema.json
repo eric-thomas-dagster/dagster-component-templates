@@ -4,12 +4,44 @@
   "category": "resource",
   "icon": "si:weightsandbiases",
   "x-dagster-io": {},
-  "x-dagster-provides": ["wandb_resource"],
+  "x-dagster-provides": [
+    "wandb_resource"
+  ],
   "attributes": {
-    "resource_key": {"type": "string", "label": "Resource Key", "description": "Key used to register this resource.", "required": false, "default": "wandb_resource"},
-    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "description": "Environment variable holding the W&B API key", "required": true, "ui:widget": "password"},
-    "entity": {"type": "string", "label": "Entity", "description": "W&B entity/team name", "required": false, "default": null},
-    "project": {"type": "string", "label": "Project", "description": "Default W&B project name", "required": false, "default": null}
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource.",
+      "required": false,
+      "default": "wandb_resource"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Environment variable holding the W&B API key",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "entity": {
+      "type": "string",
+      "label": "Entity",
+      "description": "W&B entity/team name",
+      "required": false,
+      "default": null
+    },
+    "project": {
+      "type": "string",
+      "label": "Project",
+      "description": "Default W&B project name",
+      "required": false,
+      "default": null
+    }
   },
-  "tags": ["resource", "wandb", "ml", "experiment-tracking"]
+  "tags": [
+    "resource",
+    "wandb",
+    "ml",
+    "experiment-tracking"
+  ],
+  "name": "Weights & Biases Resource"
 }

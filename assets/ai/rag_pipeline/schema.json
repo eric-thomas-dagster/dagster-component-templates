@@ -249,5 +249,6 @@
     "ai",
     "rag",
     "pipeline"
-  ]
+  ],
+  "name": "Rag Pipeline"
 }

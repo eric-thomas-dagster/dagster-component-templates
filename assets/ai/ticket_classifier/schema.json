@@ -314,5 +314,6 @@
     "ai",
     "ticket",
     "classifier"
-  ]
+  ],
+  "name": "Ticket Classifier"
 }

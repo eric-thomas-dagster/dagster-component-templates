@@ -178,5 +178,6 @@
     "analytics",
     "coordinate",
     "transformer"
-  ]
+  ],
+  "name": "Coordinate Transformer"
 }

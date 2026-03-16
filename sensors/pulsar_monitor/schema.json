@@ -97,5 +97,6 @@
     "sensor",
     "pulsar",
     "monitor"
-  ]
+  ],
+  "name": "Pulsar Monitor"
 }

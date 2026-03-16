@@ -186,5 +186,6 @@
     "image",
     "vision",
     "face-detection"
-  ]
+  ],
+  "name": "Face Detector"
 }

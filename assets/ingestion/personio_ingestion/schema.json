@@ -137,5 +137,6 @@
   "tags": [
     "ingestion",
     "personio"
-  ]
+  ],
+  "name": "Personio Ingestion"
 }

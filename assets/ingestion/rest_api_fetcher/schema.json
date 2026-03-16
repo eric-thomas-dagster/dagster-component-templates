@@ -201,5 +201,6 @@
     "rest",
     "api",
     "fetcher"
-  ]
+  ],
+  "name": "Rest API Fetcher"
 }

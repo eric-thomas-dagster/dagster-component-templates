@@ -42,5 +42,6 @@
   "tags": [
     "ingestion",
     "document"
-  ]
+  ],
+  "name": "Document Ingestion"
 }

@@ -185,5 +185,6 @@
   "tags": [
     "analytics",
     "pca"
-  ]
+  ],
+  "name": "Pca"
 }

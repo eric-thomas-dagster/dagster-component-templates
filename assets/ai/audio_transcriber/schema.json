@@ -182,5 +182,6 @@
     "speech-to-text",
     "whisper",
     "transcription"
-  ]
+  ],
+  "name": "Audio Transcriber"
 }

@@ -225,5 +225,6 @@
     "ollama",
     "inference",
     "asset"
-  ]
+  ],
+  "name": "Ollama Inference Asset"
 }

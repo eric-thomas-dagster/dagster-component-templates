@@ -4,41 +4,62 @@
   "category": "resource",
   "icon": "si:minio",
   "x-dagster-io": {},
-  "x-dagster-provides": ["minio_resource"],
+  "x-dagster-provides": [
+    "minio_resource"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Key used to register this resource. Other components reference it via resource_key.",
-      "required": false, "default": "minio_resource"
+      "required": false,
+      "default": "minio_resource"
     },
     "endpoint": {
-      "type": "string", "label": "Endpoint",
+      "type": "string",
+      "label": "Endpoint",
       "description": "MinIO server endpoint, e.g. 'localhost:9000' or 'minio.company.com:9000'",
-      "required": false, "default": "localhost:9000"
+      "required": false,
+      "default": "localhost:9000"
     },
     "access_key_env_var": {
-      "type": "string", "label": "Access Key Env Var",
+      "type": "string",
+      "label": "Access Key Env Var",
       "description": "Environment variable holding the MinIO access key",
-      "required": false, "default": "MINIO_ACCESS_KEY",
-      "ui:widget": "password"
+      "required": false,
+      "default": "MINIO_ACCESS_KEY",
+      "ui:widget": "env_var"
     },
     "secret_key_env_var": {
-      "type": "string", "label": "Secret Key Env Var",
+      "type": "string",
+      "label": "Secret Key Env Var",
       "description": "Environment variable holding the MinIO secret key",
-      "required": false, "default": "MINIO_SECRET_KEY",
-      "ui:widget": "password"
+      "required": false,
+      "default": "MINIO_SECRET_KEY",
+      "ui:widget": "env_var"
     },
     "secure": {
-      "type": "boolean", "label": "Secure",
+      "type": "boolean",
+      "label": "Secure",
       "description": "Use HTTPS (TLS) for the connection",
-      "required": false, "default": false,
+      "required": false,
+      "default": false,
       "ui:widget": "checkbox"
     },
     "default_bucket": {
-      "type": "string", "label": "Default Bucket",
+      "type": "string",
+      "label": "Default Bucket",
       "description": "Default bucket name for object storage operations",
-      "required": false, "default": "lake"
+      "required": false,
+      "default": "lake"
     }
   },
-  "tags": ["resource", "minio", "s3", "object-storage", "lakehouse"]
+  "tags": [
+    "resource",
+    "minio",
+    "s3",
+    "object-storage",
+    "lakehouse"
+  ],
+  "name": "MinIO Resource"
 }

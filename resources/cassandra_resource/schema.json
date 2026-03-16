@@ -4,7 +4,6 @@
     "cassandra_resource"
   ],
   "category": "resource",
-  "title": "CassandraResourceComponent",
   "type": "object",
   "properties": {
     "resource_key": {
@@ -52,5 +51,6 @@
     "database",
     "nosql"
   ],
-  "icon": "si:apachecassandra"
+  "icon": "si:apachecassandra",
+  "name": "Cassandra Resource"
 }

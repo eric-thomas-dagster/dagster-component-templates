@@ -206,5 +206,6 @@
     "analytics",
     "product",
     "usage"
-  ]
+  ],
+  "name": "Product Usage Analytics"
 }

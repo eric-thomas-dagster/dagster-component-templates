@@ -36,7 +36,7 @@
       "description": "Environment variable containing the Redis password",
       "required": false,
       "default": null,
-      "ui:widget": "password"
+      "ui:widget": "env_var"
     },
     "db": {
       "type": "integer",
@@ -188,5 +188,6 @@
     "source",
     "redis",
     "reader"
-  ]
+  ],
+  "name": "Redis Reader"
 }

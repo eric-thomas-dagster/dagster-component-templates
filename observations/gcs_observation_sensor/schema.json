@@ -62,5 +62,6 @@
     "observation",
     "gcs",
     "sensor"
-  ]
+  ],
+  "name": "GCS Observation Sensor"
 }

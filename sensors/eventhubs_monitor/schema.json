@@ -83,5 +83,6 @@
     "sensor",
     "eventhubs",
     "monitor"
-  ]
+  ],
+  "name": "Eventhubs Monitor"
 }

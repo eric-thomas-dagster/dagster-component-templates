@@ -204,5 +204,6 @@
     "ingestion",
     "google",
     "ads"
-  ]
+  ],
+  "name": "Google Ads Ingestion"
 }

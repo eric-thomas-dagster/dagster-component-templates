@@ -90,5 +90,6 @@
     "standardization",
     "usps",
     "normalization"
-  ]
+  ],
+  "name": "Address Standardizer"
 }

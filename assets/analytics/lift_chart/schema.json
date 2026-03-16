@@ -157,5 +157,6 @@
     "analytics",
     "lift",
     "chart"
-  ]
+  ],
+  "name": "Lift Chart"
 }

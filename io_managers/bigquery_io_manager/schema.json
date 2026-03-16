@@ -4,39 +4,58 @@
   "category": "io_manager",
   "icon": "si:googlebigquery",
   "x-dagster-io": {},
-  "x-dagster-provides": ["io_manager"],
+  "x-dagster-provides": [
+    "io_manager"
+  ],
   "attributes": {
     "resource_key": {
-      "type": "string", "label": "Resource Key",
+      "type": "string",
+      "label": "Resource Key",
       "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
-      "required": false, "default": "io_manager"
+      "required": false,
+      "default": "io_manager"
     },
     "project": {
-      "type": "string", "label": "Project",
+      "type": "string",
+      "label": "Project",
       "description": "GCP project ID",
       "required": true
     },
     "dataset": {
-      "type": "string", "label": "Dataset",
+      "type": "string",
+      "label": "Dataset",
       "description": "BigQuery dataset to store assets in",
       "required": true
     },
     "location": {
-      "type": "string", "label": "Location",
+      "type": "string",
+      "label": "Location",
       "description": "GCP region, e.g. 'US', 'EU', 'us-central1'",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     },
     "gcp_credentials_env_var": {
-      "type": "string", "label": "GCP Credentials Env Var",
+      "type": "string",
+      "label": "GCP Credentials Env Var",
       "description": "Environment variable holding a JSON service account key (optional; uses ADC if not set)",
-      "required": false, "default": null,
-      "ui:widget": "password"
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
     },
     "temporary_gcs_bucket": {
-      "type": "string", "label": "Temporary GCS Bucket",
+      "type": "string",
+      "label": "Temporary GCS Bucket",
       "description": "GCS bucket for temporary files during load jobs",
-      "required": false, "default": null
+      "required": false,
+      "default": null
     }
   },
-  "tags": ["io_manager", "bigquery", "gcp", "google", "warehouse"]
+  "tags": [
+    "io_manager",
+    "bigquery",
+    "gcp",
+    "google",
+    "warehouse"
+  ],
+  "name": "BigQuery IO Manager"
 }

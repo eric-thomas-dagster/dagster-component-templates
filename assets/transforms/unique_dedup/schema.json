@@ -170,5 +170,6 @@
     "transformation",
     "unique",
     "dedup"
-  ]
+  ],
+  "name": "Unique Dedup"
 }

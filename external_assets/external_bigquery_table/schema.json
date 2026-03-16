@@ -54,5 +54,6 @@
     "external",
     "bigquery",
     "table"
-  ]
+  ],
+  "name": "External BigQuery Table"
 }

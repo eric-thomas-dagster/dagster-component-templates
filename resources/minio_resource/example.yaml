@@ -1,0 +1,8 @@
+type: dagster_component_templates.MinIOResourceComponent
+attributes:
+  resource_key: minio_resource
+  endpoint: localhost:9000
+  access_key_env_var: MINIO_ACCESS_KEY
+  secret_key_env_var: MINIO_SECRET_KEY
+  secure: false
+  default_bucket: lake

@@ -1,0 +1,7 @@
+type: dagster_component_templates.AthenaIOManagerComponent
+attributes:
+  resource_key: io_manager
+  database: dagster_db
+  s3_staging_dir: s3://my-bucket/athena-results/
+  s3_output_location: s3://my-bucket/assets/
+  region_name: us-east-1

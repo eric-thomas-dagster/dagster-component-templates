@@ -1,0 +1,43 @@
+{
+  "component_type": "dagster_component_templates.LanceIOManagerComponent",
+  "description": "Register a LanceDB IO manager for ML-optimised columnar storage ideal for embeddings and vector data",
+  "category": "io_manager",
+  "icon": "si:pytorch",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["io_manager"],
+  "attributes": {
+    "resource_key": {
+      "type": "string", "label": "Resource Key",
+      "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
+      "required": false, "default": "io_manager"
+    },
+    "base_path": {
+      "type": "string", "label": "Base Path",
+      "description": "Directory (or S3/GCS URI) where LanceDB tables are stored, e.g. '/data/lance' or 's3://my-bucket/lance'",
+      "required": false, "default": "./lance_data"
+    },
+    "table_name_prefix": {
+      "type": "string", "label": "Table Name Prefix",
+      "description": "Optional prefix prepended to every table name, e.g. 'prod_'",
+      "required": false, "default": null
+    },
+    "s3_access_key_env_var": {
+      "type": "string", "label": "S3 Access Key Env Var",
+      "description": "Environment variable for AWS access key when using S3-based storage",
+      "required": false, "default": null,
+      "ui:widget": "password"
+    },
+    "s3_secret_key_env_var": {
+      "type": "string", "label": "S3 Secret Key Env Var",
+      "description": "Environment variable for AWS secret key when using S3-based storage",
+      "required": false, "default": null,
+      "ui:widget": "password"
+    },
+    "s3_endpoint_url": {
+      "type": "string", "label": "S3 Endpoint URL",
+      "description": "Custom S3 endpoint URL, e.g. 'http://localhost:9000' for MinIO",
+      "required": false, "default": null
+    }
+  },
+  "tags": ["io_manager", "lance", "lancedb", "vector", "embeddings", "ml"]
+}

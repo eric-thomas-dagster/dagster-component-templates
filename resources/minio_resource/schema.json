@@ -1,0 +1,44 @@
+{
+  "component_type": "dagster_component_templates.MinIOResourceComponent",
+  "description": "Register a MinIO S3-compatible object storage resource for use by other components",
+  "category": "resource",
+  "icon": "si:minio",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["minio_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string", "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false, "default": "minio_resource"
+    },
+    "endpoint": {
+      "type": "string", "label": "Endpoint",
+      "description": "MinIO server endpoint, e.g. 'localhost:9000' or 'minio.company.com:9000'",
+      "required": false, "default": "localhost:9000"
+    },
+    "access_key_env_var": {
+      "type": "string", "label": "Access Key Env Var",
+      "description": "Environment variable holding the MinIO access key",
+      "required": false, "default": "MINIO_ACCESS_KEY",
+      "ui:widget": "password"
+    },
+    "secret_key_env_var": {
+      "type": "string", "label": "Secret Key Env Var",
+      "description": "Environment variable holding the MinIO secret key",
+      "required": false, "default": "MINIO_SECRET_KEY",
+      "ui:widget": "password"
+    },
+    "secure": {
+      "type": "boolean", "label": "Secure",
+      "description": "Use HTTPS (TLS) for the connection",
+      "required": false, "default": false,
+      "ui:widget": "checkbox"
+    },
+    "default_bucket": {
+      "type": "string", "label": "Default Bucket",
+      "description": "Default bucket name for object storage operations",
+      "required": false, "default": "lake"
+    }
+  },
+  "tags": ["resource", "minio", "s3", "object-storage", "lakehouse"]
+}

@@ -1,0 +1,43 @@
+{
+  "component_type": "dagster_component_templates.MinIOIOManagerComponent",
+  "description": "Register a Delta Lake IO manager pointed at MinIO for S3-compatible lakehouse storage",
+  "category": "io_manager",
+  "icon": "si:minio",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["io_manager"],
+  "attributes": {
+    "resource_key": {
+      "type": "string", "label": "Resource Key",
+      "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
+      "required": false, "default": "io_manager"
+    },
+    "endpoint_url": {
+      "type": "string", "label": "Endpoint URL",
+      "description": "MinIO endpoint URL, e.g. 'http://localhost:9000'",
+      "required": false, "default": "http://localhost:9000"
+    },
+    "access_key_env_var": {
+      "type": "string", "label": "Access Key Env Var",
+      "description": "Environment variable holding the MinIO access key",
+      "required": false, "default": "MINIO_ACCESS_KEY",
+      "ui:widget": "password"
+    },
+    "secret_key_env_var": {
+      "type": "string", "label": "Secret Key Env Var",
+      "description": "Environment variable holding the MinIO secret key",
+      "required": false, "default": "MINIO_SECRET_KEY",
+      "ui:widget": "password"
+    },
+    "bucket": {
+      "type": "string", "label": "Bucket",
+      "description": "S3/MinIO bucket to store Delta tables in",
+      "required": false, "default": "lake"
+    },
+    "prefix": {
+      "type": "string", "label": "Prefix",
+      "description": "Key prefix within the bucket for asset tables",
+      "required": false, "default": "assets"
+    }
+  },
+  "tags": ["io_manager", "minio", "delta-lake", "s3", "lakehouse"]
+}

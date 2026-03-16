@@ -9812,6 +9812,285 @@
       "x-dagster-provides": [
         "zendesk_resource"
       ]
+    },
+    {
+      "id": "minio_resource",
+      "name": "MinIO Resource",
+      "category": "resource",
+      "description": "Register a MinIO S3-compatible object storage resource for use by other components",
+      "version": "0.1.0",
+      "author": "Dagster Labs",
+      "path": "resources/minio_resource",
+      "tags": [
+        "resource",
+        "minio",
+        "s3",
+        "object-storage",
+        "lakehouse"
+      ],
+      "dependencies": {
+        "pip": [
+          "minio>=7.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/minio_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/minio_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/minio_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/minio_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/minio_resource/requirements.txt",
+      "icon": "si:minio",
+      "x-dagster-provides": [
+        "minio_resource"
+      ]
+    },
+    {
+      "id": "trino_resource",
+      "name": "Trino Resource",
+      "category": "resource",
+      "description": "Register a Trino distributed SQL query engine resource for use by other components",
+      "version": "0.1.0",
+      "author": "Dagster Labs",
+      "path": "resources/trino_resource",
+      "tags": [
+        "resource",
+        "trino",
+        "sql",
+        "lakehouse",
+        "iceberg"
+      ],
+      "dependencies": {
+        "pip": [
+          "trino>=0.320.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/trino_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/trino_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/trino_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/trino_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/trino_resource/requirements.txt",
+      "icon": "si:trino",
+      "x-dagster-provides": [
+        "trino_resource"
+      ]
+    },
+    {
+      "id": "bigquery_io_manager",
+      "name": "BigQuery IO Manager",
+      "category": "io_manager",
+      "description": "Register a BigQueryPandasIOManager so assets are automatically stored in and loaded from BigQuery",
+      "version": "0.1.0",
+      "author": "Dagster Labs",
+      "path": "io_managers/bigquery_io_manager",
+      "tags": [
+        "io_manager",
+        "bigquery",
+        "gcp",
+        "google",
+        "warehouse"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster-gcp-pandas>=0.22.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/bigquery_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/bigquery_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/bigquery_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/bigquery_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/bigquery_io_manager/requirements.txt",
+      "icon": "si:googlebigquery",
+      "x-dagster-provides": [
+        "io_manager"
+      ]
+    },
+    {
+      "id": "redshift_io_manager",
+      "name": "Redshift IO Manager",
+      "category": "io_manager",
+      "description": "Register a Redshift IO manager so assets are automatically stored in and loaded from Amazon Redshift",
+      "version": "0.1.0",
+      "author": "Dagster Labs",
+      "path": "io_managers/redshift_io_manager",
+      "tags": [
+        "io_manager",
+        "redshift",
+        "aws",
+        "warehouse"
+      ],
+      "dependencies": {
+        "pip": [
+          "psycopg2-binary>=2.9.0",
+          "sqlalchemy>=2.0.0",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/redshift_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/redshift_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/redshift_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/redshift_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/redshift_io_manager/requirements.txt",
+      "icon": "si:amazonredshift",
+      "x-dagster-provides": [
+        "io_manager"
+      ]
+    },
+    {
+      "id": "athena_io_manager",
+      "name": "Athena IO Manager",
+      "category": "io_manager",
+      "description": "Register an Athena IO manager that stores assets as Parquet on S3 and queries them via Amazon Athena",
+      "version": "0.1.0",
+      "author": "Dagster Labs",
+      "path": "io_managers/athena_io_manager",
+      "tags": [
+        "io_manager",
+        "athena",
+        "aws",
+        "s3",
+        "parquet"
+      ],
+      "dependencies": {
+        "pip": [
+          "awswrangler>=3.0.0",
+          "boto3>=1.26.0",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/athena_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/athena_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/athena_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/athena_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/athena_io_manager/requirements.txt",
+      "icon": "si:amazonwebservices",
+      "x-dagster-provides": [
+        "io_manager"
+      ]
+    },
+    {
+      "id": "motherduck_io_manager",
+      "name": "MotherDuck IO Manager",
+      "category": "io_manager",
+      "description": "Register a DuckDB IO manager connected to MotherDuck serverless DuckDB cloud for asset storage",
+      "version": "0.1.0",
+      "author": "Dagster Labs",
+      "path": "io_managers/motherduck_io_manager",
+      "tags": [
+        "io_manager",
+        "motherduck",
+        "duckdb",
+        "serverless",
+        "analytics"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster-duckdb-pandas>=0.22.0",
+          "duckdb>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/motherduck_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/motherduck_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/motherduck_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/motherduck_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/motherduck_io_manager/requirements.txt",
+      "icon": "si:duckdb",
+      "x-dagster-provides": [
+        "io_manager"
+      ]
+    },
+    {
+      "id": "minio_io_manager",
+      "name": "MinIO IO Manager",
+      "category": "io_manager",
+      "description": "Register a Delta Lake IO manager pointed at MinIO for S3-compatible lakehouse storage",
+      "version": "0.1.0",
+      "author": "Dagster Labs",
+      "path": "io_managers/minio_io_manager",
+      "tags": [
+        "io_manager",
+        "minio",
+        "delta-lake",
+        "s3",
+        "lakehouse"
+      ],
+      "dependencies": {
+        "pip": [
+          "deltalake>=0.15.0",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/minio_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/minio_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/minio_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/minio_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/minio_io_manager/requirements.txt",
+      "icon": "si:minio",
+      "x-dagster-provides": [
+        "io_manager"
+      ]
+    },
+    {
+      "id": "trino_io_manager",
+      "name": "Trino IO Manager",
+      "category": "io_manager",
+      "description": "Register a Trino IO manager that reads and writes Pandas DataFrames via Trino SQL",
+      "version": "0.1.0",
+      "author": "Dagster Labs",
+      "path": "io_managers/trino_io_manager",
+      "tags": [
+        "io_manager",
+        "trino",
+        "sql",
+        "lakehouse",
+        "iceberg"
+      ],
+      "dependencies": {
+        "pip": [
+          "trino>=0.320.0",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/trino_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/trino_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/trino_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/trino_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/trino_io_manager/requirements.txt",
+      "icon": "si:trino",
+      "x-dagster-provides": [
+        "io_manager"
+      ]
+    },
+    {
+      "id": "lance_io_manager",
+      "name": "Lance IO Manager",
+      "category": "io_manager",
+      "description": "Register a LanceDB IO manager for ML-optimised columnar storage ideal for embeddings and vector data",
+      "version": "0.1.0",
+      "author": "Dagster Labs",
+      "path": "io_managers/lance_io_manager",
+      "tags": [
+        "io_manager",
+        "lance",
+        "lancedb",
+        "vector",
+        "embeddings",
+        "ml"
+      ],
+      "dependencies": {
+        "pip": [
+          "lancedb>=0.5.0",
+          "pandas>=1.5.0",
+          "pyarrow>=12.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/lance_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/lance_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/lance_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/lance_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/lance_io_manager/requirements.txt",
+      "icon": "si:pytorch",
+      "x-dagster-provides": [
+        "io_manager"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/schema-spec.json",

@@ -1,0 +1,47 @@
+{
+  "component_type": "dagster_component_templates.TrinoResourceComponent",
+  "description": "Register a Trino distributed SQL query engine resource for use by other components",
+  "category": "resource",
+  "icon": "si:trino",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["trino_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string", "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false, "default": "trino_resource"
+    },
+    "host": {
+      "type": "string", "label": "Host",
+      "description": "Trino coordinator host",
+      "required": false, "default": "localhost"
+    },
+    "port": {
+      "type": "integer", "label": "Port",
+      "description": "Trino coordinator port",
+      "required": false, "default": 8080
+    },
+    "user": {
+      "type": "string", "label": "User",
+      "description": "Trino user name",
+      "required": false, "default": "dagster"
+    },
+    "catalog": {
+      "type": "string", "label": "Catalog",
+      "description": "Default catalog, e.g. 'iceberg', 'hive', 'delta'",
+      "required": false, "default": "iceberg"
+    },
+    "schema_name": {
+      "type": "string", "label": "Schema Name",
+      "description": "Default schema within the catalog",
+      "required": false, "default": null
+    },
+    "password_env_var": {
+      "type": "string", "label": "Password Env Var",
+      "description": "Environment variable holding the Trino password (for basic auth)",
+      "required": false, "default": null,
+      "ui:widget": "password"
+    }
+  },
+  "tags": ["resource", "trino", "sql", "lakehouse", "iceberg"]
+}

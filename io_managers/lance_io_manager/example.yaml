@@ -1,0 +1,5 @@
+type: dagster_component_templates.LanceIOManagerComponent
+attributes:
+  resource_key: io_manager
+  base_path: ./lance_data
+  table_name_prefix: prod_

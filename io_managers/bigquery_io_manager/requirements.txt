@@ -1,0 +1,1 @@
+dagster-gcp-pandas>=0.22.0

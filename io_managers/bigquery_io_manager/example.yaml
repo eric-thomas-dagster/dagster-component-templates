@@ -1,0 +1,6 @@
+type: dagster_component_templates.BigQueryIOManagerComponent
+attributes:
+  resource_key: io_manager
+  project: my-gcp-project
+  dataset: dagster_assets
+  location: US

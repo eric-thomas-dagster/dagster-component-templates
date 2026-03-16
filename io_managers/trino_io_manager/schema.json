@@ -1,0 +1,47 @@
+{
+  "component_type": "dagster_component_templates.TrinoIOManagerComponent",
+  "description": "Register a Trino IO manager that reads and writes Pandas DataFrames via Trino SQL",
+  "category": "io_manager",
+  "icon": "si:trino",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["io_manager"],
+  "attributes": {
+    "resource_key": {
+      "type": "string", "label": "Resource Key",
+      "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
+      "required": false, "default": "io_manager"
+    },
+    "host": {
+      "type": "string", "label": "Host",
+      "description": "Trino coordinator host",
+      "required": false, "default": "localhost"
+    },
+    "port": {
+      "type": "integer", "label": "Port",
+      "description": "Trino coordinator port",
+      "required": false, "default": 8080
+    },
+    "user": {
+      "type": "string", "label": "User",
+      "description": "Trino user name",
+      "required": false, "default": "dagster"
+    },
+    "catalog": {
+      "type": "string", "label": "Catalog",
+      "description": "Trino catalog, e.g. 'iceberg', 'hive', 'delta'",
+      "required": false, "default": "iceberg"
+    },
+    "schema_name": {
+      "type": "string", "label": "Schema Name",
+      "description": "Default schema for asset tables",
+      "required": false, "default": "default"
+    },
+    "password_env_var": {
+      "type": "string", "label": "Password Env Var",
+      "description": "Environment variable holding the Trino password",
+      "required": false, "default": null,
+      "ui:widget": "password"
+    }
+  },
+  "tags": ["io_manager", "trino", "sql", "lakehouse", "iceberg"]
+}

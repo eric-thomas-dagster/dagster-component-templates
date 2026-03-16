@@ -1,0 +1,43 @@
+{
+  "component_type": "dagster_component_templates.SMTPResourceComponent",
+  "description": "Register an SMTP resource for sending emails from other components",
+  "category": "resource",
+  "icon": "Mail",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["smtp_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string", "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false, "default": "smtp_resource"
+    },
+    "host": {
+      "type": "string", "label": "Host",
+      "description": "SMTP server host, e.g. 'smtp.gmail.com'",
+      "required": true
+    },
+    "port": {
+      "type": "integer", "label": "Port",
+      "description": "SMTP port (587 for STARTTLS, 465 for SSL, 25 for plain)",
+      "required": false, "default": 587
+    },
+    "username": {
+      "type": "string", "label": "Username",
+      "description": "SMTP username / sender email address",
+      "required": true
+    },
+    "password_env_var": {
+      "type": "string", "label": "Password Env Var",
+      "description": "Environment variable holding the SMTP password",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "use_tls": {
+      "type": "boolean", "label": "Use TLS",
+      "description": "Enable STARTTLS encryption",
+      "required": false, "default": true,
+      "ui:widget": "checkbox"
+    }
+  },
+  "tags": ["resource", "smtp", "email"]
+}

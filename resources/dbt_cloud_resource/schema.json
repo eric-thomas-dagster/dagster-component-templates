@@ -1,0 +1,27 @@
+{
+  "component_type": "dagster_component_templates.DbtCloudResourceComponent",
+  "description": "Register a dagster-dbt DbtCloudClientResource for use by other components",
+  "category": "resource",
+  "icon": "si:dbt",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["dbt_cloud_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string", "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false, "default": "dbt_cloud_resource"
+    },
+    "auth_token_env_var": {
+      "type": "string", "label": "Auth Token Env Var",
+      "description": "Environment variable holding the dbt Cloud API token",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "account_id": {
+      "type": "integer", "label": "Account ID",
+      "description": "dbt Cloud account ID (numeric)",
+      "required": true
+    }
+  },
+  "tags": ["resource", "dbt", "analytics"]
+}

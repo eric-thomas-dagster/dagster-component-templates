@@ -1,0 +1,22 @@
+{
+  "component_type": "dagster_component_templates.SlackResourceComponent",
+  "description": "Register a dagster-slack SlackResource for use by other components",
+  "category": "resource",
+  "icon": "si:slack",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["slack_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string", "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false, "default": "slack_resource"
+    },
+    "token_env_var": {
+      "type": "string", "label": "Token Env Var",
+      "description": "Environment variable holding the Slack bot token (xoxb-...)",
+      "required": true,
+      "ui:widget": "password"
+    }
+  },
+  "tags": ["resource", "slack", "notification"]
+}

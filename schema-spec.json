@@ -79,6 +79,17 @@
             "rows"
           ]
         ]
+      },
+      "x-dagster-provides": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Resource keys this component will register in Definitions.resources when configured. Enables the designer to: (1) populate resource-picker dropdowns from project components, (2) validate that resource_key references have a provider, (3) render resource dependency edges in the pipeline graph.",
+        "example": [
+          "s3_resource",
+          "snowflake_resource"
+        ]
       }
     }
   },
@@ -334,7 +345,11 @@
     "external": {},
     "observation": {},
     "check": {},
-    "integration": {}
+    "integration": {},
+    "resource": {
+      "description": "Resource-providing components register a Dagster resource, no asset I/O",
+      "x-dagster-io": {}
+    }
   },
   "icons": {
     "description": "Icon name for this component. Two icon sets are supported: Lucide (default, geometric UI icons) and Simple Icons (brand/technology logos). Prefix Simple Icons with \"si:\" \u2014 e.g. \"si:snowflake\", \"si:mongodb\", \"si:postgresql\". Lucide icons use no prefix \u2014 e.g. \"Database\", \"Filter\", \"BarChart2\". Browse Lucide at lucide.dev and Simple Icons at simpleicons.org.",
@@ -596,6 +611,32 @@
         "right": false,
         "note": "Platform integration, no data ports"
       }
+    }
+  },
+  "resourceProviderContract": {
+    "description": "Contract governing how resource-providing components declare and how the designer consumes them.",
+    "schemaField": "x-dagster-provides",
+    "type": "array of resource key strings",
+    "example": {
+      "x-dagster-provides": [
+        "s3_resource"
+      ]
+    },
+    "designerBehavior": {
+      "resourcePickerPopulation": "resource-picker dropdowns aggregate from two sources: (1) existing resources returned by GET /api/resources (defined in user code), (2) x-dagster-provides values from all components currently placed in the project canvas",
+      "graphEdges": "If component A declares x-dagster-provides: ['my_resource'] and component B has resource_key: 'my_resource', draw a dependency edge A \u2192 B in the resource graph view",
+      "validation": "If a component's resource_key value does not match any x-dagster-provides in the project AND does not appear in GET /api/resources, show a warning: 'Resource my_resource is not defined. Add a resource component or define it in code.'",
+      "resourceTab": "The Resources tab lists all resources from both sources: code-defined (from API) and component-provided (from x-dagster-provides on canvas). Component-provided resources show 'via <ComponentName>' and link to that component's config."
+    },
+    "codeContract": {
+      "description": "Resource-providing components return Definitions(resources={key: resource_instance})",
+      "example": {
+        "build_defs": "return dg.Definitions(resources={'s3_resource': S3Resource(region='us-east-1')})",
+        "resourceKey": "Must exactly match the string declared in x-dagster-provides"
+      }
+    },
+    "categories": {
+      "resource": "All components in the resources/ top-level directory are resource-providing by convention"
     }
   }
 }

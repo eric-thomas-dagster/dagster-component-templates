@@ -1,0 +1,52 @@
+{
+  "component_type": "dagster_component_templates.SnowflakeResourceComponent",
+  "description": "Register a dagster-snowflake SnowflakeResource for use by other components",
+  "category": "resource",
+  "icon": "si:snowflake",
+  "x-dagster-io": {},
+  "x-dagster-provides": ["snowflake_resource"],
+  "attributes": {
+    "resource_key": {
+      "type": "string", "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false, "default": "snowflake_resource"
+    },
+    "account": {
+      "type": "string", "label": "Account",
+      "description": "Snowflake account identifier, e.g. 'xy12345.us-east-1'",
+      "required": true
+    },
+    "user": {
+      "type": "string", "label": "User",
+      "description": "Snowflake username",
+      "required": true
+    },
+    "password_env_var": {
+      "type": "string", "label": "Password Env Var",
+      "description": "Environment variable holding the Snowflake password",
+      "required": true,
+      "ui:widget": "password"
+    },
+    "database": {
+      "type": "string", "label": "Database",
+      "description": "Default database",
+      "required": false, "default": null
+    },
+    "warehouse": {
+      "type": "string", "label": "Warehouse",
+      "description": "Default warehouse",
+      "required": false, "default": null
+    },
+    "role": {
+      "type": "string", "label": "Role",
+      "description": "Default role",
+      "required": false, "default": null
+    },
+    "schema_name": {
+      "type": "string", "label": "Schema Name",
+      "description": "Default schema",
+      "required": false, "default": null
+    }
+  },
+  "tags": ["resource", "snowflake", "warehouse"]
+}

@@ -8285,6 +8285,156 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/legal_document_extractor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/legal_document_extractor/requirements.txt",
       "icon": "FileText"
+    },
+    {
+      "path": "resources/aws_s3_resource",
+      "component_type": "dagster_component_templates.S3ResourceComponent",
+      "category": "resource",
+      "icon": "si:amazons3",
+      "description": "Register a dagster-aws S3Resource for use by other components",
+      "tags": [
+        "resource",
+        "aws",
+        "s3"
+      ],
+      "x-dagster-provides": [
+        "s3_resource"
+      ]
+    },
+    {
+      "path": "resources/bigquery_resource",
+      "component_type": "dagster_component_templates.BigQueryResourceComponent",
+      "category": "resource",
+      "icon": "si:googlebigquery",
+      "description": "Register a dagster-gcp BigQueryResource for use by other components",
+      "tags": [
+        "resource",
+        "gcp",
+        "bigquery"
+      ],
+      "x-dagster-provides": [
+        "bigquery_resource"
+      ]
+    },
+    {
+      "path": "resources/postgres_resource",
+      "component_type": "dagster_component_templates.PostgresResourceComponent",
+      "category": "resource",
+      "icon": "si:postgresql",
+      "description": "Register a PostgreSQL resource for use by other components",
+      "tags": [
+        "resource",
+        "postgres",
+        "database"
+      ],
+      "x-dagster-provides": [
+        "postgres_resource"
+      ]
+    },
+    {
+      "path": "resources/snowflake_resource",
+      "component_type": "dagster_component_templates.SnowflakeResourceComponent",
+      "category": "resource",
+      "icon": "si:snowflake",
+      "description": "Register a dagster-snowflake SnowflakeResource for use by other components",
+      "tags": [
+        "resource",
+        "snowflake",
+        "warehouse"
+      ],
+      "x-dagster-provides": [
+        "snowflake_resource"
+      ]
+    },
+    {
+      "path": "resources/databricks_resource",
+      "component_type": "dagster_component_templates.DatabricksResourceComponent",
+      "category": "resource",
+      "icon": "si:databricks",
+      "description": "Register a Databricks workspace resource for use by other components",
+      "tags": [
+        "resource",
+        "databricks",
+        "spark"
+      ],
+      "x-dagster-provides": [
+        "databricks_resource"
+      ]
+    },
+    {
+      "path": "resources/dbt_cloud_resource",
+      "component_type": "dagster_component_templates.DbtCloudResourceComponent",
+      "category": "resource",
+      "icon": "si:dbt",
+      "description": "Register a dagster-dbt DbtCloudClientResource for use by other components",
+      "tags": [
+        "resource",
+        "dbt",
+        "analytics"
+      ],
+      "x-dagster-provides": [
+        "dbt_cloud_resource"
+      ]
+    },
+    {
+      "path": "resources/gcs_resource",
+      "component_type": "dagster_component_templates.GCSResourceComponent",
+      "category": "resource",
+      "icon": "si:googlecloudstorage",
+      "description": "Register a dagster-gcp GCSResource for use by other components",
+      "tags": [
+        "resource",
+        "gcp",
+        "gcs"
+      ],
+      "x-dagster-provides": [
+        "gcs_resource"
+      ]
+    },
+    {
+      "path": "resources/http_resource",
+      "component_type": "dagster_component_templates.HTTPResourceComponent",
+      "category": "resource",
+      "icon": "Globe",
+      "description": "Register an HTTP resource (base URL + auth header) for use by other components",
+      "tags": [
+        "resource",
+        "http",
+        "api"
+      ],
+      "x-dagster-provides": [
+        "http_resource"
+      ]
+    },
+    {
+      "path": "resources/slack_resource",
+      "component_type": "dagster_component_templates.SlackResourceComponent",
+      "category": "resource",
+      "icon": "si:slack",
+      "description": "Register a dagster-slack SlackResource for use by other components",
+      "tags": [
+        "resource",
+        "slack",
+        "notification"
+      ],
+      "x-dagster-provides": [
+        "slack_resource"
+      ]
+    },
+    {
+      "path": "resources/smtp_resource",
+      "component_type": "dagster_component_templates.SMTPResourceComponent",
+      "category": "resource",
+      "icon": "Mail",
+      "description": "Register an SMTP resource for sending emails from other components",
+      "tags": [
+        "resource",
+        "smtp",
+        "email"
+      ],
+      "x-dagster-provides": [
+        "smtp_resource"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/your-org/dagster-component-templates/main/schema-spec.json",

@@ -104,7 +104,8 @@
       "label": "Resource Key",
       "description": "Optional Dagster resource key providing a pre-configured client. ",
       "required": false,
-      "default": null
+      "default": null,
+      "ui:widget": "resource-picker"
     },
     "default_status": {
       "type": "string",

@@ -48,7 +48,8 @@
       "label": "Resource Key",
       "description": "Key of a PreciselyResource",
       "required": false,
-      "default": null
+      "default": null,
+      "ui:widget": "resource-picker"
     },
     "minimum_interval_seconds": {
       "type": "integer",

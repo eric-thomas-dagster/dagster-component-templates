@@ -61,7 +61,8 @@
       "label": "Resource Key",
       "description": "Optional Dagster resource key providing an AWS client. When set, ",
       "required": false,
-      "default": null
+      "default": null,
+      "ui:widget": "resource-picker"
     },
     "default_status": {
       "type": "string",

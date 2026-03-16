@@ -248,6 +248,16 @@
     "password": {
       "description": "Masked input. Auto-selected for fields that contain credentials. Stored encrypted in vault.",
       "autoSelected": "fields named password, secret, api_token, access_token, auth_token, or ending in _password/_secret/_token"
+    },
+    "resource-picker": {
+      "description": "Resource reference picker. Renders a dropdown of existing Dagster resources already registered in the project, with a 'Create new resource' link that navigates to the Resources tab. The selected value is stored as the resource key string. When no resources exist yet, shows only the 'Create new' prompt.",
+      "autoSelected": "fields named resource_key or ending in _resource_key",
+      "uiBehavior": {
+        "populatedBy": "GET /api/resources \u2014 returns [{key, type, description}]",
+        "emptyState": "Show 'No resources defined yet' + 'Create a resource \u2192' link to Resources tab",
+        "createLink": "Opens Resources tab > New Resource form, pre-filtered to compatible resource types where possible",
+        "storedValue": "string \u2014 the resource key, e.g. 's3_resource' or 'my_snowflake'"
+      }
     }
   },
   "ioContractsByCategory": {

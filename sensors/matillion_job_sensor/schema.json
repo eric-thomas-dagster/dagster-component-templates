@@ -68,7 +68,8 @@
       "label": "Resource Key",
       "description": "Key of a MatillionResource",
       "required": false,
-      "default": null
+      "default": null,
+      "ui:widget": "resource-picker"
     },
     "minimum_interval_seconds": {
       "type": "integer",

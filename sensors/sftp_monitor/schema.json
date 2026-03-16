@@ -88,7 +88,8 @@
       "label": "Resource Key",
       "description": "Optional Dagster resource key.",
       "required": false,
-      "default": null
+      "default": null,
+      "ui:widget": "resource-picker"
     }
   },
   "tags": [

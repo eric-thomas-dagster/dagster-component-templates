@@ -80,7 +80,8 @@
       "label": "Litellm Resource Key",
       "description": "Key of a LiteLLMResource in resources dict",
       "required": false,
-      "default": null
+      "default": null,
+      "ui:widget": "resource-picker"
     },
     "prompt_template": {
       "type": "string",

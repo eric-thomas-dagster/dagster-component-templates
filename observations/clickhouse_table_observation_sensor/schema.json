@@ -68,7 +68,8 @@
       "label": "Resource Key",
       "description": "Key of a ClickHouseResource. When set, env var fields are ignored.",
       "required": false,
-      "default": null
+      "default": null,
+      "ui:widget": "resource-picker"
     },
     "check_interval_seconds": {
       "type": "integer",

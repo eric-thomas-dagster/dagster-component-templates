@@ -332,7 +332,8 @@
       "label": "Database Resource Key",
       "description": "Dagster resource key for database connection (e.g., ",
       "required": false,
-      "default": null
+      "default": null,
+      "ui:widget": "resource-picker"
     },
     "table_name_targets": {
       "type": "object",

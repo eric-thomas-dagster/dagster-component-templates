@@ -1559,19 +1559,39 @@ class CustomDataframeCheckConfig(BaseModel):
     severity: Optional[CheckSeverity] = Field(CheckSeverity.WARN, description="Severity level for the check")
 
 
+class SelectionCheckConfig(BaseModel):
+    """A set of checks to apply across a selection of assets.
+
+    The ``target`` field accepts:
+    - A list of explicit asset keys: ``["marts/mart_account_health", "marts/mart_data_product_readiness"]``
+    - A single glob pattern:  ``"marts/*"``
+    - A group selector:  ``"group:dbt_marts"``
+    - All assets:  ``"*"``
+
+    The remaining fields are check configs (same as per-asset configs)
+    that will be applied to every asset matched by the target.
+    """
+    target: Union[List[str], str] = Field(..., description="Asset selection: list of keys, glob pattern, or 'group:<name>'")
+    data_source_type: Optional[str] = Field(None, description="Override data source type for matched assets")
+    database_resource_key: Optional[str] = Field(None, description="Override database resource key for matched assets")
+    table_name: Optional[str] = Field(None, description="Override table name (use '{asset_key}' as placeholder)")
+
+
 class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
     """Enhanced data quality component with automatic processing mode selection.
-    
+
     Key Design Principles:
     1. data_source_type only indicates WHERE data comes from
     2. Component automatically chooses SQL vs dataframe processing
     3. Pandas/Polars selection is automatic (never in YAML)
     4. Same YAML works for both simple and complex checks
     5. Uses nested YAML structure for clean, intuitive configuration
+    6. Selections apply the same checks across multiple assets at once
     """
-    
+
     # Basic configuration - ONLY about data location
     assets: Optional[Dict[str, Any]] = Field(None, description="Multi-asset configuration dictionary")
+    selections: Optional[List[Dict[str, Any]]] = Field(None, description="List of selection-based check configs that apply checks across multiple assets")
     data_source_type: Optional[DataSourceType] = Field(None, description="Source of data: 'database' for SQL queries or 'dataframe' for pandas/polars dataframes")
     
     # Database-specific (when data_source_type="database")
@@ -1677,13 +1697,101 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if self.database_resource_key_targets and target in self.database_resource_key_targets:
             self.database_resource_key = self.database_resource_key_targets[target]
 
+    def _discover_sibling_assets(
+        self, context: dg.ComponentLoadContext
+    ) -> tuple[List[str], Dict[str, str]]:
+        """Discover asset keys and their groups from sibling components.
+
+        Returns (list_of_key_strings, dict_of_key_to_group_name).
+        """
+        keys: List[str] = []
+        key_to_group: Dict[str, str] = {}
+        try:
+            parent_path = context.path.parent if hasattr(context.path, 'parent') else None
+            if parent_path:
+                sibling_defs = context.build_defs(parent_path)
+                if sibling_defs and sibling_defs.assets:
+                    for assets_def in sibling_defs.assets:
+                        for key in assets_def.keys:
+                            key_str = key.to_user_string()
+                            keys.append(key_str)
+                            spec = assets_def.get_asset_spec(key)
+                            if spec and spec.group_name:
+                                key_to_group[key_str] = spec.group_name
+        except Exception:
+            pass
+        return keys, key_to_group
+
+    def _resolve_selection_targets(
+        self,
+        target: Union[List[str], str],
+        discovered_keys: List[str],
+        key_to_group: Dict[str, str],
+    ) -> List[str]:
+        """Resolve a selection target into a list of asset key strings.
+
+        Supports:
+        - Explicit list:   ["marts/a", "marts/b"]
+        - Glob pattern:    "marts/*"
+        - Group selector:  "group:dbt_marts"
+        - All assets:      "*"
+        """
+        import fnmatch
+
+        # Explicit list — return as-is
+        if isinstance(target, list):
+            return target
+
+        if not discovered_keys:
+            # Can't discover — treat as explicit single key
+            return [target] if target != "*" else []
+
+        # Group selector: "group:dbt_marts"
+        if target.startswith("group:"):
+            group_name = target[len("group:"):]
+            return [k for k, g in key_to_group.items() if g == group_name]
+
+        # Glob pattern: "marts/*", "staging/stg_*", "*"
+        return [k for k in discovered_keys if fnmatch.fnmatch(k, target)]
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         """Build asset check definitions with automatic processing mode selection."""
-        
-        # Process multiple assets
+
+        # Start with explicitly declared assets
+        merged_assets: Dict[str, Any] = dict(self.assets) if self.assets else {}
+
+        # Expand selections into the assets dict
+        if self.selections:
+            # Discover sibling assets once for all selections
+            discovered_keys, key_to_group = self._discover_sibling_assets(context)
+
+            for selection in self.selections:
+                selection = dict(selection)  # copy so we can pop
+                target = selection.pop("target")
+                # Everything left in the selection dict is check config
+                check_config = selection
+
+                resolved_keys = self._resolve_selection_targets(
+                    target, discovered_keys, key_to_group
+                )
+                for asset_key_str in resolved_keys:
+                    if asset_key_str in merged_assets:
+                        # Merge: selection checks are added alongside per-asset checks
+                        existing = merged_assets[asset_key_str]
+                        for check_type, check_list in check_config.items():
+                            if check_type in existing:
+                                # Append to existing check list
+                                if isinstance(existing[check_type], list) and isinstance(check_list, list):
+                                    existing[check_type].extend(check_list)
+                            else:
+                                existing[check_type] = check_list
+                    else:
+                        # New asset entry from selection
+                        merged_assets[asset_key_str] = dict(check_config)
+
+        # Process all assets (explicit + expanded from selections)
         all_asset_checks = []
-        for asset_name, asset_config in self.assets.items():
-            # Create a temporary component instance for this asset
+        for asset_name, asset_config in merged_assets.items():
             temp_component = self._create_asset_component(asset_name, asset_config)
             asset_checks = temp_component._build_single_asset_checks()
             all_asset_checks.extend(asset_checks)

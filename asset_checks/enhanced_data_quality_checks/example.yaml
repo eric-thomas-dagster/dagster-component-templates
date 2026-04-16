@@ -1,9 +1,65 @@
 # Example configuration for Enhanced Data Quality Checks Component
-# This example demonstrates multiple check types across different assets
+# Demonstrates both per-asset checks AND selection-based checks
 
 type: dagster_component_templates.EnhancedDataQualityChecksComponent
 attributes:
-  # Configure checks for multiple assets
+
+  # ════════════════════════════════════════════════════════════════
+  # SELECTIONS: Apply the same checks across multiple assets
+  # ════════════════════════════════════════════════════════════════
+  # Selections resolve asset keys from:
+  #   - Explicit list:   ["marts/a", "marts/b"]
+  #   - Glob pattern:    "marts/*"
+  #   - Group selector:  "group:dbt_marts"
+  #   - All assets:      "*"
+  #
+  # Checks defined in a selection are applied to EVERY matched asset.
+
+  selections:
+    # Apply row count + null checks to all mart assets
+    - target: "group:dbt_marts"
+      row_count_check:
+        - name: "mart_row_count"
+          min_rows: 1
+          blocking: true
+      null_check:
+        - name: "mart_id_not_null"
+          columns: ["id"]
+          blocking: true
+
+    # Apply anomaly detection to all staging assets
+    - target: "staging/*"
+      anomaly_detection:
+        - name: "staging_row_anomaly"
+          metric: "num_rows"
+          method: "z_score"
+          threshold: 2.5
+          history: 10
+          blocking: false
+
+    # Apply row count checks to an explicit list of assets
+    - target:
+        - "marts/mart_account_health"
+        - "marts/mart_operational_exceptions"
+        - "marts/mart_data_product_readiness"
+      row_count_check:
+        - name: "critical_mart_not_empty"
+          min_rows: 1
+          max_rows: 10000000
+          blocking: true
+      range_check:
+        - name: "critical_mart_amounts"
+          columns:
+            - column: "amount"
+              min_value: 0
+              max_value: 999999999
+
+  # ════════════════════════════════════════════════════════════════
+  # ASSETS: Per-asset checks (existing behavior, unchanged)
+  # ════════════════════════════════════════════════════════════════
+  # Per-asset checks are merged with any selection-based checks
+  # that match the same asset key.
+
   assets:
     # Basic validation example
     RAW_DATA.users:

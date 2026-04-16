@@ -1559,6 +1559,22 @@ class CustomDataframeCheckConfig(BaseModel):
     severity: Optional[CheckSeverity] = Field(CheckSeverity.WARN, description="Severity level for the check")
 
 
+class DurationAnomalyCheckConfig(BaseModel):
+    """Configuration for asset materialization duration anomaly checks.
+
+    Queries historical materialization durations from the Dagster instance
+    event log, builds a statistical baseline, and flags the most recent
+    materialization if it took significantly longer (or shorter) than normal.
+    """
+    name: Optional[str] = Field(None, description="Custom name for this check")
+    method: str = Field("z_score", description="Anomaly detection method: 'z_score' or 'iqr'")
+    threshold: float = Field(2.0, description="For z_score: number of std deviations. For iqr: IQR multiplier.")
+    history: int = Field(20, description="Number of recent materializations to build the baseline from")
+    min_history: int = Field(3, description="Minimum materializations required before the check runs (skip if fewer)")
+    direction: str = Field("slow_only", description="'slow_only' (flag only slower than normal), 'fast_only', or 'both'")
+    severity: Optional[CheckSeverity] = Field(CheckSeverity.WARN, description="Severity level for the check")
+
+
 class SelectionCheckConfig(BaseModel):
     """A set of checks to apply across a selection of assets.
 
@@ -1639,7 +1655,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
     distribution_change: Optional[List[DistributionChangeConfig]] = Field(None, description="List of distribution change checks using statistical tests")
     anomaly_detection: Optional[List[AnomalyDetectionConfig]] = Field(None, description="List of anomaly detection checks using various algorithms")
     cross_table_validation: Optional[List[CrossTableValidationConfig]] = Field(None, description="List of cross-table validation checks between source and destination tables")
-    
+    duration_anomaly_check: Optional[List[DurationAnomalyCheckConfig]] = Field(None, description="List of materialization duration anomaly checks — flags assets whose step took significantly longer than historical baseline")
 
     def __init__(self, **kwargs):
         """Initialize the component and resolve environment configuration."""
@@ -2057,6 +2073,13 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             if 'description' in check_config:
                 component_data['custom_dataframe_description'] = check_config['description']
                 
+        elif check_name == 'duration_anomaly_check':
+            # Duration anomaly reads config from _current_check_config at execution time.
+            # Store the fields for consistency with the flat-config pattern.
+            for field in ('method', 'threshold', 'history', 'min_history', 'direction', 'severity'):
+                if field in check_config:
+                    component_data[f'duration_{field}'] = check_config[field]
+
         elif check_name == 'cross_table_validation':
             if 'source_table' in check_config:
                 component_data['cross_table_source_table'] = check_config['source_table']
@@ -2192,6 +2215,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             ('distribution_change', self._create_distribution_change_check),
             ('anomaly_detection', self._create_anomaly_detection_check),
             ('cross_table_validation', self._create_cross_table_validation_check),
+            ('duration_anomaly_check', self._create_duration_anomaly_check),
         ]
         
         for check_type, create_method in check_types:
@@ -2799,6 +2823,209 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             def cross_table_validation_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                 return component._execute_cross_table_validation(context)
             return cross_table_validation_check
+
+    def _create_duration_anomaly_check(self, asset_key: AssetKey, component=None):
+        """Create a materialization duration anomaly check.
+
+        This check queries the Dagster instance event log for historical
+        STEP_START / STEP_SUCCESS events to build a duration baseline,
+        then flags the most recent materialization if it deviates
+        significantly from the norm.
+        """
+        if component is None:
+            component = self
+
+        check_name = self._get_check_name(asset_key, component, "duration_anomaly")
+
+        @asset_check(asset=asset_key, name=check_name)
+        def duration_anomaly_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
+            return component._execute_duration_anomaly_check(context, asset_key)
+        return duration_anomaly_check
+
+    def _execute_duration_anomaly_check(
+        self, context: AssetCheckExecutionContext, asset_key: AssetKey
+    ) -> AssetCheckResult:
+        """Execute the duration anomaly check by querying historical step durations."""
+        from dagster import DagsterEventType, EventRecordsFilter, MetadataValue
+
+        config = self._current_check_config if hasattr(self, '_current_check_config') else None
+        if config and hasattr(config, 'dict'):
+            cfg = config.dict() if hasattr(config, 'dict') else {}
+        elif config and isinstance(config, dict):
+            cfg = config
+        else:
+            cfg = {}
+
+        method = cfg.get('method', 'z_score')
+        threshold = cfg.get('threshold', 2.0)
+        history_limit = cfg.get('history', 20)
+        min_history = cfg.get('min_history', 3)
+        direction = cfg.get('direction', 'slow_only')
+
+        instance = context.instance
+
+        # ── Fetch recent materialization events for this asset ─────
+        mat_result = instance.fetch_materializations(asset_key, limit=history_limit + 1)
+        mat_records = mat_result.records if hasattr(mat_result, 'records') else []
+
+        if len(mat_records) < min_history:
+            return AssetCheckResult(
+                passed=True,
+                severity=dg.AssetCheckSeverity.WARN,
+                metadata={
+                    "status": MetadataValue.text("SKIPPED — insufficient history"),
+                    "materializations_found": MetadataValue.int(len(mat_records)),
+                    "min_required": MetadataValue.int(min_history),
+                },
+            )
+
+        # ── Compute step durations from event log ─────────────────
+        # For each materialization, find STEP_START and STEP_SUCCESS
+        # in the same run to compute the step's wall-clock duration.
+        durations: list[float] = []
+        run_ids_seen: list[str] = []
+
+        for record in mat_records:
+            entry = record.event_log_entry
+            run_id = entry.run_id
+            if run_id in run_ids_seen:
+                continue
+            run_ids_seen.append(run_id)
+
+            try:
+                run_events = instance.get_records_for_run(
+                    run_id,
+                    of_type={DagsterEventType.STEP_START, DagsterEventType.STEP_SUCCESS},
+                )
+                # Find matching step_key events
+                step_key = entry.step_key
+                if not step_key:
+                    continue
+
+                start_ts = None
+                end_ts = None
+                for evt in run_events.records if hasattr(run_events, 'records') else run_events:
+                    evt_entry = evt.event_log_entry if hasattr(evt, 'event_log_entry') else evt
+                    if evt_entry.step_key == step_key:
+                        if evt_entry.dagster_event_type == DagsterEventType.STEP_START:
+                            start_ts = evt_entry.timestamp
+                        elif evt_entry.dagster_event_type == DagsterEventType.STEP_SUCCESS:
+                            end_ts = evt_entry.timestamp
+
+                if start_ts is not None and end_ts is not None:
+                    durations.append(end_ts - start_ts)
+            except Exception:
+                continue
+
+        if len(durations) < min_history:
+            return AssetCheckResult(
+                passed=True,
+                severity=dg.AssetCheckSeverity.WARN,
+                metadata={
+                    "status": MetadataValue.text("SKIPPED — not enough duration data"),
+                    "durations_computed": MetadataValue.int(len(durations)),
+                    "min_required": MetadataValue.int(min_history),
+                },
+            )
+
+        # ── Separate current vs historical ────────────────────────
+        current_duration = durations[0]  # most recent
+        historical = durations[1:]       # baseline
+
+        # ── Detect anomaly ────────────────────────────────────────
+        is_anomaly = False
+        detail = {}
+
+        if method == "z_score":
+            mean_dur = sum(historical) / len(historical)
+            variance = sum((d - mean_dur) ** 2 for d in historical) / len(historical)
+            std_dur = variance ** 0.5
+
+            if std_dur > 0:
+                z_score = (current_duration - mean_dur) / std_dur
+            else:
+                z_score = 0.0
+
+            if direction == "slow_only":
+                is_anomaly = z_score > threshold
+            elif direction == "fast_only":
+                is_anomaly = z_score < -threshold
+            else:  # both
+                is_anomaly = abs(z_score) > threshold
+
+            detail = {
+                "z_score": round(z_score, 3),
+                "mean_duration_s": round(mean_dur, 2),
+                "std_duration_s": round(std_dur, 2),
+                "threshold": threshold,
+            }
+
+        elif method == "iqr":
+            sorted_hist = sorted(historical)
+            q1_idx = len(sorted_hist) // 4
+            q3_idx = (3 * len(sorted_hist)) // 4
+            q1 = sorted_hist[q1_idx]
+            q3 = sorted_hist[q3_idx]
+            iqr = q3 - q1
+
+            lower_bound = q1 - threshold * iqr
+            upper_bound = q3 + threshold * iqr
+
+            if direction == "slow_only":
+                is_anomaly = current_duration > upper_bound
+            elif direction == "fast_only":
+                is_anomaly = current_duration < lower_bound
+            else:
+                is_anomaly = current_duration < lower_bound or current_duration > upper_bound
+
+            detail = {
+                "q1_s": round(q1, 2),
+                "q3_s": round(q3, 2),
+                "iqr_s": round(iqr, 2),
+                "lower_bound_s": round(lower_bound, 2),
+                "upper_bound_s": round(upper_bound, 2),
+                "threshold_multiplier": threshold,
+            }
+
+        severity_level = cfg.get('severity', 'WARN')
+        severity = (
+            dg.AssetCheckSeverity.ERROR
+            if severity_level == "ERROR"
+            else dg.AssetCheckSeverity.WARN
+        )
+
+        metadata = {
+            "current_duration_s": MetadataValue.float(round(current_duration, 2)),
+            "historical_count": MetadataValue.int(len(historical)),
+            "method": MetadataValue.text(method),
+            "direction": MetadataValue.text(direction),
+            "is_anomaly": MetadataValue.bool(is_anomaly),
+            **{k: MetadataValue.float(v) if isinstance(v, float) else MetadataValue.text(str(v)) for k, v in detail.items()},
+        }
+
+        if is_anomaly:
+            return AssetCheckResult(
+                passed=False,
+                severity=severity,
+                metadata={
+                    "status": MetadataValue.text(
+                        f"ANOMALY: {current_duration:.1f}s vs historical mean "
+                        f"{detail.get('mean_duration_s', 'N/A')}s"
+                    ),
+                    **metadata,
+                },
+            )
+
+        return AssetCheckResult(
+            passed=True,
+            severity=severity,
+            metadata={
+                "status": MetadataValue.text(
+                    f"OK: {current_duration:.1f}s within normal range"
+                ),
+                **metadata,
+            },
+        )
 
     # ═══════════════════════════════════════════════════════════════
     # EXECUTION METHODS - Simple checks

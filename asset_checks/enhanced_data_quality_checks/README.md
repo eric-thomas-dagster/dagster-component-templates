@@ -275,6 +275,37 @@ custom_dataframe_check:
     blocking: true
 ```
 
+### Operational Checks
+
+#### 19. Duration Anomaly Check
+Detects when an asset's materialization takes significantly longer (or shorter) than its historical baseline. Queries the Dagster instance event log for `STEP_START` / `STEP_SUCCESS` timestamps to compute step durations, then applies z-score or IQR anomaly detection.
+
+```yaml
+duration_anomaly_check:
+  - name: "mart_slow_build"
+    method: "z_score"      # z_score or iqr
+    threshold: 2.0          # std deviations (z_score) or IQR multiplier
+    history: 20             # last N materializations to build baseline
+    min_history: 3          # skip check if fewer than this many runs exist
+    direction: "slow_only"  # slow_only, fast_only, or both
+    severity: "WARN"
+```
+
+This check works especially well with selections — apply it to all your marts at once:
+
+```yaml
+selections:
+  - target: "group:dbt_marts"
+    duration_anomaly_check:
+      - name: "mart_duration_anomaly"
+        method: "z_score"
+        threshold: 2.0
+        history: 20
+        direction: "slow_only"
+```
+
+The check metadata shows the current duration, historical mean/std, z-score, and whether an anomaly was detected — all visible in the Dagster UI.
+
 ## Multi-Asset Configuration
 
 Configure checks for multiple assets in a single component:

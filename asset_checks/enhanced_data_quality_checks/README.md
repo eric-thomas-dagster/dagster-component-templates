@@ -306,6 +306,108 @@ attributes:
               max_value: 10000
 ```
 
+## Selection-Based Checks
+
+Apply the same checks across multiple assets at once using the `selections` field. Instead of repeating the same check config for every asset, define it once and target a group, glob pattern, or explicit list.
+
+### Target Types
+
+| Format | Example | Description |
+|---|---|---|
+| Explicit list | `["marts/a", "marts/b"]` | Specific asset keys |
+| Glob pattern | `"marts/*"` | Wildcard matching on asset key paths |
+| Group selector | `"group:dbt_marts"` | All assets in a Dagster group |
+| All assets | `"*"` | Every asset discovered in sibling components |
+
+### Examples
+
+#### Apply checks to all assets in a group
+
+```yaml
+selections:
+  - target: "group:dbt_marts"
+    row_count_check:
+      - name: "mart_not_empty"
+        min_rows: 1
+        blocking: true
+    null_check:
+      - name: "mart_id_not_null"
+        columns: ["id"]
+        blocking: true
+```
+
+#### Apply checks via glob pattern
+
+```yaml
+selections:
+  - target: "staging/*"
+    anomaly_detection:
+      - name: "staging_row_anomaly"
+        metric: "num_rows"
+        method: "z_score"
+        threshold: 2.5
+        history: 10
+        blocking: false
+```
+
+#### Apply checks to an explicit list of critical assets
+
+```yaml
+selections:
+  - target:
+      - "marts/mart_account_health"
+      - "marts/mart_operational_exceptions"
+      - "marts/mart_data_product_readiness"
+    row_count_check:
+      - name: "critical_mart_not_empty"
+        min_rows: 1
+        max_rows: 10000000
+        blocking: true
+    range_check:
+      - name: "critical_mart_amounts"
+        columns:
+          - column: "amount"
+            min_value: 0
+            max_value: 999999999
+```
+
+### Combining Selections with Per-Asset Checks
+
+Selections and per-asset `assets:` configs can be used together. When a selection matches an asset that also has per-asset checks, the check lists are **merged** (not replaced):
+
+```yaml
+selections:
+  # Every mart gets a row count check
+  - target: "group:dbt_marts"
+    row_count_check:
+      - name: "mart_not_empty"
+        min_rows: 1
+        blocking: true
+
+assets:
+  # This mart also gets a custom SQL check (in addition to the row count from the selection)
+  marts/mart_account_health:
+    database_resource_key: "snowflake"
+    custom_sql_check:
+      - name: "health_status_valid"
+        sql_query: "SELECT COUNT(*) FROM marts.mart_account_health WHERE health_status NOT IN ('HEALTHY','DEGRADED','AT_RISK')"
+        expected_result: 0
+        comparison: "equals"
+        blocking: true
+```
+
+### How Selection Resolution Works
+
+At `build_defs` time, the component:
+
+1. Discovers all asset keys from sibling components (via `ComponentLoadContext`)
+2. Resolves each selection's `target` to a list of matching asset keys
+3. Expands the selection's check config across every matched key
+4. Merges with any per-asset `assets:` config for the same key
+5. Processes all checks using the existing per-asset machinery
+
+This means every check type (row count, null, anomaly, custom SQL, etc.) works with selections automatically — no special handling needed.
+
 ## Common Configuration Options
 
 All check types support these common options:

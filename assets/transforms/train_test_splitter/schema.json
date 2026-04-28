@@ -1,0 +1,61 @@
+{
+  "component_type": "dagster_component_templates.TrainTestSplitterComponent",
+  "description": "Split a DataFrame into train/test (and optional validation) assets using random, time, or hash strategies.",
+  "category": "transformation",
+  "icon": "Split",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "multiple_dataframes",
+      "description": "Two or three downstream DataFrame assets: <asset_name>_train, _test, and optionally _val"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Prefix",
+      "description": "Prefix for output assets: '<asset_name>_train', '<asset_name>_test', and '<asset_name>_val' if val_size > 0.",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame.",
+      "required": true
+    },
+    "strategy": {
+      "type": "string",
+      "label": "Split Strategy",
+      "description": "How to split the DataFrame.",
+      "required": false,
+      "default": "random",
+      "enum": ["random", "time", "hash"],
+      "ui:widget": "select"
+    },
+    "test_size": {"type": "number", "label": "Test Size", "description": "Fraction of rows allocated to the test split (0–1).", "required": false, "default": 0.2},
+    "val_size": {"type": "number", "label": "Validation Size", "description": "Fraction of rows allocated to validation. 0 = no validation asset.", "required": false, "default": 0.0},
+    "seed": {"type": "integer", "label": "Random Seed", "description": "Deterministic seed for 'random' and 'hash' strategies.", "required": false, "default": 42},
+    "stratify_column": {"type": "string", "label": "Stratify Column", "description": "Class column to stratify on (preserves class balance). Random strategy only. Mutually exclusive with group_column.", "required": false, "default": null},
+    "group_column": {"type": "string", "label": "Group Column", "description": "Column whose values define groups; all rows in a group land in the same split. Prevents leakage on related rows.", "required": false, "default": null},
+    "time_column": {"type": "string", "label": "Time Column", "description": "Required for strategy='time'. Column to sort by; oldest rows go to train.", "required": false, "default": null},
+    "group_name": {"type": "string", "label": "Group Name", "description": "Dagster asset group applied to all output assets.", "required": false, "default": null},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "description": "Asset owners.", "required": false, "ui:widget": "list"},
+    "asset_tags": {"type": "object", "label": "Asset Tags", "description": "Key-value tags applied to all output assets.", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "description": "Asset kinds. Auto-inferred when empty.", "required": false, "ui:widget": "list"},
+    "freshness_max_lag_minutes": {"type": "integer", "label": "Freshness Max Lag (minutes)", "description": "Maximum acceptable lag in minutes before assets are considered stale.", "required": false, "default": null},
+    "freshness_cron": {"type": "string", "label": "Freshness Cron Schedule", "description": "Cron schedule for the freshness policy.", "required": false, "default": null},
+    "column_lineage": {"type": "object", "label": "Column Lineage", "description": "Column-level lineage. Auto-inferred (1:1) when empty.", "required": false, "ui:widget": "key-value"}
+  },
+  "tags": [
+    "transformation",
+    "train_test_split",
+    "ml",
+    "feature_engineering",
+    "sampling"
+  ],
+  "name": "Train/Test Splitter"
+}

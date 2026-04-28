@@ -84,5 +84,5 @@
     "rabbitmq",
     "sensor"
   ],
-  "name": "Rabbitmq Observation Sensor"
+  "name": "RabbitMQ Observation Sensor"
 }

@@ -1,0 +1,187 @@
+{
+  "component_type": "dagster_component_templates.FeatureScalerComponent",
+  "description": "Rescale numeric columns using standard, min-max, robust, or max-abs scaling.",
+  "category": "transformation",
+  "icon": "TrendingUp",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with selected numeric columns rescaled"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
+    "strategy": {
+      "type": "string",
+      "label": "Strategy",
+      "description": "Scaling strategy.",
+      "required": false,
+      "default": "standard",
+      "enum": [
+        "standard",
+        "minmax",
+        "robust",
+        "maxabs"
+      ],
+      "ui:widget": "select"
+    },
+    "columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Columns",
+      "description": "Columns to scale. Leave empty to auto-select all numeric columns.",
+      "required": false,
+      "default": null,
+      "ui:widget": "list"
+    },
+    "feature_range_min": {
+      "type": "number",
+      "label": "Feature Range Min",
+      "description": "Lower bound for the 'minmax' strategy (default 0.0). Ignored for other strategies.",
+      "required": false,
+      "default": 0.0
+    },
+    "feature_range_max": {
+      "type": "number",
+      "label": "Feature Range Max",
+      "description": "Upper bound for the 'minmax' strategy (default 1.0). Ignored for other strategies.",
+      "required": false,
+      "default": 1.0
+    },
+    "suffix": {
+      "type": "string",
+      "label": "Output Suffix",
+      "description": "If set, scaled values are written to a new column '<col><suffix>'. Empty = overwrite originals.",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning. Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value.",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Owners",
+      "description": "Asset owners — team names or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset in the Dagster catalog.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Kinds",
+      "description": "Asset kinds shown in the Dagster catalog. Auto-inferred when empty.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron Schedule",
+      "description": "Cron schedule for the freshness policy.",
+      "required": false,
+      "default": null
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "description": "Column-level lineage. Auto-inferred when empty.",
+      "required": false,
+      "ui:widget": "key-value"
+    }
+  },
+  "tags": [
+    "transformation",
+    "feature_scaling",
+    "feature_engineering",
+    "ml",
+    "preprocessing"
+  ],
+  "name": "Feature Scaler"
+}

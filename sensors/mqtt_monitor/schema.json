@@ -120,5 +120,5 @@
     "mqtt",
     "monitor"
   ],
-  "name": "Mqtt Monitor"
+  "name": "MQTT Monitor"
 }

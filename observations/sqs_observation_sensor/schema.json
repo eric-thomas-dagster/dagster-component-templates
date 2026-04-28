@@ -56,5 +56,5 @@
     "sqs",
     "sensor"
   ],
-  "name": "Sqs Observation Sensor"
+  "name": "SQS Observation Sensor"
 }

@@ -57,5 +57,5 @@
     "streaming",
     "messaging"
   ],
-  "name": "Kafka Resource"
+  "name": "Apache Kafka Resource"
 }

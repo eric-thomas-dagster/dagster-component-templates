@@ -52,5 +52,5 @@
     "nosql"
   ],
   "icon": "si:apachecassandra",
-  "name": "Cassandra Resource"
+  "name": "Apache Cassandra Resource"
 }

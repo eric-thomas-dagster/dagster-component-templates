@@ -1,0 +1,11 @@
+type: dagster_component_templates.FeatureScalerComponent
+attributes:
+  asset_name: scaled_customer_features
+  upstream_asset_key: encoded_customer_features
+  strategy: standard
+  columns:
+    - lifetime_value
+    - days_since_signup
+    - support_tickets_30d
+  suffix: _scaled
+  group_name: feature_engineering

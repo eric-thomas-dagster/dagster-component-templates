@@ -1,0 +1,10 @@
+type: dagster_component_templates.TrainTestSplitterComponent
+attributes:
+  asset_name: customer_features
+  upstream_asset_key: scaled_customer_features
+  strategy: random
+  test_size: 0.2
+  val_size: 0.1
+  seed: 42
+  stratify_column: churned
+  group_name: ml_datasets

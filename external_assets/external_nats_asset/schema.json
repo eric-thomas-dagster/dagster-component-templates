@@ -49,5 +49,5 @@
     "nats",
     "asset"
   ],
-  "name": "External Nats Asset"
+  "name": "External NATS Asset"
 }

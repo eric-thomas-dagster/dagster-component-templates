@@ -1,0 +1,12 @@
+type: dagster_component_templates.LabelEncoderComponent
+attributes:
+  asset_name: encoded_lookup_features
+  upstream_asset_key: cleaned_lookup_features
+  columns:
+    - region
+    - product_category
+    - device_type
+  ordering: frequency
+  suffix: _code
+  keep_original: true
+  group_name: feature_engineering

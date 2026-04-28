@@ -137,7 +137,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -215,5 +215,5 @@
     "google",
     "analytics"
   ],
-  "name": "Google Analytics Ingestion"
+  "name": "Google Analytics 4 Ingestion"
 }

@@ -1,0 +1,14 @@
+type: dagster_component_templates.OneHotEncodingComponent
+attributes:
+  asset_name: encoded_customer_features
+  upstream_asset_key: cleaned_customer_features
+  columns:
+    - country
+    - subscription_tier
+    - acquisition_channel
+  drop_first: true
+  dummy_na: false
+  max_categories: 20
+  prefix_sep: _
+  dtype: int
+  group_name: feature_engineering

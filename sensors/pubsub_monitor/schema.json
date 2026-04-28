@@ -70,5 +70,5 @@
     "pubsub",
     "monitor"
   ],
-  "name": "Pubsub Monitor"
+  "name": "Google Pub/Sub Monitor"
 }

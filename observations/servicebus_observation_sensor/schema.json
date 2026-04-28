@@ -78,5 +78,5 @@
     "servicebus",
     "sensor"
   ],
-  "name": "Servicebus Observation Sensor"
+  "name": "Service Bus Observation Sensor"
 }

@@ -106,5 +106,5 @@
     "rabbitmq",
     "monitor"
   ],
-  "name": "Rabbitmq Monitor"
+  "name": "RabbitMQ Monitor"
 }

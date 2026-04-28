@@ -63,5 +63,5 @@
     "pubsub",
     "sensor"
   ],
-  "name": "Pubsub Observation Sensor"
+  "name": "Pub/Sub Observation Sensor"
 }

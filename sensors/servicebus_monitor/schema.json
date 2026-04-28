@@ -93,5 +93,5 @@
     "servicebus",
     "monitor"
   ],
-  "name": "Servicebus Monitor"
+  "name": "Azure Service Bus Monitor"
 }

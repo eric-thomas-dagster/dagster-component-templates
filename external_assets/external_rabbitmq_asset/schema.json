@@ -56,5 +56,5 @@
     "rabbitmq",
     "asset"
   ],
-  "name": "External Rabbitmq Asset"
+  "name": "External RabbitMQ Asset"
 }

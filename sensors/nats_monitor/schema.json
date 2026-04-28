@@ -110,5 +110,5 @@
     "nats",
     "monitor"
   ],
-  "name": "Nats Monitor"
+  "name": "NATS JetStream Monitor"
 }

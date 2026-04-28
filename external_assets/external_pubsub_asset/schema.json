@@ -49,5 +49,5 @@
     "pubsub",
     "asset"
   ],
-  "name": "External Pubsub Asset"
+  "name": "External Pub/Sub Asset"
 }

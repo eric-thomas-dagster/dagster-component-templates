@@ -38,5 +38,5 @@
     "nosql"
   ],
   "icon": "si:firebase",
-  "name": "Firestore Resource"
+  "name": "Google Firestore Resource"
 }

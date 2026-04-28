@@ -68,5 +68,5 @@
     "aws",
     "redshift"
   ],
-  "name": "Redshift Resource"
+  "name": "Amazon Redshift Resource"
 }

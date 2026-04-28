@@ -116,7 +116,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -172,5 +172,5 @@
     "cloudformation",
     "asset"
   ],
-  "name": "Cloudformation Asset"
+  "name": "CloudFormation Asset"
 }

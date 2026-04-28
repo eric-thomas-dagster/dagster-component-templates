@@ -1,0 +1,209 @@
+{
+  "component_type": "dagster_component_templates.OneHotEncodingComponent",
+  "description": "Expand categorical columns into binary indicator columns with optional rare-category bucketing.",
+  "category": "transformation",
+  "icon": "Grid3x3",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with categorical columns expanded into 0/1 indicator columns"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
+    "columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Columns",
+      "description": "Categorical columns to one-hot encode. Each becomes N (or N-1) indicator columns.",
+      "required": true,
+      "ui:widget": "list"
+    },
+    "drop_first": {
+      "type": "boolean",
+      "label": "Drop First",
+      "description": "Drop the first dummy level per column to avoid multicollinearity (recommended for linear models).",
+      "required": false,
+      "default": false
+    },
+    "dummy_na": {
+      "type": "boolean",
+      "label": "Dummy NA",
+      "description": "Add an explicit indicator column for NaN values. If false, NaN rows produce all-zero dummies.",
+      "required": false,
+      "default": false
+    },
+    "prefix_sep": {
+      "type": "string",
+      "label": "Prefix Separator",
+      "description": "Separator between column name and value in the dummy column names, e.g. 'color_red'.",
+      "required": false,
+      "default": "_"
+    },
+    "prefix": {
+      "type": "object",
+      "label": "Per-Column Prefix",
+      "description": "Optional override of the per-column dummy prefix, e.g. {\"state\": \"st\"} produces 'st_CA'.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "max_categories": {
+      "type": "integer",
+      "label": "Max Categories",
+      "description": "Cap categories per column. Top N most frequent values keep their dummy; others collapse into '__other__'. Empty = unlimited.",
+      "required": false,
+      "default": null
+    },
+    "keep_original": {
+      "type": "boolean",
+      "label": "Keep Original Columns",
+      "description": "If true, retain the original categorical columns alongside the new dummy columns.",
+      "required": false,
+      "default": false
+    },
+    "dtype": {
+      "type": "string",
+      "label": "Output Dtype",
+      "description": "Output dtype for indicator columns.",
+      "required": false,
+      "default": "int",
+      "enum": [
+        "int",
+        "bool",
+        "float"
+      ],
+      "ui:widget": "select"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron Schedule",
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "required": false,
+      "default": null
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "description": "Column-level lineage: output column → list of upstream input columns it derives from. Auto-inferred when empty: passthrough columns map 1:1 and each dummy maps to its source categorical column.",
+      "required": false,
+      "ui:widget": "key-value"
+    }
+  },
+  "tags": [
+    "transformation",
+    "one_hot_encoding",
+    "feature_engineering",
+    "categorical"
+  ],
+  "name": "One-Hot Encoding"
+}

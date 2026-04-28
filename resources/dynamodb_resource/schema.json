@@ -43,5 +43,5 @@
     "nosql"
   ],
   "icon": "si:amazondynamodb",
-  "name": "DynamoDB Resource"
+  "name": "Amazon DynamoDB Resource"
 }

@@ -49,5 +49,5 @@
     "eventhubs",
     "asset"
   ],
-  "name": "External Eventhubs Asset"
+  "name": "External Event Hubs Asset"
 }

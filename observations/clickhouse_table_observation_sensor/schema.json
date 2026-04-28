@@ -92,5 +92,5 @@
     "table",
     "sensor"
   ],
-  "name": "Clickhouse Table Observation Sensor"
+  "name": "ClickHouse Table Observation Sensor"
 }

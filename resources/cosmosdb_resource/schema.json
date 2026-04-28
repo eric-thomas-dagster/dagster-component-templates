@@ -39,5 +39,5 @@
     "nosql"
   ],
   "icon": "si:azurecosmosdb",
-  "name": "CosmosDB Resource"
+  "name": "Azure Cosmos DB Resource"
 }

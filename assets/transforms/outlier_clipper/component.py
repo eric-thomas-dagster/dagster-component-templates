@@ -1,0 +1,270 @@
+"""Outlier Clipper Asset Component.
+
+Detect and handle outliers in numeric columns using IQR, z-score, or
+quantile thresholds. Outliers can be clipped (winsorized) to the boundary
+or dropped from the DataFrame.
+"""
+from dataclasses import dataclass
+from typing import Dict, List, Optional
+
+import pandas as pd
+from dagster import (
+    AssetExecutionContext,
+    AssetIn,
+    AssetKey,
+    Component,
+    ComponentLoadContext,
+    Definitions,
+    MetadataValue,
+    Model,
+    Resolvable,
+    asset,
+)
+from pydantic import Field
+
+
+@dataclass
+class OutlierClipperComponent(Component, Model, Resolvable):
+    """Clip or drop outliers in numeric columns.
+
+    Strategies:
+    - `iqr`: outlier if x < Q1 − k·IQR or x > Q3 + k·IQR (k from `iqr_multiplier`, default 1.5).
+    - `zscore`: outlier if |z| > `zscore_threshold` (default 3.0).
+    - `quantile`: outlier if x < quantile(`lower_quantile`) or x > quantile(`upper_quantile`).
+
+    Action:
+    - `clip` (default): replace outliers with the boundary value (winsorize).
+    - `drop`: remove rows where any target column is an outlier.
+    - `flag`: keep rows; add a boolean column `<col>_is_outlier`.
+    """
+
+    asset_name: str = Field(description="Output Dagster asset name")
+    upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
+    strategy: str = Field(
+        default="iqr",
+        description="Detection strategy: 'iqr', 'zscore', or 'quantile'.",
+    )
+    action: str = Field(
+        default="clip",
+        description="What to do with outliers: 'clip' (winsorize), 'drop' (remove rows), or 'flag' (add boolean column).",
+    )
+    columns: Optional[List[str]] = Field(
+        default=None,
+        description="Columns to check for outliers. None = all numeric columns.",
+    )
+    iqr_multiplier: float = Field(
+        default=1.5,
+        description="IQR fence multiplier. 1.5 = standard Tukey fences; 3.0 = extreme outliers only.",
+    )
+    zscore_threshold: float = Field(
+        default=3.0,
+        description="Absolute z-score threshold for the 'zscore' strategy.",
+    )
+    lower_quantile: float = Field(
+        default=0.01,
+        description="Lower quantile for the 'quantile' strategy (default 0.01 = 1st percentile).",
+    )
+    upper_quantile: float = Field(
+        default=0.99,
+        description="Upper quantile for the 'quantile' strategy (default 0.99 = 99th percentile).",
+    )
+    group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
+    partition_type: Optional[str] = Field(default=None, description="Partition type")
+    partition_start: Optional[str] = Field(default=None, description="Partition start date in ISO format")
+    partition_date_column: Optional[str] = Field(default=None, description="Column used to filter to current date partition.")
+    partition_values: Optional[str] = Field(default=None, description="Comma-separated values for static/multi partitioning.")
+    partition_static_dim: Optional[str] = Field(default=None, description="Static dimension name for multi-partitioning.")
+    partition_static_column: Optional[str] = Field(default=None, description="Column used to filter to the static partition value.")
+    owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
+    asset_tags: Optional[Dict[str, str]] = Field(default=None, description="Additional asset tags.")
+    kinds: Optional[List[str]] = Field(default=None, description="Asset kinds for the catalog.")
+    freshness_max_lag_minutes: Optional[int] = Field(default=None, description="Max acceptable lag minutes.")
+    freshness_cron: Optional[str] = Field(default=None, description="Cron schedule for the freshness policy.")
+    column_lineage: Optional[Dict[str, List[str]]] = Field(default=None, description="Column-level lineage.")
+
+    @classmethod
+    def get_description(cls) -> str:
+        return "Detect and clip, drop, or flag outliers in numeric columns using IQR, z-score, or quantile thresholds."
+
+    def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        asset_name = self.asset_name
+        upstream_asset_key = self.upstream_asset_key
+        strategy = self.strategy
+        action = self.action
+        columns = self.columns
+        iqr_multiplier = self.iqr_multiplier
+        zscore_threshold = self.zscore_threshold
+        lower_quantile = self.lower_quantile
+        upper_quantile = self.upper_quantile
+        group_name = self.group_name
+
+        partitions_def = None
+        if self.partition_type:
+            from dagster import (
+                DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+                MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+                StaticPartitionsDefinition, MultiPartitionsDefinition,
+            )
+            _start = self.partition_start or "2020-01-01"
+            _values = [v.strip() for v in (self.partition_values or "").split(",") if v.strip()]
+            if self.partition_type == "daily":
+                partitions_def = DailyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "weekly":
+                partitions_def = WeeklyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "monthly":
+                partitions_def = MonthlyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "hourly":
+                partitions_def = HourlyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "static":
+                partitions_def = StaticPartitionsDefinition(_values)
+            elif self.partition_type == "multi":
+                _dim = self.partition_static_dim or "segment"
+                partitions_def = MultiPartitionsDefinition({
+                    "date": DailyPartitionsDefinition(start_date=_start),
+                    _dim: StaticPartitionsDefinition(_values),
+                })
+        partition_date_column = self.partition_date_column
+        partition_static_column = self.partition_static_column
+        partition_static_dim = self.partition_static_dim
+
+        _kind_map = {
+            "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
+            "postgres": "postgres", "postgresql": "postgres", "mysql": "mysql",
+            "s3": "s3", "adls": "azure", "azure": "azure", "gcs": "gcp",
+            "google": "gcp", "databricks": "databricks", "dbt": "dbt",
+        }
+        _inferred_kinds = self.kinds or []
+        if not _inferred_kinds:
+            _comp_lower = asset_name.lower()
+            for keyword, kind in _kind_map.items():
+                if keyword in _comp_lower:
+                    _inferred_kinds.append(kind)
+            if not _inferred_kinds:
+                _inferred_kinds = ["python"]
+        _all_tags = dict(self.asset_tags or {})
+        for _kind in _inferred_kinds:
+            _all_tags[f"dagster/kind/{_kind}"] = ""
+
+        _freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from dagster import FreshnessPolicy
+            _freshness_policy = FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
+
+        owners = self.owners or []
+        column_lineage = self.column_lineage
+
+        @asset(
+            name=asset_name,
+            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+            partitions_def=partitions_def,
+            owners=owners,
+            tags=_all_tags,
+            freshness_policy=_freshness_policy,
+            group_name=group_name,
+            description=OutlierClipperComponent.get_description(),
+        )
+        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+            if context.has_partition_key:
+                _pk = context.partition_key
+                _is_multi = hasattr(_pk, "keys_by_dimension")
+                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                if partition_date_column and partition_date_column in upstream.columns and _date_key:
+                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
+                if partition_static_column and partition_static_column in upstream.columns and _static_key:
+                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
+                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
+                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+
+            df = upstream.copy()
+            target_cols = columns if columns else df.select_dtypes(include="number").columns.tolist()
+            bounds: Dict[str, Dict[str, float]] = {}
+            outlier_counts: Dict[str, int] = {}
+            n_in = len(df)
+
+            outlier_mask_any = pd.Series(False, index=df.index)
+
+            for col in target_cols:
+                if col not in df.columns:
+                    context.log.warning(f"Column '{col}' not found, skipping.")
+                    continue
+                s = pd.to_numeric(df[col], errors="coerce")
+
+                if strategy == "iqr":
+                    q1, q3 = float(s.quantile(0.25)), float(s.quantile(0.75))
+                    iqr = q3 - q1
+                    lo, hi = q1 - iqr_multiplier * iqr, q3 + iqr_multiplier * iqr
+                elif strategy == "zscore":
+                    mu, sd = float(s.mean()), float(s.std(ddof=0))
+                    if sd == 0:
+                        lo, hi = float("-inf"), float("inf")
+                    else:
+                        lo, hi = mu - zscore_threshold * sd, mu + zscore_threshold * sd
+                elif strategy == "quantile":
+                    lo, hi = float(s.quantile(lower_quantile)), float(s.quantile(upper_quantile))
+                else:
+                    raise ValueError(f"Unknown outlier strategy: {strategy!r}")
+
+                col_mask = (s < lo) | (s > hi)
+                col_mask = col_mask.fillna(False)
+                n_out = int(col_mask.sum())
+                outlier_counts[col] = n_out
+                bounds[col] = {"lower": lo, "upper": hi}
+
+                if action == "clip":
+                    df[col] = s.clip(lower=lo, upper=hi)
+                elif action == "drop":
+                    outlier_mask_any = outlier_mask_any | col_mask
+                elif action == "flag":
+                    df[f"{col}_is_outlier"] = col_mask.astype("bool")
+                else:
+                    raise ValueError(f"Unknown action: {action!r}")
+
+                context.log.info(f"Column '{col}': {n_out} outliers detected (bounds [{lo:.4g}, {hi:.4g}]); action='{action}'.")
+
+            if action == "drop":
+                df = df.loc[~outlier_mask_any]
+                context.log.info(f"Dropped {int(outlier_mask_any.sum())} of {n_in} rows containing outliers.")
+
+            from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
+            _col_schema = TableSchema(columns=[
+                TableColumn(name=str(c), type=str(df.dtypes[c])) for c in df.columns
+            ])
+            _metadata = {
+                "dagster/row_count": MetadataValue.int(len(df)),
+                "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+                "outlier_strategy": MetadataValue.text(strategy),
+                "outlier_action": MetadataValue.text(action),
+                "outlier_bounds": MetadataValue.json(bounds),
+                "outlier_counts": MetadataValue.json(outlier_counts),
+                "rows_in": MetadataValue.int(n_in),
+                "rows_out": MetadataValue.int(len(df)),
+            }
+
+            _effective_lineage = column_lineage
+            if not _effective_lineage:
+                _effective_lineage = {}
+                _upstream_cols = set(upstream.columns)
+                for c in df.columns:
+                    base = c[:-len("_is_outlier")] if c.endswith("_is_outlier") else c
+                    if base in _upstream_cols:
+                        _effective_lineage[c] = [base]
+            if _effective_lineage:
+                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
+                if _upstream_key:
+                    _lineage_deps = {
+                        out_col: [TableColumnDep(asset_key=_upstream_key, column_name=ic) for ic in in_cols]
+                        for out_col, in_cols in _effective_lineage.items()
+                    }
+                    _metadata["dagster/column_lineage"] = MetadataValue.table_column_lineage(
+                        TableColumnLineage(_lineage_deps)
+                    )
+            context.add_output_metadata(_metadata)
+            return df
+
+        from dagster import build_column_schema_change_checks
+        _schema_checks = build_column_schema_change_checks(assets=[_asset])
+        return Definitions(assets=[_asset], asset_checks=list(_schema_checks))

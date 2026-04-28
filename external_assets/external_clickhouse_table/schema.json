@@ -113,5 +113,5 @@
     "clickhouse",
     "table"
   ],
-  "name": "External Clickhouse Table"
+  "name": "External ClickHouse Table"
 }

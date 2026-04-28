@@ -69,5 +69,5 @@
     "slack",
     "notification"
   ],
-  "name": "Slack Notification"
+  "name": "Slack Notification Sensor"
 }

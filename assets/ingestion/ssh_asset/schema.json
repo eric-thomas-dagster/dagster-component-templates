@@ -130,7 +130,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -186,5 +186,5 @@
     "ssh",
     "asset"
   ],
-  "name": "Ssh Asset"
+  "name": "SSH Asset"
 }

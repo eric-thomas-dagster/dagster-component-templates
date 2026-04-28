@@ -105,7 +105,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -153,5 +153,5 @@
     "database",
     "asset"
   ],
-  "name": "S3 To Database Asset"
+  "name": "S3 to Database"
 }

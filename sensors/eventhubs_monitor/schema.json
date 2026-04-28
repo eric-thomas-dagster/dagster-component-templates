@@ -84,5 +84,5 @@
     "eventhubs",
     "monitor"
   ],
-  "name": "Eventhubs Monitor"
+  "name": "Azure Event Hubs Monitor"
 }

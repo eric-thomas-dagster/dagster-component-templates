@@ -1,0 +1,11 @@
+type: dagster_component_templates.OutlierClipperComponent
+attributes:
+  asset_name: cleaned_transactions
+  upstream_asset_key: raw_transactions
+  strategy: iqr
+  iqr_multiplier: 1.5
+  action: clip
+  columns:
+    - amount_usd
+    - latency_ms
+  group_name: data_quality

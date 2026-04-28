@@ -50,5 +50,5 @@
     "sqs",
     "asset"
   ],
-  "name": "External Sqs Asset"
+  "name": "External SQS Asset"
 }

@@ -56,5 +56,5 @@
     "check",
     "freshness"
   ],
-  "name": "Freshness Check"
+  "name": "Freshness Policy"
 }

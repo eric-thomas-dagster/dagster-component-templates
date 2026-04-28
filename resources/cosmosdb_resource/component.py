@@ -1,4 +1,3 @@
-import os
 from dataclasses import dataclass
 
 import dagster as dg
@@ -29,7 +28,7 @@ class CosmosDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     database_name: str = ""
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        key = os.environ.get(self.key_env_var, "") if self.key_env_var else ""
+        key = dg.EnvVar(self.key_env_var) if self.key_env_var else ""
         resource = CosmosDBResource(
             endpoint=self.endpoint,
             key=key,

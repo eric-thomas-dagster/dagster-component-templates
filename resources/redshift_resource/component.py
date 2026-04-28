@@ -1,7 +1,6 @@
 """AWS Redshift Resource component."""
 from dataclasses import dataclass
 from typing import Optional
-import os
 import dagster as dg
 from pydantic import Field
 
@@ -26,7 +25,7 @@ class RedshiftResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             port=self.port,
             database=self.database,
             user=self.user,
-            password=os.environ.get(self.password_env_var, ""),
+            password=dg.EnvVar(self.password_env_var),
             schema=self.schema_name,
             autocommit=self.autocommit,
         )

@@ -1,4 +1,3 @@
-import os
 from dataclasses import dataclass
 
 import dagster as dg
@@ -27,7 +26,7 @@ class Neo4jResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     database: str = "neo4j"
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        password = os.environ.get(self.password_env_var, "") if self.password_env_var else ""
+        password = dg.EnvVar(self.password_env_var) if self.password_env_var else ""
         resource = Neo4jResource(
             uri=self.uri,
             username=self.username,

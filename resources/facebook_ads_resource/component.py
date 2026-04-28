@@ -1,6 +1,5 @@
 """Facebook Ads Resource component."""
 from dataclasses import dataclass
-import os
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -18,9 +17,9 @@ class FacebookAdsResource(ConfigurableResource):
         from facebook_business.api import FacebookAdsApi
         from facebook_business.adobjects.adaccount import AdAccount
 
-        app_id = os.environ.get(self.app_id_env_var, "")
-        app_secret = os.environ.get(self.app_secret_env_var, "")
-        access_token = os.environ.get(self.access_token_env_var, "")
+        app_id = dg.EnvVar(self.app_id_env_var)
+        app_secret = dg.EnvVar(self.app_secret_env_var)
+        access_token = dg.EnvVar(self.access_token_env_var)
 
         FacebookAdsApi.init(app_id, app_secret, access_token)
         return AdAccount(self.ad_account_id)

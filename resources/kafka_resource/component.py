@@ -1,7 +1,6 @@
 """Kafka Resource component."""
 from dataclasses import dataclass
 from typing import Optional
-import os
 import dagster as dg
 from pydantic import Field
 
@@ -50,7 +49,7 @@ class KafkaResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             bootstrap_servers=self.bootstrap_servers,
             security_protocol=self.security_protocol or "PLAINTEXT",
             sasl_mechanism=self.sasl_mechanism or "",
-            sasl_username=os.environ.get(self.sasl_username_env_var, "") if self.sasl_username_env_var else "",
-            sasl_password=os.environ.get(self.sasl_password_env_var, "") if self.sasl_password_env_var else "",
+            sasl_username=dg.EnvVar(self.sasl_username_env_var) if self.sasl_username_env_var else "",
+            sasl_password=dg.EnvVar(self.sasl_password_env_var) if self.sasl_password_env_var else "",
         )
         return dg.Definitions(resources={self.resource_key: resource})

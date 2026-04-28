@@ -1,7 +1,6 @@
 """SFTP Resource component."""
 from dataclasses import dataclass
 from typing import Optional
-import os
 import dagster as dg
 from pydantic import Field
 
@@ -48,8 +47,8 @@ class SFTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             host=self.host,
             port=self.port,
             username=self.username,
-            password=os.environ.get(self.password_env_var, "") if self.password_env_var else "",
-            private_key_pem=os.environ.get(self.private_key_env_var, "") if self.private_key_env_var else "",
+            password=dg.EnvVar(self.password_env_var) if self.password_env_var else "",
+            private_key_pem=dg.EnvVar(self.private_key_env_var) if self.private_key_env_var else "",
             private_key_path=self.private_key_path or "",
         )
         return dg.Definitions(resources={self.resource_key: resource})

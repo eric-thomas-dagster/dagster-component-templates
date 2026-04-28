@@ -1,4 +1,3 @@
-import os
 from dataclasses import dataclass
 
 import dagster as dg
@@ -16,17 +15,19 @@ class CassandraResource(ConfigurableResource):
     ssl: bool = False
 
     def get_session(self) -> Session:
+        import ssl as _ssl
         host_list = [h.strip() for h in self.hosts.split(",")]
         auth_provider = None
         if self.username:
             auth_provider = PlainTextAuthProvider(
                 username=self.username, password=self.password
             )
+        ssl_context = _ssl.create_default_context() if self.ssl else None
         cluster = Cluster(
             contact_points=host_list,
             port=self.port,
             auth_provider=auth_provider,
-            ssl_context=self.ssl or None,
+            ssl_context=ssl_context,
         )
         return cluster.connect(self.keyspace if self.keyspace else None)
 
@@ -44,7 +45,7 @@ class CassandraResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     ssl: bool = False
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        password = os.environ.get(self.password_env_var, "") if self.password_env_var else ""
+        password = dg.EnvVar(self.password_env_var) if self.password_env_var else ""
         resource = CassandraResource(
             hosts=self.hosts,
             port=self.port,

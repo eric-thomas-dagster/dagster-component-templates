@@ -1,7 +1,6 @@
 """Snowflake Resource component."""
 from dataclasses import dataclass
 from typing import Optional
-import os
 import dagster as dg
 from pydantic import Field
 
@@ -24,7 +23,7 @@ class SnowflakeResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         resource = SnowflakeResource(
             account=self.account,
             user=self.user,
-            password=os.environ.get(self.password_env_var, ""),
+            password=dg.EnvVar(self.password_env_var),
             database=self.database,
             warehouse=self.warehouse,
             role=self.role,

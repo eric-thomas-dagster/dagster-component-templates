@@ -1,7 +1,6 @@
 """HTTP Resource component."""
 from dataclasses import dataclass
 from typing import Optional
-import os
 import dagster as dg
 from pydantic import Field
 
@@ -16,7 +15,8 @@ class HTTPResource(dg.ConfigurableResource):
     def get_session(self):
         import requests
         session = requests.Session()
-        session.headers["Authorization"] = self.auth_header_value
+        if self.auth_header_value:
+            session.headers["Authorization"] = self.auth_header_value
         return session
 
     def get(self, path: str, **kwargs):
@@ -38,7 +38,7 @@ class HTTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = HTTPResource(
             base_url=self.base_url,
-            auth_header_value=os.environ.get(self.auth_header_env_var, "") if self.auth_header_env_var else "",
+            auth_header_value=dg.EnvVar(self.auth_header_env_var) if self.auth_header_env_var else "",
             timeout_seconds=self.timeout_seconds,
         )
         return dg.Definitions(resources={self.resource_key: resource})

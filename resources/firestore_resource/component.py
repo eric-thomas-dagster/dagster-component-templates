@@ -1,5 +1,4 @@
 import json
-import os
 from dataclasses import dataclass
 
 import dagster as dg
@@ -38,9 +37,7 @@ class FirestoreResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         gcp_credentials = (
-            os.environ.get(self.gcp_credentials_env_var, "")
-            if self.gcp_credentials_env_var
-            else ""
+            dg.EnvVar(self.gcp_credentials_env_var) if self.gcp_credentials_env_var else ""
         )
         resource = FirestoreResource(
             project=self.project,

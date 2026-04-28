@@ -1,7 +1,6 @@
 """Qdrant Resource component."""
 from dataclasses import dataclass
 from typing import Optional
-import os
 import dagster as dg
 from pydantic import Field
 
@@ -18,7 +17,7 @@ class QdrantResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_qdrant import QdrantResource
-        api_key = os.environ.get(self.api_key_env_var) if self.api_key_env_var else None
+        api_key = dg.EnvVar(self.api_key_env_var) if self.api_key_env_var else None
         resource = QdrantResource(
             url=self.url,
             host=self.host,

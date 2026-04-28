@@ -1,4 +1,3 @@
-import os
 from dataclasses import dataclass
 from typing import Optional
 
@@ -38,8 +37,8 @@ class ElasticsearchResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     verify_certs: bool = True
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        api_key = os.environ.get(self.api_key_env_var, "") if self.api_key_env_var else ""
-        password = os.environ.get(self.password_env_var, "") if self.password_env_var else ""
+        api_key = dg.EnvVar(self.api_key_env_var) if self.api_key_env_var else ""
+        password = dg.EnvVar(self.password_env_var) if self.password_env_var else ""
         resource = ElasticsearchResource(
             hosts=self.hosts,
             api_key=api_key,

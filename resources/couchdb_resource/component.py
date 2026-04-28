@@ -1,4 +1,3 @@
-import os
 from dataclasses import dataclass
 
 import couchdb
@@ -28,7 +27,7 @@ class CouchDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     password_env_var: str = ""
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        password = os.environ.get(self.password_env_var, "") if self.password_env_var else ""
+        password = dg.EnvVar(self.password_env_var) if self.password_env_var else ""
         resource = CouchDBResource(
             url=self.url,
             username=self.username,

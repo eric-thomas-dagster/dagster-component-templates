@@ -1,6 +1,5 @@
 """SMTP Resource component."""
 from dataclasses import dataclass
-import os
 import dagster as dg
 from pydantic import Field
 
@@ -44,7 +43,7 @@ class SMTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             host=self.host,
             port=self.port,
             username=self.username,
-            password=os.environ.get(self.password_env_var, ""),
+            password=dg.EnvVar(self.password_env_var),
             use_tls=self.use_tls,
         )
         return dg.Definitions(resources={self.resource_key: resource})

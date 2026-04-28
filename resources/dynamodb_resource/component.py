@@ -1,4 +1,3 @@
-import os
 from dataclasses import dataclass
 
 import boto3
@@ -41,14 +40,10 @@ class DynamoDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         aws_access_key_id = (
-            os.environ.get(self.aws_access_key_id_env_var, "")
-            if self.aws_access_key_id_env_var
-            else ""
+            dg.EnvVar(self.aws_access_key_id_env_var) if self.aws_access_key_id_env_var else ""
         )
         aws_secret_access_key = (
-            os.environ.get(self.aws_secret_access_key_env_var, "")
-            if self.aws_secret_access_key_env_var
-            else ""
+            dg.EnvVar(self.aws_secret_access_key_env_var) if self.aws_secret_access_key_env_var else ""
         )
         resource = DynamoDBResource(
             region_name=self.region_name,

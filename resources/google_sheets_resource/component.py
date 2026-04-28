@@ -2,7 +2,6 @@
 from dataclasses import dataclass
 from typing import Optional
 import json
-import os
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -11,8 +10,8 @@ from pydantic import Field
 class GoogleSheetsResource(ConfigurableResource):
     """Dagster resource wrapping the gspread client."""
 
-    gcp_credentials_env_var: str = Field(
-        description="Env var holding GCP service account JSON string"
+    gcp_credentials_json: str = Field(
+        description="Service account JSON string. Pass via dg.EnvVar at construction time."
     )
     scopes: str = Field(
         default="https://www.googleapis.com/auth/spreadsheets",
@@ -21,7 +20,7 @@ class GoogleSheetsResource(ConfigurableResource):
 
     def get_client(self):
         import gspread
-        credentials_json = json.loads(os.environ.get(self.gcp_credentials_env_var, "{}"))
+        credentials_json = json.loads(self.gcp_credentials_json or "{}")
         return gspread.service_account_from_dict(credentials_json)
 
 
@@ -43,7 +42,7 @@ class GoogleSheetsResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = GoogleSheetsResource(
-            gcp_credentials_env_var=self.gcp_credentials_env_var,
+            gcp_credentials_json=dg.EnvVar(self.gcp_credentials_env_var),
             scopes=self.scopes or "https://www.googleapis.com/auth/spreadsheets",
         )
         return dg.Definitions(resources={self.resource_key: resource})

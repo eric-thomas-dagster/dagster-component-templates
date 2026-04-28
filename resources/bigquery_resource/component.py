@@ -1,7 +1,6 @@
 """BigQuery Resource component."""
 from dataclasses import dataclass
 from typing import Optional
-import os
 import dagster as dg
 from pydantic import Field
 
@@ -18,7 +17,7 @@ class BigQueryResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_gcp import BigQueryResource
-        gcp_credentials = os.environ.get(self.gcp_credentials_env_var) if self.gcp_credentials_env_var else None
+        gcp_credentials = dg.EnvVar(self.gcp_credentials_env_var) if self.gcp_credentials_env_var else None
         resource = BigQueryResource(
             project=self.project,
             location=self.location,

@@ -42,7 +42,7 @@ class MLflowResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         resource = MLflowResource(
             tracking_uri=self.tracking_uri,
             experiment_name=self.experiment_name or "",
-            username=os.environ.get(self.username_env_var, "") if self.username_env_var else "",
-            password=os.environ.get(self.password_env_var, "") if self.password_env_var else "",
+            username=dg.EnvVar(self.username_env_var) if self.username_env_var else "",
+            password=dg.EnvVar(self.password_env_var) if self.password_env_var else "",
         )
         return dg.Definitions(resources={self.resource_key: resource})

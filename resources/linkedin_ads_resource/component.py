@@ -1,7 +1,6 @@
 """LinkedIn Ads Resource component."""
 from dataclasses import dataclass
 from typing import Optional
-import os
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -19,7 +18,7 @@ class LinkedInAdsResource(ConfigurableResource):
     )
 
     def get_headers(self) -> dict:
-        access_token = os.environ.get(self.access_token_env_var, "")
+        access_token = dg.EnvVar(self.access_token_env_var)
         return {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",

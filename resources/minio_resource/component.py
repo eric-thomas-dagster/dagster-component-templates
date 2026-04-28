@@ -1,7 +1,6 @@
 """MinIO Resource component — S3-compatible object storage."""
 from dataclasses import dataclass
 from typing import Optional
-import os
 import dagster as dg
 from pydantic import Field
 
@@ -38,8 +37,8 @@ class MinIOResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = MinIOResource(
             endpoint=self.endpoint,
-            access_key=os.environ.get(self.access_key_env_var, ""),
-            secret_key=os.environ.get(self.secret_key_env_var, ""),
+            access_key=dg.EnvVar(self.access_key_env_var),
+            secret_key=dg.EnvVar(self.secret_key_env_var),
             secure=self.secure,
             default_bucket=self.default_bucket,
         )

@@ -1,6 +1,5 @@
 """Airtable Resource component."""
 from dataclasses import dataclass
-import os
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -30,6 +29,6 @@ class AirtableResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = AirtableResource(
-            api_key=os.environ.get(self.api_key_env_var, ""),
+            api_key=dg.EnvVar(self.api_key_env_var),
         )
         return dg.Definitions(resources={self.resource_key: resource})

@@ -1,4 +1,3 @@
-import os
 from dataclasses import dataclass
 
 import dagster as dg
@@ -38,7 +37,7 @@ class MySQLResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     ssl_disabled: bool = False
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        password = os.environ.get(self.password_env_var, "") if self.password_env_var else ""
+        password = dg.EnvVar(self.password_env_var) if self.password_env_var else ""
         resource = MySQLResource(
             host=self.host,
             port=self.port,

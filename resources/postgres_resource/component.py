@@ -1,7 +1,6 @@
 """PostgreSQL Resource component."""
 from dataclasses import dataclass
 from typing import Optional
-import os
 import dagster as dg
 from pydantic import Field
 
@@ -43,7 +42,7 @@ class PostgresResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             port=self.port,
             database=self.database,
             username=self.username,
-            password=os.environ.get(self.password_env_var, ""),
+            password=dg.EnvVar(self.password_env_var),
             sslmode=self.sslmode or "prefer",
         )
         return dg.Definitions(resources={self.resource_key: resource})

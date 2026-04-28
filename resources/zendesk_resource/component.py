@@ -1,6 +1,5 @@
 """Zendesk Resource component."""
 from dataclasses import dataclass
-import os
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -44,6 +43,6 @@ class ZendeskResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         resource = ZendeskResource(
             subdomain=self.subdomain,
             email=self.email,
-            api_token=os.environ.get(self.api_token_env_var, ""),
+            api_token=dg.EnvVar(self.api_token_env_var),
         )
         return dg.Definitions(resources={self.resource_key: resource})

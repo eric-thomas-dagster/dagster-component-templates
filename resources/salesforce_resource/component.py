@@ -1,7 +1,6 @@
 """Salesforce Resource component."""
 from dataclasses import dataclass
 from typing import Optional
-import os
 import dagster as dg
 from pydantic import Field
 
@@ -22,10 +21,10 @@ class SalesforceResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         from dagster_salesforce import SalesforceResource
         resource = SalesforceResource(
             username=self.username,
-            password=os.environ.get(self.password_env_var, ""),
-            security_token=os.environ.get(self.security_token_env_var, "") if self.security_token_env_var else "",
+            password=dg.EnvVar(self.password_env_var),
+            security_token=dg.EnvVar(self.security_token_env_var) if self.security_token_env_var else "",
             domain=self.domain,
-            consumer_key=os.environ.get(self.consumer_key_env_var) if self.consumer_key_env_var else None,
-            consumer_secret=os.environ.get(self.consumer_secret_env_var) if self.consumer_secret_env_var else None,
+            consumer_key=dg.EnvVar(self.consumer_key_env_var) if self.consumer_key_env_var else None,
+            consumer_secret=dg.EnvVar(self.consumer_secret_env_var) if self.consumer_secret_env_var else None,
         )
         return dg.Definitions(resources={self.resource_key: resource})

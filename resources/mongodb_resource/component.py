@@ -1,4 +1,3 @@
-import os
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -26,7 +25,7 @@ class MongoDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     tls: bool = True
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        connection_string = os.environ.get(self.connection_string_env_var, "")
+        connection_string = dg.EnvVar(self.connection_string_env_var)
         resource = MongoDBResource(
             connection_string=connection_string,
             database=self.database,

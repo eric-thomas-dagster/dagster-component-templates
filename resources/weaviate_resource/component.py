@@ -1,7 +1,6 @@
 """Weaviate Resource component."""
 from dataclasses import dataclass
 from typing import Optional, Dict
-import os
 import dagster as dg
 from pydantic import Field
 
@@ -17,7 +16,7 @@ class WeaviateResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_weaviate import WeaviateResource
-        api_key = os.environ.get(self.api_key_env_var) if self.api_key_env_var else None
+        api_key = dg.EnvVar(self.api_key_env_var) if self.api_key_env_var else None
         resource = WeaviateResource(
             url=self.url,
             auth_client_secret=api_key,

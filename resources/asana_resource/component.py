@@ -1,7 +1,6 @@
 """Asana Resource component."""
 from dataclasses import dataclass
 from typing import Optional
-import os
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -22,7 +21,7 @@ class AsanaResource(ConfigurableResource):
         import asana
 
         configuration = asana.Configuration()
-        configuration.access_token = os.environ.get(self.access_token_env_var, "")
+        configuration.access_token = dg.EnvVar(self.access_token_env_var)
         return asana.WorkspacesApi(asana.ApiClient(configuration))
 
 

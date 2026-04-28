@@ -1,6 +1,5 @@
 """GitHub Resource component."""
 from dataclasses import dataclass
-import os
 import dagster as dg
 from pydantic import Field
 
@@ -18,7 +17,7 @@ class GithubResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         from dagster_github import GithubResource
         resource = GithubResource(
             github_app_id=self.github_app_id,
-            github_app_private_rsa_key=os.environ.get(self.github_app_private_rsa_key_env_var, ""),
+            github_app_private_rsa_key=dg.EnvVar(self.github_app_private_rsa_key_env_var),
             github_installation_id=self.github_installation_id,
         )
         return dg.Definitions(resources={self.resource_key: resource})

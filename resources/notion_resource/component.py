@@ -1,6 +1,5 @@
 """Notion Resource component."""
 from dataclasses import dataclass
-import os
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -30,6 +29,6 @@ class NotionResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = NotionResource(
-            token=os.environ.get(self.token_env_var, ""),
+            token=dg.EnvVar(self.token_env_var),
         )
         return dg.Definitions(resources={self.resource_key: resource})

@@ -1,7 +1,6 @@
 """Trino Resource component — distributed SQL query engine."""
 from dataclasses import dataclass
 from typing import Optional
-import os
 import dagster as dg
 from pydantic import Field
 from contextlib import contextmanager
@@ -19,13 +18,14 @@ class TrinoResource(dg.ConfigurableResource):
     @contextmanager
     def get_connection(self):
         import trino.dbapi as trino_dbapi
+        from trino.auth import BasicAuthentication
         conn = trino_dbapi.connect(
             host=self.host,
             port=self.port,
             user=self.user,
             catalog=self.catalog,
             schema=self.schema_name,
-            auth=trino_dbapi.auth.BasicAuthentication(self.user, self.password) if self.password else None,
+            auth=BasicAuthentication(self.user, self.password) if self.password else None,
         )
         try:
             yield conn
@@ -58,6 +58,6 @@ class TrinoResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             user=self.user,
             catalog=self.catalog,
             schema_name=self.schema_name,
-            password=os.environ.get(self.password_env_var, "") if self.password_env_var else None,
+            password=dg.EnvVar(self.password_env_var) if self.password_env_var else None,
         )
         return dg.Definitions(resources={self.resource_key: resource})

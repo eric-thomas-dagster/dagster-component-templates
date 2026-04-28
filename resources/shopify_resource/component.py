@@ -1,7 +1,6 @@
 """Shopify Resource component."""
 from dataclasses import dataclass
 from typing import Optional
-import os
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -43,7 +42,7 @@ class ShopifyResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = ShopifyResource(
             shop_url=self.shop_url,
-            access_token=os.environ.get(self.access_token_env_var, ""),
+            access_token=dg.EnvVar(self.access_token_env_var),
             api_version=self.api_version or "2024-01",
         )
         return dg.Definitions(resources={self.resource_key: resource})

@@ -1,7 +1,6 @@
 """AWS S3 Resource component."""
 from dataclasses import dataclass
 from typing import Optional
-import os
 import dagster as dg
 from pydantic import Field
 
@@ -18,10 +17,14 @@ class S3ResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_aws.s3 import S3Resource
-        resource = S3Resource(
-            region_name=self.region_name or "",
-            aws_access_key_id=os.environ.get(self.aws_access_key_id_env_var) if self.aws_access_key_id_env_var else None,
-            aws_secret_access_key=os.environ.get(self.aws_secret_access_key_env_var) if self.aws_secret_access_key_env_var else None,
-            endpoint_url=self.endpoint_url or "",
-        )
+        kwargs: dict = {}
+        if self.region_name:
+            kwargs["region_name"] = self.region_name
+        if self.aws_access_key_id_env_var:
+            kwargs["aws_access_key_id"] = dg.EnvVar(self.aws_access_key_id_env_var)
+        if self.aws_secret_access_key_env_var:
+            kwargs["aws_secret_access_key"] = dg.EnvVar(self.aws_secret_access_key_env_var)
+        if self.endpoint_url:
+            kwargs["endpoint_url"] = self.endpoint_url
+        resource = S3Resource(**kwargs)
         return dg.Definitions(resources={self.resource_key: resource})

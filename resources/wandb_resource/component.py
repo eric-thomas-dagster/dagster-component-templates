@@ -1,7 +1,6 @@
 """Weights & Biases Resource component."""
 from dataclasses import dataclass
 from typing import Optional
-import os
 import dagster as dg
 from pydantic import Field
 
@@ -37,7 +36,7 @@ class WandbResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = WandbResource(
-            api_key=os.environ.get(self.api_key_env_var, ""),
+            api_key=dg.EnvVar(self.api_key_env_var),
             entity=self.entity or "",
             project=self.project or "",
         )

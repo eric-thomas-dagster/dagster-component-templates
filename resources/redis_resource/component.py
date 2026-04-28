@@ -1,4 +1,3 @@
-import os
 from dataclasses import dataclass
 
 import dagster as dg
@@ -39,8 +38,8 @@ class RedisResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     url_env_var: str = ""
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        url = os.environ.get(self.url_env_var, "") if self.url_env_var else ""
-        password = os.environ.get(self.password_env_var, "") if self.password_env_var else ""
+        url = dg.EnvVar(self.url_env_var) if self.url_env_var else ""
+        password = dg.EnvVar(self.password_env_var) if self.password_env_var else ""
         resource = RedisResource(
             host=self.host,
             port=self.port,

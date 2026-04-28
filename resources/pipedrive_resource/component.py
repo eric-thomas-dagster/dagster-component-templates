@@ -1,7 +1,6 @@
 """Pipedrive Resource component."""
 from dataclasses import dataclass
 from typing import Optional
-import os
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -19,7 +18,7 @@ class PipedriveResource(ConfigurableResource):
     def get_client(self):
         import requests
 
-        api_token = os.environ.get(self.api_token_env_var, "")
+        api_token = dg.EnvVar(self.api_token_env_var)
         domain = self.company_domain or "api"
         base_url = f"https://{domain}.pipedrive.com/api/v1"
 

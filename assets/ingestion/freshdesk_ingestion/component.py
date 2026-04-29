@@ -1,316 +1,215 @@
 """Freshdesk Ingestion Component.
 
-Ingest Freshdesk customer support data using dlt (data load tool).
-Extracts tickets, contacts, companies, and agents.
+Ingest Freshdesk help-desk data (tickets, contacts, companies, agents) using dlt's verified `freshdesk` source.
+
+By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame.
+Set `destination` to persist directly to any dlt-supported destination
+(snowflake, bigquery, postgres, filesystem, etc.). See
+`assets/ingestion/DESTINATIONS.md` for the full configuration reference.
 """
 
+import os
 from typing import Dict, List, Optional
+
 import pandas as pd
+import dlt
 from dagster import (
     AssetExecutionContext,
     AssetKey,
     Component,
     ComponentLoadContext,
     Definitions,
+    MaterializeResult,
+    MetadataValue,
     Model,
+    Output,
     Resolvable,
     asset,
-    Output,
-    MetadataValue,
 )
 from pydantic import Field
-import dlt
 
 
 class FreshdeskIngestionComponent(Component, Model, Resolvable):
-    """Component for ingesting Freshdesk customer support data using dlt.
+    """Component for ingesting Freshdesk help-desk data using dlt.
 
-    Freshdesk is a cloud-based customer support platform. This component extracts
-    data from Freshdesk's API and returns it as a pandas DataFrame for downstream
-    transformation and analysis.
-
-    Available data resources:
-    - tickets: Customer support tickets and their status
-    - contacts: Customer contact information
-    - companies: Organization and company details
-    - agents: Support team members
-
-    The component uses dlt's verified Freshdesk source to handle API pagination,
-    rate limiting, and incremental loading automatically.
+    Available resources: `tickets`, `contacts`, `companies`, `agents`. dlt handles
+    API pagination, rate limiting, and incremental loading automatically.
 
     Example:
+
         ```yaml
         type: dagster_component_templates.FreshdeskIngestionComponent
         attributes:
-          asset_name: freshdesk_support_data
+          asset_name: freshdesk_data
           api_key: "{{ env('FRESHDESK_API_KEY') }}"
-          domain: "my-company"
-          resources:
-            - tickets
-            - contacts
-            - companies
-            - agents
+          domain: my-company
+          resources: [tickets, contacts]
         ```
+
+    To persist into a destination instead of returning a DataFrame, set
+    `destination` and (optionally) `dataset_name` / `persist_only` /
+    `destination_credentials_url`. See `../DESTINATIONS.md`.
     """
 
-    asset_name: str = Field(
-        description="Name of the asset to create"
-    )
+    # --- Source-specific fields ------------------------------------------------
 
-    api_key: str = Field(
-        description="Freshdesk API key for authentication"
-    )
+    asset_name: str = Field(description="Name of the asset to create")
 
-    domain: str = Field(
-        description="Freshdesk domain (e.g., 'my-company' for my-company.freshdesk.com)"
-    )
+    api_key: str = Field(description="Freshdesk API key for authentication")
 
-    resources: List[str] = Field(
-        default=["tickets", "contacts", "companies", "agents"],
-        description="Freshdesk resources to extract (tickets, contacts, companies, agents)"
-    )
+    domain: str = Field(description="Freshdesk domain (e.g., 'my-company' for my-company.freshdesk.com)")
 
-    description: Optional[str] = Field(
+    resources: List[str] = Field(default=["tickets", "contacts", "companies", "agents"], description="Freshdesk resources to extract (tickets, contacts, companies, agents)")
+
+    # --- Destination fields (see ../DESTINATIONS.md) --------------------------
+
+    destination: Optional[str] = Field(
         default=None,
-        description="Asset description"
+        description=(
+            "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', "
+            "'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', "
+            "'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode."
+        ),
     )
+
+    dataset_name: Optional[str] = Field(
+        default=None,
+        description="Target dataset/schema in the destination. Defaults to the asset name.",
+    )
+
+    persist_only: bool = Field(
+        default=False,
+        description=(
+            "If True with destination set: emit a MaterializeResult and skip DataFrame return. "
+            "If False: query the destination back into a DataFrame (only meaningful for SQL "
+            "destinations — non-SQL destinations always emit MaterializeResult)."
+        ),
+    )
+
+    destination_credentials_url: Optional[str] = Field(
+        default=None,
+        description=(
+            "Inline connection string passed to dlt's destination factory. Useful when one "
+            "Dagster project ingests into multiple accounts of the same destination type. "
+            "If unset, dlt resolves credentials from env vars — see ../DESTINATIONS.md."
+        ),
+    )
+
+    destination_credentials_env_var: Optional[str] = Field(
+        default=None,
+        description=(
+            "Alternative to destination_credentials_url: name of an env var holding the "
+            "connection string. Resolved at run-time."
+        ),
+    )
+
+    # --- Standard asset metadata -----------------------------------------------
+
+    description: Optional[str] = Field(default=None, description="Asset description")
 
     group_name: Optional[str] = Field(
-        default="freshdesk",
-        description="Asset group for organization"
+        default="freshdesk", description="Asset group for organization"
     )
+
     owners: Optional[List[str]] = Field(
         default=None,
         description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
     )
+
     asset_tags: Optional[Dict[str, str]] = Field(
         default=None,
         description="Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'}",
     )
+
     kinds: Optional[List[str]] = Field(
         default=None,
-        description="Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set.",
+        description="Asset kinds for the Dagster catalog. Auto-inferred from destination and asset name if not set.",
     )
+
     freshness_max_lag_minutes: Optional[int] = Field(
         default=None,
-        description="Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
+        description="Maximum acceptable lag in minutes before the asset is considered stale.",
     )
+
     freshness_cron: Optional[str] = Field(
         default=None,
-        description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
+        description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
     )
 
     include_sample_metadata: bool = Field(
-        default=True,
-        description="Include sample data preview in metadata"
+        default=True, description="Include sample data preview in metadata"
     )
 
-    
-    destination: Optional[str] = Field(
+    deps: Optional[List[str]] = Field(
         default=None,
-        description="Optional dlt destination (e.g., 'snowflake', 'bigquery', 'postgres', 'redshift'). If not set, uses in-memory DuckDB and returns DataFrame."
+        description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])",
     )
 
-    destination_config: Optional[str] = Field(
-        default=None,
-        description="Optional destination configuration as connection string or JSON. Required if destination is set."
-    )
+    # --------------------------------------------------------------------------
 
-    persist_and_return: bool = Field(
-        default=False,
-        description="If True with destination set: persist to database AND return DataFrame. If False: only persist to database."
-    )
+    def _resolve_destination(self):
+        """Build the dlt `destination` argument.
 
-    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
-
-    def _get_effective_destination(self) -> Optional[str]:
-        """Get destination based on environment routing if enabled."""
-        import os
-
-        if not self.use_environment_routing:
-            return self.destination
-
-        # Check Dagster Cloud environment variables
-        is_branch = os.getenv("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT", "").lower() == "true"
-        deployment_name = os.getenv("DAGSTER_CLOUD_DEPLOYMENT_NAME", "")
-
-        # Determine which destination to use
-        if is_branch and self.destination_branch:
-            return self.destination_branch
-        elif deployment_name and not is_branch and self.destination_prod:
-            # In Dagster Cloud but not a branch deployment = production
-            return self.destination_prod
-        elif not deployment_name and self.destination_local:
-            # Not in Dagster Cloud = local development
-            return self.destination_local
-        else:
-            # Fallback to main destination field
-            return self.destination
-
-    def _build_destination_config(self) -> dict:
-        """Build dlt destination config from structured fields."""
+        Returns a `dlt.destinations.<name>(credentials=...)` factory call when
+        inline credentials are provided; otherwise returns the bare destination
+        string and lets dlt's config layer resolve credentials from env vars.
+        """
         if not self.destination:
-            return {}
+            return "duckdb"
 
-        if self.destination == "snowflake":
-            return {
-                "credentials": {
-                    "database": self.snowflake_database,
-                    "username": self.snowflake_username,
-                    "password": self.snowflake_password,
-                    "host": self.snowflake_account,
-                    "warehouse": self.snowflake_warehouse,
-                    "role": self.snowflake_role if self.snowflake_role else None,
-                }
-            }
-        elif self.destination == "bigquery":
-            config = {
-                "project_id": self.bigquery_project_id,
-                "dataset": self.bigquery_dataset,
-            }
-            if self.bigquery_credentials_path:
-                config["credentials"] = self.bigquery_credentials_path
-            if self.bigquery_location:
-                config["location"] = self.bigquery_location
-            return config
-        elif self.destination == "postgres":
-            return {
-                "credentials": {
-                    "database": self.postgres_database,
-                    "username": self.postgres_username,
-                    "password": self.postgres_password,
-                    "host": self.postgres_host,
-                    "port": self.postgres_port,
-                }
-            }
-        elif self.destination == "redshift":
-            return {
-                "credentials": {
-                    "database": self.redshift_database,
-                    "username": self.redshift_username,
-                    "password": self.redshift_password,
-                    "host": self.redshift_host,
-                    "port": self.redshift_port,
-                }
-            }
-        elif self.destination == "duckdb":
-            return {
-                "credentials": self.duckdb_database_path if self.duckdb_database_path else ":memory:"
-            }
-        elif self.destination == "motherduck":
-            return {
-                "credentials": {
-                    "database": self.motherduck_database,
-                    "token": self.motherduck_token,
-                }
-            }
-        elif self.destination == "databricks":
-            config = {
-                "credentials": {
-                    "server_hostname": self.databricks_server_hostname,
-                    "http_path": self.databricks_http_path,
-                    "access_token": self.databricks_access_token,
-                }
-            }
-            if self.databricks_catalog:
-                config["credentials"]["catalog"] = self.databricks_catalog
-            if self.databricks_schema:
-                config["credentials"]["schema"] = self.databricks_schema
-            return config
-        elif self.destination == "clickhouse":
-            return {
-                "credentials": {
-                    "database": self.clickhouse_database,
-                    "username": self.clickhouse_username,
-                    "password": self.clickhouse_password,
-                    "host": self.clickhouse_host,
-                    "port": self.clickhouse_port,
-                }
-            }
-        elif self.destination == "mssql":
-            return {
-                "credentials": {
-                    "database": self.mssql_database,
-                    "username": self.mssql_username,
-                    "password": self.mssql_password,
-                    "host": self.mssql_host,
-                    "port": self.mssql_port,
-                }
-            }
-        elif self.destination == "athena":
-            return {
-                "credentials": {
-                    "query_result_bucket": self.athena_query_result_bucket,
-                    "database": self.athena_database,
-                    "aws_access_key_id": self.athena_aws_access_key_id,
-                    "aws_secret_access_key": self.athena_aws_secret_access_key,
-                    "region_name": self.athena_region,
-                }
-            }
-        elif self.destination == "mysql":
-            return {
-                "credentials": {
-                    "database": self.mysql_database,
-                    "username": self.mysql_username,
-                    "password": self.mysql_password,
-                    "host": self.mysql_host,
-                    "port": self.mysql_port,
-                }
-            }
-        elif self.destination == "filesystem":
-            config = {
-                "bucket_url": self.filesystem_bucket_path if self.filesystem_bucket_path else "/tmp/dlt_data",
-            }
-            if self.filesystem_format:
-                config["format"] = self.filesystem_format
-            return config
-        elif self.destination == "synapse":
-            return {
-                "credentials": {
-                    "database": self.synapse_database,
-                    "username": self.synapse_username,
-                    "password": self.synapse_password,
-                    "host": self.synapse_host,
-                }
-            }
+        creds: Optional[str] = None
+        if self.destination_credentials_url:
+            creds = self.destination_credentials_url
+        elif self.destination_credentials_env_var:
+            creds = os.environ.get(self.destination_credentials_env_var)
+
+        if creds:
+            factory = getattr(dlt.destinations, self.destination, None)
+            if factory is not None:
+                return factory(credentials=creds)
+            # Long-tail destination not exposed as a factory — fall back to
+            # the bare string and let dlt resolve credentials from env vars.
+        return self.destination
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         api_key = self.api_key
         domain = self.domain
         resources_list = self.resources
-        description = self.description or f"Freshdesk support data ({', '.join(resources_list)})"
+        description = self.description or f"Freshdesk data ({', '.join(resources_list)})"
         group_name = self.group_name
         include_sample = self.include_sample_metadata
         destination = self.destination
-        persist_and_return = self.persist_and_return
+        dataset_name = self.dataset_name or asset_name
+        persist_only = self.persist_only
+        component = self
 
-        # Infer kinds from component name if not explicitly set
-        _comp_name = "freshdesk_ingestion"  # component directory name
+        # Infer kinds from destination + asset name
         _kind_map = {
             "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
             "postgres": "postgres", "postgresql": "postgres", "mysql": "mysql",
-            "s3": "s3", "adls": "azure", "azure": "azure", "gcs": "gcp",
-            "google": "gcp", "databricks": "databricks", "dbt": "dbt",
-            "kafka": "kafka", "mongodb": "mongodb", "redis": "redis",
-            "neo4j": "neo4j", "elasticsearch": "elasticsearch", "pinecone": "pinecone",
-            "chromadb": "chromadb", "pgvector": "postgres",
+            "mssql": "mssql", "clickhouse": "clickhouse", "duckdb": "duckdb",
+            "motherduck": "duckdb", "databricks": "databricks", "athena": "athena",
+            "synapse": "azure", "fabric": "azure", "filesystem": "filesystem",
+            "delta": "delta", "iceberg": "iceberg", "weaviate": "weaviate",
+            "qdrant": "qdrant", "lancedb": "lance", "lance": "lance",
+            "huggingface": "huggingface",
         }
-        _inferred_kinds = self.kinds or []
+        _inferred_kinds = list(self.kinds or [])
+        if destination and destination in _kind_map:
+            _inferred_kinds.append(_kind_map[destination])
         if not _inferred_kinds:
-            _comp_lower = asset_name.lower()
             for keyword, kind in _kind_map.items():
-                if keyword in _comp_lower:
+                if keyword in asset_name.lower():
                     _inferred_kinds.append(kind)
-            if not _inferred_kinds:
-                _inferred_kinds = ["python"]
+        if not _inferred_kinds:
+            _inferred_kinds = ["python"]
+        _inferred_kinds = list(dict.fromkeys(_inferred_kinds))  # de-dupe, preserve order
 
-        # Build combined tags: user tags + kind tags
         _all_tags = dict(self.asset_tags or {})
         for _kind in _inferred_kinds:
             _all_tags[f"dagster/kind/{_kind}"] = ""
 
-        # Build freshness policy
         _freshness_policy = None
         if self.freshness_max_lag_minutes is not None:
             from dagster import FreshnessPolicy
@@ -320,174 +219,107 @@ class FreshdeskIngestionComponent(Component, Model, Resolvable):
             )
 
         owners = self.owners or []
-        column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
-
 
         @asset(
             name=asset_name,
             description=description,
-                        owners=owners,
+            owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
-group_name=group_name,
+            group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def freshdesk_ingestion_asset(context: AssetExecutionContext) -> pd.DataFrame:
-            """Asset that ingests Freshdesk data using dlt."""
+        def freshdesk_ingestion_asset(context: AssetExecutionContext):
             from dlt.sources.freshdesk import freshdesk_source
 
-            context.log.info(f"Starting Freshdesk ingestion for resources: {resources_list}")
-            # Determine destination (with environment routing if enabled)
+            context.log.info(
+                f"Starting Freshdesk ingestion: domain={domain}, resources={resources_list}, "
+                f"destination={destination or 'duckdb (in-memory)'}"
+            )
 
-            effective_destination = self._get_effective_destination() if hasattr(self, '_get_effective_destination') else destination
+            pipeline = dlt.pipeline(
+                pipeline_name=f"{asset_name}_pipeline",
+                destination=component._resolve_destination(),
+                dataset_name=dataset_name,
+            )
 
-            use_destination = effective_destination if effective_destination else "duckdb"
-
-            destination_config = self._build_destination_config() if effective_destination else {}
-
-            context.log.info(f"Using destination: {use_destination}")
-
-
-            # Create pipeline (in-memory DuckDB or specified destination)
-
-            pipeline_kwargs = {
-
-                "pipeline_name": f"{asset_name}_pipeline",
-
-                "destination": use_destination,
-
-                "dataset_name": asset_name if destination else f"{asset_name}_temp"
-
-            }
-
-
-            # Add credentials if destination is configured
-
-            if destination_config:
-
-                if "credentials" in destination_config:
-
-                    pipeline_kwargs["credentials"] = destination_config["credentials"]
-
-                # For BigQuery, project_id goes at root level
-
-                if use_destination == "bigquery" and "project_id" in destination_config:
-
-                    pipeline_kwargs["project_id"] = destination_config["project_id"]
-
-                    if "location" in destination_config:
-
-                        pipeline_kwargs["location"] = destination_config["location"]
-
-
-            pipeline = dlt.pipeline(**pipeline_kwargs)
-
-            # Create Freshdesk source
             source = freshdesk_source(
                 api_key=api_key,
                 domain=domain,
             )
 
-            # Filter to requested resources
-            if resources_list:
-                selected_resources = []
-                for resource_name in resources_list:
-                    if hasattr(source, resource_name):
-                        selected_resources.append(getattr(source, resource_name))
-                    else:
-                        context.log.warning(f"Resource {resource_name} not found in Freshdesk source")
+            selected_resources = []
+            for resource_name in resources_list:
+                if hasattr(source, resource_name):
+                    selected_resources.append(getattr(source, resource_name))
+                else:
+                    context.log.warning(
+                        f"Resource '{resource_name}' not found in Freshdesk source; skipping."
+                    )
+            if not selected_resources:
+                raise ValueError("No valid resources selected for Freshdesk source.")
 
-                if not selected_resources:
-                    raise ValueError(f"No valid resources found. Available: tickets, contacts, companies, agents")
-
-                load_info = pipeline.run(selected_resources)
-            else:
-                load_info = pipeline.run(source)
-
+            load_info = pipeline.run(selected_resources)
             context.log.info(f"Freshdesk data loaded: {load_info}")
 
-            # Handle based on destination mode
-            if effective_destination and not persist_and_return:
-                # Persist only mode: data is in destination, return metadata only
-                context.log.info(f"Data persisted to {effective_destination}. Not returning DataFrame (persist_and_return=False)")
-
-                # Get row counts from load_info if available
-                try:
-                    total_rows = sum(
-                        package.get('row_counts', {}).get(resource_name, 0)
-                        for package in load_info.load_packages
-                        for resource_name in resources_list if 'resources_list' in locals()
-                    )
-                except:
-                    total_rows = 0
-
-                metadata = {
-                    "destination": effective_destination,
-                    "dataset_name": asset_name,
-                    "row_count": total_rows,
+            base_metadata = {
+                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                "dataset_name": MetadataValue.text(dataset_name),
+                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                "resources_extracted": MetadataValue.json(list(resources_list)),
             }
 
-            # Add destination info if persisting
-            if destination:
-                metadata["destination"] = destination
-                metadata["dataset_name"] = asset_name
-                metadata["persist_and_return"] = persist_and_return
-                context.add_output_metadata(metadata)
+            non_sql_destinations = {
+                "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
+                "delta", "iceberg",
+            }
+            is_non_sql = destination in non_sql_destinations
 
-                # Return empty DataFrame with metadata
-                return pd.DataFrame({"status": ["persisted"], "destination": [effective_destination], "row_count": [total_rows]})
+            if persist_only or is_non_sql:
+                if is_non_sql and not persist_only:
+                    context.log.warning(
+                        f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                        f"Set persist_only=true to silence this warning."
+                    )
+                return MaterializeResult(metadata=base_metadata)
 
-            # DataFrame return mode: extract data from destination
-            dataset_name = asset_name if effective_destination else f"{asset_name}_temp"
-
-
-            # Extract data from DuckDB to DataFrame
             all_data = []
             for resource_name in resources_list:
                 try:
                     query = f"SELECT * FROM {dataset_name}.{resource_name}"
                     with pipeline.sql_client() as client:
                         with client.execute_query(query) as cursor:
-                            columns = [desc[0] for desc in cursor.description]
+                            columns = [d[0] for d in cursor.description]
                             rows = cursor.fetchall()
-                            if rows:
-                                df = pd.DataFrame(rows, columns=columns)
-                                df['_resource_type'] = resource_name
-                                all_data.append(df)
-                                context.log.info(f"Extracted {len(df)} rows from {resource_name}")
+                    if rows:
+                        df = pd.DataFrame(rows, columns=columns)
+                        df["_resource_type"] = resource_name
+                        all_data.append(df)
+                        context.log.info(f"Extracted {len(df)} rows from {resource_name}")
                 except Exception as e:
                     context.log.warning(f"Could not extract {resource_name}: {e}")
 
             if not all_data:
-                context.log.warning("No data extracted from Freshdesk")
-                return pd.DataFrame()
+                context.log.warning("No data extracted.")
+                return Output(value=pd.DataFrame(), metadata=base_metadata)
 
-            # Combine all resources into single DataFrame
             combined_df = pd.concat(all_data, ignore_index=True)
-
             context.log.info(
-                f"Freshdesk ingestion complete: {len(combined_df)} total rows from {len(all_data)} resources"
+                f"Ingestion complete: {len(combined_df)} total rows from {len(all_data)} resources"
             )
 
-            # Add metadata
             metadata = {
-                "row_count": len(combined_df),
-                "resources_extracted": len(all_data),
-                "resource_types": list(combined_df['_resource_type'].unique()) if '_resource_type' in combined_df.columns else [],
+                **base_metadata,
+                "row_count": MetadataValue.int(len(combined_df)),
+                "resource_types": MetadataValue.json(
+                    list(combined_df["_resource_type"].unique())
+                    if "_resource_type" in combined_df.columns
+                    else []
+                ),
             }
-
-            # Return with metadata
             if include_sample and len(combined_df) > 0:
-                return Output(
-                    value=combined_df,
-                    metadata={
-                        **metadata,
-                        "sample": MetadataValue.md(combined_df.head(10).to_markdown()),
-                        "preview": MetadataValue.dataframe(combined_df.head(10))
-                    }
-                )
-            else:
-                context.add_output_metadata(metadata)
-                return combined_df
+                metadata["sample"] = MetadataValue.md(combined_df.head(10).to_markdown())
+
+            return Output(value=combined_df, metadata=metadata)
 
         return Definitions(assets=[freshdesk_ingestion_asset])

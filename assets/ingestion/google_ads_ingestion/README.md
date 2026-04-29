@@ -1,243 +1,116 @@
 # Google Ads Ingestion Component
 
-Ingest Google Ads data into your data warehouse using dlt's verified Google Ads source. This component provides capabilities similar to Supermetrics, Funnel.io, and Adverity for Google Ads data extraction.
 
-## Features
+Ingest [Google Ads](https://ads.google.com) entity and reporting data using [dlt](https://dlthub.com)'s verified `google_ads` source.
 
-- **Multiple Resources**: Extract customers, campaigns, ad groups, ads, keywords, and change events
-- **Flexible Authentication**: OAuth or Service Account credentials
-- **Date Range Control**: Specify custom date ranges for performance metrics
-- **Multiple Destinations**: Load to DuckDB, Snowflake, BigQuery, Postgres, or Redshift
-- **Comprehensive Metrics**: Get impressions, clicks, cost, conversions, and more
-- **Incremental Loading**: dlt automatically handles incremental updates
 
-## Data Extracted
+## Overview
 
-### Standard Resources
-- **Customers**: Advertiser account information
-- **Campaigns**: Campaign configurations, budgets, and targeting
-- **Ad Groups**: Ad group settings within campaigns
-- **Ads**: Individual ad creative and settings
-- **Keywords**: Keyword targeting and bids
-- **Change Events**: Historical changes to account settings
+dlt handles API authentication, pagination, rate limiting, and incremental loading. This component wraps it as a Dagster asset that returns a pandas DataFrame by default, or persists directly to a destination if you set one.
 
-### Performance Metrics
-For each resource, performance data includes:
-- Impressions
-- Clicks
-- Cost
-- Conversions
-- Conversion Value
-- CTR (Click-through rate)
-- Average CPC
-- Average CPM
-- Quality Score (for keywords)
 
-## Prerequisites
+## Source-specific fields
 
-### 1. Google Ads Account
-Active Google Ads account with API access
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `asset_name` | `str` | yes | Name of the output asset |
+| `customer_id` | `str` | yes | Google Ads Customer ID (10-digit, with or without dashes) |
+| `developer_token` | `str` | yes | Google Ads API Developer Token |
+| `client_id` | `str` | yes | Google OAuth Client ID |
+| `client_secret` | `str` | yes | Google OAuth Client Secret |
+| `refresh_token` | `str` | yes | Google OAuth Refresh Token |
+| `use_service_account` | `bool` | no | Use service account credentials instead of OAuth (default `false`) |
+| `project_id` | `Optional[str]` | no | Google Cloud Project ID (service account auth) |
+| `service_account_email` | `Optional[str]` | no | Service account email |
+| `private_key` | `Optional[str]` | no | Service account private key |
+| `impersonated_email` | `Optional[str]` | no | Email to impersonate via DWD |
+| `resources` | `str` | no | Comma-separated resources — `customers,campaigns,ad_groups,ads,keywords,change_events` (default: `"customers,campaigns"`) |
+| `start_date` | `Optional[str]` | no | YYYY-MM-DD start of metrics window |
+| `end_date` | `Optional[str]` | no | YYYY-MM-DD end of metrics window |
 
-### 2. Developer Token
-Apply for a developer token at https://ads.google.com/home/tools/manager-accounts/
+## Standard fields
 
-### 3. OAuth Credentials (Option A)
-Create OAuth 2.0 credentials in Google Cloud Console:
-1. Go to https://console.cloud.google.com/
-2. Create a project (or use existing)
-3. Enable Google Ads API
-4. Create OAuth 2.0 credentials
-5. Generate refresh token using OAuth playground
+`description`, `group_name`, `owners`, `asset_tags`, `kinds`, `freshness_max_lag_minutes`, `freshness_cron`, `include_sample_metadata`, `deps` — same convention as every other component in this library.
 
-### 4. Service Account (Option B)
-Create service account in Google Cloud Console:
-1. Create service account
-2. Grant Google Ads API access
-3. Download JSON key file
-4. Configure domain-wide delegation if needed
 
-## Configuration
+## Destination
 
-### Basic Example (OAuth)
+By default this asset runs an in-memory DuckDB pipeline and returns a pandas DataFrame for downstream Dagster transformations. To persist directly to a warehouse or object store, set `destination`:
+
 
 ```yaml
 type: dagster_component_templates.GoogleAdsIngestionComponent
 attributes:
   asset_name: google_ads_data
-  customer_id: "123-456-7890"
-  developer_token: "${GOOGLE_ADS_DEV_TOKEN}"
-  client_id: "${GOOGLE_ADS_CLIENT_ID}"
-  client_secret: "${GOOGLE_ADS_CLIENT_SECRET}"
-  refresh_token: "${GOOGLE_ADS_REFRESH_TOKEN}"
-  resources: "customers,campaigns"
-  destination: "duckdb"
+  # ... source config ...
+  destination: bigquery          # or bigquery, postgres, filesystem, ...
+  dataset_name: google_ads_raw
+  persist_only: true
 ```
 
-### Advanced Example (with Date Range)
+Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for projects with multiple destination accounts, from inline `destination_credentials_url` / `destination_credentials_env_var`.
 
-```yaml
-type: dagster_component_templates.GoogleAdsIngestionComponent
-attributes:
-  asset_name: google_ads_campaigns
-  customer_id: "123-456-7890"
 
-  # Authentication
-  developer_token: "${GOOGLE_ADS_DEV_TOKEN}"
-  client_id: "${GOOGLE_ADS_CLIENT_ID}"
-  client_secret: "${GOOGLE_ADS_CLIENT_SECRET}"
-  refresh_token: "${GOOGLE_ADS_REFRESH_TOKEN}"
-  project_id: "${GOOGLE_CLOUD_PROJECT_ID}"
+**For full destination configuration — env-var conventions, multi-account setups, every supported dlt destination — see [`../DESTINATIONS.md`](../DESTINATIONS.md).**
 
-  # Resources
-  resources: "customers,campaigns,ad_groups,ads"
 
-  # Date range for performance metrics
-  start_date: "2024-01-01"
-  end_date: "2024-12-31"
-
-  # Destination
-  destination: "snowflake"
-  destination_config: '{"credentials": "snowflake://user:pass@account/db/schema"}'
-
-  group_name: "marketing_analytics"
-```
-
-### Service Account Example
+## Example — DataFrame mode (default)
 
 ```yaml
 type: dagster_component_templates.GoogleAdsIngestionComponent
 attributes:
   asset_name: google_ads_data
-  customer_id: "123-456-7890"
-
-  # Service Account Authentication
-  developer_token: "${GOOGLE_ADS_DEV_TOKEN}"
-  use_service_account: true
-  project_id: "${GOOGLE_CLOUD_PROJECT_ID}"
-  service_account_email: "service@project.iam.gserviceaccount.com"
-  private_key: "${GOOGLE_ADS_PRIVATE_KEY}"
-  impersonated_email: "admin@example.com"
-
-  resources: "customers,campaigns"
-  destination: "bigquery"
+  customer_id: "1234567890"
+  developer_token: "{{ env('GOOGLE_ADS_DEV_TOKEN') }}"
+  client_id: "{{ env('GOOGLE_ADS_CLIENT_ID') }}"
+  client_secret: "{{ env('GOOGLE_ADS_CLIENT_SECRET') }}"
+  refresh_token: "{{ env('GOOGLE_ADS_REFRESH_TOKEN') }}"
+  resources: "customers,campaigns,ads"
+  group_name: google_ads
 ```
 
-## Environment Variables
+The asset emits a pandas DataFrame combining all selected resources, with a `_resource_type` column tagging each row.
 
-Store sensitive credentials in environment variables:
 
-```bash
-# OAuth credentials
-export GOOGLE_ADS_DEV_TOKEN="your_dev_token"
-export GOOGLE_ADS_CLIENT_ID="your_client_id.apps.googleusercontent.com"
-export GOOGLE_ADS_CLIENT_SECRET="your_client_secret"
-export GOOGLE_ADS_REFRESH_TOKEN="your_refresh_token"
-export GOOGLE_CLOUD_PROJECT_ID="your-project-id"
-
-# Service account (alternative)
-export GOOGLE_ADS_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
-```
-
-Reference in YAML with `${VAR_NAME}` syntax.
-
-## Getting OAuth Refresh Token
-
-Use Google OAuth Playground:
-1. Go to https://developers.google.com/oauthplayground/
-2. Click settings (gear icon)
-3. Check "Use your own OAuth credentials"
-4. Enter your Client ID and Client Secret
-5. Select "Google Ads API v16" scope
-6. Authorize and get refresh token
-
-## Downstream Usage
-
-The ingested data can be used by:
-- **Marketing Data Standardizer**: Normalize Google Ads data into common schema
-- **Attribution Modeling**: Multi-touch attribution analysis
-- **Campaign Performance**: Cross-platform campaign dashboards
-- **Customer 360**: Combine with CRM and analytics data
-
-## Tips
-
-1. **Customer ID Format**: Remove dashes if present (both `123-456-7890` and `1234567890` work)
-2. **Manager Accounts**: Use customer ID of sub-accounts, not manager account ID
-3. **Date Ranges**: Performance data availability depends on campaign age
-4. **Rate Limits**: Google Ads API has rate limits; dlt handles retries
-5. **Incremental Loading**: dlt tracks state automatically for subsequent runs
-
-## Data Schema
-
-### Customers Table
-- `customer_id` - Customer account ID
-- `descriptive_name` - Account name
-- `currency_code` - Account currency
-- `time_zone` - Account time zone
-- `status` - Account status
-
-### Campaigns Table
-- `campaign_id` - Campaign ID
-- `name` - Campaign name
-- `status` - Campaign status (ENABLED, PAUSED, REMOVED)
-- `advertising_channel_type` - SEARCH, DISPLAY, VIDEO, etc.
-- `bidding_strategy_type` - Bidding strategy
-- `budget_amount_micros` - Budget in micros (divide by 1M)
-- `impressions` - Total impressions
-- `clicks` - Total clicks
-- `cost_micros` - Total cost in micros
-- `conversions` - Total conversions
-
-### Ad Groups Table
-- `ad_group_id` - Ad group ID
-- `campaign_id` - Parent campaign ID
-- `name` - Ad group name
-- `status` - Ad group status
-- `cpc_bid_micros` - CPC bid in micros
-- Performance metrics (impressions, clicks, cost, etc.)
-
-### Ads Table
-- `ad_id` - Ad ID
-- `ad_group_id` - Parent ad group ID
-- `type` - Ad type (TEXT_AD, RESPONSIVE_SEARCH_AD, etc.)
-- `status` - Ad status
-- `final_urls` - Landing page URLs
-- Performance metrics
-
-### Keywords Table
-- `keyword_id` - Keyword ID
-- `ad_group_id` - Parent ad group ID
-- `text` - Keyword text
-- `match_type` - EXACT, PHRASE, BROAD
-- `status` - Keyword status
-- `quality_score` - Quality score (1-10)
-- Performance metrics
-
-## Related Components
-
-- **Facebook Ads Ingestion**: Ingest Facebook Ads data
-- **Marketing Data Standardizer**: Normalize data across platforms
-- **Attribution Modeling**: Analyze marketing attribution
-- **DataFrame Transformer**: Transform and clean the data
-
-## Support
-
-For issues with:
-- **Component**: Create issue in dagster-component-templates repo
-- **dlt source**: Check [dlt Google Ads docs](https://dlthub.com/docs/dlt-ecosystem/verified-sources/google_ads)
-- **Google Ads API**: Refer to [Google Ads API docs](https://developers.google.com/google-ads/api/docs/start)
-
-## Asset Dependencies & Lineage
-
-This component supports a `deps` field for declaring upstream Dagster asset dependencies:
+## Example — persist to Bigquery
 
 ```yaml
+type: dagster_component_templates.GoogleAdsIngestionComponent
 attributes:
-  # ... other fields ...
-  deps:
-    - raw_orders              # simple asset key
-    - raw/schema/orders       # asset key with path prefix
+  asset_name: google_ads_data
+  customer_id: "1234567890"
+  developer_token: "{{ env('GOOGLE_ADS_DEV_TOKEN') }}"
+  client_id: "{{ env('GOOGLE_ADS_CLIENT_ID') }}"
+  client_secret: "{{ env('GOOGLE_ADS_CLIENT_SECRET') }}"
+  refresh_token: "{{ env('GOOGLE_ADS_REFRESH_TOKEN') }}"
+  resources: "customers,campaigns,ads"
+  destination: bigquery
+  dataset_name: google_ads_raw
+  persist_only: true
 ```
 
-`deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
+Set `DESTINATION__BIGQUERY__CREDENTIALS__*` env vars before running. The asset emits a `MaterializeResult` with destination metadata.
 
-Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).
+
+## Notes
+
+- **Auth modes**: OAuth (default) or service account (`use_service_account: true`). Service-account mode requires Domain-Wide Delegation if you set `impersonated_email`.
+- **Date range**: omit `start_date`/`end_date` for default last-30-days window.
+- **Non-SQL destinations**: setting `destination=filesystem` (or any vector store / lake format) requires `persist_only=true`. The component logs a warning and returns a `MaterializeResult` if you forget.
+
+## Asset dependencies
+
+```yaml
+deps:
+  - some_upstream_asset
+  - schema/scoped_asset
+```
+
+Dependencies declared here draw lineage edges in the Dagster graph without loading data at runtime.
+
+
+## Learn more
+
+- [dlt Google Ads source](https://dlthub.com/docs/dlt-ecosystem/verified-sources/google_ads)
+- [dlt destinations overview](https://dlthub.com/docs/dlt-ecosystem/destinations)
+- [`../DESTINATIONS.md`](../DESTINATIONS.md) — configuration reference for this library

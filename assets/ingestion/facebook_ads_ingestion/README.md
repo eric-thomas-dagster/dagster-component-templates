@@ -1,186 +1,109 @@
 # Facebook Ads Ingestion Component
 
-Ingest Facebook Ads data into your data warehouse using dlt's verified Facebook Ads source. This component provides capabilities similar to Supermetrics, Funnel.io, and Adverity for Facebook Ads data extraction.
 
-## Features
+Ingest [Facebook Ads](https://www.facebook.com/business/ads) campaign data and insights using [dlt](https://dlthub.com)'s verified `facebook_ads` source.
 
-- **Multiple Resources**: Extract campaigns, ad sets, ads, creatives, leads, and insights
-- **Flexible Configuration**: Customize date ranges, fields, breakdowns, and filters
-- **Multiple Destinations**: Load to DuckDB, Snowflake, BigQuery, Postgres, or Redshift
-- **Insights Support**: Get detailed performance metrics with demographic breakdowns
-- **Ad States Filtering**: Filter ads by status (ACTIVE, PAUSED, etc.)
-- **Incremental Loading**: dlt automatically handles incremental updates on subsequent runs
 
-## Data Extracted
+## Overview
 
-### Standard Resources
-- **Campaigns**: Marketing campaigns with objectives and budgets
-- **Ad Sets**: Ad set configurations within campaigns
-- **Ads**: Individual ad units
-- **Creatives**: Visual and textual ad content
-- **Ad Leads**: Lead generation form submissions
+dlt handles API authentication, pagination, rate limiting, and incremental loading. This component wraps it as a Dagster asset that returns a pandas DataFrame by default, or persists directly to a destination if you set one.
 
-### Insights
-Performance metrics including:
-- Impressions
-- Clicks
-- Spend
-- Reach
-- CPM, CPC, CTR
-- Conversions
-- And 100+ more metrics
 
-Insights can be broken down by:
-- Age
-- Gender
-- Country/Region
-- Platform
-- Device
-- Placement
+## Source-specific fields
 
-## Prerequisites
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `asset_name` | `str` | yes | Name of the output asset |
+| `account_id` | `str` | yes | Ad account ID (format `act_123456789`) |
+| `access_token` | `str` | yes | Facebook access token with `ads_read` permissions |
+| `app_id` | `Optional[str]` | no | Facebook App ID (optional, for long-lived tokens) |
+| `app_secret` | `Optional[str]` | no | Facebook App Secret (optional, for long-lived tokens) |
+| `resources` | `str` | no | Comma-separated resources — `campaigns,ad_sets,ads,creatives,ad_leads,insights` (default: `"insights"`) |
+| `initial_load_past_days` | `int` | no | Days of historical data on first load (default 30) |
+| `ad_states` | `str` | no | Comma-separated ad states to extract (default `"ACTIVE,PAUSED"`) |
+| `insights_fields` | `Optional[str]` | no | Comma-separated insights fields |
+| `insights_breakdown` | `Optional[str]` | no | Insights breakdown dimension (`age`, `gender`, `country`, `region`, `platform`, `device_platform`) |
+| `time_increment_days` | `int` | no | Insights time increment in days (default 1 = daily) |
 
-### 1. Facebook Developer Account
-Create a Facebook Business App at https://developers.facebook.com/
+## Standard fields
 
-### 2. Access Token
-Generate an access token with these permissions:
-- `ads_read`
-- `lead_retrieval` (if extracting leads)
+`description`, `group_name`, `owners`, `asset_tags`, `kinds`, `freshness_max_lag_minutes`, `freshness_cron`, `include_sample_metadata`, `deps` — same convention as every other component in this library.
 
-### 3. Account ID
-Find your Facebook Ads Account ID:
-1. Go to Facebook Ads Manager
-2. Look in the URL: `act_123456789`
-3. Or check Account Settings
 
-## Configuration
+## Destination
 
-### Basic Example
+By default this asset runs an in-memory DuckDB pipeline and returns a pandas DataFrame for downstream Dagster transformations. To persist directly to a warehouse or object store, set `destination`:
+
 
 ```yaml
 type: dagster_component_templates.FacebookAdsIngestionComponent
 attributes:
   asset_name: facebook_ads_data
-  account_id: "act_123456789"
-  access_token: "${FACEBOOK_ACCESS_TOKEN}"
-  resources: "campaigns,ads,insights"
-  destination: "duckdb"
+  # ... source config ...
+  destination: bigquery          # or bigquery, postgres, filesystem, ...
+  dataset_name: facebook_ads_raw
+  persist_only: true
 ```
 
-### Advanced Example
+Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for projects with multiple destination accounts, from inline `destination_credentials_url` / `destination_credentials_env_var`.
+
+
+**For full destination configuration — env-var conventions, multi-account setups, every supported dlt destination — see [`../DESTINATIONS.md`](../DESTINATIONS.md).**
+
+
+## Example — DataFrame mode (default)
 
 ```yaml
 type: dagster_component_templates.FacebookAdsIngestionComponent
 attributes:
-  asset_name: facebook_ads_insights
-  account_id: "act_123456789"
-  access_token: "${FACEBOOK_ACCESS_TOKEN}"
-  app_id: "${FACEBOOK_APP_ID}"
-  app_secret: "${FACEBOOK_APP_SECRET}"
-
-  # Extract only insights with custom fields
-  resources: "insights"
-  insights_fields: "impressions,clicks,spend,reach,cpm,ctr,conversions"
-  insights_breakdown: "age"
-
-  # Load last 90 days of data
+  asset_name: facebook_ads_data
+  account_id: act_123456789
+  access_token: "{{ env('FACEBOOK_ACCESS_TOKEN') }}"
+  resources: "campaigns,ads,insights"
   initial_load_past_days: 90
-  time_increment_days: 1
-
-  # Load to Snowflake
-  destination: "snowflake"
-  destination_config: '{"credentials": "snowflake://user:pass@account/db/schema"}'
-
-  group_name: "marketing_analytics"
+  group_name: facebook_ads
 ```
 
-## Environment Variables
+The asset emits a pandas DataFrame combining all selected resources, with a `_resource_type` column tagging each row.
 
-Store sensitive credentials in environment variables:
 
-```bash
-export FACEBOOK_ACCESS_TOKEN="your_access_token"
-export FACEBOOK_APP_ID="your_app_id"
-export FACEBOOK_APP_SECRET="your_app_secret"
-```
-
-Reference in YAML with `${VAR_NAME}` syntax.
-
-## Downstream Usage
-
-The ingested data can be used by:
-- **Marketing Data Standardizer**: Normalize Facebook Ads data into common schema
-- **Attribution Modeling**: Multi-touch attribution analysis
-- **Campaign Performance**: Cross-platform campaign dashboards
-- **Customer 360**: Combine with CRM and analytics data
-
-## Tips
-
-1. **Long-lived Tokens**: Use `app_id` and `app_secret` to automatically refresh tokens
-2. **Incremental Loading**: dlt handles incremental updates automatically using state management
-3. **Custom Fields**: Use `insights_fields` to request only the metrics you need
-4. **Breakdowns**: Add demographic breakdowns to insights for deeper analysis
-5. **Rate Limits**: Facebook has API rate limits; dlt handles retries automatically
-
-## Data Schema
-
-### Campaigns Table
-- `id` - Campaign ID
-- `name` - Campaign name
-- `objective` - Campaign objective (CONVERSIONS, LINK_CLICKS, etc.)
-- `status` - ACTIVE, PAUSED, etc.
-- `daily_budget` - Daily budget in cents
-- `lifetime_budget` - Total budget in cents
-
-### Ads Table
-- `id` - Ad ID
-- `name` - Ad name
-- `adset_id` - Parent ad set ID
-- `campaign_id` - Parent campaign ID
-- `status` - Ad status
-- `creative` - Creative configuration
-
-### Insights Table
-- `date_start` - Report date start
-- `date_stop` - Report date end
-- `campaign_id` - Campaign ID
-- `ad_id` - Ad ID (if applicable)
-- `impressions` - Number of impressions
-- `clicks` - Number of clicks
-- `spend` - Amount spent
-- `reach` - Unique users reached
-- `cpm` - Cost per 1000 impressions
-- `cpc` - Cost per click
-- `ctr` - Click-through rate
-- Plus breakdown dimensions if configured
-
-## Related Components
-
-- **Google Ads Ingestion**: Ingest Google Ads data
-- **Marketing Data Standardizer**: Normalize data across platforms
-- **Attribution Modeling**: Analyze marketing attribution
-- **DataFrame Transformer**: Transform and clean the data
-
-## Support
-
-For issues with:
-- **Component**: Create issue in dagster-component-templates repo
-- **dlt source**: Check [dlt Facebook Ads docs](https://dlthub.com/docs/dlt-ecosystem/verified-sources/facebook_ads)
-- **Facebook API**: Refer to [Facebook Marketing API docs](https://developers.facebook.com/docs/marketing-api)
-
-## Asset Dependencies & Lineage
-
-This component supports a `deps` field for declaring upstream Dagster asset dependencies:
+## Example — persist to Bigquery
 
 ```yaml
+type: dagster_component_templates.FacebookAdsIngestionComponent
 attributes:
-  # ... other fields ...
-  deps:
-    - raw_orders              # simple asset key
-    - raw/schema/orders       # asset key with path prefix
+  asset_name: facebook_ads_data
+  account_id: act_123456789
+  access_token: "{{ env('FACEBOOK_ACCESS_TOKEN') }}"
+  resources: "campaigns,ads,insights"
+  destination: bigquery
+  dataset_name: facebook_ads_raw
+  persist_only: true
 ```
 
-`deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
+Set `DESTINATION__BIGQUERY__CREDENTIALS__*` env vars before running. The asset emits a `MaterializeResult` with destination metadata.
 
-Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).
+
+## Notes
+
+- **Insights vs entities**: insights data goes through a separate `facebook_insights_source` and is loaded after the entity resources.
+- **Long-lived tokens**: provide `app_id` and `app_secret` to enable token refresh.
+- **Rate limits**: Facebook applies aggressive rate limits — use `initial_load_past_days` to bound first-load size.
+- **Non-SQL destinations**: setting `destination=filesystem` (or any vector store / lake format) requires `persist_only=true`. The component logs a warning and returns a `MaterializeResult` if you forget.
+
+## Asset dependencies
+
+```yaml
+deps:
+  - some_upstream_asset
+  - schema/scoped_asset
+```
+
+Dependencies declared here draw lineage edges in the Dagster graph without loading data at runtime.
+
+
+## Learn more
+
+- [dlt Facebook Ads source](https://dlthub.com/docs/dlt-ecosystem/verified-sources/facebook_ads)
+- [dlt destinations overview](https://dlthub.com/docs/dlt-ecosystem/destinations)
+- [`../DESTINATIONS.md`](../DESTINATIONS.md) — configuration reference for this library

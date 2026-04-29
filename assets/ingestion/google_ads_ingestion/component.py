@@ -1,335 +1,198 @@
-"""Google Ads Ingestion Component using dlt.
+"""Google Ads Ingestion Component.
 
-Ingest Google Ads data (customers, campaigns, ad groups, ads, and performance metrics)
-using dlt's verified Google Ads source. Returns DataFrames for flexible transformation.
-Mimics capabilities of Supermetrics and Funnel.io.
+Ingest Google Ads data (customers, campaigns, ad groups, ads, keywords, change events) using dlt's verified `google_ads` source.
+
+By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame.
+Set `destination` to persist directly to any dlt-supported destination
+(snowflake, bigquery, postgres, filesystem, etc.). See
+`assets/ingestion/DESTINATIONS.md` for the full configuration reference.
 """
 
+import os
 from typing import Dict, List, Optional
+
 import pandas as pd
+import dlt
 from dagster import (
+    AssetExecutionContext,
     AssetKey,
     Component,
     ComponentLoadContext,
     Definitions,
-    AssetExecutionContext,
-    asset,
-    Resolvable,
+    MaterializeResult,
+    MetadataValue,
     Model,
     Output,
-    MetadataValue,
+    Resolvable,
+    asset,
 )
 from pydantic import Field
 
 
 class GoogleAdsIngestionComponent(Component, Model, Resolvable):
-    """Component for ingesting Google Ads data using dlt - returns DataFrames.
+    """Component for ingesting Google Ads data using dlt.
 
-    This component uses dlt's verified Google Ads source to extract data and
-    returns it as a pandas DataFrame for downstream transformation and analysis.
-
-    Resources extracted:
-    - customers: Advertiser account information
-    - campaigns: Campaign configurations, budgets, and targeting
-    - ad_groups: Ad group settings within campaigns
-    - ads: Individual ad creative and settings
-    - keywords: Keyword targeting and bids (if available)
-    - change_events: Historical changes to account settings
-
-    Performance metrics included:
-    - Impressions, Clicks, Cost
-    - Conversions, Conversion Value
-    - CTR, Average CPC, Average CPM
-    - Quality Score (for keywords)
-
-    The DataFrame can then be:
-    - Transformed with Marketing Data Standardizer
-    - Further processed with DataFrame Transformer
-    - Written to any warehouse with DuckDB/Snowflake/BigQuery Writer
+    Supports both OAuth and service-account authentication. dlt handles API
+    pagination, rate limiting, and incremental loading automatically.
 
     Example:
+
         ```yaml
         type: dagster_component_templates.GoogleAdsIngestionComponent
         attributes:
           asset_name: google_ads_data
           customer_id: "1234567890"
-          developer_token: "${GOOGLE_ADS_DEV_TOKEN}"
-          client_id: "${GOOGLE_ADS_CLIENT_ID}"
-          client_secret: "${GOOGLE_ADS_CLIENT_SECRET}"
-          refresh_token: "${GOOGLE_ADS_REFRESH_TOKEN}"
-          resources: "customers,campaigns"
+          developer_token: "{{ env('GOOGLE_ADS_DEV_TOKEN') }}"
+          client_id: "{{ env('GOOGLE_ADS_CLIENT_ID') }}"
+          client_secret: "{{ env('GOOGLE_ADS_CLIENT_SECRET') }}"
+          refresh_token: "{{ env('GOOGLE_ADS_REFRESH_TOKEN') }}"
+          resources: "customers,campaigns,ads"
         ```
+
+    To persist into a destination instead of returning a DataFrame, set
+    `destination` and (optionally) `dataset_name` / `persist_only` /
+    `destination_credentials_url`. See `../DESTINATIONS.md`.
     """
 
-    asset_name: str = Field(
-        description="Name of the asset that will hold the Google Ads data"
+    # --- Source-specific fields ------------------------------------------------
+
+    asset_name: str = Field(description="Name of the asset that will hold the Google Ads data")
+
+    customer_id: str = Field(description="Google Ads Customer ID (10-digit number, format: XXX-XXX-XXXX or XXXXXXXXXX)")
+
+    developer_token: str = Field(description="Google Ads API Developer Token.")
+
+    client_id: str = Field(description="Google OAuth Client ID.")
+
+    client_secret: str = Field(description="Google OAuth Client Secret.")
+
+    refresh_token: str = Field(description="Google OAuth Refresh Token.")
+
+    use_service_account: bool = Field(default=False, description="Use service account instead of OAuth credentials")
+
+    project_id: Optional[str] = Field(default=None, description="Google Cloud Project ID (for service account auth)")
+
+    service_account_email: Optional[str] = Field(default=None, description="Service account email (for service account auth)")
+
+    private_key: Optional[str] = Field(default=None, description="Service account private key (for service account auth).")
+
+    impersonated_email: Optional[str] = Field(default=None, description="Email to impersonate for service account delegation")
+
+    resources: str = Field(default="customers,campaigns", description="Comma-separated list of resources to extract: customers, campaigns, ad_groups, ads, keywords, change_events")
+
+    start_date: Optional[str] = Field(default=None, description="Start date for performance metrics (YYYY-MM-DD). Defaults to 30 days ago.")
+
+    end_date: Optional[str] = Field(default=None, description="End date for performance metrics (YYYY-MM-DD). Defaults to today.")
+
+    # --- Destination fields (see ../DESTINATIONS.md) --------------------------
+
+    destination: Optional[str] = Field(
+        default=None,
+        description=(
+            "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', "
+            "'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', "
+            "'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode."
+        ),
     )
 
-    customer_id: str = Field(
-        description="Google Ads Customer ID (10-digit number, format: XXX-XXX-XXXX or XXXXXXXXXX)"
+    dataset_name: Optional[str] = Field(
+        default=None,
+        description="Target dataset/schema in the destination. Defaults to the asset name.",
     )
 
-    developer_token: str = Field(
-        description="Google Ads API Developer Token. Use ${GOOGLE_ADS_DEV_TOKEN} for env vars."
-    )
-
-    # OAuth credentials
-    client_id: str = Field(
-        description="Google OAuth Client ID. Use ${GOOGLE_ADS_CLIENT_ID} for env vars."
-    )
-
-    client_secret: str = Field(
-        description="Google OAuth Client Secret. Use ${GOOGLE_ADS_CLIENT_SECRET} for env vars."
-    )
-
-    refresh_token: str = Field(
-        description="Google OAuth Refresh Token. Use ${GOOGLE_ADS_REFRESH_TOKEN} for env vars."
-    )
-
-    # Optional: Service Account credentials (alternative to OAuth)
-    use_service_account: bool = Field(
+    persist_only: bool = Field(
         default=False,
-        description="Use service account instead of OAuth credentials"
+        description=(
+            "If True with destination set: emit a MaterializeResult and skip DataFrame return. "
+            "If False: query the destination back into a DataFrame (only meaningful for SQL "
+            "destinations — non-SQL destinations always emit MaterializeResult)."
+        ),
     )
 
-    project_id: Optional[str] = Field(
+    destination_credentials_url: Optional[str] = Field(
         default=None,
-        description="Google Cloud Project ID (for service account auth)"
+        description=(
+            "Inline connection string passed to dlt's destination factory. Useful when one "
+            "Dagster project ingests into multiple accounts of the same destination type. "
+            "If unset, dlt resolves credentials from env vars — see ../DESTINATIONS.md."
+        ),
     )
 
-    service_account_email: Optional[str] = Field(
+    destination_credentials_env_var: Optional[str] = Field(
         default=None,
-        description="Service account email (for service account auth)"
+        description=(
+            "Alternative to destination_credentials_url: name of an env var holding the "
+            "connection string. Resolved at run-time."
+        ),
     )
 
-    private_key: Optional[str] = Field(
-        default=None,
-        description="Service account private key (for service account auth). Use ${GOOGLE_ADS_PRIVATE_KEY} for env vars."
-    )
+    # --- Standard asset metadata -----------------------------------------------
 
-    impersonated_email: Optional[str] = Field(
-        default=None,
-        description="Email to impersonate for service account delegation"
-    )
-
-    resources: str = Field(
-        default="customers,campaigns",
-        description="Comma-separated list of resources to extract: customers, campaigns, ad_groups, ads, keywords, change_events"
-    )
-
-    start_date: Optional[str] = Field(
-        default=None,
-        description="Start date for performance metrics (YYYY-MM-DD). Defaults to 30 days ago."
-    )
-
-    end_date: Optional[str] = Field(
-        default=None,
-        description="End date for performance metrics (YYYY-MM-DD). Defaults to today."
-    )
-
-    description: Optional[str] = Field(
-        default=None,
-        description="Asset description"
-    )
+    description: Optional[str] = Field(default=None, description="Asset description")
 
     group_name: Optional[str] = Field(
-        default="google_ads",
-        description="Asset group for organization"
+        default="google_ads", description="Asset group for organization"
     )
+
     owners: Optional[List[str]] = Field(
         default=None,
         description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
     )
+
     asset_tags: Optional[Dict[str, str]] = Field(
         default=None,
         description="Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'}",
     )
+
     kinds: Optional[List[str]] = Field(
         default=None,
-        description="Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set.",
+        description="Asset kinds for the Dagster catalog. Auto-inferred from destination and asset name if not set.",
     )
+
     freshness_max_lag_minutes: Optional[int] = Field(
         default=None,
-        description="Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
+        description="Maximum acceptable lag in minutes before the asset is considered stale.",
     )
+
     freshness_cron: Optional[str] = Field(
         default=None,
-        description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
+        description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
     )
 
     include_sample_metadata: bool = Field(
-        default=True,
-        description="Include sample data preview in metadata"
+        default=True, description="Include sample data preview in metadata"
     )
 
-    
-    destination: Optional[str] = Field(
+    deps: Optional[List[str]] = Field(
         default=None,
-        description="Optional dlt destination (e.g., 'snowflake', 'bigquery', 'postgres', 'redshift'). If not set, uses in-memory DuckDB and returns DataFrame."
+        description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])",
     )
 
-    destination_config: Optional[str] = Field(
-        default=None,
-        description="Optional destination configuration as connection string or JSON. Required if destination is set."
-    )
+    # --------------------------------------------------------------------------
 
-    persist_and_return: bool = Field(
-        default=False,
-        description="If True with destination set: persist to database AND return DataFrame. If False: only persist to database."
-    )
+    def _resolve_destination(self):
+        """Build the dlt `destination` argument.
 
-    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
-
-    def _get_effective_destination(self) -> Optional[str]:
-        """Get destination based on environment routing if enabled."""
-        import os
-
-        if not self.use_environment_routing:
-            return self.destination
-
-        # Check Dagster Cloud environment variables
-        is_branch = os.getenv("DAGSTER_CLOUD_IS_BRANCH_DEPLOYMENT", "").lower() == "true"
-        deployment_name = os.getenv("DAGSTER_CLOUD_DEPLOYMENT_NAME", "")
-
-        # Determine which destination to use
-        if is_branch and self.destination_branch:
-            return self.destination_branch
-        elif deployment_name and not is_branch and self.destination_prod:
-            # In Dagster Cloud but not a branch deployment = production
-            return self.destination_prod
-        elif not deployment_name and self.destination_local:
-            # Not in Dagster Cloud = local development
-            return self.destination_local
-        else:
-            # Fallback to main destination field
-            return self.destination
-
-    def _build_destination_config(self) -> dict:
-        """Build dlt destination config from structured fields."""
+        Returns a `dlt.destinations.<name>(credentials=...)` factory call when
+        inline credentials are provided; otherwise returns the bare destination
+        string and lets dlt's config layer resolve credentials from env vars.
+        """
         if not self.destination:
-            return {}
+            return "duckdb"
 
-        if self.destination == "snowflake":
-            return {
-                "credentials": {
-                    "database": self.snowflake_database,
-                    "username": self.snowflake_username,
-                    "password": self.snowflake_password,
-                    "host": self.snowflake_account,
-                    "warehouse": self.snowflake_warehouse,
-                    "role": self.snowflake_role if self.snowflake_role else None,
-                }
-            }
-        elif self.destination == "bigquery":
-            config = {
-                "project_id": self.bigquery_project_id,
-                "dataset": self.bigquery_dataset,
-            }
-            if self.bigquery_credentials_path:
-                config["credentials"] = self.bigquery_credentials_path
-            if self.bigquery_location:
-                config["location"] = self.bigquery_location
-            return config
-        elif self.destination == "postgres":
-            return {
-                "credentials": {
-                    "database": self.postgres_database,
-                    "username": self.postgres_username,
-                    "password": self.postgres_password,
-                    "host": self.postgres_host,
-                    "port": self.postgres_port,
-                }
-            }
-        elif self.destination == "redshift":
-            return {
-                "credentials": {
-                    "database": self.redshift_database,
-                    "username": self.redshift_username,
-                    "password": self.redshift_password,
-                    "host": self.redshift_host,
-                    "port": self.redshift_port,
-                }
-            }
-        elif self.destination == "duckdb":
-            return {
-                "credentials": self.duckdb_database_path if self.duckdb_database_path else ":memory:"
-            }
-        elif self.destination == "motherduck":
-            return {
-                "credentials": {
-                    "database": self.motherduck_database,
-                    "token": self.motherduck_token,
-                }
-            }
-        elif self.destination == "databricks":
-            config = {
-                "credentials": {
-                    "server_hostname": self.databricks_server_hostname,
-                    "http_path": self.databricks_http_path,
-                    "access_token": self.databricks_access_token,
-                }
-            }
-            if self.databricks_catalog:
-                config["credentials"]["catalog"] = self.databricks_catalog
-            if self.databricks_schema:
-                config["credentials"]["schema"] = self.databricks_schema
-            return config
-        elif self.destination == "clickhouse":
-            return {
-                "credentials": {
-                    "database": self.clickhouse_database,
-                    "username": self.clickhouse_username,
-                    "password": self.clickhouse_password,
-                    "host": self.clickhouse_host,
-                    "port": self.clickhouse_port,
-                }
-            }
-        elif self.destination == "mssql":
-            return {
-                "credentials": {
-                    "database": self.mssql_database,
-                    "username": self.mssql_username,
-                    "password": self.mssql_password,
-                    "host": self.mssql_host,
-                    "port": self.mssql_port,
-                }
-            }
-        elif self.destination == "athena":
-            return {
-                "credentials": {
-                    "query_result_bucket": self.athena_query_result_bucket,
-                    "database": self.athena_database,
-                    "aws_access_key_id": self.athena_aws_access_key_id,
-                    "aws_secret_access_key": self.athena_aws_secret_access_key,
-                    "region_name": self.athena_region,
-                }
-            }
-        elif self.destination == "mysql":
-            return {
-                "credentials": {
-                    "database": self.mysql_database,
-                    "username": self.mysql_username,
-                    "password": self.mysql_password,
-                    "host": self.mysql_host,
-                    "port": self.mysql_port,
-                }
-            }
-        elif self.destination == "filesystem":
-            config = {
-                "bucket_url": self.filesystem_bucket_path if self.filesystem_bucket_path else "/tmp/dlt_data",
-            }
-            if self.filesystem_format:
-                config["format"] = self.filesystem_format
-            return config
-        elif self.destination == "synapse":
-            return {
-                "credentials": {
-                    "database": self.synapse_database,
-                    "username": self.synapse_username,
-                    "password": self.synapse_password,
-                    "host": self.synapse_host,
-                }
-            }
+        creds: Optional[str] = None
+        if self.destination_credentials_url:
+            creds = self.destination_credentials_url
+        elif self.destination_credentials_env_var:
+            creds = os.environ.get(self.destination_credentials_env_var)
+
+        if creds:
+            factory = getattr(dlt.destinations, self.destination, None)
+            if factory is not None:
+                return factory(credentials=creds)
+            # Long-tail destination not exposed as a factory — fall back to
+            # the bare string and let dlt resolve credentials from env vars.
+        return self.destination
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
@@ -346,38 +209,41 @@ class GoogleAdsIngestionComponent(Component, Model, Resolvable):
         resources_str = self.resources
         start_date = self.start_date
         end_date = self.end_date
-        description = self.description or "Google Ads data ingestion via dlt"
+        resources_list = [r.strip() for r in resources_str.split(",")]
+        description = self.description or f"Google Ads data ({', '.join(resources_list)})"
         group_name = self.group_name
         include_sample = self.include_sample_metadata
         destination = self.destination
-        persist_and_return = self.persist_and_return
+        dataset_name = self.dataset_name or asset_name
+        persist_only = self.persist_only
+        component = self
 
-        # Infer kinds from component name if not explicitly set
-        _comp_name = "google_ads_ingestion"  # component directory name
+        # Infer kinds from destination + asset name
         _kind_map = {
             "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
             "postgres": "postgres", "postgresql": "postgres", "mysql": "mysql",
-            "s3": "s3", "adls": "azure", "azure": "azure", "gcs": "gcp",
-            "google": "gcp", "databricks": "databricks", "dbt": "dbt",
-            "kafka": "kafka", "mongodb": "mongodb", "redis": "redis",
-            "neo4j": "neo4j", "elasticsearch": "elasticsearch", "pinecone": "pinecone",
-            "chromadb": "chromadb", "pgvector": "postgres",
+            "mssql": "mssql", "clickhouse": "clickhouse", "duckdb": "duckdb",
+            "motherduck": "duckdb", "databricks": "databricks", "athena": "athena",
+            "synapse": "azure", "fabric": "azure", "filesystem": "filesystem",
+            "delta": "delta", "iceberg": "iceberg", "weaviate": "weaviate",
+            "qdrant": "qdrant", "lancedb": "lance", "lance": "lance",
+            "huggingface": "huggingface",
         }
-        _inferred_kinds = self.kinds or []
+        _inferred_kinds = list(self.kinds or [])
+        if destination and destination in _kind_map:
+            _inferred_kinds.append(_kind_map[destination])
         if not _inferred_kinds:
-            _comp_lower = asset_name.lower()
             for keyword, kind in _kind_map.items():
-                if keyword in _comp_lower:
+                if keyword in asset_name.lower():
                     _inferred_kinds.append(kind)
-            if not _inferred_kinds:
-                _inferred_kinds = ["python"]
+        if not _inferred_kinds:
+            _inferred_kinds = ["python"]
+        _inferred_kinds = list(dict.fromkeys(_inferred_kinds))  # de-dupe, preserve order
 
-        # Build combined tags: user tags + kind tags
         _all_tags = dict(self.asset_tags or {})
         for _kind in _inferred_kinds:
             _all_tags[f"dagster/kind/{_kind}"] = ""
 
-        # Build freshness policy
         _freshness_policy = None
         if self.freshness_max_lag_minutes is not None:
             from dagster import FreshnessPolicy
@@ -387,91 +253,35 @@ class GoogleAdsIngestionComponent(Component, Model, Resolvable):
             )
 
         owners = self.owners or []
-        column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
-
 
         @asset(
             name=asset_name,
             description=description,
-                        owners=owners,
+            owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
-group_name=group_name,
+            group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def google_ads_ingestion_asset(context: AssetExecutionContext) -> pd.DataFrame:
-            """Asset that ingests Google Ads data using dlt and returns as DataFrame."""
+        def google_ads_ingestion_asset(context: AssetExecutionContext):
+            from dlt.sources.google_ads import google_ads
 
-            context.log.info(f"Starting Google Ads ingestion for customer: {customer_id}")
+            context.log.info(
+                f"Starting Google Ads ingestion: customer={customer_id}, "
+                f"resources={resources_list}, destination={destination or 'duckdb (in-memory)'}"
+            )
 
-            # Parse resources to load
-            resources_list = [r.strip() for r in resources_str.split(',')]
-            context.log.info(f"Resources to extract: {resources_list}")
+            pipeline = dlt.pipeline(
+                pipeline_name=f"{asset_name}_pipeline",
+                destination=component._resolve_destination(),
+                dataset_name=dataset_name,
+            )
 
-            # Import dlt Google Ads source
-            try:
-                from dlt.sources.google_ads import google_ads
-                import dlt
-            except ImportError as e:
-                context.log.error(f"Failed to import dlt Google Ads source: {e}")
-                context.log.info("Install with: pip install 'dlt[google_ads]'")
-                raise
-            # Determine destination (with environment routing if enabled)
-
-            effective_destination = self._get_effective_destination() if hasattr(self, '_get_effective_destination') else destination
-
-            use_destination = effective_destination if effective_destination else "duckdb"
-
-            destination_config = self._build_destination_config() if effective_destination else {}
-
-            context.log.info(f"Using destination: {use_destination}")
-
-
-            # Create pipeline (in-memory DuckDB or specified destination)
-
-            pipeline_kwargs = {
-
-                "pipeline_name": f"{asset_name}_pipeline",
-
-                "destination": use_destination,
-
-                "dataset_name": asset_name if destination else f"{asset_name}_temp"
-
-            }
-
-
-            # Add credentials if destination is configured
-
-            if destination_config:
-
-                if "credentials" in destination_config:
-
-                    pipeline_kwargs["credentials"] = destination_config["credentials"]
-
-                # For BigQuery, project_id goes at root level
-
-                if use_destination == "bigquery" and "project_id" in destination_config:
-
-                    pipeline_kwargs["project_id"] = destination_config["project_id"]
-
-                    if "location" in destination_config:
-
-                        pipeline_kwargs["location"] = destination_config["location"]
-
-
-            pipeline = dlt.pipeline(**pipeline_kwargs)
-
-            context.log.info("Created dlt pipeline for data extraction")
-
-            # Prepare authentication config
             auth_config = {
                 "dev_token": developer_token,
                 "customer_id": customer_id,
             }
-
             if use_service_account:
-                # Service account authentication
-                context.log.info("Using service account authentication")
                 auth_config.update({
                     "project_id": project_id,
                     "client_email": service_account_email,
@@ -480,8 +290,6 @@ group_name=group_name,
                 if impersonated_email:
                     auth_config["impersonated_email"] = impersonated_email
             else:
-                # OAuth authentication
-                context.log.info("Using OAuth authentication")
                 auth_config.update({
                     "client_id": client_id,
                     "client_secret": client_secret,
@@ -489,101 +297,75 @@ group_name=group_name,
                     "project_id": project_id or "default",
                 })
 
-            # Add date range if provided
             query_params = {}
             if start_date:
                 query_params["start_date"] = start_date
-                context.log.info(f"Start date: {start_date}")
             if end_date:
                 query_params["end_date"] = end_date
-                context.log.info(f"End date: {end_date}")
 
-            # Create Google Ads source
-            try:
-                source = google_ads(**auth_config, **query_params)
-            except Exception as e:
-                context.log.error(f"Failed to create Google Ads source: {e}")
-                raise
-
-            # Select only requested resources
+            source = google_ads(**auth_config, **query_params)
             load_data = source.with_resources(*resources_list)
-
-            # Run pipeline
-            context.log.info("Extracting Google Ads data...")
             load_info = pipeline.run(load_data)
-            context.log.info(f"Loaded {len(resources_list)} resources")
+            context.log.info(f"Google Ads data loaded: {load_info}")
 
-            # Collect all data
-            all_data = []
-            resource_metadata = {}
-
-            # Extract data from DuckDB to DataFrame
-            for resource_name in resources_list:
-                try:
-                    # Query the loaded data
-                    query = f"SELECT * FROM {dataset_name}.{resource_name}"
-                    with pipeline.sql_client() as client:
-                        df = client.execute_df(query)
-
-                    if len(df) > 0:
-                        df['_resource_type'] = resource_name
-                        all_data.append(df)
-                        resource_metadata[resource_name] = len(df)
-                        context.log.info(f"  {resource_name}: {len(df)} rows")
-                except Exception as e:
-                    context.log.warning(f"Could not load {resource_name}: {e}")
-
-            # Combine all data into single DataFrame
-            if not all_data:
-                context.log.warning("No data extracted")
-                return pd.DataFrame()
-
-            combined_df = pd.concat(all_data, ignore_index=True)
-
-            context.log.info(
-                f"Extraction complete: {len(combined_df)} total rows, "
-                f"{len(combined_df.columns)} columns"
-            )
-
-            # Add output metadata
-            total_rows = len(combined_df)
-            metadata = {
-                "customer_id": customer_id,
-                "resources_loaded": list(resource_metadata.keys()),
-                "total_rows": total_rows,
-                "columns": list(combined_df.columns),
+            base_metadata = {
+                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                "dataset_name": MetadataValue.text(dataset_name),
+                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                "resources_extracted": MetadataValue.json(list(resources_list)),
             }
 
-            # Add destination info if persisting
-            if destination:
-                metadata["destination"] = destination
-                metadata["dataset_name"] = asset_name
-                metadata["persist_and_return"] = persist_and_return
+            non_sql_destinations = {
+                "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
+                "delta", "iceberg",
+            }
+            is_non_sql = destination in non_sql_destinations
 
-            if start_date:
-                metadata["start_date"] = start_date
-            if end_date:
-                metadata["end_date"] = end_date
+            if persist_only or is_non_sql:
+                if is_non_sql and not persist_only:
+                    context.log.warning(
+                        f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                        f"Set persist_only=true to silence this warning."
+                    )
+                return MaterializeResult(metadata=base_metadata)
 
-            # Add per-resource row counts
-            for resource, rows in resource_metadata.items():
-                metadata[f"rows_{resource}"] = rows
+            all_data = []
+            for resource_name in resources_list:
+                try:
+                    query = f"SELECT * FROM {dataset_name}.{resource_name}"
+                    with pipeline.sql_client() as client:
+                        with client.execute_query(query) as cursor:
+                            columns = [d[0] for d in cursor.description]
+                            rows = cursor.fetchall()
+                    if rows:
+                        df = pd.DataFrame(rows, columns=columns)
+                        df["_resource_type"] = resource_name
+                        all_data.append(df)
+                        context.log.info(f"Extracted {len(df)} rows from {resource_name}")
+                except Exception as e:
+                    context.log.warning(f"Could not extract {resource_name}: {e}")
 
-            context.add_output_metadata(metadata)
+            if not all_data:
+                context.log.warning("No data extracted.")
+                return Output(value=pd.DataFrame(), metadata=base_metadata)
 
-            # Return DataFrame
+            combined_df = pd.concat(all_data, ignore_index=True)
+            context.log.info(
+                f"Ingestion complete: {len(combined_df)} total rows from {len(all_data)} resources"
+            )
+
+            metadata = {
+                **base_metadata,
+                "row_count": MetadataValue.int(len(combined_df)),
+                "resource_types": MetadataValue.json(
+                    list(combined_df["_resource_type"].unique())
+                    if "_resource_type" in combined_df.columns
+                    else []
+                ),
+            }
             if include_sample and len(combined_df) > 0:
-                return Output(
-                    value=combined_df,
-                    metadata={
-                        "row_count": len(combined_df),
-                        "column_count": len(combined_df.columns),
-                        "resources": list(resource_metadata.keys()),
-                        "sample": MetadataValue.md(combined_df.head(10).to_markdown()),
-                        "preview": MetadataValue.dataframe(combined_df.head(10))
-                    }
-                )
-            else:
-                return combined_df
+                metadata["sample"] = MetadataValue.md(combined_df.head(10).to_markdown())
+
+            return Output(value=combined_df, metadata=metadata)
 
         return Definitions(assets=[google_ads_ingestion_asset])

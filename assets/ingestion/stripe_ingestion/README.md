@@ -1,217 +1,103 @@
 # Stripe Ingestion Component
 
-Ingest payment and subscription data from Stripe (customers, charges, subscriptions, invoices) using dlt's verified Stripe source.
+
+Ingest [Stripe](https://stripe.com) payment and billing data using [dlt](https://dlthub.com)'s verified `stripe_analytics` source.
+
 
 ## Overview
 
-This component uses [dlt (data load tool)](https://dlthub.com) to extract data from Stripe.
+dlt handles API authentication, pagination, rate limiting, and incremental loading. This component wraps it as a Dagster asset that returns a pandas DataFrame by default, or persists directly to a destination if you set one.
 
-dlt handles:
-- ✅ API authentication and rate limiting
-- ✅ Automatic pagination and incremental loading
-- ✅ Schema evolution and data type inference
-- ✅ Retry logic and error handling
 
-## Use Cases
+## Source-specific fields
 
-- **Payment Analytics**: Track charges, refunds, payment methods
-- **Subscription Metrics**: Calculate MRR, churn, LTV
-- **Revenue Recognition**: Financial reporting and forecasting
-- **Customer Billing**: Analyze payment patterns and failures
-- **Fraud Detection**: Monitor suspicious transaction patterns
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `asset_name` | `str` | yes | Name of the output asset |
+| `api_key` | `str` | yes | Stripe API Secret Key (`sk_live_...` or `sk_test_...`) |
+| `resources` | `str` | no | Comma-separated endpoints — defaults to `"customers,subscriptions,charges"`. Available: `customers`, `subscriptions`, `charges`, `invoices`, `products`, `prices`, `payment_intents`, `balance_transactions`, `events` |
+| `start_date` | `Optional[str]` | no | YYYY-MM-DD start of extraction window (defaults to all historical data) |
+| `end_date` | `Optional[str]` | no | YYYY-MM-DD end of extraction window (defaults to today) |
+| `incremental` | `bool` | no | Use append-mode incremental loading (default `false`, requires `start_date`) |
 
-## Data Types
+## Standard fields
 
-**Available Resources:**
-Customers, Charges, Subscriptions, Invoices, Payment Intents, Balance Transactions
+`description`, `group_name`, `owners`, `asset_tags`, `kinds`, `freshness_max_lag_minutes`, `freshness_cron`, `include_sample_metadata`, `deps` — same convention as every other component in this library.
 
-## Output Modes
 
-This component supports two output modes:
+## Destination
 
-### 1. DataFrame Mode (Default)
-Returns data as a pandas DataFrame for downstream processing in Dagster Designer.
+By default this asset runs an in-memory DuckDB pipeline and returns a pandas DataFrame for downstream Dagster transformations. To persist directly to a warehouse or object store, set `destination`:
+
 
 ```yaml
 type: dagster_component_templates.StripeIngestionComponent
 attributes:
   asset_name: stripe_data
-  # ... authentication parameters ...
+  # ... source config ...
+  destination: snowflake          # or bigquery, postgres, filesystem, ...
+  dataset_name: stripe_raw
+  persist_only: true
 ```
 
-### 2. Database Persistence Mode
-Persist data directly to a database (Snowflake, BigQuery, Postgres, DuckDB, etc.) using dlt's destination capabilities.
+Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for projects with multiple destination accounts, from inline `destination_credentials_url` / `destination_credentials_env_var`.
 
-**Option A: Persist Only**
+
+**For full destination configuration — env-var conventions, multi-account setups, every supported dlt destination — see [`../DESTINATIONS.md`](../DESTINATIONS.md).**
+
+
+## Example — DataFrame mode (default)
+
 ```yaml
 type: dagster_component_templates.StripeIngestionComponent
 attributes:
   asset_name: stripe_data
-  destination: "snowflake"  # or bigquery, postgres, duckdb, etc.
-  destination_config: "snowflake://user:pass@account/database/schema"
-  persist_and_return: false  # Only persist, don't return DataFrame
-  # ... authentication parameters ...
+  api_key: "{{ env('STRIPE_API_KEY') }}"
+  resources: "customers,subscriptions,charges"
+  start_date: "2024-01-01"
+  group_name: stripe
 ```
 
-**Option B: Persist AND Return DataFrame**
+The asset emits a pandas DataFrame combining all selected resources, with a `_resource_type` column tagging each row.
+
+
+## Example — persist to Snowflake
+
 ```yaml
 type: dagster_component_templates.StripeIngestionComponent
 attributes:
   asset_name: stripe_data
-  destination: "snowflake"
-  destination_config: "snowflake://user:pass@account/database/schema"
-  persist_and_return: true  # Persist to DB AND return DataFrame
-  # ... authentication parameters ...
+  api_key: "{{ env('STRIPE_API_KEY') }}"
+  resources: "customers,subscriptions,charges,invoices"
+  start_date: "2024-01-01"
+  incremental: true
+  destination: snowflake
+  dataset_name: stripe_raw
+  persist_only: true
 ```
 
-## Configuration Parameters
+Set `DESTINATION__SNOWFLAKE__CREDENTIALS__*` env vars before running. The asset emits a `MaterializeResult` with destination metadata.
 
-### Database Destination Parameters (Optional)
-
-- **`destination`** (string, optional): dlt destination name
-  - Supported: `snowflake`, `bigquery`, `postgres`, `redshift`, `duckdb`, `motherduck`, `databricks`, `synapse`, `clickhouse`, and [more](https://dlthub.com/docs/dlt-ecosystem/destinations)
-  - Default: Uses in-memory DuckDB and returns DataFrame
-
-- **`destination_config`** (string, optional): Destination configuration
-  - Format depends on destination (connection string, JSON config, or credentials file path)
-  - Required if `destination` is set
-  - Examples:
-    - Postgres: `postgresql://user:pass@host:5432/database`
-    - Snowflake: `snowflake://user:pass@account/database/schema`
-    - BigQuery: Path to service account JSON or credentials dict
-
-- **`persist_and_return`** (boolean, optional): Persistence behavior
-  - `false` (default): Only persist to database, return metadata DataFrame
-  - `true`: Persist to database AND return full DataFrame
-  - Only applies when `destination` is set
-
-### Standard Parameters
-
-- **`asset_name`** (string, required): Name for the output asset
-- **`description`** (string, optional): Asset description
-- **`group_name`** (string, optional): Asset group for organization
-- **`include_sample_metadata`** (boolean, optional): Include data preview in metadata (default: true)
-
-### Source-Specific Parameters
-
-See `schema.json` for complete list of authentication and configuration parameters specific to Stripe.
-
-## Destination Examples
-
-### Snowflake
-
-```yaml
-attributes:
-  destination: "snowflake"
-  destination_config: |
-    {
-      "credentials": {
-        "database": "analytics",
-        "password": "${SNOWFLAKE_PASSWORD}",
-        "username": "dlt_user",
-        "host": "account.snowflakecomputing.com",
-        "warehouse": "transforming",
-        "role": "dlt_role"
-      }
-    }
-  persist_and_return: false
-```
-
-### BigQuery
-
-```yaml
-attributes:
-  destination: "bigquery"
-  destination_config: "/path/to/service-account.json"
-  persist_and_return: false
-```
-
-### Postgres
-
-```yaml
-attributes:
-  destination: "postgres"
-  destination_config: "postgresql://user:password@localhost:5432/analytics"
-  persist_and_return: false
-```
-
-### DuckDB (Local File)
-
-```yaml
-attributes:
-  destination: "duckdb"
-  destination_config: "/path/to/analytics.duckdb"
-  persist_and_return: true  # Can return DataFrame from local DB
-```
-
-## When to Use Each Mode
-
-### Use DataFrame Mode When:
-- Building data pipelines in Dagster Designer
-- Chaining transformations (standardizers, analytics)
-- Need to process data before storing
-- Want visual workflow composition
-
-### Use Database Persistence When:
-- Direct data warehouse loading
-- High-volume data (millions+ rows)
-- Long-term storage and querying
-- BI tool integration (Tableau, Looker, etc.)
-- Production data pipelines
-
-### Use Persist + Return When:
-- Need both warehouse copy AND downstream processing
-- Debugging/monitoring workflows
-- Hybrid architectures (some data to warehouse, some to next step)
-
-## Performance Considerations
-
-- **DataFrame Mode**: Holds data in memory, suitable for up to ~10M rows
-- **Persist Only**: Streams directly to destination, handles billions of rows
-- **Persist + Return**: Loads twice (destination + memory), use selectively
-
-## Authentication
-
-Refer to `schema.json` and the [dlt documentation](https://dlthub.com/docs) for authentication requirements specific to Stripe.
-
-Common patterns:
-- API keys via environment variables
-- OAuth tokens
-- Service account credentials
-- Connection strings
-
-## Dependencies
-
-- `dlt[stripe]` - Installs dlt with Stripe source
-- `pandas>=1.5.0` - For DataFrame operations
 
 ## Notes
 
-- **Incremental Loading**: dlt automatically tracks state for incremental loads
-- **Schema Evolution**: dlt handles schema changes automatically
-- **Rate Limiting**: dlt respects API rate limits automatically
-- **Retries**: Built-in retry logic for transient failures
-- **Destinations**: See [dlt destinations](https://dlthub.com/docs/dlt-ecosystem/destinations) for full list
-- **Credentials**: Use environment variables for sensitive values (e.g., `${VAR_NAME}`)
+- **Incremental vs full refresh**: set `incremental: true` AND `start_date` to use append-mode loading. Otherwise the component does a full refresh.
+- **Test vs live**: same component handles both — just swap the API key.
+- **Non-SQL destinations**: setting `destination=filesystem` (or any vector store / lake format) requires `persist_only=true`. The component logs a warning and returns a `MaterializeResult` if you forget.
 
-## Learn More
-
-- [dlt Documentation](https://dlthub.com/docs)
-- [dlt Stripe Source](https://dlthub.com/docs/dlt-ecosystem/verified-sources/stripe)
-- [dlt Destinations](https://dlthub.com/docs/dlt-ecosystem/destinations)
-
-## Asset Dependencies & Lineage
-
-This component supports a `deps` field for declaring upstream Dagster asset dependencies:
+## Asset dependencies
 
 ```yaml
-attributes:
-  # ... other fields ...
-  deps:
-    - raw_orders              # simple asset key
-    - raw/schema/orders       # asset key with path prefix
+deps:
+  - some_upstream_asset
+  - schema/scoped_asset
 ```
 
-`deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
+Dependencies declared here draw lineage edges in the Dagster graph without loading data at runtime.
 
-Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).
+
+## Learn more
+
+- [dlt Stripe source](https://dlthub.com/docs/dlt-ecosystem/verified-sources/stripe)
+- [dlt destinations overview](https://dlthub.com/docs/dlt-ecosystem/destinations)
+- [`../DESTINATIONS.md`](../DESTINATIONS.md) — configuration reference for this library

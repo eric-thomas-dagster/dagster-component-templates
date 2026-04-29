@@ -321,8 +321,7 @@ group_name=group_name,
                     _metadata["dagster/column_lineage"] = MetadataValue.table_column_lineage(
                         TableColumnLineage(_lineage_deps)
                     )
-            context.add_output_metadata(_metadata),
-            })
+            context.add_output_metadata(_metadata)
             return df
 
         from dagster import build_column_schema_change_checks

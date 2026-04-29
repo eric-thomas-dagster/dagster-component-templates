@@ -179,6 +179,9 @@ group_name=group_name,
         )
         def _asset(
             context: AssetExecutionContext,
+            left: pd.DataFrame,
+            right: pd.DataFrame,
+        ) -> pd.DataFrame:
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -190,9 +193,6 @@ group_name=group_name,
                         _side = _side[_side[partition_date_column].astype(str) == _date_key]
                     if partition_static_column and partition_static_column in _side.columns and _static_key:
                         _side = _side[_side[partition_static_column].astype(str) == _static_key]
-            left: pd.DataFrame,
-            right: pd.DataFrame,
-        ) -> pd.DataFrame:
             if how not in ("inner", "left", "right", "outer"):
                 raise ValueError(f"how must be 'inner', 'left', 'right', or 'outer', got: {how}")
             if len(suffixes) != 2:

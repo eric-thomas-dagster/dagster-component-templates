@@ -360,26 +360,26 @@ group_name=group_name,
                 # Build column schema metadata
                 from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
                 _col_schema = TableSchema(columns=[
-                TableColumn(name=str(col), type=str(trend.dtypes[col]))
-                for col in trend.columns
+                    TableColumn(name=str(col), type=str(df.dtypes[col]))
+                    for col in df.columns
                 ])
                 _metadata = {
-                "dagster/row_count": MetadataValue.int(len(trend)),
-                "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+                    "dagster/row_count": MetadataValue.int(len(df)),
+                    "dagster/column_schema": MetadataValue.table_schema(_col_schema),
                 }
                 # Add column lineage if defined
                 if column_lineage:
-                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if 'upstream_asset_key' in dir() else None
-                if _upstream_key:
-                _lineage_deps = {}
-                for out_col, in_cols in column_lineage.items():
-                _lineage_deps[out_col] = [
-                TableColumnDep(asset_key=_upstream_key, column_name=ic)
-                for ic in in_cols
-                ]
-                _metadata["dagster/column_lineage"] = MetadataValue.table_column_lineage(
-                TableColumnLineage(_lineage_deps)
-                )
+                    _upstream_key = AssetKey.from_user_string(upstream_asset_key) if 'upstream_asset_key' in dir() else None
+                    if _upstream_key:
+                        _lineage_deps = {}
+                        for out_col, in_cols in column_lineage.items():
+                            _lineage_deps[out_col] = [
+                                TableColumnDep(asset_key=_upstream_key, column_name=ic)
+                                for ic in in_cols
+                            ]
+                        _metadata["dagster/column_lineage"] = MetadataValue.table_column_lineage(
+                            TableColumnLineage(_lineage_deps)
+                        )
                 context.add_output_metadata(_metadata)
                 return df
 
@@ -394,18 +394,6 @@ group_name=group_name,
 
 def _generate_trend(n: int, base: float, slope: float = 0.5) -> np.ndarray:
     """Generate linear trend."""
-            # Filter to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
     return base + slope * np.arange(n)
 
 

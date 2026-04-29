@@ -207,6 +207,9 @@ group_name=group_name,
         )
         def _asset(
             context: AssetExecutionContext,
+            upstream: pd.DataFrame,
+            regions_df: pd.DataFrame,
+        ) -> pd.DataFrame:
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -219,9 +222,6 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-            upstream: pd.DataFrame,
-            regions_df: pd.DataFrame,
-        ) -> pd.DataFrame:
             try:
                 import geopandas as gpd
                 from shapely.geometry import Point, shape

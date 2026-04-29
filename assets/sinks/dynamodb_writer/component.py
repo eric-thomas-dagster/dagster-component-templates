@@ -199,6 +199,7 @@ group_name=group_name,
         )
         def dynamodb_writer_asset(
             context: AssetExecutionContext, upstream: pd.DataFrame
+        ) -> MaterializeResult:
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -211,7 +212,6 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-        ) -> MaterializeResult:
             """Write DataFrame records to DynamoDB table using batch writes."""
             try:
                 import boto3

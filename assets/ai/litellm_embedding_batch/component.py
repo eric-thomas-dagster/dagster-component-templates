@@ -225,8 +225,7 @@ group_name=group_name,
 
             for batch_start in range(0, len(texts), batch_size):
                 batch = texts[batch_start: batch_start + batch_size]
-                response = litellm.embedding(input=batch, **kwargs                api_key=api_key,
-            )
+                response = litellm.embedding(input=batch, **kwargs)
                 batch_embeddings = [item["embedding"] for item in response.data]
                 all_embeddings.extend(batch_embeddings)
                 context.log.info(f"Embedded {min(batch_start + batch_size, len(texts))}/{len(texts)} rows")

@@ -87,10 +87,7 @@ class AppendFields(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         source_asset_key = self.source_asset_key
         fields = self.fields
-                owners=owners,
-        tags=_all_tags,
-        freshness_policy=_freshness_policy,
-group_name = self.group_name
+        group_name = self.group_name
 
         ins = {
             "upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key)),
@@ -128,7 +125,6 @@ group_name = self.group_name
         partition_static_column = self.partition_static_column
         partition_static_dim = self.partition_static_dim
 
-        partitions_def=partitions_def,
         # Infer kinds from component name if not explicitly set
         _comp_name = "append_fields"  # component directory name
         _kind_map = {

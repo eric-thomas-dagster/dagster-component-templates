@@ -87,10 +87,7 @@ class DataframeUnion(Component, Model, Resolvable):
         upstream_asset_keys = self.upstream_asset_keys
         ignore_index = self.ignore_index
         join = self.join
-                owners=owners,
-        tags=_all_tags,
-        freshness_policy=_freshness_policy,
-group_name = self.group_name
+        group_name = self.group_name
 
         ins = {
             f"input_{i}": AssetIn(key=AssetKey.from_user_string(k))
@@ -128,7 +125,6 @@ group_name = self.group_name
         partition_static_column = self.partition_static_column
         partition_static_dim = self.partition_static_dim
 
-        partitions_def=partitions_def,
         # Infer kinds from component name if not explicitly set
         _comp_name = "dataframe_union"  # component directory name
         _kind_map = {

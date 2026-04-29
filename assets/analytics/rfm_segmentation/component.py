@@ -489,7 +489,7 @@ group_name=group_name,
                 )
             else:
                 context.add_output_metadata(metadata)
-                # Build column schema metadata
+            # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[
                 TableColumn(name=str(col), type=str(rfm.dtypes[col]))
@@ -523,7 +523,7 @@ group_name=group_name,
                         TableColumnLineage(_lineage_deps)
                     )
             context.add_output_metadata(_metadata)
-                return rfm
+            return rfm
 
         from dagster import build_column_schema_change_checks
 

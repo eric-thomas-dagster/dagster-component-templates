@@ -242,8 +242,7 @@ group_name=group_name,
                     messages.append({"role": "system", "content": system_prompt})
                 messages.append({"role": "user", "content": user_content})
 
-                response = litellm.completion(messages=messages, **kwargs                api_key=api_key,
-            )
+                response = litellm.completion(messages=messages, **kwargs)
                 return response.choices[0].message.content or ""
 
             rows = [row._asdict() for row in df.itertuples(index=False)]

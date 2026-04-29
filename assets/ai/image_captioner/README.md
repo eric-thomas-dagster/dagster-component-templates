@@ -1,6 +1,7 @@
 # ImageCaptionerComponent
 
-Generate captions for images from a file path or URL column using a vision-capable LLM via LiteLLM. Supports any model with vision capabilities including GPT-4o, Claude 3, and Gemini.
+
+ Supports any model with vision capabilities including GPT-4o, Claude 3, and Gemini.
 
 ## Fields
 

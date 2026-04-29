@@ -221,10 +221,10 @@ group_name=group_name,
                         model=model,
                         messages=[
                             {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": str(question                api_key=api_key,
-            )},
+                            {"role": "user", "content": str(question)},
                         ],
                         max_tokens=500,
+                        api_key=api_key,
                     )
                     sql = response.choices[0].message.content.strip()
                     # Strip markdown code blocks if present

@@ -214,6 +214,7 @@ group_name=group_name,
         )
         def cassandra_writer_asset(
             context: AssetExecutionContext, upstream: pd.DataFrame
+        ) -> MaterializeResult:
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -226,7 +227,6 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-        ) -> MaterializeResult:
             """Write DataFrame rows to Cassandra table using INSERT CQL."""
             try:
                 from cassandra.cluster import Cluster
@@ -250,8 +250,10 @@ group_name=group_name,
             if not records:
                 context.log.info("No records to write.")
                 return MaterializeResult(
-                    metadata={"row_count": MetadataValue.int(0)
-                "dagster/row_count": MetadataValue.int(len(upstream)),}
+                    metadata={
+                        "row_count": MetadataValue.int(0),
+                        "dagster/row_count": MetadataValue.int(len(upstream)),
+                    }
                 )
 
             columns = list(upstream.columns)

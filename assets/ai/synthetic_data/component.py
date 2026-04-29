@@ -96,15 +96,12 @@ class SyntheticDataComponent(Component, Model, Resolvable):
         context_str = self.context
         batch_size = self.batch_size
         seed_data_asset_key = self.seed_data_asset_key
-                owners=owners,
-        tags=_all_tags,
-        freshness_policy=_freshness_policy,
-group_name = self.group_name
+        group_name = self.group_name
 
         if seed_data_asset_key:
             ins = {"seed_data": AssetIn(key=AssetKey.from_user_string(seed_data_asset_key))}
 
-            # Build partition definition
+        # Build partition definition
         partitions_def = None
         if self.partition_type:
             from dagster import (
@@ -135,7 +132,6 @@ group_name = self.group_name
         partition_static_column = self.partition_static_column
         partition_static_dim = self.partition_static_dim
 
-        partitions_def=partitions_def,
         # Infer kinds from component name if not explicitly set
         _comp_name = "synthetic_data"  # component directory name
         _kind_map = {
@@ -174,7 +170,8 @@ group_name = self.group_name
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
 
-        @asset(name=asset_name, ins=ins, group_name=group_name)
+        if seed_data_asset_key:
+            @asset(name=asset_name, ins=ins, group_name=group_name)
             def _asset(
                 context: AssetExecutionContext,
                 seed_data: pd.DataFrame,
@@ -216,18 +213,6 @@ group_name = self.group_name
 
 def _generate_data(
     context: AssetExecutionContext,
-            # Filter to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
     schema: dict,
     n_rows: int,
     llm_model: str,
@@ -273,77 +258,5 @@ def _generate_data(
         all_rows.extend(rows)
 
     result = pd.DataFrame(all_rows)
-
-
-    # Build column schema metadata
-
-
-    from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
-
-
-    _col_schema = TableSchema(columns=[
-
-
-    TableColumn(name=str(col), type=str(result.dtypes[col]))
-
-
-    for col in result.columns
-
-
-    ])
-
-
-    _metadata = {
-
-
-    "dagster/row_count": MetadataValue.int(len(result)),
-
-
-    "dagster/column_schema": MetadataValue.table_schema(_col_schema),
-
-
-    }
-
-
-    # Add column lineage if defined
-
-
-    if column_lineage:
-
-
-    _upstream_key = AssetKey.from_user_string(upstream_asset_key) if 'upstream_asset_key' in dir() else None
-
-
-    if _upstream_key:
-
-
-    _lineage_deps = {}
-
-
-    for out_col, in_cols in column_lineage.items():
-
-
-    _lineage_deps[out_col] = [
-
-
-    TableColumnDep(asset_key=_upstream_key, column_name=ic)
-
-
-    for ic in in_cols
-
-
-    ]
-
-
-    _metadata["dagster/column_lineage"] = MetadataValue.table_column_lineage(
-
-
-    TableColumnLineage(_lineage_deps)
-
-
-    )
-
-
-    context.add_output_metadata(_metadata)
 
     return result

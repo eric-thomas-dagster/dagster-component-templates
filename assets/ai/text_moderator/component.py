@@ -833,7 +833,7 @@ Score 0.0 = safe, 1.0 = definitely violates policy."""
                 )
             else:
                 context.add_output_metadata(metadata)
-                # Build column schema metadata
+            # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[
                 TableColumn(name=str(col), type=str(result_df.dtypes[col]))
@@ -867,7 +867,7 @@ Score 0.0 = safe, 1.0 = definitely violates policy."""
                         TableColumnLineage(_lineage_deps)
                     )
             context.add_output_metadata(_metadata)
-                return result_df
+            return result_df
 
         from dagster import build_column_schema_change_checks
 

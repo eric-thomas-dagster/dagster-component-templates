@@ -244,8 +244,7 @@ class RerankerComponent(Component, Model, Resolvable):
         group_name = self.group_name
         include_sample = self.include_sample_metadata
 
-        # Cohere Rerank pricing
- (approximate, as of 2024)
+        # Cohere Rerank pricing (approximate, as of 2024)
         COHERE_RERANK_COST_PER_1K_SEARCHES = 0.02  # $0.02 per 1000 searches
 
         # Build partition definition
@@ -601,7 +600,7 @@ group_name=group_name,
                 )
             else:
                 context.add_output_metadata(metadata)
-                # Build column schema metadata
+            # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[
                 TableColumn(name=str(col), type=str(result_df.dtypes[col]))
@@ -635,7 +634,7 @@ group_name=group_name,
                         TableColumnLineage(_lineage_deps)
                     )
             context.add_output_metadata(_metadata)
-                return result_df
+            return result_df
 
         from dagster import build_column_schema_change_checks
 

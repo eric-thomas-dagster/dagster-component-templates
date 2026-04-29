@@ -183,6 +183,7 @@ group_name=group_name,
         )
         def _asset(
             context: AssetExecutionContext, upstream: pd.DataFrame
+        ) -> MaterializeResult:
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -195,7 +196,6 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-        ) -> MaterializeResult:
             try:
                 import sqlalchemy
             except ImportError:
@@ -218,7 +218,9 @@ group_name=group_name,
             )
 
             context.log.info(f"Successfully wrote {row_count} rows to {table_name}")
-            return MaterializeResult(metadata={"row_count": row_count
-                "dagster/row_count": MetadataValue.int(len(upstream)),})
+            return MaterializeResult(metadata={
+                "row_count": row_count,
+                "dagster/row_count": MetadataValue.int(len(upstream)),
+            })
 
         return Definitions(assets=[_asset])

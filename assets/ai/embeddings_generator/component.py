@@ -350,39 +350,39 @@ group_name=group_name,
                             result_df[output_column] = cached_df[output_column]
 
                             # Build column schema metadata
-            from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
-            _col_schema = TableSchema(columns=[
-                TableColumn(name=str(col), type=str(result_df.dtypes[col]))
-                for col in result_df.columns
-            ])
-            _metadata = {
-                "dagster/row_count": MetadataValue.int(len(result_df)),
-                "dagster/column_schema": MetadataValue.table_schema(_col_schema),
-            }
-            # Use explicit lineage, or auto-infer passthrough columns at runtime
-            _effective_lineage = column_lineage
-            if not _effective_lineage:
-                try:
-                    _upstream_cols = set(upstream.columns)
-                    _effective_lineage = {
-                        col: [col] for col in _col_schema.columns_by_name
-                        if col in _upstream_cols
-                    }
-                except Exception:
-                    pass
-            if _effective_lineage:
-                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
-                if _upstream_key:
-                    _lineage_deps = {}
-                    for out_col, in_cols in _effective_lineage.items():
-                        _lineage_deps[out_col] = [
-                            TableColumnDep(asset_key=_upstream_key, column_name=ic)
-                            for ic in in_cols
-                        ]
-                    _metadata["dagster/column_lineage"] = MetadataValue.table_column_lineage(
-                        TableColumnLineage(_lineage_deps)
-                    )
-            context.add_output_metadata(_metadata)
+                            from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
+                            _col_schema = TableSchema(columns=[
+                                TableColumn(name=str(col), type=str(result_df.dtypes[col]))
+                                for col in result_df.columns
+                            ])
+                            _metadata = {
+                                "dagster/row_count": MetadataValue.int(len(result_df)),
+                                "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+                            }
+                            # Use explicit lineage, or auto-infer passthrough columns at runtime
+                            _effective_lineage = column_lineage
+                            if not _effective_lineage:
+                                try:
+                                    _upstream_cols = set(upstream.columns)
+                                    _effective_lineage = {
+                                        col: [col] for col in _col_schema.columns_by_name
+                                        if col in _upstream_cols
+                                    }
+                                except Exception:
+                                    pass
+                            if _effective_lineage:
+                                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
+                                if _upstream_key:
+                                    _lineage_deps = {}
+                                    for out_col, in_cols in _effective_lineage.items():
+                                        _lineage_deps[out_col] = [
+                                            TableColumnDep(asset_key=_upstream_key, column_name=ic)
+                                            for ic in in_cols
+                                        ]
+                                    _metadata["dagster/column_lineage"] = MetadataValue.table_column_lineage(
+                                        TableColumnLineage(_lineage_deps)
+                                    )
+                            context.add_output_metadata(_metadata)
                             return result_df
                 except Exception as e:
                     context.log.warning(f"Failed to load cache: {e}, generating fresh")
@@ -620,7 +620,7 @@ group_name=group_name,
                 )
             else:
                 context.add_output_metadata(metadata)
-                return result_df
+            return result_df
 
         from dagster import build_column_schema_change_checks
 

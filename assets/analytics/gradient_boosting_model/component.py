@@ -237,8 +237,16 @@ group_name=group_name,
 
             if task_type == "classification":
                 score = accuracy_score(y_test, model.predict(X_test))
+            else:
+                score = r2_score(y_test, model.predict(X_test))
+                context.add_output_metadata({
+                    "r2_score": MetadataValue.float(float(score)),
+                    "n_estimators": MetadataValue.int(n_estimators),
+                    "train_rows": MetadataValue.int(len(X_train)),
+                    "test_rows": MetadataValue.int(len(X_test)),
+                })
 
-                # Build column schema metadata
+            # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[
                 TableColumn(name=str(col), type=str(df.dtypes[col]))
@@ -272,14 +280,6 @@ group_name=group_name,
                         TableColumnLineage(_lineage_deps)
                     )
             context.add_output_metadata(_metadata)
-            else:
-                score = r2_score(y_test, model.predict(X_test))
-                context.add_output_metadata({
-                    "r2_score": MetadataValue.float(float(score)),
-                    "n_estimators": MetadataValue.int(n_estimators),
-                    "train_rows": MetadataValue.int(len(X_train)),
-                    "test_rows": MetadataValue.int(len(X_test)),
-                })
 
             return df
 

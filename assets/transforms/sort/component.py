@@ -204,29 +204,29 @@ group_name=group_name,
             if do_reset_index:
                 result = result.reset_index(drop=True)
             context.log.info(f"Sorted {len(result)} rows by {by}")
-                # Build column schema metadata
-                from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
-                _col_schema = TableSchema(columns=[
-                    TableColumn(name=str(col), type=str(result.dtypes[col]))
-                    for col in result.columns
-                ])
-                _metadata = {
-                    "dagster/row_count": MetadataValue.int(len(result)),
-                    "dagster/column_schema": MetadataValue.table_schema(_col_schema),
-                }
-                if column_lineage:
-                    _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
-                    if _upstream_key:
-                        _lineage_deps = {}
-                        for out_col, in_cols in column_lineage.items():
-                            _lineage_deps[out_col] = [
-                                TableColumnDep(asset_key=_upstream_key, column_name=ic)
-                                for ic in in_cols
-                            ]
-                        _metadata["dagster/column_lineage"] = MetadataValue.table_column_lineage(
-                            TableColumnLineage(_lineage_deps)
-                        )
-                context.add_output_metadata(_metadata)
+            # Build column schema metadata
+            from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
+            _col_schema = TableSchema(columns=[
+                TableColumn(name=str(col), type=str(result.dtypes[col]))
+                for col in result.columns
+            ])
+            _metadata = {
+                "dagster/row_count": MetadataValue.int(len(result)),
+                "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+            }
+            if column_lineage:
+                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
+                if _upstream_key:
+                    _lineage_deps = {}
+                    for out_col, in_cols in column_lineage.items():
+                        _lineage_deps[out_col] = [
+                            TableColumnDep(asset_key=_upstream_key, column_name=ic)
+                            for ic in in_cols
+                        ]
+                    _metadata["dagster/column_lineage"] = MetadataValue.table_column_lineage(
+                        TableColumnLineage(_lineage_deps)
+                    )
+            context.add_output_metadata(_metadata)
             return result
 
         from dagster import build_column_schema_change_checks

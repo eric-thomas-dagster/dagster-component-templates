@@ -244,8 +244,7 @@ group_name=group_name,
                 messages = [{"role": "user", "content": user_content}]
 
                 try:
-                    response = litellm.completion(messages=messages, **kwargs                api_key=api_key,
-            )
+                    response = litellm.completion(messages=messages, **kwargs)
                     content = response.choices[0].message.content or "{}"
                     parsed = json.loads(content)
                     extracted_rows.append({f"{output_prefix}{k}": parsed.get(k) for k in field_names})

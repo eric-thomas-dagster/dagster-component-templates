@@ -1,2 +1,2 @@
 dagster
-requests
+lakefs>=0.7.0

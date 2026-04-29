@@ -1,32 +1,35 @@
 # LakeFSAssetComponent
 
-Interact with a [lakeFS](https://lakefs.io/) repository for data versioning as a Dagster asset.
+Run a [lakeFS](https://lakefs.io) **control-plane** operation (commit / merge / create branch) as a Dagster asset.
 
-## Use case
+## What this is — and isn't
 
-lakeFS brings Git-like branching and versioning to data lakes. `LakeFSAssetComponent` lets you embed data versioning operations directly into your Dagster pipeline:
+This asset performs lakeFS API calls only. It **does not read or write data files**. `deps` declares ordering (so the lakeFS op runs after data assets), not data flow.
 
-- **Commit** — after upstream assets write data, commit the staged changes to a branch so the state is versioned and reproducible.
-- **Merge** — promote changes from a development or staging branch into main after validation assets pass.
-- **Create branch** — snapshot a source ref as a new branch at the start of a pipeline run for isolation.
+For the data plane — actually writing parquet files into a lakeFS-backed bucket — pair this with [`io_managers/lakefs_io_manager`](../../../io_managers/lakefs_io_manager/README.md). The two compose into versioned data pipelines.
 
-All operations use the lakeFS REST API with HTTP Basic authentication via `requests`. No lakeFS SDK dependency is required.
+## Canonical workflow
 
-## Prerequisites
-
-Install `requests` (already present in most Python environments):
-
-```bash
-pip install requests
+```
+┌────────────────────────┐
+│ create_branch          │  start a per-run branch from main
+│ (lakefs_asset)         │
+└─────────┬──────────────┘
+          │
+          ▼
+┌────────────────────────┐
+│ data assets            │  write parquet to the branch
+│ (lakefs_io_manager)    │  (staged, not yet committed)
+└─────────┬──────────────┘
+          │
+          ▼
+┌────────────────────────┐
+│ commit OR merge        │  seal staged writes into a versioned snapshot,
+│ (lakefs_asset)         │  or merge the branch back into main
+└────────────────────────┘
 ```
 
-Set the required environment variables:
-
-```bash
-export LAKEFS_ENDPOINT=http://localhost:8000
-export LAKEFS_ACCESS_KEY_ID=your-access-key
-export LAKEFS_SECRET_ACCESS_KEY=your-secret-key
-```
+Without the explicit commit step, lakeFS object writes stay in a "staged" state on the branch and aren't versioned — this asset is what seals them.
 
 ## Quick start
 
@@ -34,6 +37,7 @@ export LAKEFS_SECRET_ACCESS_KEY=your-secret-key
 type: dagster_component_templates.LakeFSAssetComponent
 attributes:
   asset_name: data_version_commit
+  endpoint: http://localhost:8000
   repository: my-data-lake
   mode: commit
   branch: main
@@ -48,14 +52,14 @@ attributes:
 
 ### commit
 
-Commits all staged (uncommitted) changes on `branch` with the given `commit_message`. Optional `metadata` key-value pairs are attached to the commit.
+Commits all staged (uncommitted) changes on `branch` with the given `commit_message`. Optional `metadata` key-value pairs are attached to the commit object.
 
 ```yaml
 mode: commit
 branch: main
-commit_message: "Daily ETL - orders and customers refreshed"
+commit_message: "Daily ETL — orders and customers refreshed"
 metadata:
-  pipeline_run: "2024-01-15-daily"
+  pipeline_run: "2026-04-28-daily"
   source: "dagster"
 ```
 
@@ -71,39 +75,43 @@ destination_branch: main
 
 ### create_branch
 
-Creates a new branch named `branch` from `source_ref` (a branch name or commit SHA). Use this at the start of a pipeline run to isolate writes.
+Creates a new branch named `branch` from `source_ref` (a branch name or commit SHA). Use at the start of a pipeline to isolate writes.
 
 ```yaml
 mode: create_branch
-branch: etl-run-2024-01-15
+branch: etl-run-2026-04-28
 source_ref: main
 ```
 
-## Commit metadata
+## Authentication
 
-The `metadata` field (commit mode only) accepts string key-value pairs and is stored as part of the lakeFS commit object:
+| Env var | Purpose |
+|---|---|
+| `LAKEFS_ACCESS_KEY_ID` | lakeFS access key (override field name with `access_key_env_var`) |
+| `LAKEFS_SECRET_ACCESS_KEY` | lakeFS secret key (override field name with `secret_key_env_var`) |
 
-```yaml
-metadata:
-  dagster_run_id: "abc123"
-  data_date: "2024-01-15"
-  team: "data-engineering"
-```
+Credentials are resolved at run-time via `dg.EnvVar` — they don't need to be set when defining the component.
 
-## Reference
+## Configuration
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `asset_name` | `str` | required | Dagster asset key |
+| `endpoint` | `str` | required | lakeFS server URL, e.g. `http://localhost:8000` |
 | `repository` | `str` | required | lakeFS repository name |
-| `lakefs_endpoint_env_var` | `str` | `"LAKEFS_ENDPOINT"` | Env var with lakeFS URL |
-| `access_key_env_var` | `str` | `"LAKEFS_ACCESS_KEY_ID"` | Env var with access key |
-| `secret_key_env_var` | `str` | `"LAKEFS_SECRET_ACCESS_KEY"` | Env var with secret key |
-| `mode` | `str` | `"commit"` | Operation: `commit`, `merge`, `create_branch` |
-| `branch` | `str` | `"main"` | Branch to commit to / source branch |
-| `destination_branch` | `str` | `None` | Target branch for merge mode |
-| `source_ref` | `str` | `None` | Source ref for create_branch mode |
+| `access_key_env_var` | `str` | `LAKEFS_ACCESS_KEY_ID` | Env var holding the access key |
+| `secret_key_env_var` | `str` | `LAKEFS_SECRET_ACCESS_KEY` | Env var holding the secret key |
+| `mode` | `str` | `commit` | One of `commit`, `merge`, `create_branch` |
+| `branch` | `str` | `main` | Branch to commit to / source branch |
+| `destination_branch` | `str?` | `null` | Target branch for `merge` |
+| `source_ref` | `str?` | `null` | Source ref for `create_branch` |
 | `commit_message` | `str` | `"Dagster materialization commit"` | Commit message |
-| `metadata` | `dict[str, str]` | `None` | Key-value metadata for the commit |
-| `group_name` | `str` | `"data_versioning"` | Dagster asset group |
-| `deps` | `list[str]` | `None` | Upstream asset keys |
+| `metadata` | `dict[str, str]?` | `null` | Key-value metadata for the commit |
+| `group_name` | `str?` | `data_versioning` | Dagster asset group |
+| `deps` | `list[str]?` | `null` | Upstream asset keys for lineage and ordering |
+
+## Notes
+
+- Uses the official [`lakefs`](https://pypi.org/project/lakefs/) Python SDK — same SDK used by `lakefs_io_manager`'s commit-per-materialization mode.
+- For atomic per-run versioning, prefer the `create_branch` → write data → `commit` (or `merge`) pattern over committing to `main` directly.
+- The `metadata` field accepts only string values per lakeFS's commit metadata schema.

@@ -1,0 +1,82 @@
+{
+  "component_type": "dagster_component_templates.LakeFSIOManagerComponent",
+  "description": "Register an IO manager that stores assets as Parquet files on a lakeFS repository (Git-for-data over S3-compatible storage)",
+  "category": "io_manager",
+  "icon": "si:databricks",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "io_manager"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
+      "required": false,
+      "default": "io_manager"
+    },
+    "repository": {
+      "type": "string",
+      "label": "Repository",
+      "description": "lakeFS repository name",
+      "required": true
+    },
+    "branch": {
+      "type": "string",
+      "label": "Branch",
+      "description": "Branch within the repository",
+      "required": false,
+      "default": "main"
+    },
+    "endpoint_url": {
+      "type": "string",
+      "label": "Endpoint URL",
+      "description": "lakeFS server endpoint URL, e.g. 'http://lakefs:8000'",
+      "required": true
+    },
+    "prefix": {
+      "type": "string",
+      "label": "Prefix",
+      "description": "Key prefix within the branch, e.g. 'dagster/assets'",
+      "required": false,
+      "default": "dagster/assets"
+    },
+    "lakefs_access_key_env_var": {
+      "type": "string",
+      "label": "LakeFS Access Key Env Var",
+      "description": "Environment variable holding the lakeFS access key",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "lakefs_secret_key_env_var": {
+      "type": "string",
+      "label": "LakeFS Secret Key Env Var",
+      "description": "Environment variable holding the lakeFS secret key",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "commit_per_materialization": {
+      "type": "boolean",
+      "label": "Commit Per Materialization",
+      "description": "If true, commit the branch after every successful materialization",
+      "required": false,
+      "default": false
+    },
+    "commit_message_template": {
+      "type": "string",
+      "label": "Commit Message Template",
+      "description": "Format string for commit messages. Available substitutions: {asset_key}, {partition_key}, {timestamp}, {row_count}",
+      "required": false,
+      "default": "Materialized {asset_key} at {timestamp}"
+    }
+  },
+  "tags": [
+    "io_manager",
+    "lakefs",
+    "versioning",
+    "git-for-data",
+    "parquet",
+    "object-storage"
+  ],
+  "name": "LakeFS IO Manager"
+}

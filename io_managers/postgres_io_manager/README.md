@@ -1,14 +1,32 @@
 # PostgreSQL IO Manager
 
-Register a PostgreSQL IO manager so assets are automatically stored in and loaded from Postgres tables via SQLAlchemy.
+Stores Dagster assets as PostgreSQL tables via SQLAlchemy + psycopg2.
 
-## Installation
+Implemented as a [`ConfigurableIOManager`](https://docs.dagster.io/_apidocs/io-managers#dagster.ConfigurableIOManager) — the modern Dagster pattern for IO managers — and registered as the project's default IO manager when `resource_key: io_manager`.
 
-```
-pip install psycopg2-binary sqlalchemy pandas
-```
+## Features
+
+- **Partition-aware writes**: each partition is replaced with a transactional `DELETE FROM ... WHERE partition_column = '<key>'` followed by `INSERT`, scoped by the configurable `partition_column` (default `partition_key`). Backfills don't clobber sibling partitions.
+- **Multi-component asset keys → `schema.table`**: `["analytics","customers","daily"]` → `analytics.customers_daily`. First component is the schema; remaining components are joined with `_` for the table. Schema is auto-created.
+- **Output metadata**: every materialization records `table`, `row_count`, and `partition_key` for the Dagster catalog.
+- **Idempotent partition replacement**: re-running a partition replaces only that partition's rows.
+- **Type contract**: only handles pandas DataFrames; raises `TypeError` for other types.
 
 ## Configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `io_manager` | Dagster resource key. Use `io_manager` to make this the project default. |
+| `host` | `str` | `localhost` | PostgreSQL host |
+| `port` | `int` | `5432` | PostgreSQL port |
+| `database` | `str` | required | Database name |
+| `user` | `str` | required | Username |
+| `password_env_var` | `str` | required | Env var holding the password |
+| `default_schema` | `str` | `public` | Schema used when asset key has only one component |
+| `if_exists` | `str` | `replace` | Unpartitioned-write behavior: `replace`, `append`, or `fail` |
+| `partition_column` | `str` | `partition_key` | Column used to scope per-partition DELETE+INSERT |
+
+## Example
 
 ```yaml
 type: dagster_component_templates.PostgresIOManagerComponent
@@ -18,12 +36,22 @@ attributes:
   database: analytics
   user: dagster_user
   password_env_var: POSTGRES_PASSWORD
-  schema_name: public
-  if_exists: replace
+  default_schema: public
+  partition_column: partition_key
 ```
 
-## Authentication
+## Table layout
 
-```bash
-export POSTGRES_PASSWORD=your-password
-```
+For asset key `["analytics","customers","daily"]`:
+
+| Asset state | Target | Strategy |
+|---|---|---|
+| Unpartitioned | `analytics.customers_daily` | `to_sql(if_exists=<config>)` |
+| Daily-partitioned, key `2026-04-28` | `analytics.customers_daily` | `BEGIN; DELETE WHERE partition_key='2026-04-28'; INSERT ...; COMMIT;` |
+| Single-component key `["events"]` | `public.events` (or your `default_schema`) | as above |
+
+## Notes
+
+- **Transactional writes**: per-partition `DELETE` + `INSERT` runs inside `engine.begin()` so the partition either fully replaces or fully rolls back.
+- **First-write table creation**: when a partitioned asset materializes for the first time the table doesn't exist yet, so the manager creates it with `to_sql(if_exists='replace')` then switches to `DELETE+append` on subsequent partitions.
+- **Authentication**: set `POSTGRES_PASSWORD` (or whatever env var name you configure) before launching Dagster.

@@ -1,14 +1,30 @@
 # MinIO IO Manager
 
-Register a Delta Lake IO manager pointed at MinIO for S3-compatible lakehouse storage.
+Stores Dagster assets as Delta Lake tables on MinIO (or any S3-compatible endpoint).
 
-## Installation
+Implemented as a [`ConfigurableIOManager`](https://docs.dagster.io/_apidocs/io-managers#dagster.ConfigurableIOManager) — the modern Dagster pattern for IO managers — and registered as the project's default IO manager when `resource_key: io_manager`.
 
-```
-pip install deltalake pandas
-```
+## Features
+
+- **Partitioned assets** are written with Delta's predicate-based overwrite (`partition_column = '<partition_key>'`) so each partition is rewritten in place without clobbering siblings.
+- **Multi-component asset keys** become nested table paths: `["raw","stripe","customers"]` → `s3://lake/dagster/assets/raw/stripe/customers`. No collisions between same-named assets in different groups.
+- **Path sanitization**: `[`, `]`, and spaces are replaced with safe characters so partition keys with special characters don't break S3 keys.
+- **Output metadata**: every materialization records `object_path`, `row_count`, and `partition_key` for the Dagster catalog.
+- **Delta Lake semantics**: ACID transactions, time travel, and schema evolution preserved.
 
 ## Configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `io_manager` | Dagster resource key. Use `io_manager` to make this the project default. |
+| `bucket` | `str` | `lake` | S3/MinIO bucket name |
+| `prefix` | `str` | `dagster/assets` | Key prefix within the bucket |
+| `endpoint_url` | `str` | `http://localhost:9000` | MinIO endpoint URL |
+| `access_key_env_var` | `str` | `MINIO_ACCESS_KEY` | Env var holding the MinIO access key |
+| `secret_key_env_var` | `str` | `MINIO_SECRET_KEY` | Env var holding the MinIO secret key |
+| `partition_column` | `str` | `partition_key` | Column name used to scope per-partition Delta overwrites |
+
+## Example
 
 ```yaml
 type: dagster_component_templates.MinIOIOManagerComponent
@@ -18,12 +34,24 @@ attributes:
   access_key_env_var: MINIO_ACCESS_KEY
   secret_key_env_var: MINIO_SECRET_KEY
   bucket: lake
-  prefix: assets
+  prefix: dagster/assets
 ```
 
-## Authentication
+## S3 layout
 
-```bash
-export MINIO_ACCESS_KEY=minioadmin
-export MINIO_SECRET_KEY=minioadmin
-```
+For an asset `["raw","stripe","customers"]`:
+
+| Asset state | Path |
+|---|---|
+| Unpartitioned | `s3://lake/dagster/assets/raw/stripe/customers` (Delta table) |
+| Daily-partitioned, key `2026-04-28` | `s3://lake/dagster/assets/raw/stripe/customers` partitioned by `partition_key=2026-04-28` |
+| Multi-partition `date=2026-04-28\|region=us` | `s3://lake/dagster/assets/raw/stripe/customers` partitioned by `partition_key=date=2026-04-28--region=us` |
+
+The Delta table directory contains the standard `_delta_log/` folder and a partition directory per `partition_key` value.
+
+## Notes
+
+- **Type contract**: this manager only handles pandas DataFrames. Assets returning other types should use a different IO manager.
+- **Per-partition writes**: when an asset has a partition key, the manager appends a `partition_column` (default `partition_key`) to the DataFrame and uses Delta's `predicate` overwrite mode so only matching rows are replaced. Backfills don't trample each other.
+- **Authentication**: MinIO access/secret keys are required; set them via env vars.
+- **S3-compatible backends**: any endpoint that accepts the AWS S3 protocol works (MinIO, LocalStack, Cloudflare R2, Ceph RGW, etc.). Adjust `endpoint_url` accordingly.

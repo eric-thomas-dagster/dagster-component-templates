@@ -1,36 +1,53 @@
 # Lance IO Manager
 
-Register a LanceDB IO manager for ML-optimised columnar storage, ideal for embeddings and vector data.
+Stores Dagster assets as LanceDB tables — an ML-optimised columnar format ideal for embeddings and vector data.
 
-## Installation
+Implemented as a [`ConfigurableIOManager`](https://docs.dagster.io/_apidocs/io-managers#dagster.ConfigurableIOManager) — the modern Dagster pattern for IO managers — and registered as the project's default IO manager when `resource_key: io_manager`.
 
-```
-pip install lancedb pandas
-```
+## Features
+
+- **Partitioned assets** land in tables named `<asset_key>__<partition_key>`. Each partition gets its own table; backfills don't overwrite each other.
+- **Multi-component asset keys** are flattened with `__`: `["features","embeddings","text"]` → `features__embeddings__text`. No collisions between same-named assets in different groups.
+- **Path sanitization**: `[`, `]`, and spaces are replaced with safe characters so partition keys with special characters don't break table names.
+- **Output metadata**: every materialization records `object_path`, `row_count`, and `partition_key` for the Dagster catalog.
+- **Object-storage backends**: local directory, S3, GCS, or S3-compatible (MinIO) via `s3_endpoint_url`.
+- **Type contract**: accepts pandas DataFrames or pyarrow Tables; raises `TypeError` for other types.
 
 ## Configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `io_manager` | Dagster resource key. Use `io_manager` to make this the project default. |
+| `base_path` | `str` | `./lance_data` | Directory or object-storage URI where tables are stored |
+| `table_name_prefix` | `str?` | `null` | Optional prefix prepended to every table name |
+| `s3_access_key_env_var` | `str?` | `null` | Env var holding the S3 access key |
+| `s3_secret_key_env_var` | `str?` | `null` | Env var holding the S3 secret key |
+| `s3_endpoint_url` | `str?` | `null` | Custom S3 endpoint URL (e.g. MinIO at `http://localhost:9000`) |
+
+## Example
 
 ```yaml
 type: dagster_component_templates.LanceIOManagerComponent
 attributes:
   resource_key: io_manager
-  base_path: ./lance_data
-  table_name_prefix: prod_
-```
-
-### S3 / MinIO storage
-
-```yaml
-attributes:
   base_path: s3://my-bucket/lance
+  table_name_prefix: prod_
   s3_access_key_env_var: AWS_ACCESS_KEY_ID
   s3_secret_key_env_var: AWS_SECRET_ACCESS_KEY
-  # For MinIO:
-  s3_endpoint_url: http://localhost:9000
 ```
 
-## Use cases
+## Lance layout
 
-- Storing embedding vectors produced by AI/ML components
-- Fast nearest-neighbor search without a separate vector DB
-- Columnar ML feature store with versioning
+For an asset `["features","embeddings","text"]`:
+
+| Asset state | Table name | Path |
+|---|---|---|
+| Unpartitioned | `features__embeddings__text` | `s3://my-bucket/lance/features__embeddings__text.lance` |
+| Daily-partitioned, key `2026-04-28` | `features__embeddings__text__2026-04-28` | `s3://my-bucket/lance/features__embeddings__text__2026-04-28.lance` |
+| Multi-partition `date=2026-04-28\|region=us` | `features__embeddings__text__date=2026-04-28--region=us` | `s3://my-bucket/lance/features__embeddings__text__date=2026-04-28--region=us.lance` |
+
+## Notes
+
+- **Use cases**: embedding vectors produced by AI/ML components, fast nearest-neighbor search without a separate vector DB, columnar ML feature stores with versioning.
+- **Pyarrow Tables**: Lance accepts pyarrow Tables natively (faster than DataFrames for large arrow-backed data). The manager type-checks for either.
+- **S3-compatible backends**: set `base_path` to `s3://...` and provide `s3_endpoint_url` for MinIO/LocalStack.

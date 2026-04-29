@@ -1,0 +1,11 @@
+type: dagster_component_templates.LakeFSIOManagerComponent
+attributes:
+  resource_key: io_manager
+  repository: data-lake
+  branch: main
+  endpoint_url: http://lakefs:8000
+  prefix: dagster/assets
+  lakefs_access_key_env_var: LAKEFS_ACCESS_KEY
+  lakefs_secret_key_env_var: LAKEFS_SECRET_KEY
+  commit_per_materialization: true
+  commit_message_template: "Materialized {asset_key} ({partition_key}) at {timestamp}"

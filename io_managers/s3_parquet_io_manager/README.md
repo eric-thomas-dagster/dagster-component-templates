@@ -1,14 +1,30 @@
 # S3 Parquet IO Manager
 
-Register an IO manager that stores assets as Parquet files on Amazon S3 via `s3fs`.
+Stores Dagster assets as Parquet files on Amazon S3 (or any S3-compatible endpoint).
 
-## Installation
+Implemented as a [`ConfigurableIOManager`](https://docs.dagster.io/_apidocs/io-managers#dagster.ConfigurableIOManager) — the modern Dagster pattern for IO managers — and registered as the project's default IO manager when `resource_key: io_manager`.
 
-```
-pip install s3fs pandas pyarrow
-```
+## Features
+
+- **Partitioned assets** land at `<prefix>/<asset_key>/<partition_key>.parquet`. Each partition gets its own file; backfills don't overwrite each other.
+- **Multi-component asset keys** become nested S3 paths: `["raw","stripe","customers"]` → `<prefix>/raw/stripe/customers.parquet`. No collisions between same-named assets in different groups.
+- **Path sanitization**: `[`, `]`, and spaces are replaced with safe characters so partition keys with special characters don't break S3 keys.
+- **Output metadata**: every materialization records `object_path`, `row_count`, and `partition_key` for the Dagster catalog.
+- **S3-compatible backends**: MinIO, LocalStack, Cloudflare R2, etc. via `endpoint_url`.
 
 ## Configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `io_manager` | Dagster resource key. Use `io_manager` to make this the project default. |
+| `bucket` | `str` | required | S3 bucket name |
+| `prefix` | `str` | `dagster/assets` | Key prefix under the bucket |
+| `region_name` | `str?` | `null` | AWS region (uses boto3 default if empty) |
+| `aws_access_key_env_var` | `str?` | `null` | Env var holding AWS access key (uses default credential chain — IAM role, `~/.aws`, etc. — if empty) |
+| `aws_secret_key_env_var` | `str?` | `null` | Env var holding AWS secret key |
+| `endpoint_url` | `str?` | `null` | Custom S3-compatible endpoint (e.g. `http://localhost:9000` for MinIO) |
+
+## Example
 
 ```yaml
 type: dagster_component_templates.S3ParquetIOManagerComponent
@@ -21,4 +37,18 @@ attributes:
   aws_secret_key_env_var: AWS_SECRET_ACCESS_KEY
 ```
 
-Also works with any S3-compatible store (MinIO, Cloudflare R2) via `endpoint_url`.
+## S3 layout
+
+For an asset `["raw","stripe","customers"]`:
+
+| Asset state | Path |
+|---|---|
+| Unpartitioned | `s3://my-data-bucket/dagster/assets/raw/stripe/customers.parquet` |
+| Daily-partitioned, key `2026-04-28` | `s3://my-data-bucket/dagster/assets/raw/stripe/customers/2026-04-28.parquet` |
+| Multi-partition `date=2026-04-28\|region=us` | `s3://my-data-bucket/dagster/assets/raw/stripe/customers/date=2026-04-28--region=us.parquet` |
+
+## Notes
+
+- **Type contract**: this manager only handles pandas DataFrames. Assets returning other types should use a different IO manager.
+- **Default credential chain**: leaving `aws_access_key_env_var` and `aws_secret_key_env_var` empty lets boto3 use IAM role / instance profile / `~/.aws` credentials. This is the recommended pattern in production.
+- **MinIO / LocalStack**: set `endpoint_url` and provide static keys via env vars. The manager configures `s3fs` accordingly.

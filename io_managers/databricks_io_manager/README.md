@@ -1,14 +1,32 @@
 # Databricks IO Manager
 
-Register an IO manager that reads and writes Pandas DataFrames as Unity Catalog Delta tables via the Databricks SQL Connector.
+Stores Dagster assets as Unity Catalog Delta tables via the Databricks SQL Connector.
 
-## Installation
+Implemented as a [`ConfigurableIOManager`](https://docs.dagster.io/_apidocs/io-managers#dagster.ConfigurableIOManager) — the modern Dagster pattern for IO managers — and registered as the project's default IO manager when `resource_key: io_manager`.
 
-```
-pip install databricks-sql-connector pandas
-```
+## Features
+
+- **Partition-aware writes**: each partition is replaced with `DELETE FROM ... WHERE partition_column = '<key>'` followed by `INSERT` (or `COPY INTO` from staged Parquet). Backfills don't clobber sibling partitions; Delta's per-statement ACID semantics make each DELETE/INSERT atomic.
+- **Multi-component asset keys → `catalog.schema.table`**: `["analytics","customers","daily"]` → `main.analytics.customers_daily`. First component is the schema; remaining components are joined with `_`. Schema is auto-created.
+- **Output metadata**: every materialization records `table`, `row_count`, and `partition_key` for the Dagster catalog.
+- **Idempotent partition replacement**: re-running a partition replaces only that partition's rows.
+- **Optional staging path**: set `staging_location` to a cloud-storage URI to switch from inline `INSERT VALUES` to `COPY INTO` from a staged Parquet file (preferred for large datasets).
+- **Type contract**: only handles pandas DataFrames; raises `TypeError` for other types.
 
 ## Configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `io_manager` | Dagster resource key. Use `io_manager` to make this the project default. |
+| `server_hostname` | `str` | required | Databricks workspace hostname |
+| `http_path` | `str` | required | HTTP path to SQL warehouse / cluster |
+| `access_token_env_var` | `str` | required | Env var holding the Databricks PAT |
+| `catalog` | `str` | `main` | Unity Catalog catalog name |
+| `default_schema` | `str` | `default` | Schema used when asset key has only one component |
+| `staging_location` | `str?` | `null` | Cloud storage URI for `COPY INTO` staging (Parquet) |
+| `partition_column` | `str` | `partition_key` | Column used to scope per-partition DELETE+INSERT |
+
+## Example
 
 ```yaml
 type: dagster_component_templates.DatabricksIOManagerComponent
@@ -18,13 +36,24 @@ attributes:
   http_path: /sql/1.0/warehouses/abc123def456
   access_token_env_var: DATABRICKS_TOKEN
   catalog: main
-  schema_name: dagster_assets
+  default_schema: dagster_assets
+  staging_location: s3://my-bucket/databricks-staging
+  partition_column: partition_key
 ```
 
-## Authentication
+## Table layout
 
-```bash
-export DATABRICKS_TOKEN=dapi...
-```
+For asset key `["analytics","customers","daily"]` with catalog `main`:
 
-Generate a personal access token in Databricks: User Settings → Developer → Access Tokens.
+| Asset state | Target | Strategy |
+|---|---|---|
+| Unpartitioned | `main.analytics.customers_daily` | `DELETE FROM ...; INSERT ...;` (or `COPY INTO`) |
+| Daily-partitioned, key `2026-04-28` | `main.analytics.customers_daily` | `DELETE WHERE partition_key='2026-04-28'; INSERT ...;` |
+| Single-component key `["events"]` | `main.default.events` (or your `default_schema`) | as above |
+
+## Notes
+
+- **PAT**: generate a personal access token in Databricks under User Settings → Developer → Access Tokens, and export it as `DATABRICKS_TOKEN` (or whatever env var you configure).
+- **Inline `INSERT VALUES`**: when `staging_location` is empty the manager builds an `INSERT INTO ... VALUES (...)` statement. Fine for small/moderate volumes; switch to staging for tens of millions of rows.
+- **`COPY INTO`**: when `staging_location` is set, the manager writes a temporary Parquet file there and runs `COPY INTO` with `mergeSchema=true`. Cheaper and faster for large writes; the warehouse needs read access to the staging URI.
+- **Delta semantics**: per-statement ACID means a `DELETE` or `INSERT` either fully applies or fully rolls back. There's no multi-statement transaction in Databricks SQL, but the partition-replacement pattern is idempotent, so a retry after a partial failure converges to the right state.

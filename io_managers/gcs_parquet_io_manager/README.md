@@ -1,14 +1,28 @@
 # GCS Parquet IO Manager
 
-Register an IO manager that stores assets as Parquet files on Google Cloud Storage via `gcsfs`.
+Stores Dagster assets as Parquet files on Google Cloud Storage.
 
-## Installation
+Implemented as a [`ConfigurableIOManager`](https://docs.dagster.io/_apidocs/io-managers#dagster.ConfigurableIOManager) — the modern Dagster pattern for IO managers — and registered as the project's default IO manager when `resource_key: io_manager`.
 
-```
-pip install gcsfs pandas pyarrow
-```
+## Features
+
+- **Partitioned assets** land at `<prefix>/<asset_key>/<partition_key>.parquet`. Each partition gets its own file; backfills don't overwrite each other.
+- **Multi-component asset keys** become nested GCS paths: `["raw","stripe","customers"]` → `<prefix>/raw/stripe/customers.parquet`. No collisions between same-named assets in different groups.
+- **Path sanitization**: `[`, `]`, and spaces are replaced with safe characters so partition keys with special characters don't break GCS keys.
+- **Output metadata**: every materialization records `object_path`, `row_count`, and `partition_key` for the Dagster catalog.
+- **Authentication**: uses Application Default Credentials by default, or a JSON service-account key supplied via env var.
 
 ## Configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `io_manager` | Dagster resource key. Use `io_manager` to make this the project default. |
+| `bucket` | `str` | required | GCS bucket name |
+| `prefix` | `str` | `dagster/assets` | Object prefix under the bucket |
+| `project` | `str?` | `null` | GCP project ID (uses gcsfs default if empty) |
+| `gcp_credentials_env_var` | `str?` | `null` | Env var holding a JSON service-account key (uses ADC if empty) |
+
+## Example
 
 ```yaml
 type: dagster_component_templates.GCSParquetIOManagerComponent
@@ -17,6 +31,21 @@ attributes:
   bucket: my-gcs-bucket
   prefix: dagster/assets
   project: my-gcp-project
+  gcp_credentials_env_var: GCP_SERVICE_ACCOUNT_JSON
 ```
 
-Uses Application Default Credentials (ADC) unless `gcp_credentials_env_var` is set.
+## GCS layout
+
+For an asset `["raw","stripe","customers"]`:
+
+| Asset state | Path |
+|---|---|
+| Unpartitioned | `gs://my-gcs-bucket/dagster/assets/raw/stripe/customers.parquet` |
+| Daily-partitioned, key `2026-04-28` | `gs://my-gcs-bucket/dagster/assets/raw/stripe/customers/2026-04-28.parquet` |
+| Multi-partition `date=2026-04-28\|region=us` | `gs://my-gcs-bucket/dagster/assets/raw/stripe/customers/date=2026-04-28--region=us.parquet` |
+
+## Notes
+
+- **Type contract**: this manager only handles pandas DataFrames. Assets returning other types should use a different IO manager.
+- **Application Default Credentials**: leaving `gcp_credentials_env_var` empty lets `gcsfs` use ADC (gcloud auth, GCE/GKE metadata, `GOOGLE_APPLICATION_CREDENTIALS`, etc.). Recommended in production.
+- **Service-account JSON**: set the env var to the *contents* of the JSON key file (not the path).

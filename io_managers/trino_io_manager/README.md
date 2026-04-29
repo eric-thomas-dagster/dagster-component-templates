@@ -1,14 +1,31 @@
 # Trino IO Manager
 
-Register a Trino IO manager that reads and writes Pandas DataFrames via Trino SQL.
+Stores Dagster assets as Trino tables (in any catalog/schema combination that supports CREATE/INSERT — Iceberg, Hive, Delta, etc.).
 
-## Installation
+Implemented as a [`ConfigurableIOManager`](https://docs.dagster.io/_apidocs/io-managers#dagster.ConfigurableIOManager) — the modern Dagster pattern for IO managers — and registered as the project's default IO manager when `resource_key: io_manager`.
 
-```
-pip install trino pandas
-```
+## Features
+
+- **Partition-aware writes**: each partition is replaced with a transactional `START TRANSACTION; DELETE WHERE partition_column = '<key>'; INSERT ...; COMMIT;`. Backfills don't clobber sibling partitions.
+- **Multi-component asset keys → `catalog.schema.table`**: `["analytics","customers","daily"]` → `iceberg.analytics.customers_daily`. First component is the schema; remaining components are joined with `_`.
+- **Output metadata**: every materialization records `table`, `row_count`, and `partition_key` for the Dagster catalog.
+- **Idempotent partition replacement**: re-running a partition replaces only that partition's rows.
+- **Type contract**: only handles pandas DataFrames; raises `TypeError` for other types.
 
 ## Configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `io_manager` | Dagster resource key. Use `io_manager` to make this the project default. |
+| `host` | `str` | `localhost` | Trino coordinator host |
+| `port` | `int` | `8080` | Trino coordinator port |
+| `user` | `str` | `dagster` | Trino user name |
+| `catalog` | `str` | `iceberg` | Trino catalog (Iceberg, Hive, Delta, etc.) |
+| `default_schema` | `str` | `default` | Schema used when asset key has only one component |
+| `password_env_var` | `str?` | `null` | Env var holding the Trino password (omit for no auth) |
+| `partition_column` | `str` | `partition_key` | Column used to scope per-partition DELETE+INSERT |
+
+## Example
 
 ```yaml
 type: dagster_component_templates.TrinoIOManagerComponent
@@ -18,11 +35,23 @@ attributes:
   port: 8080
   user: dagster
   catalog: iceberg
-  schema_name: default
+  default_schema: default
+  partition_column: partition_key
 ```
 
-## Authentication
+## Table layout
 
-```bash
-export TRINO_PASSWORD=your-password  # only if auth is required
-```
+For asset key `["analytics","customers","daily"]` with catalog `iceberg`:
+
+| Asset state | Target | Strategy |
+|---|---|---|
+| Unpartitioned | `iceberg.analytics.customers_daily` | `DELETE FROM ...; INSERT ...;` (transactional) |
+| Daily-partitioned, key `2026-04-28` | `iceberg.analytics.customers_daily` | `START TRANSACTION; DELETE WHERE partition_key='2026-04-28'; INSERT ...; COMMIT;` |
+| Single-component key `["events"]` | `iceberg.default.events` (or your `default_schema`) | as above |
+
+## Notes
+
+- **Transactional writes**: per-partition writes use `START TRANSACTION` / `COMMIT` (with `ROLLBACK` on error), so the partition either fully replaces or fully rolls back. Requires a Trino catalog connector that supports DELETE (Iceberg, Delta, Hive ACID).
+- **Connector requirements**: row-level `DELETE` is only supported by some Trino connectors. Use Iceberg/Delta for the cleanest semantics; Hive requires ACID tables.
+- **Authentication**: omit `password_env_var` for unauthenticated dev clusters; set it to use HTTP basic auth.
+- **Bulk loads**: this manager writes via `INSERT INTO ... VALUES (...)` which is fine for moderate volumes. For high-volume ELT, prefer staging Parquet to object storage and registering an external table.

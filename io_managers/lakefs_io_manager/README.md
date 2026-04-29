@@ -1,0 +1,72 @@
+# LakeFS IO Manager
+
+Stores Dagster assets as Parquet files on a [lakeFS](https://lakefs.io) repository — a Git-for-data versioning layer over S3-compatible storage.
+
+Implemented as a [`ConfigurableIOManager`](https://docs.dagster.io/_apidocs/io-managers#dagster.ConfigurableIOManager) — the modern Dagster pattern for IO managers — and registered as the project's default IO manager when `resource_key: io_manager`.
+
+## How it works
+
+LakeFS exposes two interfaces:
+
+1. An **S3-compatible gateway** for reading/writing objects on a branch. This manager uses `s3fs` against `endpoint_url` to write Parquet.
+2. A **lakeFS API** for branching, committing, and merging. When `commit_per_materialization=true` the manager calls the official `lakefs` Python SDK to create a commit on the configured branch after each successful write.
+
+Every materialization lands in `<repository>/<branch>/<prefix>/<asset_key>/<partition_key>.parquet`. With auto-commit enabled, every Dagster run produces a versioned commit you can browse, diff, and roll back.
+
+## Features
+
+- **Partitioned assets** land at `<prefix>/<asset_key>/<partition_key>.parquet`. Each partition gets its own object; backfills don't overwrite each other.
+- **Multi-component asset keys** become nested paths: `["raw","stripe","customers"]` → `<prefix>/raw/stripe/customers.parquet`. No collisions between same-named assets in different groups.
+- **Path sanitization**: `[`, `]`, and spaces are replaced with safe characters so partition keys with special characters don't break object keys.
+- **Output metadata**: every materialization records `object_path`, `lakefs_uri`, `branch`, `row_count`, `partition_key`, and (when auto-commit is on) `commit_id`.
+- **Per-materialization commits**: opt in with `commit_per_materialization: true`. Commit message uses the configurable `commit_message_template`.
+
+## Configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `io_manager` | Dagster resource key. Use `io_manager` to make this the project default. |
+| `repository` | `str` | required | lakeFS repository name |
+| `branch` | `str` | `main` | Branch within the repository |
+| `endpoint_url` | `str` | required | lakeFS server endpoint URL (e.g. `http://lakefs:8000`) |
+| `prefix` | `str` | `dagster/assets` | Key prefix within the branch |
+| `lakefs_access_key_env_var` | `str` | required | Env var holding the lakeFS access key |
+| `lakefs_secret_key_env_var` | `str` | required | Env var holding the lakeFS secret key |
+| `commit_per_materialization` | `bool` | `false` | Commit after every successful materialization |
+| `commit_message_template` | `str` | `"Materialized {asset_key} at {timestamp}"` | Format string for commit messages — `{asset_key}`, `{partition_key}`, `{timestamp}`, `{row_count}` |
+
+## Example
+
+```yaml
+type: dagster_component_templates.LakeFSIOManagerComponent
+attributes:
+  resource_key: io_manager
+  repository: data-lake
+  branch: main
+  endpoint_url: http://lakefs:8000
+  prefix: dagster/assets
+  lakefs_access_key_env_var: LAKEFS_ACCESS_KEY
+  lakefs_secret_key_env_var: LAKEFS_SECRET_KEY
+  commit_per_materialization: true
+  commit_message_template: "Materialized {asset_key} ({partition_key}) at {timestamp}"
+```
+
+## LakeFS layout
+
+For an asset `["raw","stripe","customers"]` in repository `data-lake` on branch `main`:
+
+| Asset state | Path |
+|---|---|
+| Unpartitioned | `lakefs://data-lake/main/dagster/assets/raw/stripe/customers.parquet` |
+| Daily-partitioned, key `2026-04-28` | `lakefs://data-lake/main/dagster/assets/raw/stripe/customers/2026-04-28.parquet` |
+| Multi-partition `date=2026-04-28\|region=us` | `lakefs://data-lake/main/dagster/assets/raw/stripe/customers/date=2026-04-28--region=us.parquet` |
+
+The same path is reachable through the S3 gateway as `s3://data-lake/main/dagster/assets/raw/stripe/customers/...`.
+
+## Notes
+
+- **Type contract**: this manager only handles pandas DataFrames. Assets returning other types should use a different IO manager.
+- **Repository must exist**: the manager does not create repositories or branches — provision them out of band (Terraform, the lakeFS UI, or `lakectl`).
+- **Branching workflows**: point the manager at a development branch (e.g. `branch: dev`) and merge to `main` after validation. This gives you Dagster-native dev/prod isolation on the *data*, not just the code.
+- **Commit cost**: `commit_per_materialization: true` adds one lakeFS API call per asset write. For high-frequency partitioned backfills, prefer batching via a sensor that commits after the run completes.
+- **Python client**: this manager uses the official high-level [`lakefs`](https://pypi.org/project/lakefs/) SDK from Treeverse for the commit step; the underlying object I/O goes through `s3fs` against the lakeFS S3 gateway.

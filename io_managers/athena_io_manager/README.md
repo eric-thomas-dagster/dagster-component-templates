@@ -1,14 +1,38 @@
 # Athena IO Manager
 
-Register an Athena IO manager that stores assets as Parquet on S3 and queries them via Amazon Athena.
+Stores Dagster assets as Parquet files on Amazon S3 **and** registers them as external tables in the AWS Glue Data Catalog so they can be queried via Amazon Athena.
 
-## Installation
+Implemented as a [`ConfigurableIOManager`](https://docs.dagster.io/_apidocs/io-managers#dagster.ConfigurableIOManager) — the modern Dagster pattern for IO managers — and registered as the project's default IO manager when `resource_key: io_manager`.
 
-```
-pip install awswrangler boto3
-```
+## How it works
+
+Every materialization does **two** things:
+
+1. Writes a Parquet dataset under `s3_output_location/<database>/<table>/` (Hive-style partitioning when the asset is partitioned).
+2. Registers / updates the corresponding entry in the **AWS Glue Data Catalog** (via `awswrangler`), so Athena can `SELECT * FROM "<database>"."<table>"`.
+
+## Features
+
+- **Partition-aware writes**: `awswrangler.s3.to_parquet(mode='overwrite_partitions')` rewrites only the Hive partition matching `partition_column = '<partition_key>'`. Backfills don't clobber sibling partitions.
+- **Multi-component asset keys → `database.table`**: `["analytics","customers","daily"]` → Glue database `analytics`, table `customers_daily`. First component is the database; remaining components are joined with `_`. Database is auto-created.
+- **Output metadata**: every materialization records `table`, `object_path` (S3 URI), `row_count`, and `partition_key` for the Dagster catalog.
+- **Idempotent partition replacement**: re-running a partition replaces only that partition's files in S3 and refreshes Glue partition metadata.
+- **Type contract**: only handles pandas DataFrames; raises `TypeError` for other types.
 
 ## Configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `io_manager` | Dagster resource key. Use `io_manager` to make this the project default. |
+| `database` | `str` | required | Default Glue/Athena database (used for single-component asset keys) |
+| `s3_staging_dir` | `str` | required | S3 URI for Athena query result staging |
+| `s3_output_location` | `str?` | `null` | S3 URI prefix where Parquet datasets are written (defaults to `s3_staging_dir`) |
+| `region_name` | `str?` | `null` | AWS region |
+| `aws_access_key_env_var` | `str?` | `null` | Env var holding AWS access key (uses default credential chain if empty) |
+| `aws_secret_key_env_var` | `str?` | `null` | Env var holding AWS secret key |
+| `partition_column` | `str` | `partition_key` | Hive partition column used when writing partitioned assets |
+
+## Example
 
 ```yaml
 type: dagster_component_templates.AthenaIOManagerComponent
@@ -18,13 +42,22 @@ attributes:
   s3_staging_dir: s3://my-bucket/athena-results/
   s3_output_location: s3://my-bucket/assets/
   region_name: us-east-1
+  partition_column: partition_key
 ```
 
-## Authentication
+## Table layout
 
-Uses instance role / environment credentials by default. Set `aws_access_key_env_var` and `aws_secret_key_env_var` for explicit credentials:
+For asset key `["analytics","customers","daily"]`:
 
-```bash
-export AWS_ACCESS_KEY_ID=your-key
-export AWS_SECRET_ACCESS_KEY=your-secret
-```
+| Asset state | Glue target | S3 path |
+|---|---|---|
+| Unpartitioned | `analytics.customers_daily` | `s3://my-bucket/assets/analytics/customers_daily/*.parquet` |
+| Daily-partitioned, key `2026-04-28` | `analytics.customers_daily` | `s3://my-bucket/assets/analytics/customers_daily/partition_key=2026-04-28/*.parquet` |
+| Single-component key `["events"]` | `dagster_db.events` (default `database`) | `s3://my-bucket/assets/dagster_db/events/...` |
+
+## Notes
+
+- **Glue catalog**: this manager creates Glue databases/tables on demand via `awswrangler.catalog`. Your IAM principal needs `glue:CreateDatabase`, `glue:CreateTable`, `glue:UpdateTable`, and `glue:GetTable` permissions in addition to S3 access.
+- **Athena query results**: `s3_staging_dir` must exist and be writable — Athena writes intermediate query result CSVs there.
+- **Default credential chain**: leave `aws_access_key_env_var` / `aws_secret_key_env_var` empty to use IAM role / instance profile / `~/.aws` credentials. Recommended in production.
+- **Reads**: `load_input` issues `SELECT * FROM "<db>"."<tbl>"` (filtered by `partition_column` when applicable) via Athena and returns a pandas DataFrame.

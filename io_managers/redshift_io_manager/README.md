@@ -1,14 +1,32 @@
 # Redshift IO Manager
 
-Register a Redshift IO manager so assets are automatically stored in and loaded from Amazon Redshift.
+Stores Dagster assets as Amazon Redshift tables via the psycopg2 wire protocol.
 
-## Installation
+Implemented as a [`ConfigurableIOManager`](https://docs.dagster.io/_apidocs/io-managers#dagster.ConfigurableIOManager) — the modern Dagster pattern for IO managers — and registered as the project's default IO manager when `resource_key: io_manager`.
 
-```
-pip install psycopg2-binary sqlalchemy pandas
-```
+## Features
+
+- **Partition-aware writes**: each partition is replaced with a transactional `DELETE FROM ... WHERE partition_column = '<key>'` followed by `INSERT`, scoped by the configurable `partition_column` (default `partition_key`). Backfills don't clobber sibling partitions.
+- **Multi-component asset keys → `schema.table`**: `["analytics","customers","daily"]` → `analytics.customers_daily`. First component is the schema; remaining components are joined with `_`.
+- **Output metadata**: every materialization records `table`, `row_count`, and `partition_key` for the Dagster catalog.
+- **Idempotent partition replacement**: re-running a partition replaces only that partition's rows.
+- **Type contract**: only handles pandas DataFrames; raises `TypeError` for other types.
 
 ## Configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `io_manager` | Dagster resource key. Use `io_manager` to make this the project default. |
+| `host` | `str` | required | Redshift cluster endpoint |
+| `port` | `int` | `5439` | Redshift port |
+| `database` | `str` | required | Database name |
+| `user` | `str` | required | Username |
+| `password_env_var` | `str` | required | Env var holding the password |
+| `default_schema` | `str` | `public` | Schema used when asset key has only one component |
+| `if_exists` | `str` | `replace` | Unpartitioned-write behavior: `replace`, `append`, or `fail` |
+| `partition_column` | `str` | `partition_key` | Column used to scope per-partition DELETE+INSERT |
+
+## Example
 
 ```yaml
 type: dagster_component_templates.RedshiftIOManagerComponent
@@ -18,11 +36,22 @@ attributes:
   database: dev
   user: dagster_user
   password_env_var: REDSHIFT_PASSWORD
-  schema_name: public
+  default_schema: public
+  partition_column: partition_key
 ```
 
-## Authentication
+## Table layout
 
-```bash
-export REDSHIFT_PASSWORD=your-password
-```
+For asset key `["analytics","customers","daily"]`:
+
+| Asset state | Target | Strategy |
+|---|---|---|
+| Unpartitioned | `analytics.customers_daily` | `to_sql(if_exists=<config>)` |
+| Daily-partitioned, key `2026-04-28` | `analytics.customers_daily` | `BEGIN; DELETE WHERE partition_key='2026-04-28'; INSERT ...; COMMIT;` |
+| Single-component key `["events"]` | `public.events` (or your `default_schema`) | as above |
+
+## Notes
+
+- **Transactional writes**: per-partition `DELETE` + `INSERT` runs inside `engine.begin()` so the partition either fully replaces or fully rolls back.
+- **First-write table creation**: when a partitioned asset materializes for the first time, the table is created via `to_sql(if_exists='replace')`; subsequent partitions use `DELETE+append`.
+- **Bulk loads**: for very large datasets, prefer Redshift's native `COPY` from S3 (this manager uses `INSERT` via SQLAlchemy, suitable for moderate volumes). For high-volume ELT, write Parquet to S3 with the S3 IO manager and run a `COPY` step downstream.

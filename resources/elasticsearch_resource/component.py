@@ -1,9 +1,11 @@
+"""Elasticsearch Resource component."""
 from dataclasses import dataclass
 from typing import Optional
 
 import dagster as dg
 from dagster import ConfigurableResource
 from elasticsearch import Elasticsearch
+from pydantic import Field
 
 
 class ElasticsearchResource(ConfigurableResource):
@@ -27,14 +29,14 @@ class ElasticsearchResource(ConfigurableResource):
 
 @dataclass
 class ElasticsearchResourceComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Dagster component that provides an Elasticsearch resource."""
+    """Register an Elasticsearch resource for use by other components."""
 
-    resource_key: str = "elasticsearch_resource"
-    hosts: str = ""
-    api_key_env_var: str = ""
-    username: str = ""
-    password_env_var: str = ""
-    verify_certs: bool = True
+    resource_key: str = Field(default="elasticsearch_resource", description="Key used to register this resource. Other components reference it via resource_key.")
+    hosts: str = Field(description="Elasticsearch URL, e.g. 'https://localhost:9200'")
+    api_key_env_var: Optional[str] = Field(default=None, description="Environment variable holding the Elasticsearch API key (preferred). Mutually exclusive with username/password.")
+    username: Optional[str] = Field(default="", description="Elasticsearch username for basic auth")
+    password_env_var: Optional[str] = Field(default=None, description="Environment variable holding the Elasticsearch password for basic auth")
+    verify_certs: bool = Field(default=True, description="Verify TLS certificates. Set to False for self-signed dev clusters only.")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         api_key = dg.EnvVar(self.api_key_env_var) if self.api_key_env_var else ""
@@ -42,7 +44,7 @@ class ElasticsearchResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         resource = ElasticsearchResource(
             hosts=self.hosts,
             api_key=api_key,
-            username=self.username,
+            username=self.username or "",
             password=password,
             verify_certs=self.verify_certs,
         )

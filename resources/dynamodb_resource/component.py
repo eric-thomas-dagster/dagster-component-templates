@@ -1,8 +1,11 @@
+"""DynamoDB Resource component."""
 from dataclasses import dataclass
+from typing import Optional
 
 import boto3
 import dagster as dg
 from dagster import ConfigurableResource
+from pydantic import Field
 
 
 class DynamoDBResource(ConfigurableResource):
@@ -30,13 +33,13 @@ class DynamoDBResource(ConfigurableResource):
 
 @dataclass
 class DynamoDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Dagster component that provides a DynamoDB resource."""
+    """Register a DynamoDB resource for use by other components."""
 
-    resource_key: str = "dynamodb_resource"
-    region_name: str = ""
-    aws_access_key_id_env_var: str = ""
-    aws_secret_access_key_env_var: str = ""
-    endpoint_url: str = ""
+    resource_key: str = Field(default="dynamodb_resource", description="Key used to register this resource. Other components reference it via resource_key.")
+    region_name: str = Field(description="AWS region, e.g. 'us-east-1'")
+    aws_access_key_id_env_var: Optional[str] = Field(default=None, description="Environment variable holding the AWS access key ID. Leave empty to use boto3's default credential chain (IAM role, ~/.aws, etc.).")
+    aws_secret_access_key_env_var: Optional[str] = Field(default=None, description="Environment variable holding the AWS secret access key.")
+    endpoint_url: Optional[str] = Field(default=None, description="Custom DynamoDB endpoint URL for LocalStack or DynamoDB Local, e.g. 'http://localhost:8000'.")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         aws_access_key_id = (
@@ -49,6 +52,6 @@ class DynamoDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             region_name=self.region_name,
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
-            endpoint_url=self.endpoint_url,
+            endpoint_url=self.endpoint_url or "",
         )
         return dg.Definitions(resources={self.resource_key: resource})

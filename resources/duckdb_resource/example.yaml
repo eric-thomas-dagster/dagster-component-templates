@@ -2,4 +2,3 @@ type: dagster_component_templates.DuckDBResourceComponent
 attributes:
   resource_key: duckdb_resource
   database: ":memory:"
-  read_only: false

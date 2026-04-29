@@ -12,12 +12,21 @@ class SFTPResource(dg.ConfigurableResource):
     password: str = ""
     private_key_pem: str = ""
     private_key_path: str = ""
+    known_hosts_path: str = ""
+    auto_accept_unknown_host_key: bool = False
 
     def get_client(self):
         import paramiko
         import io
         ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        if self.known_hosts_path:
+            ssh.load_host_keys(self.known_hosts_path)
+        else:
+            ssh.load_system_host_keys()
+        if self.auto_accept_unknown_host_key:
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        else:
+            ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
         connect_kwargs = {"hostname": self.host, "port": self.port, "username": self.username}
         if self.private_key_pem:
             pkey = paramiko.RSAKey.from_private_key(io.StringIO(self.private_key_pem))
@@ -41,6 +50,14 @@ class SFTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     password_env_var: Optional[str] = Field(default=None, description="Environment variable holding the SSH password")
     private_key_env_var: Optional[str] = Field(default=None, description="Environment variable holding the SSH private key PEM string")
     private_key_path: Optional[str] = Field(default=None, description="Path to SSH private key file on disk")
+    known_hosts_path: Optional[str] = Field(
+        default=None,
+        description="Path to a known_hosts file. If empty, the system known_hosts (~/.ssh/known_hosts) is loaded.",
+    )
+    auto_accept_unknown_host_key: bool = Field(
+        default=False,
+        description="If True, automatically accept unknown host keys (insecure — enables MITM). Default False rejects unknown hosts.",
+    )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = SFTPResource(
@@ -50,5 +67,7 @@ class SFTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             password=dg.EnvVar(self.password_env_var) if self.password_env_var else "",
             private_key_pem=dg.EnvVar(self.private_key_env_var) if self.private_key_env_var else "",
             private_key_path=self.private_key_path or "",
+            known_hosts_path=self.known_hosts_path or "",
+            auto_accept_unknown_host_key=self.auto_accept_unknown_host_key,
         )
         return dg.Definitions(resources={self.resource_key: resource})

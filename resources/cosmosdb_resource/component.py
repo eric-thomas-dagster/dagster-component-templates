@@ -1,8 +1,10 @@
+"""Azure Cosmos DB Resource component."""
 from dataclasses import dataclass
 
 import dagster as dg
 from azure.cosmos import CosmosClient
 from dagster import ConfigurableResource
+from pydantic import Field
 
 
 class CosmosDBResource(ConfigurableResource):
@@ -20,12 +22,12 @@ class CosmosDBResource(ConfigurableResource):
 
 @dataclass
 class CosmosDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Dagster component that provides an Azure Cosmos DB resource."""
+    """Register an Azure Cosmos DB resource for use by other components."""
 
-    resource_key: str = "cosmosdb_resource"
-    endpoint: str = ""
-    key_env_var: str = ""
-    database_name: str = ""
+    resource_key: str = Field(default="cosmosdb_resource", description="Key used to register this resource. Other components reference it via resource_key.")
+    endpoint: str = Field(description="Cosmos DB account endpoint, e.g. 'https://my-account.documents.azure.com:443/'")
+    key_env_var: str = Field(description="Environment variable holding the Cosmos DB account key")
+    database_name: str = Field(default="", description="Default database name (optional — can also be passed per-call)")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         key = dg.EnvVar(self.key_env_var) if self.key_env_var else ""

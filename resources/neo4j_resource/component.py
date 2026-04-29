@@ -1,8 +1,10 @@
+"""Neo4j Resource component."""
 from dataclasses import dataclass
 
 import dagster as dg
 from dagster import ConfigurableResource
 from neo4j import Driver, GraphDatabase
+from pydantic import Field
 
 
 class Neo4jResource(ConfigurableResource):
@@ -17,13 +19,13 @@ class Neo4jResource(ConfigurableResource):
 
 @dataclass
 class Neo4jResourceComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Dagster component that provides a Neo4j resource."""
+    """Register a Neo4j resource for use by other components."""
 
-    resource_key: str = "neo4j_resource"
-    uri: str = ""
-    username: str = "neo4j"
-    password_env_var: str = ""
-    database: str = "neo4j"
+    resource_key: str = Field(default="neo4j_resource", description="Key used to register this resource. Other components reference it via resource_key.")
+    uri: str = Field(description="Neo4j connection URI, e.g. 'neo4j+s://abc123.databases.neo4j.io' or 'bolt://localhost:7687'")
+    username: str = Field(default="neo4j", description="Neo4j username")
+    password_env_var: str = Field(description="Environment variable holding the Neo4j password")
+    database: str = Field(default="neo4j", description="Default database name")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         password = dg.EnvVar(self.password_env_var) if self.password_env_var else ""

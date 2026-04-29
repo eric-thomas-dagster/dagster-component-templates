@@ -1,10 +1,13 @@
+"""Google Cloud Firestore Resource component."""
 import json
 from dataclasses import dataclass
+from typing import Optional
 
 import dagster as dg
 from dagster import ConfigurableResource
 from google.cloud import firestore
 from google.oauth2.service_account import Credentials
+from pydantic import Field
 
 
 class FirestoreResource(ConfigurableResource):
@@ -28,12 +31,12 @@ class FirestoreResource(ConfigurableResource):
 
 @dataclass
 class FirestoreResourceComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Dagster component that provides a Google Cloud Firestore resource."""
+    """Register a Google Cloud Firestore resource for use by other components."""
 
-    resource_key: str = "firestore_resource"
-    project: str = ""
-    gcp_credentials_env_var: str = ""
-    database: str = "(default)"
+    resource_key: str = Field(default="firestore_resource", description="Key used to register this resource. Other components reference it via resource_key.")
+    project: str = Field(description="GCP project ID")
+    gcp_credentials_env_var: Optional[str] = Field(default=None, description="Environment variable holding service account JSON. Leave empty to use Application Default Credentials.")
+    database: str = Field(default="(default)", description="Firestore database ID. '(default)' targets the default database.")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         gcp_credentials = (

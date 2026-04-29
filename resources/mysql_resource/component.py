@@ -1,8 +1,11 @@
+"""MySQL Resource component."""
 from dataclasses import dataclass
+from typing import Optional
 
 import dagster as dg
 import mysql.connector
 from dagster import ConfigurableResource
+from pydantic import Field
 
 
 class MySQLResource(ConfigurableResource):
@@ -26,15 +29,15 @@ class MySQLResource(ConfigurableResource):
 
 @dataclass
 class MySQLResourceComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Dagster component that provides a MySQL resource."""
+    """Register a MySQL resource for use by other components."""
 
-    resource_key: str = "mysql_resource"
-    host: str = ""
-    port: int = 3306
-    database: str = ""
-    username: str = ""
-    password_env_var: str = ""
-    ssl_disabled: bool = False
+    resource_key: str = Field(default="mysql_resource", description="Key used to register this resource. Other components reference it via resource_key.")
+    host: str = Field(description="MySQL host")
+    port: int = Field(default=3306, description="MySQL port")
+    database: str = Field(description="Database name")
+    username: str = Field(description="Database username")
+    password_env_var: Optional[str] = Field(default=None, description="Environment variable holding the database password")
+    ssl_disabled: bool = Field(default=False, description="Disable TLS. Default False (TLS required); set True only for trusted local networks.")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         password = dg.EnvVar(self.password_env_var) if self.password_env_var else ""

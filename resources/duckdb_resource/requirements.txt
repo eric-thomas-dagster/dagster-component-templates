@@ -1,1 +1,1 @@
-duckdb
+dagster-duckdb

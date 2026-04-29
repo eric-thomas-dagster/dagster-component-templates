@@ -1,29 +1,17 @@
+"""DuckDB Resource component."""
 from dataclasses import dataclass
-
 import dagster as dg
-import duckdb
-from dagster import ConfigurableResource
-
-
-class DuckDBResource(ConfigurableResource):
-    database: str = ":memory:"
-    read_only: bool = False
-
-    def get_connection(self) -> duckdb.DuckDBPyConnection:
-        return duckdb.connect(self.database, read_only=self.read_only)
+from pydantic import Field
 
 
 @dataclass
 class DuckDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Dagster component that provides a DuckDB resource."""
+    """Register a dagster-duckdb DuckDBResource for use by other components."""
 
-    resource_key: str = "duckdb_resource"
-    database: str = ":memory:"
-    read_only: bool = False
+    resource_key: str = Field(default="duckdb_resource", description="Key used to register this resource. Other components reference it via resource_key.")
+    database: str = Field(default=":memory:", description="DuckDB database path. Use ':memory:' for an ephemeral in-process DB or a file path for persistence.")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        resource = DuckDBResource(
-            database=self.database,
-            read_only=self.read_only,
-        )
+        from dagster_duckdb import DuckDBResource
+        resource = DuckDBResource(database=self.database)
         return dg.Definitions(resources={self.resource_key: resource})

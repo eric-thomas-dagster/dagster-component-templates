@@ -1,8 +1,11 @@
+"""CouchDB Resource component."""
 from dataclasses import dataclass
+from typing import Optional
 
 import couchdb
 import dagster as dg
 from dagster import ConfigurableResource
+from pydantic import Field
 
 
 class CouchDBResource(ConfigurableResource):
@@ -19,18 +22,18 @@ class CouchDBResource(ConfigurableResource):
 
 @dataclass
 class CouchDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Dagster component that provides a CouchDB resource."""
+    """Register a CouchDB resource for use by other components."""
 
-    resource_key: str = "couchdb_resource"
-    url: str = ""
-    username: str = ""
-    password_env_var: str = ""
+    resource_key: str = Field(default="couchdb_resource", description="Key used to register this resource. Other components reference it via resource_key.")
+    url: str = Field(description="CouchDB server URL, e.g. 'http://localhost:5984'")
+    username: Optional[str] = Field(default="", description="CouchDB username (leave empty for anonymous access)")
+    password_env_var: Optional[str] = Field(default=None, description="Environment variable holding the CouchDB password")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         password = dg.EnvVar(self.password_env_var) if self.password_env_var else ""
         resource = CouchDBResource(
             url=self.url,
-            username=self.username,
+            username=self.username or "",
             password=password,
         )
         return dg.Definitions(resources={self.resource_key: resource})

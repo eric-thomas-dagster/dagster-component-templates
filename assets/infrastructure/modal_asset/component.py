@@ -115,21 +115,9 @@ class ModalAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         """Return a subprocess environment with optional credential overrides."""
         env = {**os.environ}
         if self.modal_token_id_env_var:
-            token_id = os.environ.get(self.modal_token_id_env_var)
-            if not token_id:
-                raise ValueError(
-                    f"Environment variable '{self.modal_token_id_env_var}' "
-                    "is not set or is empty."
-                )
-            env["MODAL_TOKEN_ID"] = token_id
+            env["MODAL_TOKEN_ID"] = dg.EnvVar(self.modal_token_id_env_var).get_value()
         if self.modal_token_secret_env_var:
-            token_secret = os.environ.get(self.modal_token_secret_env_var)
-            if not token_secret:
-                raise ValueError(
-                    f"Environment variable '{self.modal_token_secret_env_var}' "
-                    "is not set or is empty."
-                )
-            env["MODAL_TOKEN_SECRET"] = token_secret
+            env["MODAL_TOKEN_SECRET"] = dg.EnvVar(self.modal_token_secret_env_var).get_value()
         if self.environment_name:
             env["MODAL_ENVIRONMENT"] = self.environment_name
         return env

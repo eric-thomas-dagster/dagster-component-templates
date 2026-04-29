@@ -64,13 +64,7 @@ class VaultResource(dg.ConfigurableResource):
     # ------------------------------------------------------------------
 
     def _vault_url(self) -> str:
-        url = os.environ.get(self.vault_url_env_var, "").rstrip("/")
-        if not url:
-            raise ValueError(
-                f"Environment variable '{self.vault_url_env_var}' is not set or empty. "
-                "It must contain the Vault base URL (e.g. https://vault.company.com)."
-            )
-        return url
+        return dg.EnvVar(self.vault_url_env_var).get_value().rstrip("/")
 
     def _base_headers(self, token: str) -> dict[str, str]:
         headers: dict[str, str] = {
@@ -85,17 +79,12 @@ class VaultResource(dg.ConfigurableResource):
         """Return a Vault token, performing AppRole login if necessary."""
         # -- Token auth -------------------------------------------------------
         if self.token_env_var:
-            token = os.environ.get(self.token_env_var, "")
-            if not token:
-                raise ValueError(
-                    f"Environment variable '{self.token_env_var}' is not set or empty."
-                )
-            return token
+            return dg.EnvVar(self.token_env_var).get_value()
 
         # -- AppRole auth -----------------------------------------------------
         if self.role_id_env_var and self.secret_id_env_var:
-            role_id = os.environ.get(self.role_id_env_var, "")
-            secret_id = os.environ.get(self.secret_id_env_var, "")
+            role_id = dg.EnvVar(self.role_id_env_var).get_value()
+            secret_id = dg.EnvVar(self.secret_id_env_var).get_value()
             if not role_id:
                 raise ValueError(
                     f"Environment variable '{self.role_id_env_var}' is not set or empty."

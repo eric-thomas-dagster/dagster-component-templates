@@ -54,7 +54,7 @@ class CoalesceResource(dg.ConfigurableResource):
     )
 
     def _headers(self) -> dict:
-        return {"Authorization": f"Bearer {os.environ[self.api_token_env_var]}"}
+        return {"Authorization": f"Bearer {dg.EnvVar(self.api_token_env_var).get_value()}"}
 
     def list_nodes(self) -> list[dict]:
         url = f"{self.api_base_url}/api/v1/environments/{self.environment_id}/nodes"
@@ -262,7 +262,7 @@ if _HAS_STATE_BACKED:
 
         def write_state_to_path(self, state_path: Path) -> None:
             """Fetch all nodes from Coalesce API and cache to disk."""
-            token = os.environ[self.api_token_env_var]
+            token = dg.EnvVar(self.api_token_env_var).get_value()
             headers = {"Authorization": f"Bearer {token}"}
             url = f"{self.api_base_url}/api/v1/environments/{self.environment_id}/nodes"
             resp = requests.get(url, headers=headers, timeout=30)
@@ -313,7 +313,7 @@ else:
         assets_by_node_name: Optional[dict] = dg.Field(default=None)
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-            token = os.environ[self.api_token_env_var]
+            token = dg.EnvVar(self.api_token_env_var).get_value()
             headers = {"Authorization": f"Bearer {token}"}
             url = f"{self.api_base_url}/api/v1/environments/{self.environment_id}/nodes"
             resp = requests.get(url, headers=headers, timeout=30)

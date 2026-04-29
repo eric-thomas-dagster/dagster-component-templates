@@ -73,15 +73,14 @@ class AzureDataFactoryResource(dg.ConfigurableResource):
 
     def get_client(self):
         """Return an authenticated DataFactoryManagementClient."""
-        import os
         from azure.identity import ClientSecretCredential, DefaultAzureCredential
         from azure.mgmt.datafactory import DataFactoryManagementClient
 
         if self.tenant_id_env_var and self.client_id_env_var and self.client_secret_env_var:
             credential = ClientSecretCredential(
-                tenant_id=os.environ[self.tenant_id_env_var],
-                client_id=os.environ[self.client_id_env_var],
-                client_secret=os.environ[self.client_secret_env_var],
+                tenant_id=dg.EnvVar(self.tenant_id_env_var).get_value(),
+                client_id=dg.EnvVar(self.client_id_env_var).get_value(),
+                client_secret=dg.EnvVar(self.client_secret_env_var).get_value(),
             )
         else:
             credential = DefaultAzureCredential()

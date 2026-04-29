@@ -411,7 +411,7 @@ if _HAS_STATE_BACKED:
 
         def write_state_to_path(self, state_path: Path) -> None:
             """Fetch all Polytomic syncs via the API and cache them to disk."""
-            api_key = os.environ[self.api_key_env_var]
+            api_key = dg.EnvVar(self.api_key_env_var).get_value()
             all_syncs = _list_syncs(api_key)
 
             # Normalise each sync to the fields we actually need
@@ -486,7 +486,7 @@ else:
         assets_by_sync_name: Optional[dict] = dg.Field(default=None)
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-            api_key = os.environ[self.api_key_env_var]
+            api_key = dg.EnvVar(self.api_key_env_var).get_value()
             all_syncs = _list_syncs(api_key)
 
             records = []

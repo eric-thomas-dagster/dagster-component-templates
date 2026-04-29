@@ -474,7 +474,7 @@ if _HAS_STATE_BACKED:
 
         def write_state_to_path(self, state_path: Path) -> None:
             """Fetch all workspaces from HCP Terraform API and cache to disk."""
-            token = os.environ[self.api_token_env_var]
+            token = dg.EnvVar(self.api_token_env_var).get_value()
             raw_workspaces = _list_workspaces(token, self.organization)
             records = [_workspace_to_record(ws) for ws in raw_workspaces]
             filtered = _apply_filters(
@@ -554,7 +554,7 @@ else:
         )
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-            token = os.environ[self.api_token_env_var]
+            token = dg.EnvVar(self.api_token_env_var).get_value()
             raw_workspaces = _list_workspaces(token, self.organization)
             records = [_workspace_to_record(ws) for ws in raw_workspaces]
             filtered = _apply_filters(

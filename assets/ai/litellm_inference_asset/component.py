@@ -36,7 +36,6 @@ class LiteLLMResource(dg.ConfigurableResource):
 
     def complete(self, messages: list[dict]) -> str:
         """Run a chat completion and return the response content."""
-        import os
         import litellm
 
         kwargs: dict = {
@@ -48,12 +47,11 @@ class LiteLLMResource(dg.ConfigurableResource):
             "num_retries": self.max_retries,
         }
         if self.api_key_env_var:
-            kwargs["api_key"] = os.environ[self.api_key_env_var]
+            kwargs["api_key"] = dg.EnvVar(self.api_key_env_var).get_value()
         if self.api_base_env_var:
-            kwargs["api_base"] = os.environ[self.api_base_env_var]
+            kwargs["api_base"] = dg.EnvVar(self.api_base_env_var).get_value()
 
-        response = litellm.completion(**kwargs                api_key=api_key,
-            )
+        response = litellm.completion(**kwargs)
         return response.choices[0].message.content
 
 
@@ -127,7 +125,6 @@ class LiteLLMInferenceAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(_self.upstream_asset_key))},
         )
         def litellm_inference_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
-            import os
             import litellm
 
             df = upstream.copy()
@@ -143,9 +140,9 @@ class LiteLLMInferenceAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 "max_tokens": _self.max_tokens,
             }
             if _self.api_key_env_var:
-                litellm_kwargs["api_key"] = os.environ[_self.api_key_env_var]
+                litellm_kwargs["api_key"] = dg.EnvVar(_self.api_key_env_var).get_value()
             if _self.api_base_env_var:
-                litellm_kwargs["api_base"] = os.environ[_self.api_base_env_var]
+                litellm_kwargs["api_base"] = dg.EnvVar(_self.api_base_env_var).get_value()
 
             model = _self.model
             if not model:
@@ -164,8 +161,7 @@ class LiteLLMInferenceAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     messages.append({"role": "system", "content": _self.system_prompt})
                 messages.append({"role": "user", "content": prompt})
 
-                response = litellm.completion(model=model, messages=messages, **litellm_kwargs                api_key=api_key,
-            )
+                response = litellm.completion(model=model, messages=messages, **litellm_kwargs)
                 responses.append(response.choices[0].message.content)
 
                 if (i + 1) % _self.batch_size == 0:

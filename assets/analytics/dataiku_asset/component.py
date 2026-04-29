@@ -422,8 +422,8 @@ if _HAS_STATE_BACKED:
 
         def write_state_to_path(self, state_path: Path) -> None:
             """Fetch all matching scenarios from Dataiku DSS API and cache to disk."""
-            host = os.environ[self.host_env_var]
-            api_key = os.environ[self.api_key_env_var]
+            host = dg.EnvVar(self.host_env_var).get_value()
+            api_key = dg.EnvVar(self.api_key_env_var).get_value()
             scenarios_by_project = _fetch_scenarios(
                 host=host,
                 api_key=api_key,
@@ -486,8 +486,8 @@ else:
         assets_by_scenario_name: Optional[dict] = dg.Field(default=None)
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-            host = os.environ[self.host_env_var]
-            api_key = os.environ[self.api_key_env_var]
+            host = dg.EnvVar(self.host_env_var).get_value()
+            api_key = dg.EnvVar(self.api_key_env_var).get_value()
             scenarios_by_project = _fetch_scenarios(
                 host=host,
                 api_key=api_key,

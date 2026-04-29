@@ -186,12 +186,11 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             ),
         )
         def _cortex_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
-            import os
             import snowflake.connector
 
-            account = os.environ[self.snowflake_account_env_var]
-            user = os.environ[self.snowflake_user_env_var]
-            password = os.environ[self.snowflake_password_env_var]
+            account = dg.EnvVar(self.snowflake_account_env_var).get_value()
+            user = dg.EnvVar(self.snowflake_user_env_var).get_value()
+            password = dg.EnvVar(self.snowflake_password_env_var).get_value()
 
             connect_kwargs: dict = dict(
                 account=account,

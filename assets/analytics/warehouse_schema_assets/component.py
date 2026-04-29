@@ -184,8 +184,7 @@ if _HAS_STATE_BACKED:
 
         def write_state_to_path(self, state_path: Path) -> None:
             """Introspect database schema and cache table list to disk."""
-            import os
-            db_url = os.environ[self.database_url_env_var]
+            db_url = dg.EnvVar(self.database_url_env_var).get_value()
             tables = _introspect_schemas(
                 database_url=db_url,
                 schema_names=self.schema_names,
@@ -227,8 +226,7 @@ else:
         tag_with_schema: bool = dg.Field(default=False)
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-            import os
-            db_url = os.environ[self.database_url_env_var]
+            db_url = dg.EnvVar(self.database_url_env_var).get_value()
             tables = _introspect_schemas(
                 database_url=db_url,
                 schema_names=self.schema_names,

@@ -1,72 +1,237 @@
 """Support Ticket Ingestion Component.
 
 Ingest support ticket data from various help desk platforms using dlt.
-Supports Zendesk and can be extended to other platforms.
+Currently supports Zendesk via dlt's verified source.
+
+By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame.
+Set `destination` to persist directly to any dlt-supported destination
+(snowflake, bigquery, postgres, filesystem, etc.). See
+`assets/ingestion/DESTINATIONS.md` for the full configuration reference.
 """
 
-from typing import Optional
+import os
+from typing import Dict, List, Optional
+
 import pandas as pd
+import dlt
 from dagster import (
     AssetExecutionContext,
     AssetKey,
     Component,
     ComponentLoadContext,
     Definitions,
+    MaterializeResult,
+    MetadataValue,
     Model,
+    Output,
     Resolvable,
     asset,
-    Output,
-    MetadataValue,
 )
 from pydantic import Field
-import dlt
 
 
 class SupportTicketIngestionComponent(Component, Model, Resolvable):
     """Component for ingesting support ticket data from help desk platforms.
 
-    Currently supports Zendesk platform via dlt.
+    Currently supports Zendesk via dlt's verified `zendesk_support` source.
+    Other platforms emit sample data in DataFrame mode for prototyping.
 
     Example:
+
         ```yaml
         type: dagster_component_templates.SupportTicketIngestionComponent
         attributes:
           asset_name: support_tickets
           platform: zendesk
         ```
+
+    To persist into a destination instead of returning a DataFrame, set
+    `destination` and (optionally) `dataset_name` / `persist_only` /
+    `destination_credentials_url`. See `../DESTINATIONS.md`.
     """
 
-    asset_name: str = Field(
-        description="Name of the asset to create"
-    )
+    # --- Source-specific fields ------------------------------------------------
 
-    platform: str = Field(
-        description="Support platform (zendesk, freshdesk, etc.)"
-    )
+    asset_name: str = Field(description="Name of the asset to create")
 
-    description: Optional[str] = Field(
+    platform: str = Field(description="Support platform (zendesk, freshdesk, etc.)")
+
+    # --- Destination fields (see ../DESTINATIONS.md) --------------------------
+
+    destination: Optional[str] = Field(
         default=None,
-        description="Asset description"
+        description=(
+            "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', "
+            "'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', "
+            "'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode."
+        ),
     )
 
-    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
+    dataset_name: Optional[str] = Field(
+        default=None,
+        description="Target dataset/schema in the destination. Defaults to the asset name.",
+    )
+
+    persist_only: bool = Field(
+        default=False,
+        description=(
+            "If True with destination set: emit a MaterializeResult and skip DataFrame return. "
+            "If False: query the destination back into a DataFrame (only meaningful for SQL "
+            "destinations — non-SQL destinations always emit MaterializeResult)."
+        ),
+    )
+
+    destination_credentials_url: Optional[str] = Field(
+        default=None,
+        description=(
+            "Inline connection string passed to dlt's destination factory. Useful when one "
+            "Dagster project ingests into multiple accounts of the same destination type. "
+            "If unset, dlt resolves credentials from env vars — see ../DESTINATIONS.md."
+        ),
+    )
+
+    destination_credentials_env_var: Optional[str] = Field(
+        default=None,
+        description=(
+            "Alternative to destination_credentials_url: name of an env var holding the "
+            "connection string. Resolved at run-time."
+        ),
+    )
+
+    # --- Standard asset metadata -----------------------------------------------
+
+    description: Optional[str] = Field(default=None, description="Asset description")
+
+    group_name: Optional[str] = Field(
+        default="support", description="Asset group for organization"
+    )
+
+    owners: Optional[List[str]] = Field(
+        default=None,
+        description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
+    )
+
+    asset_tags: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'}",
+    )
+
+    kinds: Optional[List[str]] = Field(
+        default=None,
+        description="Asset kinds for the Dagster catalog. Auto-inferred from destination and asset name if not set.",
+    )
+
+    freshness_max_lag_minutes: Optional[int] = Field(
+        default=None,
+        description="Maximum acceptable lag in minutes before the asset is considered stale.",
+    )
+
+    freshness_cron: Optional[str] = Field(
+        default=None,
+        description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
+    )
+
+    include_sample_metadata: bool = Field(
+        default=True, description="Include sample data preview in metadata"
+    )
+
+    deps: Optional[List[str]] = Field(
+        default=None,
+        description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])",
+    )
+
+    # --------------------------------------------------------------------------
+
+    def _resolve_destination(self):
+        """Build the dlt `destination` argument."""
+        if not self.destination:
+            return "duckdb"
+
+        creds: Optional[str] = None
+        if self.destination_credentials_url:
+            creds = self.destination_credentials_url
+        elif self.destination_credentials_env_var:
+            creds = os.environ.get(self.destination_credentials_env_var)
+
+        if creds:
+            factory = getattr(dlt.destinations, self.destination, None)
+            if factory is not None:
+                return factory(credentials=creds)
+        return self.destination
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         platform = self.platform
         description = self.description or f"Support tickets from {platform}"
+        group_name = self.group_name
+        include_sample = self.include_sample_metadata
+        destination = self.destination
+        dataset_name = self.dataset_name or asset_name
+        persist_only = self.persist_only
+        component = self
+
+        _kind_map = {
+            "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
+            "postgres": "postgres", "postgresql": "postgres", "mysql": "mysql",
+            "mssql": "mssql", "clickhouse": "clickhouse", "duckdb": "duckdb",
+            "motherduck": "duckdb", "databricks": "databricks", "athena": "athena",
+            "synapse": "azure", "fabric": "azure", "filesystem": "filesystem",
+            "delta": "delta", "iceberg": "iceberg", "weaviate": "weaviate",
+            "qdrant": "qdrant", "lancedb": "lance", "lance": "lance",
+            "huggingface": "huggingface",
+        }
+        _inferred_kinds = list(self.kinds or [])
+        if destination and destination in _kind_map:
+            _inferred_kinds.append(_kind_map[destination])
+        if not _inferred_kinds:
+            for keyword, kind in _kind_map.items():
+                if keyword in asset_name.lower():
+                    _inferred_kinds.append(kind)
+        if not _inferred_kinds:
+            _inferred_kinds = ["python"]
+        _inferred_kinds = list(dict.fromkeys(_inferred_kinds))
+
+        _all_tags = dict(self.asset_tags or {})
+        for _kind in _inferred_kinds:
+            _all_tags[f"dagster/kind/{_kind}"] = ""
+
+        _freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from dagster import FreshnessPolicy
+            _freshness_policy = FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
+
+        owners = self.owners or []
 
         @asset(
             name=asset_name,
             description=description,
-            group_name="support",
+            owners=owners,
+            tags=_all_tags,
+            freshness_policy=_freshness_policy,
+            group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def support_ticket_ingestion_asset(context: AssetExecutionContext) -> pd.DataFrame:
-            """Asset that ingests support ticket data."""
-            import os
+        def support_ticket_ingestion_asset(context: AssetExecutionContext):
+            context.log.info(
+                f"Starting support ticket ingestion from {platform}, "
+                f"destination={destination or 'duckdb (in-memory)'}"
+            )
 
-            context.log.info(f"Starting support ticket ingestion from {platform}")
+            base_metadata = {
+                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                "dataset_name": MetadataValue.text(dataset_name),
+                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                "platform": MetadataValue.text(platform),
+            }
+
+            non_sql_destinations = {
+                "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
+                "delta", "iceberg",
+            }
+            is_non_sql = destination in non_sql_destinations
 
             if platform.lower() == "zendesk":
                 from dlt.sources.zendesk import zendesk_support
@@ -76,24 +241,42 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
                 email = os.getenv("ZENDESK_EMAIL", "")
                 api_token = os.getenv("ZENDESK_API_TOKEN", "")
 
+                # Special handling: in default DataFrame mode, fall back to sample
+                # data when credentials are missing (preserves prototyping behavior).
+                # In destination mode, let it fail naturally — the user explicitly
+                # asked for persistence and shouldn't get synthesized data.
                 if not email or not api_token:
-                    context.log.warning("Zendesk credentials not found in environment. Returning sample data.")
-                    return pd.DataFrame({
-                        'id': [1, 2, 3],
-                        'subject': ['Sample ticket 1', 'Sample ticket 2', 'Sample ticket 3'],
-                        'status': ['open', 'pending', 'solved'],
-                        'priority': ['high', 'normal', 'low'],
-                        '_resource_type': ['tickets', 'tickets', 'tickets']
-                    })
+                    if destination is None:
+                        context.log.warning(
+                            "Zendesk credentials not found in environment. Returning sample data."
+                        )
+                        sample_df = pd.DataFrame({
+                            'id': [1, 2, 3],
+                            'subject': ['Sample ticket 1', 'Sample ticket 2', 'Sample ticket 3'],
+                            'status': ['open', 'pending', 'solved'],
+                            'priority': ['high', 'normal', 'low'],
+                            '_resource_type': ['tickets', 'tickets', 'tickets'],
+                        })
+                        sample_meta = {
+                            **base_metadata,
+                            "row_count": MetadataValue.int(len(sample_df)),
+                            "is_sample": MetadataValue.bool(True),
+                        }
+                        if include_sample:
+                            sample_meta["sample"] = MetadataValue.md(sample_df.head(5).to_markdown())
+                        return Output(value=sample_df, metadata=sample_meta)
+                    # destination mode → let dlt fail with clear creds error
+                    context.log.error(
+                        "Zendesk credentials missing (ZENDESK_EMAIL / ZENDESK_API_TOKEN). "
+                        "Refusing to synthesize sample data when persistence was requested."
+                    )
 
-                # Create in-memory DuckDB pipeline
                 pipeline = dlt.pipeline(
                     pipeline_name=f"{asset_name}_pipeline",
-                    destination="duckdb",
-                    dataset_name=f"{asset_name}_temp"
+                    destination=component._resolve_destination(),
+                    dataset_name=dataset_name,
                 )
 
-                # Create Zendesk source
                 source = zendesk_support(
                     credentials={
                         "subdomain": subdomain,
@@ -102,44 +285,69 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
                     }
                 )
 
-                # Extract tickets
                 load_info = pipeline.run([source.tickets])
                 context.log.info(f"Zendesk data loaded: {load_info}")
 
-                # Extract data from DuckDB to DataFrame
-                dataset_name = f"{asset_name}_temp"
+                if persist_only or is_non_sql:
+                    if is_non_sql and not persist_only:
+                        context.log.warning(
+                            f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                            f"Set persist_only=true to silence this warning."
+                        )
+                    return MaterializeResult(metadata=base_metadata)
+
+                # Query the destination back into a DataFrame
                 try:
                     query = f"SELECT * FROM {dataset_name}.tickets"
                     with pipeline.sql_client() as client:
                         with client.execute_query(query) as cursor:
                             columns = [desc[0] for desc in cursor.description]
                             rows = cursor.fetchall()
-                            if rows:
-                                df = pd.DataFrame(rows, columns=columns)
-                                df['_resource_type'] = 'tickets'
-                                context.log.info(f"Extracted {len(df)} tickets from Zendesk")
-
-                                return Output(
-                                    value=df,
-                                    metadata={
-                                        "row_count": len(df),
-                                        "platform": platform,
-                                        "preview": MetadataValue.md(df.head(5).to_markdown())
-                                    }
-                                )
                 except Exception as e:
                     context.log.warning(f"Could not extract tickets: {e}")
-                    return pd.DataFrame()
+                    return Output(value=pd.DataFrame(), metadata=base_metadata)
 
-            else:
-                # For other platforms, return sample data
-                context.log.warning(f"Platform {platform} not yet implemented. Returning sample data.")
-                return pd.DataFrame({
-                    'id': [1, 2, 3],
-                    'subject': [f'Sample {platform} ticket 1', f'Sample {platform} ticket 2', f'Sample {platform} ticket 3'],
-                    'status': ['open', 'pending', 'solved'],
-                    'priority': ['high', 'normal', 'low'],
-                    '_resource_type': ['tickets', 'tickets', 'tickets']
-                })
+                if not rows:
+                    context.log.warning("No tickets extracted from Zendesk.")
+                    return Output(value=pd.DataFrame(), metadata=base_metadata)
+
+                df = pd.DataFrame(rows, columns=columns)
+                df['_resource_type'] = 'tickets'
+                context.log.info(f"Extracted {len(df)} tickets from Zendesk")
+
+                metadata = {
+                    **base_metadata,
+                    "row_count": MetadataValue.int(len(df)),
+                }
+                if include_sample and len(df) > 0:
+                    metadata["sample"] = MetadataValue.md(df.head(5).to_markdown())
+
+                return Output(value=df, metadata=metadata)
+
+            # Other platforms: not yet implemented.
+            if destination is not None:
+                # Persistence requested but no real source — fail rather than
+                # synthesize sample data into the destination.
+                raise NotImplementedError(
+                    f"Platform '{platform}' is not yet implemented. "
+                    f"Cannot persist sample data when destination is set."
+                )
+
+            context.log.warning(f"Platform {platform} not yet implemented. Returning sample data.")
+            sample_df = pd.DataFrame({
+                'id': [1, 2, 3],
+                'subject': [f'Sample {platform} ticket 1', f'Sample {platform} ticket 2', f'Sample {platform} ticket 3'],
+                'status': ['open', 'pending', 'solved'],
+                'priority': ['high', 'normal', 'low'],
+                '_resource_type': ['tickets', 'tickets', 'tickets'],
+            })
+            sample_meta = {
+                **base_metadata,
+                "row_count": MetadataValue.int(len(sample_df)),
+                "is_sample": MetadataValue.bool(True),
+            }
+            if include_sample:
+                sample_meta["sample"] = MetadataValue.md(sample_df.head(5).to_markdown())
+            return Output(value=sample_df, metadata=sample_meta)
 
         return Definitions(assets=[support_ticket_ingestion_asset])

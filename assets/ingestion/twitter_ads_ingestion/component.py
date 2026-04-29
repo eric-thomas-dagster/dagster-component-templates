@@ -1,56 +1,47 @@
-"""Twitter/X Ads Ingestion Component using dlt.
+"""Twitter/X Ads Ingestion Component.
 
-Ingest Twitter/X Ads data (campaigns, line items, promoted tweets, and performance metrics)
-using dlt's REST API source with Twitter Ads API. Returns DataFrames for flexible transformation.
-Mimics capabilities of Supermetrics and Funnel.io.
+Ingest Twitter/X Ads data (campaigns, line items, promoted tweets, and
+performance metrics) using dlt's REST API source with the Twitter Ads API.
+
+By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame.
+Set `destination` to persist directly to any dlt-supported destination
+(snowflake, bigquery, postgres, filesystem, etc.). See
+`assets/ingestion/DESTINATIONS.md` for the full configuration reference.
 """
 
+import os
 from typing import Dict, List, Optional
+
 import pandas as pd
+import dlt
 from dagster import (
+    AssetExecutionContext,
     AssetKey,
     Component,
     ComponentLoadContext,
     Definitions,
-    AssetExecutionContext,
-    asset,
-    Resolvable,
+    MaterializeResult,
+    MetadataValue,
     Model,
     Output,
-    MetadataValue,
+    Resolvable,
+    asset,
 )
 from pydantic import Field
 
 
 class TwitterAdsIngestionComponent(Component, Model, Resolvable):
-    """Component for ingesting Twitter/X Ads data using dlt - returns DataFrames.
+    """Component for ingesting Twitter/X Ads data using dlt.
 
-    This component uses dlt's REST API source to extract Twitter Ads data via the
-    Twitter Ads API and returns it as a pandas DataFrame for downstream
-    transformation and analysis.
+    Uses dlt's REST API source to extract Twitter Ads data via the Twitter Ads
+    API. dlt handles pagination, rate limiting, and incremental loading
+    automatically. Authentication uses OAuth 1.0a.
 
-    Resources extracted:
-    - accounts: Ad account information and funding
-    - campaigns: Campaign configurations and budgets
-    - line_items: Line item settings and targeting (ad groups)
-    - promoted_tweets: Promoted tweet configurations
-    - tweets: Tweet creative content
-    - media: Media creative assets
-    - analytics: Performance metrics and insights
-
-    Performance metrics included:
-    - Impressions, Clicks, Cost
-    - Engagements, Retweets, Likes, Replies
-    - Follows, URL clicks, App clicks
-    - CTR, Average CPE, Average CPM
-    - Video metrics (views, completion rate)
-
-    The DataFrame can then be:
-    - Transformed with Marketing Data Standardizer
-    - Further processed with DataFrame Transformer
-    - Written to any warehouse with DuckDB/Snowflake/BigQuery Writer
+    Available resources: `accounts`, `campaigns`, `line_items`, `promoted_tweets`,
+    `tweets`, `media`, `analytics`.
 
     Example:
+
         ```yaml
         type: dagster_component_templates.TwitterAdsIngestionComponent
         attributes:
@@ -62,7 +53,13 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
           account_ids: "abc123,xyz789"
           resources: "campaigns,analytics"
         ```
+
+    To persist into a destination instead of returning a DataFrame, set
+    `destination` and (optionally) `dataset_name` / `persist_only` /
+    `destination_credentials_url`. See `../DESTINATIONS.md`.
     """
+
+    # --- Source-specific fields ------------------------------------------------
 
     asset_name: str = Field(
         description="Name of the asset that will hold the Twitter Ads data"
@@ -123,57 +120,108 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
         description="Placement type: ALL_ON_TWITTER or PUBLISHER_NETWORK"
     )
 
-    description: Optional[str] = Field(
+    # --- Destination fields (see ../DESTINATIONS.md) --------------------------
+
+    destination: Optional[str] = Field(
         default=None,
-        description="Asset description"
+        description=(
+            "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', "
+            "'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', "
+            "'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode."
+        ),
     )
 
-    group_name: Optional[str] = Field(
-        default="twitter_ads",
-        description="Asset group for organization"
+    dataset_name: Optional[str] = Field(
+        default=None,
+        description="Target dataset/schema in the destination. Defaults to the asset name.",
     )
+
+    persist_only: bool = Field(
+        default=False,
+        description=(
+            "If True with destination set: emit a MaterializeResult and skip DataFrame return. "
+            "If False: query the destination back into a DataFrame (only meaningful for SQL "
+            "destinations — non-SQL destinations always emit MaterializeResult)."
+        ),
+    )
+
+    destination_credentials_url: Optional[str] = Field(
+        default=None,
+        description=(
+            "Inline connection string passed to dlt's destination factory. Useful when one "
+            "Dagster project ingests into multiple accounts of the same destination type. "
+            "If unset, dlt resolves credentials from env vars — see ../DESTINATIONS.md."
+        ),
+    )
+
+    destination_credentials_env_var: Optional[str] = Field(
+        default=None,
+        description=(
+            "Alternative to destination_credentials_url: name of an env var holding the "
+            "connection string. Resolved at run-time."
+        ),
+    )
+
+    # --- Standard asset metadata -----------------------------------------------
+
+    description: Optional[str] = Field(default=None, description="Asset description")
+
+    group_name: Optional[str] = Field(
+        default="twitter_ads", description="Asset group for organization"
+    )
+
     owners: Optional[List[str]] = Field(
         default=None,
         description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
     )
+
     asset_tags: Optional[Dict[str, str]] = Field(
         default=None,
         description="Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'}",
     )
+
     kinds: Optional[List[str]] = Field(
         default=None,
-        description="Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set.",
+        description="Asset kinds for the Dagster catalog. Auto-inferred from destination and asset name if not set.",
     )
+
     freshness_max_lag_minutes: Optional[int] = Field(
         default=None,
-        description="Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
+        description="Maximum acceptable lag in minutes before the asset is considered stale.",
     )
+
     freshness_cron: Optional[str] = Field(
         default=None,
-        description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
+        description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
     )
 
     include_sample_metadata: bool = Field(
-        default=True,
-        description="Include sample data preview in metadata"
+        default=True, description="Include sample data preview in metadata"
     )
 
-    destination: Optional[str] = Field(
+    deps: Optional[List[str]] = Field(
         default=None,
-        description="Optional dlt destination (e.g., 'snowflake', 'bigquery', 'postgres', 'redshift'). If not set, uses in-memory DuckDB and returns DataFrame."
+        description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])",
     )
 
-    destination_config: Optional[str] = Field(
-        default=None,
-        description="Optional destination configuration as connection string or JSON. Required if destination is set."
-    )
+    # --------------------------------------------------------------------------
 
-    persist_and_return: bool = Field(
-        default=False,
-        description="If True with destination set: persist to database AND return DataFrame. If False: only persist to database."
-    )
+    def _resolve_destination(self):
+        """Build the dlt `destination` argument."""
+        if not self.destination:
+            return "duckdb"
 
-    deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
+        creds: Optional[str] = None
+        if self.destination_credentials_url:
+            creds = self.destination_credentials_url
+        elif self.destination_credentials_env_var:
+            creds = os.environ.get(self.destination_credentials_env_var)
+
+        if creds:
+            factory = getattr(dlt.destinations, self.destination, None)
+            if factory is not None:
+                return factory(credentials=creds)
+        return self.destination
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
@@ -193,34 +241,35 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
         group_name = self.group_name
         include_sample = self.include_sample_metadata
         destination = self.destination
-        persist_and_return = self.persist_and_return
+        dataset_name = self.dataset_name or asset_name
+        persist_only = self.persist_only
+        component = self
 
-        # Infer kinds from component name if not explicitly set
-        _comp_name = "twitter_ads_ingestion"  # component directory name
         _kind_map = {
             "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
             "postgres": "postgres", "postgresql": "postgres", "mysql": "mysql",
-            "s3": "s3", "adls": "azure", "azure": "azure", "gcs": "gcp",
-            "google": "gcp", "databricks": "databricks", "dbt": "dbt",
-            "kafka": "kafka", "mongodb": "mongodb", "redis": "redis",
-            "neo4j": "neo4j", "elasticsearch": "elasticsearch", "pinecone": "pinecone",
-            "chromadb": "chromadb", "pgvector": "postgres",
+            "mssql": "mssql", "clickhouse": "clickhouse", "duckdb": "duckdb",
+            "motherduck": "duckdb", "databricks": "databricks", "athena": "athena",
+            "synapse": "azure", "fabric": "azure", "filesystem": "filesystem",
+            "delta": "delta", "iceberg": "iceberg", "weaviate": "weaviate",
+            "qdrant": "qdrant", "lancedb": "lance", "lance": "lance",
+            "huggingface": "huggingface",
         }
-        _inferred_kinds = self.kinds or []
+        _inferred_kinds = list(self.kinds or [])
+        if destination and destination in _kind_map:
+            _inferred_kinds.append(_kind_map[destination])
         if not _inferred_kinds:
-            _comp_lower = asset_name.lower()
             for keyword, kind in _kind_map.items():
-                if keyword in _comp_lower:
+                if keyword in asset_name.lower():
                     _inferred_kinds.append(kind)
-            if not _inferred_kinds:
-                _inferred_kinds = ["python"]
+        if not _inferred_kinds:
+            _inferred_kinds = ["python"]
+        _inferred_kinds = list(dict.fromkeys(_inferred_kinds))
 
-        # Build combined tags: user tags + kind tags
         _all_tags = dict(self.asset_tags or {})
         for _kind in _inferred_kinds:
             _all_tags[f"dagster/kind/{_kind}"] = ""
 
-        # Build freshness policy
         _freshness_policy = None
         if self.freshness_max_lag_minutes is not None:
             from dagster import FreshnessPolicy
@@ -230,38 +279,28 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
             )
 
         owners = self.owners or []
-        column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
-
 
         @asset(
             name=asset_name,
             description=description,
-                        owners=owners,
+            owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
-group_name=group_name,
+            group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def twitter_ads_ingestion_asset(context: AssetExecutionContext) -> pd.DataFrame:
-            """Asset that ingests Twitter Ads data using dlt and returns as DataFrame."""
+        def twitter_ads_ingestion_asset(context: AssetExecutionContext):
+            from dlt.sources.rest_api import rest_api_source
 
-            context.log.info(f"Starting Twitter Ads ingestion for accounts: {account_ids_str}")
+            context.log.info(
+                f"Starting Twitter Ads ingestion for accounts: {account_ids_str}, "
+                f"destination={destination or 'duckdb (in-memory)'}"
+            )
 
-            # Parse account IDs and resources
             account_ids = [a.strip() for a in account_ids_str.split(',')]
             resources_list = [r.strip() for r in resources_str.split(',')]
             context.log.info(f"Resources to extract: {resources_list}")
 
-            # Import dlt REST API source
-            try:
-                import dlt
-                from dlt.sources.rest_api import rest_api_source
-            except ImportError as e:
-                context.log.error(f"Failed to import dlt REST API source: {e}")
-                context.log.info("Install with: pip install 'dlt[rest_api]'")
-                raise
-
-            # Determine dates for analytics
             from datetime import datetime, timedelta
             if start_date:
                 start_date_str = start_date
@@ -275,20 +314,15 @@ group_name=group_name,
 
             context.log.info(f"Date range: {start_date_str} to {end_date_str}")
 
-            # Create pipeline
-            use_destination = destination if destination else "duckdb"
-            dataset_name = asset_name if destination else f"{asset_name}_temp"
-
             pipeline = dlt.pipeline(
                 pipeline_name=f"{asset_name}_pipeline",
-                destination=use_destination,
-                dataset_name=dataset_name
+                destination=component._resolve_destination(),
+                dataset_name=dataset_name,
             )
 
             context.log.info("Created dlt pipeline for data extraction")
 
             # Twitter Ads API uses OAuth 1.0a
-            # We'll need to construct auth header manually
             import base64
             import hmac
             import hashlib
@@ -307,27 +341,22 @@ group_name=group_name,
                     "oauth_version": "1.0"
                 }
 
-                # Combine with query params
                 all_params = {**oauth_params}
                 if params:
                     all_params.update(params)
 
-                # Create signature base string
                 sorted_params = sorted(all_params.items())
                 param_string = "&".join([f"{k}={urllib.parse.quote(str(v), safe='')}" for k, v in sorted_params])
                 base_string = f"{method}&{urllib.parse.quote(url, safe='')}&{urllib.parse.quote(param_string, safe='')}"
 
-                # Create signing key
                 signing_key = f"{urllib.parse.quote(consumer_secret, safe='')}&{urllib.parse.quote(access_token_secret, safe='')}"
 
-                # Generate signature
                 signature = base64.b64encode(
                     hmac.new(signing_key.encode(), base_string.encode(), hashlib.sha1).digest()
                 ).decode()
 
                 oauth_params["oauth_signature"] = signature
 
-                # Build authorization header
                 auth_header = "OAuth " + ", ".join([f'{k}="{urllib.parse.quote(str(v), safe="")}"' for k, v in sorted(oauth_params.items())])
                 return auth_header
 
@@ -347,7 +376,6 @@ group_name=group_name,
                 "resources": []
             }
 
-            # Add resource configurations based on requested resources
             if "accounts" in resources_list:
                 for account_id in account_ids:
                     config["resources"].append({
@@ -448,7 +476,6 @@ group_name=group_name,
                     })
 
             if "analytics" in resources_list:
-                # Determine metric groups
                 if metric_groups_str:
                     metric_groups_list = [m.strip() for m in metric_groups_str.split(',')]
                 else:
@@ -469,32 +496,52 @@ group_name=group_name,
                         "endpoint": {
                             "path": f"stats/accounts/{account_id}",
                             "params": analytics_params,
-                            "paginator": None  # Analytics endpoint typically doesn't paginate
+                            "paginator": None
                         }
                     })
 
-            # Create REST API source
             context.log.info("Creating Twitter Ads REST API source...")
             source = rest_api_source(config)
 
-            # Run pipeline
             context.log.info("Extracting Twitter Ads data...")
             load_info = pipeline.run(source)
-            context.log.info(f"Loaded data from Twitter Ads API")
+            context.log.info(f"Twitter data loaded: {load_info}")
 
-            # Collect all data from all account-specific resources
+            base_metadata = {
+                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                "dataset_name": MetadataValue.text(dataset_name),
+                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                "account_ids": MetadataValue.json(account_ids),
+                "resources_requested": MetadataValue.json(resources_list),
+                "start_date": MetadataValue.text(start_date_str),
+                "end_date": MetadataValue.text(end_date_str),
+            }
+
+            non_sql_destinations = {
+                "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
+                "delta", "iceberg",
+            }
+            is_non_sql = destination in non_sql_destinations
+
+            if persist_only or is_non_sql:
+                if is_non_sql and not persist_only:
+                    context.log.warning(
+                        f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                        f"Set persist_only=true to silence this warning."
+                    )
+                return MaterializeResult(metadata=base_metadata)
+
             all_data = []
             resource_metadata = {}
-
-            # Query each resource table
             with pipeline.sql_client() as client:
-                # Get list of tables
-                tables_query = f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
+                tables_query = (
+                    f"SELECT table_name FROM information_schema.tables "
+                    f"WHERE table_schema = '{dataset_name}'"
+                )
                 try:
                     tables_df = client.execute_df(tables_query)
                     table_names = tables_df['table_name'].tolist()
-                except:
-                    # Fallback: try to query expected table names
+                except Exception:
                     table_names = []
                     for resource in resources_list:
                         for account_id in account_ids:
@@ -506,7 +553,6 @@ group_name=group_name,
                     try:
                         query = f"SELECT * FROM {dataset_name}.{table_name}"
                         df = client.execute_df(query)
-
                         if len(df) > 0:
                             df['_resource_type'] = table_name
                             all_data.append(df)
@@ -515,10 +561,9 @@ group_name=group_name,
                     except Exception as e:
                         context.log.warning(f"Could not load {table_name}: {e}")
 
-            # Combine all data into single DataFrame
             if not all_data:
-                context.log.warning("No data extracted")
-                return pd.DataFrame()
+                context.log.warning("No data extracted from Twitter Ads.")
+                return Output(value=pd.DataFrame(), metadata=base_metadata)
 
             combined_df = pd.concat(all_data, ignore_index=True)
 
@@ -527,43 +572,17 @@ group_name=group_name,
                 f"{len(combined_df.columns)} columns"
             )
 
-            # Add output metadata
             metadata = {
-                "account_ids": account_ids,
-                "resources_loaded": list(resource_metadata.keys()),
-                "total_rows": len(combined_df),
-                "columns": list(combined_df.columns),
+                **base_metadata,
+                "row_count": MetadataValue.int(len(combined_df)),
+                "column_count": MetadataValue.int(len(combined_df.columns)),
+                "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
             }
-
-            if destination:
-                metadata["destination"] = destination
-                metadata["dataset_name"] = asset_name
-                metadata["persist_and_return"] = persist_and_return
-
-            if start_date:
-                metadata["start_date"] = start_date_str
-            if end_date:
-                metadata["end_date"] = end_date_str
-
-            # Add per-resource row counts
             for resource, rows in resource_metadata.items():
-                metadata[f"rows_{resource}"] = rows
-
-            context.add_output_metadata(metadata)
-
-            # Return DataFrame
+                metadata[f"rows_{resource}"] = MetadataValue.int(rows)
             if include_sample and len(combined_df) > 0:
-                return Output(
-                    value=combined_df,
-                    metadata={
-                        "row_count": len(combined_df),
-                        "column_count": len(combined_df.columns),
-                        "resources": list(resource_metadata.keys()),
-                        "sample": MetadataValue.md(combined_df.head(10).to_markdown()),
-                        "preview": MetadataValue.dataframe(combined_df.head(10))
-                    }
-                )
-            else:
-                return combined_df
+                metadata["sample"] = MetadataValue.md(combined_df.head(10).to_markdown())
+
+            return Output(value=combined_df, metadata=metadata)
 
         return Definitions(assets=[twitter_ads_ingestion_asset])

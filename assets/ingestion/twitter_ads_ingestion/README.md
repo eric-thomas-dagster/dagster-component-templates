@@ -1,85 +1,56 @@
 # Twitter/X Ads Ingestion Component
 
-Ingest Twitter/X Ads data into your data warehouse using dlt's REST API source with Twitter Ads API. This component provides capabilities similar to Supermetrics, Funnel.io, and Adverity for Twitter Ads data extraction.
+Ingest Twitter/X Ads data (campaigns, line items, promoted tweets, analytics) using [dlt](https://dlthub.com)'s REST API source against the Twitter Ads API.
 
-## Features
+## Overview
 
-- **Multiple Resources**: Extract accounts, campaigns, line items, promoted tweets, media, and analytics
-- **OAuth 1.0a Authentication**: Secure access via Twitter API credentials
-- **Date Range Control**: Specify custom date ranges for performance analytics
-- **Flexible Granularity**: Hourly, daily, or total aggregation
-- **Metric Groups**: Select from engagement, billing, video, conversion metrics
-- **Multiple Destinations**: Load to DuckDB, Snowflake, BigQuery, Postgres, or Redshift
+dlt handles authentication (OAuth 1.0a), pagination, rate limiting, and incremental loading. This component wraps it as a Dagster asset that returns a pandas DataFrame by default, or persists directly to a destination if you set one.
 
-- **DataFrame Output**: Returns pandas DataFrame by default for flexible transformation
+## Source-specific fields
 
-## Output
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `asset_name` | `str` | yes | Name of the output asset |
+| `consumer_key` | `str` | yes | Twitter API Consumer Key (use env var: `"${TWITTER_CONSUMER_KEY}"`) |
+| `consumer_secret` | `str` | yes | Twitter API Consumer Secret |
+| `access_token` | `str` | yes | Twitter Access Token |
+| `access_token_secret` | `str` | yes | Twitter Access Token Secret |
+| `account_ids` | `str` | yes | Comma-separated Twitter Ads Account IDs |
+| `resources` | `str` | no | Comma-separated resource list. Default `"campaigns,analytics"`. Available: `accounts`, `campaigns`, `line_items`, `promoted_tweets`, `tweets`, `media`, `analytics` |
+| `start_date` | `str` | no | Analytics start date (YYYY-MM-DD). Defaults to 30 days ago |
+| `end_date` | `str` | no | Analytics end date (YYYY-MM-DD). Defaults to today |
+| `entity_type` | `str` | no | `CAMPAIGN` (default), `ACCOUNT`, `FUNDING_INSTRUMENT`, `LINE_ITEM`, `PROMOTED_TWEET` |
+| `granularity` | `str` | no | `HOUR`, `DAY` (default), or `TOTAL` |
+| `metric_groups` | `str` | no | Comma-separated metric groups: `ENGAGEMENT`, `BILLING`, `VIDEO`, `MOBILE_CONVERSION`, `WEB_CONVERSION`, `MEDIA`, `LIFE_TIME_VALUE_MOBILE_CONVERSION` |
+| `placement` | `str` | no | `ALL_ON_TWITTER` (default) or `PUBLISHER_NETWORK` |
 
-**By default (no destination set)**: Uses in-memory DuckDB and **returns a pandas DataFrame**. Perfect for:
-- Downstream transformation with DataFrame Transformer
-- Feeding into standardizer components
-- Direct Python/pandas manipulation
-- Chaining with other Dagster assets
+## Standard fields
 
-**With destination set**: Persists to your warehouse (Snowflake, BigQuery, etc.) and optionally returns DataFrame if `persist_and_return: true`
+`description`, `group_name`, `owners`, `asset_tags`, `kinds`, `freshness_max_lag_minutes`, `freshness_cron`, `include_sample_metadata`, `deps` — same convention as every other component in this library.
 
-## Data Extracted
+## Destination
 
-### Standard Resources
-- **Accounts**: Ad account information, funding, and settings
-- **Campaigns**: Campaign configurations, objectives, budgets, and status
-- **Line Items**: Ad group-equivalent settings and targeting (formerly ad groups)
-- **Promoted Tweets**: Promoted tweet configurations and associations
-- **Tweets**: Tweet creative content and metadata
-- **Media**: Media creative assets (images, videos, GIFs)
-- **Analytics**: Performance metrics and engagement data
+By default this asset runs an in-memory DuckDB pipeline and returns a pandas DataFrame for downstream Dagster transformations. To persist directly to a warehouse or object store, set `destination`:
 
-### Performance Metrics
-Analytics include:
-- Impressions, Clicks, Cost
-- Engagements (total engagement actions)
-- Retweets, Likes (favorites), Replies
-- Follows, Unfollows
-- URL clicks, Hashtag clicks, Detail expands
-- App clicks, App installs
-- CTR, Engagement Rate
-- Average CPE (cost per engagement)
-- Average CPM
-- Video views, Video completion rates
+```yaml
+type: dagster_component_templates.TwitterAdsIngestionComponent
+attributes:
+  asset_name: twitter_ads
+  consumer_key: "${TWITTER_CONSUMER_KEY}"
+  consumer_secret: "${TWITTER_CONSUMER_SECRET}"
+  access_token: "${TWITTER_ACCESS_TOKEN}"
+  access_token_secret: "${TWITTER_ACCESS_TOKEN_SECRET}"
+  account_ids: "abc123"
+  destination: bigquery            # or snowflake, postgres, filesystem, ...
+  dataset_name: twitter_raw
+  persist_only: true
+```
 
-## Prerequisites
+Credentials come from env vars (`DESTINATION__BIGQUERY__CREDENTIALS__*`) or, for projects with multiple destination accounts, from inline `destination_credentials_url` / `destination_credentials_env_var`.
 
-### 1. Twitter Ads Account
-Active Twitter Ads account with campaigns
+**For full destination configuration — env-var conventions, multi-account setups, every supported dlt destination — see [`../DESTINATIONS.md`](../DESTINATIONS.md).**
 
-### 2. Twitter Developer Account
-Sign up for Twitter Developer access:
-1. Go to https://developer.twitter.com/
-2. Apply for developer account
-3. Create a project and app
-4. Enable Ads API access (requires separate application)
-
-### 3. Twitter Ads API Access
-Request Ads API access:
-1. Apply through Twitter Ads Manager
-2. Complete Ads API application form
-3. Wait for approval (can take 1-2 weeks)
-4. Once approved, your app can access Ads API
-
-### 4. API Credentials
-Generate OAuth 1.0a credentials:
-1. In Twitter Developer Portal, navigate to your app
-2. Go to "Keys and tokens" tab
-3. Generate:
-   - API Key (Consumer Key)
-   - API Secret Key (Consumer Secret)
-   - Access Token
-   - Access Token Secret
-4. Ensure app has Read permissions for Ads API
-
-## Configuration
-
-### Basic Example
+## Example — DataFrame mode (default)
 
 ```yaml
 type: dagster_component_templates.TwitterAdsIngestionComponent
@@ -90,325 +61,56 @@ attributes:
   access_token: "${TWITTER_ACCESS_TOKEN}"
   access_token_secret: "${TWITTER_ACCESS_TOKEN_SECRET}"
   account_ids: "abc123,xyz789"
-  resources: "campaigns,analytics"
-  destination: "duckdb"
-```
-
-### Advanced Example (with Custom Analytics)
-
-```yaml
-type: dagster_component_templates.TwitterAdsIngestionComponent
-attributes:
-  asset_name: twitter_ads_performance
-
-  # Authentication
-  consumer_key: "${TWITTER_CONSUMER_KEY}"
-  consumer_secret: "${TWITTER_CONSUMER_SECRET}"
-  access_token: "${TWITTER_ACCESS_TOKEN}"
-  access_token_secret: "${TWITTER_ACCESS_TOKEN_SECRET}"
-
-  # Account IDs
-  account_ids: "abc123,xyz789,def456"
-
-  # Resources
-  resources: "accounts,campaigns,line_items,promoted_tweets,analytics"
-
-  # Analytics configuration
-  start_date: "2024-01-01"
+  resources: "campaigns,line_items,promoted_tweets,analytics"
+  start_date: "2024-10-01"
   end_date: "2024-12-31"
-  entity_type: "LINE_ITEM"
-  granularity: "DAY"
-  metric_groups: "ENGAGEMENT,BILLING,VIDEO,WEB_CONVERSION"
-  placement: "ALL_ON_TWITTER"
-
-  # Destination
-  destination: "snowflake"
-  destination_config: '{"credentials": "snowflake://user:pass@account/db/schema"}'
-
-  group_name: "marketing_analytics"
+  metric_groups: "ENGAGEMENT,BILLING,VIDEO"
+  group_name: twitter_ads
 ```
 
-### Video Campaign Analytics
+The asset emits a pandas DataFrame combining all selected resources, with a `_resource_type` column tagging each row.
+
+## Example — persist to BigQuery
 
 ```yaml
 type: dagster_component_templates.TwitterAdsIngestionComponent
 attributes:
-  asset_name: twitter_video_analytics
+  asset_name: twitter_ads
   consumer_key: "${TWITTER_CONSUMER_KEY}"
   consumer_secret: "${TWITTER_CONSUMER_SECRET}"
   access_token: "${TWITTER_ACCESS_TOKEN}"
   access_token_secret: "${TWITTER_ACCESS_TOKEN_SECRET}"
   account_ids: "abc123"
-
-  # Focus on video performance
-  resources: "campaigns,line_items,promoted_tweets,media,analytics"
-
-  # Video metrics
-  start_date: "2024-10-01"
-  end_date: "2024-12-31"
-  entity_type: "PROMOTED_TWEET"
-  granularity: "DAY"
-  metric_groups: "ENGAGEMENT,VIDEO"
-
-  destination: "bigquery"
+  resources: "campaigns,line_items,promoted_tweets,analytics"
+  destination: bigquery
+  dataset_name: twitter_raw
+  persist_only: true
 ```
 
-## Environment Variables
+Set `DESTINATION__BIGQUERY__CREDENTIALS__*` env vars before running. The asset emits a `MaterializeResult` with destination metadata.
 
-Store credentials securely:
+## Notes
 
-```bash
-# Twitter API credentials (OAuth 1.0a)
-export TWITTER_CONSUMER_KEY="YOUR_CONSUMER_KEY"
-export TWITTER_CONSUMER_SECRET="YOUR_CONSUMER_SECRET"
-export TWITTER_ACCESS_TOKEN="YOUR_ACCESS_TOKEN"
-export TWITTER_ACCESS_TOKEN_SECRET="YOUR_ACCESS_TOKEN_SECRET"
-```
+- **Incremental loading**: dlt tracks state across runs.
+- **Schema evolution**: dlt accommodates new fields without manual migrations.
+- **OAuth 1.0a**: Twitter Ads API requires OAuth 1.0a — all four credential fields are required.
+- **API access**: Twitter Ads API access requires application approval — apply through the developer portal.
+- **Data latency**: Twitter performance metrics typically lag a few hours.
+- **Non-SQL destinations**: setting `destination=filesystem` (or any vector store / lake format) requires `persist_only=true`. The component logs a warning and returns a `MaterializeResult` if you forget.
 
-Reference in YAML with `${VAR_NAME}` syntax.
-
-## Finding Your Account ID
-
-1. Go to Twitter Ads Manager: https://ads.twitter.com/
-2. Select your ads account
-3. Look at URL: `https://ads.twitter.com/accounts/{ACCOUNT_ID}/campaigns`
-4. The alphanumeric string after `/accounts/` is your Account ID
-5. Or use the Accounts API endpoint to list accessible accounts
-
-## Available Resources
-
-### accounts
-Ad account details:
-- Account ID and name
-- Business name and ID
-- Timezone
-- Currency
-- Approval status
-- Created/deleted timestamps
-
-### campaigns
-Campaign configuration:
-- Campaign ID and name
-- Account association
-- Funding instrument ID
-- Status (ACTIVE, PAUSED, etc.)
-- Daily budget
-- Total budget
-- Standard/draft delivery
-- Start/end time
-- Objective (TWEET_ENGAGEMENTS, VIDEO_VIEWS, etc.)
-
-### line_items
-Line item settings (ad group equivalent):
-- Line item ID and name
-- Campaign association
-- Objective
-- Bid type and amount
-- Budget and pacing
-- Start/end time
-- Targeting criteria
-- Placements
-- Product type
-- Optimization preference
-
-### promoted_tweets
-Promoted tweet configurations:
-- Promoted tweet ID
-- Line item association
-- Tweet ID
-- Approval status
-- Paused/deleted status
-
-### tweets
-Tweet creative content:
-- Tweet ID
-- Text content
-- Media entities
-- User mentions, hashtags, URLs
-- Created timestamp
-- Engagement counts (organic)
-
-### media
-Media library assets:
-- Media key
-- Media ID
-- Media type (IMAGE, VIDEO, GIF)
-- Name
-- File size
-- Dimensions
-- Duration (for video)
-- Preview URL
-
-### analytics
-Performance metrics with flexible configuration:
-- Time series data (by granularity)
-- Entity-level aggregation
-- Metric groups (engagement, billing, video, etc.)
-- Placement breakdown
-
-## Analytics Configuration
-
-### Entity Types
-Aggregate metrics at different levels:
-- `ACCOUNT`: Account-level totals
-- `FUNDING_INSTRUMENT`: Per funding source
-- `CAMPAIGN`: Per-campaign metrics
-- `LINE_ITEM`: Per-line item (ad group) metrics
-- `PROMOTED_TWEET`: Per-promoted tweet (most granular)
-
-### Granularity
-Time aggregation:
-- `HOUR`: Hourly breakdown
-- `DAY`: Daily breakdown (default)
-- `TOTAL`: Cumulative totals for date range
-
-### Metric Groups
-Available metric categories:
-- `ENGAGEMENT`: Engagements, retweets, likes, replies, follows, clicks
-- `BILLING`: Spend, impressions, billed metrics
-- `VIDEO`: Video views, quartile completions, view time
-- `MOBILE_CONVERSION`: App installs, app clicks, cost per install
-- `WEB_CONVERSION`: Website clicks, conversions, cost per conversion
-- `MEDIA`: Media views and engagements
-- `LIFE_TIME_VALUE_MOBILE_CONVERSION`: LTV mobile conversion tracking
-
-### Placement
-- `ALL_ON_TWITTER`: Twitter-only placements (default)
-- `PUBLISHER_NETWORK`: Twitter Audience Platform placements
-
-## Downstream Usage
-
-The ingested data can be used by:
-- **Marketing Data Standardizer**: Normalize Twitter Ads data into common schema
-- **Attribution Modeling**: Multi-touch attribution across platforms
-- **Campaign Performance**: Cross-platform campaign dashboards
-- **Social Engagement Analytics**: Tweet engagement and virality analysis
-- **Customer 360**: Combine with CRM and analytics data
-
-## Tips
-
-1. **OAuth 1.0a**: Twitter Ads API uses OAuth 1.0a (not 2.0). Credentials don't expire but can be revoked
-2. **Multiple Accounts**: Separate account IDs with commas
-3. **Rate Limits**: Twitter has rate limits; dlt handles retries automatically
-4. **Line Items vs Ad Groups**: Twitter uses "line items" terminology (equivalent to ad groups)
-5. **Entity Hierarchy**: Account > Campaign > Line Item > Promoted Tweet
-6. **Video Metrics**: Include VIDEO metric group for video campaign analysis
-7. **Data Latency**: Analytics data may have 24-48 hour delay
-
-## Data Schema Examples
-
-### Campaigns Table
-- `id` - Campaign ID
-- `name` - Campaign name
-- `account_id` - Parent account
-- `funding_instrument_id` - Funding source
-- `status` - ACTIVE, PAUSED, etc.
-- `daily_budget_amount_local_micro` - Daily budget (micros)
-- `total_budget_amount_local_micro` - Total budget (micros)
-- `start_time` - Campaign start
-- `end_time` - Campaign end
-- `objective` - Campaign objective
-- `created_at`, `updated_at`, `deleted`
-
-### Line Items Table
-- `id` - Line item ID
-- `name` - Line item name
-- `campaign_id` - Parent campaign
-- `objective` - Line item objective
-- `bid_type` - Bid strategy
-- `bid_amount_local_micro` - Bid amount
-- `total_budget_amount_local_micro` - Budget
-- `target_cpa_local_micro` - Target CPA (if applicable)
-- `placements` - Placement array
-- `product_type` - PROMOTED_TWEETS, etc.
-
-### Analytics Table
-- `id` - Entity ID (campaign, line item, or tweet)
-- `id_data` - Entity metadata
-- `segment` - Segment information (if applicable)
-- `metrics` - Nested metrics object containing:
-  - `impressions` - Total impressions
-  - `clicks` - Total clicks
-  - `billed_charge_local_micro` - Spend
-  - `engagements` - Total engagements
-  - `retweets`, `likes`, `replies` - Specific engagements
-  - `follows` - Follows from ad
-  - `url_clicks` - Landing page clicks
-  - `video_views_*` - Video view metrics
-
-## Related Components
-
-- **Google Ads Ingestion**: Ingest Google Ads data
-- **Facebook Ads Ingestion**: Ingest Facebook Ads data
-- **LinkedIn Ads Ingestion**: Ingest LinkedIn Ads data
-- **TikTok Ads Ingestion**: Ingest TikTok Ads data
-- **Marketing Data Standardizer**: Normalize data across platforms
-- **Attribution Modeling**: Analyze marketing attribution
-
-## Troubleshooting
-
-### "Unauthorized" or "Invalid OAuth credentials"
-- Verify all four OAuth 1.0a credentials are correct
-- Check that access token matches consumer key
-- Ensure credentials haven't been revoked
-- Verify app has Ads API access enabled
-
-### "Forbidden" or permission denied
-- Confirm you have access to the ads account
-- Verify Ads API access has been approved for your app
-- Check account ID format (should be alphanumeric, not numeric)
-- Ensure account is active and not suspended
-
-### No analytics data returned
-- Verify date range is within campaign active dates
-- Check that campaigns have served impressions
-- Ensure entity_type matches available entities
-- Note 24-48 hour data latency for recent dates
-- Verify metric_groups are valid for your campaign type
-
-### Rate limit errors
-- dlt handles retries automatically with exponential backoff
-- Consider querying fewer accounts simultaneously
-- Reduce analytics granularity from HOUR to DAY
-- Spread large extractions across multiple runs
-
-### "Campaign not found" errors
-- Verify campaign IDs are from the correct account
-- Check if campaigns have been deleted
-- Use `with_deleted: true` param to include deleted entities
-
-## API Reference
-
-This component uses the Twitter Ads API v12:
-- API documentation: https://developer.twitter.com/en/docs/twitter-ads-api
-- Authentication: https://developer.twitter.com/en/docs/authentication/oauth-1-0a
-- Analytics: https://developer.twitter.com/en/docs/twitter-ads-api/analytics
-
-## Support
-
-For issues with:
-- **Component**: Create issue in dagster-component-templates repo
-- **dlt REST API source**: Check [dlt REST API docs](https://dlthub.com/docs/dlt-ecosystem/verified-sources/rest_api)
-- **Twitter Ads API**: Refer to [Twitter Ads API docs](https://developer.twitter.com/en/docs/twitter-ads-api)
-
-## Note on dlt Source
-
-Twitter/X Ads is not currently available as a verified dlt source. This component uses dlt's generic REST API source to connect to the Twitter Ads API. The implementation follows Twitter's official OAuth 1.0a authentication and API patterns, providing production-ready data extraction for advertising workflows.
-
-For updates on Twitter Ads becoming a verified source, check the [dlt verified sources page](https://dlthub.com/docs/dlt-ecosystem/verified-sources).
-
-## Asset Dependencies & Lineage
-
-This component supports a `deps` field for declaring upstream Dagster asset dependencies:
+## Asset dependencies
 
 ```yaml
-attributes:
-  # ... other fields ...
-  deps:
-    - raw_orders              # simple asset key
-    - raw/schema/orders       # asset key with path prefix
+deps:
+  - some_upstream_asset
+  - schema/scoped_asset
 ```
 
-`deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
+Dependencies declared here draw lineage edges in the Dagster graph without loading data at runtime.
 
-Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).
+## Learn more
+
+- [Twitter Ads API](https://developer.twitter.com/en/docs/twitter-ads-api)
+- [dlt REST API source](https://dlthub.com/docs/dlt-ecosystem/verified-sources/rest_api)
+- [dlt destinations overview](https://dlthub.com/docs/dlt-ecosystem/destinations)
+- [`../DESTINATIONS.md`](../DESTINATIONS.md) — configuration reference for this library

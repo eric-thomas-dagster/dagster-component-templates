@@ -1,115 +1,94 @@
-# Support Ticket Ingestion
+# Support Ticket Ingestion Component
 
-Ingest support tickets from Zendesk and other support platforms using dlt.
+Ingest support ticket data from help desk platforms using [dlt](https://dlthub.com). Currently uses dlt's verified `zendesk_support` source for Zendesk; other platforms emit sample data for prototyping.
 
 ## Overview
 
-The Support Ticket Ingestion component extracts support ticket data from platforms like Zendesk using dlt. It reads credentials from environment variables and returns ticket data as a pandas DataFrame.
+dlt handles authentication, pagination, rate limiting, and incremental loading. This component wraps it as a Dagster asset that returns a pandas DataFrame by default, or persists directly to a destination if you set one.
 
-## Features
+## Source-specific fields
 
-- **Platform Support**: Zendesk via dlt, with sample data fallback for other platforms
-- **Environment Variables**: Reads credentials securely from environment
-- **DataFrame Output**: Returns structured ticket data for downstream processing
-- **Sample Data Fallback**: Provides realistic sample tickets when platform is unavailable
-- **Automatic Schema**: dlt handles schema detection and field mapping
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `asset_name` | `str` | yes | Name of the output asset |
+| `platform` | `str` | yes | Support platform — `zendesk` is fully supported; other values emit sample data |
 
-## Configuration
+Zendesk credentials are read from environment variables at run-time:
 
-### Required Parameters
+| Env var | Description |
+|---|---|
+| `ZENDESK_SUBDOMAIN` | Your Zendesk subdomain (e.g. `acme` for `acme.zendesk.com`) |
+| `ZENDESK_EMAIL` | Email address used for the API |
+| `ZENDESK_API_TOKEN` | Zendesk API token |
 
-- `asset_name`: Name of the asset to create
-- `platform`: Support platform to extract from (default: "zendesk")
+## Standard fields
 
-### Optional Parameters
+`description`, `group_name`, `owners`, `asset_tags`, `kinds`, `freshness_max_lag_minutes`, `freshness_cron`, `include_sample_metadata`, `deps` — same convention as every other component in this library.
 
-- `description`: Asset description
-- `group_name`: Asset group for organization (default: "support")
-- `include_sample_metadata`: Include data preview in metadata (default: true)
+## Destination
 
-## Usage
+By default this asset runs an in-memory DuckDB pipeline and returns a pandas DataFrame for downstream Dagster transformations. To persist directly to a warehouse or object store, set `destination`:
 
 ```yaml
 type: dagster_component_templates.SupportTicketIngestionComponent
 attributes:
   asset_name: support_tickets
   platform: zendesk
-  description: "Support tickets for customer service analysis"
+  destination: snowflake          # or bigquery, postgres, filesystem, ...
+  dataset_name: support_raw
+  persist_only: true
 ```
 
-## Supported Platforms
+Credentials come from env vars (`DESTINATION__SNOWFLAKE__CREDENTIALS__*`) or, for projects with multiple destination accounts, from inline `destination_credentials_url` / `destination_credentials_env_var`.
 
-### Zendesk
-Uses dlt's Zendesk source with full API support. Requires environment variables:
-- `ZENDESK_SUBDOMAIN`: Your Zendesk subdomain (e.g., "mycompany")
-- `ZENDESK_EMAIL`: Admin email address
-- `ZENDESK_API_TOKEN`: API token for authentication
+**For full destination configuration — env-var conventions, multi-account setups, every supported dlt destination — see [`../DESTINATIONS.md`](../DESTINATIONS.md).**
 
-### Other Platforms
-Falls back to sample data. To add support for additional platforms, extend the component with dlt sources.
-
-## Environment Variables
-
-For Zendesk:
-
-```bash
-export ZENDESK_SUBDOMAIN="mycompany"
-export ZENDESK_EMAIL="admin@mycompany.com"
-export ZENDESK_API_TOKEN="your-api-token"
-```
-
-## How It Works
-
-1. **Platform Detection**: Checks which support platform to use
-2. **DLT Pipeline**: Creates dlt pipeline for the platform
-3. **Credential Loading**: Reads credentials from environment variables
-4. **Data Extraction**: Extracts tickets using dlt
-5. **DataFrame Conversion**: Returns structured DataFrame
-6. **Fallback**: Provides sample data if credentials are missing
-
-## Output Schema
-
-Typical ticket data includes:
-
-| Field | Description |
-|-------|-------------|
-| ticket_id | Unique ticket identifier |
-| subject | Ticket subject/title |
-| description | Full ticket description |
-| status | Current status (open, pending, solved, closed) |
-| priority | Priority level (low, normal, high, urgent) |
-| created_at | Ticket creation timestamp |
-| updated_at | Last update timestamp |
-| requester_id | Customer/requester ID |
-| assignee_id | Agent assigned to ticket |
-| tags | Ticket tags/labels |
-
-## Use Cases
-
-- Support ticket analysis
-- Agent performance metrics
-- Response time tracking
-- Customer satisfaction analysis
-- Ticket volume forecasting
-- SLA compliance monitoring
-
-## Dependencies
-
-- dlt[zendesk]>=0.4.0
-- pandas>=1.5.0
-
-## Asset Dependencies & Lineage
-
-This component supports a `deps` field for declaring upstream Dagster asset dependencies:
+## Example — DataFrame mode (default)
 
 ```yaml
+type: dagster_component_templates.SupportTicketIngestionComponent
 attributes:
-  # ... other fields ...
-  deps:
-    - raw_orders              # simple asset key
-    - raw/schema/orders       # asset key with path prefix
+  asset_name: support_tickets
+  platform: zendesk
+  group_name: support
 ```
 
-`deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
+The asset emits a pandas DataFrame of tickets. If Zendesk credentials are missing in default mode, the component logs a warning and returns sample data so prototypes can run end-to-end without secrets.
 
-Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).
+## Example — persist to Snowflake
+
+```yaml
+type: dagster_component_templates.SupportTicketIngestionComponent
+attributes:
+  asset_name: support_tickets
+  platform: zendesk
+  destination: snowflake
+  dataset_name: support_raw
+  persist_only: true
+```
+
+Set `DESTINATION__SNOWFLAKE__CREDENTIALS__*` plus `ZENDESK_SUBDOMAIN`, `ZENDESK_EMAIL`, `ZENDESK_API_TOKEN` env vars before running. The asset emits a `MaterializeResult` with destination metadata.
+
+## Notes
+
+- **Incremental loading**: dlt tracks state across runs.
+- **Schema evolution**: dlt accommodates new fields without manual migrations.
+- **Sample-data fallback**: in DataFrame mode, missing Zendesk credentials produce a small synthetic DataFrame so component graphs can be validated without secrets. In destination mode, missing credentials cause the run to fail rather than persist synthesized data.
+- **Other platforms**: setting `platform` to anything other than `zendesk` returns sample data only — and is blocked entirely when a destination is set.
+- **Non-SQL destinations**: setting `destination=filesystem` (or any vector store / lake format) requires `persist_only=true`. The component logs a warning and returns a `MaterializeResult` if you forget.
+
+## Asset dependencies
+
+```yaml
+deps:
+  - some_upstream_asset
+  - schema/scoped_asset
+```
+
+Dependencies declared here draw lineage edges in the Dagster graph without loading data at runtime.
+
+## Learn more
+
+- [dlt Zendesk source](https://dlthub.com/docs/dlt-ecosystem/verified-sources/zendesk)
+- [dlt destinations overview](https://dlthub.com/docs/dlt-ecosystem/destinations)
+- [`../DESTINATIONS.md`](../DESTINATIONS.md) — configuration reference for this library

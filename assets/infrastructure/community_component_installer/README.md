@@ -1,0 +1,100 @@
+# Community Component Installer
+
+A state-backed Dagster component that downloads other community components from the [registry](https://dagster-component-ui.vercel.app/) at refresh-state time. List the IDs you want in YAML, save, and `dg utils refresh-defs-state` (or the equivalent Dagster+ UI button) fetches them.
+
+Designed for **Dagster+ environments where you want to install community components from the UI** (no local git changes required), but also works locally as a declarative alternative to running the [`dagster-component`](https://github.com/eric-thomas-dagster/dagster-community-components-cli) CLI by hand.
+
+## How it works
+
+This component subclasses `StateBackedComponent`, so:
+
+1. You add it to your project once.
+2. You list the community component IDs you want under `components:`.
+3. On refresh-state, `write_state_to_path` runs:
+   - Fetches the registry manifest
+   - Downloads each listed component's files (`component.py`, `io_manager.py`, `__init__.py`, `README.md`, `schema.json`, `example.yaml`, `requirements.txt`) into the state directory
+   - Optionally runs `pip install -r requirements.txt` for each
+   - Records an install manifest with what succeeded / what failed
+4. On the next defs load, `build_defs_from_state` emits a single reporting asset (`community_components_installed`) that surfaces the install state in the catalog.
+
+## Example
+
+```yaml
+type: dagster_component_templates.CommunityComponentInstallerComponent
+attributes:
+  components:
+    - postgres_resource                    # latest (HEAD of main)
+    - s3_parquet_io_manager@v1.2.0          # pinned to a tag
+    - one_hot_encoding@a1b2c3d              # pinned to a commit SHA
+  install_pip_requirements: true
+```
+
+## Version pinning
+
+Components evolve over time — fields get added, defaults change, behavior tightens. To avoid silently breaking when the registry updates, pin to a specific git ref using `id@ref`:
+
+| Spec | Resolves to |
+|---|---|
+| `postgres_resource` | `main` (latest) |
+| `postgres_resource@v1.2.0` | git tag `v1.2.0` |
+| `postgres_resource@a1b2c3d` | git commit `a1b2c3d` |
+| `postgres_resource@feature-branch` | branch `feature-branch` |
+
+The installed `.dg-community.json` marker records which ref was used, so future tooling can detect when a pinned ref differs from latest. **For production, pin to tags or SHAs**; `main` is appropriate for prototyping.
+
+## Configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `components` | `List[str]` | required | Community component IDs to install |
+| `registry_url` | `Optional[str]` | (default registry) | Override the manifest URL — useful for forks or internal mirrors |
+| `install_pip_requirements` | `bool` | `true` | Run `pip install` on each component's `requirements.txt` after download |
+| `asset_name` | `str` | `"community_components_installed"` | Name of the reporting asset |
+| `group_name` | `str` | `"community_components"` | Asset group for the reporting asset |
+
+## Where do the downloaded files live?
+
+In Dagster's state directory for this component (typically `~/.dagster/storage/component_state/<key>/components/<category>/<id>/`). They're cached there so reloads don't re-download.
+
+**Important caveat:** today, downloaded components live in the state directory but are NOT automatically wired into your project's `defs/` tree. To actually *use* an installed component, you have one of three options:
+
+- **Local development**: just use the [`dagster-component`](https://github.com/eric-thomas-dagster/dagster-community-components-cli) CLI directly — it installs to your project's `components/` tree and you commit them. This component is not the right choice for that workflow.
+- **Dagster+ with full UI editing** *(future)*: when Dagster+ ships state-backed editing for arbitrary user components, each downloaded component will appear as its own editable node in the Dagster+ UI, configured directly through the UI. This component is the bridge that gets the files there.
+- **Symlink / copy**: manually copy or symlink files from the state directory into your `defs/` tree after refresh.
+
+## When to use this vs the CLI
+
+| Scenario | Use |
+|---|---|
+| Local development on a project committed to git | [CLI: `dagster-component add <id>`](https://github.com/eric-thomas-dagster/dagster-community-components-cli) |
+| Dagster+ with future state-backed UI editing of components | This component |
+| Want a declarative `components.txt`-style pin in YAML for CI to install | This component or `dagster-component add` in CI |
+| Bootstrapping a sandbox / demo that pulls fresh components on first start | This component |
+
+## Reporting asset metadata
+
+After refresh, the `community_components_installed` asset emits:
+
+| Key | Description |
+|---|---|
+| `installed_count` / `skipped_count` | Counts |
+| `installed` | List of `{id, name, category, path, files, bytes, pip_install_returncode}` |
+| `skipped` | List of `{id, reason}` — components that weren't found in the registry or failed to download |
+| `timestamp` | When the last refresh ran |
+| `registry_url` | URL of the manifest used |
+| `target_root` | Filesystem path where components landed |
+
+Surfacing this in the Dagster catalog gives you observability into the install — particularly useful in Dagster+ where the YAML is edited via UI.
+
+## Notes
+
+- **Removal-by-omission is not supported**: deleting an ID from the list does NOT remove its files. We avoid auto-deletion to prevent clobbering hand-edited code. Clean up manually or via `dagster-component remove <id>` locally.
+- **Idempotency**: re-running with the same list re-downloads (cache logic is at the StateBackedComponent layer, not in this code).
+- **Auth**: the default registry is public over GitHub raw URLs. For private mirrors, set `DAGSTER_COMPONENT_REGISTRY_URL` or pass `registry_url:` in YAML.
+- **Dependencies**: requires `dagster` and `requests`. If your runtime can't `pip install` (e.g. read-only Docker images), set `install_pip_requirements: false` and pre-bake dependencies into the image.
+
+## See also
+
+- Registry: <https://dagster-component-ui.vercel.app/>
+- CLI: <https://github.com/eric-thomas-dagster/dagster-community-components-cli>
+- Manifest: <https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/manifest.json>

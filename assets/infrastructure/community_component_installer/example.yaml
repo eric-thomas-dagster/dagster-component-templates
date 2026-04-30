@@ -1,0 +1,12 @@
+type: dagster_component_templates.CommunityComponentInstallerComponent
+attributes:
+  components:
+    # Latest from main:
+    - postgres_resource
+    # Pinned to a tag (recommended for production):
+    - s3_parquet_io_manager@v1.2.0
+    # Pinned to a commit SHA (most stable):
+    - one_hot_encoding@a1b2c3d
+  install_pip_requirements: true
+  asset_name: community_components_installed
+  group_name: community_components

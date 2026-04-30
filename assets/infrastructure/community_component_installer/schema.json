@@ -1,0 +1,61 @@
+{
+  "component_type": "dagster_component_templates.CommunityComponentInstallerComponent",
+  "description": "Download other community components from the registry at refresh-state time, configured via YAML.",
+  "category": "infrastructure",
+  "icon": "Download",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "description": "Reads the component registry manifest at refresh-state time."
+    },
+    "outputs": {
+      "type": "asset",
+      "description": "A single reporting asset summarizing what was installed / skipped."
+    }
+  },
+  "attributes": {
+    "components": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Components",
+      "description": "Community component IDs to install. Use `id@ref` (e.g. `postgres_resource@v1.2.0` or `postgres_resource@a1b2c3d`) to pin to a tag, commit SHA, or branch. Plain `id` resolves to the main branch. See https://dagster-component-ui.vercel.app/.",
+      "required": true,
+      "ui:widget": "list"
+    },
+    "registry_url": {
+      "type": "string",
+      "label": "Registry URL",
+      "description": "Override the default registry manifest URL. Useful for forks or internal mirrors.",
+      "required": false,
+      "default": null
+    },
+    "install_pip_requirements": {
+      "type": "boolean",
+      "label": "Install pip requirements",
+      "description": "If true, run pip install on each downloaded component's requirements.txt at refresh-state time.",
+      "required": false,
+      "default": true
+    },
+    "asset_name": {
+      "type": "string",
+      "label": "Reporting asset name",
+      "description": "Name of the reporting asset that surfaces install state in the catalog.",
+      "required": false,
+      "default": "community_components_installed"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Asset group name",
+      "description": "Dagster asset group for the reporting asset.",
+      "required": false,
+      "default": "community_components"
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "registry",
+    "installer",
+    "community"
+  ],
+  "name": "Community Component Installer"
+}

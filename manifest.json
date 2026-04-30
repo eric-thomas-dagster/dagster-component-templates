@@ -4689,7 +4689,7 @@
       "id": "dataiku_asset",
       "name": "Dataiku Asset",
       "category": "analytics",
-      "description": "Dataiku DSS scenario component — one Dagster asset per Dataiku scenario.",
+      "description": "Dataiku DSS scenario component \u2014 one Dagster asset per Dataiku scenario.",
       "path": "assets/analytics/dataiku_asset",
       "tags": [
         "analytics",
@@ -4703,7 +4703,7 @@
       "id": "polytomic_asset",
       "name": "Polytomic Asset",
       "category": "sink",
-      "description": "Polytomic reverse-ETL component — one Dagster asset per Polytomic sync.",
+      "description": "Polytomic reverse-ETL component \u2014 one Dagster asset per Polytomic sync.",
       "path": "assets/sinks/polytomic_asset",
       "tags": [
         "sink",
@@ -4726,6 +4726,26 @@
       ],
       "icon": "Server",
       "type": "dagster_component_templates.TerraformAssetComponent"
+    },
+    {
+      "id": "community_component_installer",
+      "name": "Community Component Installer",
+      "category": "infrastructure",
+      "description": "Download other community components from the registry at refresh-state time, configured via YAML. Supports id@ref pinning.",
+      "path": "assets/infrastructure/community_component_installer",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/community_component_installer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/community_component_installer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/community_component_installer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/community_component_installer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/community_component_installer/requirements.txt",
+      "tags": [
+        "infrastructure",
+        "registry",
+        "installer",
+        "community"
+      ],
+      "icon": "Download",
+      "type": "dagster_component_templates.CommunityComponentInstallerComponent"
     },
     {
       "id": "terraform_cloud_asset",
@@ -5720,7 +5740,7 @@
       "id": "cross_tab",
       "name": "Cross Tab",
       "category": "transformation",
-      "description": "Pivot table / cross-tabulation — rotate column values into new column headers.",
+      "description": "Pivot table / cross-tabulation \u2014 rotate column values into new column headers.",
       "path": "assets/transforms/cross_tab",
       "tags": [
         "transformation",
@@ -5738,7 +5758,7 @@
       "id": "transpose",
       "name": "Transpose",
       "category": "transformation",
-      "description": "Transpose a DataFrame — rows become columns.",
+      "description": "Transpose a DataFrame \u2014 rows become columns.",
       "path": "assets/transforms/transpose",
       "tags": [
         "transformation",
@@ -10640,5 +10660,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 472
+  "total": 473
 }

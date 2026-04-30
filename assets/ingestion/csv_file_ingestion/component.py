@@ -268,12 +268,13 @@ group_name=group_name,
                     context.log.info(f"Caching to parquet: {cache_path}")
                     df.to_parquet(cache_path, index=False)
 
-                # Add row count metadata
+                # Add row count metadata. Cast numpy scalars to native Python
+                # types so Dagster's event log serializer can handle them.
                 context.add_output_metadata({
-                    "num_rows": len(df),
-                    "num_columns": len(df.columns),
+                    "num_rows": int(len(df)),
+                    "num_columns": int(len(df.columns)),
                     "columns": list(df.columns),
-                    "memory_mb": df.memory_usage(deep=True).sum() / 1024 / 1024,
+                    "memory_mb": float(df.memory_usage(deep=True).sum()) / 1024 / 1024,
                 })
 
                 if include_sample and len(df) > 0:

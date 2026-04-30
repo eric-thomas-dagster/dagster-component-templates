@@ -49,7 +49,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ad_spend_standardizer/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ad_spend_standardizer/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ad_spend_standardizer/example.yaml",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ad_spend_standardizer/requirements.txt"
     },
     {
       "id": "airtable_ingestion",
@@ -96,7 +97,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/anomaly_detection/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/anomaly_detection/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/anomaly_detection/example.yaml",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/anomaly_detection/requirements.txt"
     },
     {
       "id": "anthropic_llm",
@@ -169,7 +171,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/campaign_performance/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/campaign_performance/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/campaign_performance/example.yaml",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/campaign_performance/requirements.txt"
     },
     {
       "id": "churn_prediction",
@@ -369,7 +372,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_health_score/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_health_score/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_health_score/example.yaml",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_health_score/requirements.txt"
     },
     {
       "id": "customer_journey_mapping",
@@ -392,7 +396,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_journey_mapping/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_journey_mapping/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_journey_mapping/example.yaml",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_journey_mapping/requirements.txt"
     },
     {
       "id": "customer_segmentation",
@@ -414,7 +419,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_segmentation/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_segmentation/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_segmentation/example.yaml",
-      "icon": "si:segment"
+      "icon": "si:segment",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_segmentation/requirements.txt"
     },
     {
       "id": "database_query",
@@ -1045,7 +1051,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lead_scoring/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lead_scoring/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lead_scoring/example.yaml",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lead_scoring/requirements.txt"
     },
     {
       "id": "linkedin_ads_ingestion",
@@ -1176,7 +1183,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ltv_prediction/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ltv_prediction/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ltv_prediction/example.yaml",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ltv_prediction/requirements.txt"
     },
     {
       "id": "marketing_data_standardizer",
@@ -1301,7 +1309,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/multi_touch_attribution/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/multi_touch_attribution/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/multi_touch_attribution/example.yaml",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/multi_touch_attribution/requirements.txt"
     },
     {
       "id": "notion_ingestion",
@@ -1506,7 +1515,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/product_recommendations/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/product_recommendations/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/product_recommendations/example.yaml",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/product_recommendations/requirements.txt"
     },
     {
       "id": "product_usage_analytics",
@@ -1528,7 +1538,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/product_usage_analytics/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/product_usage_analytics/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/product_usage_analytics/example.yaml",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/product_usage_analytics/requirements.txt"
     },
     {
       "id": "propensity_scoring",
@@ -1550,7 +1561,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/propensity_scoring/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/propensity_scoring/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/propensity_scoring/example.yaml",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/propensity_scoring/requirements.txt"
     },
     {
       "id": "rag_pipeline",
@@ -2326,7 +2338,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/example.yaml",
-      "icon": "si:slack"
+      "icon": "si:slack",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/slack_notification/requirements.txt"
     },
     {
       "id": "s3_monitor",
@@ -4443,7 +4456,13 @@
         "asset"
       ],
       "icon": "ArrowUpFromLine",
-      "type": "dagster_component_templates.EventHubsToDatabaseAssetComponent"
+      "type": "dagster_component_templates.EventHubsToDatabaseAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/eventhubs_to_database_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/eventhubs_to_database_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/eventhubs_to_database_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/eventhubs_to_database_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/eventhubs_to_database_asset/requirements.txt",
+      "component_type": "dagster_component_templates.EventHubsToDatabaseAssetComponent"
     },
     {
       "id": "servicebus_to_database_asset",
@@ -4458,7 +4477,13 @@
         "asset"
       ],
       "icon": "ArrowUpFromLine",
-      "type": "dagster_component_templates.ServiceBusToDatabaseAssetComponent"
+      "type": "dagster_component_templates.ServiceBusToDatabaseAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/servicebus_to_database_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/servicebus_to_database_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/servicebus_to_database_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/servicebus_to_database_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/servicebus_to_database_asset/requirements.txt",
+      "component_type": "dagster_component_templates.ServiceBusToDatabaseAssetComponent"
     },
     {
       "id": "rabbitmq_to_database_asset",
@@ -4473,7 +4498,13 @@
         "asset"
       ],
       "icon": "si:rabbitmq",
-      "type": "dagster_component_templates.RabbitMQToDatabaseAssetComponent"
+      "type": "dagster_component_templates.RabbitMQToDatabaseAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rabbitmq_to_database_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rabbitmq_to_database_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rabbitmq_to_database_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rabbitmq_to_database_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rabbitmq_to_database_asset/requirements.txt",
+      "component_type": "dagster_component_templates.RabbitMQToDatabaseAssetComponent"
     },
     {
       "id": "pubsub_to_database_asset",
@@ -4488,7 +4519,13 @@
         "asset"
       ],
       "icon": "ArrowUpFromLine",
-      "type": "dagster_component_templates.PubSubToDatabaseAssetComponent"
+      "type": "dagster_component_templates.PubSubToDatabaseAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pubsub_to_database_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pubsub_to_database_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pubsub_to_database_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pubsub_to_database_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pubsub_to_database_asset/requirements.txt",
+      "component_type": "dagster_component_templates.PubSubToDatabaseAssetComponent"
     },
     {
       "id": "kinesis_to_database_asset",
@@ -4503,7 +4540,13 @@
         "asset"
       ],
       "icon": "ArrowUpFromLine",
-      "type": "dagster_component_templates.KinesisToDatabaseAssetComponent"
+      "type": "dagster_component_templates.KinesisToDatabaseAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kinesis_to_database_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kinesis_to_database_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kinesis_to_database_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kinesis_to_database_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kinesis_to_database_asset/requirements.txt",
+      "component_type": "dagster_component_templates.KinesisToDatabaseAssetComponent"
     },
     {
       "id": "redis_streams_to_database_asset",
@@ -4519,7 +4562,13 @@
         "asset"
       ],
       "icon": "si:redis",
-      "type": "dagster_component_templates.RedisStreamsToDatabaseAssetComponent"
+      "type": "dagster_component_templates.RedisStreamsToDatabaseAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/redis_streams_to_database_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/redis_streams_to_database_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/redis_streams_to_database_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/redis_streams_to_database_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/redis_streams_to_database_asset/requirements.txt",
+      "component_type": "dagster_component_templates.RedisStreamsToDatabaseAssetComponent"
     },
     {
       "id": "sql_to_database_asset",
@@ -4534,7 +4583,13 @@
         "asset"
       ],
       "icon": "ArrowUpFromLine",
-      "type": "dagster_component_templates.SQLToDatabaseAssetComponent"
+      "type": "dagster_component_templates.SQLToDatabaseAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sql_to_database_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sql_to_database_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sql_to_database_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sql_to_database_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sql_to_database_asset/requirements.txt",
+      "component_type": "dagster_component_templates.SQLToDatabaseAssetComponent"
     },
     {
       "id": "mqtt_to_database_asset",
@@ -4549,7 +4604,13 @@
         "asset"
       ],
       "icon": "ArrowUpFromLine",
-      "type": "dagster_component_templates.MQTTToDatabaseAssetComponent"
+      "type": "dagster_component_templates.MQTTToDatabaseAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/mqtt_to_database_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/mqtt_to_database_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/mqtt_to_database_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/mqtt_to_database_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/mqtt_to_database_asset/requirements.txt",
+      "component_type": "dagster_component_templates.MQTTToDatabaseAssetComponent"
     },
     {
       "id": "nats_to_database_asset",
@@ -4564,7 +4625,13 @@
         "asset"
       ],
       "icon": "ArrowUpFromLine",
-      "type": "dagster_component_templates.NATSToDatabaseAssetComponent"
+      "type": "dagster_component_templates.NATSToDatabaseAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/nats_to_database_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/nats_to_database_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/nats_to_database_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/nats_to_database_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/nats_to_database_asset/requirements.txt",
+      "component_type": "dagster_component_templates.NATSToDatabaseAssetComponent"
     },
     {
       "id": "pulsar_to_database_asset",
@@ -4579,7 +4646,13 @@
         "asset"
       ],
       "icon": "ArrowUpFromLine",
-      "type": "dagster_component_templates.PulsarToDatabaseAssetComponent"
+      "type": "dagster_component_templates.PulsarToDatabaseAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pulsar_to_database_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pulsar_to_database_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pulsar_to_database_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pulsar_to_database_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pulsar_to_database_asset/requirements.txt",
+      "component_type": "dagster_component_templates.PulsarToDatabaseAssetComponent"
     },
     {
       "id": "dbt_docs_enriched_project",
@@ -4594,7 +4667,13 @@
         "project"
       ],
       "icon": "si:dbt",
-      "type": "dagster_component_templates.DbtDocsEnrichedProjectComponent"
+      "type": "dagster_component_templates.DbtDocsEnrichedProjectComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/dbt_docs_enriched_project/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/dbt_docs_enriched_project/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/dbt_docs_enriched_project/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/dbt_docs_enriched_project/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/dbt/dbt_docs_enriched_project/requirements.txt",
+      "component_type": "dagster_component_templates.DbtDocsEnrichedProjectComponent"
     },
     {
       "id": "litellm_inference_asset",
@@ -4609,7 +4688,13 @@
         "asset"
       ],
       "icon": "si:openai",
-      "type": "dagster_component_templates.LiteLLMInferenceAssetComponent"
+      "type": "dagster_component_templates.LiteLLMInferenceAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_inference_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_inference_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_inference_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_inference_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_inference_asset/requirements.txt",
+      "component_type": "dagster_component_templates.LiteLLMInferenceAssetComponent"
     },
     {
       "id": "ollama_inference_asset",
@@ -4624,7 +4709,13 @@
         "asset"
       ],
       "icon": "Sparkles",
-      "type": "dagster_component_templates.OllamaInferenceAssetComponent"
+      "type": "dagster_component_templates.OllamaInferenceAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/ollama_inference_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/ollama_inference_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/ollama_inference_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/ollama_inference_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/ollama_inference_asset/requirements.txt",
+      "component_type": "dagster_component_templates.OllamaInferenceAssetComponent"
     },
     {
       "id": "langchain_chain_asset",
@@ -4639,7 +4730,13 @@
         "asset"
       ],
       "icon": "Sparkles",
-      "type": "dagster_component_templates.LangChainChainAssetComponent"
+      "type": "dagster_component_templates.LangChainChainAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/langchain_chain_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/langchain_chain_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/langchain_chain_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/langchain_chain_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/langchain_chain_asset/requirements.txt",
+      "component_type": "dagster_component_templates.LangChainChainAssetComponent"
     },
     {
       "id": "openapi_asset",
@@ -4653,7 +4750,13 @@
         "asset"
       ],
       "icon": "ArrowUpFromLine",
-      "type": "dagster_component_templates.OpenAPIAssetComponent"
+      "type": "dagster_component_templates.OpenAPIAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/openapi_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/openapi_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/openapi_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/openapi_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/openapi_asset/requirements.txt",
+      "component_type": "dagster_component_templates.OpenAPIAssetComponent"
     },
     {
       "id": "warehouse_schema_assets",
@@ -4668,7 +4771,13 @@
         "assets"
       ],
       "icon": "BarChart2",
-      "type": "dagster_component_templates.WarehouseSchemaAssetsComponent"
+      "type": "dagster_component_templates.WarehouseSchemaAssetsComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/warehouse_schema_assets/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/warehouse_schema_assets/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/warehouse_schema_assets/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/warehouse_schema_assets/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/warehouse_schema_assets/requirements.txt",
+      "component_type": "dagster_component_templates.WarehouseSchemaAssetsComponent"
     },
     {
       "id": "step_functions_asset",
@@ -4683,7 +4792,13 @@
         "asset"
       ],
       "icon": "Server",
-      "type": "dagster_component_templates.StepFunctionsAssetComponent"
+      "type": "dagster_component_templates.StepFunctionsAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/step_functions_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/step_functions_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/step_functions_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/step_functions_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/step_functions_asset/requirements.txt",
+      "component_type": "dagster_component_templates.StepFunctionsAssetComponent"
     },
     {
       "id": "dataiku_asset",
@@ -4697,7 +4812,13 @@
         "asset"
       ],
       "icon": "BarChart2",
-      "type": "dagster_component_templates.DataikuAssetComponent"
+      "type": "dagster_component_templates.DataikuAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/dataiku_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/dataiku_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/dataiku_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/dataiku_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/dataiku_asset/requirements.txt",
+      "component_type": "dagster_component_templates.DataikuAssetComponent"
     },
     {
       "id": "polytomic_asset",
@@ -4711,7 +4832,13 @@
         "asset"
       ],
       "icon": "ArrowDownToLine",
-      "type": "dagster_component_templates.PolytomicAssetComponent"
+      "type": "dagster_component_templates.PolytomicAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/polytomic_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/polytomic_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/polytomic_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/polytomic_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/polytomic_asset/requirements.txt",
+      "component_type": "dagster_component_templates.PolytomicAssetComponent"
     },
     {
       "id": "terraform_asset",
@@ -4725,7 +4852,13 @@
         "asset"
       ],
       "icon": "Server",
-      "type": "dagster_component_templates.TerraformAssetComponent"
+      "type": "dagster_component_templates.TerraformAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/terraform_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/terraform_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/terraform_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/terraform_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/terraform_asset/requirements.txt",
+      "component_type": "dagster_component_templates.TerraformAssetComponent"
     },
     {
       "id": "community_component_installer",
@@ -4745,7 +4878,8 @@
         "community"
       ],
       "icon": "Download",
-      "type": "dagster_component_templates.CommunityComponentInstallerComponent"
+      "type": "dagster_component_templates.CommunityComponentInstallerComponent",
+      "component_type": "dagster_component_templates.CommunityComponentInstallerComponent"
     },
     {
       "id": "terraform_cloud_asset",
@@ -4760,7 +4894,13 @@
         "asset"
       ],
       "icon": "Server",
-      "type": "dagster_component_templates.TerraformCloudAssetComponent"
+      "type": "dagster_component_templates.TerraformCloudAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/terraform_cloud_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/terraform_cloud_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/terraform_cloud_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/terraform_cloud_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/terraform_cloud_asset/requirements.txt",
+      "component_type": "dagster_component_templates.TerraformCloudAssetComponent"
     },
     {
       "id": "cloudformation_asset",
@@ -4774,7 +4914,13 @@
         "asset"
       ],
       "icon": "Server",
-      "type": "dagster_component_templates.CloudFormationAssetComponent"
+      "type": "dagster_component_templates.CloudFormationAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cloudformation_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cloudformation_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cloudformation_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cloudformation_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cloudformation_asset/requirements.txt",
+      "component_type": "dagster_component_templates.CloudFormationAssetComponent"
     },
     {
       "id": "ansible_asset",
@@ -4788,7 +4934,13 @@
         "asset"
       ],
       "icon": "si:ansible",
-      "type": "dagster_component_templates.AnsibleAssetComponent"
+      "type": "dagster_component_templates.AnsibleAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/ansible_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/ansible_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/ansible_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/ansible_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/ansible_asset/requirements.txt",
+      "component_type": "dagster_component_templates.AnsibleAssetComponent"
     },
     {
       "id": "pulumi_asset",
@@ -4802,7 +4954,13 @@
         "asset"
       ],
       "icon": "si:pulumi",
-      "type": "dagster_component_templates.PulumiAssetComponent"
+      "type": "dagster_component_templates.PulumiAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pulumi_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pulumi_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pulumi_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pulumi_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/pulumi_asset/requirements.txt",
+      "component_type": "dagster_component_templates.PulumiAssetComponent"
     },
     {
       "id": "helm_deploy",
@@ -4816,7 +4974,13 @@
         "deploy"
       ],
       "icon": "Server",
-      "type": "dagster_component_templates.HelmDeployComponent"
+      "type": "dagster_component_templates.HelmDeployComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/helm_deploy/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/helm_deploy/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/helm_deploy/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/helm_deploy/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/helm_deploy/requirements.txt",
+      "component_type": "dagster_component_templates.HelmDeployComponent"
     },
     {
       "id": "aws_cdk_asset",
@@ -4831,7 +4995,13 @@
         "asset"
       ],
       "icon": "Server",
-      "type": "dagster_component_templates.AWSCDKAssetComponent"
+      "type": "dagster_component_templates.AWSCDKAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/aws_cdk_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/aws_cdk_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/aws_cdk_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/aws_cdk_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/aws_cdk_asset/requirements.txt",
+      "component_type": "dagster_component_templates.AWSCDKAssetComponent"
     },
     {
       "id": "ssh_asset",
@@ -4845,7 +5015,13 @@
         "asset"
       ],
       "icon": "ArrowUpFromLine",
-      "type": "dagster_component_templates.SSHAssetComponent"
+      "type": "dagster_component_templates.SSHAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/ssh_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/ssh_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/ssh_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/ssh_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/ssh_asset/requirements.txt",
+      "component_type": "dagster_component_templates.SSHAssetComponent"
     },
     {
       "id": "hashicorp_vault",
@@ -4859,7 +5035,13 @@
         "vault"
       ],
       "icon": "Server",
-      "type": "dagster_component_templates.VaultAssetComponent"
+      "type": "dagster_component_templates.VaultAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/hashicorp_vault/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/hashicorp_vault/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/hashicorp_vault/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/hashicorp_vault/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/hashicorp_vault/requirements.txt",
+      "component_type": "dagster_component_templates.VaultAssetComponent"
     },
     {
       "id": "jupyter_notebook_asset",
@@ -4874,7 +5056,13 @@
         "asset"
       ],
       "icon": "si:jupyter",
-      "type": "dagster_component_templates.JupyterNotebookAssetComponent"
+      "type": "dagster_component_templates.JupyterNotebookAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/jupyter_notebook_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/jupyter_notebook_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/jupyter_notebook_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/jupyter_notebook_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/jupyter_notebook_asset/requirements.txt",
+      "component_type": "dagster_component_templates.JupyterNotebookAssetComponent"
     },
     {
       "id": "modal_asset",
@@ -4888,7 +5076,13 @@
         "asset"
       ],
       "icon": "si:modal",
-      "type": "dagster_component_templates.ModalAssetComponent"
+      "type": "dagster_component_templates.ModalAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/modal_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/modal_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/modal_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/modal_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/modal_asset/requirements.txt",
+      "component_type": "dagster_component_templates.ModalAssetComponent"
     },
     {
       "id": "pinecone_asset",
@@ -4902,7 +5096,13 @@
         "asset"
       ],
       "icon": "si:pinecone",
-      "type": "dagster_component_templates.PineconeAssetComponent"
+      "type": "dagster_component_templates.PineconeAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pinecone_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pinecone_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pinecone_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pinecone_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pinecone_asset/requirements.txt",
+      "component_type": "dagster_component_templates.PineconeAssetComponent"
     },
     {
       "id": "mlflow_model_sensor",
@@ -4916,7 +5116,13 @@
         "model"
       ],
       "icon": "Radar",
-      "type": "dagster_component_templates.MLflowModelSensor"
+      "type": "dagster_component_templates.MLflowModelSensor",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mlflow_model_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mlflow_model_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mlflow_model_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mlflow_model_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mlflow_model_sensor/requirements.txt",
+      "component_type": "dagster_component_templates.MLflowModelSensor"
     },
     {
       "id": "autosys_asset",
@@ -4930,7 +5136,13 @@
         "asset"
       ],
       "icon": "Server",
-      "type": "dagster_component_templates.AutoSysAssetComponent"
+      "type": "dagster_component_templates.AutoSysAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/autosys_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/autosys_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/autosys_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/autosys_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/autosys_asset/requirements.txt",
+      "component_type": "dagster_component_templates.AutoSysAssetComponent"
     },
     {
       "id": "twilio_notification",
@@ -4944,7 +5156,13 @@
         "notification"
       ],
       "icon": "si:twilio",
-      "type": "dagster_component_templates.TwilioNotificationSensor"
+      "type": "dagster_component_templates.TwilioNotificationSensor",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/twilio_notification/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/twilio_notification/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/twilio_notification/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/twilio_notification/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/twilio_notification/requirements.txt",
+      "component_type": "dagster_component_templates.TwilioNotificationSensor"
     },
     {
       "id": "elasticsearch_asset",
@@ -6811,7 +7029,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/cassandra_reader/schema.json",
       "component_type": "dagster_component_templates.CassandraReaderComponent",
-      "icon": "si:apachecassandra"
+      "icon": "si:apachecassandra",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/cassandra_reader/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/cassandra_reader/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/cassandra_reader/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/cassandra_reader/requirements.txt"
     },
     {
       "id": "cosmosdb_reader",
@@ -6826,7 +7048,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/cosmosdb_reader/schema.json",
       "component_type": "dagster_component_templates.CosmosdbReaderComponent",
-      "icon": "si:microsoftazure"
+      "icon": "si:microsoftazure",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/cosmosdb_reader/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/cosmosdb_reader/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/cosmosdb_reader/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/cosmosdb_reader/requirements.txt"
     },
     {
       "id": "couchdb_reader",
@@ -6841,7 +7067,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/couchdb_reader/schema.json",
       "component_type": "dagster_component_templates.CouchdbReaderComponent",
-      "icon": "si:apachecouchdb"
+      "icon": "si:apachecouchdb",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/couchdb_reader/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/couchdb_reader/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/couchdb_reader/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/couchdb_reader/requirements.txt"
     },
     {
       "id": "dynamodb_reader",
@@ -6856,7 +7086,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dynamodb_reader/schema.json",
       "component_type": "dagster_component_templates.DynamodbReaderComponent",
-      "icon": "si:amazondynamodb"
+      "icon": "si:amazondynamodb",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dynamodb_reader/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dynamodb_reader/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dynamodb_reader/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dynamodb_reader/requirements.txt"
     },
     {
       "id": "firestore_reader",
@@ -6871,7 +7105,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/firestore_reader/schema.json",
       "component_type": "dagster_component_templates.FirestoreReaderComponent",
-      "icon": "si:firebase"
+      "icon": "si:firebase",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/firestore_reader/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/firestore_reader/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/firestore_reader/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/firestore_reader/requirements.txt"
     },
     {
       "id": "mongodb_reader",
@@ -6886,7 +7124,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mongodb_reader/schema.json",
       "component_type": "dagster_component_templates.MongodbReaderComponent",
-      "icon": "si:mongodb"
+      "icon": "si:mongodb",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mongodb_reader/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mongodb_reader/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mongodb_reader/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mongodb_reader/requirements.txt"
     },
     {
       "id": "neo4j_reader",
@@ -6901,7 +7143,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/neo4j_reader/schema.json",
       "component_type": "dagster_component_templates.Neo4jReaderComponent",
-      "icon": "si:neo4j"
+      "icon": "si:neo4j",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/neo4j_reader/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/neo4j_reader/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/neo4j_reader/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/neo4j_reader/requirements.txt"
     },
     {
       "id": "redis_reader",
@@ -6916,7 +7162,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/redis_reader/schema.json",
       "component_type": "dagster_component_templates.RedisReaderComponent",
-      "icon": "si:redis"
+      "icon": "si:redis",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/redis_reader/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/redis_reader/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/redis_reader/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/redis_reader/requirements.txt"
     },
     {
       "id": "arrange",
@@ -6930,7 +7180,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/arrange/schema.json",
       "component_type": "dagster_component_templates.ArrangeComponent",
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/arrange/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/arrange/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/arrange/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/arrange/requirements.txt"
     },
     {
       "id": "auto_field",
@@ -6945,7 +7199,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/auto_field/schema.json",
       "component_type": "dagster_component_templates.AutoFieldComponent",
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/auto_field/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/auto_field/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/auto_field/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/auto_field/requirements.txt"
     },
     {
       "id": "count_records",
@@ -6960,7 +7218,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/count_records/schema.json",
       "component_type": "dagster_component_templates.CountRecordsComponent",
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/count_records/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/count_records/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/count_records/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/count_records/requirements.txt"
     },
     {
       "id": "create_samples",
@@ -6975,7 +7237,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/create_samples/schema.json",
       "component_type": "dagster_component_templates.CreateSamplesComponent",
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/create_samples/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/create_samples/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/create_samples/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/create_samples/requirements.txt"
     },
     {
       "id": "filter",
@@ -6989,7 +7255,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/filter/schema.json",
       "component_type": "dagster_component_templates.FilterComponent",
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/filter/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/filter/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/filter/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/filter/requirements.txt"
     },
     {
       "id": "generate_rows",
@@ -7004,7 +7274,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/generate_rows/schema.json",
       "component_type": "dagster_component_templates.GenerateRowsComponent",
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/generate_rows/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/generate_rows/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/generate_rows/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/generate_rows/requirements.txt"
     },
     {
       "id": "make_columns",
@@ -7019,7 +7293,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/make_columns/schema.json",
       "component_type": "dagster_component_templates.MakeColumnsComponent",
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/make_columns/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/make_columns/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/make_columns/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/make_columns/requirements.txt"
     },
     {
       "id": "multi_field_formula",
@@ -7035,7 +7313,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/multi_field_formula/schema.json",
       "component_type": "dagster_component_templates.MultiFieldFormulaComponent",
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/multi_field_formula/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/multi_field_formula/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/multi_field_formula/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/multi_field_formula/requirements.txt"
     },
     {
       "id": "sample",
@@ -7049,7 +7331,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/sample/schema.json",
       "component_type": "dagster_component_templates.SampleComponent",
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/sample/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/sample/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/sample/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/sample/requirements.txt"
     },
     {
       "id": "select_columns",
@@ -7064,7 +7350,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/select_columns/schema.json",
       "component_type": "dagster_component_templates.SelectColumnsComponent",
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/select_columns/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/select_columns/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/select_columns/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/select_columns/requirements.txt"
     },
     {
       "id": "sort",
@@ -7078,7 +7368,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/sort/schema.json",
       "component_type": "dagster_component_templates.SortComponent",
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/sort/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/sort/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/sort/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/sort/requirements.txt"
     },
     {
       "id": "cassandra_writer",
@@ -7094,7 +7388,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cassandra_writer/schema.json",
       "component_type": "dagster_component_templates.cassandra_writer",
-      "icon": "si:apachecassandra"
+      "icon": "si:apachecassandra",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cassandra_writer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cassandra_writer/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cassandra_writer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cassandra_writer/requirements.txt"
     },
     {
       "id": "cosmosdb_writer",
@@ -7111,7 +7409,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cosmosdb_writer/schema.json",
       "component_type": "dagster_component_templates.cosmosdb_writer",
-      "icon": "si:microsoftazure"
+      "icon": "si:microsoftazure",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cosmosdb_writer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cosmosdb_writer/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cosmosdb_writer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cosmosdb_writer/requirements.txt"
     },
     {
       "id": "dynamodb_writer",
@@ -7126,7 +7428,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dynamodb_writer/schema.json",
       "component_type": "dagster_component_templates.DynamodbWriterComponent",
-      "icon": "si:amazondynamodb"
+      "icon": "si:amazondynamodb",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dynamodb_writer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dynamodb_writer/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dynamodb_writer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dynamodb_writer/requirements.txt"
     },
     {
       "id": "firestore_writer",
@@ -7143,7 +7449,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/firestore_writer/schema.json",
       "component_type": "dagster_component_templates.firestore_writer",
-      "icon": "si:firebase"
+      "icon": "si:firebase",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/firestore_writer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/firestore_writer/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/firestore_writer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/firestore_writer/requirements.txt"
     },
     {
       "id": "mongodb_writer",
@@ -7158,7 +7468,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/mongodb_writer/schema.json",
       "component_type": "dagster_component_templates.MongodbWriterComponent",
-      "icon": "si:mongodb"
+      "icon": "si:mongodb",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/mongodb_writer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/mongodb_writer/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/mongodb_writer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/mongodb_writer/requirements.txt"
     },
     {
       "id": "redis_writer",
@@ -7174,7 +7488,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/redis_writer/schema.json",
       "component_type": "dagster_component_templates.redis_writer",
-      "icon": "si:redis"
+      "icon": "si:redis",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/redis_writer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/redis_writer/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/redis_writer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/redis_writer/requirements.txt"
     },
     {
       "id": "bounding_box_filter",
@@ -7190,7 +7508,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/bounding_box_filter/schema.json",
       "component_type": "dagster_component_templates.BoundingBoxFilterComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/bounding_box_filter/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/bounding_box_filter/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/bounding_box_filter/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/bounding_box_filter/requirements.txt"
     },
     {
       "id": "coordinate_transformer",
@@ -7205,7 +7527,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/coordinate_transformer/schema.json",
       "component_type": "dagster_component_templates.CoordinateTransformerComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/coordinate_transformer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/coordinate_transformer/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/coordinate_transformer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/coordinate_transformer/requirements.txt"
     },
     {
       "id": "cross_validation",
@@ -7220,7 +7546,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/cross_validation/schema.json",
       "component_type": "dagster_component_templates.CrossValidationComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/cross_validation/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/cross_validation/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/cross_validation/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/cross_validation/requirements.txt"
     },
     {
       "id": "distance_calculator",
@@ -7235,7 +7565,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/distance_calculator/schema.json",
       "component_type": "dagster_component_templates.DistanceCalculatorComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/distance_calculator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/distance_calculator/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/distance_calculator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/distance_calculator/requirements.txt"
     },
     {
       "id": "gradient_boosting_model",
@@ -7251,7 +7585,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/gradient_boosting_model/schema.json",
       "component_type": "dagster_component_templates.GradientBoostingModelComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/gradient_boosting_model/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/gradient_boosting_model/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/gradient_boosting_model/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/gradient_boosting_model/requirements.txt"
     },
     {
       "id": "lift_chart",
@@ -7266,7 +7604,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lift_chart/schema.json",
       "component_type": "dagster_component_templates.LiftChartComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lift_chart/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lift_chart/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lift_chart/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lift_chart/requirements.txt"
     },
     {
       "id": "model_comparison",
@@ -7281,7 +7623,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_comparison/schema.json",
       "component_type": "dagster_component_templates.ModelComparisonComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_comparison/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_comparison/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_comparison/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_comparison/requirements.txt"
     },
     {
       "id": "naive_bayes_model",
@@ -7297,7 +7643,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/naive_bayes_model/schema.json",
       "component_type": "dagster_component_templates.NaiveBayesModelComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/naive_bayes_model/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/naive_bayes_model/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/naive_bayes_model/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/naive_bayes_model/requirements.txt"
     },
     {
       "id": "neural_network_model",
@@ -7313,7 +7663,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/neural_network_model/schema.json",
       "component_type": "dagster_component_templates.NeuralNetworkModelComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/neural_network_model/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/neural_network_model/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/neural_network_model/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/neural_network_model/requirements.txt"
     },
     {
       "id": "oversample_field",
@@ -7328,7 +7682,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/oversample_field/schema.json",
       "component_type": "dagster_component_templates.OversampleFieldComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/oversample_field/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/oversample_field/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/oversample_field/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/oversample_field/requirements.txt"
     },
     {
       "id": "point_in_polygon",
@@ -7343,7 +7701,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/point_in_polygon/schema.json",
       "component_type": "dagster_component_templates.PointInPolygonComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/point_in_polygon/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/point_in_polygon/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/point_in_polygon/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/point_in_polygon/requirements.txt"
     },
     {
       "id": "reverse_geocoder",
@@ -7358,7 +7720,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/reverse_geocoder/schema.json",
       "component_type": "dagster_component_templates.ReverseGeocoderComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/reverse_geocoder/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/reverse_geocoder/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/reverse_geocoder/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/reverse_geocoder/requirements.txt"
     },
     {
       "id": "spatial_cluster",
@@ -7373,7 +7739,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/spatial_cluster/schema.json",
       "component_type": "dagster_component_templates.SpatialClusterComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/spatial_cluster/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/spatial_cluster/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/spatial_cluster/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/spatial_cluster/requirements.txt"
     },
     {
       "id": "spatial_join",
@@ -7388,7 +7758,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/spatial_join/schema.json",
       "component_type": "dagster_component_templates.SpatialJoinComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/spatial_join/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/spatial_join/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/spatial_join/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/spatial_join/requirements.txt"
     },
     {
       "id": "survival_analysis",
@@ -7403,7 +7777,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/survival_analysis/schema.json",
       "component_type": "dagster_component_templates.SurvivalAnalysisComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/survival_analysis/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/survival_analysis/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/survival_analysis/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/survival_analysis/requirements.txt"
     },
     {
       "id": "ts_compare",
@@ -7417,7 +7795,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_compare/schema.json",
       "component_type": "dagster_component_templates.TsCompareComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_compare/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_compare/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_compare/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_compare/requirements.txt"
     },
     {
       "id": "ts_forecast",
@@ -7431,7 +7813,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_forecast/schema.json",
       "component_type": "dagster_component_templates.TsForecastComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_forecast/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_forecast/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_forecast/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_forecast/requirements.txt"
     },
     {
       "id": "ts_model_factory",
@@ -7446,7 +7832,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_model_factory/schema.json",
       "component_type": "dagster_component_templates.TsModelFactoryComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_model_factory/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_model_factory/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_model_factory/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_model_factory/requirements.txt"
     },
     {
       "id": "invoice_extractor",
@@ -7461,7 +7851,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/invoice_extractor/schema.json",
       "component_type": "dagster_component_templates.InvoiceExtractorComponent",
-      "icon": "Sparkles"
+      "icon": "Sparkles",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/invoice_extractor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/invoice_extractor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/invoice_extractor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/invoice_extractor/requirements.txt"
     },
     {
       "id": "part_of_speech_tagger",
@@ -7477,7 +7871,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/part_of_speech_tagger/schema.json",
       "component_type": "dagster_component_templates.PartOfSpeechTaggerComponent",
-      "icon": "Sparkles"
+      "icon": "Sparkles",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/part_of_speech_tagger/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/part_of_speech_tagger/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/part_of_speech_tagger/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/part_of_speech_tagger/requirements.txt"
     },
     {
       "id": "schema_fit",
@@ -7492,7 +7890,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/schema_fit/schema.json",
       "component_type": "dagster_component_templates.SchemaFitComponent",
-      "icon": "Sparkles"
+      "icon": "Sparkles",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/schema_fit/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/schema_fit/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/schema_fit/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/schema_fit/requirements.txt"
     },
     {
       "id": "word_cloud",
@@ -7507,7 +7909,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/word_cloud/schema.json",
       "component_type": "dagster_component_templates.WordCloudComponent",
-      "icon": "Sparkles"
+      "icon": "Sparkles",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/word_cloud/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/word_cloud/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/word_cloud/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/word_cloud/requirements.txt"
     },
     {
       "id": "zero_shot_classifier",
@@ -7523,7 +7929,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/zero_shot_classifier/schema.json",
       "component_type": "dagster_component_templates.ZeroShotClassifierComponent",
-      "icon": "Sparkles"
+      "icon": "Sparkles",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/zero_shot_classifier/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/zero_shot_classifier/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/zero_shot_classifier/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/zero_shot_classifier/requirements.txt"
     },
     {
       "id": "json_flatten",
@@ -7540,7 +7950,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/json_flatten/schema.json",
       "component_type": "dagster_component_templates.JsonFlattenComponent",
-      "icon": "Braces"
+      "icon": "Braces",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/json_flatten/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/json_flatten/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/json_flatten/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/json_flatten/requirements.txt"
     },
     {
       "id": "array_exploder",
@@ -7557,7 +7971,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/array_exploder/schema.json",
       "component_type": "dagster_component_templates.ArrayExploderComponent",
-      "icon": "Rows"
+      "icon": "Rows",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/array_exploder/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/array_exploder/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/array_exploder/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/array_exploder/requirements.txt"
     },
     {
       "id": "json_path_extractor",
@@ -7574,7 +7992,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/json_path_extractor/schema.json",
       "component_type": "dagster_component_templates.JsonPathExtractorComponent",
-      "icon": "Search"
+      "icon": "Search",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/json_path_extractor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/json_path_extractor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/json_path_extractor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/json_path_extractor/requirements.txt"
     },
     {
       "id": "nested_field_extractor",
@@ -7591,7 +8013,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/nested_field_extractor/schema.json",
       "component_type": "dagster_component_templates.NestedFieldExtractorComponent",
-      "icon": "GitBranch"
+      "icon": "GitBranch",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/nested_field_extractor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/nested_field_extractor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/nested_field_extractor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/nested_field_extractor/requirements.txt"
     },
     {
       "id": "schema_validator",
@@ -7608,7 +8034,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/schema_validator/schema.json",
       "component_type": "dagster_component_templates.SchemaValidatorComponent",
-      "icon": "CheckCircle"
+      "icon": "CheckCircle",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/schema_validator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/schema_validator/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/schema_validator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/schema_validator/requirements.txt"
     },
     {
       "id": "type_coercer",
@@ -7625,7 +8055,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/type_coercer/schema.json",
       "component_type": "dagster_component_templates.TypeCoercerComponent",
-      "icon": "RefreshCw"
+      "icon": "RefreshCw",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/type_coercer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/type_coercer/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/type_coercer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/type_coercer/requirements.txt"
     },
     {
       "id": "html_parser",
@@ -7642,7 +8076,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/html_parser/schema.json",
       "component_type": "dagster_component_templates.HtmlParserComponent",
-      "icon": "Code"
+      "icon": "Code",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/html_parser/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/html_parser/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/html_parser/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/html_parser/requirements.txt"
     },
     {
       "id": "pdf_text_extractor",
@@ -7659,7 +8097,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pdf_text_extractor/schema.json",
       "component_type": "dagster_component_templates.PdfTextExtractorComponent",
-      "icon": "FileText"
+      "icon": "FileText",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pdf_text_extractor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pdf_text_extractor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pdf_text_extractor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pdf_text_extractor/requirements.txt"
     },
     {
       "id": "email_parser",
@@ -7676,7 +8118,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/email_parser/schema.json",
       "component_type": "dagster_component_templates.EmailParserComponent",
-      "icon": "Mail"
+      "icon": "Mail",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/email_parser/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/email_parser/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/email_parser/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/email_parser/requirements.txt"
     },
     {
       "id": "markdown_stripper",
@@ -7693,7 +8139,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/markdown_stripper/schema.json",
       "component_type": "dagster_component_templates.MarkdownStripperComponent",
-      "icon": "Type"
+      "icon": "Type",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/markdown_stripper/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/markdown_stripper/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/markdown_stripper/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/markdown_stripper/requirements.txt"
     },
     {
       "id": "field_mapper",
@@ -7710,7 +8160,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/field_mapper/schema.json",
       "component_type": "dagster_component_templates.FieldMapperComponent",
-      "icon": "ArrowRightLeft"
+      "icon": "ArrowRightLeft",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/field_mapper/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/field_mapper/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/field_mapper/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/field_mapper/requirements.txt"
     },
     {
       "id": "document_merger",
@@ -7727,7 +8181,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/document_merger/schema.json",
       "component_type": "dagster_component_templates.DocumentMergerComponent",
-      "icon": "GitMerge"
+      "icon": "GitMerge",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/document_merger/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/document_merger/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/document_merger/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/document_merger/requirements.txt"
     },
     {
       "id": "litellm_batch_completion",
@@ -7745,7 +8203,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_batch_completion/schema.json",
       "component_type": "dagster_component_templates.LitellmBatchCompletionComponent",
-      "icon": "si:openai"
+      "icon": "si:openai",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_batch_completion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_batch_completion/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_batch_completion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_batch_completion/requirements.txt"
     },
     {
       "id": "litellm_structured_output",
@@ -7763,7 +8225,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_structured_output/schema.json",
       "component_type": "dagster_component_templates.LitellmStructuredOutputComponent",
-      "icon": "si:openai"
+      "icon": "si:openai",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_structured_output/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_structured_output/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_structured_output/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_structured_output/requirements.txt"
     },
     {
       "id": "litellm_function_calling",
@@ -7781,7 +8247,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_function_calling/schema.json",
       "component_type": "dagster_component_templates.LitellmFunctionCallingComponent",
-      "icon": "si:openai"
+      "icon": "si:openai",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_function_calling/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_function_calling/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_function_calling/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_function_calling/requirements.txt"
     },
     {
       "id": "litellm_image_generation",
@@ -7799,7 +8269,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_image_generation/schema.json",
       "component_type": "dagster_component_templates.LitellmImageGenerationComponent",
-      "icon": "si:openai"
+      "icon": "si:openai",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_image_generation/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_image_generation/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_image_generation/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_image_generation/requirements.txt"
     },
     {
       "id": "litellm_audio_transcription",
@@ -7817,7 +8291,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_audio_transcription/schema.json",
       "component_type": "dagster_component_templates.LitellmAudioTranscriptionComponent",
-      "icon": "si:openai"
+      "icon": "si:openai",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_audio_transcription/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_audio_transcription/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_audio_transcription/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_audio_transcription/requirements.txt"
     },
     {
       "id": "litellm_embedding_batch",
@@ -7835,7 +8313,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_embedding_batch/schema.json",
       "component_type": "dagster_component_templates.LitellmEmbeddingBatchComponent",
-      "icon": "si:openai"
+      "icon": "si:openai",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_embedding_batch/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_embedding_batch/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_embedding_batch/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_embedding_batch/requirements.txt"
     },
     {
       "id": "instructor_extractor",
@@ -7853,7 +8335,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/instructor_extractor/schema.json",
       "component_type": "dagster_component_templates.InstructorExtractorComponent",
-      "icon": "FileCheck"
+      "icon": "FileCheck",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/instructor_extractor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/instructor_extractor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/instructor_extractor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/instructor_extractor/requirements.txt"
     },
     {
       "id": "dspy_program",
@@ -7871,7 +8357,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dspy_program/schema.json",
       "component_type": "dagster_component_templates.DspyProgramComponent",
-      "icon": "Cpu"
+      "icon": "Cpu",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dspy_program/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dspy_program/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dspy_program/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dspy_program/requirements.txt"
     },
     {
       "id": "llm_judge",
@@ -7889,7 +8379,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_judge/schema.json",
       "component_type": "dagster_component_templates.LlmJudgeComponent",
-      "icon": "Star"
+      "icon": "Star",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_judge/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_judge/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_judge/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_judge/requirements.txt"
     },
     {
       "id": "pii_detector",
@@ -7906,7 +8400,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/pii_detector/schema.json",
       "component_type": "dagster_component_templates.PiiDetectorComponent",
-      "icon": "ShieldAlert"
+      "icon": "ShieldAlert",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/pii_detector/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/pii_detector/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/pii_detector/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/pii_detector/requirements.txt"
     },
     {
       "id": "pii_redactor",
@@ -7924,7 +8422,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/pii_redactor/schema.json",
       "component_type": "dagster_component_templates.PiiRedactorComponent",
-      "icon": "EyeOff"
+      "icon": "EyeOff",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/pii_redactor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/pii_redactor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/pii_redactor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/pii_redactor/requirements.txt"
     },
     {
       "id": "language_detector",
@@ -7940,7 +8442,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/language_detector/schema.json",
       "component_type": "dagster_component_templates.LanguageDetectorComponent",
-      "icon": "Globe"
+      "icon": "Globe",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/language_detector/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/language_detector/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/language_detector/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/language_detector/requirements.txt"
     },
     {
       "id": "text_similarity",
@@ -7957,7 +8463,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_similarity/schema.json",
       "component_type": "dagster_component_templates.TextSimilarityComponent",
-      "icon": "GitCompare"
+      "icon": "GitCompare",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_similarity/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_similarity/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_similarity/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_similarity/requirements.txt"
     },
     {
       "id": "keyword_extractor",
@@ -7974,7 +8484,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/keyword_extractor/schema.json",
       "component_type": "dagster_component_templates.KeywordExtractorComponent",
-      "icon": "Tag"
+      "icon": "Tag",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/keyword_extractor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/keyword_extractor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/keyword_extractor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/keyword_extractor/requirements.txt"
     },
     {
       "id": "topic_modeler",
@@ -7992,7 +8506,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/topic_modeler/schema.json",
       "component_type": "dagster_component_templates.TopicModelerComponent",
-      "icon": "Layers"
+      "icon": "Layers",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/topic_modeler/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/topic_modeler/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/topic_modeler/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/topic_modeler/requirements.txt"
     },
     {
       "id": "audio_transcriber",
@@ -8009,7 +8527,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/audio_transcriber/schema.json",
       "component_type": "dagster_component_templates.AudioTranscriberComponent",
-      "icon": "Mic"
+      "icon": "Mic",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/audio_transcriber/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/audio_transcriber/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/audio_transcriber/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/audio_transcriber/requirements.txt"
     },
     {
       "id": "image_captioner",
@@ -8026,7 +8548,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_captioner/schema.json",
       "component_type": "dagster_component_templates.ImageCaptionerComponent",
-      "icon": "Image"
+      "icon": "Image",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_captioner/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_captioner/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_captioner/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_captioner/requirements.txt"
     },
     {
       "id": "sql_generator",
@@ -8043,7 +8569,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/sql_generator/schema.json",
       "component_type": "dagster_component_templates.SqlGeneratorComponent",
-      "icon": "Database"
+      "icon": "Database",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/sql_generator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/sql_generator/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/sql_generator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/sql_generator/requirements.txt"
     },
     {
       "id": "data_enricher",
@@ -8060,7 +8590,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/data_enricher/schema.json",
       "component_type": "dagster_component_templates.DataEnricherComponent",
-      "icon": "Sparkles"
+      "icon": "Sparkles",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/data_enricher/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/data_enricher/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/data_enricher/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/data_enricher/requirements.txt"
     },
     {
       "id": "cross_encoder",
@@ -8078,7 +8612,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cross_encoder/schema.json",
       "component_type": "dagster_component_templates.CrossEncoderComponent",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cross_encoder/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cross_encoder/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cross_encoder/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cross_encoder/requirements.txt"
     },
     {
       "id": "haystack_pipeline",
@@ -8096,7 +8634,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/haystack_pipeline/schema.json",
       "component_type": "dagster_component_templates.HaystackPipelineComponent",
-      "icon": "GitBranch"
+      "icon": "GitBranch",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/haystack_pipeline/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/haystack_pipeline/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/haystack_pipeline/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/haystack_pipeline/requirements.txt"
     },
     {
       "id": "address_parser",
@@ -8113,7 +8655,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_parser/schema.json",
       "component_type": "dagster_component_templates.AddressParserComponent",
-      "icon": "MapPin"
+      "icon": "MapPin",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_parser/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_parser/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_parser/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_parser/requirements.txt"
     },
     {
       "id": "address_standardizer",
@@ -8130,7 +8676,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardizer/schema.json",
       "component_type": "dagster_component_templates.AddressStandardizerComponent",
-      "icon": "CheckSquare"
+      "icon": "CheckSquare",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardizer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardizer/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardizer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardizer/requirements.txt"
     },
     {
       "id": "ocr_extractor",
@@ -8146,7 +8696,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/ocr_extractor/schema.json",
       "component_type": "dagster_component_templates.OcrExtractorComponent",
-      "icon": "ScanText"
+      "icon": "ScanText",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/ocr_extractor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/ocr_extractor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/ocr_extractor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/ocr_extractor/requirements.txt"
     },
     {
       "id": "image_classifier",
@@ -8162,7 +8716,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_classifier/schema.json",
       "component_type": "dagster_component_templates.ImageClassifierComponent",
-      "icon": "Tag"
+      "icon": "Tag",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_classifier/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_classifier/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_classifier/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_classifier/requirements.txt"
     },
     {
       "id": "image_object_detector",
@@ -8178,7 +8736,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_object_detector/schema.json",
       "component_type": "dagster_component_templates.ImageObjectDetectorComponent",
-      "icon": "Crosshair"
+      "icon": "Crosshair",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_object_detector/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_object_detector/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_object_detector/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_object_detector/requirements.txt"
     },
     {
       "id": "image_llm_extractor",
@@ -8195,7 +8757,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_llm_extractor/schema.json",
       "component_type": "dagster_component_templates.ImageLlmExtractorComponent",
-      "icon": "Scan"
+      "icon": "Scan",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_llm_extractor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_llm_extractor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_llm_extractor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_llm_extractor/requirements.txt"
     },
     {
       "id": "document_layout_analyzer",
@@ -8212,7 +8778,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_layout_analyzer/schema.json",
       "component_type": "dagster_component_templates.DocumentLayoutAnalyzerComponent",
-      "icon": "Layout"
+      "icon": "Layout",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_layout_analyzer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_layout_analyzer/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_layout_analyzer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_layout_analyzer/requirements.txt"
     },
     {
       "id": "image_similarity_scorer",
@@ -8229,7 +8799,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_similarity_scorer/schema.json",
       "component_type": "dagster_component_templates.ImageSimilarityScorerComponent",
-      "icon": "GitCompare"
+      "icon": "GitCompare",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_similarity_scorer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_similarity_scorer/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_similarity_scorer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_similarity_scorer/requirements.txt"
     },
     {
       "id": "face_detector",
@@ -8245,7 +8819,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/face_detector/schema.json",
       "component_type": "dagster_component_templates.FaceDetectorComponent",
-      "icon": "SmilePlus"
+      "icon": "SmilePlus",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/face_detector/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/face_detector/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/face_detector/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/face_detector/requirements.txt"
     },
     {
       "id": "image_metadata_extractor",
@@ -8262,7 +8840,11 @@
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_metadata_extractor/schema.json",
       "component_type": "dagster_component_templates.ImageMetadataExtractorComponent",
-      "icon": "Camera"
+      "icon": "Camera",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_metadata_extractor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_metadata_extractor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_metadata_extractor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_metadata_extractor/requirements.txt"
     },
     {
       "id": "receipt_extractor",

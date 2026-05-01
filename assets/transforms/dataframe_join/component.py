@@ -16,6 +16,7 @@ from dagster import (
     Model,
     Resolvable,
     asset,
+    MetadataValue,
 )
 from pydantic import Field
 

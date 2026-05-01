@@ -291,9 +291,20 @@ group_name=group_name,
                     context.log.error(f"Invalid params JSON: {e}")
                     raise
 
-            # Add partition date to params if available
-            # This allows API queries to filter by date using the partition
-            if partition_date:
+            # Add partition date to params if available.
+            # This allows API queries to filter by date using the partition.
+            # Skip the auto-inject if the user has already opted into the more
+            # explicit {partition_date} / {partition_date_next} templating, since
+            # APIs that need explicit param names (USGS, etc.) reject the extras
+            # with 400 Unknown Parameter.
+            _user_uses_templating = (
+                "{partition_date}" in (params_str or "")
+                or "{partition_date_next}" in (params_str or "")
+                or "{partition_key}" in (params_str or "")
+                or "{partition_date}" in (api_url or "")
+                or "{partition_key}" in (api_url or "")
+            )
+            if partition_date and not _user_uses_templating:
                 params["date"] = partition_date.strftime("%Y-%m-%d")
                 params["partition_date"] = partition_date.strftime("%Y-%m-%d")
 

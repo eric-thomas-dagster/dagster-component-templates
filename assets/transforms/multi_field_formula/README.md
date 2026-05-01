@@ -72,6 +72,6 @@ has an IO manager configured that can handle DataFrames.
 ## Notes
 
 - Columns not found in the DataFrame generate a warning and are skipped.
-- Expression failures per column are logged as warnings and do not halt the pipeline.
+- **Expression failures raise** — a malformed expression or invalid column reference fails the asset rather than silently leaving columns unchanged. Catch and skip explicitly upstream if you need lenient behavior.
 - Both `output_prefix` and `output_suffix` can be set simultaneously.
 - If neither prefix nor suffix is set, the original columns are overwritten.

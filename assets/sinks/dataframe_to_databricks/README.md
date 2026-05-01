@@ -20,6 +20,7 @@ This component receives a DataFrame from an upstream Dagster asset and writes it
 | `mode` | `str` | `"overwrite"` | Write mode: `overwrite`, `append`, `ignore`, `error` |
 | `merge_schema` | `bool` | `True` | Allow schema evolution when appending |
 | `cluster_id` | `Optional[str]` | `None` | SQL warehouse or cluster ID (None = auto) |
+| `drop_timezone` | `bool` | `True` | Drop tz from tz-aware datetime columns before INSERT — the parameterized INSERT path doesn't bind tz cleanly. Set `false` if you handle tz upstream. |
 | `group_name` | `Optional[str]` | `None` | Dagster asset group name |
 
 ## Example YAML

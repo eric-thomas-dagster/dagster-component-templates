@@ -15,6 +15,7 @@ Writes a Pandas DataFrame to a relational database table. This is a terminal sin
 | `if_exists` | `str` | `"replace"` | Behavior if the table already exists: `replace`, `append`, or `fail` |
 | `schema` | `str` | `None` | Database schema |
 | `chunksize` | `int` | `None` | Rows per batch when writing (useful for large DataFrames) |
+| `drop_timezone` | `bool` | `True` | Drop tz from tz-aware datetime columns before INSERT. SQLite has no native tz, MySQL silently truncates; setting `false` keeps tz info on Postgres TIMESTAMPTZ via SQLAlchemy. |
 | `group_name` | `str` | `None` | Dagster asset group name |
 
 ## Example YAML

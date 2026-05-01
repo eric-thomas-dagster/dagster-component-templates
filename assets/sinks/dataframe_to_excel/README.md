@@ -40,6 +40,10 @@ attributes:
 
 ## Notes
 
+### Timezone-aware datetimes
+
+Excel cannot store tz-aware datetime values. When the upstream DataFrame contains any tz-aware column, the component automatically converts it to UTC and drops the timezone (preserving the wall-clock value) before writing, and logs which columns were stripped. No configuration needed.
+
 ### Freeze Panes
 
 When `freeze_panes` is set, the component uses `openpyxl` as the Excel engine and applies the freeze via `worksheet.freeze_panes`. The value `[1, 0]` freezes the first header row; `[1, 1]` freezes both the first row and first column.

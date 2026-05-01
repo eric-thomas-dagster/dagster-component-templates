@@ -5,7 +5,7 @@ Supports authentication, pagination, caching, and various output formats.
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from io import BytesIO
 from datetime import datetime
 
@@ -163,9 +163,9 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_values: Optional[str] = Field(
+    partition_values: Optional[List[Union[str, int]]] = Field(
         default=None,
-        description="Comma-separated values for static or multi partitioning, e.g. '1,2,3' or 'us,eu,asia'.",
+        description="Values for static or multi partitioning. Accepts a YAML list (`[1, 2, 3]` or `[us, eu, asia]`) or a single comma-separated string (`'1,2,3'`).",
     )
     partition_static_dim: Optional[str] = Field(
         default=None,
@@ -274,7 +274,15 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
                 WeeklyPartitionsDefinition,
             )
             _start = self.partition_start or "2024-01-01"
-            _values = [v.strip() for v in (self.partition_values or "").split(",") if v.strip()]
+            # Accept either a list (preferred for dg YAML) or a comma string
+            # (legacy / programmatic usage). Both normalize to a list of stripped strings.
+            _raw = self.partition_values
+            if _raw is None:
+                _values = []
+            elif isinstance(_raw, str):
+                _values = [v.strip() for v in _raw.split(",") if v.strip()]
+            else:
+                _values = [str(v).strip() for v in _raw if str(v).strip()]
             if self.partition_type == "daily":
                 partitions_def = DailyPartitionsDefinition(start_date=_start)
             elif self.partition_type == "weekly":

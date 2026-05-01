@@ -200,14 +200,18 @@ group_name=group_name,
             _path_to_resolve = file_path
             if context.has_partition_key and "{" in _path_to_resolve:
                 from datetime import datetime, timedelta
+                _fmt_kwargs = {"partition_key": str(context.partition_key)}
                 try:
                     _pdate = datetime.strptime(context.partition_key, "%Y-%m-%d")
-                    _path_to_resolve = _path_to_resolve.format(
-                        partition_key=str(context.partition_key),
-                        partition_date=_pdate.strftime("%Y-%m-%d"),
-                        partition_date_next=(_pdate + timedelta(days=1)).strftime("%Y-%m-%d"),
-                    )
-                except (ValueError, KeyError):
+                    _fmt_kwargs["partition_date"] = _pdate.strftime("%Y-%m-%d")
+                    _fmt_kwargs["partition_date_next"] = (
+                        _pdate + timedelta(days=1)
+                    ).strftime("%Y-%m-%d")
+                except ValueError:
+                    pass
+                try:
+                    _path_to_resolve = _path_to_resolve.format(**_fmt_kwargs)
+                except KeyError:
                     pass
             resolved_path = os.path.expandvars(_path_to_resolve)
             os.makedirs(

@@ -3,7 +3,7 @@
 Write a DataFrame asset to a JSON or JSON Lines file.
 """
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -62,9 +62,9 @@ class DataframeToJsonComponent(Component, Model, Resolvable):
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
-    partition_values: Optional[str] = Field(
+    partition_values: Optional[List[Union[str, int]]] = Field(
         default=None,
-        description="Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
+        description="Values for static or multi partitioning. Accepts a YAML list or a single comma-separated string, e.g. 'customer_a,customer_b,customer_c'.",
     )
     partition_static_dim: Optional[str] = Field(
         default=None,
@@ -118,7 +118,13 @@ class DataframeToJsonComponent(Component, Model, Resolvable):
                 StaticPartitionsDefinition, MultiPartitionsDefinition,
             )
             _start = self.partition_start or "2020-01-01"
-            _values = [v.strip() for v in (self.partition_values or "").split(",") if v.strip()]
+            _raw = self.partition_values
+            if _raw is None:
+                _values = []
+            elif isinstance(_raw, str):
+                _values = [v.strip() for v in _raw.split(",") if v.strip()]
+            else:
+                _values = [str(v).strip() for v in _raw if str(v).strip()]
             if self.partition_type == "daily":
                 partitions_def = DailyPartitionsDefinition(start_date=_start)
             elif self.partition_type == "weekly":
@@ -207,14 +213,21 @@ group_name=group_name,
             _path_to_resolve = file_path
             if context.has_partition_key and "{" in _path_to_resolve:
                 from datetime import datetime, timedelta
+                _fmt_kwargs = {"partition_key": str(context.partition_key)}
+                # Date placeholders only when partition_key is a date — otherwise
+                # they stay unsubstituted unless the user didn't reference them.
                 try:
                     _pdate = datetime.strptime(context.partition_key, "%Y-%m-%d")
-                    _path_to_resolve = _path_to_resolve.format(
-                        partition_key=str(context.partition_key),
-                        partition_date=_pdate.strftime("%Y-%m-%d"),
-                        partition_date_next=(_pdate + timedelta(days=1)).strftime("%Y-%m-%d"),
-                    )
-                except (ValueError, KeyError):
+                    _fmt_kwargs["partition_date"] = _pdate.strftime("%Y-%m-%d")
+                    _fmt_kwargs["partition_date_next"] = (
+                        _pdate + timedelta(days=1)
+                    ).strftime("%Y-%m-%d")
+                except ValueError:
+                    pass
+                try:
+                    _path_to_resolve = _path_to_resolve.format(**_fmt_kwargs)
+                except KeyError:
+                    # User referenced a date placeholder we couldn't resolve.
                     pass
             resolved_path = os.path.expandvars(_path_to_resolve)
             os.makedirs(

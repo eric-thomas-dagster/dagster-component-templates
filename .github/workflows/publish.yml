@@ -38,9 +38,9 @@ jobs:
       - name: Install build tools
         run: pip install --upgrade build twine
 
-      - name: Regenerate dagster_community_components/__init__.py
-        # In case a contributor forgot to re-run the generator before tagging.
-        run: python tools/generate_init.py
+      # Note: tools/generate_init.py is dev-only (gitignored). The committed
+      # dagster_community_components/__init__.py is the source of truth for
+      # publishing — regenerate locally before bumping the version + tagging.
 
       - name: Build sdist + wheel
         run: python -m build

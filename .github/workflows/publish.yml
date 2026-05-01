@@ -1,0 +1,54 @@
+name: publish
+
+# Publishes dagster-community-components to PyPI when a tag like v0.1.0 is pushed.
+#
+# Uses PyPI Trusted Publishing (OIDC) — no API token in repo secrets needed.
+# Configure once at https://pypi.org/manage/project/dagster-community-components/settings/publishing/
+# with these values:
+#   Owner:             eric-thomas-dagster
+#   Repository name:   dagster-component-templates
+#   Workflow filename: publish.yml
+#   Environment name:  (leave blank or set to "release")
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      # Required for PyPI Trusted Publishing (id-token).
+      id-token: write
+      # Required so the build step can read the repo.
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: pip install --upgrade build twine
+
+      - name: Regenerate dagster_community_components/__init__.py
+        # In case a contributor forgot to re-run the generator before tagging.
+        run: python tools/generate_init.py
+
+      - name: Build sdist + wheel
+        run: python -m build
+
+      - name: Verify metadata
+        run: twine check dist/*
+
+      - name: Publish to PyPI (Trusted Publishing — no token required)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true

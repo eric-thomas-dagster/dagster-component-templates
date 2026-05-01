@@ -186,13 +186,20 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-            if column not in upstream.columns:
-                raise ValueError(f"Column '{column}' not found in DataFrame. Available: {list(upstream.columns)}")
+            # Validate every named column exists in the input DataFrame.
+            cols_to_check = column if isinstance(column, list) else [column]
+            for _c in cols_to_check:
+                if _c not in upstream.columns:
+                    raise ValueError(f"Column '{_c}' not found in DataFrame. Available: {list(upstream.columns)}")
 
             result = upstream.explode(column, ignore_index=ignore_index)
 
             if drop_nulls:
-                result = result[result[column].notna()].reset_index(drop=True)
+                # If multiple columns: drop rows where any of them is null
+                _mask = pd.Series(True, index=result.index)
+                for _c in cols_to_check:
+                    _mask &= result[_c].notna()
+                result = result[_mask].reset_index(drop=True)
 
 
                 # Build column schema metadata

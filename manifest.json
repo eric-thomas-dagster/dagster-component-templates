@@ -8597,92 +8597,6 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/data_enricher/requirements.txt"
     },
     {
-      "id": "cross_encoder",
-      "name": "Cross Encoder",
-      "category": "ai",
-      "description": "Score text pairs using a cross-encoder model for accurate reranking and relevance scoring.",
-      "path": "assets/ai/cross_encoder",
-      "tags": [
-        "ai",
-        "nlp",
-        "reranking",
-        "cross-encoder",
-        "relevance-scoring",
-        "sentence-transformers"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cross_encoder/schema.json",
-      "component_type": "dagster_component_templates.CrossEncoderComponent",
-      "icon": "BarChart2",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cross_encoder/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cross_encoder/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cross_encoder/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cross_encoder/requirements.txt"
-    },
-    {
-      "id": "haystack_pipeline",
-      "name": "Haystack Pipeline",
-      "category": "ai",
-      "description": "Run a Haystack NLP pipeline against a text column for question answering, summarization, translation, or classification.",
-      "path": "assets/ai/haystack_pipeline",
-      "tags": [
-        "ai",
-        "nlp",
-        "haystack",
-        "question-answering",
-        "summarization",
-        "classification"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/haystack_pipeline/schema.json",
-      "component_type": "dagster_component_templates.HaystackPipelineComponent",
-      "icon": "GitBranch",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/haystack_pipeline/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/haystack_pipeline/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/haystack_pipeline/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/haystack_pipeline/requirements.txt"
-    },
-    {
-      "id": "address_parser",
-      "name": "Address Parser",
-      "category": "transformation",
-      "description": "Parse free-form address strings into structured components: street, city, state, zip, and country.",
-      "path": "assets/transforms/address_parser",
-      "tags": [
-        "transformation",
-        "address",
-        "parsing",
-        "geocoding",
-        "usaddress"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_parser/schema.json",
-      "component_type": "dagster_component_templates.AddressParserComponent",
-      "icon": "MapPin",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_parser/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_parser/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_parser/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_parser/requirements.txt"
-    },
-    {
-      "id": "address_standardizer",
-      "name": "Address Standardizer",
-      "category": "transformation",
-      "description": "Standardize and validate address components to USPS-style format, normalizing abbreviations, casing, and ZIP formatting.",
-      "path": "assets/transforms/address_standardizer",
-      "tags": [
-        "transformation",
-        "address",
-        "standardization",
-        "usps",
-        "normalization"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardizer/schema.json",
-      "component_type": "dagster_component_templates.AddressStandardizerComponent",
-      "icon": "CheckSquare",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardizer/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardizer/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardizer/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardizer/requirements.txt"
-    },
-    {
       "id": "ocr_extractor",
       "name": "Ocr Extractor",
       "category": "ai",
@@ -11242,5 +11156,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 473
+  "total": 469
 }

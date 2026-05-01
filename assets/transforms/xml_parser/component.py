@@ -28,6 +28,14 @@ class XmlParser(Component, Model, Resolvable):
     xml_column: str = Field(description="Column containing XML strings")
     xpath_expressions: Dict[str, str] = Field(description="Mapping of {output_column_name: xpath_expression}")
     namespace: Optional[Dict[str, str]] = Field(default=None, description="XML namespace mapping e.g. {ns: 'http://...'}")
+    mode: str = Field(
+        default="first",
+        description=(
+            "How to handle multi-match xpaths: 'first' returns the first match's text "
+            "(scalar); 'findall' returns a list of all matches' text (cell becomes a "
+            "list — pair with array_exploder to get one row per match)."
+        ),
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -88,6 +96,7 @@ class XmlParser(Component, Model, Resolvable):
         xml_column = self.xml_column
         xpath_expressions = self.xpath_expressions
         namespace = self.namespace
+        mode = self.mode
         group_name = self.group_name
 
         # Build partition definition

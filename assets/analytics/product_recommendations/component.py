@@ -589,7 +589,7 @@ group_name=group_name,
                     metadata={
                         **metadata,
                         "sample": MetadataValue.md(recommendations.head(20).to_markdown(index=False)),
-                        "preview": MetadataValue.dataframe(recommendations.head(20))
+                        "preview": MetadataValue.md(recommendations.head(20).to_markdown())
                     }
                 )
             else:

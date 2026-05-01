@@ -458,7 +458,7 @@ group_name=group_name,
                         "row_count": len(metrics_df),
                         "mrr": f"${current_mrr:,.2f}",
                         "arr": f"${current_arr:,.2f}",
-                        "preview": MetadataValue.dataframe(metrics_df)
+                        "preview": MetadataValue.md(metrics_df.to_markdown())
                     }
                 )
             else:

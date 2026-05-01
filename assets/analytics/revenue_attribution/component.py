@@ -373,7 +373,7 @@ group_name=group_name,
                         "row_count": len(campaign_spend),
                         "total_spend": float(total_spend),
                         "sample": MetadataValue.md(campaign_spend.head(10).to_markdown()),
-                        "preview": MetadataValue.dataframe(campaign_spend.head(10))
+                        "preview": MetadataValue.md(campaign_spend.head(10).to_markdown())
                     }
                 )
             else:

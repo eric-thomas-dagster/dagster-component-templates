@@ -512,7 +512,7 @@ group_name=group_name,
                     metadata={
                         **metadata,
                         "sample": MetadataValue.md(result_df.to_markdown(index=False)),
-                        "preview": MetadataValue.dataframe(result_df)
+                        "preview": MetadataValue.md(result_df.to_markdown())
                     }
                 )
             else:

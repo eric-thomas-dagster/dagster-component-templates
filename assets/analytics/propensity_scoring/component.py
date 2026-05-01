@@ -499,7 +499,7 @@ group_name=group_name,
                     metadata={
                         **metadata,
                         "sample": MetadataValue.md(result_sorted.head(20).to_markdown(index=False)),
-                        "preview": MetadataValue.dataframe(result_sorted.head(20))
+                        "preview": MetadataValue.md(result_sorted.head(20).to_markdown())
                     }
                 )
             else:

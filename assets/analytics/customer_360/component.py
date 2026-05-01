@@ -471,7 +471,7 @@ group_name=group_name,
                         "column_count": len(customers.columns),
                         "active_customers": int(active_customers),
                         "sample": MetadataValue.md(customers.head(10).to_markdown()),
-                        "preview": MetadataValue.dataframe(customers.head(10))
+                        "preview": MetadataValue.md(customers.head(10).to_markdown())
                     }
                 )
             else:

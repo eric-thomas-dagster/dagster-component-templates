@@ -478,7 +478,7 @@ group_name=group_name,
                     metadata={
                         **metadata,
                         "sample": MetadataValue.md(anomalies_first.to_markdown(index=False)),
-                        "preview": MetadataValue.dataframe(anomalies_first)
+                        "preview": MetadataValue.md(anomalies_first.to_markdown())
                     }
                 )
             else:

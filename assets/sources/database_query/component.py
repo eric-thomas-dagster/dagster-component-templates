@@ -297,7 +297,7 @@ group_name=group_name,
                             "row_count": len(df),
                             "columns": df.columns.tolist(),
                             "sample": MetadataValue.md(df.head().to_markdown()),
-                            "preview": MetadataValue.dataframe(df.head())
+                            "preview": MetadataValue.md(df.head().to_markdown())
                         }
                     )
                 else:

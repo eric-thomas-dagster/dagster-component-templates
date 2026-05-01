@@ -648,7 +648,7 @@ group_name=group_name,
                         "row_count": len(std_df),
                         "columns": std_df.columns.tolist(),
                         "sample": MetadataValue.md(std_df.head(10).to_markdown()),
-                        "preview": MetadataValue.dataframe(std_df.head(10))
+                        "preview": MetadataValue.md(std_df.head(10).to_markdown())
                     }
                 )
             else:

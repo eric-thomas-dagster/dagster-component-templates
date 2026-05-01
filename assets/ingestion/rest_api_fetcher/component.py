@@ -409,7 +409,7 @@ group_name=group_name,
                         "row_count": len(result),
                         "columns": result.columns.tolist(),
                         "sample": MetadataValue.md(result.head().to_markdown()),
-                        "preview": MetadataValue.dataframe(result.head())
+                        "preview": MetadataValue.md(result.head().to_markdown())
                     }
                 )
             else:

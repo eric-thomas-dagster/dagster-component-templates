@@ -828,7 +828,7 @@ Score 0.0 = safe, 1.0 = definitely violates policy."""
                     metadata={
                         **metadata,
                         "sample": MetadataValue.md(result_df.head(10).to_markdown()),
-                        "preview": MetadataValue.dataframe(result_df.head(10))
+                        "preview": MetadataValue.md(result_df.head(10).to_markdown())
                     }
                 )
             else:

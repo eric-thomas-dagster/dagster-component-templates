@@ -98,7 +98,11 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
 
     output_format: str = Field(
         default="json",
-        description="Output format: 'json', 'dataframe', 'csv', or 'parquet'"
+        description=(
+            "Output format: 'json', 'dataframe', 'csv', 'parquet', or "
+            "'text' / 'html' (raw response body wrapped in a 1-row DataFrame "
+            "with a single 'content' column — useful for HTML scraping)"
+        ),
     )
 
     json_path: Optional[str] = Field(
@@ -427,12 +431,16 @@ group_name=group_name,
                 context.log.error(f"API request failed: {e}")
                 raise
 
-            # Parse response
-            try:
-                data = response.json()
-            except json.JSONDecodeError:
-                context.log.warning("Response is not JSON, returning raw text")
+            # Parse response. For text/html output we always want raw text;
+            # otherwise try JSON first and fall back to text.
+            if output_format in ("text", "html"):
                 data = response.text
+            else:
+                try:
+                    data = response.json()
+                except json.JSONDecodeError:
+                    context.log.warning("Response is not JSON, returning raw text")
+                    data = response.text
 
             context.log.info(f"Successfully fetched data (status: {response.status_code})")
 
@@ -478,6 +486,12 @@ group_name=group_name,
                 buffer = BytesIO()
                 _to_df(data, "Parquet").to_parquet(buffer, index=False)
                 result = buffer.getvalue()
+
+            elif output_format in ("text", "html"):
+                # Wrap raw response body in a 1-row DataFrame so downstream
+                # transforms like html_parser, regex_parser, markdown_stripper
+                # have a column to operate on.
+                result = pd.DataFrame({"content": [str(data)]})
 
             else:
                 context.log.error(f"Unknown output format: {output_format}")

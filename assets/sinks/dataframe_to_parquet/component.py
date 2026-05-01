@@ -196,7 +196,22 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-            resolved_path = os.path.expandvars(file_path)
+            # Format-string templating for file_path with partition placeholders.
+            # Users can include {partition_key}, {partition_date}, {partition_date_next}
+            # in file_path; they're substituted at run-time when partitioned.
+            _path_to_resolve = file_path
+            if context.has_partition_key and "{" in _path_to_resolve:
+                from datetime import datetime, timedelta
+                try:
+                    _pdate = datetime.strptime(context.partition_key, "%Y-%m-%d")
+                    _path_to_resolve = _path_to_resolve.format(
+                        partition_key=str(context.partition_key),
+                        partition_date=_pdate.strftime("%Y-%m-%d"),
+                        partition_date_next=(_pdate + timedelta(days=1)).strftime("%Y-%m-%d"),
+                    )
+                except (ValueError, KeyError):
+                    pass
+            resolved_path = os.path.expandvars(_path_to_resolve)
             is_remote = resolved_path.startswith("s3://") or resolved_path.startswith("gs://")
             if not is_remote:
                 os.makedirs(

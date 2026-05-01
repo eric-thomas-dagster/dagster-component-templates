@@ -507,7 +507,7 @@ group_name=group_name,
                 for idx, row in top_anomalies.iterrows():
                     context.log.info(f"    Score: {row['anomaly_score']:.3f}, Value: {row[metric_col]}, Reason: {row['anomaly_reason']}")
 
-            # Add metadata
+            # Add metadata (always; sample preview is appended below if requested)
             metadata = {
                 "row_count": len(anomaly_df),
                 "total_records": len(anomaly_df),
@@ -518,24 +518,17 @@ group_name=group_name,
                 "threshold": threshold,
             }
 
-            # Return with metadata
             if include_sample and len(anomaly_df) > 0:
-                # Show anomalies first
+                # Anomalies first, then a few normals — markdown preview
                 anomalies_first = pd.concat([
                     anomaly_df[anomaly_df['is_anomaly']].head(10),
-                    anomaly_df[~anomaly_df['is_anomaly']].head(5)
+                    anomaly_df[~anomaly_df['is_anomaly']].head(5),
                 ])
+                metadata["sample"] = MetadataValue.md(anomalies_first.to_markdown(index=False))
+                metadata["preview"] = MetadataValue.md(anomalies_first.to_markdown())
 
-                return Output(
-                    value=anomaly_df,
-                    metadata={
-                        **metadata,
-                        "sample": MetadataValue.md(anomalies_first.to_markdown(index=False)),
-                        "preview": MetadataValue.md(anomalies_first.to_markdown())
-                    }
-                )
-            else:
-                context.add_output_metadata(metadata)
+            context.add_output_metadata(metadata)
+
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[

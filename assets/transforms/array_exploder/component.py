@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
@@ -69,7 +69,15 @@ class ArrayExploderComponent(Component, Model, Resolvable):
         default=None,
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
-    column: str = Field(description="Column containing arrays to explode")
+    column: Union[str, List[str]] = Field(
+        description=(
+            "Column(s) containing arrays to explode. A single column name "
+            "explodes that column; a list of column names explodes them "
+            "in parallel (zip-style — each row's lists must be the same "
+            "length, useful after xml_parser mode='findall' returns "
+            "matched pairs)."
+        ),
+    )
     ignore_index: bool = Field(
         default=True,
         description="Reset index after explode so the result has a clean integer index.",

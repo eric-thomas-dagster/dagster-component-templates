@@ -507,15 +507,19 @@ group_name=group_name,
                 for idx, row in top_anomalies.iterrows():
                     context.log.info(f"    Score: {row['anomaly_score']:.3f}, Value: {row[metric_col]}, Reason: {row['anomaly_reason']}")
 
-            # Add metadata (always; sample preview is appended below if requested)
+            # Add metadata (always; sample preview is appended below if requested).
+            # Cast aggregations to Python natives — numpy.float64/int64 from
+            # pandas operations don't serialize cleanly into Dagster's event log.
+            _n_anomalies = int(anomaly_df['is_anomaly'].sum())
+            _n_total = int(len(anomaly_df))
             metadata = {
-                "row_count": len(anomaly_df),
-                "total_records": len(anomaly_df),
-                "anomaly_count": int(anomaly_df['is_anomaly'].sum()),
-                "anomaly_rate": round(anomaly_df['is_anomaly'].sum() / len(anomaly_df) * 100, 2),
+                "row_count": _n_total,
+                "total_records": _n_total,
+                "anomaly_count": _n_anomalies,
+                "anomaly_rate": round(_n_anomalies / _n_total * 100, 2) if _n_total else 0.0,
                 "detection_method": detection_method,
                 "metric_column": metric_col,
-                "threshold": threshold,
+                "threshold": float(threshold),
             }
 
             if include_sample and len(anomaly_df) > 0:

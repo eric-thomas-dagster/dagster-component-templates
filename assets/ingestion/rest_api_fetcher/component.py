@@ -313,10 +313,13 @@ group_name=group_name,
                     else ""
                 ),
             }
+            # Use a new local name to avoid Python's closure-rebind-as-local rule
+            # (assigning to api_url here would shadow the outer closure variable
+            # and trip UnboundLocalError on the first access).
             try:
-                api_url = api_url.format(**_template_vars)
+                _resolved_url = api_url.format(**_template_vars)
             except (KeyError, IndexError):
-                pass  # template error → leave api_url as-is, fail naturally on the request
+                _resolved_url = api_url
             for k, v in list(params.items()):
                 if isinstance(v, str):
                     try:
@@ -341,13 +344,13 @@ group_name=group_name,
                 headers["Authorization"] = f"Bearer {auth_token}"
 
             # Make API request
-            context.log.info(f"Fetching data from {api_url}")
+            context.log.info(f"Fetching data from {_resolved_url}")
             context.log.info(f"Method: {method}")
 
             try:
                 response = requests.request(
                     method=method,
-                    url=api_url,
+                    url=_resolved_url,
                     headers=headers if headers else None,
                     params=params if params else None,
                     json=body if body else None,

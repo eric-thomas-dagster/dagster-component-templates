@@ -3,7 +3,6 @@
 Transcribe audio files using Whisper via LiteLLM.
 Processes a column of audio file paths and writes transcriptions back.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class LitellmAudioTranscriptionComponent(Component, Model, Resolvable):
     """Transcribe audio files using Whisper via LiteLLM.
 

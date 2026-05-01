@@ -1,11 +1,9 @@
 """Qdrant Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class QdrantResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a dagster-qdrant QdrantResource for use by other components."""
 

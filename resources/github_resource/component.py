@@ -1,10 +1,8 @@
 """GitHub Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class GithubResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a dagster-github GithubResource for use by other components."""
 

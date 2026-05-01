@@ -3,7 +3,6 @@
 Generate images from text prompts in a DataFrame column using LiteLLM.
 Supports DALL-E, Stable Diffusion, and other image generation models.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class LitellmImageGenerationComponent(Component, Model, Resolvable):
     """Generate images from text prompts in a DataFrame column using LiteLLM.
 

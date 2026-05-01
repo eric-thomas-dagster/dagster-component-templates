@@ -2,7 +2,6 @@
 
 Train and evaluate multiple sklearn models side-by-side using cross-validation.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -23,7 +22,6 @@ from pydantic import Field
 _DEFAULT_MODELS = ["logistic_regression", "random_forest", "gradient_boosting", "decision_tree", "naive_bayes"]
 
 
-@dataclass
 class ModelComparisonComponent(Component, Model, Resolvable):
     """Train and evaluate multiple sklearn models side-by-side using cross-validation."""
 

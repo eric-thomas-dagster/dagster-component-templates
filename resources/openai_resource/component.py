@@ -1,10 +1,8 @@
 """OpenAI Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class OpenAIResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a dagster-openai OpenAIResource for use by other components."""
 

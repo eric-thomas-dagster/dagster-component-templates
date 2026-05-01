@@ -3,7 +3,6 @@
 Score visual similarity between images using CLIP embeddings.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class ImageSimilarityScorerComponent(Component, Model, Resolvable):
     """Component for scoring visual similarity between images using CLIP embeddings.
 

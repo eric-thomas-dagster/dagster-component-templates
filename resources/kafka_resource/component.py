@@ -1,5 +1,4 @@
 """Kafka Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from pydantic import Field
@@ -33,7 +32,6 @@ class KafkaResource(dg.ConfigurableResource):
         return KafkaConsumer(*topics, **{**self._common_config(), **kwargs})
 
 
-@dataclass
 class KafkaResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a Kafka resource providing producer and consumer factories."""
 

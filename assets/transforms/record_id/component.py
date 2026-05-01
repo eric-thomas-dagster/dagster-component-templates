@@ -3,7 +3,6 @@
 Add a unique sequential identifier to each row in a DataFrame, with
 optional sorting, group-level numbering, and string prefixes.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class RecordIdComponent(Component, Model, Resolvable):
     """Add a unique sequential identifier to each row.
 

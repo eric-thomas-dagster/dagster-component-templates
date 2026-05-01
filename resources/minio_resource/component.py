@@ -1,5 +1,4 @@
 """MinIO Resource component — S3-compatible object storage."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from pydantic import Field
@@ -23,7 +22,6 @@ class MinIOResource(dg.ConfigurableResource):
         )
 
 
-@dataclass
 class MinIOResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a MinIO S3-compatible object storage resource for use by other components."""
 

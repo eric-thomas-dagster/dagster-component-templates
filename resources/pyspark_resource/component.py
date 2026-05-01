@@ -1,11 +1,9 @@
 """PySpark Resource component."""
-from dataclasses import dataclass
 from typing import Optional, Dict
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class PySparkResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a dagster-pyspark PySparkResource for use by other components."""
 

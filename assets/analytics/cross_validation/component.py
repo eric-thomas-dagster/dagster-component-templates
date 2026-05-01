@@ -2,7 +2,6 @@
 
 Run k-fold cross-validation on a dataset and return per-fold train/test scores.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class CrossValidationComponent(Component, Model, Resolvable):
     """Run k-fold cross-validation on a dataset and return per-fold train/test scores."""
 

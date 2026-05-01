@@ -61,6 +61,13 @@
       "required": false,
       "default": null
     },
+    "drop_timezone": {
+      "type": "boolean",
+      "label": "Drop Timezone",
+      "description": "Drop tz from tz-aware datetime columns before INSERT. Default true because SQLite has no native tz, MySQL silently truncates, and even Postgres-bound users often want a normalized UTC. Set false to keep tz info (works on Postgres TIMESTAMPTZ via SQLAlchemy).",
+      "required": false,
+      "default": true
+    },
     "group_name": {
       "type": "string",
       "label": "Group Name",

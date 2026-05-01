@@ -3,7 +3,6 @@
 Write a DataFrame to a Google BigQuery table.
 """
 import os
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -23,7 +22,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class DataframeToBigqueryComponent(Component, Model, Resolvable):
     """Write a DataFrame to a Google BigQuery table."""
 

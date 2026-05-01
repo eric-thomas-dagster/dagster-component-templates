@@ -1,5 +1,4 @@
 """Shopify Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from dagster import ConfigurableResource
@@ -20,7 +19,6 @@ class ShopifyResource(ConfigurableResource):
         return session
 
 
-@dataclass
 class ShopifyResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a ShopifyResource for use by other components."""
 

@@ -2,7 +2,6 @@
 
 LLM-assisted fuzzy matching to standardize varied string representations to canonical forms.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class PrecisionMatchComponent(Component, Model, Resolvable):
     """LLM-assisted fuzzy matching to standardize varied string representations to canonical forms."""
 

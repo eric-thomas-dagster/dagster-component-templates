@@ -3,7 +3,6 @@
 Detect faces in images using OpenCV or MediaPipe backends.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class FaceDetectorComponent(Component, Model, Resolvable):
     """Component for detecting faces in images.
 

@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import field
 from typing import Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -16,7 +16,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class KeywordExtractorComponent(Component, Model, Resolvable):
     """Extract keywords and key phrases from a text column using TF-IDF, YAKE, or RAKE."""
 

@@ -6,7 +6,6 @@ using Nominatim (free), Google Maps, or HERE geocoding APIs.
 
 import os
 import time
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -25,7 +24,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class ReverseGeocoderComponent(Component, Model, Resolvable):
     """Reverse geocode lat/lng coordinates to addresses in a DataFrame.
 

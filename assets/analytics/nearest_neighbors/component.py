@@ -2,7 +2,6 @@
 
 For each record, find the K nearest neighbors by feature similarity.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class NearestNeighborsComponent(Component, Model, Resolvable):
     """For each record, find the K nearest neighbors by feature similarity."""
 

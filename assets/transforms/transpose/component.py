@@ -2,7 +2,6 @@
 
 Transpose a DataFrame so that rows become columns and columns become rows.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class TransposeComponent(Component, Model, Resolvable):
     """Transpose a DataFrame — rows become columns."""
 

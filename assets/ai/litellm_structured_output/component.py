@@ -3,7 +3,6 @@
 Extract structured JSON data from text using LiteLLM's JSON mode.
 Expands extracted fields as new DataFrame columns.
 """
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class LitellmStructuredOutputComponent(Component, Model, Resolvable):
     """Extract structured JSON data from text using LiteLLM's JSON mode.
 

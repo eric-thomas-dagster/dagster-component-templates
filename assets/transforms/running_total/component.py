@@ -3,7 +3,6 @@
 Calculate a running/cumulative total on a column. Supports optional grouping to
 reset the running total per group, and optional sorting before computation.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class RunningTotalComponent(Component, Model, Resolvable):
     """Calculate a running/cumulative total on a column."""
 

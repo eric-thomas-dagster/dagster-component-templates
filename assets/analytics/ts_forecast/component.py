@@ -3,7 +3,6 @@
 Generate forecasts from time series data using ARIMA, ETS, or automatic model selection.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class TsForecastComponent(Component, Model, Resolvable):
     """Component for generating time series forecasts using ARIMA or ETS models.
 

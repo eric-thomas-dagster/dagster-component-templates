@@ -1,5 +1,4 @@
 """Trino Resource component — distributed SQL query engine."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from pydantic import Field
@@ -39,7 +38,6 @@ class TrinoResource(dg.ConfigurableResource):
             return cur.fetchall()
 
 
-@dataclass
 class TrinoResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a Trino distributed SQL query engine resource for use by other components."""
 

@@ -2,7 +2,6 @@
 
 Append all columns (or a subset) from a small source DataFrame to every row of a larger DataFrame via broadcast join.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class AppendFields(Component, Model, Resolvable):
     """Append all columns from a small source DataFrame to every row of a larger DataFrame (broadcast join)."""
 

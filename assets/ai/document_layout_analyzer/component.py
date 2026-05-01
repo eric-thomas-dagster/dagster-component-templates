@@ -3,7 +3,6 @@
 Analyze the layout of document images to detect regions: text blocks, tables, figures, headers.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class DocumentLayoutAnalyzerComponent(Component, Model, Resolvable):
     """Component for analyzing the layout of document images.
 

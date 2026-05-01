@@ -1,10 +1,8 @@
 """PagerDuty Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class PagerDutyResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a dagster-pagerduty PagerDutyService for use by other components."""
 

@@ -5,7 +5,6 @@ Supports strings, hashes, lists, sets, and sorted sets.
 """
 
 import os
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class RedisReaderComponent(Component, Model, Resolvable):
     """Component for reading keys from a Redis instance.
 

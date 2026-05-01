@@ -3,7 +3,6 @@
 Remove duplicate records from a DataFrame, with control over which columns
 define uniqueness, which copy to keep, and whether to flag or filter duplicates.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class UniqueDedupComponent(Component, Model, Resolvable):
     """Remove or flag duplicate records from a DataFrame.
 

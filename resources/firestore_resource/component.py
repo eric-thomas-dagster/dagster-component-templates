@@ -1,6 +1,5 @@
 """Google Cloud Firestore Resource component."""
 import json
-from dataclasses import dataclass
 from typing import Optional
 
 import dagster as dg
@@ -29,7 +28,6 @@ class FirestoreResource(ConfigurableResource):
         return firestore.Client(project=self.project, database=self.database)
 
 
-@dataclass
 class FirestoreResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a Google Cloud Firestore resource for use by other components."""
 

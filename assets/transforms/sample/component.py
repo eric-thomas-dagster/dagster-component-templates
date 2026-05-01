@@ -2,7 +2,6 @@
 
 Sample rows from a DataFrame by count or fraction.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class SampleComponent(Component, Model, Resolvable):
     """Sample rows from a DataFrame by count or fraction."""
 

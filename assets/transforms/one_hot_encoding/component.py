@@ -4,7 +4,6 @@ Convert categorical columns into binary indicator columns using pandas
 `get_dummies`, with options for collinearity handling, NaN indicators,
 rare-category bucketing, and configurable output dtype.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -23,7 +22,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class OneHotEncodingComponent(Component, Model, Resolvable):
     """Convert categorical columns into binary indicator (dummy) columns.
 

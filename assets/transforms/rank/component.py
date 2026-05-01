@@ -3,7 +3,6 @@
 Rank records by a column value, with optional group-level ranking and
 support for percentile normalization.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class RankComponent(Component, Model, Resolvable):
     """Rank records by a column, with optional grouping.
 

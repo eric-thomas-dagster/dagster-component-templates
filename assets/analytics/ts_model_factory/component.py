@@ -3,7 +3,6 @@
 Fit and forecast a separate time series model per group (e.g. product, store, region).
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class TsModelFactoryComponent(Component, Model, Resolvable):
     """Component for fitting individual time series models per group.
 

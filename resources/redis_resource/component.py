@@ -1,5 +1,4 @@
 """Redis Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 
 import dagster as dg
@@ -28,7 +27,6 @@ class RedisResource(ConfigurableResource):
         )
 
 
-@dataclass
 class RedisResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a Redis resource for use by other components."""
 

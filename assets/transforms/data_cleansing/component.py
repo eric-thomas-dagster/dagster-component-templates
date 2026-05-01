@@ -4,7 +4,6 @@ Fix common data quality issues — nulls, whitespace, case, and punctuation
 across string columns in a DataFrame.
 """
 import string
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -23,7 +22,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class DataCleansingComponent(Component, Model, Resolvable):
     """Fix common data quality issues in string columns of a DataFrame.
 

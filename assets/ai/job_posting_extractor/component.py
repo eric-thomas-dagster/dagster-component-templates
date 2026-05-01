@@ -3,7 +3,6 @@
 Extract structured data from job postings and descriptions using an LLM via litellm.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class JobPostingExtractorComponent(Component, Model, Resolvable):
     """Component for extracting structured data from job postings using LLMs.
 

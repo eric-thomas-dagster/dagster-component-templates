@@ -1,5 +1,4 @@
 """Cassandra Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 
 import dagster as dg
@@ -35,7 +34,6 @@ class CassandraResource(ConfigurableResource):
         return cluster.connect(self.keyspace if self.keyspace else None)
 
 
-@dataclass
 class CassandraResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a Cassandra resource for use by other components."""
 

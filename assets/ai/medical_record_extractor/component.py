@@ -3,7 +3,6 @@
 Extract clinical data from medical records and clinical notes using an LLM via litellm.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class MedicalRecordExtractorComponent(Component, Model, Resolvable):
     """Component for extracting structured data from medical records using LLMs.
 

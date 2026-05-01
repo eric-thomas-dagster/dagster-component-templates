@@ -1,5 +1,4 @@
 """Freshdesk Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -24,7 +23,6 @@ class FreshdeskResource(ConfigurableResource):
         return session
 
 
-@dataclass
 class FreshdeskResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a FreshdeskResource for use by other components."""
 

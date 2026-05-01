@@ -3,7 +3,6 @@
 Process a DataFrame column row-by-row through any LLM using LiteLLM.
 Supports routing, fallbacks, cost tracking, and parallel processing via threads.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class LitellmBatchCompletionComponent(Component, Model, Resolvable):
     """Process a DataFrame column row-by-row through any LLM using LiteLLM.
 

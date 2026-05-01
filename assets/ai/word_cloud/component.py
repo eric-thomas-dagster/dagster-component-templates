@@ -3,7 +3,6 @@
 Compute word frequency tables, top-N word lists, or TF-IDF weighted word tables from text data.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class WordCloudComponent(Component, Model, Resolvable):
     """Component for building word frequency and TF-IDF tables from text.
 

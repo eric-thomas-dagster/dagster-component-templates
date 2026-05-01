@@ -1,5 +1,4 @@
 """Asana Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from dagster import ConfigurableResource
@@ -25,7 +24,6 @@ class AsanaResource(ConfigurableResource):
         return asana.WorkspacesApi(asana.ApiClient(configuration))
 
 
-@dataclass
 class AsanaResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register an AsanaResource for use by other components."""
 

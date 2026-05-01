@@ -82,6 +82,14 @@
       "required": false,
       "default": null
     },
+    "drop_timezone": {
+      "type": "boolean",
+      "label": "Drop Timezone",
+      "description": "Drop tz from tz-aware datetime columns before INSERT. Default true because the parameterized INSERT path doesn't bind tz cleanly. Set false if your tables use TIMESTAMP and you've handled tz upstream.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
     "group_name": {
       "type": "string",
       "label": "Group Name",

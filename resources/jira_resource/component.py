@@ -1,5 +1,4 @@
 """Jira Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -20,7 +19,6 @@ class JiraResource(ConfigurableResource):
         )
 
 
-@dataclass
 class JiraResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a JiraResource for use by other components."""
 

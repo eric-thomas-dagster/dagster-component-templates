@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 import pandas as pd
 from dagster import (
@@ -16,7 +15,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class DocumentMergerComponent(Component, Model, Resolvable):
     """Merge two document DataFrames on a key column using pandas.merge()."""
 

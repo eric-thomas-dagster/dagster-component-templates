@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -16,7 +15,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class ArrayExploderComponent(Component, Model, Resolvable):
     """Expand an array-valued column so each element becomes its own row."""
 

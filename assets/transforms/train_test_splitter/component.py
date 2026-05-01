@@ -5,7 +5,6 @@ using either a deterministic random split or a chronological cutoff. Supports
 stratified sampling on a label column and group-aware splitting (so all rows
 sharing a group key land in the same split — important for leakage prevention).
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -24,7 +23,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class TrainTestSplitterComponent(Component, Model, Resolvable):
     """Split a DataFrame into train / test / (optional) validation assets.
 

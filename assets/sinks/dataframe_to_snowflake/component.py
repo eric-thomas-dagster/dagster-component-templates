@@ -3,7 +3,6 @@
 Write a DataFrame to a Snowflake table.
 """
 import os
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -23,7 +22,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class DataframeToSnowflakeComponent(Component, Model, Resolvable):
     """Write a DataFrame to a Snowflake table."""
 

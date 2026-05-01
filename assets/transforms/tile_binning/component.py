@@ -3,7 +3,6 @@
 Assign records to bins or buckets based on a numeric column's value range,
 using equal-width intervals, equal-frequency quantiles, or custom bin edges.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class TileBinningComponent(Component, Model, Resolvable):
     """Assign records to bins based on a numeric column's value range.
 

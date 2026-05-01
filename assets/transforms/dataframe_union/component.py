@@ -2,7 +2,6 @@
 
 Stack multiple DataFrame assets vertically (like SQL UNION ALL).
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class DataframeUnion(Component, Model, Resolvable):
     """Stack multiple DataFrame assets vertically (like SQL UNION ALL)."""
 

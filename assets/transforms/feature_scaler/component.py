@@ -5,7 +5,6 @@ robust (median/IQR), or max-abs scaling. Each strategy mirrors the
 corresponding scikit-learn scaler but is implemented directly in pandas/numpy
 so the component has no extra runtime dependency.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import numpy as np
@@ -25,7 +24,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class FeatureScalerComponent(Component, Model, Resolvable):
     """Rescale numeric columns using standard, min-max, robust, or max-abs scaling.
 

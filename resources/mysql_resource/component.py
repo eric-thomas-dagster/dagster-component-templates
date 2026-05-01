@@ -1,5 +1,4 @@
 """MySQL Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 
 import dagster as dg
@@ -27,7 +26,6 @@ class MySQLResource(ConfigurableResource):
         )
 
 
-@dataclass
 class MySQLResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a MySQL resource for use by other components."""
 

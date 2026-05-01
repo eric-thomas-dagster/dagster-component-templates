@@ -3,7 +3,6 @@
 Apply formulas that reference neighboring rows — lag, lead, rolling windows,
 differences, cumulative sums, and percent changes.
 """
-from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 
 import pandas as pd
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class MultiRowFormulaComponent(Component, Model, Resolvable):
     """Apply formulas that reference neighboring rows.
 

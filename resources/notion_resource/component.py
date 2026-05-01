@@ -1,5 +1,4 @@
 """Notion Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -15,7 +14,6 @@ class NotionResource(ConfigurableResource):
         return notion_client.Client(auth=self.token)
 
 
-@dataclass
 class NotionResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a NotionResource for use by other components."""
 

@@ -1,11 +1,9 @@
 """BigQuery Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class BigQueryResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a dagster-gcp BigQueryResource for use by other components."""
 

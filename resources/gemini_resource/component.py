@@ -1,10 +1,8 @@
 """Google Gemini Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class GeminiResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a dagster-gemini GeminiResource for use by other components."""
 

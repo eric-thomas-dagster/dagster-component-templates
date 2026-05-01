@@ -3,7 +3,6 @@
 Classify images using a pre-trained model (CLIP or torchvision models).
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class ImageClassifierComponent(Component, Model, Resolvable):
     """Component for classifying images using pre-trained models.
 

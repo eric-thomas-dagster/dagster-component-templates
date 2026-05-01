@@ -5,7 +5,6 @@ Each DataFrame row becomes a node with the specified label.
 """
 
 import os
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -24,7 +23,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class Neo4jWriterComponent(Component, Model, Resolvable):
     """Component for writing a DataFrame to Neo4j as graph nodes.
 

@@ -2,7 +2,6 @@
 
 Sort a DataFrame by one or more columns.
 """
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class SortComponent(Component, Model, Resolvable):
     """Sort a DataFrame by one or more columns."""
 

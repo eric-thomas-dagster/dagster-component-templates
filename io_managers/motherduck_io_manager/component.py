@@ -1,12 +1,10 @@
 """MotherDuck IO Manager component — reads and writes DataFrames via MotherDuck (serverless DuckDB)."""
-from dataclasses import dataclass
 from typing import Optional
 import os
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class MotherDuckIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a DuckDB IO manager connected to MotherDuck (serverless DuckDB cloud) for asset storage."""
 

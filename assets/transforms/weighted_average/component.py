@@ -2,7 +2,6 @@
 
 Compute a weighted average of a column, optionally grouped by one or more columns.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class WeightedAverageComponent(Component, Model, Resolvable):
     """Compute a weighted average of a column, optionally grouped."""
 

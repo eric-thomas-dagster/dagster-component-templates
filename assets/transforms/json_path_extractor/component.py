@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -16,7 +15,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class JsonPathExtractorComponent(Component, Model, Resolvable):
     """Extract values from dict/JSON columns using JSONPath expressions."""
 

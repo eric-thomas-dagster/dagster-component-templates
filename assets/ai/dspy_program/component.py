@@ -3,7 +3,6 @@
 Run a compiled DSPy program against a DataFrame column.
 DSPy optimizes prompts automatically using signature-based programming.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class DspyProgramComponent(Component, Model, Resolvable):
     """Run a DSPy program against a DataFrame column for automatic prompt optimization.
 

@@ -4,7 +4,6 @@ Detect and handle outliers in numeric columns using IQR, z-score, or
 quantile thresholds. Outliers can be clipped (winsorized) to the boundary
 or dropped from the DataFrame.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -23,7 +22,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class OutlierClipperComponent(Component, Model, Resolvable):
     """Clip or drop outliers in numeric columns.
 

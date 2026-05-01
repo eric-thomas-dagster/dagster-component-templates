@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Optional, List, Dict
 import pandas as pd
 from dagster import (
@@ -16,7 +15,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class FieldMapperComponent(Component, Model, Resolvable):
     """Rename or remap column names according to a mapping dictionary."""
 

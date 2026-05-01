@@ -5,7 +5,6 @@ Converts float values to Decimal as required by DynamoDB.
 """
 
 import os
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -24,7 +23,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class DynamodbWriterComponent(Component, Model, Resolvable):
     """Component for writing a DataFrame to an AWS DynamoDB table.
 

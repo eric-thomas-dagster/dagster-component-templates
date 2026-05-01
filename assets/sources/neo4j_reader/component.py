@@ -5,7 +5,6 @@ returning results as a DataFrame.
 """
 
 import os
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class Neo4jReaderComponent(Component, Model, Resolvable):
     """Component for executing Cypher queries against a Neo4j graph database.
 

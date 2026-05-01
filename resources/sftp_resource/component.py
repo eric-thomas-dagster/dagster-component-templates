@@ -1,5 +1,4 @@
 """SFTP Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from pydantic import Field
@@ -39,7 +38,6 @@ class SFTPResource(dg.ConfigurableResource):
         return ssh.open_sftp()
 
 
-@dataclass
 class SFTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register an SFTP resource for reading and writing files over SSH."""
 

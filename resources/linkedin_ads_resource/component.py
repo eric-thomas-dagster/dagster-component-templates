@@ -1,5 +1,4 @@
 """LinkedIn Ads Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from dagster import ConfigurableResource
@@ -25,7 +24,6 @@ class LinkedInAdsResource(ConfigurableResource):
         }
 
 
-@dataclass
 class LinkedInAdsResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a LinkedInAdsResource for use by other components."""
 

@@ -5,7 +5,6 @@ Supports insert and update (using IF EXISTS / USING TIMESTAMP) modes.
 """
 
 import os
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -24,7 +23,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class CassandraWriterComponent(Component, Model, Resolvable):
     """Component for writing a DataFrame to an Apache Cassandra table.
 

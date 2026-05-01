@@ -4,7 +4,6 @@ Use an LLM to automatically map a source DataFrame's columns to a target schema,
 applying transformations as needed.
 """
 
-from dataclasses import dataclass
 from typing import Optional, List, Dict
 import pandas as pd
 
@@ -23,7 +22,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class SchemaFitComponent(Component, Model, Resolvable):
     """Component for LLM-driven schema mapping and transformation.
 

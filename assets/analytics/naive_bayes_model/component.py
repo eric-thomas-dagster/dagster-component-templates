@@ -2,7 +2,6 @@
 
 Fit a Naive Bayes classifier and output predictions and/or class probabilities.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class NaiveBayesModelComponent(Component, Model, Resolvable):
     """Fit a Naive Bayes classifier and output predictions and/or class probabilities."""
 

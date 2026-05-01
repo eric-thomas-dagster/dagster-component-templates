@@ -10,7 +10,7 @@ once — code-server reloads are instant even for large specs.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import field
 from pathlib import Path
 from typing import Optional
 

@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import field
 from typing import Optional, List, Dict
 import pandas as pd
 from dagster import (
@@ -16,7 +16,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class DataEnricherComponent(Component, Model, Resolvable):
     """Enrich DataFrame rows with LLM-generated fields based on context columns."""
 

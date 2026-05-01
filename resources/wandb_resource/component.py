@@ -1,5 +1,4 @@
 """Weights & Biases Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from pydantic import Field
@@ -25,7 +24,6 @@ class WandbResource(dg.ConfigurableResource):
         )
 
 
-@dataclass
 class WandbResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a Weights & Biases resource for experiment tracking."""
 

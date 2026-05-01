@@ -3,7 +3,6 @@
 Extract text from images using Tesseract OCR via pytesseract.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class OcrExtractorComponent(Component, Model, Resolvable):
     """Component for extracting text from images using Tesseract OCR.
 

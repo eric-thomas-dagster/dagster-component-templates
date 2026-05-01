@@ -1,11 +1,9 @@
 """Datadog Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class DatadogResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a dagster-datadog DatadogResource for use by other components."""
 

@@ -1,5 +1,4 @@
 """Azure Cosmos DB Resource component."""
-from dataclasses import dataclass
 
 import dagster as dg
 from azure.cosmos import CosmosClient
@@ -20,7 +19,6 @@ class CosmosDBResource(ConfigurableResource):
         return client.get_database_client(self.database_name)
 
 
-@dataclass
 class CosmosDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register an Azure Cosmos DB resource for use by other components."""
 

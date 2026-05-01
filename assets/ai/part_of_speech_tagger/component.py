@@ -3,7 +3,6 @@
 Tag parts of speech in text using spaCy. Supports tags_column, expanded, and counts output modes.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class PartOfSpeechTaggerComponent(Component, Model, Resolvable):
     """Component for tagging parts of speech in text using spaCy.
 

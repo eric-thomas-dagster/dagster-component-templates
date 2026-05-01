@@ -3,7 +3,6 @@
 Pivot table / cross-tabulation. Rotate unique values of one column into new columns,
 aggregating a value column in the process.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class CrossTabComponent(Component, Model, Resolvable):
     """Pivot table / cross-tabulation — rotate column values into new column headers."""
 

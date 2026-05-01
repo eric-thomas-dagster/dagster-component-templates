@@ -4,7 +4,6 @@ Extract key information from legal documents (NDAs, agreements, pleadings, brief
 using an LLM via litellm.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 
@@ -23,7 +22,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class LegalDocumentExtractorComponent(Component, Model, Resolvable):
     """Component for extracting structured data from legal documents using LLMs.
 

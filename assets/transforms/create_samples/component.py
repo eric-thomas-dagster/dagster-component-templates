@@ -2,7 +2,6 @@
 
 Split a DataFrame into train/test/validation sets using sklearn's train_test_split.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class CreateSamplesComponent(Component, Model, Resolvable):
     """Split a DataFrame into train/test/validation sets."""
 

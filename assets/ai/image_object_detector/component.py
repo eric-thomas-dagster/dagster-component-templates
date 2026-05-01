@@ -3,7 +3,6 @@
 Detect objects in images using HuggingFace DETR models.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class ImageObjectDetectorComponent(Component, Model, Resolvable):
     """Component for detecting objects in images using HuggingFace DETR models.
 

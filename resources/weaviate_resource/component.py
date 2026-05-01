@@ -1,11 +1,9 @@
 """Weaviate Resource component."""
-from dataclasses import dataclass
 from typing import Optional, Dict
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class WeaviateResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a dagster-weaviate WeaviateResource for use by other components."""
 

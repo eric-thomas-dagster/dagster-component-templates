@@ -1,5 +1,4 @@
 """MLflow Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 import os
 import dagster as dg
@@ -28,7 +27,6 @@ class MLflowResource(dg.ConfigurableResource):
         return mlflow.MlflowClient()
 
 
-@dataclass
 class MLflowResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register an MLflow resource for experiment tracking and model registry."""
 

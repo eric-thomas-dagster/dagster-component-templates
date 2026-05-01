@@ -4,7 +4,6 @@ Classify text into arbitrary categories using HuggingFace zero-shot classificati
 No training data required.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 
@@ -23,7 +22,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class ZeroShotClassifierComponent(Component, Model, Resolvable):
     """Component for zero-shot text classification using HuggingFace transformers.
 

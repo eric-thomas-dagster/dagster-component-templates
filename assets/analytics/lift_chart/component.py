@@ -2,7 +2,6 @@
 
 Compute a lift/gains chart from actual binary labels and predicted probabilities.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class LiftChartComponent(Component, Model, Resolvable):
     """Compute a lift/gains chart from actual binary labels and predicted probabilities."""
 

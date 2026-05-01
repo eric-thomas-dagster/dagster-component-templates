@@ -2,7 +2,6 @@
 
 Apply a formula expression to multiple columns at once.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class MultiFieldFormulaComponent(Component, Model, Resolvable):
     """Apply a formula expression to multiple columns at once."""
 

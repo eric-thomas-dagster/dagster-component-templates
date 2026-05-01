@@ -2,7 +2,6 @@
 
 Automatically optimize DataFrame column dtypes to reduce memory usage.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class AutoFieldComponent(Component, Model, Resolvable):
     """Automatically optimize DataFrame column dtypes to reduce memory usage."""
 

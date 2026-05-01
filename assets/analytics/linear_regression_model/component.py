@@ -2,7 +2,6 @@
 
 Fit a linear regression model and output predictions and/or model coefficients.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class LinearRegressionModelComponent(Component, Model, Resolvable):
     """Fit a linear regression model and output predictions and/or model coefficients."""
 

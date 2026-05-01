@@ -2,7 +2,6 @@
 
 Clean and normalize text data for NLP tasks.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class TextPreprocessingComponent(Component, Model, Resolvable):
     """Clean and normalize text data for NLP tasks."""
 

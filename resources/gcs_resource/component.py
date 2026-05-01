@@ -1,11 +1,9 @@
 """GCS Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class GCSResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a dagster-gcp GCSResource for use by other components."""
 

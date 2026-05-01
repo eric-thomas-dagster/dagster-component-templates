@@ -1,5 +1,4 @@
 """Zendesk Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -21,7 +20,6 @@ class ZendeskResource(ConfigurableResource):
         )
 
 
-@dataclass
 class ZendeskResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a ZendeskResource for use by other components."""
 

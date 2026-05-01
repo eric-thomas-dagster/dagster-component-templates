@@ -4,7 +4,6 @@ Reproject coordinate columns in a DataFrame from one CRS (coordinate reference
 system) to another using pyproj. Supports any EPSG or PROJ string.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -23,7 +22,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class CoordinateTransformerComponent(Component, Model, Resolvable):
     """Reproject coordinate columns from one CRS to another using pyproj.
 

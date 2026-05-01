@@ -1,11 +1,9 @@
 """DuckDB IO Manager component — reads and writes Pandas DataFrames via a local DuckDB file."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class DuckDBIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a DuckDBPandasIOManager so assets are automatically stored in and loaded from a local DuckDB database."""
 

@@ -6,7 +6,6 @@ row with the matching polygon's name (or null if no match).
 
 import json
 import os
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -25,7 +24,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class PointInPolygonComponent(Component, Model, Resolvable):
     """Annotate each row with the GeoJSON polygon region it falls inside.
 

@@ -1,5 +1,4 @@
 """PostgreSQL Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from pydantic import Field
@@ -24,7 +23,6 @@ class PostgresResource(dg.ConfigurableResource):
         return psycopg2.connect(self.connection_string)
 
 
-@dataclass
 class PostgresResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a PostgreSQL resource for use by other components."""
 

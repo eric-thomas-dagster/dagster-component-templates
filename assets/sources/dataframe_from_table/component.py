@@ -4,7 +4,6 @@ Read a database table and output a DataFrame. Bridge from DB-centric ingestion a
 into the DataFrame pipeline.
 """
 import os
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class DataframeFromTableComponent(Component, Model, Resolvable):
     """Read a database table and output a DataFrame."""
 

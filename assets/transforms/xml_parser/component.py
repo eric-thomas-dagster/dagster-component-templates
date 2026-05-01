@@ -2,7 +2,6 @@
 
 Parse XML content in a column into separate fields using XPath expressions.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class XmlParser(Component, Model, Resolvable):
     """Parse XML content in a column into separate fields using XPath expressions."""
 

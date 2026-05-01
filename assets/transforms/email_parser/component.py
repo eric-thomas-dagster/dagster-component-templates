@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -19,7 +18,6 @@ from pydantic import Field
 DEFAULT_FIELDS = ["from", "to", "subject", "date", "body"]
 
 
-@dataclass
 class EmailParserComponent(Component, Model, Resolvable):
     """Parse raw email content (RFC 2822 format) from a column into structured fields."""
 

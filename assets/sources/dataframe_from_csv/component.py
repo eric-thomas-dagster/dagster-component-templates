@@ -4,7 +4,6 @@ Read a CSV file and output a DataFrame. Supports environment variable substituti
 in the file path for flexible deployment configuration.
 """
 import os
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class DataframeFromCsvComponent(Component, Model, Resolvable):
     """Read a CSV file and output a DataFrame."""
 

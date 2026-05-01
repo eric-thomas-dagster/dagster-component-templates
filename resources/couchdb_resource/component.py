@@ -1,5 +1,4 @@
 """CouchDB Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 
 import couchdb
@@ -20,7 +19,6 @@ class CouchDBResource(ConfigurableResource):
         return server
 
 
-@dataclass
 class CouchDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a CouchDB resource for use by other components."""
 

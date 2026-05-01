@@ -1,10 +1,8 @@
 """Twilio Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class TwilioResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a dagster-twilio TwilioResource for use by other components."""
 

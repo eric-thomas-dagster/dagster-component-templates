@@ -2,7 +2,7 @@
 
 Generate synthetic data rows using an LLM based on a schema definition.
 """
-from dataclasses import dataclass, field
+from dataclasses import field
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class SyntheticDataComponent(Component, Model, Resolvable):
     """Generate synthetic data rows using an LLM based on a schema definition."""
 

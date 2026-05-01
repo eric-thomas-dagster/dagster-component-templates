@@ -1,5 +1,4 @@
 """SMTP Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from pydantic import Field
 
@@ -27,7 +26,6 @@ class SMTPResource(dg.ConfigurableResource):
             server.send_message(msg)
 
 
-@dataclass
 class SMTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register an SMTP resource for sending emails from other components."""
 

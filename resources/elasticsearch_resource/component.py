@@ -1,5 +1,4 @@
 """Elasticsearch Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 
 import dagster as dg
@@ -27,7 +26,6 @@ class ElasticsearchResource(ConfigurableResource):
         return Elasticsearch(**kwargs)
 
 
-@dataclass
 class ElasticsearchResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register an Elasticsearch resource for use by other components."""
 

@@ -4,7 +4,6 @@ Encode categorical columns into integer codes. Useful for tree-based models
 (which don't need one-hot expansion) and for compressing high-cardinality
 categoricals into compact integer features.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -23,7 +22,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class LabelEncoderComponent(Component, Model, Resolvable):
     """Encode categorical columns into integer codes.
 

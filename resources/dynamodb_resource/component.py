@@ -1,5 +1,4 @@
 """DynamoDB Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 
 import boto3
@@ -31,7 +30,6 @@ class DynamoDBResource(ConfigurableResource):
         return boto3.client("dynamodb", **self._client_kwargs())
 
 
-@dataclass
 class DynamoDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a DynamoDB resource for use by other components."""
 

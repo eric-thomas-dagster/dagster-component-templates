@@ -2,7 +2,6 @@
 
 Reduce DataFrame dimensionality using Principal Component Analysis.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class PcaComponent(Component, Model, Resolvable):
     """Reduce DataFrame dimensionality using Principal Component Analysis."""
 

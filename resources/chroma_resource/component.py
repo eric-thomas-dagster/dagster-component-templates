@@ -1,11 +1,9 @@
 """Chroma Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class ChromaResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a dagster-chroma ChromaResource for use by other components."""
 

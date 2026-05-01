@@ -1,5 +1,4 @@
 """Pipedrive Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from dagster import ConfigurableResource
@@ -30,7 +29,6 @@ class PipedriveResource(ConfigurableResource):
         return session
 
 
-@dataclass
 class PipedriveResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a PipedriveResource for use by other components."""
 

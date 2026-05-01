@@ -3,7 +3,6 @@
 Group and aggregate a DataFrame by one or more columns. Equivalent to SQL GROUP BY
 or the Alteryx Summarize tool.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class SummarizeComponent(Component, Model, Resolvable):
     """Group and aggregate a DataFrame by one or more columns."""
 

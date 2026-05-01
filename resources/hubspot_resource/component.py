@@ -1,5 +1,4 @@
 """HubSpot Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -15,7 +14,6 @@ class HubSpotResource(ConfigurableResource):
         return hubspot.HubSpot(access_token=self.access_token)
 
 
-@dataclass
 class HubSpotResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a HubSpotResource for use by other components."""
 

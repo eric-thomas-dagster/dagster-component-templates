@@ -1,5 +1,4 @@
 """Personio Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -22,7 +21,6 @@ class PersonioResource(ConfigurableResource):
         return client
 
 
-@dataclass
 class PersonioResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a PersonioResource for use by other components."""
 

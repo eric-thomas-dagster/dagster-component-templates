@@ -3,7 +3,6 @@
 Evaluate and score LLM outputs against a rubric using another LLM as a judge.
 Useful for automated quality assessment and regression testing of AI pipelines.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class LlmJudgeComponent(Component, Model, Resolvable):
     """Evaluate and score LLM outputs against a rubric using another LLM as a judge.
 

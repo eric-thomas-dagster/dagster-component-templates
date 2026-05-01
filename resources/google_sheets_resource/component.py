@@ -1,5 +1,4 @@
 """Google Sheets Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 import json
 import dagster as dg
@@ -24,7 +23,6 @@ class GoogleSheetsResource(ConfigurableResource):
         return gspread.service_account_from_dict(credentials_json)
 
 
-@dataclass
 class GoogleSheetsResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a GoogleSheetsResource for use by other components."""
 

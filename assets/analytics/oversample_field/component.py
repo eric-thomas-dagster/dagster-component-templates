@@ -2,7 +2,6 @@
 
 Balance imbalanced datasets using SMOTE, random oversampling, or ADASYN.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class OversampleFieldComponent(Component, Model, Resolvable):
     """Balance imbalanced datasets using SMOTE, random oversampling, or ADASYN."""
 

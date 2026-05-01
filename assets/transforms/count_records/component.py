@@ -2,7 +2,6 @@
 
 Count rows in a DataFrame, optionally grouped by one or more columns.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class CountRecordsComponent(Component, Model, Resolvable):
     """Count rows in a DataFrame, optionally grouped by one or more columns."""
 

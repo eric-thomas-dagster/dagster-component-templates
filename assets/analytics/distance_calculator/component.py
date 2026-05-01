@@ -5,7 +5,6 @@ using the Haversine formula (fast) or Vincenty/geodesic formula (precise).
 """
 
 import math
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -24,7 +23,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class DistanceCalculatorComponent(Component, Model, Resolvable):
     """Calculate geographic distance between two coordinate pairs per row.
 

@@ -1,5 +1,4 @@
 """HTTP Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from pydantic import Field
@@ -26,7 +25,6 @@ class HTTPResource(dg.ConfigurableResource):
         return self.get_session().post(f"{self.base_url.rstrip('/')}/{path.lstrip('/')}", timeout=self.timeout_seconds, **kwargs)
 
 
-@dataclass
 class HTTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register an HTTP resource (base URL + auth) for use by other components."""
 

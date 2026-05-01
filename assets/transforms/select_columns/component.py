@@ -2,7 +2,6 @@
 
 Select, drop, and rename columns in a DataFrame.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class SelectColumnsComponent(Component, Model, Resolvable):
     """Select, drop, and rename columns in a DataFrame."""
 

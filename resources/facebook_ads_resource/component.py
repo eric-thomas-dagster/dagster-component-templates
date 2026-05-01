@@ -1,5 +1,4 @@
 """Facebook Ads Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -25,7 +24,6 @@ class FacebookAdsResource(ConfigurableResource):
         return AdAccount(self.ad_account_id)
 
 
-@dataclass
 class FacebookAdsResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a FacebookAdsResource for use by other components."""
 

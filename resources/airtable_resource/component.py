@@ -1,5 +1,4 @@
 """Airtable Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -15,7 +14,6 @@ class AirtableResource(ConfigurableResource):
         return pyairtable.Api(self.api_key)
 
 
-@dataclass
 class AirtableResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register an AirtableResource for use by other components."""
 

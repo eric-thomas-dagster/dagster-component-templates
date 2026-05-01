@@ -1,10 +1,8 @@
 """dbt Cloud Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class DbtCloudResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a dagster-dbt DbtCloudResource for use by other components."""
 

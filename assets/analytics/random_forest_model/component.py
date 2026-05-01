@@ -2,7 +2,6 @@
 
 Fit a random forest ensemble model for classification or regression.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class RandomForestModelComponent(Component, Model, Resolvable):
     """Fit a random forest ensemble model for classification or regression."""
 

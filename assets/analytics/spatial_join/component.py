@@ -5,7 +5,6 @@ enriching each point with attributes from the region it falls within.
 """
 
 import json
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -24,7 +23,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class SpatialJoinComponent(Component, Model, Resolvable):
     """Spatially join a points DataFrame against a regions DataFrame.
 

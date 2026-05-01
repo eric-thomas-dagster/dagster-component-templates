@@ -4,7 +4,6 @@ Cluster geographic points using DBSCAN (density-based, handles noise and
 arbitrary shapes) or K-means (fixed number of spherical clusters).
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -23,7 +22,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class SpatialClusterComponent(Component, Model, Resolvable):
     """Cluster geographic points using DBSCAN or K-means.
 

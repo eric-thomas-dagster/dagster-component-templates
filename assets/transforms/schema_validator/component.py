@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 import pandas as pd
 from dagster import (
@@ -16,7 +15,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class SchemaValidatorComponent(Component, Model, Resolvable):
     """Validate each row against a JSON Schema; drop, tag, or raise on failures."""
 

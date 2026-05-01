@@ -2,7 +2,6 @@
 
 Use LiteLLM function/tool calling to invoke structured tool definitions against each row.
 """
-from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 import pandas as pd
 from dagster import (
@@ -20,7 +19,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class LitellmFunctionCallingComponent(Component, Model, Resolvable):
     """Use LiteLLM function/tool calling to invoke structured tool definitions against each row.
 

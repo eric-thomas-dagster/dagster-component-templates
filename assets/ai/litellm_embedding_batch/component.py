@@ -3,7 +3,6 @@
 Generate embeddings for a text column using LiteLLM with automatic
 model routing and fallback. Processes rows in configurable batches.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class LitellmEmbeddingBatchComponent(Component, Model, Resolvable):
     """Generate embeddings for a text column using LiteLLM with batching and fallback.
 

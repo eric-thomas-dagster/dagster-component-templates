@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -16,7 +15,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class PiiRedactorComponent(Component, Model, Resolvable):
     """Detect and redact PII from text columns, replacing entities with type placeholders or custom values."""
 

@@ -2,7 +2,6 @@
 
 Split a text column into multiple columns or rows by a delimiter.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class TextToColumns(Component, Model, Resolvable):
     """Split a text column into multiple columns or rows by a delimiter."""
 

@@ -1,10 +1,8 @@
 """Anthropic Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class AnthropicResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a dagster-anthropic AnthropicResource for use by other components."""
 

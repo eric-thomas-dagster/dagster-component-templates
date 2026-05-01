@@ -2,7 +2,6 @@
 
 Expand a DataFrame by repeating rows, appending new rows, or cross-joining with new rows.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class GenerateRowsComponent(Component, Model, Resolvable):
     """Expand a DataFrame by repeating, appending, or cross-joining rows."""
 

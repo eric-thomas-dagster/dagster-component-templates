@@ -3,7 +3,6 @@
 Extract structured Pydantic models from text using the Instructor library.
 Works with any OpenAI-compatible LLM and dynamically creates extraction schemas.
 """
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class InstructorExtractorComponent(Component, Model, Resolvable):
     """Extract structured Pydantic models from text using the Instructor library.
 

@@ -1,5 +1,4 @@
 """MongoDB Resource component."""
-from dataclasses import dataclass
 
 import dagster as dg
 import pymongo
@@ -16,7 +15,6 @@ class MongoDBResource(ConfigurableResource):
         return pymongo.MongoClient(self.connection_string, tls=self.tls)
 
 
-@dataclass
 class MongoDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a MongoDB resource for use by other components."""
 

@@ -2,7 +2,6 @@
 
 Find and optionally deduplicate rows with similar string values using fuzzy matching.
 """
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -21,7 +20,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class FuzzyMatch(Component, Model, Resolvable):
     """Find and optionally deduplicate rows with similar string values using fuzzy matching."""
 

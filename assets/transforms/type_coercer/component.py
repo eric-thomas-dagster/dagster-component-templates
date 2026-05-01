@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 from dagster import (
@@ -19,7 +18,6 @@ from pydantic import Field
 VALID_TYPES = ("int", "float", "str", "bool", "datetime", "date", "json")
 
 
-@dataclass
 class TypeCoercerComponent(Component, Model, Resolvable):
     """Cast DataFrame columns to specified types; handles mixed types common in document DB output."""
 

@@ -3,7 +3,6 @@
 Compare ARIMA vs ETS models on a hold-out test set using AIC, MAE, RMSE, and MAPE.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class TsCompareComponent(Component, Model, Resolvable):
     """Component for comparing ARIMA and ETS model performance on a time series.
 

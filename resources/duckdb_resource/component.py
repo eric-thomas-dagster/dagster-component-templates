@@ -1,10 +1,8 @@
 """DuckDB Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class DuckDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a dagster-duckdb DuckDBResource for use by other components."""
 

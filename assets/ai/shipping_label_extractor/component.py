@@ -3,7 +3,6 @@
 Extract logistics data from shipping labels and packing slips using an LLM via litellm.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class ShippingLabelExtractorComponent(Component, Model, Resolvable):
     """Component for extracting structured data from shipping labels using LLMs.
 

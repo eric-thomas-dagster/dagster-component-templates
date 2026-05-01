@@ -1,5 +1,4 @@
 """Neo4j Resource component."""
-from dataclasses import dataclass
 
 import dagster as dg
 from dagster import ConfigurableResource
@@ -17,7 +16,6 @@ class Neo4jResource(ConfigurableResource):
         return GraphDatabase.driver(self.uri, auth=(self.username, self.password))
 
 
-@dataclass
 class Neo4jResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a Neo4j resource for use by other components."""
 

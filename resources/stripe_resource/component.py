@@ -1,5 +1,4 @@
 """Stripe Resource component."""
-from dataclasses import dataclass
 import dagster as dg
 from dagster import ConfigurableResource
 from pydantic import Field
@@ -16,7 +15,6 @@ class StripeResource(ConfigurableResource):
         return stripe
 
 
-@dataclass
 class StripeResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a StripeResource for use by other components."""
 

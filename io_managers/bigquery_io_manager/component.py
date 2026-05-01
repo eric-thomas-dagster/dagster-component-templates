@@ -1,12 +1,10 @@
 """BigQuery IO Manager component — reads and writes Pandas DataFrames via BigQuery."""
-from dataclasses import dataclass
 from typing import Optional
 import os
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class BigQueryIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a BigQueryPandasIOManager so assets are automatically stored in and loaded from BigQuery."""
 

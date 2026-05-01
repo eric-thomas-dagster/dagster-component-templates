@@ -1,11 +1,9 @@
 """AWS S3 Resource component."""
-from dataclasses import dataclass
 from typing import Optional
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class S3ResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a dagster-aws S3Resource for use by other components."""
 

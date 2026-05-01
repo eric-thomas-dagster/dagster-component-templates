@@ -3,7 +3,6 @@
 Extract technical metadata from images: dimensions, format, color mode, EXIF data.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 import pandas as pd
 
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class ImageMetadataExtractorComponent(Component, Model, Resolvable):
     """Component for extracting technical metadata from images.
 

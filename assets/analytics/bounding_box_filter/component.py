@@ -4,7 +4,6 @@ Filter a DataFrame of geographic points to keep only those inside (or outside)
 a rectangular bounding box defined by min/max latitude and longitude bounds.
 """
 
-from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -23,7 +22,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class BoundingBoxFilterComponent(Component, Model, Resolvable):
     """Filter geographic points to those inside (or outside) a bounding box.
 

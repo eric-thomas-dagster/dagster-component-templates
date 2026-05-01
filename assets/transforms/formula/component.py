@@ -3,7 +3,6 @@
 Create or update columns using pandas eval expressions, enabling
 calculated fields without writing custom transformation code.
 """
-from dataclasses import dataclass
 from typing import Optional, List, Dict
 
 import pandas as pd
@@ -22,7 +21,6 @@ from dagster import (
 from pydantic import Field
 
 
-@dataclass
 class FormulaComponent(Component, Model, Resolvable):
     """Create or update columns using pandas eval expressions.
 

@@ -1,12 +1,10 @@
 """Delta Lake IO Manager component — reads and writes Pandas DataFrames as Delta tables."""
-from dataclasses import dataclass
 from typing import Optional
 import os
 import dagster as dg
 from pydantic import Field
 
 
-@dataclass
 class DeltaLakeIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a DeltaLakePandasIOManager so assets are stored as Delta tables on local disk, S3, GCS, or Azure ADLS."""
 

@@ -1,5 +1,4 @@
 """Google Analytics Resource component."""
-from dataclasses import dataclass
 import json
 import dagster as dg
 from dagster import ConfigurableResource
@@ -26,7 +25,6 @@ class GoogleAnalyticsResource(ConfigurableResource):
         return BetaAnalyticsDataClient(credentials=credentials)
 
 
-@dataclass
 class GoogleAnalyticsResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a GoogleAnalyticsResource for use by other components."""
 

@@ -378,7 +378,7 @@ Answer:"""
                             TableColumnDep(asset_key=_upstream_key, column_name=ic)
                             for ic in in_cols
                         ]
-                    _metadata["dagster/column_lineage"] = MetadataValue.table_column_lineage(
+                    _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
                         TableColumnLineage(_lineage_deps)
                     )
             context.add_output_metadata(_metadata)

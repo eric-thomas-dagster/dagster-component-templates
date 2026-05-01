@@ -218,6 +218,14 @@ group_name=group_name,
             )
             df = upstream[columns] if columns is not None else upstream
 
+            # Excel can't store tz-aware datetimes. Drop timezone (preserving UTC wall time).
+            _tz_cols = [c for c in df.columns if hasattr(df[c], "dt") and getattr(df[c].dt, "tz", None) is not None]
+            if _tz_cols:
+                df = df.copy()
+                for _c in _tz_cols:
+                    df[_c] = df[_c].dt.tz_convert("UTC").dt.tz_localize(None)
+                context.log.info(f"Stripped tz from columns for Excel compat: {_tz_cols}")
+
             if freeze_panes:
                 import openpyxl
 

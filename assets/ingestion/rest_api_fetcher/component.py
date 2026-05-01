@@ -454,7 +454,19 @@ group_name=group_name,
                 if isinstance(data, list):
                     result = pd.DataFrame(data)
                 elif isinstance(data, dict):
-                    result = pd.DataFrame([data])
+                    # Two valid dict shapes:
+                    #   1) columnar: {col: [v1, v2, ...]} — parallel lists of equal length
+                    #   2) row:      {field: scalar}     — a single record
+                    _vals = list(data.values())
+                    _is_columnar = (
+                        len(_vals) > 0
+                        and all(isinstance(v, list) for v in _vals)
+                        and len(set(len(v) for v in _vals)) == 1
+                    )
+                    if _is_columnar:
+                        result = pd.DataFrame(data)
+                    else:
+                        result = pd.DataFrame([data])
                 else:
                     context.log.error(f"Cannot convert {type(data)} to DataFrame")
                     raise ValueError(f"Cannot convert {type(data)} to DataFrame")

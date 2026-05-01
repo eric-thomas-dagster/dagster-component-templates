@@ -15,15 +15,16 @@ from dagster import (
     OpExecutionContext,
     asset,
     MetadataValue,
+    Component,
+    Model,
+    Resolvable,
+    ComponentLoadContext,
 )
 from dagster._core.definitions.definitions_class import Definitions
-from dagster_components import Component, ComponentLoadContext, component_type
-from dagster_components.core.component_defs_builder import build_defs_from_component
 from pydantic import Field
 
 
-@component_type(name="customer_segmentation")
-class CustomerSegmentationComponent(Component):
+class CustomerSegmentationComponent(Component, Model, Resolvable):
     """Component that segments customers using RFM analysis."""
 
     asset_name: str = Field(
@@ -489,8 +490,4 @@ group_name=self.group_name,
 
             return rfm
 
-        return build_defs_from_component(
-            context=context,
-            component=self,
-            asset_defs=[customer_segmentation_asset],
-        )
+        return Definitions(assets=[customer_segmentation_asset])

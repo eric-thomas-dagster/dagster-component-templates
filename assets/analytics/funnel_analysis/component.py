@@ -15,15 +15,16 @@ from dagster import (
     OpExecutionContext,
     asset,
     MetadataValue,
+    Component,
+    Model,
+    Resolvable,
+    ComponentLoadContext,
 )
 from dagster._core.definitions.definitions_class import Definitions
-from dagster_components import Component, ComponentLoadContext, component_type
-from dagster_components.core.component_defs_builder import build_defs_from_component
 from pydantic import Field
 
 
-@component_type(name="funnel_analysis")
-class FunnelAnalysisComponent(Component):
+class FunnelAnalysisComponent(Component, Model, Resolvable):
     """Component that analyzes user progression through conversion funnels."""
 
     asset_name: str = Field(
@@ -670,8 +671,4 @@ group_name=self.group_name,
 
             return funnel_metrics
 
-        return build_defs_from_component(
-            context=context,
-            component=self,
-            asset_defs=[funnel_analysis_asset],
-        )
+        return Definitions(assets=[funnel_analysis_asset])

@@ -92,6 +92,31 @@ class TectonAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     # build_defs
     # -------------------------------------------------------------------------
 
+    retry_policy_max_retries: Optional[int] = Field(
+
+        default=None,
+
+        description="Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+
+    )
+
+    retry_policy_delay_seconds: Optional[int] = Field(
+
+        default=None,
+
+        description="Seconds between retries (default 1).",
+
+    )
+
+    retry_policy_backoff: str = Field(
+
+        default="exponential",
+
+        description="Backoff strategy: 'linear' or 'exponential'.",
+
+    )
+
+
     def build_defs(self, load_context: dg.ComponentLoadContext) -> dg.Definitions:
         component = self
 
@@ -133,7 +158,35 @@ class TectonAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 partitions_def = HourlyPartitionsDefinition(start_date=_pstart)
 
 
-        @dg.asset(partitions_def=partitions_def, 
+        # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
+
+
+        _retry_policy = None
+
+
+        if self.retry_policy_max_retries is not None:
+
+
+            from dagster import Backoff, RetryPolicy
+
+
+            _retry_policy = RetryPolicy(
+
+
+                max_retries=self.retry_policy_max_retries,
+
+
+                delay=self.retry_policy_delay_seconds or 1,
+
+
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+
+
+            )
+
+
+
+        @dg.asset(retry_policy=_retry_policy, partitions_def=partitions_def, 
             name=component.asset_name,
             group_name=component.group_name,
             deps=dep_keys,

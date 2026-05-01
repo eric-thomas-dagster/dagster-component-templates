@@ -92,6 +92,31 @@ class TextPreprocessingComponent(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Clean and normalize text data for NLP tasks using NLTK."
 
+    retry_policy_max_retries: Optional[int] = Field(
+
+        default=None,
+
+        description="Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+
+    )
+
+    retry_policy_delay_seconds: Optional[int] = Field(
+
+        default=None,
+
+        description="Seconds between retries (default 1).",
+
+    )
+
+    retry_policy_backoff: str = Field(
+
+        default="exponential",
+
+        description="Backoff strategy: 'linear' or 'exponential'.",
+
+    )
+
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
@@ -177,7 +202,35 @@ class TextPreprocessingComponent(Component, Model, Resolvable):
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
 
-        @asset(
+        # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
+
+
+        _retry_policy = None
+
+
+        if self.retry_policy_max_retries is not None:
+
+
+            from dagster import Backoff, RetryPolicy
+
+
+            _retry_policy = RetryPolicy(
+
+
+                max_retries=self.retry_policy_max_retries,
+
+
+                delay=self.retry_policy_delay_seconds or 1,
+
+
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+
+
+            )
+
+
+
+        @asset(retry_policy=_retry_policy, 
             name=asset_name,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             partitions_def=partitions_def,

@@ -188,6 +188,31 @@ class ProductUsageAnalyticsComponent(Component):
 
         return metrics
 
+    retry_policy_max_retries: Optional[int] = Field(
+
+        default=None,
+
+        description="Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+
+    )
+
+    retry_policy_delay_seconds: Optional[int] = Field(
+
+        default=None,
+
+        description="Seconds between retries (default 1).",
+
+    )
+
+    retry_policy_backoff: str = Field(
+
+        default="exponential",
+
+        description="Backoff strategy: 'linear' or 'exponential'.",
+
+    )
+
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build asset definitions."""
         asset_name = self.asset_name
@@ -270,7 +295,35 @@ class ProductUsageAnalyticsComponent(Component):
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
 
-        @asset(
+        # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
+
+
+        _retry_policy = None
+
+
+        if self.retry_policy_max_retries is not None:
+
+
+            from dagster import Backoff, RetryPolicy
+
+
+            _retry_policy = RetryPolicy(
+
+
+                max_retries=self.retry_policy_max_retries,
+
+
+                delay=self.retry_policy_delay_seconds or 1,
+
+
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+
+
+            )
+
+
+
+        @asset(retry_policy=_retry_policy, 
             name=asset_name,
             ins=asset_ins,
             description=self.description or "Product usage analytics with engagement metrics and power user identification",

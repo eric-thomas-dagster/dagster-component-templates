@@ -37,6 +37,14 @@ class DataframeToDatabricksComponent(Component, Model, Resolvable):
     mode: str = Field(default="overwrite", description="Write mode: 'overwrite', 'append', 'ignore', 'error'")
     merge_schema: bool = Field(default=True, description="Allow schema evolution when appending")
     cluster_id: Optional[str] = Field(default=None, description="SQL warehouse or cluster ID (None = auto)")
+    drop_timezone: bool = Field(
+        default=True,
+        description=(
+            "Drop tz from tz-aware datetime columns before INSERT. Default True "
+            "because the parameterized INSERT path doesn't bind tz cleanly. Set "
+            "False if your tables use TIMESTAMP and you've handled tz upstream."
+        ),
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -123,6 +131,7 @@ class DataframeToDatabricksComponent(Component, Model, Resolvable):
         mode = self.mode
         merge_schema = self.merge_schema
         cluster_id = self.cluster_id
+        drop_timezone = self.drop_timezone
         group_name = self.group_name
 
         # Build partition definition
@@ -256,6 +265,18 @@ group_name=group_name,
             token = os.environ[token_env_var]
             full_table = f"{catalog}.{schema}.{table}"
             http_path = f"/sql/1.0/warehouses/{cluster_id or 'auto'}"
+
+            # Strip tz from datetime columns when target backend doesn't support it.
+            if drop_timezone:
+                _tz_cols = [
+                    c for c in upstream.columns
+                    if hasattr(upstream[c], "dt") and getattr(upstream[c].dt, "tz", None) is not None
+                ]
+                if _tz_cols:
+                    upstream = upstream.copy()
+                    for _c in _tz_cols:
+                        upstream[_c] = upstream[_c].dt.tz_convert("UTC").dt.tz_localize(None)
+                    context.log.info(f"Stripped tz from columns for Databricks compat: {_tz_cols}")
 
             with databricks_sql.connect(
                 server_hostname=host,

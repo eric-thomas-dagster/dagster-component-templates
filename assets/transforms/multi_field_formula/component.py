@@ -213,7 +213,8 @@ group_name=group_name,
                     )
                     context.log.info(f"Applied expression to '{col}' -> '{out_col}'")
                 except Exception as e:
-                    context.log.warning(f"Failed to apply expression to '{col}': {e}")
+                    context.log.error(f"Failed to apply expression to '{col}': {e}")
+                    raise
 
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

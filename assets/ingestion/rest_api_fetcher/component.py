@@ -447,51 +447,36 @@ group_name=group_name,
                         break
 
             # Format output
-            if output_format == "json":
-                result = data
-
-            elif output_format == "dataframe":
-                if isinstance(data, list):
-                    result = pd.DataFrame(data)
-                elif isinstance(data, dict):
-                    # Two valid dict shapes:
-                    #   1) columnar: {col: [v1, v2, ...]} — parallel lists of equal length
-                    #   2) row:      {field: scalar}     — a single record
-                    _vals = list(data.values())
+            # Two valid dict shapes coming from APIs:
+            #   1) columnar: {col: [v1, v2, ...]} — parallel lists of equal length
+            #   2) row:      {field: scalar}     — a single record
+            # Detect columnar so we don't produce a 1-row df with list-valued cells.
+            def _to_df(payload, dest_label: str) -> pd.DataFrame:
+                if isinstance(payload, list):
+                    return pd.DataFrame(payload)
+                if isinstance(payload, dict):
+                    _vals = list(payload.values())
                     _is_columnar = (
                         len(_vals) > 0
                         and all(isinstance(v, list) for v in _vals)
                         and len(set(len(v) for v in _vals)) == 1
                     )
-                    if _is_columnar:
-                        result = pd.DataFrame(data)
-                    else:
-                        result = pd.DataFrame([data])
-                else:
-                    context.log.error(f"Cannot convert {type(data)} to DataFrame")
-                    raise ValueError(f"Cannot convert {type(data)} to DataFrame")
+                    return pd.DataFrame(payload) if _is_columnar else pd.DataFrame([payload])
+                context.log.error(f"Cannot convert {type(payload)} to {dest_label}")
+                raise ValueError(f"Cannot convert {type(payload)} to {dest_label}")
+
+            if output_format == "json":
+                result = data
+
+            elif output_format == "dataframe":
+                result = _to_df(data, "DataFrame")
 
             elif output_format == "csv":
-                if isinstance(data, list):
-                    df = pd.DataFrame(data)
-                elif isinstance(data, dict):
-                    df = pd.DataFrame([data])
-                else:
-                    raise ValueError(f"Cannot convert {type(data)} to CSV")
-
-                result = df.to_csv(index=False)
+                result = _to_df(data, "CSV").to_csv(index=False)
 
             elif output_format == "parquet":
-                if isinstance(data, list):
-                    df = pd.DataFrame(data)
-                elif isinstance(data, dict):
-                    df = pd.DataFrame([data])
-                else:
-                    raise ValueError(f"Cannot convert {type(data)} to Parquet")
-
-                # Convert to parquet bytes
                 buffer = BytesIO()
-                df.to_parquet(buffer, index=False)
+                _to_df(data, "Parquet").to_parquet(buffer, index=False)
                 result = buffer.getvalue()
 
             else:

@@ -40,6 +40,15 @@ class DataframeToTableComponent(Component, Model, Resolvable):
         description="Behavior if the table already exists: 'replace', 'append', or 'fail'",
     )
     schema: Optional[str] = Field(default=None, description="Database schema")
+    drop_timezone: bool = Field(
+        default=True,
+        description=(
+            "Drop tz from tz-aware datetime columns before INSERT. Default True "
+            "because SQLite has no native tz, MySQL silently truncates, and even "
+            "Postgres-bound users often want a normalized UTC. Set False to keep "
+            "tz info (works on Postgres TIMESTAMPTZ via SQLAlchemy)."
+        ),
+    )
     chunksize: Optional[int] = Field(
         default=None, description="Rows per batch when writing to the database"
     )
@@ -126,6 +135,7 @@ class DataframeToTableComponent(Component, Model, Resolvable):
         if_exists = self.if_exists
         schema = self.schema
         chunksize = self.chunksize
+        drop_timezone = self.drop_timezone
         group_name = self.group_name
 
         # Build partition definition
@@ -256,6 +266,19 @@ group_name=group_name,
                 raise ImportError("sqlalchemy required: pip install sqlalchemy")
 
             engine = sqlalchemy.create_engine(os.environ[database_url_env_var])
+
+            # Strip tz from datetime columns when target backend doesn't support it.
+            if drop_timezone:
+                _tz_cols = [
+                    c for c in upstream.columns
+                    if hasattr(upstream[c], "dt") and getattr(upstream[c].dt, "tz", None) is not None
+                ]
+                if _tz_cols:
+                    upstream = upstream.copy()
+                    for _c in _tz_cols:
+                        upstream[_c] = upstream[_c].dt.tz_convert("UTC").dt.tz_localize(None)
+                    context.log.info(f"Stripped tz from columns for SQL compat: {_tz_cols}")
+
             row_count = len(upstream)
 
             context.log.info(

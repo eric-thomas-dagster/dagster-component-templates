@@ -268,6 +268,33 @@ group_name=group_name,
                 params["date"] = partition_date.strftime("%Y-%m-%d")
                 params["partition_date"] = partition_date.strftime("%Y-%m-%d")
 
+            # Format-string templating in api_url and params values.
+            # Users can use placeholders like {partition_date}, {partition_date_next},
+            # {partition_key} to template the URL or any param value at run-time.
+            # Example: api_url with {partition_date} substitutes the partition's date.
+            from datetime import timedelta
+            _template_vars = {
+                "partition_key": context.partition_key if context.has_partition_key else "",
+                "partition_date": (
+                    partition_date.strftime("%Y-%m-%d") if partition_date else ""
+                ),
+                "partition_date_next": (
+                    (partition_date + timedelta(days=1)).strftime("%Y-%m-%d")
+                    if partition_date
+                    else ""
+                ),
+            }
+            try:
+                api_url = api_url.format(**_template_vars)
+            except (KeyError, IndexError):
+                pass  # template error → leave api_url as-is, fail naturally on the request
+            for k, v in list(params.items()):
+                if isinstance(v, str):
+                    try:
+                        params[k] = v.format(**_template_vars)
+                    except (KeyError, IndexError):
+                        pass
+
             # Parse body
             body = None
             if body_str:

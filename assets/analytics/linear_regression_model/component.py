@@ -274,6 +274,20 @@ group_name=group_name,
             r2 = r2_score(y_test, y_pred_test)
             mae = mean_absolute_error(y_test, y_pred_test)
 
+            # Build the output dataframe based on output_mode first; the metadata
+            # block below references it, so it has to exist before we describe it.
+            if output_mode == "coefficients":
+                result = pd.DataFrame({
+                    "feature": feature_columns,
+                    "coefficient": model.coef_,
+                    "intercept": [model.intercept_] + [None] * (len(feature_columns) - 1),
+                })
+            elif output_mode in ("predictions", "both"):
+                X_full = X if scaler is None else scaler.transform(X)
+                df[prediction_column] = model.predict(X_full)
+                result = df
+            else:
+                raise ValueError(f"Unknown output_mode: {output_mode}. Use 'predictions', 'coefficients', or 'both'.")
 
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
@@ -284,6 +298,8 @@ group_name=group_name,
             _metadata = {
                 "dagster/row_count": MetadataValue.int(len(result)),
                 "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+                "r2_score": MetadataValue.float(float(r2)),
+                "mean_absolute_error": MetadataValue.float(float(mae)),
             }
             # Use explicit lineage, or auto-infer passthrough columns at runtime
             _effective_lineage = column_lineage
@@ -310,19 +326,7 @@ group_name=group_name,
                     )
             context.add_output_metadata(_metadata)
 
-            if output_mode == "coefficients":
-                coef_df = pd.DataFrame({
-                    "feature": feature_columns,
-                    "coefficient": model.coef_,
-                    "intercept": [model.intercept_] + [None] * (len(feature_columns) - 1),
-                })
-                return coef_df
-            elif output_mode in ("predictions", "both"):
-                X_full = X if scaler is None else scaler.transform(X)
-                df[prediction_column] = model.predict(X_full)
-                return df
-            else:
-                raise ValueError(f"Unknown output_mode: {output_mode}. Use 'predictions', 'coefficients', or 'both'.")
+            return result
 
         from dagster import build_column_schema_change_checks
 

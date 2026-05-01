@@ -272,6 +272,22 @@ group_name=group_name,
                 top_words = [feature_names[i] for i in topic.argsort()[: -n_top_words - 1 : -1]]
                 topic_descriptions[f"topic_{topic_idx}"] = ", ".join(top_words)
 
+            # Build the output dataframe based on output_mode first; the metadata
+            # block below references it, so it has to exist before we describe it.
+            if output_mode == "topic_table":
+                rows = []
+                for topic_idx, top_words_str in topic_descriptions.items():
+                    rows.append({"topic": int(topic_idx.split("_")[1]), "top_words": top_words_str})
+                result = pd.DataFrame(rows)
+            elif output_mode == "dominant_topic":
+                df["dominant_topic"] = topic_matrix.argmax(axis=1)
+                result = df
+            elif output_mode == "all_topics":
+                for i in range(n_topics):
+                    df[f"topic_{i}_score"] = topic_matrix[:, i]
+                result = df
+            else:
+                raise ValueError(f"Unknown output_mode: {output_mode}. Use 'dominant_topic', 'all_topics', or 'topic_table'.")
 
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
@@ -308,20 +324,7 @@ group_name=group_name,
                     )
             context.add_output_metadata(_metadata)
 
-            if output_mode == "topic_table":
-                rows = []
-                for topic_idx, top_words_str in topic_descriptions.items():
-                    rows.append({"topic": int(topic_idx.split("_")[1]), "top_words": top_words_str})
-                return pd.DataFrame(rows)
-            elif output_mode == "dominant_topic":
-                df["dominant_topic"] = topic_matrix.argmax(axis=1)
-                return df
-            elif output_mode == "all_topics":
-                for i in range(n_topics):
-                    df[f"topic_{i}_score"] = topic_matrix[:, i]
-                return df
-            else:
-                raise ValueError(f"Unknown output_mode: {output_mode}. Use 'dominant_topic', 'all_topics', or 'topic_table'.")
+            return result
 
         from dagster import build_column_schema_change_checks
 

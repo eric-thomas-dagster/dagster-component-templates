@@ -544,10 +544,11 @@ group_name=group_name,
                 avg_ltv = result_df[result_df['value_segment'] == segment]['predicted_total_ltv'].mean()
                 context.log.info(f"  {segment}: {count} customers (${avg_ltv:,.2f} avg LTV)")
 
-            # Calculate summary statistics
-            total_predicted_ltv = result_df['predicted_total_ltv'].sum()
-            avg_predicted_ltv = result_df['predicted_total_ltv'].mean()
-            median_predicted_ltv = result_df['predicted_total_ltv'].median()
+            # Calculate summary statistics — cast to native floats so the
+            # metadata serializer can handle them.
+            total_predicted_ltv = float(result_df['predicted_total_ltv'].sum())
+            avg_predicted_ltv = float(result_df['predicted_total_ltv'].mean())
+            median_predicted_ltv = float(result_df['predicted_total_ltv'].median())
 
             # Add metadata
             metadata = {
@@ -556,8 +557,8 @@ group_name=group_name,
                 "total_predicted_ltv": round(total_predicted_ltv, 2),
                 "avg_predicted_ltv": round(avg_predicted_ltv, 2),
                 "median_predicted_ltv": round(median_predicted_ltv, 2),
-                "prediction_period_months": prediction_period_months,
-                "min_transactions_required": min_transactions,
+                "prediction_period_months": int(prediction_period_months),
+                "min_transactions_required": int(min_transactions),
                 "value_segments": MetadataValue.md(segment_dist.to_frame('count').to_markdown())
             }
 

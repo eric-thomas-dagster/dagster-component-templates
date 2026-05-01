@@ -585,15 +585,15 @@ group_name=group_name,
                 for path, count in path_frequency.head(10).items():
                     context.log.info(f"  {path}: {count} conversions")
 
-            # Add metadata
+            # Add metadata — cast pandas scalars to Python natives for serialization
             metadata = {
                 "row_count": len(result_df),
-                "total_conversions": result_df['conversion_id'].nunique(),
-                "total_customers": result_df['customer_id'].nunique(),
-                "total_attributed_value": round(result_df['attributed_value'].sum(), 2),
+                "total_conversions": int(result_df['conversion_id'].nunique()),
+                "total_customers": int(result_df['customer_id'].nunique()),
+                "total_attributed_value": round(float(result_df['attributed_value'].sum()), 2),
                 "attribution_model": attribution_model,
-                "lookback_window_days": lookback_days,
-                "unique_channels": result_df['channel'].nunique(),
+                "lookback_window_days": int(lookback_days),
+                "unique_channels": int(result_df['channel'].nunique()),
             }
 
             if include_performance:

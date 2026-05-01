@@ -623,13 +623,13 @@ group_name=group_name,
                         rec_prod = f"{rec_prod} ({row['recommended_product_name']})"
                     context.log.info(f"  #{row['recommendation_rank']}: {rec_prod}")
 
-            # Add metadata
+            # Add metadata — cast pandas scalars to Python natives
             metadata = {
                 "row_count": len(recommendations),
-                "num_products_with_recommendations": recommendations['product_id'].nunique(),
+                "num_products_with_recommendations": int(recommendations['product_id'].nunique()),
                 "recommendation_type": rec_type,
-                "num_recommendations_per_product": num_recs,
-                "min_co_occurrence": min_co_occur,
+                "num_recommendations_per_product": int(num_recs),
+                "min_co_occurrence": int(min_co_occur),
             }
 
             if lookback_days:

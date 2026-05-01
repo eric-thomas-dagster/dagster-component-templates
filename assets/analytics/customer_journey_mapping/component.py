@@ -494,12 +494,12 @@ group_name=group_name,
             metadata = {
                 "row_count": len(result_df),
                 "total_customers": len(result_df),
-                "avg_journey_length": round(result_df['journey_length'].mean(), 2),
-                "avg_journey_duration_hours": round(result_df['journey_duration_hours'].mean(), 2),
-                "conversion_rate": conversion_rate,
-                "conversions": result_df['converted'].sum(),
-                "max_journey_length": max_length,
-                "time_window_hours": time_window,
+                "avg_journey_length": round(float(result_df['journey_length'].mean()), 2),
+                "avg_journey_duration_hours": round(float(result_df['journey_duration_hours'].mean()), 2),
+                "conversion_rate": float(conversion_rate),
+                "conversions": int(result_df['converted'].sum()),
+                "max_journey_length": int(max_length),
+                "time_window_hours": int(time_window),
             }
 
             # Return with metadata

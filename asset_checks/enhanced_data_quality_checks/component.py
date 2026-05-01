@@ -634,12 +634,14 @@ class DataFrameAdapter:
                 'max': stats.select('max').item()
             }
         else:
+            # Cast pandas/numpy scalars to Python natives — Dagster's metadata
+            # serializer can't handle numpy.float64/int64 directly.
             return {
-                'mean': self.df[actual_column].mean(),
-                'std': self.df[actual_column].std(),
-                'min': self.df[actual_column].min(),
-                'max': self.df[actual_column].max(),
-                'count': self.df[actual_column].count()
+                'mean': float(self.df[actual_column].mean()),
+                'std': float(self.df[actual_column].std()),
+                'min': float(self.df[actual_column].min()),
+                'max': float(self.df[actual_column].max()),
+                'count': int(self.df[actual_column].count()),
             }
     
     def sample(self, n, method="random"):
@@ -5903,14 +5905,14 @@ len(result['failed_column_names'])
             margin_of_error = z_score * std_error
             
             return {
-                "predicted_value": predicted_value,
-                "lower_bound": predicted_value - margin_of_error,
-                "upper_bound": predicted_value + margin_of_error,
+                "predicted_value": float(predicted_value),
+                "lower_bound": float(predicted_value - margin_of_error),
+                "upper_bound": float(predicted_value + margin_of_error),
                 "method": "linear_regression",
-                "slope": slope,
-                "intercept": intercept,
-                "std_error": std_error,
-                "r_squared": 1 - (np.sum(residuals ** 2) / np.sum((y - np.mean(y)) ** 2))
+                "slope": float(slope),
+                "intercept": float(intercept),
+                "std_error": float(std_error),
+                "r_squared": float(1 - (np.sum(residuals ** 2) / np.sum((y - np.mean(y)) ** 2))),
             }
             
         except Exception:

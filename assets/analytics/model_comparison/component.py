@@ -309,10 +309,12 @@ group_name=group_name,
                         return_train_score=False,
                     )
 
-                    row = {"model": model_name, "fit_time_mean": scores["fit_time"].mean()}
+                    # Cast np.float64 → native float so the row serializes
+                    # cleanly into Dagster's metadata + the output dataframe.
+                    row = {"model": model_name, "fit_time_mean": float(scores["fit_time"].mean())}
                     for metric in scoring_metrics:
                         key = f"test_{metric}"
-                        row[metric] = scores[key].mean()
+                        row[metric] = float(scores[key].mean())
                     rows.append(row)
                 except Exception as exc:
                     context.log.warning(f"Failed to evaluate '{model_name}': {exc}")

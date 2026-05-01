@@ -540,13 +540,13 @@ group_name=group_name,
                 pct = (count / len(result_df)) * 100
                 context.log.info(f"  {level} Risk: {count} customers ({pct:.1f}%)")
 
-            # Add metadata
+            # Add metadata — cast numpy aggregates to Python natives
             metadata = {
                 "row_count": len(result_df),
                 "total_customers": len(result_df),
-                "avg_churn_risk_score": round(result_df['churn_risk_score'].mean(), 2),
-                "inactivity_threshold_days": inactivity_threshold_days,
-                "lookback_days": lookback_days,
+                "avg_churn_risk_score": round(float(result_df['churn_risk_score'].mean()), 2),
+                "inactivity_threshold_days": int(inactivity_threshold_days),
+                "lookback_days": int(lookback_days),
                 "risk_distribution": MetadataValue.md(
                     risk_distribution.to_frame('count').to_markdown()
                 )

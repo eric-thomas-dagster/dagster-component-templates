@@ -431,19 +431,17 @@ group_name=group_name,
                     )
             context.add_output_metadata(_metadata)
 
-            return Output(
-                combined_df,
-                metadata={
-                    "row_count": len(combined_df),
-                    "platforms": MetadataValue.text(", ".join(combined_df['platform'].unique())),
-                    "total_spend": float(combined_df['spend'].sum()),
-                    "total_clicks": int(combined_df['clicks'].sum()),
-                    "total_impressions": int(combined_df['impressions'].sum()),
-                    "avg_ctr": float(combined_df['ctr'].mean()),
-                    "date_range": f"{combined_df['date'].min()} to {combined_df['date'].max()}",
-                    "preview": MetadataValue.md(combined_df.head(10).to_markdown()),
-                }
-            )
+            context.add_output_metadata({
+                "row_count": len(combined_df),
+                "platforms": MetadataValue.text(", ".join(combined_df['platform'].unique())),
+                "total_spend": float(combined_df['spend'].sum()),
+                "total_clicks": int(combined_df['clicks'].sum()),
+                "total_impressions": int(combined_df['impressions'].sum()),
+                "avg_ctr": float(combined_df['ctr'].mean()),
+                "date_range": f"{combined_df['date'].min()} to {combined_df['date'].max()}",
+                "preview": MetadataValue.md(combined_df.head(10).to_markdown()),
+            })
+            return combined_df
 
         from dagster import build_column_schema_change_checks
 

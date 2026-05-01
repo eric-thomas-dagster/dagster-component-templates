@@ -517,16 +517,14 @@ group_name=group_name,
 
             # Return DataFrame
             if include_sample and len(customers) > 0:
-                return Output(
-                    value=customers,
-                    metadata={
-                        "row_count": len(customers),
-                        "column_count": len(customers.columns),
-                        "active_customers": int(active_customers),
-                        "sample": MetadataValue.md(customers.head(10).to_markdown()),
-                        "preview": MetadataValue.md(customers.head(10).to_markdown())
-                    }
-                )
+                context.add_output_metadata({
+                    "row_count": len(customers),
+                    "column_count": len(customers.columns),
+                    "active_customers": int(active_customers),
+                    "sample": MetadataValue.md(customers.head(10).to_markdown()),
+                    "preview": MetadataValue.md(customers.head(10).to_markdown())
+                })
+                return customers
             else:
                 # Build column schema metadata
                 from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

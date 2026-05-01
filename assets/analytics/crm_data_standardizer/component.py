@@ -607,15 +607,13 @@ group_name=group_name,
 
             # Return DataFrame
             if include_sample and len(std_df) > 0:
-                return Output(
-                    value=std_df,
-                    metadata={
-                        "row_count": len(std_df),
-                        "columns": std_df.columns.tolist(),
-                        "sample": MetadataValue.md(std_df.head(10).to_markdown()),
-                        "preview": MetadataValue.md(std_df.head(10).to_markdown())
-                    }
-                )
+                context.add_output_metadata({
+                    "row_count": len(std_df),
+                    "columns": std_df.columns.tolist(),
+                    "sample": MetadataValue.md(std_df.head(10).to_markdown()),
+                    "preview": MetadataValue.md(std_df.head(10).to_markdown()),
+                })
+                return std_df
             else:
                 # Build column schema metadata
                 from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

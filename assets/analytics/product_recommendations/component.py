@@ -637,16 +637,9 @@ group_name=group_name,
 
             # Return with metadata
             if include_sample and len(recommendations) > 0:
-                return Output(
-                    value=recommendations,
-                    metadata={
-                        **metadata,
-                        "sample": MetadataValue.md(recommendations.head(20).to_markdown(index=False)),
-                        "preview": MetadataValue.md(recommendations.head(20).to_markdown())
-                    }
-                )
-            else:
-                context.add_output_metadata(metadata)
+                metadata['sample'] = MetadataValue.md(recommendations.head(20).to_markdown(index=False))
+                metadata['preview'] = MetadataValue.md(recommendations.head(20).to_markdown())
+            context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[

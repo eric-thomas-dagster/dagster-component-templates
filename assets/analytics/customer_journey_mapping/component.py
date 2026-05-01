@@ -509,16 +509,9 @@ group_name=group_name,
                 non_converted_sample = result_df[~result_df['converted']].head(5)
                 sample_df = pd.concat([converted_sample, non_converted_sample])
 
-                return Output(
-                    value=result_df,
-                    metadata={
-                        **metadata,
-                        "sample": MetadataValue.md(sample_df.to_markdown(index=False)),
-                        "preview": MetadataValue.md(sample_df.to_markdown())
-                    }
-                )
-            else:
-                context.add_output_metadata(metadata)
+                metadata['sample'] = MetadataValue.md(sample_df.to_markdown(index=False))
+                metadata['preview'] = MetadataValue.md(sample_df.to_markdown())
+            context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[

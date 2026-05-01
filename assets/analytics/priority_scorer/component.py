@@ -886,16 +886,9 @@ Return your analysis as JSON:
                 metadata["breach_rate"] = f"{breach_count / len(result_df) * 100:.1f}%"
 
             if include_sample and len(result_df) > 0:
-                return Output(
-                    value=result_df,
-                    metadata={
-                        **metadata,
-                        "sample": MetadataValue.md(result_df.head(10).to_markdown()),
-                        "preview": MetadataValue.md(result_df.head(10).to_markdown())
-                    }
-                )
-            else:
-                context.add_output_metadata(metadata)
+                metadata['sample'] = MetadataValue.md(result_df.head(10).to_markdown())
+                metadata['preview'] = MetadataValue.md(result_df.head(10).to_markdown())
+            context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[

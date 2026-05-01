@@ -547,16 +547,9 @@ group_name=group_name,
                 # Sort by propensity score descending
                 result_sorted = result_df.sort_values('propensity_score', ascending=False)
 
-                return Output(
-                    value=result_df,
-                    metadata={
-                        **metadata,
-                        "sample": MetadataValue.md(result_sorted.head(20).to_markdown(index=False)),
-                        "preview": MetadataValue.md(result_sorted.head(20).to_markdown())
-                    }
-                )
-            else:
-                context.add_output_metadata(metadata)
+                metadata['sample'] = MetadataValue.md(result_sorted.head(20).to_markdown(index=False))
+                metadata['preview'] = MetadataValue.md(result_sorted.head(20).to_markdown())
+            context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[

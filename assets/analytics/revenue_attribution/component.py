@@ -420,15 +420,13 @@ group_name=group_name,
 
             # Return DataFrame
             if include_sample and len(campaign_spend) > 0:
-                return Output(
-                    value=campaign_spend,
-                    metadata={
-                        "row_count": len(campaign_spend),
-                        "total_spend": float(total_spend),
-                        "sample": MetadataValue.md(campaign_spend.head(10).to_markdown()),
-                        "preview": MetadataValue.md(campaign_spend.head(10).to_markdown())
-                    }
-                )
+                context.add_output_metadata({
+                    "row_count": len(campaign_spend),
+                    "total_spend": float(total_spend),
+                    "sample": MetadataValue.md(campaign_spend.head(10).to_markdown()),
+                    "preview": MetadataValue.md(campaign_spend.head(10).to_markdown())
+                })
+                return campaign_spend
             else:
                 # Build column schema metadata
                 from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

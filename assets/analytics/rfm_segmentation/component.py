@@ -532,16 +532,9 @@ group_name=group_name,
                 # Sort by RFM score descending for better preview
                 rfm_sorted = rfm.sort_values(['r_score', 'f_score', 'm_score'], ascending=False)
 
-                return Output(
-                    value=rfm,
-                    metadata={
-                        **metadata,
-                        "sample": MetadataValue.md(rfm_sorted.head(10).to_markdown(index=False)),
-                        "preview": MetadataValue.md(rfm_sorted.head(10).to_markdown())
-                    }
-                )
-            else:
-                context.add_output_metadata(metadata)
+                metadata['sample'] = MetadataValue.md(rfm_sorted.head(10).to_markdown(index=False))
+                metadata['preview'] = MetadataValue.md(rfm_sorted.head(10).to_markdown())
+            context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[

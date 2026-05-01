@@ -566,16 +566,9 @@ group_name=group_name,
                 # Sort by predicted LTV descending to show highest value customers first
                 result_sorted = result_df.sort_values('predicted_total_ltv', ascending=False)
 
-                return Output(
-                    value=result_df,
-                    metadata={
-                        **metadata,
-                        "sample": MetadataValue.md(result_sorted.head(10).to_markdown(index=False)),
-                        "preview": MetadataValue.md(result_sorted.head(10).to_markdown())
-                    }
-                )
-            else:
-                context.add_output_metadata(metadata)
+                metadata['sample'] = MetadataValue.md(result_sorted.head(10).to_markdown(index=False))
+                metadata['preview'] = MetadataValue.md(result_sorted.head(10).to_markdown())
+            context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[

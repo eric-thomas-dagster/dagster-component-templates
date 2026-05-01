@@ -505,15 +505,13 @@ group_name=group_name,
 
             # Return DataFrame
             if include_sample:
-                return Output(
-                    value=metrics_df,
-                    metadata={
-                        "row_count": len(metrics_df),
-                        "mrr": f"${current_mrr:,.2f}",
-                        "arr": f"${current_arr:,.2f}",
-                        "preview": MetadataValue.md(metrics_df.to_markdown())
-                    }
-                )
+                context.add_output_metadata({
+                    "row_count": len(metrics_df),
+                    "mrr": f"${current_mrr:,.2f}",
+                    "arr": f"${current_arr:,.2f}",
+                    "preview": MetadataValue.md(metrics_df.to_markdown())
+                })
+                return metrics_df
             else:
                 # Build column schema metadata
                 from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

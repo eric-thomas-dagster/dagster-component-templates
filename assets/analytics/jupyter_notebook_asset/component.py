@@ -150,7 +150,43 @@ class JupyterNotebookAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
         asset_deps = [dg.AssetKey(d) for d in (component.deps or [])]
 
-        @dg.asset(
+
+        # Build partition definition (auto-generated; supports daily, weekly, monthly,
+
+        # hourly partitions out of the box).
+
+        partitions_def = None
+
+        if self.partition_type:
+
+            from dagster import (
+
+                DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+
+                MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+
+            )
+
+            _pstart = self.partition_start or "2024-01-01"
+
+            if self.partition_type == "daily":
+
+                partitions_def = DailyPartitionsDefinition(start_date=_pstart)
+
+            elif self.partition_type == "weekly":
+
+                partitions_def = WeeklyPartitionsDefinition(start_date=_pstart)
+
+            elif self.partition_type == "monthly":
+
+                partitions_def = MonthlyPartitionsDefinition(start_date=_pstart)
+
+            elif self.partition_type == "hourly":
+
+                partitions_def = HourlyPartitionsDefinition(start_date=_pstart)
+
+
+        @dg.asset(partitions_def=partitions_def, 
             name=component.asset_name,
             group_name=component.group_name,
             description=component.description,

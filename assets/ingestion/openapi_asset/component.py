@@ -140,7 +140,42 @@ def _build_openapi_defs(
         _tag = tag
         _safe_tag = safe_tag
 
-        @dg.asset(
+        # Build partition definition (auto-generated; supports daily, weekly,
+
+        # monthly, hourly partitions out of the box).
+
+        partitions_def = None
+
+        if self.partition_type:
+
+            from dagster import (
+
+                DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+
+                MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+
+            )
+
+            _pstart = self.partition_start or "2024-01-01"
+
+            if self.partition_type == "daily":
+
+                partitions_def = DailyPartitionsDefinition(start_date=_pstart)
+
+            elif self.partition_type == "weekly":
+
+                partitions_def = WeeklyPartitionsDefinition(start_date=_pstart)
+
+            elif self.partition_type == "monthly":
+
+                partitions_def = MonthlyPartitionsDefinition(start_date=_pstart)
+
+            elif self.partition_type == "hourly":
+
+                partitions_def = HourlyPartitionsDefinition(start_date=_pstart)
+
+
+        @dg.asset(partitions_def=partitions_def, 
             name=_safe_tag,
             description=spec.description,
             group_name=group_name or "openapi",
@@ -323,6 +358,23 @@ else:
         group_name: Optional[str] = dg.Field(default="openapi")
         page_size: int = dg.Field(default=100)
         max_pages: int = dg.Field(default=100)
+
+        partition_type: Optional[str] = Field(
+
+            default=None,
+
+            description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating.",
+
+        )
+
+        partition_start: Optional[str] = Field(
+
+            default=None,
+
+            description="Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set.",
+
+        )
+
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             spec = _fetch_spec(self.spec_url, self.spec_path)

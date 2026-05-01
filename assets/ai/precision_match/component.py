@@ -180,7 +180,7 @@ class PrecisionMatchComponent(Component, Model, Resolvable):
 
 
         if reference_asset_key:
-            @asset(name=asset_name, ins=ins, group_name=group_name)
+            @asset(partitions_def=partitions_def, name=asset_name, ins=ins, group_name=group_name)
             def _asset(
                 context: AssetExecutionContext,
                 upstream: pd.DataFrame,

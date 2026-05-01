@@ -171,7 +171,7 @@ class SyntheticDataComponent(Component, Model, Resolvable):
 
 
         if seed_data_asset_key:
-            @asset(name=asset_name, ins=ins, group_name=group_name)
+            @asset(partitions_def=partitions_def, name=asset_name, ins=ins, group_name=group_name)
             def _asset(
                 context: AssetExecutionContext,
                 seed_data: pd.DataFrame,

@@ -52,12 +52,64 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
 
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
+    partition_type: Optional[str] = Field(
+
+        default=None,
+
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating.",
+
+    )
+
+    partition_start: Optional[str] = Field(
+
+        default=None,
+
+        description="Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set.",
+
+    )
+
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         source_path = self.source_path
         description = self.description or "Documents for RAG/Q&A system"
 
-        @asset(
+        # Build partition definition (auto-generated; supports daily, weekly,
+
+        # monthly, hourly partitions out of the box).
+
+        partitions_def = None
+
+        if self.partition_type:
+
+            from dagster import (
+
+                DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+
+                MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+
+            )
+
+            _pstart = self.partition_start or "2024-01-01"
+
+            if self.partition_type == "daily":
+
+                partitions_def = DailyPartitionsDefinition(start_date=_pstart)
+
+            elif self.partition_type == "weekly":
+
+                partitions_def = WeeklyPartitionsDefinition(start_date=_pstart)
+
+            elif self.partition_type == "monthly":
+
+                partitions_def = MonthlyPartitionsDefinition(start_date=_pstart)
+
+            elif self.partition_type == "hourly":
+
+                partitions_def = HourlyPartitionsDefinition(start_date=_pstart)
+
+
+        @asset(partitions_def=partitions_def, 
             name=asset_name,
             description=description,
             group_name="knowledge_base",

@@ -176,7 +176,7 @@ class FindReplace(Component, Model, Resolvable):
         if not column_lineage and hasattr(self, 'column') and self.column and hasattr(self, 'find') and hasattr(self, 'replace'):
             column_lineage = {self.column: [self.column]}
 
-        @asset(name=asset_name, ins=ins, group_name=group_name)
+        @asset(partitions_def=partitions_def, name=asset_name, ins=ins, group_name=group_name)
         def _asset(context: AssetExecutionContext, upstream: pd.DataFrame, lookup: pd.DataFrame) -> pd.DataFrame:
             # Filter to current partition if partitioned
             if context.has_partition_key:

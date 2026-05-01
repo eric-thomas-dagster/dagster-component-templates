@@ -91,7 +91,43 @@ class LangChainChainAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
 
-        @dg.asset(
+
+        # Build partition definition (auto-generated; supports daily, weekly, monthly,
+
+        # hourly partitions out of the box).
+
+        partitions_def = None
+
+        if self.partition_type:
+
+            from dagster import (
+
+                DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+
+                MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+
+            )
+
+            _pstart = self.partition_start or "2024-01-01"
+
+            if self.partition_type == "daily":
+
+                partitions_def = DailyPartitionsDefinition(start_date=_pstart)
+
+            elif self.partition_type == "weekly":
+
+                partitions_def = WeeklyPartitionsDefinition(start_date=_pstart)
+
+            elif self.partition_type == "monthly":
+
+                partitions_def = MonthlyPartitionsDefinition(start_date=_pstart)
+
+            elif self.partition_type == "hourly":
+
+                partitions_def = HourlyPartitionsDefinition(start_date=_pstart)
+
+
+        @dg.asset(partitions_def=partitions_def, 
             name=_self.asset_name,
             description=_self.description or f"LangChain ({_self.llm_provider}/{_self.model}): {_self.prompt_template[:50]}...",
             group_name=_self.group_name,

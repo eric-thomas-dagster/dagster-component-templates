@@ -151,6 +151,15 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
         description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
     )
 
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key (a date string) is exposed to the api_url and params templates as {partition_date}, {partition_date_next}, and {partition_key}.",
+    )
+    partition_start: Optional[str] = Field(
+        default=None,
+        description="Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set.",
+    )
+
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
     include_sample_metadata: bool = Field(
@@ -216,10 +225,30 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
         owners = self.owners or []
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
+        # Build a partitions definition if partition_type is set.
+        partitions_def = None
+        if self.partition_type:
+            from dagster import (
+                DailyPartitionsDefinition,
+                HourlyPartitionsDefinition,
+                MonthlyPartitionsDefinition,
+                WeeklyPartitionsDefinition,
+            )
+            _start = self.partition_start or "2024-01-01"
+            if self.partition_type == "daily":
+                partitions_def = DailyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "weekly":
+                partitions_def = WeeklyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "monthly":
+                partitions_def = MonthlyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "hourly":
+                partitions_def = HourlyPartitionsDefinition(start_date=_start)
+
 
         @asset(
             name=asset_name,
             description=description,
+            partitions_def=partitions_def,
                         owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,

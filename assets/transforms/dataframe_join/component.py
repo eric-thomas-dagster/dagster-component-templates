@@ -172,7 +172,7 @@ class DataframeJoin(Component, Model, Resolvable):
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
 
-        @asset(name=asset_name, ins=ins, group_name=group_name)
+        @asset(partitions_def=partitions_def, name=asset_name, ins=ins, group_name=group_name)
         def _asset(context: AssetExecutionContext, left: pd.DataFrame, right: pd.DataFrame) -> pd.DataFrame:
             # Filter to current partition if partitioned
             if context.has_partition_key:

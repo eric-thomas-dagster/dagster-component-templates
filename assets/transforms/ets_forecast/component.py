@@ -209,6 +209,26 @@ group_name=group_name,
             )
             fitted = model.fit()
 
+            # Build the output dataframe based on output_mode first; the metadata
+            # block below references it, so it has to exist before we describe it.
+            forecast_vals = fitted.forecast(forecast_periods)
+            last_date = series.index[-1]
+            freq = pd.infer_freq(series.index)
+            if freq is None:
+                freq = "ME"
+            future_dates = pd.date_range(start=last_date, periods=forecast_periods + 1, freq=freq)[1:]
+            forecast_df = pd.DataFrame({
+                date_column: future_dates,
+                value_column: forecast_vals.values,
+            })
+
+            if output_mode == "forecast":
+                result = forecast_df
+            elif output_mode == "append":
+                original = df[[date_column, value_column]].copy()
+                result = pd.concat([original, forecast_df], ignore_index=True)
+            else:
+                raise ValueError(f"Unknown output_mode: {output_mode}. Use 'forecast' or 'append'.")
 
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
@@ -245,24 +265,7 @@ group_name=group_name,
                     )
             context.add_output_metadata(_metadata)
 
-            forecast_vals = fitted.forecast(forecast_periods)
-            last_date = series.index[-1]
-            freq = pd.infer_freq(series.index)
-            if freq is None:
-                freq = "ME"
-            future_dates = pd.date_range(start=last_date, periods=forecast_periods + 1, freq=freq)[1:]
-            forecast_df = pd.DataFrame({
-                date_column: future_dates,
-                value_column: forecast_vals.values,
-            })
-
-            if output_mode == "forecast":
-                return forecast_df
-            elif output_mode == "append":
-                original = df[[date_column, value_column]].copy()
-                return pd.concat([original, forecast_df], ignore_index=True)
-            else:
-                raise ValueError(f"Unknown output_mode: {output_mode}. Use 'forecast' or 'append'.")
+            return result
 
         from dagster import build_column_schema_change_checks
 

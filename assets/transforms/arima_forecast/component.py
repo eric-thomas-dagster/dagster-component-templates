@@ -208,6 +208,34 @@ group_name=group_name,
             model = ARIMA(series, order=arima_order, seasonal_order=sarima_order)
             fitted = model.fit()
 
+            # Build the output dataframe based on output_mode first; the metadata
+            # block below references it, so it has to exist before we describe it.
+            if output_mode == "fitted":
+                result = df.copy()
+                result["fitted_value"] = fitted.fittedvalues.values
+                result["residual"] = fitted.resid.values
+            elif output_mode in ("forecast", "append"):
+                forecast = fitted.get_forecast(steps=forecast_periods)
+                forecast_df = forecast.summary_frame(alpha=1 - confidence_level)
+                forecast_df = forecast_df.rename(columns={
+                    "mean": value_column,
+                    "mean_ci_lower": f"{value_column}_lower_{int(confidence_level*100)}",
+                    "mean_ci_upper": f"{value_column}_upper_{int(confidence_level*100)}",
+                })
+                forecast_df.index.name = date_column
+                forecast_df = forecast_df.reset_index()
+                keep_cols = [
+                    date_column, value_column,
+                    f"{value_column}_lower_{int(confidence_level*100)}",
+                    f"{value_column}_upper_{int(confidence_level*100)}",
+                ]
+                if output_mode == "forecast":
+                    result = forecast_df[keep_cols]
+                else:  # append
+                    original = df[[date_column, value_column]].copy()
+                    result = pd.concat([original, forecast_df[keep_cols]], ignore_index=True)
+            else:
+                raise ValueError(f"Unknown output_mode: {output_mode}. Use 'forecast', 'append', or 'fitted'.")
 
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
@@ -244,34 +272,7 @@ group_name=group_name,
                     )
             context.add_output_metadata(_metadata)
 
-            if output_mode == "fitted":
-                result = df.copy()
-                result["fitted_value"] = fitted.fittedvalues.values
-                result["residual"] = fitted.resid.values
-                return result
-
-            forecast = fitted.get_forecast(steps=forecast_periods)
-            forecast_df = forecast.summary_frame(alpha=1 - confidence_level)
-            forecast_df = forecast_df.rename(columns={
-                "mean": value_column,
-                "mean_ci_lower": f"{value_column}_lower_{int(confidence_level*100)}",
-                "mean_ci_upper": f"{value_column}_upper_{int(confidence_level*100)}",
-            })
-            forecast_df.index.name = date_column
-            forecast_df = forecast_df.reset_index()
-
-            if output_mode == "forecast":
-                return forecast_df[[date_column, value_column,
-                                    f"{value_column}_lower_{int(confidence_level*100)}",
-                                    f"{value_column}_upper_{int(confidence_level*100)}"]]
-            elif output_mode == "append":
-                original = df[[date_column, value_column]].copy()
-                forecast_out = forecast_df[[date_column, value_column,
-                                            f"{value_column}_lower_{int(confidence_level*100)}",
-                                            f"{value_column}_upper_{int(confidence_level*100)}"]]
-                return pd.concat([original, forecast_out], ignore_index=True)
-            else:
-                raise ValueError(f"Unknown output_mode: {output_mode}. Use 'forecast', 'append', or 'fitted'.")
+            return result
 
         from dagster import build_column_schema_change_checks
 

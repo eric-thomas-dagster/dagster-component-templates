@@ -217,9 +217,15 @@ group_name=group_name,
             str_cols = columns if columns else df.select_dtypes(include="object").columns.tolist()
 
             if null_handling == "drop":
-                df = df.dropna()
+                # Drop rows with nulls only in the listed columns (or all columns if unset)
+                df = df.dropna(subset=str_cols if columns else None)
             elif null_handling == "fill":
-                df = df.fillna(null_fill_value)
+                # Only fill the listed string columns — applying a string fill_value
+                # to the whole frame would corrupt numeric columns (e.g. Age=22.0
+                # becomes Age='unknown' if NaN). Scope to str_cols only.
+                for _col in str_cols:
+                    if _col in df.columns:
+                        df[_col] = df[_col].fillna(null_fill_value)
 
             for col in str_cols:
                 if col not in df.columns:

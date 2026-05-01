@@ -157,11 +157,19 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
 
     partition_type: Optional[str] = Field(
         default=None,
-        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key (a date string) is exposed to the api_url and params templates as {partition_date}, {partition_date_next}, and {partition_key}.",
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None. The partition key is exposed to api_url and params via {partition_key} (always), plus {partition_date} / {partition_date_next} for time-based partitions.",
     )
     partition_start: Optional[str] = Field(
         default=None,
-        description="Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set.",
+        description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+    )
+    partition_values: Optional[str] = Field(
+        default=None,
+        description="Comma-separated values for static or multi partitioning, e.g. '1,2,3' or 'us,eu,asia'.",
+    )
+    partition_static_dim: Optional[str] = Field(
+        default=None,
+        description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
 
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
@@ -261,9 +269,12 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
                 DailyPartitionsDefinition,
                 HourlyPartitionsDefinition,
                 MonthlyPartitionsDefinition,
+                MultiPartitionsDefinition,
+                StaticPartitionsDefinition,
                 WeeklyPartitionsDefinition,
             )
             _start = self.partition_start or "2024-01-01"
+            _values = [v.strip() for v in (self.partition_values or "").split(",") if v.strip()]
             if self.partition_type == "daily":
                 partitions_def = DailyPartitionsDefinition(start_date=_start)
             elif self.partition_type == "weekly":
@@ -272,6 +283,14 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
                 partitions_def = MonthlyPartitionsDefinition(start_date=_start)
             elif self.partition_type == "hourly":
                 partitions_def = HourlyPartitionsDefinition(start_date=_start)
+            elif self.partition_type == "static":
+                partitions_def = StaticPartitionsDefinition(_values)
+            elif self.partition_type == "multi":
+                _dim = self.partition_static_dim or "segment"
+                partitions_def = MultiPartitionsDefinition({
+                    "date": DailyPartitionsDefinition(start_date=_start),
+                    _dim: StaticPartitionsDefinition(_values),
+                })
 
 
         # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).

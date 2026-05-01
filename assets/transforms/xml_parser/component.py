@@ -192,13 +192,20 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
             import xml.etree.ElementTree as ET
 
+            if mode not in ("first", "findall"):
+                raise ValueError(f"mode must be 'first' or 'findall', got: {mode}")
+
             def extract_xpath(xml_str, xpath, ns):
                 try:
                     root = ET.fromstring(xml_str)
                     result = root.findall(xpath, ns or {})
-                    return result[0].text if result else None
+                    if not result:
+                        return [] if mode == "findall" else None
+                    if mode == "findall":
+                        return [r.text for r in result]
+                    return result[0].text
                 except Exception:
-                    return None
+                    return [] if mode == "findall" else None
 
             df = upstream.copy()
             ns = namespace or {}

@@ -117,6 +117,18 @@ class SpatialJoinComponent(Component, Model, Resolvable):
         ),
     )
 
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the preview metadata when "
+            "`include_preview_metadata` is True. For long DataFrames "
+            "(>10x preview_rows), a random sample is used so the preview "
+            "reflects the data distribution; otherwise head() is used."
+        ),
+    )
+
     @classmethod
     def get_description(cls) -> str:
         return "Spatially join a points DataFrame against a regions DataFrame using GeoPandas."
@@ -149,6 +161,7 @@ class SpatialJoinComponent(Component, Model, Resolvable):
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         regions_asset_key = self.regions_asset_key
         lat_column = self.lat_column
@@ -344,7 +357,8 @@ group_name=group_name,
                         TableColumnLineage(_lineage_deps)
                     )
             if include_preview and len(result_df) > 0:
-                _metadata["preview"] = MetadataValue.md(result_df.head(10).to_markdown(index=False))
+                _prev = result_df.sample(preview_rows) if len(result_df) > preview_rows * 10 else result_df.head(preview_rows)
+                _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
             context.add_output_metadata(_metadata)
             return result_df
 

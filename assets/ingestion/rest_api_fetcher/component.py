@@ -179,6 +179,18 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
         description="Include sample data preview in metadata when output_format is 'dataframe' (first 5 rows as markdown table and interactive preview)"
     )
 
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the preview metadata when "
+            "`include_preview_metadata` is True. For long DataFrames "
+            "(>10x preview_rows), a random sample is used so the preview "
+            "reflects the data distribution; otherwise head() is used."
+        ),
+    )
+
     retry_policy_max_retries: Optional[int] = Field(
 
         default=None,
@@ -224,6 +236,7 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
         description = self.description or f"Fetch data from {api_url}"
         group_name = self.group_name
         include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
 
         # Infer kinds from component name if not explicitly set
         _comp_name = "rest_api_fetcher"  # component directory name

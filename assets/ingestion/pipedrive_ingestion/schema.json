@@ -98,6 +98,13 @@
       "default": true,
       "ui:widget": "checkbox"
     },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows to include in the preview metadata. For long DataFrames (>10x preview_rows), a random sample is used; otherwise head().",
+      "required": false,
+      "default": 25
+    },
     "destination": {
       "type": "string",
       "label": "Destination",

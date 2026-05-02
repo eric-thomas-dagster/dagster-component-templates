@@ -224,6 +224,18 @@ class TextModeratorComponent(Component, Model, Resolvable):
         description="Include sample data preview in metadata"
     )
 
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the preview metadata when "
+            "`include_preview_metadata` is True. For long DataFrames "
+            "(>10x preview_rows), a random sample is used so the preview "
+            "reflects the data distribution; otherwise head() is used."
+        ),
+    )
+
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame with text to moderate")
 
     retry_policy_max_retries: Optional[int] = Field(
@@ -274,6 +286,7 @@ class TextModeratorComponent(Component, Model, Resolvable):
         description = self.description or f"Content moderation using {method}"
         group_name = self.group_name
         include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
 
         # Cost per 1M tokens (for LLM method)

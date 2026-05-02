@@ -141,6 +141,18 @@ class AirtableIngestionComponent(Component, Model, Resolvable):
         default=True, description="Include sample data preview in metadata"
     )
 
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the preview metadata when "
+            "`include_preview_metadata` is True. For long DataFrames "
+            "(>10x preview_rows), a random sample is used so the preview "
+            "reflects the data distribution; otherwise head() is used."
+        ),
+    )
+
     deps: Optional[List[str]] = Field(
         default=None,
         description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])",
@@ -234,6 +246,7 @@ class AirtableIngestionComponent(Component, Model, Resolvable):
         description = self.description or f"Airtable data ({', '.join(table_names)})"
         group_name = self.group_name
         include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
         destination = self.destination
         dataset_name = self.dataset_name or asset_name
         persist_only = self.persist_only
@@ -431,7 +444,8 @@ class AirtableIngestionComponent(Component, Model, Resolvable):
                 ),
             }
             if include_preview and len(combined_df) > 0:
-                metadata["preview"] = MetadataValue.md(combined_df.head(10).to_markdown())
+                _prev = combined_df.sample(preview_rows) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
+                metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
 
             return Output(value=combined_df, metadata=metadata)
 

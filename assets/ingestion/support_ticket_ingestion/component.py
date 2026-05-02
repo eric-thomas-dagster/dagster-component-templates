@@ -135,6 +135,18 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
         default=True, description="Include sample data preview in metadata"
     )
 
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the preview metadata when "
+            "`include_preview_metadata` is True. For long DataFrames "
+            "(>10x preview_rows), a random sample is used so the preview "
+            "reflects the data distribution; otherwise head() is used."
+        ),
+    )
+
     deps: Optional[List[str]] = Field(
         default=None,
         description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])",
@@ -219,6 +231,7 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
         description = self.description or f"Support tickets from {platform}"
         group_name = self.group_name
         include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
         destination = self.destination
         dataset_name = self.dataset_name or asset_name
         persist_only = self.persist_only
@@ -380,7 +393,8 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
                             "is_sample": MetadataValue.bool(True),
                         }
                         if include_preview:
-                            sample_meta["preview"] = MetadataValue.md(sample_df.head(5).to_markdown())
+                            _prev = sample_df.sample(preview_rows) if len(sample_df) > preview_rows * 10 else sample_df.head(preview_rows)
+                            sample_meta["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
                         return Output(value=sample_df, metadata=sample_meta)
                     # destination mode → let dlt fail with clear creds error
                     context.log.error(
@@ -437,7 +451,8 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
                     "row_count": MetadataValue.int(len(df)),
                 }
                 if include_preview and len(df) > 0:
-                    metadata["preview"] = MetadataValue.md(df.head(5).to_markdown())
+                    _prev = df.sample(preview_rows) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
 
                 return Output(value=df, metadata=metadata)
 
@@ -464,7 +479,8 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
                 "is_sample": MetadataValue.bool(True),
             }
             if include_preview:
-                sample_meta["preview"] = MetadataValue.md(sample_df.head(5).to_markdown())
+                _prev = sample_df.sample(preview_rows) if len(sample_df) > preview_rows * 10 else sample_df.head(preview_rows)
+                sample_meta["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
             return Output(value=sample_df, metadata=sample_meta)
 
         return Definitions(assets=[support_ticket_ingestion_asset])

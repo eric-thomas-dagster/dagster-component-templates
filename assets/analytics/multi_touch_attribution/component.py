@@ -173,6 +173,18 @@ class MultiTouchAttributionComponent(Component, Model, Resolvable):
         description="Include sample data preview in metadata"
     )
 
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the preview metadata when "
+            "`include_preview_metadata` is True. For long DataFrames "
+            "(>10x preview_rows), a random sample is used so the preview "
+            "reflects the data distribution; otherwise head() is used."
+        ),
+    )
+
     retry_policy_max_retries: Optional[int] = Field(
 
         default=None,
@@ -214,6 +226,7 @@ class MultiTouchAttributionComponent(Component, Model, Resolvable):
         description = self.description or f"Multi-touch attribution analysis ({attribution_model})"
         group_name = self.group_name
         include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
 
         # Build partition definition
         partitions_def = None
@@ -603,7 +616,8 @@ group_name=group_name,
 
             # Return with metadata
             if include_preview and len(result_df) > 0:
-                metadata['preview'] = MetadataValue.md(result_df.head(20).to_markdown(index=False))
+                _prev = result_df.sample(preview_rows) if len(result_df) > preview_rows * 10 else result_df.head(preview_rows)
+                metadata['preview'] = MetadataValue.md(_prev.to_markdown(index=False))
             context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

@@ -94,6 +94,18 @@ class MakeColumnsComponent(Component, Model, Resolvable):
         ),
     )
 
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the preview metadata when "
+            "`include_preview_metadata` is True. For long DataFrames "
+            "(>10x preview_rows), a random sample is used so the preview "
+            "reflects the data distribution; otherwise head() is used."
+        ),
+    )
+
     @classmethod
     def get_description(cls) -> str:
         return "Reshape a single column of values into a wide multi-column format."
@@ -101,6 +113,7 @@ class MakeColumnsComponent(Component, Model, Resolvable):
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         n_columns = self.n_columns
         value_column = self.value_column
@@ -252,7 +265,8 @@ group_name=group_name,
                         TableColumnLineage(_lineage_deps)
                     )
             if include_preview and len(result) > 0:
-                _metadata["preview"] = MetadataValue.md(result.head(10).to_markdown(index=False))
+                _prev = result.sample(preview_rows) if len(result) > preview_rows * 10 else result.head(preview_rows)
+                _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
             context.add_output_metadata(_metadata)
             return result
 

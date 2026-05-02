@@ -78,6 +78,18 @@ class PiiDetectorComponent(Component, Model, Resolvable):
             "without warehouse access."
         ),
     )
+
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the preview metadata when "
+            "`include_preview_metadata` is True. For long DataFrames "
+            "(>10x preview_rows), a random sample is used so the preview "
+            "reflects the data distribution; otherwise head() is used."
+        ),
+    )
     text_column: str = Field(description="Column containing text to analyze for PII")
     output_column: str = Field(
         default="pii_entities",
@@ -122,6 +134,7 @@ class PiiDetectorComponent(Component, Model, Resolvable):
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         group_name = self.group_name
         text_column = self.text_column
@@ -325,7 +338,8 @@ group_name=group_name,
                         TableColumnLineage(_lineage_deps)
                     )
             if include_preview and len(df) > 0:
-                _metadata["preview"] = MetadataValue.md(df.head(10).to_markdown(index=False))
+                _prev = df.sample(preview_rows) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
             context.add_output_metadata(_metadata)
             return df
 

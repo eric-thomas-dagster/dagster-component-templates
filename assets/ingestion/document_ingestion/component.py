@@ -59,6 +59,18 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
         ),
     )
 
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the preview metadata when "
+            "`include_preview_metadata` is True. For long DataFrames "
+            "(>10x preview_rows), a random sample is used so the preview "
+            "reflects the data distribution; otherwise head() is used."
+        ),
+    )
+
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
     partition_type: Optional[str] = Field(
@@ -118,6 +130,7 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
         source_path = self.source_path
         description = self.description or "Documents for RAG/Q&A system"
 

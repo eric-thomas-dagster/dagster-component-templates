@@ -59,6 +59,18 @@ class ModerationScorerComponent(Component, Model, Resolvable):
         ),
     )
 
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the preview metadata when "
+            "`include_preview_metadata` is True. For long DataFrames "
+            "(>10x preview_rows), a random sample is used so the preview "
+            "reflects the data distribution; otherwise head() is used."
+        ),
+    )
+
     retry_policy_max_retries: Optional[int] = Field(
 
         default=None,
@@ -87,6 +99,7 @@ class ModerationScorerComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         description = self.description or "Content moderation scores and decisions"
 

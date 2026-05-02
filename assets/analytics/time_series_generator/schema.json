@@ -44,7 +44,14 @@
       "description": "Sampling frequency for the time series.",
       "required": false,
       "default": "1h",
-      "enum": ["1min", "5min", "15min", "30min", "1h", "1d"],
+      "enum": [
+        "1min",
+        "5min",
+        "15min",
+        "30min",
+        "1h",
+        "1d"
+      ],
       "ui:widget": "select"
     },
     "start_date": {
@@ -229,6 +236,13 @@
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows to include in the preview metadata. For long DataFrames (>10x preview_rows), a random sample is used; otherwise head().",
+      "required": false,
+      "default": 25
     },
     "deps": {
       "type": "string",

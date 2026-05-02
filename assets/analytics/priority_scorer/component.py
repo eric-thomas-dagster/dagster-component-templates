@@ -243,6 +243,18 @@ class PriorityScorerComponent(Component, Model, Resolvable):
         description="Include sample data preview in metadata"
     )
 
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the preview metadata when "
+            "`include_preview_metadata` is True. For long DataFrames "
+            "(>10x preview_rows), a random sample is used so the preview "
+            "reflects the data distribution; otherwise head() is used."
+        ),
+    )
+
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
     retry_policy_max_retries: Optional[int] = Field(
@@ -297,6 +309,7 @@ class PriorityScorerComponent(Component, Model, Resolvable):
         description = self.description or f"Priority scoring using {method}"
         group_name = self.group_name
         include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
 
         # Cost per 1M tokens
         COST_PER_1M_INPUT = {
@@ -886,7 +899,8 @@ Return your analysis as JSON:
                 metadata["breach_rate"] = f"{breach_count / len(result_df) * 100:.1f}%"
 
             if include_preview and len(result_df) > 0:
-                metadata['preview'] = MetadataValue.md(result_df.head(10).to_markdown())
+                _prev = result_df.sample(preview_rows) if len(result_df) > preview_rows * 10 else result_df.head(preview_rows)
+                metadata['preview'] = MetadataValue.md(_prev.to_markdown(index=False))
             context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

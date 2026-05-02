@@ -158,6 +158,18 @@ class CohortAnalysisComponent(Component, Model, Resolvable):
         description="Include sample data preview in metadata"
     )
 
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the preview metadata when "
+            "`include_preview_metadata` is True. For long DataFrames "
+            "(>10x preview_rows), a random sample is used so the preview "
+            "reflects the data distribution; otherwise head() is used."
+        ),
+    )
+
     retry_policy_max_retries: Optional[int] = Field(
 
         default=None,
@@ -196,6 +208,7 @@ class CohortAnalysisComponent(Component, Model, Resolvable):
         description = self.description or "Cohort retention analysis"
         group_name = self.group_name
         include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
 
         # Build partition definition
         partitions_def = None
@@ -503,7 +516,8 @@ group_name=group_name,
                 # Show most recent cohorts first
                 result_sorted = result_df.sort_values('cohort_period', ascending=False)
 
-                metadata['preview'] = MetadataValue.md(result_sorted.head(10).to_markdown(index=False))
+                _prev = result_sorted.sample(preview_rows) if len(result_sorted) > preview_rows * 10 else result_sorted.head(preview_rows)
+                metadata['preview'] = MetadataValue.md(_prev.to_markdown(index=False))
             context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

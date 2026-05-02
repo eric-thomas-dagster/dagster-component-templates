@@ -150,6 +150,18 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         description="Include a preview of the output data in metadata (first 5 rows as markdown table). Used by builder UIs to render asset shape without warehouse access."
     )
 
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the preview metadata when "
+            "`include_preview_metadata` is True. For long DataFrames "
+            "(>10x preview_rows), a random sample is used so the preview "
+            "reflects the data distribution; otherwise head() is used."
+        ),
+    )
+
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
     retry_policy_max_retries: Optional[int] = Field(
@@ -188,6 +200,7 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         description = self.description or f"Synthetic {schema_type} data"
         group_name = self.group_name or None
         include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
 
         # Build partition definition
         partitions_def = None

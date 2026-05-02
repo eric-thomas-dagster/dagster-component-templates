@@ -217,6 +217,18 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         description="Include a preview of the output data in metadata (first 5 rows as markdown table). Used by builder UIs to render asset shape without warehouse access."
     )
 
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the preview metadata when "
+            "`include_preview_metadata` is True. For long DataFrames "
+            "(>10x preview_rows), a random sample is used so the preview "
+            "reflects the data distribution; otherwise head() is used."
+        ),
+    )
+
     # Field validators to handle Dagster Components auto-deserializing JSON strings
     @field_validator('rename_columns', 'agg_functions', 'string_operations', 'string_replace',
                      'calculated_columns', 'pivot_config', 'unpivot_config', mode='before')
@@ -256,6 +268,7 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         description = self.description or "Transform DataFrames from upstream assets"
         group_name = self.group_name
         include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
 
         # Parse upstream asset keys if provided
         upstream_keys = []

@@ -149,6 +149,18 @@ class RFMSegmentationComponent(Component, Model, Resolvable):
         description="Include sample data preview in metadata"
     )
 
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the preview metadata when "
+            "`include_preview_metadata` is True. For long DataFrames "
+            "(>10x preview_rows), a random sample is used so the preview "
+            "reflects the data distribution; otherwise head() is used."
+        ),
+    )
+
     retry_policy_max_retries: Optional[int] = Field(
 
         default=None,
@@ -186,6 +198,7 @@ class RFMSegmentationComponent(Component, Model, Resolvable):
         description = self.description or "RFM customer segmentation"
         group_name = self.group_name
         include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
 
         # Set up dependencies
         upstream_keys = []
@@ -532,7 +545,8 @@ group_name=group_name,
                 # Sort by RFM score descending for better preview
                 rfm_sorted = rfm.sort_values(['r_score', 'f_score', 'm_score'], ascending=False)
 
-                metadata['preview'] = MetadataValue.md(rfm_sorted.head(10).to_markdown(index=False))
+                _prev = rfm_sorted.sample(preview_rows) if len(rfm_sorted) > preview_rows * 10 else rfm_sorted.head(preview_rows)
+                metadata['preview'] = MetadataValue.md(_prev.to_markdown(index=False))
             context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

@@ -12,11 +12,31 @@ If you're authoring a new component, use these names. If you're updating an exis
 |---|---|---|
 | `asset_name` | `str` | The asset key this component produces |
 | `upstream_asset_key` | `str` | The component depends on **one** upstream Dagster asset |
-| `upstream_asset_keys` | `List[str]` | The component fans **multiple** upstream assets in (e.g. unions, joins) |
+| `upstream_asset_keys` | `List[str]` | The component fans **multiple homogeneous** upstream assets in (unions) |
+| `<role>_asset_key` | `str` | The component takes **multiple distinct upstream roles** — e.g. `regions_asset_key`, `lookup_asset_key`, `left_asset_key` / `right_asset_key`. Suffix is always `_asset_key`, prefix names the role. |
 | `deps` | `Optional[List[str]]` | Lineage-only dependency (no data passed) |
 | `group_name` | `Optional[str]` | Dagster asset group |
 
-**Avoid:** `source_asset`, `input_asset`, `data_asset`. Always `upstream_asset_key` for the dependency-with-data shape.
+**Avoid:** `source_asset`, `input_asset`, `<role>_data_asset`. Always `upstream_asset_key` for single-upstream, `<role>_asset_key` for named-role multi-upstream.
+
+**Examples of named-role multi-upstream:**
+
+```yaml
+# spatial_join (points + regions)
+upstream_asset_key: customer_locations
+regions_asset_key: store_polygons
+
+# dataframe_join (left + right)
+left_asset_key: orders
+right_asset_key: customers
+
+# customer_360 (multi-source standardizer)
+customer_asset_key: customer_records
+transaction_asset_key: transactions
+support_asset_key: support_tickets
+```
+
+A handful of older analytics standardizers (`customer_360`, `customer_segmentation`, `revenue_attribution`, etc.) still use `<role>_data_asset` instead of `<role>_asset_key`. Those should be renamed in a future sweep with backward-compat aliases — same shape as the `source_asset` → `upstream_asset_key` migration.
 
 ## Selecting columns
 

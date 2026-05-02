@@ -52,6 +52,18 @@ class LabelEncoderComponent(Component, Model, Resolvable):
         default=False,
         description="If True, retain the original categorical columns alongside the encoded ones. Implies a suffix.",
     )
+    include_preview_metadata: bool = Field(
+        default=False,
+        description="Include a preview of the output DataFrame in metadata (for builder UIs).",
+    )
+
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description="Rows in the preview when include_preview_metadata=True.",
+    )
+
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(default=None, description="Partition type")
     partition_start: Optional[str] = Field(default=None, description="Partition start date in ISO format")

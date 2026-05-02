@@ -57,6 +57,18 @@ class TrainTestSplitterComponent(Component, Model, Resolvable):
         default=None,
         description="Required for strategy='time'. Column to sort by; oldest rows go to train.",
     )
+    include_preview_metadata: bool = Field(
+        default=False,
+        description="Include a preview of the output DataFrame in metadata (for builder UIs).",
+    )
+
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description="Rows in the preview when include_preview_metadata=True.",
+    )
+
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name applied to all output assets.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
     asset_tags: Optional[Dict[str, str]] = Field(default=None, description="Additional asset tags.")

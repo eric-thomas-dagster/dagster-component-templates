@@ -361,6 +361,22 @@ group_name=group_name,
                 activity_date_field
             )
 
+            # If no explicit first_date column, derive it as the per-customer
+            # min(activity_date). Common when ingesting raw orders / events.
+            derived_first_date = False
+            if not first_date_col and customer_col and activity_date_col:
+                df = df.copy()
+                _act = pd.to_datetime(df[activity_date_col], errors='coerce')
+                df['_first_activity_date'] = (
+                    df.assign(_act=_act).groupby(customer_col)['_act'].transform('min')
+                )
+                first_date_col = '_first_activity_date'
+                derived_first_date = True
+                context.log.info(
+                    f"No first_date column found; derived '_first_activity_date' "
+                    f"as per-customer min({activity_date_col})."
+                )
+
             # Validate required columns
             missing = []
             if not customer_col:

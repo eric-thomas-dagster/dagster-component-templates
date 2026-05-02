@@ -12,7 +12,7 @@ This component creates realistic fake data based on pre-defined schemas. Perfect
 
 ## Features
 
-- **9 Pre-defined Schemas**: Customers, Orders, Products, Transactions, Events, Sensors, Users, Subscriptions, Sparse Sensors
+- **12 Pre-defined Schemas**: Customers, Orders, Products, Transactions, Events, Sensors, Users, Subscriptions, Sparse Sensors, Customer Churn Metrics, Stripe Charges, Stripe Subscriptions
 - **Configurable Size**: Generate 1 to 100,000 rows
 - **Reproducible**: Optional random seed for consistent data generation
 - **No External Dependencies**: Pure Python, no external APIs or services needed
@@ -104,13 +104,44 @@ IoT sensor readings with **random gaps** for gap-fill and resample demos:
     start_date: "2026-04-01"
   ```
 
+### Customer Churn Metrics
+Per-customer aggregated state for churn modeling / scoring:
+- customer_id, last_activity, total_orders, total_revenue, lifetime_days
+- Activity-recency distribution biased toward recent with a long tail
+- Customize via `schema_options`:
+  ```yaml
+  schema_options:
+    reference_date: "2026-05-01"   # last_activity computed relative to this
+    activity_mix:
+      - [0, 30, 5]                 # (low, high, weight)
+      - [31, 90, 3]
+      - [91, 365, 2]
+  ```
+
+### Stripe Charges
+Stripe-shaped charge events for revenue / attribution demos. Matches the column shape of Stripe's `charges` API:
+- id, _resource_type, customer_id, amount (cents), created (epoch), status
+- `schema_options`: `plans` (list of dollar amounts), `lookback_days`
+
+### Stripe Subscriptions
+Stripe-shaped subscription rows for SaaS metrics / MRR demos:
+- id, _resource_type, customer_id, status (active/trialing/canceled), created, canceled_at, current_period_end, plan_amount (cents), plan_interval, plan_nickname
+- Customize via `schema_options`:
+  ```yaml
+  schema_options:
+    plans: [[10, "starter"], [29, "basic"], [49, "pro"], [99, "business"], [199, "enterprise"]]
+    plan_weights: [3, 4, 3, 2, 1]
+    status_mix: {active: 0.65, trialing: 0.10, canceled: 0.25}
+    lookback_days: 540
+  ```
+
 ## Configuration
 
 ### Required Fields
 
 - **asset_name** (string): Name of the asset to create
 - **schema_type** (enum): Type of data to generate
-  - Options: `customers`, `orders`, `products`, `transactions`, `events`, `sensors`, `users`, `subscriptions`, `sparse_sensors`
+  - Options: `customers`, `orders`, `products`, `transactions`, `events`, `sensors`, `users`, `subscriptions`, `sparse_sensors`, `customer_churn_metrics`, `stripe_charges`, `stripe_subscriptions`
 - **row_count** (integer): Number of rows to generate (1-100,000)
 
 ### Optional Fields

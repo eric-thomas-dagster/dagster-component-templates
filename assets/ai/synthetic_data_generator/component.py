@@ -49,6 +49,9 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         "users",
         "subscriptions",
         "sparse_sensors",
+        "customer_churn_metrics",
+        "stripe_charges",
+        "stripe_subscriptions",
     ] = Field(
         default="customers",
         description="Type of data schema to generate"
@@ -331,6 +334,12 @@ group_name=group_name,
                 df = _generate_subscriptions(row_count, self.schema_options or {})
             elif schema_type == "sparse_sensors":
                 df = _generate_sparse_sensors(row_count, self.schema_options or {})
+            elif schema_type == "customer_churn_metrics":
+                df = _generate_customer_churn_metrics(row_count, self.schema_options or {})
+            elif schema_type == "stripe_charges":
+                df = _generate_stripe_charges(row_count, self.schema_options or {})
+            elif schema_type == "stripe_subscriptions":
+                df = _generate_stripe_subscriptions(row_count, self.schema_options or {})
             else:
                 raise ValueError(f"Unknown schema type: {schema_type}")
 
@@ -788,4 +797,127 @@ def _generate_sparse_sensors(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
     rows.sort(key=lambda r: (r["sensor_id"], r["reading_ts"]))
     if len(rows) > n:
         rows = rows[:n]
+    return pd.DataFrame(rows)
+
+
+def _generate_customer_churn_metrics(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
+    """Per-customer aggregated state used for churn modeling / scoring.
+
+    Schema: customer_id, last_activity, total_orders, total_revenue, lifetime_days.
+
+    opts:
+      reference_date: 'YYYY-MM-DD' (default today). last_activity is computed
+        relative to this so demos remain reproducible.
+      activity_mix: list of (low_days, high_days, weight) tuples controlling
+        the distribution of days_since_last_activity. Default biases toward
+        recent activity with a long tail.
+    """
+    ref_str = opts.get("reference_date")
+    today = datetime.strptime(ref_str, "%Y-%m-%d") if ref_str else datetime.now()
+    activity_mix = opts.get("activity_mix") or [
+        (0, 30, 5),
+        (31, 90, 3),
+        (91, 365, 2),
+    ]
+    bands = [(lo, hi) for lo, hi, _ in activity_mix]
+    weights = [w for _, _, w in activity_mix]
+
+    rows = []
+    for i in range(1, n + 1):
+        lo, hi = random.choices(bands, weights=weights)[0]
+        days_since = random.randint(lo, hi)
+        last_activity = today - timedelta(days=days_since)
+        lifetime_days = random.randint(60, 800)
+        total_orders = max(1, int(random.gauss(15, 8)))
+        total_revenue = round(total_orders * random.uniform(20, 250), 2)
+        rows.append({
+            "customer_id": f"cus_{i:04d}",
+            "last_activity": last_activity.strftime("%Y-%m-%d"),
+            "total_orders": total_orders,
+            "total_revenue": total_revenue,
+            "lifetime_days": lifetime_days,
+        })
+    return pd.DataFrame(rows)
+
+
+def _generate_stripe_charges(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
+    """Stripe-shaped charge events for revenue/attribution demos.
+
+    Schema: id, _resource_type, customer_id, amount (cents), created (epoch),
+    status. Matches the column shape of Stripe's `charges` API.
+
+    opts:
+      plans: list of plan-tier dollar amounts. Default [29, 49, 99, 199, 499].
+      lookback_days: int (default 90). Charges are spread over the last N days.
+    """
+    plans = opts.get("plans") or [29, 49, 99, 199, 499]
+    lookback_days = int(opts.get("lookback_days", 90))
+    now = int(datetime.now().timestamp())
+    rows = []
+    for i in range(1, n + 1):
+        rows.append({
+            "id": f"ch_{i:05d}",
+            "_resource_type": "charges",
+            "customer_id": f"cus_{random.randint(1, max(2, n // 2)):03d}",
+            "amount": random.choice(plans) * 100,
+            "created": now - random.randint(0, lookback_days) * 86400,
+            "status": "succeeded",
+        })
+    return pd.DataFrame(rows)
+
+
+def _generate_stripe_subscriptions(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
+    """Stripe-shaped subscription rows for SaaS metrics / MRR demos.
+
+    Schema: id, _resource_type, customer_id, status (active/trialing/canceled),
+    created (epoch), canceled_at (epoch or ''), current_period_end (epoch),
+    plan_amount (cents), plan_interval, plan_nickname.
+
+    opts:
+      plans: list of (cents-amount-as-int, nickname) tuples. Default mirrors
+        a SaaS price ladder: starter/basic/pro/business/enterprise.
+      plan_weights: list of relative weights, same length as plans.
+      status_mix: dict {active, trialing, canceled} → fraction. Defaults to
+        {active: 0.65, trialing: 0.10, canceled: 0.25}.
+      lookback_days: int (default 540).
+    """
+    plans = opts.get("plans") or [
+        (10, "starter"), (29, "basic"), (49, "pro"), (99, "business"), (199, "enterprise")
+    ]
+    weights = opts.get("plan_weights") or [3, 4, 3, 2, 1]
+    status_mix = opts.get("status_mix") or {"active": 0.65, "trialing": 0.10, "canceled": 0.25}
+    lookback_days = int(opts.get("lookback_days", 540))
+    now = int(datetime.now().timestamp())
+
+    cum_active = status_mix.get("active", 0.65)
+    cum_trial = cum_active + status_mix.get("trialing", 0.10)
+
+    rows = []
+    for i in range(1, n + 1):
+        days_ago = random.randint(0, lookback_days)
+        created = now - days_ago * 86400
+        plan_amount, plan_name = random.choices(plans, weights=weights)[0]
+        r = random.random()
+        if r < cum_active:
+            status, canceled_at = "active", ""
+            cpe = created + 30 * 86400
+        elif r < cum_trial:
+            status, canceled_at = "trialing", ""
+            cpe = created + 14 * 86400
+        else:
+            status = "canceled"
+            canceled_at = created + random.randint(30, 300) * 86400
+            cpe = canceled_at
+        rows.append({
+            "id": f"sub_{i:04d}",
+            "_resource_type": "subscriptions",
+            "customer_id": f"cus_{i:04d}",
+            "status": status,
+            "created": created,
+            "canceled_at": canceled_at,
+            "current_period_end": cpe,
+            "plan_amount": plan_amount * 100,
+            "plan_interval": "month",
+            "plan_nickname": plan_name,
+        })
     return pd.DataFrame(rows)

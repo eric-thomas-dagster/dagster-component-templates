@@ -36,7 +36,10 @@
         "sensors",
         "users",
         "subscriptions",
-        "sparse_sensors"
+        "sparse_sensors",
+        "customer_churn_metrics",
+        "stripe_charges",
+        "stripe_subscriptions"
       ],
       "ui:widget": "select"
     },

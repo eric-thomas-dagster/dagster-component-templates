@@ -361,42 +361,36 @@ group_name=group_name,
 
             context.log.info(f"Generated DataFrame with shape {df.shape}")
 
+            # Build column schema metadata
+            from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
+            _col_schema = TableSchema(columns=[
+                TableColumn(name=str(col), type=str(df.dtypes[col]))
+                for col in df.columns
+            ])
+            _metadata = {
+                "dagster/row_count": MetadataValue.int(len(df)),
+                "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+            }
             if include_preview and len(df) > 0:
-                # Return with sample metadata
-                return Output(
-                    value=df,
-                    metadata={
-                        "row_count": len(df),
-                        "columns": df.columns.tolist(),
-                        "preview": MetadataValue.md(df.head().to_markdown())
-                    }
-                )
-            else:
-                # Build column schema metadata
-                from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
-                _col_schema = TableSchema(columns=[
-                    TableColumn(name=str(col), type=str(df.dtypes[col]))
-                    for col in df.columns
-                ])
-                _metadata = {
-                    "dagster/row_count": MetadataValue.int(len(df)),
-                    "dagster/column_schema": MetadataValue.table_schema(_col_schema),
-                }
-                # Add column lineage if defined
-                if column_lineage:
-                    _upstream_key = AssetKey.from_user_string(upstream_asset_key) if 'upstream_asset_key' in dir() else None
-                    if _upstream_key:
-                        _lineage_deps = {}
-                        for out_col, in_cols in column_lineage.items():
-                            _lineage_deps[out_col] = [
-                                TableColumnDep(asset_key=_upstream_key, column_name=ic)
-                                for ic in in_cols
-                            ]
-                        _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
-                            TableColumnLineage(_lineage_deps)
-                        )
-                context.add_output_metadata(_metadata)
-                return df
+                try:
+                    _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                    _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                except Exception as _e:
+                    context.log.warning(f"preview emission failed: {_e}")
+            if column_lineage:
+                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if 'upstream_asset_key' in dir() else None
+                if _upstream_key:
+                    _lineage_deps = {}
+                    for out_col, in_cols in column_lineage.items():
+                        _lineage_deps[out_col] = [
+                            TableColumnDep(asset_key=_upstream_key, column_name=ic)
+                            for ic in in_cols
+                        ]
+                    _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
+                        TableColumnLineage(_lineage_deps)
+                    )
+            context.add_output_metadata(_metadata)
+            return df
 
         from dagster import build_column_schema_change_checks
 

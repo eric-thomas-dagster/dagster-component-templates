@@ -40,6 +40,22 @@ attributes:
   # severity_override: WARN
 ```
 
+## Soda Cloud integration
+
+If your `configuration.yaml` includes a `soda_cloud:` block, soda-core posts each scan to Soda Cloud automatically — no component changes needed:
+
+```yaml
+# configuration.yaml
+soda_cloud:
+  host: cloud.soda.io
+  api_key_id: ${SODA_CLOUD_KEY_ID}
+  api_key_secret: ${SODA_CLOUD_KEY_SECRET}
+```
+
+When Cloud is configured, this component **also surfaces the per-check Cloud URL as `MetadataValue.url(...)` in each `AssetCheckResult`**. Engineers can click straight from the Dagster catalog to the Cloud incident page (or the scan-level URL if a per-check ID isn't available).
+
+The URL detection is best-effort across soda-core versions — if the API field names drift, the metadata key just won't appear (it doesn't break the run).
+
 ## SodaCL severity
 
 Per-check severity is read from `attributes.severity` (case-insensitive `WARN`/`ERROR`):

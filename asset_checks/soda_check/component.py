@@ -141,6 +141,12 @@ class SodaCheckComponent(dg.Component, dg.Model, dg.Resolvable):
                         )
                     return
 
+                # Best-effort: detect Soda Cloud configuration so we can deep-link
+                # per-check results into the Cloud UI.
+                cloud_host, cloud_scan_url = _resolve_soda_cloud(
+                    scan, _self.soda_configuration_path
+                )
+
                 # Map Soda Check objects → spec names by check string. Soda's
                 # Check.name is the SodaCL line as written.
                 results_by_name = {}
@@ -162,6 +168,7 @@ class SodaCheckComponent(dg.Component, dg.Model, dg.Resolvable):
                         "passed": outcome == "pass",
                         "outcome": outcome,
                         "check_str": getattr(ch, "name", ""),
+                        "check_obj": ch,
                     }
 
                 for spec in specs:
@@ -176,6 +183,21 @@ class SodaCheckComponent(dg.Component, dg.Model, dg.Resolvable):
                             metadata={"error": "no result returned by Soda scan"},
                         )
                         continue
+                    md = {
+                        "check": res["check_str"],
+                        "outcome": res["outcome"],
+                    }
+                    # If Soda Cloud is configured, surface the per-check
+                    # incident / scan URL as a clickable link in the Dagster
+                    # catalog. Best-effort: prefer a per-check URL if Soda
+                    # exposes one on the Check object, otherwise fall back to
+                    # the scan-level URL.
+                    if cloud_scan_url:
+                        from dagster import MetadataValue
+                        per_check_url = _per_check_cloud_url(
+                            res.get("check_obj"), cloud_host, cloud_scan_url
+                        )
+                        md["soda_cloud_url"] = MetadataValue.url(per_check_url)
                     yield AssetCheckResult(
                         check_name=spec.name,
                         passed=res["passed"],
@@ -184,10 +206,7 @@ class SodaCheckComponent(dg.Component, dg.Model, dg.Resolvable):
                             meta_severity=name_to_meta_severity.get(spec.name),
                             outcome=res["outcome"],
                         ),
-                        metadata={
-                            "check": res["check_str"],
-                            "outcome": res["outcome"],
-                        },
+                        metadata=md,
                     )
 
             return dg.Definitions(asset_checks=[soda_checks])
@@ -370,3 +389,94 @@ def _resolve_severity(
     if outcome == "warn":
         return AssetCheckSeverity.WARN
     return AssetCheckSeverity.ERROR
+
+
+def _resolve_soda_cloud(scan, configuration_path: str) -> tuple:
+    """Best-effort detection of Soda Cloud config + scan URL.
+
+    Returns (host, scan_url). Either may be None if Cloud isn't configured
+    or the scan didn't post to it.
+
+    Soda's public API for this isn't fully stable — soda-core stores the
+    Cloud config under various paths across versions. We try a few common
+    spots and fall back gracefully.
+    """
+    host = None
+    scan_id = None
+
+    # 1. Try the scan's own configuration object first (avoids parsing YAML).
+    for attr_path in (
+        ("_configuration", "soda_cloud", "host"),
+        ("configuration", "soda_cloud", "host"),
+        ("_data_source_manager", "data_source_properties", "soda_cloud", "host"),
+    ):
+        try:
+            obj = scan
+            for a in attr_path:
+                obj = getattr(obj, a, None) if not isinstance(obj, dict) else obj.get(a)
+                if obj is None:
+                    break
+            if isinstance(obj, str) and obj:
+                host = obj
+                break
+        except Exception:
+            continue
+
+    # 2. Fall back to grepping the configuration.yaml.
+    if host is None:
+        try:
+            import yaml
+            with open(configuration_path) as f:
+                cfg = yaml.safe_load(f) or {}
+            sc = cfg.get("soda_cloud") if isinstance(cfg, dict) else None
+            if isinstance(sc, dict):
+                host = sc.get("host") or "cloud.soda.io"
+        except Exception:
+            pass
+
+    if not host:
+        return None, None
+
+    # 3. Try to recover the scan ID from the scan object — soda-core sets
+    # scan._scan_results['scanId'] or similar after a Cloud-enabled execute().
+    for attr_path in (
+        ("_scan_results", "scanId"),
+        ("scan_results", "scanId"),
+        ("_scan_results", "scan_id"),
+    ):
+        try:
+            obj = scan
+            for a in attr_path:
+                obj = getattr(obj, a, None) if not isinstance(obj, dict) else obj.get(a)
+                if obj is None:
+                    break
+            if isinstance(obj, str) and obj:
+                scan_id = obj
+                break
+        except Exception:
+            continue
+
+    if scan_id:
+        return host, f"https://{host}/scan/{scan_id}"
+    # Without a scan ID we can still link to the host's scans page.
+    return host, f"https://{host}/scans"
+
+
+def _per_check_cloud_url(check_obj, host, scan_url: str) -> str:
+    """Build a per-check Cloud URL when possible, else fall back to the scan URL.
+
+    soda-core sometimes attaches a `cloud_dict` or `id` field to its Check
+    objects after a Cloud-enabled scan. We try both before falling back.
+    """
+    if check_obj is None or not host:
+        return scan_url
+    for attr in ("cloud_dict", "_cloud_dict"):
+        d = getattr(check_obj, attr, None)
+        if isinstance(d, dict):
+            cid = d.get("id") or d.get("checkId")
+            if cid:
+                return f"https://{host}/check/{cid}"
+    cid = getattr(check_obj, "id", None) or getattr(check_obj, "_id", None)
+    if cid:
+        return f"https://{host}/check/{cid}"
+    return scan_url

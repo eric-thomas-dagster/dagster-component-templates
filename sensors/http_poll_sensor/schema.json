@@ -1,80 +1,104 @@
 {
   "component_type": "dagster_component_templates.HttpPollSensorComponent",
-  "description": "Poll an HTTP endpoint and trigger a run when the response changes (by hash or JSONPath value).",
+  "description": "Poll an HTTP endpoint and trigger a run when a targeted slice of the response changes (json_path / regex / css_selector / strip_patterns).",
   "category": "sensor",
   "icon": "Bell",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",
-      "description": "RunRequest per new event"
+      "description": "RunRequest when the targeted-slice hash changes vs the cursor"
     }
   },
   "attributes": {
     "sensor_name": {
       "type": "string",
       "label": "Sensor Name",
+      "description": "Unique sensor name.",
       "required": true
     },
     "asset_keys": {
       "type": "array",
-      "items": {
-        "type": "string"
-      },
+      "items": {"type": "string"},
       "label": "Asset Keys",
+      "description": "Asset keys to materialize when the response changes.",
       "required": true
+    },
+    "url": {
+      "type": "string",
+      "label": "URL",
+      "description": "URL to poll.",
+      "required": true
+    },
+    "method": {
+      "type": "string",
+      "label": "HTTP Method",
+      "description": "HTTP method.",
+      "default": "GET",
+      "enum": ["GET", "POST", "HEAD"],
+      "required": false
+    },
+    "headers": {
+      "type": "object",
+      "label": "Headers",
+      "description": "Optional HTTP headers (use env-var values for secrets).",
+      "additionalProperties": {"type": "string"},
+      "required": false
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout (seconds)",
+      "description": "HTTP timeout.",
+      "default": 30,
+      "required": false
+    },
+    "expected_status": {
+      "type": "integer",
+      "label": "Expected HTTP Status",
+      "description": "Non-match skips the tick.",
+      "default": 200,
+      "required": false
+    },
+    "json_path": {
+      "type": "string",
+      "label": "JSON Path",
+      "description": "Dotted path into a JSON response (e.g. 'scoreboard.gameDate'). Hashes the value at that path.",
+      "required": false
+    },
+    "regex_extract": {
+      "type": "string",
+      "label": "Regex Extract",
+      "description": "Regex pattern; hashes the concatenation of all matches (groups concatenated).",
+      "required": false
+    },
+    "css_selector": {
+      "type": "string",
+      "label": "CSS Selector",
+      "description": "CSS selector (e.g. 'div.scores'). Hashes the text content of all matching elements. Requires beautifulsoup4.",
+      "required": false
+    },
+    "strip_patterns": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Strip Patterns",
+      "description": "Regexes to REMOVE from the body before hashing. Use to strip known noise (timestamps, ad slots, nonces).",
+      "required": false
     },
     "minimum_interval_seconds": {
       "type": "integer",
-      "label": "Minimum Interval Seconds",
+      "label": "Minimum Interval (seconds)",
+      "description": "Minimum seconds between sensor evaluations.",
       "default": 60,
       "required": false
     },
     "default_status": {
       "type": "string",
       "label": "Default Status",
+      "description": "Sensor default status.",
       "default": "STOPPED",
-      "enum": [
-        "RUNNING",
-        "STOPPED"
-      ],
+      "enum": ["RUNNING", "STOPPED"],
       "required": false
-    },
-    "url": {
-      "type": "string",
-      "label": "Url",
-      "required": true
-    },
-    "method": {
-      "type": "string",
-      "label": "Method",
-      "required": true
-    },
-    "headers": {
-      "type": "string",
-      "label": "Headers",
-      "required": false
-    },
-    "json_path": {
-      "type": "string",
-      "label": "Json Path",
-      "required": false
-    },
-    "timeout_seconds": {
-      "type": "integer",
-      "label": "Timeout Seconds",
-      "required": true
-    },
-    "expected_status": {
-      "type": "integer",
-      "label": "Expected Status",
-      "required": true
     }
   },
-  "tags": [
-    "sensor",
-    "http",
-    "polling",
-    "generic"
-  ],
+  "tags": ["sensor", "http", "polling", "generic"],
   "name": "HttpPollSensor"
 }

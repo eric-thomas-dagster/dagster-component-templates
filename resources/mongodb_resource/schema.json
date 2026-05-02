@@ -38,5 +38,30 @@
     "nosql"
   ],
   "icon": "si:mongodb",
-  "name": "MongoDB Resource"
+  "name": "MongoDB Resource",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "mongodb_resource"
+    },
+    "connection_string_env_var": {
+      "type": "string",
+      "label": "Connection String Env Var",
+      "required": true
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "required": false,
+      "default": ""
+    },
+    "tls": {
+      "type": "boolean",
+      "label": "Tls",
+      "required": false,
+      "default": false
+    }
+  }
 }

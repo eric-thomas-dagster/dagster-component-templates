@@ -39,5 +39,29 @@
     "nosql"
   ],
   "icon": "si:azurecosmosdb",
-  "name": "Azure Cosmos DB Resource"
+  "name": "Azure Cosmos DB Resource",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "cosmosdb_resource"
+    },
+    "endpoint": {
+      "type": "string",
+      "label": "Endpoint",
+      "required": true
+    },
+    "key_env_var": {
+      "type": "string",
+      "label": "Key Env Var",
+      "required": true
+    },
+    "database_name": {
+      "type": "string",
+      "label": "Database Name",
+      "required": false,
+      "default": ""
+    }
+  }
 }

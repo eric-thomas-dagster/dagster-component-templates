@@ -67,6 +67,18 @@
         "fail"
       ],
       "ui:widget": "select"
+    },
+    "default_schema": {
+      "type": "string",
+      "label": "Default Schema",
+      "required": false,
+      "default": "public"
+    },
+    "partition_column": {
+      "type": "string",
+      "label": "Partition Column",
+      "required": false,
+      "default": "partition_key"
     }
   },
   "tags": [

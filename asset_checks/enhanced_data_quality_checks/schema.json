@@ -600,6 +600,40 @@
       "required": false,
       "default": null,
       "ui:widget": "list"
+    },
+    "min_history": {
+      "type": "integer",
+      "label": "Min History",
+      "required": true
+    },
+    "direction": {
+      "type": "string",
+      "label": "Direction",
+      "required": true
+    },
+    "target": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Target",
+      "required": true
+    },
+    "selections": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Selections",
+      "required": false
+    },
+    "duration_anomaly_check": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Duration Anomaly Check",
+      "required": false
     }
   },
   "tags": [

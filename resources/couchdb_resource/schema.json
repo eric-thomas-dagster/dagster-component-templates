@@ -37,5 +37,29 @@
     "nosql"
   ],
   "icon": "si:apachecouchdb",
-  "name": "Apache CouchDB Resource"
+  "name": "Apache CouchDB Resource",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "couchdb_resource"
+    },
+    "url": {
+      "type": "string",
+      "label": "Url",
+      "required": true
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "required": false,
+      "default": ""
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": false
+    }
+  }
 }

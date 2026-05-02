@@ -60,6 +60,24 @@
       "description": "S3 bucket for UNLOAD/COPY staging (required for large datasets)",
       "required": false,
       "default": null
+    },
+    "default_schema": {
+      "type": "string",
+      "label": "Default Schema",
+      "required": false,
+      "default": "public"
+    },
+    "if_exists": {
+      "type": "string",
+      "label": "If Exists",
+      "required": false,
+      "default": "replace"
+    },
+    "partition_column": {
+      "type": "string",
+      "label": "Partition Column",
+      "required": false,
+      "default": "partition_key"
     }
   },
   "tags": [

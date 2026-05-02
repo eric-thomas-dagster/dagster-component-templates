@@ -52,5 +52,47 @@
     "nosql"
   ],
   "icon": "si:apachecassandra",
-  "name": "Apache Cassandra Resource"
+  "name": "Apache Cassandra Resource",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "cassandra_resource"
+    },
+    "hosts": {
+      "type": "string",
+      "label": "Hosts",
+      "required": true
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "required": false,
+      "default": 9042
+    },
+    "keyspace": {
+      "type": "string",
+      "label": "Keyspace",
+      "required": false,
+      "default": ""
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "required": false,
+      "default": ""
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": false
+    },
+    "ssl": {
+      "type": "boolean",
+      "label": "Ssl",
+      "required": false,
+      "default": false
+    }
+  }
 }

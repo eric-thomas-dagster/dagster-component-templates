@@ -64,6 +64,40 @@
       "type": "string",
       "label": "Group Name",
       "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
     }
   },
   "tags": [

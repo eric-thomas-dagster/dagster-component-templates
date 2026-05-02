@@ -51,5 +51,47 @@
     "cache"
   ],
   "icon": "si:redis",
-  "name": "Redis Resource"
+  "name": "Redis Resource",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "redis_resource"
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "required": false,
+      "default": "localhost"
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "required": false,
+      "default": 6379
+    },
+    "db": {
+      "type": "integer",
+      "label": "Db",
+      "required": false,
+      "default": 0
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": false
+    },
+    "ssl": {
+      "type": "boolean",
+      "label": "Ssl",
+      "required": false,
+      "default": false
+    },
+    "url_env_var": {
+      "type": "string",
+      "label": "Url Env Var",
+      "required": false
+    }
+  }
 }

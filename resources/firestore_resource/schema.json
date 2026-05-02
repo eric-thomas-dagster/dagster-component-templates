@@ -38,5 +38,29 @@
     "nosql"
   ],
   "icon": "si:firebase",
-  "name": "Google Firestore Resource"
+  "name": "Google Firestore Resource",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "firestore_resource"
+    },
+    "project": {
+      "type": "string",
+      "label": "Project",
+      "required": true
+    },
+    "gcp_credentials_env_var": {
+      "type": "string",
+      "label": "Gcp Credentials Env Var",
+      "required": false
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "required": false,
+      "default": "(default"
+    }
+  }
 }

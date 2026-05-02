@@ -28,6 +28,11 @@
       "description": "OAuth scopes for the Google Sheets API",
       "required": false,
       "default": "https://www.googleapis.com/auth/spreadsheets"
+    },
+    "gcp_credentials_json": {
+      "type": "string",
+      "label": "Gcp Credentials Json",
+      "required": true
     }
   },
   "tags": [

@@ -56,6 +56,12 @@
       "required": false,
       "default": null,
       "ui:widget": "env_var"
+    },
+    "partition_column": {
+      "type": "string",
+      "label": "Partition Column",
+      "required": false,
+      "default": "partition_key"
     }
   },
   "tags": [

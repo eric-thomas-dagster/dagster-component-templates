@@ -29,7 +29,9 @@
     },
     "columns": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Columns",
       "description": "Categorical columns to encode.",
       "required": true,
@@ -41,7 +43,11 @@
       "description": "How codes are assigned to unique values.",
       "required": false,
       "default": "frequency",
-      "enum": ["frequency", "alphabetical", "appearance"],
+      "enum": [
+        "frequency",
+        "alphabetical",
+        "appearance"
+      ],
       "ui:widget": "select"
     },
     "na_code": {
@@ -78,20 +84,111 @@
       "description": "Enable partitioning. Leave empty for unpartitioned.",
       "required": false,
       "default": null,
-      "enum": ["daily", "weekly", "monthly", "hourly", "static", "multi"],
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
       "ui:widget": "select"
     },
-    "partition_start": {"type": "string", "label": "Partition Start Date", "description": "ISO date string for the first partition.", "required": false, "default": null},
-    "partition_date_column": {"type": "string", "label": "Partition Date Column", "description": "Column used to filter rows to the current date partition key.", "required": false, "default": null},
-    "partition_values": {"type": "string", "label": "Partition Values", "description": "Comma-separated values for static or multi partitioning.", "required": false, "default": null},
-    "partition_static_dim": {"type": "string", "label": "Static Dimension Name", "description": "Name for the static partition dimension in multi-partitioning.", "required": false, "default": null},
-    "partition_static_column": {"type": "string", "label": "Static Partition Column", "description": "Column used to filter rows to the current static partition value.", "required": false, "default": null},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "description": "Asset owners — team names or email addresses.", "required": false, "ui:widget": "list"},
-    "asset_tags": {"type": "object", "label": "Asset Tags", "description": "Key-value tags applied to the asset.", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "description": "Asset kinds shown in the catalog. Auto-inferred when empty.", "required": false, "ui:widget": "list"},
-    "freshness_max_lag_minutes": {"type": "integer", "label": "Freshness Max Lag (minutes)", "description": "Maximum acceptable lag in minutes before this asset is considered stale.", "required": false, "default": null},
-    "freshness_cron": {"type": "string", "label": "Freshness Cron Schedule", "description": "Cron schedule for the freshness policy.", "required": false, "default": null},
-    "column_lineage": {"type": "object", "label": "Column Lineage", "description": "Column-level lineage. Auto-inferred when empty.", "required": false, "ui:widget": "key-value"}
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value.",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners \u2014 team names or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds shown in the catalog. Auto-inferred when empty.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron Schedule",
+      "description": "Cron schedule for the freshness policy.",
+      "required": false,
+      "default": null
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "description": "Column-level lineage. Auto-inferred when empty.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 25
+    }
   },
   "tags": [
     "transformation",

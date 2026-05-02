@@ -159,6 +159,18 @@
       "description": "Optional strptime format for datetime parsing, e.g. '%Y-%m-%d'",
       "required": false,
       "default": null
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 25
     }
   },
   "tags": [

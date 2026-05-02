@@ -47,5 +47,40 @@
     "database"
   ],
   "icon": "si:elastic",
-  "name": "Elasticsearch Resource"
+  "name": "Elasticsearch Resource",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "elasticsearch_resource"
+    },
+    "hosts": {
+      "type": "string",
+      "label": "Hosts",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "required": false
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "required": false,
+      "default": ""
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": false
+    },
+    "verify_certs": {
+      "type": "boolean",
+      "label": "Verify Certs",
+      "required": false,
+      "default": true
+    }
+  }
 }

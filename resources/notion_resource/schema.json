@@ -21,6 +21,11 @@
       "description": "Env var holding Notion integration token",
       "required": true,
       "ui:widget": "env_var"
+    },
+    "token": {
+      "type": "string",
+      "label": "Token",
+      "required": true
     }
   },
   "tags": [

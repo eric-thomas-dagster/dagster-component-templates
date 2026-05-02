@@ -181,6 +181,34 @@
       "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
       "required": false,
       "ui:widget": "key-value"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 25
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential"
     }
   },
   "tags": [

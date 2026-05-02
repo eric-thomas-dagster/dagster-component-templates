@@ -27,6 +27,11 @@
       "description": "Env var holding GCP service account JSON string",
       "required": true,
       "ui:widget": "env_var"
+    },
+    "gcp_credentials_json": {
+      "type": "string",
+      "label": "Gcp Credentials Json",
+      "required": true
     }
   },
   "tags": [

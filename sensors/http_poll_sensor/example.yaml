@@ -1,7 +1,11 @@
 type: dagster_component_templates.HttpPollSensorComponent
 attributes:
-  sensor_name: weather_changed_sensor
-  asset_keys: [weather_report]
-  url: "https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current=temperature_2m"
-  json_path: "current.temperature_2m"
-  minimum_interval_seconds: 300
+  sensor_name: nba_scoreboard_sensor
+  asset_keys: [nba_scoreboard_summary]
+  url: "https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json"
+  # The whole response includes a server timestamp that churns on every
+  # request. Hash a stable nested value instead — only fires when the
+  # game date actually changes (once per day for a daily ETL).
+  json_path: "scoreboard.gameDate"
+  minimum_interval_seconds: 600
+  default_status: STOPPED

@@ -152,6 +152,18 @@
       "description": "Drop rows where the exploded value is null/NaN",
       "required": false,
       "default": false
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 25
     }
   },
   "tags": [

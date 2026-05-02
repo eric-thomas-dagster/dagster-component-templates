@@ -53,5 +53,45 @@
     "sql"
   ],
   "icon": "si:mysql",
-  "name": "MySQL Resource"
+  "name": "MySQL Resource",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "mysql_resource"
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "required": true
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "required": false,
+      "default": 3306
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "required": true
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "required": true
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": false
+    },
+    "ssl_disabled": {
+      "type": "boolean",
+      "label": "Ssl Disabled",
+      "required": false,
+      "default": false
+    }
+  }
 }

@@ -21,6 +21,11 @@
       "description": "Env var holding Airtable personal access token",
       "required": true,
       "ui:widget": "env_var"
+    },
+    "api_key": {
+      "type": "string",
+      "label": "Api Key",
+      "required": true
     }
   },
   "tags": [

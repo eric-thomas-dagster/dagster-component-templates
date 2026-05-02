@@ -43,5 +43,35 @@
     "graph"
   ],
   "icon": "si:neo4j",
-  "name": "Neo4j Resource"
+  "name": "Neo4j Resource",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "neo4j_resource"
+    },
+    "uri": {
+      "type": "string",
+      "label": "Uri",
+      "required": true
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "required": false,
+      "default": "neo4j"
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": true
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "required": false,
+      "default": "neo4j"
+    }
+  }
 }

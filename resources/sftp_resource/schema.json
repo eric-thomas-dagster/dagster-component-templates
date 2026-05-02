@@ -56,6 +56,17 @@
       "description": "Path to SSH private key file on disk",
       "required": false,
       "default": null
+    },
+    "known_hosts_path": {
+      "type": "string",
+      "label": "Known Hosts Path",
+      "required": false
+    },
+    "auto_accept_unknown_host_key": {
+      "type": "boolean",
+      "label": "Auto Accept Unknown Host Key",
+      "required": false,
+      "default": false
     }
   },
   "tags": [

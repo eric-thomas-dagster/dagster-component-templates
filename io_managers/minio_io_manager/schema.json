@@ -51,6 +51,12 @@
       "description": "Key prefix within the bucket for asset tables",
       "required": false,
       "default": "assets"
+    },
+    "partition_column": {
+      "type": "string",
+      "label": "Partition Column",
+      "required": false,
+      "default": "partition_key"
     }
   },
   "tags": [

@@ -26,5 +26,19 @@
     "analytics"
   ],
   "icon": "si:duckdb",
-  "name": "DuckDB Resource"
+  "name": "DuckDB Resource",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "duckdb_resource"
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "required": false,
+      "default": ":memory:"
+    }
+  }
 }

@@ -33,6 +33,11 @@
       "description": "Env var holding Jira API token",
       "required": true,
       "ui:widget": "env_var"
+    },
+    "api_token": {
+      "type": "string",
+      "label": "Api Token",
+      "required": true
     }
   },
   "tags": [

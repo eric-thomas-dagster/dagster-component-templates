@@ -615,6 +615,28 @@
       ]
     },
     {
+      "id": "asset_reference",
+      "name": "Asset Reference",
+      "category": "infrastructure",
+      "description": "Reference an existing asset (dbt, Python, etc.) in a pipeline definition",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "core/asset_reference",
+      "tags": [
+        "core",
+        "infrastructure",
+        "asset-reference"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/asset_reference/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/asset_reference/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/asset_reference/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/asset_reference/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/asset_reference/requirements.txt"
+    },
+    {
       "id": "athena_io_manager",
       "name": "Athena IO Manager",
       "category": "io_manager",
@@ -1408,7 +1430,7 @@
       "id": "community_component_installer",
       "name": "Community Component Installer",
       "category": "infrastructure",
-      "description": "Download other community components from the registry at refresh-state time, configured via YAML. Supports id@ref pinning.",
+      "description": "Download other community components from the registry at refresh-state time, configured via YAML.",
       "path": "assets/infrastructure/community_component_installer",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/community_component_installer/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/community_component_installer/component.py",
@@ -1636,6 +1658,31 @@
       "x-dagster-provides": [
         "couchdb_resource"
       ]
+    },
+    {
+      "id": "couchdb_writer",
+      "name": "CouchDB Writer",
+      "category": "sink",
+      "description": "Write a DataFrame to an Apache CouchDB database with upsert or insert mode and optional custom document IDs",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/couchdb_writer",
+      "tags": [
+        "sink",
+        "couchdb",
+        "nosql"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/couchdb_writer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/couchdb_writer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/couchdb_writer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/couchdb_writer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/couchdb_writer/requirements.txt"
     },
     {
       "id": "count_records",
@@ -2633,6 +2680,28 @@
       "x-dagster-provides": [
         "io_manager"
       ]
+    },
+    {
+      "id": "dependency_graph",
+      "name": "Dependency Graph",
+      "category": "infrastructure",
+      "description": "Define dependencies between assets without modifying component schemas",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "core/dependency_graph",
+      "tags": [
+        "core",
+        "infrastructure",
+        "lineage"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/dependency_graph/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/dependency_graph/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/dependency_graph/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/dependency_graph/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/dependency_graph/requirements.txt"
     },
     {
       "id": "distance_calculator",
@@ -5049,7 +5118,7 @@
       "id": "great_expectations_check",
       "name": "Great Expectations Check",
       "category": "check",
-      "description": "Run a GE expectation suite \u2014 one Dagster asset check per expectation.",
+      "description": "Run a Great Expectations expectation suite \u2014 one Dagster asset check per expectation.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "asset_checks/great_expectations_check",
@@ -7081,7 +7150,7 @@
       "id": "motherduck_io_manager",
       "name": "MotherDuck IO Manager",
       "category": "io_manager",
-      "description": "Register a DuckDB IO manager connected to MotherDuck serverless DuckDB cloud for asset storage",
+      "description": "Register a DuckDB IO manager connected to MotherDuck (serverless DuckDB cloud) for asset storage",
       "version": "0.1.0",
       "author": "Dagster Labs",
       "path": "io_managers/motherduck_io_manager",
@@ -7478,6 +7547,31 @@
       "x-dagster-provides": [
         "neo4j_resource"
       ]
+    },
+    {
+      "id": "neo4j_writer",
+      "name": "Neo4j Writer",
+      "category": "sink",
+      "description": "Write a DataFrame to Neo4j as graph nodes using MERGE or CREATE with efficient UNWIND batch processing",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/neo4j_writer",
+      "tags": [
+        "sink",
+        "neo4j",
+        "graph"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "neo4j"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/neo4j_writer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/neo4j_writer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/neo4j_writer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/neo4j_writer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/neo4j_writer/requirements.txt"
     },
     {
       "id": "nested_field_extractor",
@@ -10322,7 +10416,7 @@
       "id": "soda_check",
       "name": "Soda Check",
       "category": "check",
-      "description": "[DEPRECATED \u2014 use dagster-soda] Run a Soda scan \u2014 one Dagster asset check per SodaCL check.",
+      "description": "[DEPRECATED \u2014 use dagster-soda] Run a Soda scan \u2014 one Dagster asset check per SodaCL check (community).",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "asset_checks/soda_check",

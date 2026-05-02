@@ -50,6 +50,12 @@
       "description": "[cron] Timezone for the cron expression (e.g. ",
       "required": false,
       "default": null
+    },
+    "policy_type": {
+      "type": "string",
+      "label": "Policy Type",
+      "required": false,
+      "default": "time_window"
     }
   },
   "tags": [

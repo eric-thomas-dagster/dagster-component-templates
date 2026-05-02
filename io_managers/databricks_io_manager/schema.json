@@ -54,6 +54,18 @@
       "description": "Cloud storage URI for staging data, e.g. 's3://bucket/staging' or 'abfss://container@account.dfs.core.windows.net/staging'",
       "required": false,
       "default": null
+    },
+    "default_schema": {
+      "type": "string",
+      "label": "Default Schema",
+      "required": false,
+      "default": "default"
+    },
+    "partition_column": {
+      "type": "string",
+      "label": "Partition Column",
+      "required": false,
+      "default": "partition_key"
     }
   },
   "tags": [

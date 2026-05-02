@@ -43,5 +43,33 @@
     "nosql"
   ],
   "icon": "si:amazondynamodb",
-  "name": "Amazon DynamoDB Resource"
+  "name": "Amazon DynamoDB Resource",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "dynamodb_resource"
+    },
+    "region_name": {
+      "type": "string",
+      "label": "Region Name",
+      "required": true
+    },
+    "aws_access_key_id_env_var": {
+      "type": "string",
+      "label": "Aws Access Key Id Env Var",
+      "required": false
+    },
+    "aws_secret_access_key_env_var": {
+      "type": "string",
+      "label": "Aws Secret Access Key Env Var",
+      "required": false
+    },
+    "endpoint_url": {
+      "type": "string",
+      "label": "Endpoint Url",
+      "required": false
+    }
+  }
 }

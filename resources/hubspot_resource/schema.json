@@ -21,6 +21,11 @@
       "description": "Env var holding HubSpot private app access token",
       "required": true,
       "ui:widget": "env_var"
+    },
+    "access_token": {
+      "type": "string",
+      "label": "Access Token",
+      "required": true
     }
   },
   "tags": [

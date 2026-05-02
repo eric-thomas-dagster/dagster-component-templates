@@ -15,15 +15,29 @@
     }
   },
   "attributes": {
-    "asset_name": {"type": "string", "label": "Asset Name", "description": "Output Dagster asset name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "description": "Upstream asset key providing a DataFrame", "required": true},
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
     "strategy": {
       "type": "string",
       "label": "Detection Strategy",
       "description": "How to identify outliers.",
       "required": false,
       "default": "iqr",
-      "enum": ["iqr", "zscore", "quantile"],
+      "enum": [
+        "iqr",
+        "zscore",
+        "quantile"
+      ],
       "ui:widget": "select"
     },
     "action": {
@@ -32,43 +46,170 @@
       "description": "What to do with detected outliers.",
       "required": false,
       "default": "clip",
-      "enum": ["clip", "drop", "flag"],
+      "enum": [
+        "clip",
+        "drop",
+        "flag"
+      ],
       "ui:widget": "select"
     },
     "columns": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Columns",
       "description": "Numeric columns to check. Empty = all numeric columns.",
       "required": false,
       "default": null,
       "ui:widget": "list"
     },
-    "iqr_multiplier": {"type": "number", "label": "IQR Multiplier", "description": "Fence multiplier for IQR strategy. 1.5 = standard Tukey fences, 3.0 = extreme outliers only.", "required": false, "default": 1.5},
-    "zscore_threshold": {"type": "number", "label": "Z-Score Threshold", "description": "Absolute z-score threshold for the 'zscore' strategy.", "required": false, "default": 3.0},
-    "lower_quantile": {"type": "number", "label": "Lower Quantile", "description": "Lower quantile cut for 'quantile' strategy (default 0.01).", "required": false, "default": 0.01},
-    "upper_quantile": {"type": "number", "label": "Upper Quantile", "description": "Upper quantile cut for 'quantile' strategy (default 0.99).", "required": false, "default": 0.99},
-    "group_name": {"type": "string", "label": "Group Name", "description": "Dagster asset group name", "required": false, "default": null},
+    "iqr_multiplier": {
+      "type": "number",
+      "label": "IQR Multiplier",
+      "description": "Fence multiplier for IQR strategy. 1.5 = standard Tukey fences, 3.0 = extreme outliers only.",
+      "required": false,
+      "default": 1.5
+    },
+    "zscore_threshold": {
+      "type": "number",
+      "label": "Z-Score Threshold",
+      "description": "Absolute z-score threshold for the 'zscore' strategy.",
+      "required": false,
+      "default": 3.0
+    },
+    "lower_quantile": {
+      "type": "number",
+      "label": "Lower Quantile",
+      "description": "Lower quantile cut for 'quantile' strategy (default 0.01).",
+      "required": false,
+      "default": 0.01
+    },
+    "upper_quantile": {
+      "type": "number",
+      "label": "Upper Quantile",
+      "description": "Upper quantile cut for 'quantile' strategy (default 0.99).",
+      "required": false,
+      "default": 0.99
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": null
+    },
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
       "description": "Enable partitioning. Leave empty for unpartitioned.",
       "required": false,
       "default": null,
-      "enum": ["daily", "weekly", "monthly", "hourly", "static", "multi"],
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
       "ui:widget": "select"
     },
-    "partition_start": {"type": "string", "label": "Partition Start Date", "description": "ISO date string for the first partition.", "required": false, "default": null},
-    "partition_date_column": {"type": "string", "label": "Partition Date Column", "description": "Column used to filter rows to the current date partition key.", "required": false, "default": null},
-    "partition_values": {"type": "string", "label": "Partition Values", "description": "Comma-separated values for static or multi partitioning.", "required": false, "default": null},
-    "partition_static_dim": {"type": "string", "label": "Static Dimension Name", "description": "Name for the static partition dimension in multi-partitioning.", "required": false, "default": null},
-    "partition_static_column": {"type": "string", "label": "Static Partition Column", "description": "Column used to filter rows to the current static partition value.", "required": false, "default": null},
-    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "description": "Asset owners.", "required": false, "ui:widget": "list"},
-    "asset_tags": {"type": "object", "label": "Asset Tags", "description": "Key-value tags applied to the asset.", "required": false, "ui:widget": "key-value"},
-    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "description": "Asset kinds. Auto-inferred when empty.", "required": false, "ui:widget": "list"},
-    "freshness_max_lag_minutes": {"type": "integer", "label": "Freshness Max Lag (minutes)", "description": "Maximum acceptable lag in minutes before this asset is considered stale.", "required": false, "default": null},
-    "freshness_cron": {"type": "string", "label": "Freshness Cron Schedule", "description": "Cron schedule for the freshness policy.", "required": false, "default": null},
-    "column_lineage": {"type": "object", "label": "Column Lineage", "description": "Column-level lineage. Auto-inferred when empty.", "required": false, "ui:widget": "key-value"}
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value.",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds. Auto-inferred when empty.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron Schedule",
+      "description": "Cron schedule for the freshness policy.",
+      "required": false,
+      "default": null
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "description": "Column-level lineage. Auto-inferred when empty.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 25
+    }
   },
   "tags": [
     "transformation",

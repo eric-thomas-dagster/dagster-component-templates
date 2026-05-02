@@ -29,6 +29,11 @@
       "required": false,
       "default": null,
       "ui:widget": "env_var"
+    },
+    "connection_params": {
+      "type": "string",
+      "label": "Connection Params",
+      "required": false
     }
   },
   "tags": [

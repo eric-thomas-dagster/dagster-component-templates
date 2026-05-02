@@ -1,0 +1,112 @@
+{
+  "component_type": "dagster_component_templates.SqlTransformComponent",
+  "description": "Run a SELECT on the warehouse and materialize the result as a table (CTAS pushdown).",
+  "category": "transformation",
+  "icon": "Database",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "warehouse_table",
+      "description": "A new or replaced table written directly on the warehouse"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "connection_url_env_var": {
+      "type": "string",
+      "label": "Connection URL Env Var",
+      "description": "Env var holding a SQLAlchemy connection URL. Examples: SNOWFLAKE_URL, BIGQUERY_URL, REDSHIFT_URL.",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "destination_table": {
+      "type": "string",
+      "label": "Destination Table",
+      "description": "Fully-qualified destination table (DB.SCHEMA.TABLE / project.dataset.table / schema.table).",
+      "required": true
+    },
+    "sql": {
+      "type": "string",
+      "label": "SQL",
+      "description": "The SELECT body. Wrapped in CREATE TABLE AS (replace) or INSERT INTO (append).",
+      "required": true,
+      "ui:widget": "code"
+    },
+    "template_vars": {
+      "type": "object",
+      "label": "Template Vars",
+      "description": "Simple {{ name }} substitution map applied before execution. No Jinja.",
+      "required": false,
+      "additionalProperties": {"type": "string"},
+      "ui:widget": "key-value"
+    },
+    "if_exists": {
+      "type": "string",
+      "label": "If Exists",
+      "description": "'replace' = DROP TABLE IF EXISTS + CREATE TABLE AS. 'append' = INSERT INTO.",
+      "required": false,
+      "default": "replace",
+      "enum": ["replace", "append"],
+      "ui:widget": "select"
+    },
+    "upstream_asset_keys": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Upstream Asset Keys",
+      "description": "Upstream Dagster asset keys this transform depends on (for lineage).",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Kinds",
+      "description": "Asset kinds for the catalog. Auto-inferred from the connection URL env var name if unset.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": "warehouse_transforms"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description shown in the catalog.",
+      "required": false,
+      "ui:widget": "code"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "owners": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Owners",
+      "description": "Team names (team:analytics) or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "transformation",
+    "sql",
+    "warehouse",
+    "snowflake",
+    "bigquery",
+    "redshift",
+    "pushdown"
+  ],
+  "name": "SQL Transform"
+}

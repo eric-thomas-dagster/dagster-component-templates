@@ -1,0 +1,17 @@
+type: dagster_component_templates.SqlTransformComponent
+attributes:
+  asset_name: orders_dedup
+  connection_url_env_var: SNOWFLAKE_URL
+  destination_table: ANALYTICS.PUBLIC.ORDERS_DEDUP
+  sql: |
+    SELECT *
+    FROM {{ upstream }}
+    QUALIFY ROW_NUMBER() OVER (
+      PARTITION BY order_id ORDER BY updated_at DESC
+    ) = 1
+  template_vars:
+    upstream: ANALYTICS.PUBLIC.ORDERS_RAW
+  if_exists: replace
+  upstream_asset_keys:
+    - orders_raw
+  group_name: warehouse_transforms

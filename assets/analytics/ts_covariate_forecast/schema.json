@@ -1,0 +1,86 @@
+{
+  "component_type": "dagster_component_templates.TSCovariateForecastComponent",
+  "description": "Forecast a time series with exogenous regressors via SARIMAX.",
+  "category": "analytics",
+  "icon": "LineChart",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "date_column": {
+      "type": "string",
+      "label": "Date Column",
+      "required": true
+    },
+    "value_column": {
+      "type": "string",
+      "label": "Value Column",
+      "required": true
+    },
+    "covariate_columns": {
+      "type": "array",
+      "label": "Covariate Columns",
+      "required": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "n_periods": {
+      "type": "integer",
+      "label": "N Periods",
+      "required": true
+    },
+    "order": {
+      "type": "integer",
+      "label": "Order",
+      "required": true
+    },
+    "seasonal_order": {
+      "type": "integer",
+      "label": "Seasonal Order",
+      "required": false
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "default": false,
+      "required": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "default": 25,
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    }
+  },
+  "tags": [
+    "analytics",
+    "time-series",
+    "forecast",
+    "sarimax"
+  ],
+  "name": "TSCovariateForecast"
+}

@@ -1,0 +1,7 @@
+type: dagster_component_templates.MakeGroupComponent
+attributes:
+  asset_name: orders_with_session_id
+  upstream_asset_key: orders_raw
+  key_columns: [customer_id, order_date]
+  output_column: session_id
+  group_name: prep

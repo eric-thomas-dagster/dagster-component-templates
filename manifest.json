@@ -4,6 +4,32 @@
   "last_updated": "2026-04-28",
   "components": [
     {
+      "id": "ab_controls",
+      "name": "ABControls",
+      "category": "analytics",
+      "description": "Compute required sample size for an A/B test given baseline rate, MDE, and power.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/ab_controls",
+      "tags": [
+        "analytics",
+        "ab-testing",
+        "power-analysis",
+        "sample-size"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "scipy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ab_controls/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ab_controls/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ab_controls/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ab_controls/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ab_controls/requirements.txt"
+    },
+    {
       "id": "ab_test_analysis",
       "name": "A/B Test Analysis",
       "category": "analytics",
@@ -28,6 +54,55 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ab_test_analysis/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ab_test_analysis/requirements.txt",
       "icon": "BarChart2"
+    },
+    {
+      "id": "ab_treatments",
+      "name": "ABTreatments",
+      "category": "analytics",
+      "description": "Deterministically assign each user to a control/treatment variant via hashing.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/ab_treatments",
+      "tags": [
+        "analytics",
+        "ab-testing",
+        "experiment",
+        "assignment"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ab_treatments/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ab_treatments/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ab_treatments/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ab_treatments/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ab_treatments/requirements.txt"
+    },
+    {
+      "id": "ab_trend",
+      "name": "ABTrend",
+      "category": "analytics",
+      "description": "Compute conversion-rate trend per variant over time buckets (daily, weekly, monthly).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/ab_trend",
+      "tags": [
+        "analytics",
+        "ab-testing",
+        "trend"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ab_trend/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ab_trend/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ab_trend/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ab_trend/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ab_trend/requirements.txt"
     },
     {
       "id": "abinitio_job_sensor",
@@ -383,6 +458,32 @@
       "x-dagster-provides": [
         "anthropic_resource"
       ]
+    },
+    {
+      "id": "append_cluster",
+      "name": "AppendCluster",
+      "category": "analytics",
+      "description": "Cluster rows with k-means and append the cluster label as a new column.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/append_cluster",
+      "tags": [
+        "analytics",
+        "clustering",
+        "kmeans"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "scikit-learn",
+          "numpy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/append_cluster/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/append_cluster/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/append_cluster/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/append_cluster/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/append_cluster/requirements.txt"
     },
     {
       "id": "append_fields",
@@ -1527,6 +1628,33 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/count_records/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/count_records/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/count_records/requirements.txt"
+    },
+    {
+      "id": "count_regression",
+      "name": "CountRegression",
+      "category": "analytics",
+      "description": "Fit a Poisson regression for count outcomes and emit predictions.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/count_regression",
+      "tags": [
+        "analytics",
+        "regression",
+        "poisson",
+        "glm"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "statsmodels",
+          "numpy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/count_regression/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/count_regression/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/count_regression/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/count_regression/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/count_regression/requirements.txt"
     },
     {
       "id": "create_samples",
@@ -4189,6 +4317,33 @@
       "icon": "Shuffle"
     },
     {
+      "id": "gamma_regression",
+      "name": "GammaRegression",
+      "category": "analytics",
+      "description": "Fit a Gamma generalized linear model for positive continuous outcomes.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/gamma_regression",
+      "tags": [
+        "analytics",
+        "regression",
+        "gamma",
+        "glm"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "statsmodels",
+          "numpy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/gamma_regression/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/gamma_regression/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/gamma_regression/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/gamma_regression/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/gamma_regression/requirements.txt"
+    },
+    {
       "id": "gcs_monitor",
       "name": "GCS Monitor",
       "category": "sensor",
@@ -5310,6 +5465,32 @@
       "component_type": "dagster_component_templates.JupyterNotebookAssetComponent"
     },
     {
+      "id": "k_centroids_diagnostics",
+      "name": "KCentroidsDiagnostics",
+      "category": "analytics",
+      "description": "Compute silhouette + elbow scores across a range of k values to choose the optimal cluster count.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/k_centroids_diagnostics",
+      "tags": [
+        "analytics",
+        "clustering",
+        "diagnostics"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "scikit-learn",
+          "numpy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/k_centroids_diagnostics/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/k_centroids_diagnostics/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/k_centroids_diagnostics/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/k_centroids_diagnostics/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/k_centroids_diagnostics/requirements.txt"
+    },
+    {
       "id": "k_means_clustering",
       "name": "K-Means Clustering",
       "category": "analytics",
@@ -6141,6 +6322,30 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/make_columns/requirements.txt"
     },
     {
+      "id": "make_group",
+      "name": "MakeGroup",
+      "category": "transformation",
+      "description": "Assign a group ID per unique combination of key columns.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/make_group",
+      "tags": [
+        "transformation",
+        "preparation",
+        "grouping"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/make_group/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/make_group/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/make_group/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/make_group/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/make_group/requirements.txt"
+    },
+    {
       "id": "markdown_stripper",
       "name": "Markdown Stripper",
       "category": "transformation",
@@ -6160,6 +6365,32 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/markdown_stripper/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/markdown_stripper/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/markdown_stripper/requirements.txt"
+    },
+    {
+      "id": "market_basket_rules",
+      "name": "MarketBasketRules",
+      "category": "analytics",
+      "description": "Mine association rules from transaction data via apriori (mlxtend).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/market_basket_rules",
+      "tags": [
+        "analytics",
+        "market-basket",
+        "association-rules",
+        "apriori"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "mlxtend"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/market_basket_rules/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/market_basket_rules/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/market_basket_rules/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/market_basket_rules/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/market_basket_rules/requirements.txt"
     },
     {
       "id": "marketing_data_standardizer",
@@ -6422,6 +6653,34 @@
       "component_type": "dagster_component_templates.ModalAssetComponent"
     },
     {
+      "id": "model_coefficients",
+      "name": "ModelCoefficients",
+      "category": "analytics",
+      "description": "Fit a linear or logistic regression and emit one row per coefficient (\u03b2 + std error + p-value).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/model_coefficients",
+      "tags": [
+        "analytics",
+        "regression",
+        "diagnostics",
+        "explainability"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "scikit-learn",
+          "statsmodels",
+          "numpy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_coefficients/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_coefficients/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_coefficients/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_coefficients/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_coefficients/requirements.txt"
+    },
+    {
       "id": "model_comparison",
       "name": "Model Comparison",
       "category": "analytics",
@@ -6439,6 +6698,33 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_comparison/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_comparison/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_comparison/requirements.txt"
+    },
+    {
+      "id": "model_score",
+      "name": "ModelScore",
+      "category": "analytics",
+      "description": "Apply a trained pickled sklearn model to new rows and emit predictions.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/model_score",
+      "tags": [
+        "analytics",
+        "model",
+        "score",
+        "inference"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "scikit-learn",
+          "joblib"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_score/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_score/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_score/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_score/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/model_score/requirements.txt"
     },
     {
       "id": "moderation_scorer",
@@ -6686,6 +6972,30 @@
       "component_type": "dagster_component_templates.MQTTToDatabaseAssetComponent"
     },
     {
+      "id": "multi_field_binning",
+      "name": "MultiFieldBinning",
+      "category": "transformation",
+      "description": "Bin multiple numeric columns at once into quantile or fixed-width bins.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/multi_field_binning",
+      "tags": [
+        "transformation",
+        "preparation",
+        "binning"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/multi_field_binning/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/multi_field_binning/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/multi_field_binning/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/multi_field_binning/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/multi_field_binning/requirements.txt"
+    },
+    {
       "id": "multi_field_formula",
       "name": "Multi Field Formula",
       "category": "transformation",
@@ -6747,6 +7057,33 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/multi_touch_attribution/example.yaml",
       "icon": "BarChart2",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/multi_touch_attribution/requirements.txt"
+    },
+    {
+      "id": "multidimensional_scaling",
+      "name": "MultidimensionalScaling",
+      "category": "analytics",
+      "description": "Reduce feature dimensions to 2D/3D via metric MDS for visualization.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/multidimensional_scaling",
+      "tags": [
+        "analytics",
+        "dimensionality-reduction",
+        "mds",
+        "visualization"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "scikit-learn",
+          "numpy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/multidimensional_scaling/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/multidimensional_scaling/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/multidimensional_scaling/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/multidimensional_scaling/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/multidimensional_scaling/requirements.txt"
     },
     {
       "id": "mysql_resource",
@@ -9028,6 +9365,30 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/select_columns/requirements.txt"
     },
     {
+      "id": "select_records",
+      "name": "SelectRecords",
+      "category": "transformation",
+      "description": "Select rows by index range, head/tail, or specific row indices.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/select_records",
+      "tags": [
+        "transformation",
+        "preparation",
+        "rows"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/select_records/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/select_records/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/select_records/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/select_records/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/select_records/requirements.txt"
+    },
+    {
       "id": "sentiment_analyzer",
       "name": "Sentiment Analyzer",
       "category": "ai",
@@ -9729,6 +10090,33 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/spatial_join/requirements.txt"
     },
     {
+      "id": "spline_model",
+      "name": "SplineModel",
+      "category": "analytics",
+      "description": "Fit an OLS regression with cubic-spline transformed features for smooth non-linear effects.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/spline_model",
+      "tags": [
+        "analytics",
+        "regression",
+        "spline",
+        "non-linear"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "scikit-learn",
+          "numpy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/spline_model/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/spline_model/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/spline_model/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/spline_model/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/spline_model/requirements.txt"
+    },
+    {
       "id": "sql_generator",
       "name": "SQL Generator",
       "category": "ai",
@@ -9967,6 +10355,32 @@
       "component_type": "dagster_component_templates.StepFunctionsAssetComponent"
     },
     {
+      "id": "stepwise",
+      "name": "Stepwise",
+      "category": "analytics",
+      "description": "Sequential forward feature selection \u2014 pick K best features by cross-validated score.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/stepwise",
+      "tags": [
+        "analytics",
+        "feature-selection",
+        "stepwise"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "scikit-learn",
+          "numpy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/stepwise/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/stepwise/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/stepwise/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/stepwise/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/stepwise/requirements.txt"
+    },
+    {
       "id": "stripe_ingestion",
       "name": "Stripe Ingestion",
       "category": "ingestion",
@@ -10136,6 +10550,34 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/survival_analysis/requirements.txt"
     },
     {
+      "id": "svm",
+      "name": "SVM",
+      "category": "analytics",
+      "description": "Fit a Support Vector Machine for classification or regression and emit predictions.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/svm",
+      "tags": [
+        "analytics",
+        "model",
+        "svm",
+        "classification",
+        "regression"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "scikit-learn",
+          "numpy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/svm/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/svm/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/svm/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/svm/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/svm/requirements.txt"
+    },
+    {
       "id": "synthetic_data",
       "name": "Synthetic Data",
       "category": "ai",
@@ -10242,6 +10684,32 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/terraform_cloud_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/terraform_cloud_asset/requirements.txt",
       "component_type": "dagster_component_templates.TerraformCloudAssetComponent"
+    },
+    {
+      "id": "test_of_means",
+      "name": "TestOfMeans",
+      "category": "analytics",
+      "description": "Run a two-sample t-test on a numeric column grouped by a binary group column.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/test_of_means",
+      "tags": [
+        "analytics",
+        "stats",
+        "ttest",
+        "ab-testing"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "scipy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/test_of_means/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/test_of_means/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/test_of_means/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/test_of_means/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/test_of_means/requirements.txt"
     },
     {
       "id": "text_chunker",
@@ -10641,6 +11109,33 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_compare/requirements.txt"
     },
     {
+      "id": "ts_covariate_forecast",
+      "name": "TSCovariateForecast",
+      "category": "analytics",
+      "description": "Forecast a time series with exogenous regressors via SARIMAX.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/ts_covariate_forecast",
+      "tags": [
+        "analytics",
+        "time-series",
+        "forecast",
+        "sarimax"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "statsmodels",
+          "numpy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_covariate_forecast/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_covariate_forecast/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_covariate_forecast/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_covariate_forecast/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/ts_covariate_forecast/requirements.txt"
+    },
+    {
       "id": "ts_filler",
       "name": "Time Series Filler",
       "category": "transformation",
@@ -10868,6 +11363,33 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vector_store_writer/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vector_store_writer/requirements.txt",
       "icon": "Sparkles"
+    },
+    {
+      "id": "vif",
+      "name": "Vif",
+      "category": "analytics",
+      "description": "Compute variance inflation factors (VIF) for each feature column to flag multicollinearity.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/vif",
+      "tags": [
+        "analytics",
+        "stats",
+        "regression",
+        "diagnostics"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "statsmodels",
+          "numpy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/vif/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/vif/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/vif/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/vif/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/vif/requirements.txt"
     },
     {
       "id": "vision_model",

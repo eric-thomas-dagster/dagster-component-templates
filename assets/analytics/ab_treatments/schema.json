@@ -1,0 +1,81 @@
+{
+  "component_type": "dagster_component_templates.ABTreatmentsComponent",
+  "description": "Deterministically assign each user to a control/treatment variant via hashing.",
+  "category": "analytics",
+  "icon": "GitBranch",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "user_id_column": {
+      "type": "string",
+      "label": "User Id Column",
+      "required": true
+    },
+    "experiment_id": {
+      "type": "string",
+      "label": "Experiment Id",
+      "required": true
+    },
+    "variants": {
+      "type": "array",
+      "label": "Variants",
+      "required": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "weights": {
+      "type": "number",
+      "label": "Weights",
+      "required": false
+    },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "required": true
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "default": false,
+      "required": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "default": 25,
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    }
+  },
+  "tags": [
+    "analytics",
+    "ab-testing",
+    "experiment",
+    "assignment"
+  ],
+  "name": "ABTreatments"
+}

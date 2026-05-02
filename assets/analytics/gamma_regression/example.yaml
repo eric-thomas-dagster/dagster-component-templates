@@ -1,0 +1,8 @@
+type: dagster_component_templates.GammaRegressionComponent
+attributes:
+  asset_name: claim_amount_predictions
+  upstream_asset_key: insurance_claims
+  target_column: claim_amount
+  feature_columns: [age, vehicle_age, prior_claims, deductible]
+  output_mode: predictions
+  group_name: model

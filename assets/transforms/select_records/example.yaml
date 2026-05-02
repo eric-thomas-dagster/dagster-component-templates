@@ -1,0 +1,7 @@
+type: dagster_component_templates.SelectRecordsComponent
+attributes:
+  asset_name: top_100
+  upstream_asset_key: ranked_customers
+  mode: head
+  n: 100
+  group_name: prep

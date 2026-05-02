@@ -1,0 +1,80 @@
+{
+  "component_type": "dagster_component_templates.AppendClusterComponent",
+  "description": "Cluster rows with k-means and append the cluster label as a new column.",
+  "category": "analytics",
+  "icon": "Tag",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "feature_columns": {
+      "type": "array",
+      "label": "Feature Columns",
+      "required": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "n_clusters": {
+      "type": "integer",
+      "label": "N Clusters",
+      "required": true
+    },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "required": true
+    },
+    "random_state": {
+      "type": "integer",
+      "label": "Random State",
+      "required": true
+    },
+    "normalize": {
+      "type": "boolean",
+      "label": "Normalize",
+      "required": true
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "default": false,
+      "required": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "default": 25,
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    }
+  },
+  "tags": [
+    "analytics",
+    "clustering",
+    "kmeans"
+  ],
+  "name": "AppendCluster"
+}

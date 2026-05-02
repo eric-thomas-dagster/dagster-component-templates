@@ -1,0 +1,11 @@
+type: dagster_component_templates.TSCovariateForecastComponent
+attributes:
+  asset_name: revenue_forecast
+  upstream_asset_key: revenue_with_covariates
+  date_column: month
+  value_column: revenue
+  covariate_columns: [marketing_spend, holiday_flag]
+  n_periods: 6
+  order: [1, 1, 1]
+  seasonal_order: [1, 1, 1, 12]
+  group_name: forecast

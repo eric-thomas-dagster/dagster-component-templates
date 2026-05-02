@@ -1,0 +1,76 @@
+{
+  "component_type": "dagster_component_templates.ModelScoreComponent",
+  "description": "Apply a trained pickled sklearn model to new rows and emit predictions.",
+  "category": "analytics",
+  "icon": "Crosshair",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "model_path": {
+      "type": "string",
+      "label": "Model Path",
+      "required": true
+    },
+    "feature_columns": {
+      "type": "array",
+      "label": "Feature Columns",
+      "required": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "required": true
+    },
+    "include_proba": {
+      "type": "boolean",
+      "label": "Include Proba",
+      "required": true
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "default": false,
+      "required": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "default": 25,
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    }
+  },
+  "tags": [
+    "analytics",
+    "model",
+    "score",
+    "inference"
+  ],
+  "name": "ModelScore"
+}

@@ -1,0 +1,90 @@
+{
+  "component_type": "dagster_component_templates.StepwiseComponent",
+  "description": "Sequential forward feature selection \u2014 pick K best features by cross-validated score.",
+  "category": "analytics",
+  "icon": "Filter",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "target_column": {
+      "type": "string",
+      "label": "Target Column",
+      "required": true
+    },
+    "feature_columns": {
+      "type": "array",
+      "label": "Feature Columns",
+      "required": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "n_features_to_select": {
+      "type": "integer",
+      "label": "N Features To Select",
+      "required": true
+    },
+    "task_type": {
+      "type": "string",
+      "label": "Task Type",
+      "required": true
+    },
+    "direction": {
+      "type": "string",
+      "label": "Direction",
+      "required": true
+    },
+    "cv": {
+      "type": "integer",
+      "label": "Cv",
+      "required": true
+    },
+    "scoring": {
+      "type": "string",
+      "label": "Scoring",
+      "required": false
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "default": false,
+      "required": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "default": 25,
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    }
+  },
+  "tags": [
+    "analytics",
+    "feature-selection",
+    "stepwise"
+  ],
+  "name": "Stepwise"
+}

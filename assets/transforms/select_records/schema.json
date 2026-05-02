@@ -1,0 +1,77 @@
+{
+  "component_type": "dagster_component_templates.SelectRecordsComponent",
+  "description": "Select rows by index range, head/tail, or specific row indices.",
+  "category": "transformation",
+  "icon": "ListFilter",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "mode": {
+      "type": "string",
+      "label": "Mode",
+      "required": true
+    },
+    "start": {
+      "type": "integer",
+      "label": "Start",
+      "required": true
+    },
+    "end": {
+      "type": "integer",
+      "label": "End",
+      "required": false
+    },
+    "n": {
+      "type": "integer",
+      "label": "N",
+      "required": true
+    },
+    "indices": {
+      "type": "integer",
+      "label": "Indices",
+      "required": false
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "default": false,
+      "required": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "default": 25,
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    }
+  },
+  "tags": [
+    "transformation",
+    "preparation",
+    "rows"
+  ],
+  "name": "SelectRecords"
+}

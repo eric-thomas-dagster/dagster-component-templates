@@ -1,0 +1,8 @@
+type: dagster_component_templates.ModelCoefficientsComponent
+attributes:
+  asset_name: revenue_coefficients
+  upstream_asset_key: features_with_target
+  target_column: revenue
+  feature_columns: [ad_spend, season_index, n_signups]
+  model_kind: ols
+  group_name: explainability

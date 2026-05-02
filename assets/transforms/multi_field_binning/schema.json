@@ -1,0 +1,83 @@
+{
+  "component_type": "dagster_component_templates.MultiFieldBinningComponent",
+  "description": "Bin multiple numeric columns at once into quantile or fixed-width bins.",
+  "category": "transformation",
+  "icon": "Grid",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "columns": {
+      "type": "array",
+      "label": "Columns",
+      "required": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "n_bins": {
+      "type": "integer",
+      "label": "N Bins",
+      "required": true
+    },
+    "method": {
+      "type": "string",
+      "label": "Method",
+      "required": true
+    },
+    "suffix": {
+      "type": "string",
+      "label": "Suffix",
+      "required": true
+    },
+    "labels": {
+      "type": "array",
+      "label": "Labels",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "default": false,
+      "required": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "default": 25,
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    }
+  },
+  "tags": [
+    "transformation",
+    "preparation",
+    "binning"
+  ],
+  "name": "MultiFieldBinning"
+}

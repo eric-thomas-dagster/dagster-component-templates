@@ -1,0 +1,9 @@
+type: dagster_component_templates.SplineModelComponent
+attributes:
+  asset_name: temperature_predictions
+  upstream_asset_key: weather_features
+  target_column: load_kwh
+  feature_columns: [temperature_c, humidity, hour_of_day]
+  n_knots: 5
+  degree: 3
+  group_name: model

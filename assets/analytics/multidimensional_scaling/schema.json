@@ -1,0 +1,76 @@
+{
+  "component_type": "dagster_component_templates.MultidimensionalScalingComponent",
+  "description": "Reduce feature dimensions to 2D/3D via metric MDS for visualization.",
+  "category": "analytics",
+  "icon": "Map",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "feature_columns": {
+      "type": "array",
+      "label": "Feature Columns",
+      "required": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "n_components": {
+      "type": "integer",
+      "label": "N Components",
+      "required": true
+    },
+    "random_state": {
+      "type": "integer",
+      "label": "Random State",
+      "required": true
+    },
+    "metric": {
+      "type": "boolean",
+      "label": "Metric",
+      "required": true
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "default": false,
+      "required": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "default": 25,
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    }
+  },
+  "tags": [
+    "analytics",
+    "dimensionality-reduction",
+    "mds",
+    "visualization"
+  ],
+  "name": "MultidimensionalScaling"
+}

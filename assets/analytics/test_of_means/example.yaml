@@ -1,0 +1,11 @@
+type: dagster_component_templates.TestOfMeansComponent
+attributes:
+  asset_name: signup_lift_test
+  upstream_asset_key: signups_by_variant
+  value_column: signups
+  group_column: variant
+  group_a: control
+  group_b: treatment
+  test_type: independent
+  alpha: 0.05
+  group_name: stats

@@ -1,0 +1,11 @@
+type: dagster_component_templates.VifComponent
+attributes:
+  asset_name: housing_vif
+  upstream_asset_key: housing_features
+  feature_columns:
+    - sqft
+    - bedrooms
+    - bathrooms
+    - lot_size
+    - year_built
+  group_name: diagnostics

@@ -1,0 +1,8 @@
+type: dagster_component_templates.KCentroidsDiagnosticsComponent
+attributes:
+  asset_name: rfm_k_diagnostics
+  upstream_asset_key: customer_rfm_metrics
+  feature_columns: [recency, frequency, monetary]
+  k_min: 2
+  k_max: 10
+  group_name: clustering

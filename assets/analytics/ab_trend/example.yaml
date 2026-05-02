@@ -1,0 +1,9 @@
+type: dagster_component_templates.ABTrendComponent
+attributes:
+  asset_name: checkout_v2_daily_trend
+  upstream_asset_key: experiment_data
+  variant_column: variant
+  converted_column: converted
+  date_column: exposed_at
+  bucket: day
+  group_name: experiments

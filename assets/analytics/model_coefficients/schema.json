@@ -1,0 +1,71 @@
+{
+  "component_type": "dagster_component_templates.ModelCoefficientsComponent",
+  "description": "Fit a linear or logistic regression and emit one row per coefficient (\u03b2 + std error + p-value).",
+  "category": "analytics",
+  "icon": "ListOrdered",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "target_column": {
+      "type": "string",
+      "label": "Target Column",
+      "required": true
+    },
+    "feature_columns": {
+      "type": "array",
+      "label": "Feature Columns",
+      "required": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "model_kind": {
+      "type": "string",
+      "label": "Model Kind",
+      "required": true
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "default": false,
+      "required": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "default": 25,
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    }
+  },
+  "tags": [
+    "analytics",
+    "regression",
+    "diagnostics",
+    "explainability"
+  ],
+  "name": "ModelCoefficients"
+}

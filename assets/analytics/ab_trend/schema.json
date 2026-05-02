@@ -1,0 +1,72 @@
+{
+  "component_type": "dagster_component_templates.ABTrendComponent",
+  "description": "Compute conversion-rate trend per variant over time buckets (daily, weekly, monthly).",
+  "category": "analytics",
+  "icon": "TrendingUp",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "variant_column": {
+      "type": "string",
+      "label": "Variant Column",
+      "required": true
+    },
+    "converted_column": {
+      "type": "string",
+      "label": "Converted Column",
+      "required": true
+    },
+    "date_column": {
+      "type": "string",
+      "label": "Date Column",
+      "required": true
+    },
+    "bucket": {
+      "type": "string",
+      "label": "Bucket",
+      "required": true
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "default": false,
+      "required": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "default": 25,
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    }
+  },
+  "tags": [
+    "analytics",
+    "ab-testing",
+    "trend"
+  ],
+  "name": "ABTrend"
+}

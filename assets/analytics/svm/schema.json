@@ -1,0 +1,97 @@
+{
+  "component_type": "dagster_component_templates.SVMComponent",
+  "description": "Fit a Support Vector Machine for classification or regression and emit predictions.",
+  "category": "analytics",
+  "icon": "Cpu",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "target_column": {
+      "type": "string",
+      "label": "Target Column",
+      "required": true
+    },
+    "feature_columns": {
+      "type": "array",
+      "label": "Feature Columns",
+      "required": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "task_type": {
+      "type": "string",
+      "label": "Task Type",
+      "required": true
+    },
+    "kernel": {
+      "type": "string",
+      "label": "Kernel",
+      "required": true
+    },
+    "C": {
+      "type": "number",
+      "label": "C",
+      "required": true
+    },
+    "gamma": {
+      "type": "string",
+      "label": "Gamma",
+      "required": true
+    },
+    "test_size": {
+      "type": "number",
+      "label": "Test Size",
+      "required": true
+    },
+    "random_state": {
+      "type": "integer",
+      "label": "Random State",
+      "required": true
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "default": false,
+      "required": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "default": 25,
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    }
+  },
+  "tags": [
+    "analytics",
+    "model",
+    "svm",
+    "classification",
+    "regression"
+  ],
+  "name": "SVM"
+}

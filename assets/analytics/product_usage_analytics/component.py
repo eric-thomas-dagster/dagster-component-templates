@@ -80,6 +80,18 @@ class ProductUsageAnalyticsComponent(Component, Model, Resolvable):
         description="Asset description",
     )
 
+    include_preview_metadata: bool = Field(
+        default=False,
+        description="Include a preview of the output DataFrame in metadata (for builder UIs).",
+    )
+
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description="Rows in the preview when include_preview_metadata=True.",
+    )
+
     group_name: str = Field(
         default="analytics",
         description="Asset group name",

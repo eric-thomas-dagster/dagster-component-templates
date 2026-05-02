@@ -33,6 +33,16 @@ class DecisionTreeModelComponent(Component, Model, Resolvable):
     test_size: float = Field(default=0.2, description="Fraction of data to hold out for evaluation")
     random_state: int = Field(default=42, description="Random seed for reproducibility")
     output_mode: str = Field(default="predictions", description="Output mode: 'predictions' or 'feature_importance'")
+    include_preview_metadata: bool = Field(
+        default=False,
+        description="Include a preview of the output DataFrame in metadata (for builder UIs).",
+    )
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description="Rows in the preview when include_preview_metadata=True.",
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -291,15 +301,24 @@ group_name=group_name,
                 raise ValueError(f"Unknown task_type: {task_type}. Use 'classification' or 'regression'.")
 
             if output_mode == "feature_importance":
-                return pd.DataFrame({
+                result = pd.DataFrame({
                     "feature": feature_columns,
                     "importance": model.feature_importances_,
                 }).sort_values("importance", ascending=False).reset_index(drop=True)
             elif output_mode == "predictions":
                 df["predicted"] = model.predict(X)
-                return df
+                result = df
             else:
                 raise ValueError(f"Unknown output_mode: {output_mode}. Use 'predictions' or 'feature_importance'.")
+
+            if self.include_preview_metadata and len(result) > 0:
+                try:
+                    _n = self.preview_rows
+                    _prev = result.sample(min(_n, len(result))) if len(result) > _n * 10 else result.head(_n)
+                    context.add_output_metadata({"preview": MetadataValue.md(_prev.to_markdown(index=False))})
+                except Exception as _e:
+                    context.log.warning(f"preview emission failed: {_e}")
+            return result
 
         from dagster import build_column_schema_change_checks
 

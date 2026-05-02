@@ -32,6 +32,18 @@ class FilterComponent(Component, Model, Resolvable):
         default=False,
         description="If True, keep rows that do NOT match the condition",
     )
+    include_preview_metadata: bool = Field(
+        default=False,
+        description="Include a preview of the output DataFrame in metadata (for builder UIs).",
+    )
+
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description="Rows in the preview when include_preview_metadata=True.",
+    )
+
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,

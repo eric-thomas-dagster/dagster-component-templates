@@ -34,6 +34,18 @@ class RandomForestModelComponent(Component, Model, Resolvable):
     random_state: int = Field(default=42, description="Random seed for reproducibility")
     output_mode: str = Field(default="predictions", description="Output mode: 'predictions' or 'feature_importance'")
     n_jobs: int = Field(default=-1, description="Number of parallel jobs (-1 = use all CPUs)")
+    include_preview_metadata: bool = Field(
+        default=False,
+        description="Include a preview of the output DataFrame in metadata (for builder UIs).",
+    )
+
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description="Rows in the preview when include_preview_metadata=True.",
+    )
+
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,

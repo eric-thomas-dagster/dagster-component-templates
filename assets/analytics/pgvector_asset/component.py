@@ -88,6 +88,18 @@ class PgvectorAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     )
 
     # --- Asset metadata -------------------------------------------------------
+    include_preview_metadata: bool = Field(
+        default=False,
+        description="Include a preview of the output DataFrame in metadata (for builder UIs).",
+    )
+
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description="Rows in the preview when include_preview_metadata=True.",
+    )
+
     group_name: str = Field(
         default="vector_store",
         description="Dagster asset group name.",

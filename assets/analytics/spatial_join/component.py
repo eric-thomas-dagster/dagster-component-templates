@@ -313,9 +313,16 @@ group_name=group_name,
             )
 
             regions = regions_df.copy()
-            regions["geometry"] = regions[geometry_column].apply(
-                lambda g: shape(g) if isinstance(g, dict) else shape(json.loads(g))
-            )
+            from shapely import wkt as _wkt
+            def _parse_geom(g):
+                if isinstance(g, dict):
+                    return shape(g)
+                s = str(g).strip()
+                # GeoJSON starts with `{`; WKT with POINT / POLYGON / etc.
+                if s.startswith("{"):
+                    return shape(json.loads(s))
+                return _wkt.loads(s)
+            regions["geometry"] = regions[geometry_column].apply(_parse_geom)
             gdf_regions = gpd.GeoDataFrame(regions, geometry="geometry", crs="EPSG:4326")
 
             result = gpd.sjoin(gdf_points, gdf_regions, how=how, predicate="within")

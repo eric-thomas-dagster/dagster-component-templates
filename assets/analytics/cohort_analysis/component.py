@@ -517,23 +517,24 @@ group_name=group_name,
 
             context.log.info(f"Average retention - Period 0: {avg_retention.get('period_0', 0):.1f}%, Period {retention_periods}: {avg_retention.get(f'period_{retention_periods}', 0):.1f}%")
 
-            # Add metadata
+            # Add metadata (cast to native floats — numpy.float64 doesn't serialize)
             metadata = {
                 "row_count": len(result_df),
                 "total_cohorts": len(result_df),
                 "cohort_period": cohort_period,
                 "retention_periods": retention_periods,
-                "avg_period_0_retention": round(avg_retention.get('period_0', 0), 2),
-                "avg_final_period_retention": round(avg_retention.get(f'period_{retention_periods}', 0), 2)
+                "avg_period_0_retention": float(round(avg_retention.get('period_0', 0), 2)),
+                "avg_final_period_retention": float(round(avg_retention.get(f'period_{retention_periods}', 0), 2)),
             }
 
-            # Return with metadata
             if include_preview and len(result_df) > 0:
-                # Show most recent cohorts first
-                result_sorted = result_df.sort_values('cohort_period', ascending=False)
-
-                _prev = result_sorted.sample(preview_rows) if len(result_sorted) > preview_rows * 10 else result_sorted.head(preview_rows)
-                metadata['preview'] = MetadataValue.md(_prev.to_markdown(index=False))
+                try:
+                    result_sorted = result_df.sort_values('cohort_period', ascending=False)
+                    _n = preview_rows
+                    _prev = result_sorted.sample(min(_n, len(result_sorted))) if len(result_sorted) > _n * 10 else result_sorted.head(_n)
+                    metadata['preview'] = MetadataValue.md(_prev.to_markdown(index=False))
+                except Exception as _e:
+                    context.log.warning(f"preview emission failed: {_e}")
             context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

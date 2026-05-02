@@ -77,7 +77,7 @@ Standardized CRM data with unified fields:
 
 ### Optional Parameters
 
-- **`source_asset`** (string): Upstream asset with raw data (auto-set via lineage)
+- **`upstream_asset_key`** (string): Upstream asset with raw data (auto-set via lineage)
 - **`record_id_field`** (string): Custom field for record ID (auto-detected)
 - **`email_field`** (string): Custom field for email (auto-detected)
 - **`name_field`** (string): Custom field for name (auto-detected)

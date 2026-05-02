@@ -55,7 +55,7 @@
       "required": false,
       "default": 7
     },
-    "group_by_field": {
+    "group_by": {
       "type": "string",
       "label": "Group By Field",
       "description": "Group By Field",

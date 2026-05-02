@@ -19,7 +19,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 
 class ProductAnalyticsStandardizerComponent(Component, Model, Resolvable):
@@ -64,9 +64,10 @@ class ProductAnalyticsStandardizerComponent(Component, Model, Resolvable):
         description="Source platform to standardize"
     )
 
-    source_asset: Optional[str] = Field(
+    upstream_asset_key: Optional[str] = Field(
         default=None,
-        description="Upstream asset containing raw platform data (automatically set via lineage)"
+        description="Upstream asset containing raw platform data (automatically set via lineage)",
+        validation_alias=AliasChoices('upstream_asset_key', 'source_asset'),
     )
 
     date_field: Optional[str] = Field(
@@ -203,7 +204,7 @@ class ProductAnalyticsStandardizerComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         platform = self.platform
-        source_asset = self.source_asset
+        source_asset = self.upstream_asset_key
         date_field = self.date_field
         event_name_field = self.event_name_field
         user_id_field = self.user_id_field

@@ -71,7 +71,7 @@ Standardized e-commerce data with unified fields:
 
 ### Optional Parameters
 
-- **`source_asset`** (string): Upstream asset with raw data (auto-set via lineage)
+- **`upstream_asset_key`** (string): Upstream asset with raw data (auto-set via lineage)
 - **`order_id_field`** (string): Custom field for order ID (auto-detected)
 - **`customer_id_field`** (string): Custom field for customer ID (auto-detected)
 - **`total_field`** (string): Custom field for total amount (auto-detected)

@@ -4,7 +4,7 @@ attributes:
 
   # Platform configuration
   platform: "segment"
-  source_asset: "segment_events"
+  upstream_asset_key: "segment_events"
 
   # Custom field mappings (optional - auto-detected if not specified)
   # event_id_field: "messageId"

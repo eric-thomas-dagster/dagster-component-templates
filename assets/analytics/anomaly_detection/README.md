@@ -26,7 +26,7 @@ Identify unusual patterns using proven statistical techniques:
 | `metric_column` | number | ✓ | (specified in config) | Metric to analyze |
 | `id` | string | | record_id, transaction_id | Record identifier |
 | `timestamp` | datetime | | date, created_at | Timestamp (for MA method) |
-| `group_by_field` | string | | customer_id, category | Grouping field (optional) |
+| `group_by` | string | | customer_id, category | Grouping field (optional) |
 
 **Compatible Upstream Components:**
 - Any component with numeric metrics to monitor
@@ -149,7 +149,7 @@ Simple comparison to fixed value.
 - Consider business context
 
 **Group-Level Detection:**
-- Use `group_by_field` for per-customer/per-category analysis
+- Use `group_by` for per-customer/per-category analysis
 - Detects anomalies relative to normal behavior per group
 
 ## Example Use Cases
@@ -159,7 +159,7 @@ Simple comparison to fixed value.
 # Flag unusually high transaction amounts per customer
 detection_method: z_score
 metric_column: transaction_amount
-group_by_field: customer_id
+group_by: customer_id
 threshold: 3.5
 ```
 

@@ -19,7 +19,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 
 class SupportTicketStandardizerComponent(Component, Model, Resolvable):
@@ -73,9 +73,10 @@ class SupportTicketStandardizerComponent(Component, Model, Resolvable):
         description="Source support platform to standardize"
     )
 
-    source_asset: Optional[str] = Field(
+    upstream_asset_key: Optional[str] = Field(
         default=None,
-        description="Upstream asset containing raw platform data (automatically set via lineage)"
+        description="Upstream asset containing raw platform data (automatically set via lineage)",
+        validation_alias=AliasChoices('upstream_asset_key', 'source_asset'),
     )
 
     ticket_id_field: Optional[str] = Field(
@@ -212,7 +213,7 @@ class SupportTicketStandardizerComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         platform = self.platform
-        source_asset = self.source_asset
+        source_asset = self.upstream_asset_key
         ticket_id_field = self.ticket_id_field
         status_field = self.status_field
         filter_status = self.filter_status

@@ -21,7 +21,7 @@
       "description": "Name of the asset to create",
       "required": true
     },
-    "source_asset": {
+    "upstream_asset_key": {
       "type": "string",
       "label": "Source Asset",
       "description": "Source Asset",

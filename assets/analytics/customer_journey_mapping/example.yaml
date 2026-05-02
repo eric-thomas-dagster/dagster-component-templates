@@ -1,7 +1,7 @@
 type: dagster_component_templates.CustomerJourneyMappingComponent
 attributes:
   asset_name: customer_journeys
-  source_asset: customer_events
+  upstream_asset_key: customer_events
   conversion_event: purchase
   max_journey_length: 20
   time_window_hours: 720

@@ -68,7 +68,7 @@ Combination of trend + seasonal + noise.
   - Options: `1min`, `5min`, `15min`, `30min`, `1h`, `1d`
 - **base_value** (number): Starting/baseline value (default: 100.0)
 - **noise_level** (number): Random noise amount, 0.0-1.0 (default: 0.1)
-- **random_seed** (integer, optional): Seed for reproducible data
+- **random_state** (integer, optional): Seed for reproducible data
 - **metric_name** (string): Name of the value column (default: "value")
 - **series_count** (integer): Number of parallel series to emit (default: 1). With >1, each series is tagged via `group_column`. Useful for multi-sensor / multi-cohort demos.
 - **group_column** (string): Column name used to tag each series when `series_count > 1` (default: `series_id`).
@@ -102,7 +102,7 @@ attributes:
   frequency: "1d"
   base_value: 50000.0
   noise_level: 0.2
-  random_seed: 42
+  random_state: 42
   metric_name: revenue
   description: "Daily sales with business hour patterns"
 ```
@@ -152,7 +152,7 @@ attributes:
   series_count: 3              # 3 parallel sensors
   group_column: sensor_id      # tagged as series_0/series_1/series_2
   dropout_rate: 0.25           # ~25% of rows dropped
-  random_seed: 42
+  random_state: 42
 ```
 
 ## Output Schema
@@ -204,7 +204,7 @@ Generate two series with different patterns → Compare metrics → Test analysi
 
 1. **Match Real Patterns**: Choose pattern types that match your real use case
 2. **Start with Complex**: The complex pattern is most realistic for demos
-3. **Use Reproducibility**: Set `random_seed` for consistent demos
+3. **Use Reproducibility**: Set `random_state` for consistent demos
 4. **Adjust Noise**: Lower noise (0.05) for smooth patterns, higher (0.3) for volatile data
 5. **Frequency Matters**: Match your actual data frequency for realistic demos
 6. **Date Ranges**: Use recent dates for "live" demos, historical for analysis

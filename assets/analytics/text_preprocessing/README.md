@@ -10,7 +10,7 @@ Clean and normalize text data for NLP tasks using NLTK. Supports lowercasing, pu
 | `upstream_asset_key` | `str` | required | Upstream asset key providing a DataFrame |
 | `text_column` | `str` | required | Column name containing raw text |
 | `output_column` | `Optional[str]` | `null` | Output column name (defaults to overwriting `text_column`) |
-| `lowercase` | `bool` | `true` | Convert text to lowercase |
+| `normalize_case` | `bool` | `true` | Convert text to normalize_case |
 | `remove_punctuation` | `bool` | `true` | Remove punctuation characters |
 | `remove_numbers` | `bool` | `false` | Remove numeric characters |
 | `remove_stopwords` | `bool` | `true` | Remove NLTK stopwords |
@@ -31,7 +31,7 @@ asset_name: support_tickets_clean_text
 upstream_asset_key: support_tickets_raw
 text_column: ticket_body
 output_column: cleaned_text
-lowercase: true
+normalize_case: true
 remove_punctuation: true
 remove_stopwords: true
 lemmatize: true

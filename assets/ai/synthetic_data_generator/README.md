@@ -161,7 +161,7 @@ Per-user exposure rows for stat-test demos (z-test, t-test, chi-squared):
 
 ### Optional Fields
 
-- **random_seed** (integer, optional): Random seed for reproducible data. If not specified, data will be different each time.
+- **random_state** (integer, optional): Random seed for reproducible data. If not specified, data will be different each time.
 - **schema_options** (object, optional): Per-schema knobs. Only used by `subscriptions` (tiers list) and `sparse_sensors` (sensor_count, duration_hours, dropout_rate, base_temp, noise_amplitude, start_date).
 - **description** (string): Asset description
 - **group_name** (string): Asset group for organization
@@ -186,7 +186,7 @@ attributes:
   asset_name: test_orders
   schema_type: orders
   row_count: 500
-  random_seed: 42
+  random_state: 42
   description: "Test orders dataset for pipeline validation"
   group_name: test_data
 ```
@@ -225,7 +225,7 @@ Synthetic Data Generator (customers)
 ## Tips
 
 1. **Start Small**: Use 100-1000 rows during development, scale up for demos
-2. **Use Seeds**: Set `random_seed` for reproducible demos and tests
+2. **Use Seeds**: Set `random_state` for reproducible demos and tests
 3. **Mix Schemas**: Generate multiple schemas to create related datasets
 4. **Chain Components**: Combine with transformers, writers, and checks for complete workflows
 

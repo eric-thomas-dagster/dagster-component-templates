@@ -51,7 +51,7 @@ type: dagster_component_templates.MarketingDataStandardizerComponent
 attributes:
   asset_name: standardized_facebook_data
   platform: "facebook_ads"
-  source_asset: "facebook_ads_insights"
+  upstream_asset_key: "facebook_ads_insights"
 ```
 
 ### Advanced Example
@@ -61,7 +61,7 @@ type: dagster_component_templates.MarketingDataStandardizerComponent
 attributes:
   asset_name: standardized_google_data
   platform: "google_ads"
-  source_asset: "google_ads_campaigns"
+  upstream_asset_key: "google_ads_campaigns"
 
   # Custom field mappings
   campaign_id_field: "campaignId"
@@ -88,14 +88,14 @@ Combine multiple standardizers for cross-platform analysis:
   attributes:
     asset_name: std_facebook_data
     platform: "facebook_ads"
-    source_asset: "facebook_ads_insights"
+    upstream_asset_key: "facebook_ads_insights"
 
 # Standardize Google Ads
 - type: dagster_component_templates.MarketingDataStandardizerComponent
   attributes:
     asset_name: std_google_data
     platform: "google_ads"
-    source_asset: "google_ads_campaigns"
+    upstream_asset_key: "google_ads_campaigns"
     spend_multiplier: 0.000001
 
 # Combine both (using DataFrame Transformer or custom SQL)

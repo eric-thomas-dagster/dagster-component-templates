@@ -20,7 +20,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 
 class RFMSegmentationComponent(Component, Model, Resolvable):
@@ -51,9 +51,10 @@ class RFMSegmentationComponent(Component, Model, Resolvable):
         description="Name of the asset to create"
     )
 
-    source_asset: Optional[str] = Field(
+    upstream_asset_key: Optional[str] = Field(
         default=None,
-        description="Source asset with transaction data (set via lineage in Dagster Designer)"
+        description="Source asset with transaction data (set via lineage in Dagster Designer)",
+        validation_alias=AliasChoices('upstream_asset_key', 'source_asset'),
     )
 
     scoring_method: Literal["quintile", "quartile"] = Field(
@@ -188,7 +189,7 @@ class RFMSegmentationComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        source_asset = self.source_asset
+        source_asset = self.upstream_asset_key
         scoring_method = self.scoring_method
         lookback_days = self.lookback_days
         customer_id_field = self.customer_id_field

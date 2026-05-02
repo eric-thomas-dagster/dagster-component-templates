@@ -17,7 +17,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 
 class TextPreprocessingComponent(Component, Model, Resolvable):
@@ -27,7 +27,7 @@ class TextPreprocessingComponent(Component, Model, Resolvable):
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     text_column: str = Field(description="Column name containing the raw text to process")
     output_column: Optional[str] = Field(default=None, description="Output column name (defaults to overwriting text_column)")
-    lowercase: bool = Field(default=True, description="Convert text to lowercase")
+    normalize_case: bool = Field(default=True, description="Convert text to lowercase", validation_alias=AliasChoices('normalize_case', 'lowercase'))
     remove_punctuation: bool = Field(default=True, description="Remove punctuation characters")
     remove_numbers: bool = Field(default=False, description="Remove numeric characters")
     remove_stopwords: bool = Field(default=True, description="Remove common stopwords")
@@ -140,7 +140,7 @@ class TextPreprocessingComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         text_column = self.text_column
         output_column = self.output_column
-        lowercase = self.lowercase
+        lowercase = self.normalize_case
         remove_punctuation = self.remove_punctuation
         remove_numbers = self.remove_numbers
         remove_stopwords = self.remove_stopwords

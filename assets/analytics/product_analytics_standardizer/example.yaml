@@ -4,7 +4,7 @@ attributes:
 
   # Platform configuration
   platform: "google_analytics_4"
-  source_asset: "ga4_events"
+  upstream_asset_key: "ga4_events"
 
   # Custom field mappings (optional - auto-detected if not specified)
   # date_field: "event_date"

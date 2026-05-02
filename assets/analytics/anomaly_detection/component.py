@@ -22,7 +22,7 @@ from dagster import (
     asset,
     Output,
 )
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 
 class AnomalyDetectionComponent(Component, Model, Resolvable):
@@ -83,9 +83,10 @@ class AnomalyDetectionComponent(Component, Model, Resolvable):
         description="Window size for moving average method (days/records)"
     )
 
-    group_by_field: Optional[str] = Field(
+    group_by: Optional[str] = Field(
         default=None,
-        description="Group by field (e.g., customer_id) for per-group anomaly detection"
+        description="Group by field (e.g., customer_id) for per-group anomaly detection",
+        validation_alias=AliasChoices('group_by', 'group_by_field'),
     )
 
     timestamp_field: Optional[str] = Field(
@@ -205,7 +206,7 @@ class AnomalyDetectionComponent(Component, Model, Resolvable):
         metric_column = self.metric_column
         threshold = self.threshold
         ma_window = self.moving_average_window
-        group_by_field = self.group_by_field
+        group_by_field = self.group_by
         timestamp_field = self.timestamp_field
         id_field = self.id_field
         description = self.description or f"Anomaly detection ({detection_method})"

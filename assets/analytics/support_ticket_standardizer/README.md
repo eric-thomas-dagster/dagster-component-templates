@@ -65,7 +65,7 @@ Standardized support ticket data:
 
 ### Optional Parameters
 
-- **`source_asset`** (string): Upstream asset with raw data (auto-set via lineage)
+- **`upstream_asset_key`** (string): Upstream asset with raw data (auto-set via lineage)
 - **`ticket_id_field`** (string): Custom field for ticket ID (auto-detected)
 - **`status_field`** (string): Custom field for status (auto-detected)
 - **`filter_status`** (string): Filter by status (comma-separated)

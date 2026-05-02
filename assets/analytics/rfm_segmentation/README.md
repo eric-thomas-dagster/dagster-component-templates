@@ -69,7 +69,7 @@ Returns a DataFrame with one row per customer and their RFM analysis:
 
 ### Optional Parameters
 
-- **`source_asset`** (string): Upstream asset name (auto-set via lineage)
+- **`upstream_asset_key`** (string): Upstream asset name (auto-set via lineage)
 - **`scoring_method`** (string): Scoring approach
   - `quintile` (default): 1-5 scale, more granular
   - `quartile`: 1-4 scale, simpler segmentation

@@ -4,7 +4,7 @@ attributes:
 
   # Platform configuration
   platform: "facebook_ads"
-  source_asset: "facebook_ads_insights"
+  upstream_asset_key: "facebook_ads_insights"
 
   # Custom field mappings (optional - auto-detected if not specified)
   # campaign_id_field: "campaign_id"

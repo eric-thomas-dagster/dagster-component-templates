@@ -58,7 +58,7 @@
       "required": false,
       "default": 100
     },
-    "random_seed": {
+    "random_state": {
       "type": "integer",
       "label": "Random Seed",
       "description": "Random Seed",

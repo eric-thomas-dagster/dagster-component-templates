@@ -18,7 +18,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 
 class CRMDataStandardizerComponent(Component, Model, Resolvable):
@@ -67,9 +67,10 @@ class CRMDataStandardizerComponent(Component, Model, Resolvable):
         description="Type of CRM resource to standardize"
     )
 
-    source_asset: Optional[str] = Field(
+    upstream_asset_key: Optional[str] = Field(
         default=None,
-        description="Upstream asset containing raw platform data (automatically set via lineage)"
+        description="Upstream asset containing raw platform data (automatically set via lineage)",
+        validation_alias=AliasChoices('upstream_asset_key', 'source_asset'),
     )
 
     record_id_field: Optional[str] = Field(
@@ -202,7 +203,7 @@ class CRMDataStandardizerComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
         platform = self.platform
         resource_type = self.resource_type
-        source_asset = self.source_asset
+        source_asset = self.upstream_asset_key
         record_id_field = self.record_id_field
         name_field = self.name_field
         email_field = self.email_field

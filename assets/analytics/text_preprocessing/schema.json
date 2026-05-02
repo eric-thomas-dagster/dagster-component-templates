@@ -41,7 +41,7 @@
       "required": false,
       "default": null
     },
-    "lowercase": {
+    "normalize_case": {
       "type": "boolean",
       "label": "Lowercase",
       "description": "Convert text to lowercase",

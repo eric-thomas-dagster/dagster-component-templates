@@ -19,7 +19,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 
 class MarketingDataStandardizerComponent(Component, Model, Resolvable):
@@ -65,9 +65,10 @@ class MarketingDataStandardizerComponent(Component, Model, Resolvable):
         description="Source platform to standardize"
     )
 
-    source_asset: Optional[str] = Field(
+    upstream_asset_key: Optional[str] = Field(
         default=None,
-        description="Upstream asset containing raw platform data (automatically set via lineage)"
+        description="Upstream asset containing raw platform data (automatically set via lineage)",
+        validation_alias=AliasChoices('upstream_asset_key', 'source_asset'),
     )
 
     campaign_id_field: Optional[str] = Field(
@@ -215,7 +216,7 @@ class MarketingDataStandardizerComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         platform = self.platform
-        source_asset = self.source_asset
+        source_asset = self.upstream_asset_key
         campaign_id_field = self.campaign_id_field
         campaign_name_field = self.campaign_name_field
         date_field = self.date_field

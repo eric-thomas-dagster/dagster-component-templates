@@ -5,7 +5,7 @@ attributes:
   # Platform and resource configuration
   platform: "hubspot"
   resource_type: "contacts"
-  source_asset: "hubspot_contacts"
+  upstream_asset_key: "hubspot_contacts"
 
   # Custom field mappings (optional - auto-detected if not specified)
   # record_id_field: "id"

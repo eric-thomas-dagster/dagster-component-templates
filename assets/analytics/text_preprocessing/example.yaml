@@ -5,7 +5,7 @@ asset_name: support_tickets_clean_text
 upstream_asset_key: support_tickets_raw
 text_column: ticket_body
 output_column: cleaned_text
-lowercase: true
+normalize_case: true
 remove_punctuation: true
 remove_numbers: false
 remove_stopwords: true

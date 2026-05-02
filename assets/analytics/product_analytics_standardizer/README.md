@@ -66,7 +66,7 @@ Standardized product analytics metrics:
 
 ### Optional Parameters
 
-- **`source_asset`** (string): Upstream asset with raw data (auto-set via lineage)
+- **`upstream_asset_key`** (string): Upstream asset with raw data (auto-set via lineage)
 - **`date_field`** (string): Custom field for date (auto-detected)
 - **`event_name_field`** (string): Custom field for event name (auto-detected)
 - **`user_id_field`** (string): Custom field for user ID (auto-detected)

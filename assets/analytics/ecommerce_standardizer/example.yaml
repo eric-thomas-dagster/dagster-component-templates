@@ -5,7 +5,7 @@ attributes:
   # Platform and resource configuration
   platform: "shopify"
   resource_type: "orders"
-  source_asset: "shopify_orders"
+  upstream_asset_key: "shopify_orders"
 
   # Custom field mappings (optional - auto-detected if not specified)
   # order_id_field: "id"

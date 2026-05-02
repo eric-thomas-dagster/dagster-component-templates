@@ -676,13 +676,11 @@ group_name=group_name,
                 sample_df = result_df.head(10).copy()
                 sample_df[output_column] = sample_df[output_column].apply(lambda x: f"[{len(x)} dims]")
 
-                return Output(
-                    value=result_df,
-                    metadata={
+                context.add_output_metadata({
                         **metadata,
                         "preview": MetadataValue.md(sample_df.to_markdown())
-                    }
-                )
+                    })
+                return result_df
             else:
                 context.add_output_metadata(metadata)
             return result_df

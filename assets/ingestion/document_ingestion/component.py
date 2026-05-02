@@ -325,15 +325,13 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
             total_chars = df['content_length'].sum() if 'content_length' in df.columns else 0
             file_types = df['file_type'].value_counts().to_dict() if 'file_type' in df.columns else {}
 
-            return Output(
-                value=df,
-                metadata={
+            context.add_output_metadata({
                     "document_count": len(df),
                     "total_characters": int(total_chars),
                     "file_types": file_types,
                     "columns": list(df.columns),
                     "preview": MetadataValue.md(df.head(5).to_markdown())
-                }
-            )
+                })
+            return df
 
         return Definitions(assets=[document_ingestion_asset])

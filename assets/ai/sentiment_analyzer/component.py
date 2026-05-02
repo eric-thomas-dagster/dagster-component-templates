@@ -648,13 +648,11 @@ Return your analysis as JSON:
                 metadata["emotion_detection"] = True
 
             if include_preview and len(result_df) > 0:
-                return Output(
-                    value=result_df,
-                    metadata={
+                context.add_output_metadata({
                         **metadata,
                         "preview": MetadataValue.md(result_df.head(10).to_markdown())
-                    }
-                )
+                    })
+                return result_df
             else:
                 context.add_output_metadata(metadata)
             # Build column schema metadata

@@ -303,14 +303,12 @@ group_name=group_name,
 
                 if include_preview and len(df) > 0:
                     # Return with sample metadata
-                    return Output(
-                        value=df,
-                        metadata={
+                    context.add_output_metadata({
                             "row_count": len(df),
                             "columns": df.columns.tolist(),
                             "preview": MetadataValue.md(df.head().to_markdown())
-                        }
-                    )
+                        })
+                    return df
                 else:
                     # Build column schema metadata
                     from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

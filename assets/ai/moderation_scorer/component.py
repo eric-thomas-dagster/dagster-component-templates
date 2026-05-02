@@ -215,16 +215,14 @@ class ModerationScorerComponent(Component, Model, Resolvable):
                 f"{needs_review_count} need review, {flagged_count} flagged"
             )
 
-            return Output(
-                value=scores,
-                metadata={
+            context.add_output_metadata({
                     "total_scored": len(scores),
                     "flagged": int(flagged_count),
                     "needs_review": int(needs_review_count),
                     "approved": int(approved_count),
                     "avg_risk_score": float(scores['risk_score'].mean()),
                     "preview": MetadataValue.md(scores.head(10).to_markdown())
-                }
-            )
+                })
+            return scores
 
         return Definitions(assets=[moderation_scorer_asset])

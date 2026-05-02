@@ -577,14 +577,12 @@ group_name=group_name,
 
             # Return with sample metadata if requested and output is a DataFrame
             if include_preview and output_format == "dataframe" and isinstance(result, pd.DataFrame) and len(result) > 0:
-                return Output(
-                    value=result,
-                    metadata={
+                context.add_output_metadata({
                         "row_count": len(result),
                         "columns": result.columns.tolist(),
                         "preview": MetadataValue.md(result.head().to_markdown())
-                    }
-                )
+                    })
+                return result
             else:
                 return result
 

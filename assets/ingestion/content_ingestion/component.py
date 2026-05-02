@@ -243,15 +243,13 @@ class ContentIngestionComponent(Component, Model, Resolvable):
 
                 context.log.info(f"Generated {len(df)} sample content items")
 
-                return Output(
-                    value=df,
-                    metadata={
+                context.add_output_metadata({
                         "row_count": len(df),
                         "content_types": df['content_type'].value_counts().to_dict(),
                         "pending_review": int((df['status'] == 'pending_review').sum()),
                         "preview": MetadataValue.md(df.head(10).to_markdown())
-                    }
-                )
+                    })
+                return df
 
             else:
                 # For other sources, return placeholder

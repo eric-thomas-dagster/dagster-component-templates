@@ -3,8 +3,8 @@ attributes:
   asset_name: subscription_metrics
 
   # Data sources (set via visual lineage)
-  stripe_data_asset: "stripe_data"
-  revenue_data_asset: null  # optional
+  stripe_data_asset_key: "stripe_data"
+  revenue_data_asset_key: null  # optional
 
   # Calculation configuration
   calculation_period: "monthly"  # daily, weekly, monthly

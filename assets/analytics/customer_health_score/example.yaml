@@ -1,8 +1,8 @@
 type: dagster_component_templates.CustomerHealthScoreComponent
 attributes:
   asset_name: customer_health_scores
-  customer_data_asset: crm_customers
-  subscription_data_asset: subscriptions
+  customer_data_asset_key: crm_customers
+  subscription_data_asset_key: subscriptions
   product_usage_asset: product_events
   support_ticket_asset: support_tickets
   analysis_period_days: 30

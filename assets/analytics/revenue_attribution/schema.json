@@ -21,14 +21,14 @@
       "description": "Name of the revenue attribution output asset",
       "required": true
     },
-    "marketing_data_asset": {
+    "marketing_data_asset_key": {
       "type": "string",
       "label": "Marketing Data Asset",
       "description": "Marketing Data Asset",
       "required": false,
       "default": null
     },
-    "revenue_data_asset": {
+    "revenue_data_asset_key": {
       "type": "string",
       "label": "Revenue Data Asset",
       "description": "Revenue Data Asset",

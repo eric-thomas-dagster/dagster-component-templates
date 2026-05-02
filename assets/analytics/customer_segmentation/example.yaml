@@ -1,7 +1,7 @@
 type: dagster_component_templates.CustomerSegmentationComponent
 attributes:
   asset_name: customer_rfm_segments
-  transaction_data_asset: orders
+  transaction_data_asset_key: orders
   analysis_period_days: 365
   scoring_method: quintiles
   use_predefined_segments: true

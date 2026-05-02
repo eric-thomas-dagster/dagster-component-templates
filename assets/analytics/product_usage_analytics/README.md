@@ -42,7 +42,7 @@ attributes:
   asset_name: user_engagement_metrics
 
   # Input data
-  event_data_asset: product_events
+  event_data_asset_key: product_events
 
   # Analysis configuration
   analysis_period_days: 30
@@ -65,7 +65,7 @@ type: dagster_component_templates.ProductUsageAnalyticsComponent
 attributes:
   asset_name: feature_adoption_metrics
 
-  event_data_asset: product_events
+  event_data_asset_key: product_events
 
   # Define core features to track
   core_feature_events: "export_data,share_report,create_dashboard,invite_team_member"
@@ -84,8 +84,8 @@ type: dagster_component_templates.ProductUsageAnalyticsComponent
 attributes:
   asset_name: power_users
 
-  event_data_asset: product_events
-  user_data_asset: user_profiles  # Optional: enrich with user data
+  event_data_asset_key: product_events
+  user_data_asset_key: user_profiles  # Optional: enrich with user data
 
   analysis_period_days: 30
 
@@ -102,7 +102,7 @@ type: dagster_component_templates.ProductUsageAnalyticsComponent
 attributes:
   asset_name: monthly_product_metrics
 
-  event_data_asset: product_events
+  event_data_asset_key: product_events
 
   analysis_period_days: 30
 
@@ -195,7 +195,7 @@ Combine with other components to create user segments:
 - type: dagster_component_templates.ProductUsageAnalyticsComponent
   attributes:
     asset_name: engagement_metrics
-    event_data_asset: product_events
+    event_data_asset_key: product_events
     identify_power_users: true
 
 # Step 2: Segment users (custom logic or clustering component)
@@ -210,7 +210,7 @@ Track multi-step feature adoption:
 type: dagster_component_templates.ProductUsageAnalyticsComponent
 attributes:
   asset_name: feature_funnel
-  event_data_asset: product_events
+  event_data_asset_key: product_events
 
   # Track onboarding funnel
   core_feature_events: "signup,profile_complete,first_action,invite_sent,premium_feature_used"
@@ -226,7 +226,7 @@ Identify users becoming less engaged:
 type: dagster_component_templates.ProductUsageAnalyticsComponent
 attributes:
   asset_name: churn_risk_users
-  event_data_asset: product_events
+  event_data_asset_key: product_events
 
   analysis_period_days: 7  # Recent activity only
 
@@ -243,7 +243,7 @@ attributes:
 type: dagster_component_templates.ProductUsageAnalyticsComponent
 attributes:
   asset_name: saas_product_metrics
-  event_data_asset: application_events
+  event_data_asset_key: application_events
 
   analysis_period_days: 30
 
@@ -261,7 +261,7 @@ attributes:
 type: dagster_component_templates.ProductUsageAnalyticsComponent
 attributes:
   asset_name: mobile_engagement
-  event_data_asset: mobile_events
+  event_data_asset_key: mobile_events
 
   analysis_period_days: 14  # Shorter for mobile
 
@@ -276,8 +276,8 @@ attributes:
 type: dagster_component_templates.ProductUsageAnalyticsComponent
 attributes:
   asset_name: platform_usage
-  event_data_asset: platform_events
-  user_data_asset: account_data
+  event_data_asset_key: platform_events
+  user_data_asset_key: account_data
 
   analysis_period_days: 90  # Longer for B2B
 
@@ -345,7 +345,7 @@ Metadata provided:
 **Solutions**:
 1. Verify event tracking implementation
 2. Check for gaps in data pipeline
-3. Ensure `event_data_asset` is correctly configured
+3. Ensure `event_data_asset_key` is correctly configured
 4. Filter analysis to users with at least 1 event
 
 ### DAU/MAU Seems Off

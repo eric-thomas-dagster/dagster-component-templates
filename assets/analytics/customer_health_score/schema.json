@@ -21,14 +21,14 @@
       "description": "Name of the customer health score asset to create",
       "required": true
     },
-    "customer_data_asset": {
+    "customer_data_asset_key": {
       "type": "string",
       "label": "Customer Data Asset",
       "description": "Customer Data Asset",
       "required": false,
       "default": ""
     },
-    "subscription_data_asset": {
+    "subscription_data_asset_key": {
       "type": "string",
       "label": "Subscription Data Asset",
       "description": "Subscription/billing data asset",

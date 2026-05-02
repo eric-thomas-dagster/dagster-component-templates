@@ -401,7 +401,7 @@ for i, stage in enumerate(stages):
 **Problem**: All stage counts are 0
 
 **Solutions**:
-- Verify event_data_asset is connected
+- Verify event_data_asset_key is connected
 - Check event names match exactly (case-sensitive)
 - Ensure events exist in analysis_period_days window
 - Verify user_id field is present and populated

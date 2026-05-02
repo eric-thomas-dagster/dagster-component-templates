@@ -28,21 +28,21 @@
       "required": false,
       "default": null
     },
-    "marketing_data_asset": {
+    "marketing_data_asset_key": {
       "type": "string",
       "label": "Marketing Data Asset",
       "description": "Marketing Data Asset",
       "required": false,
       "default": null
     },
-    "ga4_data_asset": {
+    "ga4_data_asset_key": {
       "type": "string",
       "label": "Ga4 Data Asset",
       "description": "Ga4 Data Asset",
       "required": false,
       "default": null
     },
-    "crm_data_asset": {
+    "crm_data_asset_key": {
       "type": "string",
       "label": "Crm Data Asset",
       "description": "Crm Data Asset",

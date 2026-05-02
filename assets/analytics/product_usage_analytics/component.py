@@ -21,7 +21,7 @@ from dagster import (
     ComponentLoadContext,
 )
 from dagster._core.definitions.definitions_class import Definitions
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 
 class ProductUsageAnalyticsComponent(Component, Model, Resolvable):
@@ -33,14 +33,16 @@ class ProductUsageAnalyticsComponent(Component, Model, Resolvable):
     )
 
     # Input asset references
-    event_data_asset: Optional[str] = Field(
+    event_data_asset_key: Optional[str] = Field(
         default="",
         description="Product usage events with user_id, event_name, timestamp",
+        validation_alias=AliasChoices('event_data_asset_key', 'event_data_asset'),
     )
 
-    user_data_asset: Optional[str] = Field(
+    user_data_asset_key: Optional[str] = Field(
         default="",
         description="User data for additional context (optional)",
+        validation_alias=AliasChoices('user_data_asset_key', 'user_data_asset'),
     )
 
     # Analysis configuration
@@ -230,11 +232,11 @@ class ProductUsageAnalyticsComponent(Component, Model, Resolvable):
         """Build asset definitions."""
         asset_name = self.asset_name
 
-        if not self.event_data_asset:
+        if not self.event_data_asset_key:
             raise ValueError("Event data asset is required")
 
         asset_ins = {
-            "event_data": AssetIn(key=AssetKey.from_user_string(self.event_data_asset))
+            "event_data": AssetIn(key=AssetKey.from_user_string(self.event_data_asset_key))
         }
 
         component = self

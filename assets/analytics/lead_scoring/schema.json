@@ -21,21 +21,21 @@
       "description": "Name of the lead scoring asset to create",
       "required": true
     },
-    "lead_data_asset": {
+    "lead_data_asset_key": {
       "type": "string",
       "label": "Lead Data Asset",
       "description": "Lead/contact data from CRM",
       "required": false,
       "default": ""
     },
-    "behavioral_data_asset": {
+    "behavioral_data_asset_key": {
       "type": "string",
       "label": "Behavioral Data Asset",
       "description": "Behavioral Data Asset",
       "required": false,
       "default": ""
     },
-    "company_data_asset": {
+    "company_data_asset_key": {
       "type": "string",
       "label": "Company Data Asset",
       "description": "Company/firmographic data for B2B scoring",

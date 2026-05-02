@@ -21,7 +21,7 @@ from dagster import (
     ComponentLoadContext,
 )
 from dagster._core.definitions.definitions_class import Definitions
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 
 class CustomerSegmentationComponent(Component, Model, Resolvable):
@@ -33,14 +33,16 @@ class CustomerSegmentationComponent(Component, Model, Resolvable):
     )
 
     # Input asset references (set via lineage)
-    transaction_data_asset: Optional[str] = Field(
+    transaction_data_asset_key: Optional[str] = Field(
         default="",
         description="Transaction/order data with customer_id, date, and amount",
+        validation_alias=AliasChoices('transaction_data_asset_key', 'transaction_data_asset'),
     )
 
-    customer_data_asset: Optional[str] = Field(
+    customer_data_asset_key: Optional[str] = Field(
         default="",
         description="Customer data for additional attributes (optional)",
+        validation_alias=AliasChoices('customer_data_asset_key', 'customer_data_asset'),
     )
 
     # RFM Configuration
@@ -324,16 +326,16 @@ class CustomerSegmentationComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
 
         # Require transaction data
-        if not self.transaction_data_asset:
+        if not self.transaction_data_asset_key:
             raise ValueError("Transaction data asset is required for customer segmentation")
 
         asset_ins = {
-            "transaction_data": AssetIn(key=AssetKey.from_user_string(self.transaction_data_asset))
+            "transaction_data": AssetIn(key=AssetKey.from_user_string(self.transaction_data_asset_key))
         }
 
         # Optional customer data
-        if self.customer_data_asset:
-            asset_ins["customer_data"] = AssetIn(key=AssetKey.from_user_string(self.customer_data_asset))
+        if self.customer_data_asset_key:
+            asset_ins["customer_data"] = AssetIn(key=AssetKey.from_user_string(self.customer_data_asset_key))
 
         component = self
 

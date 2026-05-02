@@ -21,14 +21,14 @@
       "description": "Name of the product usage analytics asset to create",
       "required": true
     },
-    "event_data_asset": {
+    "event_data_asset_key": {
       "type": "string",
       "label": "Event Data Asset",
       "description": "Product usage events with user_id, event_name, timestamp",
       "required": false,
       "default": ""
     },
-    "user_data_asset": {
+    "user_data_asset_key": {
       "type": "string",
       "label": "User Data Asset",
       "description": "User Data Asset",

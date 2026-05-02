@@ -22,7 +22,7 @@ from dagster import (
     ComponentLoadContext,
 )
 from dagster._core.definitions.definitions_class import Definitions
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 
 class CustomerHealthScoreComponent(Component, Model, Resolvable):
@@ -34,14 +34,16 @@ class CustomerHealthScoreComponent(Component, Model, Resolvable):
     )
 
     # Input asset references (set via lineage)
-    customer_data_asset: Optional[str] = Field(
+    customer_data_asset_key: Optional[str] = Field(
         default="",
         description="Customer data asset (CRM, user profiles, etc.)",
+        validation_alias=AliasChoices('customer_data_asset_key', 'customer_data_asset'),
     )
 
-    subscription_data_asset: Optional[str] = Field(
+    subscription_data_asset_key: Optional[str] = Field(
         default="",
         description="Subscription/billing data asset",
+        validation_alias=AliasChoices('subscription_data_asset_key', 'subscription_data_asset'),
     )
 
     product_usage_asset: Optional[str] = Field(
@@ -486,11 +488,11 @@ class CustomerHealthScoreComponent(Component, Model, Resolvable):
         # Determine which inputs are available
         asset_ins = {}
 
-        if self.customer_data_asset:
-            asset_ins["customer_data"] = AssetIn(key=AssetKey.from_user_string(self.customer_data_asset))
+        if self.customer_data_asset_key:
+            asset_ins["customer_data"] = AssetIn(key=AssetKey.from_user_string(self.customer_data_asset_key))
 
-        if self.subscription_data_asset:
-            asset_ins["subscription_data"] = AssetIn(key=AssetKey.from_user_string(self.subscription_data_asset))
+        if self.subscription_data_asset_key:
+            asset_ins["subscription_data"] = AssetIn(key=AssetKey.from_user_string(self.subscription_data_asset_key))
 
         if self.product_usage_asset:
             asset_ins["product_usage"] = AssetIn(key=AssetKey.from_user_string(self.product_usage_asset))

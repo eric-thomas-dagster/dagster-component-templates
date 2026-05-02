@@ -21,14 +21,14 @@
       "description": "Name of the funnel analysis asset to create",
       "required": true
     },
-    "event_data_asset": {
+    "event_data_asset_key": {
       "type": "string",
       "label": "Event Data Asset",
       "description": "Event/activity data with user actions and timestamps",
       "required": false,
       "default": ""
     },
-    "user_data_asset": {
+    "user_data_asset_key": {
       "type": "string",
       "label": "User Data Asset",
       "description": "User Data Asset",

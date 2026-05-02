@@ -20,7 +20,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 
 class SubscriptionMetricsComponent(Component, Model, Resolvable):
@@ -70,14 +70,16 @@ class SubscriptionMetricsComponent(Component, Model, Resolvable):
         description="Name of the subscription metrics output asset"
     )
 
-    stripe_data_asset: Optional[str] = Field(
+    stripe_data_asset_key: Optional[str] = Field(
         default=None,
-        description="Stripe data asset with subscriptions (automatically set via lineage)"
+        description="Stripe data asset with subscriptions (automatically set via lineage)",
+        validation_alias=AliasChoices('stripe_data_asset_key', 'stripe_data_asset'),
     )
 
-    revenue_data_asset: Optional[str] = Field(
+    revenue_data_asset_key: Optional[str] = Field(
         default=None,
-        description="Revenue data for enhanced LTV calculations (optional)"
+        description="Revenue data for enhanced LTV calculations (optional)",
+        validation_alias=AliasChoices('revenue_data_asset_key', 'revenue_data_asset'),
     )
 
     calculation_period: Literal["daily", "weekly", "monthly"] = Field(
@@ -197,8 +199,8 @@ class SubscriptionMetricsComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        stripe_asset = self.stripe_data_asset
-        revenue_asset = self.revenue_data_asset
+        stripe_asset = self.stripe_data_asset_key
+        revenue_asset = self.revenue_data_asset_key
         calculation_period = self.calculation_period
         ltv_method = self.ltv_method
         lookback_months = self.lookback_months

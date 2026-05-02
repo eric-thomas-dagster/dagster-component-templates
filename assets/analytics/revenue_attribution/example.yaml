@@ -3,8 +3,8 @@ attributes:
   asset_name: revenue_attribution
 
   # Data sources (set via visual lineage)
-  marketing_data_asset: "standardized_marketing_data"
-  revenue_data_asset: "stripe_data"
+  marketing_data_asset_key: "standardized_marketing_data"
+  revenue_data_asset_key: "stripe_data"
   customer_360_asset: "customer_360"  # optional
 
   # Attribution configuration

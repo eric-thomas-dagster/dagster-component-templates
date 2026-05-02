@@ -21,7 +21,7 @@ from dagster import (
     ComponentLoadContext,
 )
 from dagster._core.definitions.definitions_class import Definitions
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 
 class LeadScoringComponent(Component, Model, Resolvable):
@@ -33,19 +33,22 @@ class LeadScoringComponent(Component, Model, Resolvable):
     )
 
     # Input asset references (set via lineage)
-    lead_data_asset: Optional[str] = Field(
+    lead_data_asset_key: Optional[str] = Field(
         default="",
         description="Lead/contact data from CRM",
+        validation_alias=AliasChoices('lead_data_asset_key', 'lead_data_asset'),
     )
 
-    behavioral_data_asset: Optional[str] = Field(
+    behavioral_data_asset_key: Optional[str] = Field(
         default="",
         description="Behavioral/activity data (web visits, email opens, etc.)",
+        validation_alias=AliasChoices('behavioral_data_asset_key', 'behavioral_data_asset'),
     )
 
-    company_data_asset: Optional[str] = Field(
+    company_data_asset_key: Optional[str] = Field(
         default="",
         description="Company/firmographic data for B2B scoring",
+        validation_alias=AliasChoices('company_data_asset_key', 'company_data_asset'),
     )
 
     # Scoring model
@@ -508,14 +511,14 @@ class LeadScoringComponent(Component, Model, Resolvable):
         # Determine which inputs are available
         asset_ins = {}
 
-        if self.lead_data_asset:
-            asset_ins["lead_data"] = AssetIn(key=AssetKey.from_user_string(self.lead_data_asset))
+        if self.lead_data_asset_key:
+            asset_ins["lead_data"] = AssetIn(key=AssetKey.from_user_string(self.lead_data_asset_key))
 
-        if self.behavioral_data_asset:
-            asset_ins["behavioral_data"] = AssetIn(key=AssetKey.from_user_string(self.behavioral_data_asset))
+        if self.behavioral_data_asset_key:
+            asset_ins["behavioral_data"] = AssetIn(key=AssetKey.from_user_string(self.behavioral_data_asset_key))
 
-        if self.company_data_asset:
-            asset_ins["company_data"] = AssetIn(key=AssetKey.from_user_string(self.company_data_asset))
+        if self.company_data_asset_key:
+            asset_ins["company_data"] = AssetIn(key=AssetKey.from_user_string(self.company_data_asset_key))
 
         # Require at least one input
         if not asset_ins:

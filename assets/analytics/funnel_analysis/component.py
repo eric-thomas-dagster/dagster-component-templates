@@ -21,7 +21,7 @@ from dagster import (
     ComponentLoadContext,
 )
 from dagster._core.definitions.definitions_class import Definitions
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 
 class FunnelAnalysisComponent(Component, Model, Resolvable):
@@ -33,14 +33,16 @@ class FunnelAnalysisComponent(Component, Model, Resolvable):
     )
 
     # Input asset references (set via lineage)
-    event_data_asset: Optional[str] = Field(
+    event_data_asset_key: Optional[str] = Field(
         default="",
         description="Event/activity data with user actions and timestamps",
+        validation_alias=AliasChoices('event_data_asset_key', 'event_data_asset'),
     )
 
-    user_data_asset: Optional[str] = Field(
+    user_data_asset_key: Optional[str] = Field(
         default="",
         description="User/customer data for segmentation (optional)",
+        validation_alias=AliasChoices('user_data_asset_key', 'user_data_asset'),
     )
 
     # Funnel configuration
@@ -501,16 +503,16 @@ class FunnelAnalysisComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
 
         # Require event data
-        if not self.event_data_asset:
+        if not self.event_data_asset_key:
             raise ValueError("Event data asset is required for funnel analysis")
 
         asset_ins = {
-            "event_data": AssetIn(key=AssetKey.from_user_string(self.event_data_asset))
+            "event_data": AssetIn(key=AssetKey.from_user_string(self.event_data_asset_key))
         }
 
         # Optional user data for segmentation
-        if self.user_data_asset:
-            asset_ins["user_data"] = AssetIn(key=AssetKey.from_user_string(self.user_data_asset))
+        if self.user_data_asset_key:
+            asset_ins["user_data"] = AssetIn(key=AssetKey.from_user_string(self.user_data_asset_key))
 
         component = self
 

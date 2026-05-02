@@ -19,7 +19,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 
 class Customer360Component(Component, Model, Resolvable):
@@ -74,19 +74,22 @@ class Customer360Component(Component, Model, Resolvable):
         description="Stripe customers data asset (automatically set via lineage)"
     )
 
-    marketing_data_asset: Optional[str] = Field(
+    marketing_data_asset_key: Optional[str] = Field(
         default=None,
-        description="Marketing data asset (automatically set via lineage)"
+        description="Marketing data asset (automatically set via lineage)",
+        validation_alias=AliasChoices('marketing_data_asset_key', 'marketing_data_asset'),
     )
 
-    ga4_data_asset: Optional[str] = Field(
+    ga4_data_asset_key: Optional[str] = Field(
         default=None,
-        description="Google Analytics data asset (automatically set via lineage)"
+        description="Google Analytics data asset (automatically set via lineage)",
+        validation_alias=AliasChoices('ga4_data_asset_key', 'ga4_data_asset'),
     )
 
-    crm_data_asset: Optional[str] = Field(
+    crm_data_asset_key: Optional[str] = Field(
         default=None,
-        description="CRM data asset (automatically set via lineage)"
+        description="CRM data asset (automatically set via lineage)",
+        validation_alias=AliasChoices('crm_data_asset_key', 'crm_data_asset'),
     )
 
     # Join configuration
@@ -209,9 +212,9 @@ class Customer360Component(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         stripe_asset = self.stripe_customers_asset
-        marketing_asset = self.marketing_data_asset
-        ga4_asset = self.ga4_data_asset
-        crm_asset = self.crm_data_asset
+        marketing_asset = self.marketing_data_asset_key
+        ga4_asset = self.ga4_data_asset_key
+        crm_asset = self.crm_data_asset_key
         join_key = self.join_key
         secondary_keys_str = self.secondary_join_keys
         active_threshold = self.active_days_threshold

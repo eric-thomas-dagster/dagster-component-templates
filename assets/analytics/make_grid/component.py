@@ -83,8 +83,8 @@ class MakeGridComponent(Component, Model, Resolvable):
                 df_g = df.copy()
                 df_g[_self.geometry_column] = df_g[_self.geometry_column].apply(wkt.loads)
                 gdf = gpd.GeoDataFrame(df_g, geometry=_self.geometry_column, crs=_self.src_crs)
-                bbox_geom = gpd.GeoSeries([gdf.total_bounds], crs=_self.src_crs).apply(lambda b: box(*b))
-                bbox_geom = gpd.GeoSeries(bbox_geom.tolist(), crs=_self.src_crs)
+                tb = gdf.total_bounds  # numpy array (minx, miny, maxx, maxy)
+                bbox_geom = gpd.GeoSeries([box(tb[0], tb[1], tb[2], tb[3])], crs=_self.src_crs)
             bbox_m = bbox_geom.to_crs(_self.metric_crs)
             minx, miny, maxx, maxy = bbox_m.total_bounds
             xs = np.arange(minx, maxx + _self.cell_size_meters, _self.cell_size_meters)

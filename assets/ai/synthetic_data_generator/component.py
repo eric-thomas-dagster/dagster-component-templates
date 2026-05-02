@@ -16,7 +16,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field, AliasChoices
+from pydantic import Field
 
 
 class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
@@ -68,7 +68,6 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
     random_state: Optional[int] = Field(
         default=None,
         description="Random seed for reproducible data generation (leave empty for random)",
-        validation_alias=AliasChoices('random_state', 'random_seed'),
     )
 
     schema_options: Optional[Dict[str, Any]] = Field(

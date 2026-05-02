@@ -19,7 +19,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field, AliasChoices
+from pydantic import Field
 
 
 class EcommerceStandardizerComponent(Component, Model, Resolvable):
@@ -75,7 +75,6 @@ class EcommerceStandardizerComponent(Component, Model, Resolvable):
     upstream_asset_key: Optional[str] = Field(
         default=None,
         description="Upstream asset containing raw platform data (automatically set via lineage)",
-        validation_alias=AliasChoices('upstream_asset_key', 'source_asset'),
     )
 
     order_id_field: Optional[str] = Field(

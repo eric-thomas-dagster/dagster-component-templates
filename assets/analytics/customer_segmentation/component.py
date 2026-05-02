@@ -21,7 +21,7 @@ from dagster import (
     ComponentLoadContext,
 )
 from dagster._core.definitions.definitions_class import Definitions
-from pydantic import Field, AliasChoices
+from pydantic import Field
 
 
 class CustomerSegmentationComponent(Component, Model, Resolvable):
@@ -36,13 +36,11 @@ class CustomerSegmentationComponent(Component, Model, Resolvable):
     transaction_data_asset_key: Optional[str] = Field(
         default="",
         description="Transaction/order data with customer_id, date, and amount",
-        validation_alias=AliasChoices('transaction_data_asset_key', 'transaction_data_asset'),
     )
 
     customer_data_asset_key: Optional[str] = Field(
         default="",
         description="Customer data for additional attributes (optional)",
-        validation_alias=AliasChoices('customer_data_asset_key', 'customer_data_asset'),
     )
 
     # RFM Configuration

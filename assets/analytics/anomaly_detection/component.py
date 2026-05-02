@@ -22,7 +22,7 @@ from dagster import (
     asset,
     Output,
 )
-from pydantic import Field, AliasChoices
+from pydantic import Field
 
 
 class AnomalyDetectionComponent(Component, Model, Resolvable):
@@ -86,7 +86,6 @@ class AnomalyDetectionComponent(Component, Model, Resolvable):
     group_by: Optional[str] = Field(
         default=None,
         description="Group by field (e.g., customer_id) for per-group anomaly detection",
-        validation_alias=AliasChoices('group_by', 'group_by_field'),
     )
 
     timestamp_field: Optional[str] = Field(

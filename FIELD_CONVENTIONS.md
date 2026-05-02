@@ -189,19 +189,9 @@ def my_asset(context) -> pd.DataFrame:
 
 For non-DataFrame producers, return `MaterializeResult(metadata={...})`.
 
-## Backward compatibility on rename
+## Renaming fields
 
-When renaming a field, add the old name as a Pydantic `validation_alias` so existing YAML keeps working:
-
-```python
-from pydantic import Field, AliasChoices
-upstream_asset_key: str = Field(
-    description="...",
-    validation_alias=AliasChoices("upstream_asset_key", "source_asset"),
-)
-```
-
-After two minor releases, the alias can be removed.
+Just rename. The registry isn't widely deployed yet, so YAML in the wild is rare. If a renamed field needs backward compatibility later (e.g. after public launch), add `validation_alias=AliasChoices(new, old)` then — but keep the surface clean for now.
 
 ---
 

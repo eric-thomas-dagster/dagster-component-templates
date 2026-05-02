@@ -20,7 +20,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field, AliasChoices
+from pydantic import Field
 
 
 class CustomerJourneyMappingComponent(Component, Model, Resolvable):
@@ -54,7 +54,6 @@ class CustomerJourneyMappingComponent(Component, Model, Resolvable):
     upstream_asset_key: Optional[str] = Field(
         default=None,
         description="Source asset with customer event/touchpoint data (set via lineage)",
-        validation_alias=AliasChoices('upstream_asset_key', 'source_asset'),
     )
 
     journey_stages: Optional[list] = Field(

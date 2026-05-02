@@ -19,7 +19,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field, AliasChoices
+from pydantic import Field
 
 
 class RevenueAttributionComponent(Component, Model, Resolvable):
@@ -63,13 +63,11 @@ class RevenueAttributionComponent(Component, Model, Resolvable):
     marketing_data_asset_key: Optional[str] = Field(
         default=None,
         description="Marketing data asset with spend and campaigns (automatically set via lineage)",
-        validation_alias=AliasChoices('marketing_data_asset_key', 'marketing_data_asset'),
     )
 
     revenue_data_asset_key: Optional[str] = Field(
         default=None,
         description="Revenue data asset (Stripe charges/subscriptions) (automatically set via lineage)",
-        validation_alias=AliasChoices('revenue_data_asset_key', 'revenue_data_asset'),
     )
 
     customer_360_asset: Optional[str] = Field(

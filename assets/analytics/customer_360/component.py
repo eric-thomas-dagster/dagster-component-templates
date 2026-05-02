@@ -19,7 +19,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field, AliasChoices
+from pydantic import Field
 
 
 class Customer360Component(Component, Model, Resolvable):
@@ -77,19 +77,16 @@ class Customer360Component(Component, Model, Resolvable):
     marketing_data_asset_key: Optional[str] = Field(
         default=None,
         description="Marketing data asset (automatically set via lineage)",
-        validation_alias=AliasChoices('marketing_data_asset_key', 'marketing_data_asset'),
     )
 
     ga4_data_asset_key: Optional[str] = Field(
         default=None,
         description="Google Analytics data asset (automatically set via lineage)",
-        validation_alias=AliasChoices('ga4_data_asset_key', 'ga4_data_asset'),
     )
 
     crm_data_asset_key: Optional[str] = Field(
         default=None,
         description="CRM data asset (automatically set via lineage)",
-        validation_alias=AliasChoices('crm_data_asset_key', 'crm_data_asset'),
     )
 
     # Join configuration

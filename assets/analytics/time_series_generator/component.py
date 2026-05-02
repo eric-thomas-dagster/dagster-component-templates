@@ -16,7 +16,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field, AliasChoices
+from pydantic import Field
 
 
 class TimeSeriesGeneratorComponent(Component, Model, Resolvable):
@@ -82,7 +82,6 @@ class TimeSeriesGeneratorComponent(Component, Model, Resolvable):
     random_state: Optional[int] = Field(
         default=None,
         description="Random seed for reproducible data generation (leave empty for random)",
-        validation_alias=AliasChoices('random_state', 'random_seed'),
     )
 
     metric_name: str = Field(

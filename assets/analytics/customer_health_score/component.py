@@ -22,7 +22,7 @@ from dagster import (
     ComponentLoadContext,
 )
 from dagster._core.definitions.definitions_class import Definitions
-from pydantic import Field, AliasChoices
+from pydantic import Field
 
 
 class CustomerHealthScoreComponent(Component, Model, Resolvable):
@@ -37,13 +37,11 @@ class CustomerHealthScoreComponent(Component, Model, Resolvable):
     customer_data_asset_key: Optional[str] = Field(
         default="",
         description="Customer data asset (CRM, user profiles, etc.)",
-        validation_alias=AliasChoices('customer_data_asset_key', 'customer_data_asset'),
     )
 
     subscription_data_asset_key: Optional[str] = Field(
         default="",
         description="Subscription/billing data asset",
-        validation_alias=AliasChoices('subscription_data_asset_key', 'subscription_data_asset'),
     )
 
     product_usage_asset: Optional[str] = Field(

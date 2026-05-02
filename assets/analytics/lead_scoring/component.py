@@ -21,7 +21,7 @@ from dagster import (
     ComponentLoadContext,
 )
 from dagster._core.definitions.definitions_class import Definitions
-from pydantic import Field, AliasChoices
+from pydantic import Field
 
 
 class LeadScoringComponent(Component, Model, Resolvable):
@@ -36,19 +36,16 @@ class LeadScoringComponent(Component, Model, Resolvable):
     lead_data_asset_key: Optional[str] = Field(
         default="",
         description="Lead/contact data from CRM",
-        validation_alias=AliasChoices('lead_data_asset_key', 'lead_data_asset'),
     )
 
     behavioral_data_asset_key: Optional[str] = Field(
         default="",
         description="Behavioral/activity data (web visits, email opens, etc.)",
-        validation_alias=AliasChoices('behavioral_data_asset_key', 'behavioral_data_asset'),
     )
 
     company_data_asset_key: Optional[str] = Field(
         default="",
         description="Company/firmographic data for B2B scoring",
-        validation_alias=AliasChoices('company_data_asset_key', 'company_data_asset'),
     )
 
     # Scoring model

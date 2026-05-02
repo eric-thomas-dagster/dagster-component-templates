@@ -20,7 +20,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field, AliasChoices
+from pydantic import Field
 
 
 class SubscriptionMetricsComponent(Component, Model, Resolvable):
@@ -73,13 +73,11 @@ class SubscriptionMetricsComponent(Component, Model, Resolvable):
     stripe_data_asset_key: Optional[str] = Field(
         default=None,
         description="Stripe data asset with subscriptions (automatically set via lineage)",
-        validation_alias=AliasChoices('stripe_data_asset_key', 'stripe_data_asset'),
     )
 
     revenue_data_asset_key: Optional[str] = Field(
         default=None,
         description="Revenue data for enhanced LTV calculations (optional)",
-        validation_alias=AliasChoices('revenue_data_asset_key', 'revenue_data_asset'),
     )
 
     calculation_period: Literal["daily", "weekly", "monthly"] = Field(

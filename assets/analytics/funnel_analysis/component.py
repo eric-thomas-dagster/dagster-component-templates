@@ -21,7 +21,7 @@ from dagster import (
     ComponentLoadContext,
 )
 from dagster._core.definitions.definitions_class import Definitions
-from pydantic import Field, AliasChoices
+from pydantic import Field
 
 
 class FunnelAnalysisComponent(Component, Model, Resolvable):
@@ -36,13 +36,11 @@ class FunnelAnalysisComponent(Component, Model, Resolvable):
     event_data_asset_key: Optional[str] = Field(
         default="",
         description="Event/activity data with user actions and timestamps",
-        validation_alias=AliasChoices('event_data_asset_key', 'event_data_asset'),
     )
 
     user_data_asset_key: Optional[str] = Field(
         default="",
         description="User/customer data for segmentation (optional)",
-        validation_alias=AliasChoices('user_data_asset_key', 'user_data_asset'),
     )
 
     # Funnel configuration

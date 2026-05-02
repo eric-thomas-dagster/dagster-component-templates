@@ -42,6 +42,25 @@ class DataframeToExcelComponent(Component, Model, Resolvable):
             "e.g. [1, 0] freezes the first row. Requires openpyxl."
         ),
     )
+    include_preview_metadata: bool = Field(
+        default=False,
+        description=(
+            "Include a preview of the DataFrame about to be written, in "
+            "metadata, so builder UIs can show 'what's being sunk' without "
+            "warehouse access."
+        ),
+    )
+
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows in the preview when include_preview_metadata=True. Random "
+            "sample if len > 10x preview_rows; else head."
+        ),
+    )
+
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -94,6 +113,8 @@ class DataframeToExcelComponent(Component, Model, Resolvable):
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
+        include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         file_path = self.file_path
         sheet_name = self.sheet_name
@@ -246,7 +267,9 @@ group_name=group_name,
                     "file_path": MetadataValue.path(resolved_path),
                     "sheet_name": MetadataValue.text(sheet_name),
                 
-                    "dagster/row_count": MetadataValue.int(len(df)),}
+                    "dagster/row_count": MetadataValue.int(len(df)),
+                    **({"preview": MetadataValue.md((df.sample(preview_rows) if len(df) > preview_rows * 10 else df.head(preview_rows)).to_markdown(index=False))} if include_preview and len(df) > 0 else {}),
+                }
             )
 
         return Definitions(assets=[_asset])

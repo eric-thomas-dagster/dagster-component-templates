@@ -99,6 +99,24 @@ class ElasticsearchAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     )
 
     # --- Asset metadata -------------------------------------------------------
+    include_preview_metadata: bool = Field(
+        default=False,
+        description=(
+            "Include a preview of the data being written / produced in metadata, "
+            "so builder UIs can show output shape without warehouse access."
+        ),
+    )
+
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows in the preview when include_preview_metadata=True. Random "
+            "sample if len > 10x preview_rows; else head."
+        ),
+    )
+
     group_name: str = Field(
         default="elasticsearch",
         description="Dagster asset group name.",
@@ -365,7 +383,8 @@ class ElasticsearchAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                         "num_docs": len(df),
                         "destination_table": component.table_name,
                         "if_exists": component.if_exists,
-                    }
+                    **({"preview": MetadataValue.md((df.sample(preview_rows) if len(df) > preview_rows * 10 else df.head(preview_rows)).to_markdown(index=False))} if include_preview and len(df) > 0 else {}),
+                }
                 )
 
             raise ValueError(

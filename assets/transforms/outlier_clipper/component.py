@@ -86,6 +86,8 @@ class OutlierClipperComponent(Component, Model, Resolvable):
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
+        include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         strategy = self.strategy
         action = self.action
@@ -260,6 +262,9 @@ class OutlierClipperComponent(Component, Model, Resolvable):
                     _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
                         TableColumnLineage(_lineage_deps)
                     )
+            if include_preview and len(df) > 0:
+                _prev = df.sample(preview_rows) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
             context.add_output_metadata(_metadata)
             return df
 

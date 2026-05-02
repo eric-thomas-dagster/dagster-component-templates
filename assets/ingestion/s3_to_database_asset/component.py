@@ -110,6 +110,25 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
         description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
     )
 
+    include_preview_metadata: bool = Field(
+        default=False,
+        description=(
+            "Include a preview of the DataFrame about to be written, in "
+            "metadata, so builder UIs can show 'what's being sunk' without "
+            "warehouse access."
+        ),
+    )
+
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows in the preview when include_preview_metadata=True. Random "
+            "sample if len > 10x preview_rows; else head."
+        ),
+    )
+
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
     partition_type: Optional[str] = Field(
@@ -171,6 +190,8 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
 
         # Capture fields for closure
         asset_name = self.asset_name
+        include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
         database_url = self.database_url
         table_name = self.table_name
         schema_name = self.schema_name or None
@@ -461,7 +482,9 @@ group_name=group_name,
                         "row_count": MetadataValue.int(len(df)),
                         "table": MetadataValue.text(table_name),
                     
-                        "dagster/row_count": MetadataValue.int(len(df)),}
+                        "dagster/row_count": MetadataValue.int(len(df)),
+                        **({"preview": MetadataValue.md((df.sample(preview_rows) if len(df) > preview_rows * 10 else df.head(preview_rows)).to_markdown(index=False))} if include_preview and len(df) > 0 else {}),
+                    }
                 )
 
             except Exception as e:

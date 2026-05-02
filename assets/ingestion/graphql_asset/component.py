@@ -121,6 +121,24 @@ class GraphQLAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Dagster asset group name shown in the UI.",
     )
     asset_name: str = dg.Field(description="Dagster asset key name.")
+    include_preview_metadata: bool = Field(
+        default=False,
+        description=(
+            "Include a preview of the data being written / produced in metadata, "
+            "so builder UIs can show output shape without warehouse access."
+        ),
+    )
+
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows in the preview when include_preview_metadata=True. Random "
+            "sample if len > 10x preview_rows; else head."
+        ),
+    )
+
     deps: Optional[list] = dg.Field(
         default=None,
         description="Upstream asset keys for lineage.",
@@ -387,7 +405,8 @@ class GraphQLAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     "total_rows": dg.MetadataValue.int(total_rows),
                     "queries_executed": dg.MetadataValue.int(queries_executed),
                     "per_query_rows": dg.MetadataValue.json(per_query_counts),
-                }
+                **({"preview": MetadataValue.md((df.sample(preview_rows) if len(df) > preview_rows * 10 else df.head(preview_rows)).to_markdown(index=False))} if include_preview and len(df) > 0 else {}),
+            }
             )
 
         return dg.Definitions(assets=[_graphql_asset])

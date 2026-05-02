@@ -109,6 +109,24 @@ class TextClassifierComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
+    include_preview_metadata: bool = Field(
+        default=False,
+        description=(
+            "Include a preview of the output data in metadata (first 25 "
+            "rows or a sample) for builder UIs."
+        ),
+    )
+
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows to include in the preview metadata. For long DataFrames "
+            "(>10x preview_rows), a random sample is used; otherwise head()."
+        ),
+    )
+
     retry_policy_max_retries: Optional[int] = Field(
 
         default=None,
@@ -136,6 +154,8 @@ class TextClassifierComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
+        include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         input_column = self.input_column
         output_column = self.output_column
@@ -382,6 +402,9 @@ group_name=group_name,
                     _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
                         TableColumnLineage(_lineage_deps)
                     )
+            if include_preview and len(df) > 0:
+                _prev = df.sample(preview_rows) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
             context.add_output_metadata(_metadata)
 
             return df

@@ -47,6 +47,25 @@ class DataframeToS3Component(Component, Model, Resolvable):
         default=None,
         description="Column names to partition by (parquet only)",
     )
+    include_preview_metadata: bool = Field(
+        default=False,
+        description=(
+            "Include a preview of the DataFrame about to be written, in "
+            "metadata, so builder UIs can show 'what's being sunk' without "
+            "warehouse access."
+        ),
+    )
+
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description=(
+            "Rows in the preview when include_preview_metadata=True. Random "
+            "sample if len > 10x preview_rows; else head."
+        ),
+    )
+
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -124,6 +143,8 @@ class DataframeToS3Component(Component, Model, Resolvable):
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
+        include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         bucket_env_var = self.bucket_env_var
         key = self.key
@@ -307,7 +328,9 @@ group_name=group_name,
                     "s3_path": MetadataValue.text(s3_path),
                     "format": MetadataValue.text(format),
                 
-                    "dagster/row_count": MetadataValue.int(len(upstream)),}
+                    "dagster/row_count": MetadataValue.int(len(upstream)),
+                    **({"preview": MetadataValue.md((upstream.sample(preview_rows) if len(upstream) > preview_rows * 10 else upstream.head(preview_rows)).to_markdown(index=False))} if include_preview and len(upstream) > 0 else {}),
+                }
             )
 
         return Definitions(assets=[_asset])

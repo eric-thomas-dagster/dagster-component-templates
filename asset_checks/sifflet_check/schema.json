@@ -49,12 +49,12 @@
       "required": false,
       "default": 300
     },
-    "severity": {
+    "severity_override": {
       "type": "string",
-      "label": "Severity",
-      "description": "WARN or ERROR",
+      "label": "Severity Override",
+      "description": "Optional — 'WARN' or 'ERROR'. Defaults to ERROR.",
       "required": false,
-      "default": "ERROR"
+      "enum": ["WARN", "ERROR"]
     }
   },
   "tags": [

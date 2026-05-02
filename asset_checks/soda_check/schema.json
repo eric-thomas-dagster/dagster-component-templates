@@ -1,32 +1,33 @@
 {
   "component_type": "dagster_component_templates.SodaCheckComponent",
-  "description": "Run a Soda scan as a Dagster asset check.",
+  "description": "[DEPRECATED — use dagster-soda] Run a Soda scan — one Dagster asset check per SodaCL check (community).",
   "category": "check",
   "icon": "CheckCircle",
   "x-dagster-io": {
     "outputs": {
       "type": "AssetCheckResult",
-      "description": "Asset check result"
+      "description": "One AssetCheckResult per SodaCL check"
     }
   },
   "attributes": {
     "asset_key": {
       "type": "string",
       "label": "Asset Key",
-      "description": "Asset key to attach this check to",
+      "description": "Default asset key for checks not routed via asset_key_map",
       "required": true
     },
     "data_source_name": {
       "type": "string",
       "label": "Data Source Name",
-      "description": "Data Source Name",
+      "description": "Soda data source name (defined in configuration.yaml)",
       "required": true
     },
-    "checks_yaml_path": {
-      "type": "string",
-      "label": "Checks Yaml Path",
-      "description": "Path to the Soda checks YAML file",
-      "required": true
+    "checks_yaml_paths": {
+      "type": ["string", "array"],
+      "label": "Checks YAML Path(s)",
+      "description": "Path(s) to SodaCL YAML files. Accepts a single path or a list.",
+      "required": true,
+      "items": {"type": "string"}
     },
     "soda_configuration_path": {
       "type": "string",
@@ -35,12 +36,19 @@
       "required": false,
       "default": "./soda/configuration.yaml"
     },
-    "severity": {
-      "type": "string",
-      "label": "Severity",
-      "description": "WARN or ERROR",
+    "asset_key_map": {
+      "type": "object",
+      "label": "Asset Key Map",
+      "description": "Optional map from SodaCL dataset name → slash-separated Dagster asset key. Lets a single scan attach checks to multiple assets.",
       "required": false,
-      "default": "ERROR"
+      "additionalProperties": {"type": "string"}
+    },
+    "severity_override": {
+      "type": "string",
+      "label": "Severity Override",
+      "description": "Optional — force every check to WARN or ERROR. Unset (default) means severity is read from each SodaCL check's attributes.",
+      "required": false,
+      "enum": ["WARN", "ERROR"]
     }
   },
   "tags": [

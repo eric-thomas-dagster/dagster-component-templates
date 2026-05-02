@@ -1,1 +1,2 @@
 soda-core>=3.0.0
+PyYAML>=5.1

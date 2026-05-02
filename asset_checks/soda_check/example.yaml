@@ -2,5 +2,12 @@ type: dagster_component_templates.SodaCheckComponent
 attributes:
   asset_key: warehouse/orders
   data_source_name: my_postgres
-  checks_yaml_path: ./soda/orders_checks.yaml
+  checks_yaml_paths:
+    - ./soda/orders_checks.yaml
+    - ./soda/customers_checks.yaml
   soda_configuration_path: ./soda/configuration.yaml
+  # Optional — route per-dataset checks to different Dagster assets.
+  # asset_key_map:
+  #   orders: warehouse/orders
+  #   customers: warehouse/customers
+  # severity_override: WARN

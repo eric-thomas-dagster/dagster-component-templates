@@ -1,19 +1,19 @@
 {
   "component_type": "dagster_component_templates.GreatExpectationsCheckComponent",
-  "description": "Run a Great Expectations expectation suite as a Dagster asset check.",
+  "description": "Run a Great Expectations expectation suite — one Dagster asset check per expectation.",
   "category": "check",
   "icon": "CheckCircle",
   "x-dagster-io": {
     "outputs": {
       "type": "AssetCheckResult",
-      "description": "Asset check result"
+      "description": "One AssetCheckResult per expectation in the suite"
     }
   },
   "attributes": {
     "asset_key": {
       "type": "string",
       "label": "Asset Key",
-      "description": "Asset key to attach this check to",
+      "description": "Asset key to attach the checks to",
       "required": true
     },
     "ge_context_root_dir": {
@@ -41,12 +41,19 @@
       "description": "GE expectation suite name",
       "required": true
     },
-    "severity": {
+    "severity_override": {
       "type": "string",
-      "label": "Severity",
-      "description": "WARN or ERROR",
+      "label": "Severity Override",
+      "description": "Optional — force every check to WARN or ERROR. Unset (default) means severity is read from each expectation's meta.severity field, defaulting to ERROR.",
       "required": false,
-      "default": "ERROR"
+      "enum": ["WARN", "ERROR"]
+    },
+    "data_connector_name": {
+      "type": "string",
+      "label": "Data Connector Name",
+      "description": "GE data connector name (rarely needs changing)",
+      "required": false,
+      "default": "default_inferred_data_connector_name"
     }
   },
   "tags": [

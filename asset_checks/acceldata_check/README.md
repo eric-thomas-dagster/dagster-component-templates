@@ -20,7 +20,7 @@ Acceldata owns the rule logic — Dagster triggers execution and surfaces pass/f
 | `rule_id` | Yes | ID of the Acceldata DQ rule to execute |
 | `poll_interval_seconds` | No | Seconds between status polls (default: 5.0) |
 | `timeout_seconds` | No | Max seconds to wait for execution (default: 300) |
-| `severity` | No | `ERROR` or `WARN` (default: `ERROR`) |
+| `severity_override` | No | Optional — `ERROR` or `WARN`. Defaults to `ERROR`. |
 
 ## Finding Your Rule ID
 
@@ -35,7 +35,7 @@ attributes:
   api_url_env_var: ACCELDATA_API_URL
   api_token_env_var: ACCELDATA_API_TOKEN
   rule_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-  severity: ERROR
+  # severity_override: WARN  # optional, defaults to ERROR
 ```
 
 ## Environment Variables

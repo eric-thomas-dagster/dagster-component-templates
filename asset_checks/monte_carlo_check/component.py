@@ -30,7 +30,7 @@ class MonteCarloCheckComponent(dg.Component, dg.Model, dg.Resolvable):
           mcd_id_env_var: MCD_ID
           mcd_token_env_var: MCD_TOKEN
           rule_uuid: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-          severity: ERROR
+          # severity_override: WARN  # optional, defaults to ERROR
         ```
     """
 
@@ -43,14 +43,18 @@ class MonteCarloCheckComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     poll_interval_seconds: float = Field(default=5.0, description="Seconds between status polls")
     timeout_seconds: int = Field(default=300, description="Max seconds to wait for rule execution")
-    severity: str = Field(default="ERROR", description="WARN or ERROR")
+    severity_override: Optional[str] = Field(
+        default=None,
+        description="Optional — 'WARN' or 'ERROR'. Defaults to ERROR.",
+    )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         asset_key = dg.AssetKey(self.asset_key.split("/"))
         severity = (
-            AssetCheckSeverity.ERROR if self.severity.upper() == "ERROR"
-            else AssetCheckSeverity.WARN
+            AssetCheckSeverity.WARN
+            if self.severity_override and self.severity_override.upper() == "WARN"
+            else AssetCheckSeverity.ERROR
         )
 
         @asset_check(

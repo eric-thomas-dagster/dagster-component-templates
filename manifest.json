@@ -3500,7 +3500,7 @@
       "id": "great_expectations_check",
       "name": "Great Expectations Check",
       "category": "check",
-      "description": "Run a Great Expectations expectation suite as a Dagster asset check.",
+      "description": "Run a GE expectation suite \u2014 one Dagster asset check per expectation.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "asset_checks/great_expectations_check",
@@ -3525,7 +3525,7 @@
       "id": "soda_check",
       "name": "Soda Check",
       "category": "check",
-      "description": "Run a Soda scan as a Dagster asset check.",
+      "description": "[DEPRECATED \u2014 use dagster-soda] Run a Soda scan \u2014 one Dagster asset check per SodaCL check.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "asset_checks/soda_check",
@@ -3535,7 +3535,8 @@
       ],
       "dependencies": {
         "pip": [
-          "soda-core>=3.0.0"
+          "soda-core>=3.0.0",
+          "PyYAML>=5.1"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/soda_check/README.md",

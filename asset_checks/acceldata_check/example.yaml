@@ -6,4 +6,4 @@ attributes:
   rule_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
   poll_interval_seconds: 5.0
   timeout_seconds: 300
-  severity: ERROR
+  # severity_override: WARN  # optional, defaults to ERROR

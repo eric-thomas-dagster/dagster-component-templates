@@ -5,3 +5,5 @@ attributes:
   datasource_name: my_postgres
   data_asset_name: orders
   expectation_suite_name: orders.critical
+  # Optional — force every check to WARN regardless of per-expectation meta.
+  # severity_override: WARN

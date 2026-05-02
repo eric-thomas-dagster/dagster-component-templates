@@ -18,7 +18,7 @@ requests>=2.28.0
 | `sifflet_tenant_env_var` | Yes | — | Env var containing the Sifflet tenant name (e.g. `mycompany` from `mycompany.siffletdata.com`) |
 | `api_token_env_var` | Yes | — | Env var containing the Sifflet API token |
 | `monitor_id` | Yes | — | UUID of the Sifflet monitor to run |
-| `severity` | No | `ERROR` | Asset check severity: `ERROR` or `WARN` |
+| `severity_override` | No | `None` | Optional — force `WARN` or `ERROR`. Defaults to `ERROR`. |
 | `poll_interval_seconds` | No | `5.0` | Seconds between status polls |
 | `timeout_seconds` | No | `300` | Maximum seconds to wait for monitor run |
 
@@ -31,8 +31,8 @@ attributes:
   sifflet_tenant_env_var: SIFFLET_TENANT
   api_token_env_var: SIFFLET_API_TOKEN
   monitor_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-  severity: ERROR
   timeout_seconds: 300
+  # severity_override: WARN  # optional, defaults to ERROR
 ```
 
 ## Finding the monitor ID

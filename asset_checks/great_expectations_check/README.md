@@ -1,46 +1,62 @@
 # Great Expectations Check
 
-Runs a Great Expectations suite against a Dagster asset and surfaces the results as a native `AssetCheck`.
+Runs a Great Expectations expectation suite against a Dagster asset and surfaces **each expectation as its own asset check**. Mirrors the pattern that `dagster-soda` uses for SodaCL: one external check → one Dagster asset check, individually alertable, retriable, and visible in the catalog UI.
 
 ## What this does
 
-When the check executes:
-1. Loads the Great Expectations context
-2. Runs the configured suite or ruleset against the asset's data
-3. Returns an `AssetCheckResult` with pass/fail status and detailed statistics
+At `build_defs` time the component pre-parses the suite JSON and emits one `AssetCheckSpec` per expectation. At runtime it runs the suite once and yields one `AssetCheckResult` per expectation.
 
-Results appear in the **Checks** tab of the Asset Details page in the Dagster UI. Failed checks with `severity: ERROR` block downstream assets from materializing.
+If the suite JSON can't be pre-parsed (missing path, GE v2 layout, malformed JSON) the component falls back to a single aggregate check that yields the suite's overall pass/fail.
 
 ## Fields
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `asset_key` | `str` | `**required**` | Asset key to attach this check to |
-| `ge_context_root_dir` | `str` | `**required**` | Path to the Great Expectations project root |
-| `datasource_name` | `str` | `**required**` | GE datasource name |
-| `data_asset_name` | `str` | `**required**` | GE data asset name |
-| `expectation_suite_name` | `str` | `**required**` | GE expectation suite name |
-| `severity` | `str` | `"ERROR"` | WARN or ERROR |
+| `asset_key` | `str` | **required** | Asset key to attach the checks to |
+| `ge_context_root_dir` | `str` | **required** | Path to the Great Expectations project root |
+| `datasource_name` | `str` | **required** | GE datasource name |
+| `data_asset_name` | `str` | **required** | GE data asset name |
+| `expectation_suite_name` | `str` | **required** | GE expectation suite name |
+| `severity_override` | `str` | `None` | Optional — force every check to `WARN` or `ERROR`. When unset, severity is read from each expectation's `meta.severity`, defaulting to `ERROR`. |
+| `data_connector_name` | `str` | `default_inferred_data_connector_name` | GE data connector name |
 
 ## Example
 
 ```yaml
 type: dagster_component_templates.GreatExpectationsCheckComponent
 attributes:
-  asset_key: my_service/asset
-  ge_context_root_dir: my_ge_context_root_dir
-  datasource_name: my_datasource_name
-  data_asset_name: my_data_asset_name
-  expectation_suite_name: my_expectation_suite_name
-  # severity: "ERROR"  # optional
+  asset_key: warehouse/orders
+  ge_context_root_dir: ./great_expectations
+  datasource_name: my_postgres
+  data_asset_name: orders
+  expectation_suite_name: orders.critical
+  # severity_override: WARN   # optional, forces all checks to WARN
 ```
 
 ## Severity
 
-| Value | Behavior |
-|---|---|
-| `ERROR` (default) | Blocks downstream materialization on failure |
-| `WARN` | Surfaces the failure as a warning without blocking |
+Three sources, in priority order:
+
+1. **`severity_override`** on the component — when set, forces every check to that severity.
+2. **`meta.severity`** on the expectation itself — set per-expectation in the suite JSON:
+   ```json
+   {
+     "expectation_type": "expect_column_values_to_not_be_null",
+     "kwargs": {"column": "customer_id"},
+     "meta": {"severity": "WARN"}
+   }
+   ```
+3. **Default**: `ERROR`.
+
+`ERROR` blocks downstream materialization on failure; `WARN` surfaces a warning without blocking.
+
+## Suite path resolution
+
+The component looks for the suite JSON at:
+- `<ge_context_root_dir>/expectations/<suite_name with dots → slashes>.json`, then
+- `<ge_context_root_dir>/expectations/<suite_name>.json`
+
+If neither exists, the component falls back to the aggregate-check path.
 
 ## Requirements
 

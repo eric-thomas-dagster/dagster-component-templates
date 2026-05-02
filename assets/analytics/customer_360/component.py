@@ -164,7 +164,7 @@ class Customer360Component(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=True,
         description="Include sample data preview in metadata"
     )
@@ -205,7 +205,7 @@ class Customer360Component(Component, Model, Resolvable):
         active_threshold = self.active_days_threshold
         description = self.description or "Unified customer 360 profiles"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
 
         # Build dependency list
         upstream_keys = []
@@ -521,7 +521,6 @@ group_name=group_name,
                     "row_count": len(customers),
                     "column_count": len(customers.columns),
                     "active_customers": int(active_customers),
-                    "sample": MetadataValue.md(customers.head(10).to_markdown()),
                     "preview": MetadataValue.md(customers.head(10).to_markdown())
                 })
                 return customers

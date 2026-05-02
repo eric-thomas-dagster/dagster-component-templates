@@ -154,7 +154,7 @@ class LTVPredictionComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=True,
         description="Include sample data preview in metadata"
     )
@@ -196,7 +196,7 @@ class LTVPredictionComponent(Component, Model, Resolvable):
         amount_field = self.amount_field
         description = self.description or "Customer lifetime value prediction"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
 
         # Build partition definition
         partitions_def = None
@@ -567,8 +567,7 @@ group_name=group_name,
                 # Sort by predicted LTV descending to show highest value customers first
                 result_sorted = result_df.sort_values('predicted_total_ltv', ascending=False)
 
-                metadata['sample'] = MetadataValue.md(result_sorted.head(10).to_markdown(index=False))
-                metadata['preview'] = MetadataValue.md(result_sorted.head(10).to_markdown())
+                metadata['preview'] = MetadataValue.md(result_sorted.head(10).to_markdown(index=False))
             context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

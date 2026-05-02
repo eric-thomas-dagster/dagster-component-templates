@@ -14,4 +14,4 @@ attributes:
   # Organization
   description: "Workable recruitment pipeline data"
   group_name: "workable"
-  include_sample_metadata: true
+  include_preview_metadata: true

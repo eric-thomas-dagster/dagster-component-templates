@@ -13,4 +13,4 @@ attributes:
   # Organization
   description: "Notion workspace databases"
   group_name: "notion"
-  include_sample_metadata: true
+  include_preview_metadata: true

@@ -17,4 +17,4 @@ attributes:
   # Organization
   description: "Matomo web analytics reports"
   group_name: "matomo"
-  include_sample_metadata: true
+  include_preview_metadata: true

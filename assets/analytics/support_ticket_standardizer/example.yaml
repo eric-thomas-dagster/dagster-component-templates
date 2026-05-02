@@ -19,4 +19,4 @@ attributes:
   # Organization
   description: "Standardized support ticket data with unified schema"
   group_name: "support"
-  include_sample_metadata: true
+  include_preview_metadata: true

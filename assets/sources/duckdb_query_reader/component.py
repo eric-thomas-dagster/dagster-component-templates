@@ -103,9 +103,9 @@ class DuckDBQueryReaderComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=False,
-        description="Include sample data preview in metadata (first 5 rows as markdown table and interactive preview)"
+        description="Include a preview of the output data in metadata (first 5 rows as markdown table). Used by builder UIs to render asset shape without warehouse access."
     )
 
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
@@ -144,7 +144,7 @@ class DuckDBQueryReaderComponent(Component, Model, Resolvable):
         query = self.query
         description = self.description or f"Query results from DuckDB"
         group_name = self.group_name or None
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
 
         # Build partition definition
         partitions_def = None
@@ -295,7 +295,6 @@ group_name=group_name,
                         metadata={
                             "row_count": len(df),
                             "columns": df.columns.tolist(),
-                            "sample": MetadataValue.md(df.head().to_markdown()),
                             "preview": MetadataValue.md(df.head().to_markdown())
                         }
                     )

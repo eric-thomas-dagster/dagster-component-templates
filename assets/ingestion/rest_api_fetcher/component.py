@@ -174,7 +174,7 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
 
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=False,
         description="Include sample data preview in metadata when output_format is 'dataframe' (first 5 rows as markdown table and interactive preview)"
     )
@@ -223,7 +223,7 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
         verify_ssl = self.verify_ssl
         description = self.description or f"Fetch data from {api_url}"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
 
         # Infer kinds from component name if not explicitly set
         _comp_name = "rest_api_fetcher"  # component directory name
@@ -569,7 +569,6 @@ group_name=group_name,
                     metadata={
                         "row_count": len(result),
                         "columns": result.columns.tolist(),
-                        "sample": MetadataValue.md(result.head().to_markdown()),
                         "preview": MetadataValue.md(result.head().to_markdown())
                     }
                 )

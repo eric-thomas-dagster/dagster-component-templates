@@ -121,9 +121,9 @@ class DatabaseQueryComponent(Component, Model, Resolvable):
 
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=False,
-        description="Include sample data preview in metadata (first 5 rows as markdown table and interactive preview)"
+        description="Include a preview of the output data in metadata (first 5 rows as markdown table). Used by builder UIs to render asset shape without warehouse access."
     )
 
     retry_policy_max_retries: Optional[int] = Field(
@@ -159,7 +159,7 @@ class DatabaseQueryComponent(Component, Model, Resolvable):
         cache_path = self.cache_path
         description = self.description or f"Query: {query[:50]}..."
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
 
         # Build partition definition
         partitions_def = None
@@ -349,7 +349,6 @@ group_name=group_name,
                         metadata={
                             "row_count": len(df),
                             "columns": df.columns.tolist(),
-                            "sample": MetadataValue.md(df.head().to_markdown()),
                             "preview": MetadataValue.md(df.head().to_markdown())
                         }
                     )

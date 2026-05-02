@@ -136,7 +136,7 @@ class FreshdeskIngestionComponent(Component, Model, Resolvable):
         description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=True, description="Include sample data preview in metadata"
     )
 
@@ -232,7 +232,7 @@ class FreshdeskIngestionComponent(Component, Model, Resolvable):
         resources_list = self.resources
         description = self.description or f"Freshdesk data ({', '.join(resources_list)})"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
         destination = self.destination
         dataset_name = self.dataset_name or asset_name
         persist_only = self.persist_only
@@ -435,7 +435,7 @@ class FreshdeskIngestionComponent(Component, Model, Resolvable):
                 ),
             }
             if include_sample and len(combined_df) > 0:
-                metadata["sample"] = MetadataValue.md(combined_df.head(10).to_markdown())
+                metadata["preview"] = MetadataValue.md(combined_df.head(10).to_markdown())
 
             return Output(value=combined_df, metadata=metadata)
 

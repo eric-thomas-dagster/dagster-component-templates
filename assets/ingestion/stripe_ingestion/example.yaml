@@ -18,4 +18,4 @@ attributes:
   # Organization
   description: "Stripe payment and subscription data"
   group_name: "stripe"
-  include_sample_metadata: true
+  include_preview_metadata: true

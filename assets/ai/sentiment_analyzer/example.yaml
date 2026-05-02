@@ -38,4 +38,4 @@ attributes:
   # Organization
   description: "Sentiment analysis of customer reviews"
   group_name: "sentiment_analysis"
-  include_sample_metadata: true
+  include_preview_metadata: true

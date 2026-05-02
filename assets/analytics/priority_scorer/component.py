@@ -238,7 +238,7 @@ class PriorityScorerComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=True,
         description="Include sample data preview in metadata"
     )
@@ -296,7 +296,7 @@ class PriorityScorerComponent(Component, Model, Resolvable):
         track_costs = self.track_costs
         description = self.description or f"Priority scoring using {method}"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
 
         # Cost per 1M tokens
         COST_PER_1M_INPUT = {
@@ -886,7 +886,6 @@ Return your analysis as JSON:
                 metadata["breach_rate"] = f"{breach_count / len(result_df) * 100:.1f}%"
 
             if include_sample and len(result_df) > 0:
-                metadata['sample'] = MetadataValue.md(result_df.head(10).to_markdown())
                 metadata['preview'] = MetadataValue.md(result_df.head(10).to_markdown())
             context.add_output_metadata(metadata)
             # Build column schema metadata

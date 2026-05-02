@@ -206,7 +206,7 @@ attributes:
   # Organization
   description: "Image analysis using vision models"
   group_name: "vision"
-  include_sample_metadata: true
+  include_preview_metadata: true
 ```
 
 ## Model Comparison

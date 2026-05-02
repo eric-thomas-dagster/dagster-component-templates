@@ -47,4 +47,4 @@ attributes:
   # Organization
   description: "Support ticket classification with urgency and department routing"
   group_name: "ticket_classification"
-  include_sample_metadata: true
+  include_preview_metadata: true

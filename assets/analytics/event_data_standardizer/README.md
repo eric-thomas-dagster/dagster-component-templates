@@ -80,7 +80,7 @@ Standardized event data with unified schema:
 - **`filter_date_to`** (string): End date filter (YYYY-MM-DD)
 - **`description`** (string): Asset description
 - **`group_name`** (string): Asset group (default: `events`)
-- **`include_sample_metadata`** (boolean): Include data preview (default: true)
+- **`include_preview_metadata`** (boolean): Include data preview (default: true)
 
 ## Example Configuration
 

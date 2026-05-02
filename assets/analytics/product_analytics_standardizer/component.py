@@ -158,7 +158,7 @@ class ProductAnalyticsStandardizerComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=True,
         description="Include sample data preview in metadata"
     )
@@ -200,7 +200,7 @@ class ProductAnalyticsStandardizerComponent(Component, Model, Resolvable):
         filter_event_name = self.filter_event_name
         description = self.description or f"Standardized {platform} product analytics data"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
 
         # Parse upstream asset keys
         upstream_keys = []
@@ -589,7 +589,6 @@ group_name=group_name,
                 context.add_output_metadata({
                     "row_count": len(std_df),
                     "columns": std_df.columns.tolist(),
-                    "sample": MetadataValue.md(std_df.head(10).to_markdown()),
                     "preview": MetadataValue.md(std_df.head(10).to_markdown())
                 })
                 return std_df

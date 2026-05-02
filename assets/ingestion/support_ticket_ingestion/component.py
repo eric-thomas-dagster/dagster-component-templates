@@ -131,7 +131,7 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
         description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=True, description="Include sample data preview in metadata"
     )
 
@@ -218,7 +218,7 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
         platform = self.platform
         description = self.description or f"Support tickets from {platform}"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
         destination = self.destination
         dataset_name = self.dataset_name or asset_name
         persist_only = self.persist_only
@@ -380,7 +380,7 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
                             "is_sample": MetadataValue.bool(True),
                         }
                         if include_sample:
-                            sample_meta["sample"] = MetadataValue.md(sample_df.head(5).to_markdown())
+                            sample_meta["preview"] = MetadataValue.md(sample_df.head(5).to_markdown())
                         return Output(value=sample_df, metadata=sample_meta)
                     # destination mode → let dlt fail with clear creds error
                     context.log.error(
@@ -437,7 +437,7 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
                     "row_count": MetadataValue.int(len(df)),
                 }
                 if include_sample and len(df) > 0:
-                    metadata["sample"] = MetadataValue.md(df.head(5).to_markdown())
+                    metadata["preview"] = MetadataValue.md(df.head(5).to_markdown())
 
                 return Output(value=df, metadata=metadata)
 
@@ -464,7 +464,7 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
                 "is_sample": MetadataValue.bool(True),
             }
             if include_sample:
-                sample_meta["sample"] = MetadataValue.md(sample_df.head(5).to_markdown())
+                sample_meta["preview"] = MetadataValue.md(sample_df.head(5).to_markdown())
             return Output(value=sample_df, metadata=sample_meta)
 
         return Definitions(assets=[support_ticket_ingestion_asset])

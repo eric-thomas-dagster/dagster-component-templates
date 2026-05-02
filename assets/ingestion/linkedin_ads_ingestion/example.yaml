@@ -20,4 +20,4 @@ attributes:
   # Organization
   description: "LinkedIn Ads campaign and performance data"
   group_name: "linkedin_ads"
-  include_sample_metadata: true
+  include_preview_metadata: true

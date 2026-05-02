@@ -30,4 +30,4 @@ attributes:
   # Organization
   description: "Document analysis with Claude 3.5 Sonnet"
   group_name: "anthropic_llm"
-  include_sample_metadata: true
+  include_preview_metadata: true

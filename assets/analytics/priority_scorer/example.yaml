@@ -49,4 +49,4 @@ attributes:
   # Organization
   description: "Priority scoring with SLA breach prediction"
   group_name: "priority_scoring"
-  include_sample_metadata: true
+  include_preview_metadata: true

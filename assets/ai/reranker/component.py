@@ -215,7 +215,7 @@ class RerankerComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=True,
         description="Include sample data preview in metadata"
     )
@@ -267,7 +267,7 @@ class RerankerComponent(Component, Model, Resolvable):
         track_costs = self.track_costs
         description = self.description or f"Reranked results using {method}"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
 
         # Cohere Rerank pricing (approximate, as of 2024)
         COHERE_RERANK_COST_PER_1K_SEARCHES = 0.02  # $0.02 per 1000 searches
@@ -647,7 +647,6 @@ group_name=group_name,
                     value=result_df,
                     metadata={
                         **metadata,
-                        "sample": MetadataValue.md(result_df.head(10).to_markdown()),
                         "preview": MetadataValue.md(result_df.head(10).to_markdown())
                     }
                 )

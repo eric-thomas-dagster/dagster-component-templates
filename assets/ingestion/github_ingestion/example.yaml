@@ -19,4 +19,4 @@ attributes:
   # Organization
   description: "GitHub repository issues and pull requests"
   group_name: "github"
-  include_sample_metadata: true
+  include_preview_metadata: true

@@ -19,4 +19,4 @@ attributes:
   # Organization
   description: "HubSpot CRM and marketing data"
   group_name: "hubspot"
-  include_sample_metadata: true
+  include_preview_metadata: true

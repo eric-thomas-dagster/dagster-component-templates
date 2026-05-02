@@ -178,10 +178,10 @@
       "required": false,
       "ui:widget": "key-value"
     },
-    "include_sample_metadata": {
+    "include_preview_metadata": {
       "type": "boolean",
-      "label": "Include Sample Metadata",
-      "description": "Include Sample Metadata",
+      "label": "Include Preview Metadata",
+      "description": "Include Preview Metadata",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"

@@ -87,7 +87,7 @@ Standardized CRM data with unified fields:
 - **`filter_date_to`** (string): End date filter (YYYY-MM-DD)
 - **`description`** (string): Asset description
 - **`group_name`** (string): Asset group (default: `crm`)
-- **`include_sample_metadata`** (boolean): Include data preview (default: true)
+- **`include_preview_metadata`** (boolean): Include data preview (default: true)
 
 ## Example Configuration
 

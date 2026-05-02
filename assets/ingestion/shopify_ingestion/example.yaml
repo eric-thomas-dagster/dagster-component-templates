@@ -18,4 +18,4 @@ attributes:
   # Organization
   description: "Shopify e-commerce data ingestion"
   group_name: "shopify"
-  include_sample_metadata: true
+  include_preview_metadata: true

@@ -47,4 +47,4 @@ attributes:
   # Organization
   description: "Named entity extraction from support tickets"
   group_name: "entity_extraction"
-  include_sample_metadata: true
+  include_preview_metadata: true

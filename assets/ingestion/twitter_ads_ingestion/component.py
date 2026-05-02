@@ -195,7 +195,7 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
         description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=True, description="Include sample data preview in metadata"
     )
 
@@ -293,7 +293,7 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
         placement = self.placement
         description = self.description or "Twitter/X Ads data ingestion via dlt"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
         destination = self.destination
         dataset_name = self.dataset_name or asset_name
         persist_only = self.persist_only
@@ -698,7 +698,7 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
             for resource, rows in resource_metadata.items():
                 metadata[f"rows_{resource}"] = MetadataValue.int(rows)
             if include_sample and len(combined_df) > 0:
-                metadata["sample"] = MetadataValue.md(combined_df.head(10).to_markdown())
+                metadata["preview"] = MetadataValue.md(combined_df.head(10).to_markdown())
 
             return Output(value=combined_df, metadata=metadata)
 

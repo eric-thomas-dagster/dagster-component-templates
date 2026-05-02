@@ -12,4 +12,4 @@ attributes:
   # Organization
   description: "Freshdesk support tickets and customer service data"
   group_name: "freshdesk"
-  include_sample_metadata: true
+  include_preview_metadata: true

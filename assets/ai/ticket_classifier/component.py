@@ -240,7 +240,7 @@ class TicketClassifierComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=True,
         description="Include sample data preview in metadata"
     )
@@ -298,7 +298,7 @@ class TicketClassifierComponent(Component, Model, Resolvable):
         include_metadata_fields_str = self.include_metadata_fields
         description = self.description or f"Ticket classification using {method}"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
         upstream_asset_key = self.upstream_asset_key
 
         # Cost per 1M tokens (approximate)
@@ -841,7 +841,6 @@ Return your classification as JSON:
                     value=result_df,
                     metadata={
                         **metadata,
-                        "sample": MetadataValue.md(result_df.head(10).to_markdown()),
                         "preview": MetadataValue.md(result_df.head(10).to_markdown())
                     }
                 )

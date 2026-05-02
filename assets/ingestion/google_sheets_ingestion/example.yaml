@@ -10,4 +10,4 @@ attributes:
   # Organization
   description: "Google Sheets data import"
   group_name: "google_sheets"
-  include_sample_metadata: true
+  include_preview_metadata: true

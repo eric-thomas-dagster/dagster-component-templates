@@ -25,7 +25,7 @@ The Content Ingestion component creates realistic sample user-generated content 
 
 - `description`: Asset description (default: "User-generated content for moderation")
 - `group_name`: Asset group for organization (default: "content")
-- `include_sample_metadata`: Include data preview in metadata (default: true)
+- `include_preview_metadata`: Include data preview in metadata (default: true)
 
 ## Usage
 

@@ -212,9 +212,9 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
     )
 
     # Sample metadata
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=False,
-        description="Include sample data preview in metadata (first 5 rows as markdown table and interactive preview)"
+        description="Include a preview of the output data in metadata (first 5 rows as markdown table). Used by builder UIs to render asset shape without warehouse access."
     )
 
     # Field validators to handle Dagster Components auto-deserializing JSON strings
@@ -255,7 +255,7 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         upstream_asset_keys_str = self.upstream_asset_keys
         description = self.description or "Transform DataFrames from upstream assets"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
 
         # Parse upstream asset keys if provided
         upstream_keys = []
@@ -690,7 +690,6 @@ group_name=group_name,
                     metadata={
                         "row_count": len(df),
                         "columns": df.columns.tolist(),
-                        "sample": MetadataValue.md(df.head().to_markdown()),
                         "preview": MetadataValue.md(df.head().to_markdown())
                     }
                 )

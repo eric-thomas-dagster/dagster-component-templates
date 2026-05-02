@@ -31,7 +31,7 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 
 ## Standard fields
 
-`description`, `group_name`, `owners`, `asset_tags`, `kinds`, `freshness_max_lag_minutes`, `freshness_cron`, `include_sample_metadata`, `deps` — same convention as every other component in this library.
+`description`, `group_name`, `owners`, `asset_tags`, `kinds`, `freshness_max_lag_minutes`, `freshness_cron`, `include_preview_metadata`, `deps` — same convention as every other component in this library.
 
 
 ## Destination

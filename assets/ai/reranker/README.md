@@ -162,7 +162,7 @@ attributes:
   # Organization
   description: "Reranked search results"
   group_name: "reranking"
-  include_sample_metadata: true
+  include_preview_metadata: true
 ```
 
 ## Reranking Methods Comparison

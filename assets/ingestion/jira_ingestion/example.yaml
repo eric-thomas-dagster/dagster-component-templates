@@ -15,4 +15,4 @@ attributes:
   # Organization
   description: "Jira issue tracking and project data"
   group_name: "jira"
-  include_sample_metadata: true
+  include_preview_metadata: true

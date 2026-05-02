@@ -14,4 +14,4 @@ attributes:
   # Organization
   description: "Subscription and revenue metrics (MRR, ARR, churn, LTV)"
   group_name: "subscription_analytics"
-  include_sample_metadata: true
+  include_preview_metadata: true

@@ -71,7 +71,7 @@ Returns one row per customer with churn risk assessment:
 - **`lifetime_days_field`** (string): Custom column name (auto-detected)
 - **`description`** (string): Asset description
 - **`group_name`** (string): Asset group (default: `customer_analytics`)
-- **`include_sample_metadata`** (boolean): Include data preview (default: true)
+- **`include_preview_metadata`** (boolean): Include data preview (default: true)
 
 ## Example Configuration
 

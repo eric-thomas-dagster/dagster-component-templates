@@ -20,4 +20,4 @@ attributes:
   # Organization
   description: "Customer churn risk prediction with actionable recommendations"
   group_name: customer_analytics
-  include_sample_metadata: true
+  include_preview_metadata: true

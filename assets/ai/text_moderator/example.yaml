@@ -53,4 +53,4 @@ attributes:
   # Organization
   description: "Content moderation and safety detection"
   group_name: "content_moderation"
-  include_sample_metadata: true
+  include_preview_metadata: true

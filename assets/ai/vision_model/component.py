@@ -211,7 +211,7 @@ class VisionModelComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=True,
         description="Include sample data preview in metadata"
     )
@@ -262,7 +262,7 @@ class VisionModelComponent(Component, Model, Resolvable):
         include_image_metadata = self.include_image_metadata
         description = self.description or f"Vision analysis using {provider}/{model}"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
 
         # Cost per 1M tokens (approximate, as of 2024)
         COST_PER_1M_INPUT = {
@@ -676,7 +676,6 @@ group_name=group_name,
                     value=result_df,
                     metadata={
                         **metadata,
-                        "sample": MetadataValue.md(result_df.head(10).to_markdown()),
                         "preview": MetadataValue.md(result_df.head(10).to_markdown())
                     }
                 )

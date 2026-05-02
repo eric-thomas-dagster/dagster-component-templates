@@ -23,4 +23,4 @@ attributes:
   # Organization
   description: "Standardized marketing data with unified schema"
   group_name: "marketing_standardized"
-  include_sample_metadata: true
+  include_preview_metadata: true

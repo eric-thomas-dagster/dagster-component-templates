@@ -11,4 +11,4 @@ attributes:
   # Organization
   description: "Unified customer 360 profiles"
   group_name: "customer_analytics"
-  include_sample_metadata: true
+  include_preview_metadata: true

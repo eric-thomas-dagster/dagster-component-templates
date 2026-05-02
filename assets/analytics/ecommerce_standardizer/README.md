@@ -82,7 +82,7 @@ Standardized e-commerce data with unified fields:
 - **`convert_currency`** (string): Convert all amounts to this currency
 - **`description`** (string): Asset description
 - **`group_name`** (string): Asset group (default: `ecommerce`)
-- **`include_sample_metadata`** (boolean): Include data preview (default: true)
+- **`include_preview_metadata`** (boolean): Include data preview (default: true)
 
 ## Example Configuration
 

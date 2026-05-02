@@ -295,9 +295,9 @@
       "required": false,
       "ui:widget": "key-value"
     },
-    "include_sample_metadata": {
+    "include_preview_metadata": {
       "type": "boolean",
-      "label": "Include Sample Metadata",
+      "label": "Include Preview Metadata",
       "description": "Include sample data preview in metadata",
       "required": false,
       "default": true,

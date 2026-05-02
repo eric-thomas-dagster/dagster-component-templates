@@ -37,4 +37,4 @@ attributes:
   # Organization
   description: "Reranked search results using Cohere for improved relevance"
   group_name: "reranking"
-  include_sample_metadata: true
+  include_preview_metadata: true

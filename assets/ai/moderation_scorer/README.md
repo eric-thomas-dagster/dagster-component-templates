@@ -28,7 +28,7 @@ The Moderation Scorer component analyzes content from upstream sources and assig
 - `review_threshold`: Score threshold for manual review (default: 0.4, range 0-1)
 - `description`: Asset description
 - `group_name`: Asset group for organization (default: "content_moderation")
-- `include_sample_metadata`: Include sample data preview (default: true)
+- `include_preview_metadata`: Include sample data preview (default: true)
 
 ## Usage
 

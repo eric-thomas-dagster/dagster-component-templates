@@ -154,7 +154,7 @@ class CustomerJourneyMappingComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=True,
         description="Include sample data preview in metadata"
     )
@@ -197,7 +197,7 @@ class CustomerJourneyMappingComponent(Component, Model, Resolvable):
         timestamp_field = self.timestamp_field
         description = self.description or "Customer journey mapping and analysis"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
 
         # Set up dependencies
         upstream_keys = []
@@ -509,8 +509,7 @@ group_name=group_name,
                 non_converted_sample = result_df[~result_df['converted']].head(5)
                 sample_df = pd.concat([converted_sample, non_converted_sample])
 
-                metadata['sample'] = MetadataValue.md(sample_df.to_markdown(index=False))
-                metadata['preview'] = MetadataValue.md(sample_df.to_markdown())
+                metadata['preview'] = MetadataValue.md(sample_df.to_markdown(index=False))
             context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

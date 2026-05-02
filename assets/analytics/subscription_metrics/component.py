@@ -153,7 +153,7 @@ class SubscriptionMetricsComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=True,
         description="Include sample data preview in metadata"
     )
@@ -192,7 +192,7 @@ class SubscriptionMetricsComponent(Component, Model, Resolvable):
         lookback_months = self.lookback_months
         description = self.description or "Subscription and revenue metrics (MRR, ARR, churn, LTV)"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
 
         upstream_keys = []
         if stripe_asset:

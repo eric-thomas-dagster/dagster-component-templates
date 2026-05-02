@@ -101,9 +101,9 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
         description="Path where parquet cache will be stored (auto-generated if empty)"
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=False,
-        description="Include sample data preview in metadata (first 5 rows as markdown table and interactive preview)"
+        description="Include a preview of the output data in metadata (first 5 rows as markdown table). Used by builder UIs to render asset shape without warehouse access."
     )
 
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
@@ -176,7 +176,7 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
         header_row = self.header_row
         cache_to_parquet = self.cache_to_parquet
         parquet_path = self.parquet_path
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
 
         # Parse column list
         columns_to_read = None
@@ -427,7 +427,6 @@ group_name=group_name,
                         metadata={
                             "row_count": len(df),
                             "columns": df.columns.tolist(),
-                            "sample": MetadataValue.md(df.head().to_markdown()),
                             "preview": MetadataValue.md(df.head().to_markdown())
                         }
                     )

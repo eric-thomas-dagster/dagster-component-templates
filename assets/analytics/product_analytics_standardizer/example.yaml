@@ -19,4 +19,4 @@ attributes:
   # Organization
   description: "Standardized product analytics data with unified schema"
   group_name: "analytics"
-  include_sample_metadata: true
+  include_preview_metadata: true

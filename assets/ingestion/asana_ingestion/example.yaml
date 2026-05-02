@@ -14,4 +14,4 @@ attributes:
   # Organization
   description: "Asana project management and task data"
   group_name: "asana"
-  include_sample_metadata: true
+  include_preview_metadata: true

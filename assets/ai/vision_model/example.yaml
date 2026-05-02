@@ -36,4 +36,4 @@ attributes:
   # Organization
   description: "Product image analysis using GPT-4 Vision"
   group_name: "vision"
-  include_sample_metadata: true
+  include_preview_metadata: true

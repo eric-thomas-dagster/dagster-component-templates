@@ -159,7 +159,7 @@ class PropensityScoringComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=True,
         description="Include sample data preview in metadata"
     )
@@ -202,7 +202,7 @@ class PropensityScoringComponent(Component, Model, Resolvable):
         engagement_score_field = self.engagement_score_field
         description = self.description or f"Customer {propensity_type} propensity scores"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
 
         # Build partition definition
         partitions_def = None
@@ -547,8 +547,7 @@ group_name=group_name,
                 # Sort by propensity score descending
                 result_sorted = result_df.sort_values('propensity_score', ascending=False)
 
-                metadata['sample'] = MetadataValue.md(result_sorted.head(20).to_markdown(index=False))
-                metadata['preview'] = MetadataValue.md(result_sorted.head(20).to_markdown())
+                metadata['preview'] = MetadataValue.md(result_sorted.head(20).to_markdown(index=False))
             context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

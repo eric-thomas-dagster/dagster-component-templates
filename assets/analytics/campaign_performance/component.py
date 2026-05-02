@@ -169,7 +169,7 @@ class CampaignPerformanceComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=True,
         description="Include sample data preview in metadata"
     )
@@ -215,7 +215,7 @@ class CampaignPerformanceComponent(Component, Model, Resolvable):
         revenue_field = self.revenue_field
         description = self.description or "Campaign performance analytics"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
 
         # Build partition definition
         partitions_def = None
@@ -545,8 +545,7 @@ group_name=group_name,
 
             # Return with metadata
             if include_sample and len(performance_df) > 0:
-                metadata['sample'] = MetadataValue.md(performance_df.head(10).to_markdown(index=False))
-                metadata['preview'] = MetadataValue.md(performance_df.head(10).to_markdown())
+                metadata['preview'] = MetadataValue.md(performance_df.head(10).to_markdown(index=False))
             context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

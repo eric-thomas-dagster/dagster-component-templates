@@ -144,7 +144,7 @@ class RFMSegmentationComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=True,
         description="Include sample data preview in metadata"
     )
@@ -185,7 +185,7 @@ class RFMSegmentationComponent(Component, Model, Resolvable):
         revenue_field = self.revenue_field
         description = self.description or "RFM customer segmentation"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
 
         # Set up dependencies
         upstream_keys = []
@@ -532,8 +532,7 @@ group_name=group_name,
                 # Sort by RFM score descending for better preview
                 rfm_sorted = rfm.sort_values(['r_score', 'f_score', 'm_score'], ascending=False)
 
-                metadata['sample'] = MetadataValue.md(rfm_sorted.head(10).to_markdown(index=False))
-                metadata['preview'] = MetadataValue.md(rfm_sorted.head(10).to_markdown())
+                metadata['preview'] = MetadataValue.md(rfm_sorted.head(10).to_markdown(index=False))
             context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

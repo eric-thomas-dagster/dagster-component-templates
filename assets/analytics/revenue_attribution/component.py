@@ -148,7 +148,7 @@ class RevenueAttributionComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
-    include_sample_metadata: bool = Field(
+    include_preview_metadata: bool = Field(
         default=True,
         description="Include sample data preview in metadata"
     )
@@ -188,7 +188,7 @@ class RevenueAttributionComponent(Component, Model, Resolvable):
         join_key = self.join_key
         description = self.description or "Revenue attribution by marketing campaign"
         group_name = self.group_name
-        include_sample = self.include_sample_metadata
+        include_sample = self.include_preview_metadata
 
         upstream_keys = []
         if marketing_asset:
@@ -423,7 +423,6 @@ group_name=group_name,
                 context.add_output_metadata({
                     "row_count": len(campaign_spend),
                     "total_spend": float(total_spend),
-                    "sample": MetadataValue.md(campaign_spend.head(10).to_markdown()),
                     "preview": MetadataValue.md(campaign_spend.head(10).to_markdown())
                 })
                 return campaign_spend

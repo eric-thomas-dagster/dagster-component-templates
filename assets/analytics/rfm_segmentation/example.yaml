@@ -18,4 +18,4 @@ attributes:
   # Organization
   description: "RFM customer segmentation - Champions, Loyal, At Risk, Lost"
   group_name: customer_analytics
-  include_sample_metadata: true
+  include_preview_metadata: true

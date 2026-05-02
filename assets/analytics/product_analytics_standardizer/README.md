@@ -75,7 +75,7 @@ Standardized product analytics metrics:
 - **`filter_event_name`** (string): Filter by event names (comma-separated)
 - **`description`** (string): Asset description
 - **`group_name`** (string): Asset group (default: `product_analytics`)
-- **`include_sample_metadata`** (boolean): Include data preview (default: true)
+- **`include_preview_metadata`** (boolean): Include data preview (default: true)
 
 ## Example Configuration
 

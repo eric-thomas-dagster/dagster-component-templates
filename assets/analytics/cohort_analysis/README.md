@@ -80,7 +80,7 @@ cohort_period  cohort_size  period_0  period_1  period_2  period_3
 - **`revenue_field`** (string): Custom column name (required if include_revenue=true)
 - **`description`** (string): Asset description
 - **`group_name`** (string): Asset group (default: `customer_analytics`)
-- **`include_sample_metadata`** (boolean): Include data preview (default: true)
+- **`include_preview_metadata`** (boolean): Include data preview (default: true)
 
 ## Example Configuration
 

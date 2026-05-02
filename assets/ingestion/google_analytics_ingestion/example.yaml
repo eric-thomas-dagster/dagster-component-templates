@@ -17,4 +17,4 @@ attributes:
   # Organization
   description: "Google Analytics 4 web analytics data"
   group_name: "google_analytics"
-  include_sample_metadata: true
+  include_preview_metadata: true

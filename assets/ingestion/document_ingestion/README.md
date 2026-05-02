@@ -25,7 +25,7 @@ The Document Ingestion component scans a directory for documents, extracts metad
 - `source_path`: Path to directory containing documents (optional)
 - `description`: Asset description
 - `group_name`: Asset group for organization (default: "knowledge_base")
-- `include_sample_metadata`: Include data preview in metadata (default: true)
+- `include_preview_metadata`: Include data preview in metadata (default: true)
 
 ## Usage
 

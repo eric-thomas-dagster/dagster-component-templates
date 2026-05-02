@@ -80,7 +80,7 @@ Returns a DataFrame with one row per customer and their RFM analysis:
 - **`revenue_field`** (string): Custom column name for revenue (auto-detected)
 - **`description`** (string): Asset description
 - **`group_name`** (string): Asset group (default: `customer_analytics`)
-- **`include_sample_metadata`** (boolean): Include data preview (default: true)
+- **`include_preview_metadata`** (boolean): Include data preview (default: true)
 
 ## Example Configuration
 

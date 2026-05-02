@@ -19,4 +19,4 @@ attributes:
   # Organization
   description: "E-commerce checkout funnel with conversion tracking"
   group_name: product_analytics
-  include_sample_metadata: true
+  include_preview_metadata: true

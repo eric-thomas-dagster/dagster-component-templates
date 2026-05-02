@@ -1,0 +1,8 @@
+type: dagster_component_templates.MakeGridComponent
+attributes:
+  asset_name: city_grid_cells
+  upstream_asset_key: cities_with_geometry
+  cell_size_meters: 100000
+  src_crs: "EPSG:4326"
+  metric_crs: "EPSG:3857"
+  group_name: spatial

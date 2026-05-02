@@ -1,0 +1,79 @@
+{
+  "component_type": "dagster_component_templates.MakeGridComponent",
+  "description": "Generate a regular grid of square polygons covering the bounding box of input geometries.",
+  "category": "analytics",
+  "icon": "Grid",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Result DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "geometry_column": {
+      "type": "string",
+      "label": "Geometry Column",
+      "required": true
+    },
+    "cell_size_meters": {
+      "type": "number",
+      "label": "Cell Size Meters",
+      "required": true
+    },
+    "metric_crs": {
+      "type": "string",
+      "label": "Metric Crs",
+      "required": true
+    },
+    "src_crs": {
+      "type": "string",
+      "label": "Src Crs",
+      "required": true
+    },
+    "bbox": {
+      "type": "number",
+      "label": "Bbox",
+      "required": false
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "default": false,
+      "required": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "default": 25,
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    }
+  },
+  "tags": [
+    "analytics",
+    "spatial",
+    "geopandas",
+    "grid",
+    "tiling"
+  ],
+  "name": "MakeGrid"
+}

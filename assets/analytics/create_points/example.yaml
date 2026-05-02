@@ -1,0 +1,8 @@
+type: dagster_component_templates.CreatePointsComponent
+attributes:
+  asset_name: stores_with_geometry
+  upstream_asset_key: stores_raw
+  lat_column: lat
+  lng_column: lng
+  crs: "EPSG:4326"
+  group_name: spatial

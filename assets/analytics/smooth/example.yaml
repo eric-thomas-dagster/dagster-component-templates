@@ -1,0 +1,9 @@
+type: dagster_component_templates.SmoothComponent
+attributes:
+  asset_name: simplified_zones
+  upstream_asset_key: store_service_areas
+  geometry_column: geometry
+  tolerance_meters: 500
+  metric_crs: "EPSG:3857"
+  src_crs: "EPSG:4326"
+  group_name: spatial

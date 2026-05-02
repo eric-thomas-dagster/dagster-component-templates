@@ -1058,6 +1058,33 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/bounding_box_filter/requirements.txt"
     },
     {
+      "id": "buffer",
+      "name": "Buffer",
+      "category": "analytics",
+      "description": "Buffer (expand) point or polygon geometries by a fixed radius.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/buffer",
+      "tags": [
+        "analytics",
+        "spatial",
+        "geopandas",
+        "buffer"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "geopandas",
+          "shapely"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/buffer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/buffer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/buffer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/buffer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/buffer/requirements.txt"
+    },
+    {
       "id": "campaign_performance",
       "name": "Campaign Performance",
       "category": "analytics",
@@ -1655,6 +1682,33 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/count_regression/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/count_regression/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/count_regression/requirements.txt"
+    },
+    {
+      "id": "create_points",
+      "name": "CreatePoints",
+      "category": "analytics",
+      "description": "Build a `geometry` column of shapely Points from lat/lng columns.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/create_points",
+      "tags": [
+        "analytics",
+        "spatial",
+        "geopandas",
+        "points"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "geopandas",
+          "shapely"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/create_points/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/create_points/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/create_points/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/create_points/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/create_points/requirements.txt"
     },
     {
       "id": "create_samples",
@@ -6322,6 +6376,35 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/make_columns/requirements.txt"
     },
     {
+      "id": "make_grid",
+      "name": "MakeGrid",
+      "category": "analytics",
+      "description": "Generate a regular grid of square polygons covering the bounding box of input geometries.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/make_grid",
+      "tags": [
+        "analytics",
+        "spatial",
+        "geopandas",
+        "grid",
+        "tiling"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "geopandas",
+          "shapely",
+          "numpy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/make_grid/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/make_grid/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/make_grid/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/make_grid/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/make_grid/requirements.txt"
+    },
+    {
       "id": "make_group",
       "name": "MakeGroup",
       "category": "transformation",
@@ -9852,6 +9935,34 @@
       "x-dagster-provides": [
         "slack_resource"
       ]
+    },
+    {
+      "id": "smooth",
+      "name": "Smooth",
+      "category": "analytics",
+      "description": "Simplify geometries via Douglas-Peucker, reducing point count while preserving overall shape.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/analytics/smooth",
+      "tags": [
+        "analytics",
+        "spatial",
+        "geopandas",
+        "simplify",
+        "smooth"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "geopandas",
+          "shapely"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/smooth/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/smooth/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/smooth/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/smooth/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/smooth/requirements.txt"
     },
     {
       "id": "smtp_resource",

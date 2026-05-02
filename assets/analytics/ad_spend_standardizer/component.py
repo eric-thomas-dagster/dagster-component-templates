@@ -165,6 +165,15 @@ class AdSpendStandardizerComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
+    include_preview_metadata: bool = Field(
+        default=False,
+        description=(
+            "Include a preview of the output data in metadata (first 5 rows "
+            "as a markdown table). Used by builder UIs to render asset shape "
+            "without warehouse access."
+        ),
+    )
+
     retry_policy_max_retries: Optional[int] = Field(
 
         default=None,
@@ -195,6 +204,7 @@ class AdSpendStandardizerComponent(Component, Model, Resolvable):
 
         # Capture configuration
         asset_name = self.asset_name
+        include_preview = self.include_preview_metadata
         google_ads_asset = self.google_ads_asset
         facebook_ads_asset = self.facebook_ads_asset
         other_ad_platform_asset = self.other_ad_platform_asset

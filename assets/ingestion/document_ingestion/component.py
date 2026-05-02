@@ -50,6 +50,15 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
         description="Asset description"
     )
 
+    include_preview_metadata: bool = Field(
+        default=False,
+        description=(
+            "Include a preview of the output data in metadata (first 5 rows "
+            "as a markdown table). Used by builder UIs to render asset shape "
+            "without warehouse access."
+        ),
+    )
+
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
     partition_type: Optional[str] = Field(
@@ -108,6 +117,7 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
+        include_preview = self.include_preview_metadata
         source_path = self.source_path
         description = self.description or "Documents for RAG/Q&A system"
 

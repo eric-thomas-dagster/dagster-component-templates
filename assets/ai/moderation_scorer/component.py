@@ -50,6 +50,15 @@ class ModerationScorerComponent(Component, Model, Resolvable):
         description="Asset description"
     )
 
+    include_preview_metadata: bool = Field(
+        default=False,
+        description=(
+            "Include a preview of the output data in metadata (first 5 rows "
+            "as a markdown table). Used by builder UIs to render asset shape "
+            "without warehouse access."
+        ),
+    )
+
     retry_policy_max_retries: Optional[int] = Field(
 
         default=None,
@@ -77,6 +86,7 @@ class ModerationScorerComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
+        include_preview = self.include_preview_metadata
         upstream_asset_key = self.upstream_asset_key
         description = self.description or "Content moderation scores and decisions"
 

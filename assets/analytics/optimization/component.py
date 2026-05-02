@@ -135,6 +135,15 @@ class OptimizationComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
+    include_preview_metadata: bool = Field(
+        default=False,
+        description=(
+            "Include a preview of the output data in metadata (first 5 rows "
+            "as a markdown table). Used by builder UIs to render asset shape "
+            "without warehouse access."
+        ),
+    )
+
     retry_policy_max_retries: Optional[int] = Field(
 
         default=None,
@@ -162,6 +171,7 @@ class OptimizationComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
+        include_preview = self.include_preview_metadata
         upstream_asset_key = self.upstream_asset_key
         objective_column = self.objective_column
         constraint_columns = self.constraint_columns
@@ -363,6 +373,8 @@ group_name=group_name,
                     _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
                         TableColumnLineage(_lineage_deps)
                     )
+            if include_preview and len(result_df) > 0:
+                _metadata["preview"] = MetadataValue.md(result_df.head(10).to_markdown(index=False))
             context.add_output_metadata(_metadata)
             return result_df
 

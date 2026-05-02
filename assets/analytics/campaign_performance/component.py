@@ -558,8 +558,11 @@ group_name=group_name,
 
             # Return with metadata
             if include_preview and len(performance_df) > 0:
-                _prev = performance_df.sample(preview_rows) if len(performance_df) > preview_rows * 10 else performance_df.head(preview_rows)
-                metadata['preview'] = MetadataValue.md(_prev.to_markdown(index=False))
+                try:
+                    _prev = performance_df.sample(min(preview_rows, len(performance_df))) if len(performance_df) > preview_rows * 10 else performance_df.head(preview_rows)
+                    metadata['preview'] = MetadataValue.md(_prev.to_markdown(index=False))
+                except Exception as _e:
+                    context.log.warning(f"preview emission failed: {_e}")
             context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

@@ -451,9 +451,11 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
                     "row_count": MetadataValue.int(len(df)),
                 }
                 if include_preview and len(df) > 0:
-                    _prev = df.sample(preview_rows) if len(df) > preview_rows * 10 else df.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-
+                    try:
+                        _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
                 return Output(value=df, metadata=metadata)
 
             # Other platforms: not yet implemented.

@@ -327,8 +327,11 @@ class OneHotEncodingComponent(Component, Model, Resolvable):
                         TableColumnLineage(_lineage_deps)
                     )
             if include_preview and len(out) > 0:
-                _prev = out.sample(preview_rows) if len(out) > preview_rows * 10 else out.head(preview_rows)
-                _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                try:
+                    _prev = out.sample(min(preview_rows, len(out))) if len(out) > preview_rows * 10 else out.head(preview_rows)
+                    _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                except Exception as _e:
+                    context.log.warning(f"preview emission failed: {_e}")
             context.add_output_metadata(_metadata)
 
             return out

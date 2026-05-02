@@ -899,8 +899,11 @@ Return your analysis as JSON:
                 metadata["breach_rate"] = f"{breach_count / len(result_df) * 100:.1f}%"
 
             if include_preview and len(result_df) > 0:
-                _prev = result_df.sample(preview_rows) if len(result_df) > preview_rows * 10 else result_df.head(preview_rows)
-                metadata['preview'] = MetadataValue.md(_prev.to_markdown(index=False))
+                try:
+                    _prev = result_df.sample(min(preview_rows, len(result_df))) if len(result_df) > preview_rows * 10 else result_df.head(preview_rows)
+                    metadata['preview'] = MetadataValue.md(_prev.to_markdown(index=False))
+                except Exception as _e:
+                    context.log.warning(f"preview emission failed: {_e}")
             context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

@@ -1,7 +1,7 @@
 """Snowflake Table Observation Sensor Component."""
 from typing import Optional
 import dagster as dg
-from dagster import AssetKey, AssetObservation, SensorEvaluationContext, SensorResult, sensor
+from dagster import AssetKey, AssetObservation, MetadataValue, SensorEvaluationContext, SensorResult, sensor
 from pydantic import Field
 
 class SnowflakeTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -17,6 +17,19 @@ class SnowflakeTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolv
     warehouse: Optional[str] = Field(default=None, description="Snowflake warehouse to use")
     check_interval_seconds: int = Field(default=300, description="Seconds between health checks")
     resource_key: Optional[str] = Field(default=None, description="Optional Dagster resource key.")
+    include_preview_metadata: bool = Field(
+        default=False,
+        description=(
+            "Run an extra `SELECT * LIMIT preview_rows` against the table and "
+            "include the result as a markdown preview on the AssetObservation."
+        ),
+    )
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description="Rows in the preview SELECT when include_preview_metadata=True.",
+    )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
@@ -68,8 +81,8 @@ class SnowflakeTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolv
                 # Table info
                 cursor.execute(f"SHOW TABLES LIKE '{_self.table_name}' IN SCHEMA {_self.database}.{_self.schema_name}")
                 info = cursor.fetchone()
-                conn.close()
             except Exception as e:
+                conn.close()
                 return SensorResult(skip_reason=f"Query failed: {e}")
 
             metadata = {
@@ -78,6 +91,19 @@ class SnowflakeTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolv
                 "schema": _self.schema_name,
                 "table": _self.table_name,
             }
+            if _self.include_preview_metadata and row_count > 0:
+                try:
+                    fqn = f"{_self.database}.{_self.schema_name}.{_self.table_name}"
+                    cursor.execute(f"SELECT * FROM {fqn} LIMIT {_self.preview_rows}")
+                    cols = [d[0] for d in cursor.description]
+                    rows = cursor.fetchall()
+                    if rows:
+                        import pandas as pd
+                        df = pd.DataFrame(rows, columns=cols)
+                        metadata["preview"] = MetadataValue.md(df.to_markdown(index=False))
+                except Exception as e:
+                    context.log.warning(f"Preview query failed: {e}")
+            conn.close()
             return SensorResult(asset_events=[AssetObservation(
                 asset_key=AssetKey(_self.asset_key.split("/")), metadata=metadata)])
 

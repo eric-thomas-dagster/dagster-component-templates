@@ -650,8 +650,11 @@ group_name=group_name,
 
             # Return with metadata
             if include_preview and len(recommendations) > 0:
-                _prev = recommendations.sample(preview_rows) if len(recommendations) > preview_rows * 10 else recommendations.head(preview_rows)
-                metadata['preview'] = MetadataValue.md(_prev.to_markdown(index=False))
+                try:
+                    _prev = recommendations.sample(min(preview_rows, len(recommendations))) if len(recommendations) > preview_rows * 10 else recommendations.head(preview_rows)
+                    metadata['preview'] = MetadataValue.md(_prev.to_markdown(index=False))
+                except Exception as _e:
+                    context.log.warning(f"preview emission failed: {_e}")
             context.add_output_metadata(metadata)
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

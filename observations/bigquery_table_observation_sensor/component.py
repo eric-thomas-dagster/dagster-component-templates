@@ -1,7 +1,7 @@
 """BigQuery Table Observation Sensor Component."""
 from typing import Optional
 import dagster as dg
-from dagster import AssetKey, AssetObservation, SensorEvaluationContext, SensorResult, sensor
+from dagster import AssetKey, AssetObservation, MetadataValue, SensorEvaluationContext, SensorResult, sensor
 from pydantic import Field
 
 class BigQueryTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -13,6 +13,20 @@ class BigQueryTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolva
     table_id: str = Field(description="BigQuery table ID")
     check_interval_seconds: int = Field(default=300, description="Seconds between health checks")
     resource_key: Optional[str] = Field(default=None, description="Optional Dagster resource key.")
+    include_preview_metadata: bool = Field(
+        default=False,
+        description=(
+            "Run an extra `SELECT * LIMIT preview_rows` against the table and "
+            "include the result as a markdown preview on the AssetObservation, "
+            "so builder UIs can show table contents without their own warehouse access."
+        ),
+    )
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description="Rows in the preview SELECT when include_preview_metadata=True.",
+    )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
@@ -51,6 +65,14 @@ class BigQueryTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolva
                 "dataset_id": _self.dataset_id,
                 "table_id": _self.table_id,
             }
+            if _self.include_preview_metadata:
+                try:
+                    fqn = f"`{_self.project_id}.{_self.dataset_id}.{_self.table_id}`"
+                    df = client.query(f"SELECT * FROM {fqn} LIMIT {_self.preview_rows}").to_dataframe()
+                    if len(df) > 0:
+                        metadata["preview"] = MetadataValue.md(df.to_markdown(index=False))
+                except Exception as e:
+                    context.log.warning(f"Preview query failed: {e}")
             return SensorResult(asset_events=[AssetObservation(
                 asset_key=AssetKey(_self.asset_key.split("/")), metadata=metadata)])
 

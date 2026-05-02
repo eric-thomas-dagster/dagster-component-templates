@@ -403,8 +403,11 @@ group_name=group_name,
                         TableColumnLineage(_lineage_deps)
                     )
             if include_preview and len(df) > 0:
-                _prev = df.sample(preview_rows) if len(df) > preview_rows * 10 else df.head(preview_rows)
-                _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                try:
+                    _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                    _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                except Exception as _e:
+                    context.log.warning(f"preview emission failed: {_e}")
             context.add_output_metadata(_metadata)
 
             return df

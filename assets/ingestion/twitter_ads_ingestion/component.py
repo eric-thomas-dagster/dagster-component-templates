@@ -711,9 +711,11 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
             for resource, rows in resource_metadata.items():
                 metadata[f"rows_{resource}"] = MetadataValue.int(rows)
             if include_preview and len(combined_df) > 0:
-                _prev = combined_df.sample(preview_rows) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
-                metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-
+                try:
+                    _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
+                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                except Exception as _e:
+                    context.log.warning(f"preview emission failed: {_e}")
             return Output(value=combined_df, metadata=metadata)
 
         return Definitions(assets=[twitter_ads_ingestion_asset])

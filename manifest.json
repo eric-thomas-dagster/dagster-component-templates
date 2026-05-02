@@ -5135,7 +5135,7 @@
       "id": "http_poll_sensor",
       "name": "HttpPollSensor",
       "category": "sensor",
-      "description": "Poll an HTTP endpoint and trigger a run when the response changes (by hash or JSONPath value).",
+      "description": "Poll an HTTP endpoint and trigger a run when a targeted slice of the response changes (json_path / regex / css_selector / strip_patterns).",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "sensors/http_poll_sensor",
@@ -5147,7 +5147,8 @@
       ],
       "dependencies": {
         "pip": [
-          "requests"
+          "requests",
+          "beautifulsoup4"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/http_poll_sensor/README.md",

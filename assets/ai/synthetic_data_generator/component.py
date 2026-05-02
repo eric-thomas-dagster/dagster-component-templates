@@ -44,6 +44,7 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         "orders",
         "products",
         "transactions",
+        "ab_experiment",
         "events",
         "sensors",
         "users",
@@ -340,6 +341,8 @@ group_name=group_name,
                 df = _generate_stripe_charges(row_count, self.schema_options or {})
             elif schema_type == "stripe_subscriptions":
                 df = _generate_stripe_subscriptions(row_count, self.schema_options or {})
+            elif schema_type == "ab_experiment":
+                df = _generate_ab_experiment(row_count, self.schema_options or {})
             else:
                 raise ValueError(f"Unknown schema type: {schema_type}")
 
@@ -918,5 +921,50 @@ def _generate_stripe_subscriptions(n: int, opts: Dict[str, Any]) -> pd.DataFrame
             "plan_amount": plan_amount * 100,
             "plan_interval": "month",
             "plan_nickname": plan_name,
+        })
+    return pd.DataFrame(rows)
+
+
+def _generate_ab_experiment(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
+    """Per-user A/B experiment exposure rows for stat-test demos.
+
+    Schema: experiment_id, user_id, variant ('control'|'treatment'), converted (0/1), exposed_at.
+
+    The treatment lift defaults to 30% relative — large enough that a
+    sample of 1000 will register as significant in a typical demo. Set
+    `lift` to 0.0 to simulate a null result.
+
+    opts:
+      experiment_id: str (default 'exp_001')
+      control_conversion: float (default 0.10 = 10%)
+      lift: float (default 0.3 = treatment is 30% better than control,
+        relative — i.e. treatment_conversion = control * (1 + lift))
+      treatment_share: float (default 0.5)
+      lookback_days: int (default 14)
+    """
+    experiment_id = opts.get("experiment_id", "exp_001")
+    control_conv = float(opts.get("control_conversion", 0.10))
+    lift = float(opts.get("lift", 0.3))
+    treatment_share = float(opts.get("treatment_share", 0.5))
+    lookback_days = int(opts.get("lookback_days", 14))
+    treatment_conv = max(0.0, min(1.0, control_conv * (1.0 + lift)))
+    today = datetime.now()
+
+    rows = []
+    for i in range(1, n + 1):
+        is_treatment = random.random() < treatment_share
+        variant = "treatment" if is_treatment else "control"
+        p = treatment_conv if is_treatment else control_conv
+        converted = 1 if random.random() < p else 0
+        exposed_at = today - timedelta(
+            days=random.randint(0, lookback_days),
+            seconds=random.randint(0, 86399),
+        )
+        rows.append({
+            "experiment_id": experiment_id,
+            "user_id": f"user_{i:06d}",
+            "variant": variant,
+            "converted": converted,
+            "exposed_at": exposed_at.strftime("%Y-%m-%d %H:%M:%S"),
         })
     return pd.DataFrame(rows)

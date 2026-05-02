@@ -12,7 +12,7 @@ This component creates realistic fake data based on pre-defined schemas. Perfect
 
 ## Features
 
-- **12 Pre-defined Schemas**: Customers, Orders, Products, Transactions, Events, Sensors, Users, Subscriptions, Sparse Sensors, Customer Churn Metrics, Stripe Charges, Stripe Subscriptions
+- **13 Pre-defined Schemas**: Customers, Orders, Products, Transactions, Events, Sensors, Users, Subscriptions, Sparse Sensors, Customer Churn Metrics, Stripe Charges, Stripe Subscriptions, A/B Experiment
 - **Configurable Size**: Generate 1 to 100,000 rows
 - **Reproducible**: Optional random seed for consistent data generation
 - **No External Dependencies**: Pure Python, no external APIs or services needed
@@ -135,13 +135,28 @@ Stripe-shaped subscription rows for SaaS metrics / MRR demos:
     lookback_days: 540
   ```
 
+### A/B Experiment
+Per-user exposure rows for stat-test demos (z-test, t-test, chi-squared):
+- experiment_id, user_id, variant (`control`/`treatment`), converted (0/1), exposed_at
+- Configurable lift so the treatment shows the level of effect you want
+- Customize via `schema_options`:
+  ```yaml
+  schema_options:
+    experiment_id: "exp_001"
+    control_conversion: 0.10        # 10% baseline
+    lift: 0.3                        # treatment is 30% better (relative)
+    treatment_share: 0.5
+    lookback_days: 14
+  ```
+  Set `lift: 0.0` to simulate a null result.
+
 ## Configuration
 
 ### Required Fields
 
 - **asset_name** (string): Name of the asset to create
 - **schema_type** (enum): Type of data to generate
-  - Options: `customers`, `orders`, `products`, `transactions`, `events`, `sensors`, `users`, `subscriptions`, `sparse_sensors`, `customer_churn_metrics`, `stripe_charges`, `stripe_subscriptions`
+  - Options: `customers`, `orders`, `products`, `transactions`, `events`, `sensors`, `users`, `subscriptions`, `sparse_sensors`, `customer_churn_metrics`, `stripe_charges`, `stripe_subscriptions`, `ab_experiment`
 - **row_count** (integer): Number of rows to generate (1-100,000)
 
 ### Optional Fields

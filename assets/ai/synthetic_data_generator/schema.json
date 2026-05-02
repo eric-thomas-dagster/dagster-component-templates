@@ -39,7 +39,8 @@
         "sparse_sensors",
         "customer_churn_metrics",
         "stripe_charges",
-        "stripe_subscriptions"
+        "stripe_subscriptions",
+        "ab_experiment"
       ],
       "ui:widget": "select"
     },

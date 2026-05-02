@@ -1,0 +1,70 @@
+{
+  "component_type": "dagster_component_templates.ZendeskTicketSensorComponent",
+  "description": "Trigger a run when Zendesk has new or updated tickets matching a query.",
+  "category": "sensor",
+  "icon": "Bell",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "RunRequest per new event"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "required": true
+    },
+    "asset_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Asset Keys",
+      "required": true
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "default": 60,
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "default": "STOPPED",
+      "enum": [
+        "RUNNING",
+        "STOPPED"
+      ],
+      "required": false
+    },
+    "subdomain": {
+      "type": "string",
+      "label": "Subdomain",
+      "required": true
+    },
+    "email": {
+      "type": "string",
+      "label": "Email",
+      "required": true
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "Api Token Env Var",
+      "required": true
+    },
+    "statuses": {
+      "type": "array",
+      "label": "Statuses",
+      "required": false
+    }
+  },
+  "tags": [
+    "sensor",
+    "zendesk",
+    "support",
+    "ticket"
+  ],
+  "name": "ZendeskTicketSensor"
+}

@@ -1,0 +1,7 @@
+type: dagster_component_templates.HttpPollSensorComponent
+attributes:
+  sensor_name: weather_changed_sensor
+  asset_keys: [weather_report]
+  url: "https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current=temperature_2m"
+  json_path: "current.temperature_2m"
+  minimum_interval_seconds: 300

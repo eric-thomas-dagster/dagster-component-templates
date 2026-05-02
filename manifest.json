@@ -4611,6 +4611,31 @@
       "icon": "BarChart2"
     },
     {
+      "id": "github_event_sensor",
+      "name": "GithubEventSensor",
+      "category": "sensor",
+      "description": "Trigger a run when a GitHub repo has new events (PRs opened/merged, pushes, issues).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/github_event_sensor",
+      "tags": [
+        "sensor",
+        "github",
+        "vcs",
+        "ci"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/github_event_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/github_event_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/github_event_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/github_event_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/github_event_sensor/requirements.txt"
+    },
+    {
       "id": "github_ingestion",
       "name": "GitHub Ingestion",
       "category": "ingestion",
@@ -4663,6 +4688,31 @@
       "x-dagster-provides": [
         "github_resource"
       ]
+    },
+    {
+      "id": "gitlab_event_sensor",
+      "name": "GitlabEventSensor",
+      "category": "sensor",
+      "description": "Trigger a run when a GitLab project has new events (push, merge, issue, comment).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/gitlab_event_sensor",
+      "tags": [
+        "sensor",
+        "gitlab",
+        "vcs",
+        "ci"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/gitlab_event_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/gitlab_event_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/gitlab_event_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/gitlab_event_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/gitlab_event_sensor/requirements.txt"
     },
     {
       "id": "google_ads_ingestion",
@@ -5082,6 +5132,31 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/html_parser/requirements.txt"
     },
     {
+      "id": "http_poll_sensor",
+      "name": "HttpPollSensor",
+      "category": "sensor",
+      "description": "Poll an HTTP endpoint and trigger a run when the response changes (by hash or JSONPath value).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/http_poll_sensor",
+      "tags": [
+        "sensor",
+        "http",
+        "polling",
+        "generic"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/http_poll_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/http_poll_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/http_poll_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/http_poll_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/http_poll_sensor/requirements.txt"
+    },
+    {
       "id": "http_resource",
       "name": "HTTP Resource",
       "category": "resource",
@@ -5397,6 +5472,31 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jira_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/jira_ingestion/requirements.txt",
       "icon": "si:jira"
+    },
+    {
+      "id": "jira_issue_sensor",
+      "name": "JiraIssueSensor",
+      "category": "sensor",
+      "description": "Trigger a run when Jira has new or updated issues matching a JQL query.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/jira_issue_sensor",
+      "tags": [
+        "sensor",
+        "jira",
+        "atlassian",
+        "issue-tracking"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/jira_issue_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/jira_issue_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/jira_issue_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/jira_issue_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/jira_issue_sensor/requirements.txt"
     },
     {
       "id": "jira_resource",
@@ -5981,6 +6081,30 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lift_chart/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lift_chart/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lift_chart/requirements.txt"
+    },
+    {
+      "id": "linear_issue_sensor",
+      "name": "LinearIssueSensor",
+      "category": "sensor",
+      "description": "Trigger a run when Linear has new or updated issues matching a team/state filter.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/linear_issue_sensor",
+      "tags": [
+        "sensor",
+        "linear",
+        "issue-tracking"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/linear_issue_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/linear_issue_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/linear_issue_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/linear_issue_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/linear_issue_sensor/requirements.txt"
     },
     {
       "id": "linear_regression_model",
@@ -7396,6 +7520,30 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/neural_network_model/requirements.txt"
     },
     {
+      "id": "notion_database_sensor",
+      "name": "NotionDatabaseSensor",
+      "category": "sensor",
+      "description": "Trigger a run when a Notion database has new or updated rows.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/notion_database_sensor",
+      "tags": [
+        "sensor",
+        "notion",
+        "knowledge-base"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/notion_database_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/notion_database_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/notion_database_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/notion_database_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/notion_database_sensor/requirements.txt"
+    },
+    {
       "id": "notion_ingestion",
       "name": "Notion Ingestion",
       "category": "ingestion",
@@ -7647,6 +7795,31 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/oversample_field/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/oversample_field/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/oversample_field/requirements.txt"
+    },
+    {
+      "id": "pagerduty_incident_sensor",
+      "name": "PagerDutyIncidentSensor",
+      "category": "sensor",
+      "description": "Trigger a run when PagerDuty incidents are created or change state.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/pagerduty_incident_sensor",
+      "tags": [
+        "sensor",
+        "pagerduty",
+        "incidents",
+        "oncall"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pagerduty_incident_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pagerduty_incident_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pagerduty_incident_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pagerduty_incident_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pagerduty_incident_sensor/requirements.txt"
     },
     {
       "id": "pagerduty_resource",
@@ -9163,6 +9336,31 @@
       "icon": "Server"
     },
     {
+      "id": "rss_feed_sensor",
+      "name": "RssFeedSensor",
+      "category": "sensor",
+      "description": "Trigger a run when an RSS / Atom feed publishes a new entry.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/rss_feed_sensor",
+      "tags": [
+        "sensor",
+        "rss",
+        "atom",
+        "feed"
+      ],
+      "dependencies": {
+        "pip": [
+          "feedparser"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rss_feed_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rss_feed_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rss_feed_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rss_feed_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rss_feed_sensor/requirements.txt"
+    },
+    {
       "id": "running_total",
       "name": "Running Total",
       "category": "transformation",
@@ -10492,6 +10690,30 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/stepwise/requirements.txt"
     },
     {
+      "id": "stripe_event_sensor",
+      "name": "StripeEventSensor",
+      "category": "sensor",
+      "description": "Trigger a run when Stripe emits new events (charges, subscriptions, invoices, etc).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/stripe_event_sensor",
+      "tags": [
+        "sensor",
+        "stripe",
+        "billing"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/stripe_event_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/stripe_event_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/stripe_event_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/stripe_event_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/stripe_event_sensor/requirements.txt"
+    },
+    {
       "id": "stripe_ingestion",
       "name": "Stripe Ingestion",
       "category": "ingestion",
@@ -11793,6 +12015,31 @@
       "x-dagster-provides": [
         "zendesk_resource"
       ]
+    },
+    {
+      "id": "zendesk_ticket_sensor",
+      "name": "ZendeskTicketSensor",
+      "category": "sensor",
+      "description": "Trigger a run when Zendesk has new or updated tickets matching a query.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/zendesk_ticket_sensor",
+      "tags": [
+        "sensor",
+        "zendesk",
+        "support",
+        "ticket"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/zendesk_ticket_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/zendesk_ticket_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/zendesk_ticket_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/zendesk_ticket_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/zendesk_ticket_sensor/requirements.txt"
     },
     {
       "id": "zero_shot_classifier",

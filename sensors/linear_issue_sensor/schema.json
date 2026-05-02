@@ -1,0 +1,64 @@
+{
+  "component_type": "dagster_component_templates.LinearIssueSensorComponent",
+  "description": "Trigger a run when Linear has new or updated issues matching a team/state filter.",
+  "category": "sensor",
+  "icon": "Bell",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "RunRequest per new event"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "required": true
+    },
+    "asset_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Asset Keys",
+      "required": true
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "default": 60,
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "default": "STOPPED",
+      "enum": [
+        "RUNNING",
+        "STOPPED"
+      ],
+      "required": false
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "required": true
+    },
+    "team_id": {
+      "type": "string",
+      "label": "Team Id",
+      "required": false
+    },
+    "state_types": {
+      "type": "array",
+      "label": "State Types",
+      "required": true
+    }
+  },
+  "tags": [
+    "sensor",
+    "linear",
+    "issue-tracking"
+  ],
+  "name": "LinearIssueSensor"
+}

@@ -1,0 +1,7 @@
+type: dagster_component_templates.LinearIssueSensorComponent
+attributes:
+  sensor_name: linear_active_issues_sensor
+  asset_keys: [linear_team_metrics]
+  api_key_env_var: LINEAR_API_KEY
+  state_types: [started, unstarted]
+  minimum_interval_seconds: 300

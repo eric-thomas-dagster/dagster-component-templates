@@ -1,0 +1,80 @@
+{
+  "component_type": "dagster_component_templates.HttpPollSensorComponent",
+  "description": "Poll an HTTP endpoint and trigger a run when the response changes (by hash or JSONPath value).",
+  "category": "sensor",
+  "icon": "Bell",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "RunRequest per new event"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "required": true
+    },
+    "asset_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Asset Keys",
+      "required": true
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "default": 60,
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "default": "STOPPED",
+      "enum": [
+        "RUNNING",
+        "STOPPED"
+      ],
+      "required": false
+    },
+    "url": {
+      "type": "string",
+      "label": "Url",
+      "required": true
+    },
+    "method": {
+      "type": "string",
+      "label": "Method",
+      "required": true
+    },
+    "headers": {
+      "type": "string",
+      "label": "Headers",
+      "required": false
+    },
+    "json_path": {
+      "type": "string",
+      "label": "Json Path",
+      "required": false
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "required": true
+    },
+    "expected_status": {
+      "type": "integer",
+      "label": "Expected Status",
+      "required": true
+    }
+  },
+  "tags": [
+    "sensor",
+    "http",
+    "polling",
+    "generic"
+  ],
+  "name": "HttpPollSensor"
+}

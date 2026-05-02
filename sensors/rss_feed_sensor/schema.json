@@ -1,0 +1,60 @@
+{
+  "component_type": "dagster_component_templates.RssFeedSensorComponent",
+  "description": "Trigger a run when an RSS / Atom feed publishes a new entry.",
+  "category": "sensor",
+  "icon": "Bell",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "RunRequest per new event"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "required": true
+    },
+    "asset_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Asset Keys",
+      "required": true
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "default": 60,
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "default": "STOPPED",
+      "enum": [
+        "RUNNING",
+        "STOPPED"
+      ],
+      "required": false
+    },
+    "feed_url": {
+      "type": "string",
+      "label": "Feed Url",
+      "required": true
+    },
+    "max_entries_per_tick": {
+      "type": "integer",
+      "label": "Max Entries Per Tick",
+      "required": true
+    }
+  },
+  "tags": [
+    "sensor",
+    "rss",
+    "atom",
+    "feed"
+  ],
+  "name": "RssFeedSensor"
+}

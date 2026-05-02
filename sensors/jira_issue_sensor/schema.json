@@ -1,0 +1,75 @@
+{
+  "component_type": "dagster_component_templates.JiraIssueSensorComponent",
+  "description": "Trigger a run when Jira has new or updated issues matching a JQL query.",
+  "category": "sensor",
+  "icon": "Bell",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "RunRequest per new event"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "required": true
+    },
+    "asset_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Asset Keys",
+      "required": true
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "default": 60,
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "default": "STOPPED",
+      "enum": [
+        "RUNNING",
+        "STOPPED"
+      ],
+      "required": false
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base Url",
+      "required": true
+    },
+    "email": {
+      "type": "string",
+      "label": "Email",
+      "required": true
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "Api Token Env Var",
+      "required": true
+    },
+    "jql": {
+      "type": "string",
+      "label": "Jql",
+      "required": true
+    },
+    "fields": {
+      "type": "array",
+      "label": "Fields",
+      "required": true
+    }
+  },
+  "tags": [
+    "sensor",
+    "jira",
+    "atlassian",
+    "issue-tracking"
+  ],
+  "name": "JiraIssueSensor"
+}

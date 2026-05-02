@@ -1,0 +1,65 @@
+{
+  "component_type": "dagster_component_templates.PagerDutyIncidentSensorComponent",
+  "description": "Trigger a run when PagerDuty incidents are created or change state.",
+  "category": "sensor",
+  "icon": "Bell",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "RunRequest per new event"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "required": true
+    },
+    "asset_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Asset Keys",
+      "required": true
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "default": 60,
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "default": "STOPPED",
+      "enum": [
+        "RUNNING",
+        "STOPPED"
+      ],
+      "required": false
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "required": true
+    },
+    "statuses": {
+      "type": "array",
+      "label": "Statuses",
+      "required": true
+    },
+    "urgencies": {
+      "type": "array",
+      "label": "Urgencies",
+      "required": true
+    }
+  },
+  "tags": [
+    "sensor",
+    "pagerduty",
+    "incidents",
+    "oncall"
+  ],
+  "name": "PagerDutyIncidentSensor"
+}

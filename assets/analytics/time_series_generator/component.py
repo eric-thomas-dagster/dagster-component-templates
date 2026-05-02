@@ -216,7 +216,7 @@ class TimeSeriesGeneratorComponent(Component, Model, Resolvable):
         dropout_rate = self.dropout_rate
         description = self.description or f"Time series with {pattern_type} pattern"
         group_name = self.group_name or None
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Build partition definition
         partitions_def = None
@@ -456,7 +456,7 @@ group_name=group_name,
                 f"mean={df[metric_name].mean():.2f}"
             )
 
-            if include_sample and len(df) > 0:
+            if include_preview and len(df) > 0:
                 # Return with sample metadata
                 context.add_output_metadata({
                     "row_count": len(df),

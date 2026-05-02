@@ -232,7 +232,7 @@ class MongoDBIngestionComponent(Component, Model, Resolvable):
         collection_names = self.collection_names
         description = self.description or f"MongoDB data ({', '.join(collection_names)})"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
         destination = self.destination
         dataset_name = self.dataset_name or asset_name
         persist_only = self.persist_only
@@ -424,7 +424,7 @@ class MongoDBIngestionComponent(Component, Model, Resolvable):
                     else []
                 ),
             }
-            if include_sample and len(combined_df) > 0:
+            if include_preview and len(combined_df) > 0:
                 metadata["preview"] = MetadataValue.md(combined_df.head(10).to_markdown())
 
             return Output(value=combined_df, metadata=metadata)

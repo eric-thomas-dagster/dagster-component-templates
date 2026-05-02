@@ -185,7 +185,7 @@ class RFMSegmentationComponent(Component, Model, Resolvable):
         revenue_field = self.revenue_field
         description = self.description or "RFM customer segmentation"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Set up dependencies
         upstream_keys = []
@@ -528,7 +528,7 @@ group_name=group_name,
             }
 
             # Return with metadata
-            if include_sample and len(rfm) > 0:
+            if include_preview and len(rfm) > 0:
                 # Sort by RFM score descending for better preview
                 rfm_sorted = rfm.sort_values(['r_score', 'f_score', 'm_score'], ascending=False)
 

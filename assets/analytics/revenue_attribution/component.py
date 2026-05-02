@@ -188,7 +188,7 @@ class RevenueAttributionComponent(Component, Model, Resolvable):
         join_key = self.join_key
         description = self.description or "Revenue attribution by marketing campaign"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         upstream_keys = []
         if marketing_asset:
@@ -419,7 +419,7 @@ group_name=group_name,
             context.add_output_metadata(metadata)
 
             # Return DataFrame
-            if include_sample and len(campaign_spend) > 0:
+            if include_preview and len(campaign_spend) > 0:
                 context.add_output_metadata({
                     "row_count": len(campaign_spend),
                     "total_spend": float(total_spend),

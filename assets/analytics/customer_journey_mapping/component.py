@@ -197,7 +197,7 @@ class CustomerJourneyMappingComponent(Component, Model, Resolvable):
         timestamp_field = self.timestamp_field
         description = self.description or "Customer journey mapping and analysis"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Set up dependencies
         upstream_keys = []
@@ -503,7 +503,7 @@ group_name=group_name,
             }
 
             # Return with metadata
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 # Show sample of converted and non-converted journeys
                 converted_sample = result_df[result_df['converted']].head(5)
                 non_converted_sample = result_df[~result_df['converted']].head(5)

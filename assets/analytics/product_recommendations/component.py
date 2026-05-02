@@ -221,7 +221,7 @@ class ProductRecommendationsComponent(Component, Model, Resolvable):
         category_field = self.category_field
         description = self.description or f"Product recommendations ({rec_type})"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Build partition definition
         partitions_def = None
@@ -636,7 +636,7 @@ group_name=group_name,
                 metadata['lookback_days'] = lookback_days
 
             # Return with metadata
-            if include_sample and len(recommendations) > 0:
+            if include_preview and len(recommendations) > 0:
                 metadata['preview'] = MetadataValue.md(recommendations.head(20).to_markdown(index=False))
             context.add_output_metadata(metadata)
             # Build column schema metadata

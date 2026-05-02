@@ -159,7 +159,7 @@ class DatabaseQueryComponent(Component, Model, Resolvable):
         cache_path = self.cache_path
         description = self.description or f"Query: {query[:50]}..."
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Build partition definition
         partitions_def = None
@@ -342,7 +342,7 @@ group_name=group_name,
                         )
                 context.add_output_metadata(_metadata)
 
-                if include_sample and len(df) > 0:
+                if include_preview and len(df) > 0:
                     # Return with sample metadata
                     return Output(
                         value=df,

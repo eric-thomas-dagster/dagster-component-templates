@@ -247,7 +247,7 @@ class EmbeddingsGeneratorComponent(Component, Model, Resolvable):
         track_costs = self.track_costs
         description = self.description or f"Embeddings using {provider}/{model}"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
         upstream_asset_key = self.upstream_asset_key
 
         # Approximate costs per 1M tokens (as of 2024)
@@ -658,7 +658,7 @@ group_name=group_name,
             if compute_similarity:
                 metadata["similarity_computed"] = True
 
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 # Show sample without full embedding arrays (too large)
                 sample_df = result_df.head(10).copy()
                 sample_df[output_column] = sample_df[output_column].apply(lambda x: f"[{len(x)} dims]")

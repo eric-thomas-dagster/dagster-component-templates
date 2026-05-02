@@ -273,7 +273,7 @@ class TextModeratorComponent(Component, Model, Resolvable):
         custom_profanity_str = self.custom_profanity_list
         description = self.description or f"Content moderation using {method}"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
         upstream_asset_key = self.upstream_asset_key
 
         # Cost per 1M tokens (for LLM method)
@@ -875,7 +875,7 @@ Score 0.0 = safe, 1.0 = definitely violates policy."""
             if redact_pii:
                 metadata["pii_redaction_enabled"] = True
 
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 return Output(
                     value=result_df,
                     metadata={

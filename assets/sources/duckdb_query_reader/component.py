@@ -144,7 +144,7 @@ class DuckDBQueryReaderComponent(Component, Model, Resolvable):
         query = self.query
         description = self.description or f"Query results from DuckDB"
         group_name = self.group_name or None
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Build partition definition
         partitions_def = None
@@ -288,7 +288,7 @@ group_name=group_name,
                 else:
                     context.log.warning("Query returned no rows")
 
-                if include_sample and len(df) > 0:
+                if include_preview and len(df) > 0:
                     # Return with sample metadata
                     return Output(
                         value=df,

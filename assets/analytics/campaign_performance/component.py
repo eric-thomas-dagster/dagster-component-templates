@@ -215,7 +215,7 @@ class CampaignPerformanceComponent(Component, Model, Resolvable):
         revenue_field = self.revenue_field
         description = self.description or "Campaign performance analytics"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Build partition definition
         partitions_def = None
@@ -544,7 +544,7 @@ group_name=group_name,
                 metadata['target_cpa'] = target_cpa
 
             # Return with metadata
-            if include_sample and len(performance_df) > 0:
+            if include_preview and len(performance_df) > 0:
                 metadata['preview'] = MetadataValue.md(performance_df.head(10).to_markdown(index=False))
             context.add_output_metadata(metadata)
             # Build column schema metadata

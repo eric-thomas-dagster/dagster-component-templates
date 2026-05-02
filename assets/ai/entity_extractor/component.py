@@ -283,7 +283,7 @@ class EntityExtractorComponent(Component, Model, Resolvable):
         track_costs = self.track_costs
         description = self.description or f"Entity extraction using {method}"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
         upstream_asset_key = self.upstream_asset_key
 
         # Cost per 1M tokens
@@ -821,7 +821,7 @@ Return empty array [] if no entities found."""
                 metadata["total_output_tokens"] = total_output_tokens
                 metadata["estimated_cost_usd"] = f"${total_cost:.4f}"
 
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 return Output(
                     value=result_df,
                     metadata={

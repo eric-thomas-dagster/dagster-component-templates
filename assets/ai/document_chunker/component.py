@@ -235,7 +235,7 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
         preserve_sentences = self.preserve_sentences
         description = self.description or f"Document chunks using {strategy} strategy"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
         upstream_asset_key = self.upstream_asset_key
 
         # Build partition definition
@@ -687,7 +687,7 @@ group_name=group_name,
                 "chunk_overlap": chunk_overlap,
             }
 
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 return Output(
                     value=result_df,
                     metadata={

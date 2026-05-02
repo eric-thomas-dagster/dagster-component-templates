@@ -195,7 +195,7 @@ class CohortAnalysisComponent(Component, Model, Resolvable):
         revenue_field = self.revenue_field
         description = self.description or "Cohort retention analysis"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Build partition definition
         partitions_def = None
@@ -499,7 +499,7 @@ group_name=group_name,
             }
 
             # Return with metadata
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 # Show most recent cohorts first
                 result_sorted = result_df.sort_values('cohort_period', ascending=False)
 

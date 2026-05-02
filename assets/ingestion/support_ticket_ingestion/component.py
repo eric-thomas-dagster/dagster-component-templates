@@ -218,7 +218,7 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
         platform = self.platform
         description = self.description or f"Support tickets from {platform}"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
         destination = self.destination
         dataset_name = self.dataset_name or asset_name
         persist_only = self.persist_only
@@ -379,7 +379,7 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
                             "row_count": MetadataValue.int(len(sample_df)),
                             "is_sample": MetadataValue.bool(True),
                         }
-                        if include_sample:
+                        if include_preview:
                             sample_meta["preview"] = MetadataValue.md(sample_df.head(5).to_markdown())
                         return Output(value=sample_df, metadata=sample_meta)
                     # destination mode → let dlt fail with clear creds error
@@ -436,7 +436,7 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
                     **base_metadata,
                     "row_count": MetadataValue.int(len(df)),
                 }
-                if include_sample and len(df) > 0:
+                if include_preview and len(df) > 0:
                     metadata["preview"] = MetadataValue.md(df.head(5).to_markdown())
 
                 return Output(value=df, metadata=metadata)
@@ -463,7 +463,7 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
                 "row_count": MetadataValue.int(len(sample_df)),
                 "is_sample": MetadataValue.bool(True),
             }
-            if include_sample:
+            if include_preview:
                 sample_meta["preview"] = MetadataValue.md(sample_df.head(5).to_markdown())
             return Output(value=sample_df, metadata=sample_meta)
 

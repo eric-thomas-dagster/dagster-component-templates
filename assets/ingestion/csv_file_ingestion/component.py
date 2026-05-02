@@ -176,7 +176,7 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
         header_row = self.header_row
         cache_to_parquet = self.cache_to_parquet
         parquet_path = self.parquet_path
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Parse column list
         columns_to_read = None
@@ -420,7 +420,7 @@ group_name=group_name,
                     "memory_mb": float(df.memory_usage(deep=True).sum()) / 1024 / 1024,
                 })
 
-                if include_sample and len(df) > 0:
+                if include_preview and len(df) > 0:
                     # Return with sample metadata
                     return Output(
                         value=df,

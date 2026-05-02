@@ -267,7 +267,7 @@ class RerankerComponent(Component, Model, Resolvable):
         track_costs = self.track_costs
         description = self.description or f"Reranked results using {method}"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Cohere Rerank pricing (approximate, as of 2024)
         COHERE_RERANK_COST_PER_1K_SEARCHES = 0.02  # $0.02 per 1000 searches
@@ -642,7 +642,7 @@ group_name=group_name,
                 metadata["score_min"] = f"{np.min(scores):.4f}"
                 metadata["score_max"] = f"{np.max(scores):.4f}"
 
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 return Output(
                     value=result_df,
                     metadata={

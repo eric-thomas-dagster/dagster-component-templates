@@ -213,7 +213,7 @@ class MultiTouchAttributionComponent(Component, Model, Resolvable):
         conversion_value_field = self.conversion_value_field
         description = self.description or f"Multi-touch attribution analysis ({attribution_model})"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Build partition definition
         partitions_def = None
@@ -602,7 +602,7 @@ group_name=group_name,
                 )
 
             # Return with metadata
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 metadata['preview'] = MetadataValue.md(result_df.head(20).to_markdown(index=False))
             context.add_output_metadata(metadata)
             # Build column schema metadata

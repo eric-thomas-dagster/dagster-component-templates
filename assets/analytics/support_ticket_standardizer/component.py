@@ -209,7 +209,7 @@ class SupportTicketStandardizerComponent(Component, Model, Resolvable):
         filter_date_to = self.filter_date_to
         description = self.description or f"Standardized {platform} support ticket data"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Parse upstream asset keys
         upstream_keys = []
@@ -615,7 +615,7 @@ group_name=group_name,
             context.add_output_metadata(metadata)
 
             # Return DataFrame
-            if include_sample and len(std_df) > 0:
+            if include_preview and len(std_df) > 0:
                 context.add_output_metadata({
                     "row_count": len(std_df),
                     "columns": std_df.columns.tolist(),

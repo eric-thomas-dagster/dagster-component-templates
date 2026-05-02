@@ -284,7 +284,7 @@ class AnthropicLLMComponent(Component, Model, Resolvable):
         track_costs = self.track_costs
         description = self.description or f"Anthropic Claude processing with {model}"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Cost per 1M tokens (approximate, as of 2024)
         COST_PER_1M_INPUT = {
@@ -681,7 +681,7 @@ group_name=group_name,
                     savings = (total_cache_read_tokens / 1_000_000) * (COST_PER_1M_INPUT[model] - COST_PER_1M_CACHED_INPUT[model])
                     metadata["prompt_cache_savings_usd"] = f"${savings:.4f}"
 
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 return Output(
                     value=result_df,
                     metadata={

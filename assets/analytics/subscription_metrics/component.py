@@ -192,7 +192,7 @@ class SubscriptionMetricsComponent(Component, Model, Resolvable):
         lookback_months = self.lookback_months
         description = self.description or "Subscription and revenue metrics (MRR, ARR, churn, LTV)"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         upstream_keys = []
         if stripe_asset:
@@ -504,7 +504,7 @@ group_name=group_name,
             context.add_output_metadata(metadata)
 
             # Return DataFrame
-            if include_sample:
+            if include_preview:
                 context.add_output_metadata({
                     "row_count": len(metrics_df),
                     "mrr": f"${current_mrr:,.2f}",

@@ -205,7 +205,7 @@ class Customer360Component(Component, Model, Resolvable):
         active_threshold = self.active_days_threshold
         description = self.description or "Unified customer 360 profiles"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Build dependency list
         upstream_keys = []
@@ -516,7 +516,7 @@ group_name=group_name,
             context.add_output_metadata(metadata)
 
             # Return DataFrame
-            if include_sample and len(customers) > 0:
+            if include_preview and len(customers) > 0:
                 context.add_output_metadata({
                     "row_count": len(customers),
                     "column_count": len(customers.columns),

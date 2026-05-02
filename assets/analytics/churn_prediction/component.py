@@ -201,7 +201,7 @@ class ChurnPredictionComponent(Component, Model, Resolvable):
         lifetime_days_field = self.lifetime_days_field
         description = self.description or "Customer churn risk prediction"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Build partition definition
         partitions_def = None
@@ -557,7 +557,7 @@ group_name=group_name,
             metadata['high_risk_customers'] = high_risk_count
 
             # Return with metadata
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 # Sort by risk score descending to show highest risk first
                 result_sorted = result_df.sort_values('churn_risk_score', ascending=False)
 

@@ -261,7 +261,7 @@ class SentimentAnalyzerComponent(Component, Model, Resolvable):
         max_tokens = self.max_tokens
         description = self.description or f"Sentiment analysis using {method}"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
         upstream_asset_key = self.upstream_asset_key
 
         # Build partition definition
@@ -634,7 +634,7 @@ Return your analysis as JSON:
             if detect_emotions:
                 metadata["emotion_detection"] = True
 
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 return Output(
                     value=result_df,
                     metadata={

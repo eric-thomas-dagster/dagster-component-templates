@@ -202,7 +202,7 @@ class PropensityScoringComponent(Component, Model, Resolvable):
         engagement_score_field = self.engagement_score_field
         description = self.description or f"Customer {propensity_type} propensity scores"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Build partition definition
         partitions_def = None
@@ -543,7 +543,7 @@ group_name=group_name,
             }
 
             # Return with metadata
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 # Sort by propensity score descending
                 result_sorted = result_df.sort_values('propensity_score', ascending=False)
 

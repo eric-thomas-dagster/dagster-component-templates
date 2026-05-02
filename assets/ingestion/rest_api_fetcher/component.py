@@ -223,7 +223,7 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
         verify_ssl = self.verify_ssl
         description = self.description or f"Fetch data from {api_url}"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Infer kinds from component name if not explicitly set
         _comp_name = "rest_api_fetcher"  # component directory name
@@ -563,7 +563,7 @@ group_name=group_name,
             context.add_output_metadata(metadata)
 
             # Return with sample metadata if requested and output is a DataFrame
-            if include_sample and output_format == "dataframe" and isinstance(result, pd.DataFrame) and len(result) > 0:
+            if include_preview and output_format == "dataframe" and isinstance(result, pd.DataFrame) and len(result) > 0:
                 return Output(
                     value=result,
                     metadata={

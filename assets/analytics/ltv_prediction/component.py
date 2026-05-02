@@ -196,7 +196,7 @@ class LTVPredictionComponent(Component, Model, Resolvable):
         amount_field = self.amount_field
         description = self.description or "Customer lifetime value prediction"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Build partition definition
         partitions_def = None
@@ -563,7 +563,7 @@ group_name=group_name,
             }
 
             # Return with metadata
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 # Sort by predicted LTV descending to show highest value customers first
                 result_sorted = result_df.sort_values('predicted_total_ltv', ascending=False)
 

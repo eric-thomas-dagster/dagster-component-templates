@@ -255,7 +255,7 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         upstream_asset_keys_str = self.upstream_asset_keys
         description = self.description or "Transform DataFrames from upstream assets"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Parse upstream asset keys if provided
         upstream_keys = []
@@ -683,7 +683,7 @@ group_name=group_name,
             )
 
             # Return DataFrame - IO manager will handle persistence
-            if include_sample and len(df) > 0:
+            if include_preview and len(df) > 0:
                 # Return with sample metadata
                 return Output(
                     value=df,

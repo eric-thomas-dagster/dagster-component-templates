@@ -296,7 +296,7 @@ class PriorityScorerComponent(Component, Model, Resolvable):
         track_costs = self.track_costs
         description = self.description or f"Priority scoring using {method}"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Cost per 1M tokens
         COST_PER_1M_INPUT = {
@@ -885,7 +885,7 @@ Return your analysis as JSON:
                 metadata["predicted_sla_breaches"] = breach_count
                 metadata["breach_rate"] = f"{breach_count / len(result_df) * 100:.1f}%"
 
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 metadata['preview'] = MetadataValue.md(result_df.head(10).to_markdown())
             context.add_output_metadata(metadata)
             # Build column schema metadata

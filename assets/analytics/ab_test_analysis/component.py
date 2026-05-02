@@ -204,7 +204,7 @@ class ABTestAnalysisComponent(Component, Model, Resolvable):
         timestamp_field = self.timestamp_field
         description = self.description or "A/B test statistical analysis"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Build partition definition
         partitions_def = None
@@ -559,7 +559,7 @@ group_name=group_name,
             }
 
             # Return with metadata
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 metadata['preview'] = MetadataValue.md(result_df.to_markdown(index=False))
             context.add_output_metadata(metadata)
             # Build column schema metadata

@@ -298,7 +298,7 @@ class TicketClassifierComponent(Component, Model, Resolvable):
         include_metadata_fields_str = self.include_metadata_fields
         description = self.description or f"Ticket classification using {method}"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
         upstream_asset_key = self.upstream_asset_key
 
         # Cost per 1M tokens (approximate)
@@ -836,7 +836,7 @@ Return your classification as JSON:
                 sentiment_counts = pd.Series(sentiment_results).value_counts().to_dict()
                 metadata["sentiment_distribution"] = sentiment_counts
 
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 return Output(
                     value=result_df,
                     metadata={

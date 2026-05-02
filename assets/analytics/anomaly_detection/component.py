@@ -198,7 +198,7 @@ class AnomalyDetectionComponent(Component, Model, Resolvable):
         id_field = self.id_field
         description = self.description or f"Anomaly detection ({detection_method})"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Build partition definition
         partitions_def = None
@@ -522,7 +522,7 @@ group_name=group_name,
                 "threshold": float(threshold),
             }
 
-            if include_sample and len(anomaly_df) > 0:
+            if include_preview and len(anomaly_df) > 0:
                 # Anomalies first, then a few normals — markdown preview
                 anomalies_first = pd.concat([
                     anomaly_df[anomaly_df['is_anomaly']].head(10),

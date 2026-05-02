@@ -292,7 +292,7 @@ class OpenAILLMComponent(Component, Model, Resolvable):
         track_costs = self.track_costs
         description = self.description or f"OpenAI LLM processing with {model}"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
         upstream_asset_key = self.upstream_asset_key
 
         # Cost per 1M tokens (approximate, as of 2024)
@@ -656,7 +656,7 @@ group_name=group_name,
                 "estimated_cost_usd": f"${total_cost:.4f}",
             }
 
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 return Output(
                     value=result_df,
                     metadata={

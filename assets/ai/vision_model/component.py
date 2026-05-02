@@ -262,7 +262,7 @@ class VisionModelComponent(Component, Model, Resolvable):
         include_image_metadata = self.include_image_metadata
         description = self.description or f"Vision analysis using {provider}/{model}"
         group_name = self.group_name
-        include_sample = self.include_preview_metadata
+        include_preview = self.include_preview_metadata
 
         # Cost per 1M tokens (approximate, as of 2024)
         COST_PER_1M_INPUT = {
@@ -671,7 +671,7 @@ group_name=group_name,
                 "avg_tokens_per_image": f"{total_input_tokens / total_images:.0f}" if total_images > 0 else "0",
             }
 
-            if include_sample and len(result_df) > 0:
+            if include_preview and len(result_df) > 0:
                 return Output(
                     value=result_df,
                     metadata={

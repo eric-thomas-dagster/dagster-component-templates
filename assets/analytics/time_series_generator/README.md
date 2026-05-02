@@ -70,6 +70,9 @@ Combination of trend + seasonal + noise.
 - **noise_level** (number): Random noise amount, 0.0-1.0 (default: 0.1)
 - **random_seed** (integer, optional): Seed for reproducible data
 - **metric_name** (string): Name of the value column (default: "value")
+- **series_count** (integer): Number of parallel series to emit (default: 1). With >1, each series is tagged via `group_column`. Useful for multi-sensor / multi-cohort demos.
+- **group_column** (string): Column name used to tag each series when `series_count > 1` (default: `series_id`).
+- **dropout_rate** (number): Fraction of rows to randomly drop (0.0–0.95, default: 0.0). Useful for gap-fill demos — set to 0.25 to leave ~25% gaps.
 - **description** (string): Asset description
 - **group_name** (string): Asset group for organization
 
@@ -132,6 +135,24 @@ attributes:
   noise_level: 0.15
   metric_name: errors_per_min
   description: "Error rates with occasional spikes for anomaly detection"
+```
+
+### Multi-series with Random Gaps (gap-fill demos)
+```yaml
+type: time_series_generator.TimeSeriesGeneratorComponent
+
+attributes:
+  asset_name: sensor_readings_sparse
+  pattern_type: sine_wave
+  start_date: "2026-04-01"
+  end_date: "2026-04-15"
+  frequency: "1h"
+  base_value: 22.0
+  metric_name: temperature_c
+  series_count: 3              # 3 parallel sensors
+  group_column: sensor_id      # tagged as series_0/series_1/series_2
+  dropout_rate: 0.25           # ~25% of rows dropped
+  random_seed: 42
 ```
 
 ## Output Schema

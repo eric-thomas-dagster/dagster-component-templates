@@ -12,7 +12,7 @@ This component creates realistic fake data based on pre-defined schemas. Perfect
 
 ## Features
 
-- **7 Pre-defined Schemas**: Customers, Orders, Products, Transactions, Events, Sensors, Users
+- **9 Pre-defined Schemas**: Customers, Orders, Products, Transactions, Events, Sensors, Users, Subscriptions, Sparse Sensors
 - **Configurable Size**: Generate 1 to 100,000 rows
 - **Reproducible**: Optional random seed for consistent data generation
 - **No External Dependencies**: Pure Python, no external APIs or services needed
@@ -75,18 +75,48 @@ User account data with:
 - Storage usage
 - Verification and active status
 
+### Subscriptions
+SaaS subscription rows shaped for **survival analysis** (Kaplan-Meier, Cox):
+- subscription_id, plan_tier, days_active, cancelled (event indicator), signup_date
+- Tier-dependent churn rates: free churns fast, enterprise barely churns
+- Customize via `schema_options.tiers`:
+  ```yaml
+  schema_options:
+    tiers:
+      - {name: free, weight: 0.55, daily_churn_rate: 0.020, max_days: 180}
+      - {name: pro, weight: 0.35, daily_churn_rate: 0.005, max_days: 365}
+      - {name: enterprise, weight: 0.10, daily_churn_rate: 0.001, max_days: 730}
+  ```
+
+### Sparse Sensors
+IoT sensor readings with **random gaps** for gap-fill and resample demos:
+- reading_ts, sensor_id, temperature_c
+- Multiple sensors over a configurable timespan with diurnal cycle + noise
+- Configurable dropout rate to simulate flaky devices
+- Customize via `schema_options`:
+  ```yaml
+  schema_options:
+    sensor_count: 3
+    duration_hours: 336      # 14 days * 24
+    dropout_rate: 0.25       # ~25% of rows dropped
+    base_temp: 22.0
+    noise_amplitude: 2.0
+    start_date: "2026-04-01"
+  ```
+
 ## Configuration
 
 ### Required Fields
 
 - **asset_name** (string): Name of the asset to create
 - **schema_type** (enum): Type of data to generate
-  - Options: `customers`, `orders`, `products`, `transactions`, `events`, `sensors`, `users`
+  - Options: `customers`, `orders`, `products`, `transactions`, `events`, `sensors`, `users`, `subscriptions`, `sparse_sensors`
 - **row_count** (integer): Number of rows to generate (1-100,000)
 
 ### Optional Fields
 
 - **random_seed** (integer, optional): Random seed for reproducible data. If not specified, data will be different each time.
+- **schema_options** (object, optional): Per-schema knobs. Only used by `subscriptions` (tiers list) and `sparse_sensors` (sensor_count, duration_hours, dropout_rate, base_temp, noise_amplitude, start_date).
 - **description** (string): Asset description
 - **group_name** (string): Asset group for organization
 

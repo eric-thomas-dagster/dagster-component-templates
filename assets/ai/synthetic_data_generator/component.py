@@ -1,6 +1,6 @@
 """Synthetic Data Generator Asset Component."""
 
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 import pandas as pd
 from datetime import datetime, timedelta
 import random
@@ -46,7 +46,9 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         "transactions",
         "events",
         "sensors",
-        "users"
+        "users",
+        "subscriptions",
+        "sparse_sensors",
     ] = Field(
         default="customers",
         description="Type of data schema to generate"
@@ -62,6 +64,23 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
     random_seed: Optional[int] = Field(
         default=None,
         description="Random seed for reproducible data generation (leave empty for random)"
+    )
+
+    schema_options: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Per-schema knobs. Keys recognized by specific schemas:\n"
+            "  subscriptions:\n"
+            "    tiers: list of {name, weight, daily_churn_rate, max_days}\n"
+            "      defaults: free (55%, 2%/day, 180d), pro (35%, 0.5%/day, 365d), enterprise (10%, 0.1%/day, 730d)\n"
+            "  sparse_sensors:\n"
+            "    sensor_count: int (default 3)\n"
+            "    duration_hours: int (default 336 = 14 days)\n"
+            "    dropout_rate: float in [0,1] (default 0.25)\n"
+            "    base_temp: float (default 22.0)\n"
+            "    noise_amplitude: float (default 2.0)\n"
+            "    start_date: 'YYYY-MM-DD' (default '2026-04-01')"
+        ),
     )
 
     description: Optional[str] = Field(
@@ -308,6 +327,10 @@ group_name=group_name,
                 df = _generate_sensors(row_count, target_date)
             elif schema_type == "users":
                 df = _generate_users(row_count, target_date)
+            elif schema_type == "subscriptions":
+                df = _generate_subscriptions(row_count, self.schema_options or {})
+            elif schema_type == "sparse_sensors":
+                df = _generate_sparse_sensors(row_count, self.schema_options or {})
             else:
                 raise ValueError(f"Unknown schema type: {schema_type}")
 
@@ -666,3 +689,103 @@ def _generate_users(n: int, target_date: Optional[datetime] = None) -> pd.DataFr
         })
 
     return pd.DataFrame(data)
+
+
+def _generate_subscriptions(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
+    """Generate SaaS subscription rows with tier-dependent churn.
+
+    Schema: subscription_id, plan_tier, days_active, cancelled, signup_date.
+    Designed for survival-analysis demos (Kaplan-Meier, Cox).
+
+    opts:
+      tiers: list of {name, weight, daily_churn_rate, max_days}.
+        Defaults: free (0.55w, 0.020/day, 180d), pro (0.35w, 0.005/day, 365d),
+        enterprise (0.10w, 0.001/day, 730d).
+    """
+    default_tiers = [
+        {"name": "free",       "weight": 0.55, "daily_churn_rate": 0.020, "max_days": 180},
+        {"name": "pro",        "weight": 0.35, "daily_churn_rate": 0.005, "max_days": 365},
+        {"name": "enterprise", "weight": 0.10, "daily_churn_rate": 0.001, "max_days": 730},
+    ]
+    tiers = opts.get("tiers") or default_tiers
+    weights = [t["weight"] for t in tiers]
+
+    data = []
+    today = datetime.now()
+    for i in range(n):
+        r = random.random(); cum = 0.0; chosen = tiers[-1]
+        for t, w in zip(tiers, weights):
+            cum += w
+            if r <= cum:
+                chosen = t; break
+        churn = chosen["daily_churn_rate"]
+        max_days = chosen["max_days"]
+        days = 0; cancelled = 0
+        while days < max_days:
+            days += 1
+            if random.random() < churn:
+                cancelled = 1; break
+        # Censor still-active subs at a random earlier point
+        if cancelled == 0:
+            days = random.randint(int(max_days * 0.3), max_days)
+        signup = today - timedelta(days=days + random.randint(0, 30))
+        data.append({
+            "subscription_id": f"sub_{i:05d}",
+            "plan_tier": chosen["name"],
+            "days_active": days,
+            "cancelled": cancelled,
+            "signup_date": signup.strftime("%Y-%m-%d"),
+        })
+    return pd.DataFrame(data)
+
+
+def _generate_sparse_sensors(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
+    """Generate IoT sensor readings with random gaps (for gap-fill demos).
+
+    Schema: reading_ts, sensor_id, temperature_c. Each sensor produces a
+    diurnal-cycle temperature reading; ~dropout_rate fraction of rows are
+    skipped to simulate flaky devices.
+
+    opts:
+      sensor_count: int (default 3)
+      duration_hours: int (default 336 = 14 days)
+      dropout_rate: float in [0,1] (default 0.25)
+      base_temp: float (default 22.0)
+      noise_amplitude: float (default 2.0)
+      start_date: 'YYYY-MM-DD' (default '2026-04-01')
+
+    `n` is treated as a soft cap. The full grid is sensor_count*duration_hours;
+    after dropouts the result is roughly grid*(1-dropout_rate). If `n` is
+    smaller than the resulting size, the result is truncated to `n`.
+    """
+    import math
+    sensor_count = int(opts.get("sensor_count", 3))
+    duration_hours = int(opts.get("duration_hours", 14 * 24))
+    dropout_rate = float(opts.get("dropout_rate", 0.25))
+    base_temp = float(opts.get("base_temp", 22.0))
+    noise_amp = float(opts.get("noise_amplitude", 2.0))
+    start_str = opts.get("start_date", "2026-04-01")
+    start = datetime.strptime(start_str, "%Y-%m-%d")
+
+    sensors = [
+        (f"sensor_{chr(ord('a') + i)}", base_temp + (i - sensor_count / 2) * 2.0)
+        for i in range(sensor_count)
+    ]
+
+    rows = []
+    for sid, sensor_base in sensors:
+        for hour in range(duration_hours):
+            if random.random() < dropout_rate:
+                continue
+            ts = start + timedelta(hours=hour)
+            diurnal = math.sin(2 * math.pi * (ts.hour / 24.0))
+            temp = sensor_base + diurnal * noise_amp + random.gauss(0, 0.3)
+            rows.append({
+                "reading_ts": ts.strftime("%Y-%m-%d %H:%M:%S"),
+                "sensor_id": sid,
+                "temperature_c": round(temp, 2),
+            })
+    rows.sort(key=lambda r: (r["sensor_id"], r["reading_ts"]))
+    if len(rows) > n:
+        rows = rows[:n]
+    return pd.DataFrame(rows)

@@ -21,6 +21,32 @@
       "description": "Name of the asset",
       "required": true
     },
+    "pattern_type": {
+      "type": "string",
+      "label": "Pattern Type",
+      "description": "Pattern shape to generate.",
+      "required": false,
+      "default": "complex",
+      "enum": [
+        "trend",
+        "seasonal",
+        "random_walk",
+        "sine_wave",
+        "step_function",
+        "spike",
+        "complex"
+      ],
+      "ui:widget": "select"
+    },
+    "frequency": {
+      "type": "string",
+      "label": "Frequency",
+      "description": "Sampling frequency for the time series.",
+      "required": false,
+      "default": "1h",
+      "enum": ["1min", "5min", "15min", "30min", "1h", "1d"],
+      "ui:widget": "select"
+    },
     "start_date": {
       "type": "string",
       "label": "Start Date",
@@ -60,6 +86,27 @@
       "description": "Name of the metric/value column",
       "required": false,
       "default": "value"
+    },
+    "series_count": {
+      "type": "integer",
+      "label": "Series Count",
+      "description": "Number of parallel series to emit. With >1, each series is tagged via group_column.",
+      "required": false,
+      "default": 1
+    },
+    "group_column": {
+      "type": "string",
+      "label": "Group Column",
+      "description": "Column name used to tag each series when series_count > 1.",
+      "required": false,
+      "default": "series_id"
+    },
+    "dropout_rate": {
+      "type": "number",
+      "label": "Dropout Rate",
+      "description": "Fraction of rows to randomly drop (0=dense, 0.25=leave ~25%% gaps). Useful for gap-fill demos.",
+      "required": false,
+      "default": 0.0
     },
     "description": {
       "type": "string",

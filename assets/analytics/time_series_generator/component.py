@@ -89,6 +89,25 @@ class TimeSeriesGeneratorComponent(Component, Model, Resolvable):
         description="Name of the metric/value column"
     )
 
+    series_count: int = Field(
+        default=1,
+        description="Number of parallel series to emit. With >1, each series is tagged via group_column.",
+        ge=1,
+        le=1000,
+    )
+
+    group_column: str = Field(
+        default="series_id",
+        description="Column name used to tag each series when series_count > 1.",
+    )
+
+    dropout_rate: float = Field(
+        default=0.0,
+        description="Fraction of rows to randomly drop (0=dense, 0.25=leave ~25%% gaps). Useful for gap-fill demos.",
+        ge=0.0,
+        le=0.95,
+    )
+
     description: Optional[str] = Field(
         default="",
         description="Description of the asset"
@@ -192,6 +211,9 @@ class TimeSeriesGeneratorComponent(Component, Model, Resolvable):
         noise_level = self.noise_level
         random_seed = self.random_seed
         metric_name = self.metric_name
+        series_count = self.series_count
+        group_column = self.group_column
+        dropout_rate = self.dropout_rate
         description = self.description or f"Time series with {pattern_type} pattern"
         group_name = self.group_name or None
         include_sample = self.include_sample_metadata
@@ -380,19 +402,55 @@ group_name=group_name,
             else:
                 raise ValueError(f"Unknown pattern type: {pattern_type}")
 
-            # Add noise
-            if noise_level > 0:
-                noise = np.random.normal(0, base_value * noise_level, n_points)
-                values = values + noise
+            def _build_one_series(seed_offset: int, base: float) -> np.ndarray:
+                """Generate the configured pattern at the requested length."""
+                if pattern_type == "trend":
+                    v = _generate_trend(n_points, base, slope=0.5)
+                elif pattern_type == "seasonal":
+                    v = _generate_seasonal(n_points, base, date_range)
+                elif pattern_type == "random_walk":
+                    v = _generate_random_walk(n_points, base)
+                elif pattern_type == "sine_wave":
+                    v = _generate_sine_wave(n_points, base)
+                elif pattern_type == "step_function":
+                    v = _generate_step_function(n_points, base)
+                elif pattern_type == "spike":
+                    v = _generate_spike(n_points, base)
+                elif pattern_type == "complex":
+                    v = _generate_complex(n_points, base, date_range)
+                else:
+                    raise ValueError(f"Unknown pattern type: {pattern_type}")
+                if noise_level > 0:
+                    v = v + np.random.normal(0, base * noise_level, n_points)
+                return v
 
-            # Create DataFrame
-            df = pd.DataFrame({
-                "timestamp": date_range,
-                metric_name: values
-            })
+            if series_count == 1:
+                # Single-series path keeps the original output shape.
+                if noise_level > 0:
+                    values = values + np.random.normal(0, base_value * noise_level, n_points)
+                df = pd.DataFrame({"timestamp": date_range, metric_name: values})
+            else:
+                # Multi-series: regenerate per series, tag with group_column.
+                # Each series gets a slightly offset baseline so curves are visually distinct.
+                frames = []
+                for s in range(series_count):
+                    base = base_value + (s - series_count / 2.0) * (base_value * 0.05)
+                    sv = _build_one_series(s, base)
+                    frames.append(pd.DataFrame({
+                        "timestamp": date_range,
+                        group_column: f"series_{s}",
+                        metric_name: sv,
+                    }))
+                df = pd.concat(frames, ignore_index=True)
+
+            # Apply dropout last so it punches holes in whatever shape we built.
+            if dropout_rate > 0:
+                keep_mask = np.random.random(len(df)) >= dropout_rate
+                df = df.loc[keep_mask].reset_index(drop=True)
 
             context.log.info(
-                f"Generated time series with {len(df)} points, "
+                f"Generated {len(df)} points "
+                f"(series_count={series_count}, dropout_rate={dropout_rate}), "
                 f"min={df[metric_name].min():.2f}, "
                 f"max={df[metric_name].max():.2f}, "
                 f"mean={df[metric_name].mean():.2f}"

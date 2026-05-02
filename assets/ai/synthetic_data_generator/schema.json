@@ -21,6 +21,32 @@
       "description": "Name of the asset",
       "required": true
     },
+    "schema_type": {
+      "type": "string",
+      "label": "Schema Type",
+      "description": "Pre-defined data shape to generate.",
+      "required": false,
+      "default": "customers",
+      "enum": [
+        "customers",
+        "orders",
+        "products",
+        "transactions",
+        "events",
+        "sensors",
+        "users",
+        "subscriptions",
+        "sparse_sensors"
+      ],
+      "ui:widget": "select"
+    },
+    "schema_options": {
+      "type": "object",
+      "label": "Schema Options",
+      "description": "Per-schema knobs. For 'subscriptions': tiers list. For 'sparse_sensors': sensor_count, duration_hours, dropout_rate, base_temp, noise_amplitude, start_date.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
     "row_count": {
       "type": "integer",
       "label": "Row Count",

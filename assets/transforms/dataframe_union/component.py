@@ -164,54 +164,54 @@ class DataframeUnion(Component, Model, Resolvable):
 
         @asset(partitions_def=partitions_def, name=asset_name, ins=ins, group_name=group_name)
         def _asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
-            # Filter to current partition if partitioned
+            dfs = list(kwargs.values())
+            result = pd.concat(dfs, ignore_index=ignore_index, join=join)
+
+            # Per-partition row filter (rare for a union, but supported for symmetry)
             if context.has_partition_key:
                 _pk = context.partition_key
                 _is_multi = hasattr(_pk, "keys_by_dimension")
                 _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
                 _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-            dfs = list(kwargs.values())
-            # Build column schema metadata
+                if partition_date_column and partition_date_column in result.columns and _date_key:
+                    result = result[result[partition_date_column].astype(str) == _date_key]
+                if partition_static_column and partition_static_column in result.columns and _static_key:
+                    result = result[result[partition_static_column].astype(str) == _static_key]
+                elif partition_static_column and partition_static_column in result.columns and not _is_multi:
+                    result = result[result[partition_static_column].astype(str) == str(_pk)]
+
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[
-                TableColumn(name=str(col), type=str(pd.dtypes[col]))
-                for col in pd.columns
+                TableColumn(name=str(col), type=str(result.dtypes[col]))
+                for col in result.columns
             ])
             _metadata = {
-                "dagster/row_count": MetadataValue.int(len(pd)),
+                "dagster/row_count": MetadataValue.int(len(result)),
                 "dagster/column_schema": MetadataValue.table_schema(_col_schema),
             }
-            # Use explicit lineage, or auto-infer passthrough columns at runtime
-            _effective_lineage = column_lineage
-            if not _effective_lineage:
-                try:
-                    _upstream_cols = set(upstream.columns)
-                    _effective_lineage = {
-                        col: [col] for col in _col_schema.columns_by_name
-                        if col in _upstream_cols
-                    }
-                except Exception:
-                    pass
-            if _effective_lineage:
-                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
-                if _upstream_key:
-                    _lineage_deps = {}
-                    for out_col, in_cols in _effective_lineage.items():
-                        _lineage_deps[out_col] = [
-                            TableColumnDep(asset_key=_upstream_key, column_name=ic)
-                            for ic in in_cols
-                        ]
+            # Column lineage: each output col flows from every upstream that contained it.
+            try:
+                _lineage_deps: dict = {}
+                for out_col in _col_schema.columns_by_name:
+                    deps = []
+                    for upstream_key, df in zip(upstream_asset_keys, dfs):
+                        if out_col in df.columns:
+                            deps.append(
+                                TableColumnDep(
+                                    asset_key=AssetKey.from_user_string(upstream_key),
+                                    column_name=out_col,
+                                )
+                            )
+                    if deps:
+                        _lineage_deps[out_col] = deps
+                if _lineage_deps:
                     _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
                         TableColumnLineage(_lineage_deps)
                     )
+            except Exception:
+                pass
             context.add_output_metadata(_metadata)
-            return pd.concat(dfs, ignore_index=ignore_index, join=join)
+            return result
 
         from dagster import build_column_schema_change_checks
 

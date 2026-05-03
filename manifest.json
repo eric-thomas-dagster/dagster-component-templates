@@ -283,6 +283,32 @@
       "icon": "si:microsoftazure"
     },
     {
+      "id": "airbyte_assets",
+      "name": "AirbyteAssets",
+      "category": "integration",
+      "description": "Import each Airbyte connection as a Dagster external asset via dagster-airbyte.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/airbyte_assets",
+      "tags": [
+        "integration",
+        "airbyte",
+        "elt",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-airbyte"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airbyte_assets/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airbyte_assets/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airbyte_assets/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airbyte_assets/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airbyte_assets/requirements.txt"
+    },
+    {
       "id": "airbyte_sync_sensor",
       "name": "Airbyte Sync Sensor",
       "category": "sensor",
@@ -306,6 +332,32 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/airbyte_sync_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/airbyte_sync_sensor/requirements.txt",
       "icon": "si:airbyte"
+    },
+    {
+      "id": "airlift_dag_assets",
+      "name": "AirliftDagAssets",
+      "category": "integration",
+      "description": "Mirror an Airflow DAG as Dagster assets via dagster-airlift.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/airlift_dag_assets",
+      "tags": [
+        "integration",
+        "airflow",
+        "migration",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-airlift"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airlift_dag_assets/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airlift_dag_assets/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airlift_dag_assets/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airlift_dag_assets/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airlift_dag_assets/requirements.txt"
     },
     {
       "id": "airtable_ingestion",
@@ -1248,6 +1300,32 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cassandra_writer/requirements.txt"
     },
     {
+      "id": "census_sync_asset",
+      "name": "CensusSyncAsset",
+      "category": "integration",
+      "description": "Run a Census reverse-ETL sync on materialization via dagster-census.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/census_sync_asset",
+      "tags": [
+        "integration",
+        "census",
+        "reverse-etl",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-census"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/census_sync_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/census_sync_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/census_sync_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/census_sync_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/census_sync_asset/requirements.txt"
+    },
+    {
       "id": "chroma_resource",
       "name": "Chroma Resource",
       "category": "resource",
@@ -1357,7 +1435,7 @@
       "id": "clickhouse_io_manager",
       "name": "ClickHouseIOManager",
       "category": "io_manager",
-      "description": "Persist DataFrames to ClickHouse, one table per asset (columnar OLAP).",
+      "description": "Wrap dagster-clickhouse-pandas's ClickhousePandasIOManager so DataFrame assets persist to ClickHouse.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "io_managers/clickhouse_io_manager",
@@ -1365,12 +1443,12 @@
         "io_manager",
         "clickhouse",
         "olap",
-        "columnar"
+        "official"
       ],
       "dependencies": {
         "pip": [
-          "pandas",
-          "clickhouse-connect"
+          "dagster",
+          "dagster-clickhouse-pandas"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/clickhouse_io_manager/README.md",
@@ -1378,6 +1456,34 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/clickhouse_io_manager/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/clickhouse_io_manager/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/clickhouse_io_manager/requirements.txt"
+    },
+    {
+      "id": "clickhouse_polars_io_manager",
+      "name": "ClickhousePolarsIOManager",
+      "category": "io_manager",
+      "description": "Wrap dagster-clickhouse-polars's ClickhousePolarsIOManager so polars.DataFrame assets persist to ClickHouse.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "io_managers/clickhouse_polars_io_manager",
+      "tags": [
+        "io_manager",
+        "clickhouse",
+        "polars",
+        "olap",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-clickhouse-polars",
+          "polars"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/clickhouse_polars_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/clickhouse_polars_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/clickhouse_polars_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/clickhouse_polars_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/clickhouse_polars_io_manager/requirements.txt"
     },
     {
       "id": "clickhouse_table_observation_sensor",
@@ -2060,6 +2166,34 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_segmentation/example.yaml",
       "icon": "si:segment",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/customer_segmentation/requirements.txt"
+    },
+    {
+      "id": "dagstermill_notebook_asset",
+      "name": "DagstermillNotebookAsset",
+      "category": "infrastructure",
+      "description": "Run a Jupyter notebook as a Dagster asset via dagstermill.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/dagstermill_notebook_asset",
+      "tags": [
+        "infrastructure",
+        "jupyter",
+        "notebook",
+        "papermill",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagstermill",
+          "ipykernel"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dagstermill_notebook_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dagstermill_notebook_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dagstermill_notebook_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dagstermill_notebook_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dagstermill_notebook_asset/requirements.txt"
     },
     {
       "id": "data_cleansing",
@@ -2847,6 +2981,33 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dlt_dataframe_writer/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dlt_dataframe_writer/requirements.txt",
       "icon": "ArrowDownToLine"
+    },
+    {
+      "id": "dlt_pipeline_assets",
+      "name": "DltPipelineAssets",
+      "category": "integration",
+      "description": "Run a dlt (data-load-tool) pipeline as Dagster assets via dagster-dlt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/dlt_pipeline_assets",
+      "tags": [
+        "integration",
+        "dlt",
+        "elt",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-dlt",
+          "dlt"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/dlt_pipeline_assets/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/dlt_pipeline_assets/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/dlt_pipeline_assets/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/dlt_pipeline_assets/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/dlt_pipeline_assets/requirements.txt"
     },
     {
       "id": "document_chunker",
@@ -4375,6 +4536,32 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/firestore_writer/requirements.txt"
     },
     {
+      "id": "fivetran_assets",
+      "name": "FivetranAssets",
+      "category": "integration",
+      "description": "Import each Fivetran connector as a Dagster external asset via dagster-fivetran.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/fivetran_assets",
+      "tags": [
+        "integration",
+        "fivetran",
+        "elt",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-fivetran"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/fivetran_assets/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/fivetran_assets/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/fivetran_assets/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/fivetran_assets/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/fivetran_assets/requirements.txt"
+    },
+    {
       "id": "fivetran_sync_sensor",
       "name": "Fivetran Sync Sensor",
       "category": "sensor",
@@ -5279,6 +5466,32 @@
       "component_type": "dagster_component_templates.HelmDeployComponent"
     },
     {
+      "id": "hex_project_assets",
+      "name": "HexProjectAssets",
+      "category": "integration",
+      "description": "Run a Hex project on materialization via dagster-hex.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/hex_project_assets",
+      "tags": [
+        "integration",
+        "hex",
+        "notebook",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-hex"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hex_project_assets/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hex_project_assets/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hex_project_assets/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hex_project_assets/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hex_project_assets/requirements.txt"
+    },
+    {
       "id": "html_parser",
       "name": "Html Parser",
       "category": "transformation",
@@ -5411,7 +5624,7 @@
       "id": "iceberg_io_manager",
       "name": "IcebergIOManager",
       "category": "io_manager",
-      "description": "Persist DataFrames as Apache Iceberg tables via PyIceberg.",
+      "description": "Wrap the official `dagster-iceberg` IcebergPyarrowIOManager so assets persist as Iceberg tables.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "io_managers/iceberg_io_manager",
@@ -5423,8 +5636,8 @@
       ],
       "dependencies": {
         "pip": [
-          "pandas",
-          "pyiceberg",
+          "dagster",
+          "dagster-iceberg",
           "pyarrow"
         ]
       },
@@ -6753,6 +6966,32 @@
       "icon": "BarChart2"
     },
     {
+      "id": "looker_assets",
+      "name": "LookerAssets",
+      "category": "integration",
+      "description": "Import Looker LookML views + dashboards as Dagster external assets via dagster-looker.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/looker_assets",
+      "tags": [
+        "integration",
+        "looker",
+        "bi",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-looker"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/looker_assets/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/looker_assets/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/looker_assets/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/looker_assets/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/looker_assets/requirements.txt"
+    },
+    {
       "id": "ltv_prediction",
       "name": "LTV Prediction",
       "category": "analytics",
@@ -7527,6 +7766,32 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mssql_io_manager/requirements.txt"
     },
     {
+      "id": "msteams_resource",
+      "name": "MSTeamsResource",
+      "category": "resource",
+      "description": "Microsoft Teams notification resource via dagster-msteams.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/msteams_resource",
+      "tags": [
+        "resource",
+        "msteams",
+        "notification",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-msteams"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/msteams_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/msteams_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/msteams_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/msteams_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/msteams_resource/requirements.txt"
+    },
+    {
       "id": "multi_field_binning",
       "name": "MultiFieldBinning",
       "category": "transformation",
@@ -8251,6 +8516,33 @@
       ]
     },
     {
+      "id": "pandera_asset_check",
+      "name": "PanderaAssetCheck",
+      "category": "check",
+      "description": "Validate a DataFrame asset against a Pandera schema as a Dagster asset check.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "asset_checks/pandera_asset_check",
+      "tags": [
+        "check",
+        "pandera",
+        "schema",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-pandera",
+          "pandera"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/pandera_asset_check/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/pandera_asset_check/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/pandera_asset_check/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/pandera_asset_check/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/pandera_asset_check/requirements.txt"
+    },
+    {
       "id": "part_of_speech_tagger",
       "name": "Part Of Speech Tagger",
       "category": "ai",
@@ -8610,7 +8902,7 @@
       "id": "polars_io_manager",
       "name": "PolarsIOManager",
       "category": "io_manager",
-      "description": "Persist Polars DataFrames as Parquet files locally (alternative to pandas).",
+      "description": "Wrap the official `dagster-polars` PolarsParquetIOManager so polars.DataFrame assets persist as Parquet.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "io_managers/polars_io_manager",
@@ -8622,6 +8914,8 @@
       ],
       "dependencies": {
         "pip": [
+          "dagster",
+          "dagster-polars",
           "polars",
           "pyarrow"
         ]
@@ -8882,6 +9176,33 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/product_usage_analytics/example.yaml",
       "icon": "BarChart2",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/product_usage_analytics/requirements.txt"
+    },
+    {
+      "id": "prometheus_resource",
+      "name": "PrometheusResource",
+      "category": "resource",
+      "description": "Push metrics to a Prometheus pushgateway via dagster-prometheus.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/prometheus_resource",
+      "tags": [
+        "resource",
+        "prometheus",
+        "metrics",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-prometheus",
+          "prometheus_client"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/prometheus_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/prometheus_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/prometheus_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/prometheus_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/prometheus_resource/requirements.txt"
     },
     {
       "id": "propensity_scoring",
@@ -10379,6 +10700,32 @@
       "icon": "Radar"
     },
     {
+      "id": "shell_command_asset",
+      "name": "ShellCommandAsset",
+      "category": "infrastructure",
+      "description": "Run a shell command as a Dagster asset via dagster-shell.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/shell_command_asset",
+      "tags": [
+        "infrastructure",
+        "shell",
+        "exec",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-shell"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/shell_command_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/shell_command_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/shell_command_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/shell_command_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/shell_command_asset/requirements.txt"
+    },
+    {
       "id": "shipping_label_extractor",
       "name": "Shipping Label Extractor",
       "category": "ai",
@@ -10483,6 +10830,32 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/sifflet_check/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/sifflet_check/requirements.txt",
       "icon": "CheckCircle"
+    },
+    {
+      "id": "sigma_assets",
+      "name": "SigmaAssets",
+      "category": "integration",
+      "description": "Import Sigma workbooks + datasets as Dagster external assets via dagster-sigma.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/sigma_assets",
+      "tags": [
+        "integration",
+        "sigma",
+        "bi",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-sigma"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sigma_assets/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sigma_assets/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sigma_assets/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sigma_assets/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sigma_assets/requirements.txt"
     },
     {
       "id": "simulation_sampling",
@@ -10693,6 +11066,34 @@
       "x-dagster-provides": [
         "io_manager"
       ]
+    },
+    {
+      "id": "snowflake_polars_io_manager",
+      "name": "SnowflakePolarsIOManager",
+      "category": "io_manager",
+      "description": "Wrap dagster-snowflake-polars so polars.DataFrame assets persist to Snowflake.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "io_managers/snowflake_polars_io_manager",
+      "tags": [
+        "io_manager",
+        "snowflake",
+        "polars",
+        "warehouse",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-snowflake-polars",
+          "polars"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_polars_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_polars_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_polars_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_polars_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_polars_io_manager/requirements.txt"
     },
     {
       "id": "snowflake_resource",
@@ -11405,6 +11806,32 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/synthetic_data_generator/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/synthetic_data_generator/requirements.txt",
       "icon": "Sparkles"
+    },
+    {
+      "id": "tableau_assets",
+      "name": "TableauAssets",
+      "category": "integration",
+      "description": "Import Tableau workbooks + sheets as Dagster external assets via dagster-tableau.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/tableau_assets",
+      "tags": [
+        "integration",
+        "tableau",
+        "bi",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-tableau"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/tableau_assets/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/tableau_assets/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/tableau_assets/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/tableau_assets/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/tableau_assets/requirements.txt"
     },
     {
       "id": "tecton_asset",

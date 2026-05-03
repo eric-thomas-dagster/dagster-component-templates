@@ -1,20 +1,19 @@
 {
-  "component_type": "dagster_component_templates.ClickHouseIOManagerComponent",
-  "description": "Persist DataFrames to ClickHouse, one table per asset (columnar OLAP).",
+  "component_type": "dagster_component_templates.ClickhouseIOManagerComponent",
+  "description": "Wrap dagster-clickhouse-pandas's ClickhousePandasIOManager so DataFrame assets persist to ClickHouse.",
   "category": "io_manager",
   "icon": "Save",
   "x-dagster-io": {
     "outputs": {
-      "type": "IOManager",
-      "description": "Resource"
+      "type": "io_manager",
+      "description": "Wrap dagster-clickhouse-pandas's ClickhousePandasIOManager so DataFrame assets persist to ClickHouse."
     }
   },
   "attributes": {
     "resource_key": {
       "type": "string",
       "label": "Resource Key",
-      "default": "io_manager",
-      "required": false
+      "required": true
     },
     "host": {
       "type": "string",
@@ -51,7 +50,7 @@
     "io_manager",
     "clickhouse",
     "olap",
-    "columnar"
+    "official"
   ],
-  "name": "ClickHouseIOManager"
+  "name": "ClickhouseIOManager"
 }

@@ -1,0 +1,59 @@
+{
+  "component_type": "dagster_component_templates.ShellCommandAssetComponent",
+  "description": "Run a shell command as a Dagster asset via dagster-shell.",
+  "category": "infrastructure",
+  "icon": "Terminal",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "infrastructure",
+      "description": "Run a shell command as a Dagster asset via dagster-shell."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "command": {
+      "type": "string",
+      "label": "Command",
+      "required": true
+    },
+    "cwd": {
+      "type": "string",
+      "label": "Cwd",
+      "required": false
+    },
+    "env_vars": {
+      "type": "object",
+      "label": "Env Vars",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": true
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "shell",
+    "exec",
+    "official"
+  ],
+  "name": "ShellCommandAsset"
+}

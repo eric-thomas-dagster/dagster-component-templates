@@ -1,0 +1,46 @@
+{
+  "component_type": "dagster_component_templates.DltPipelineAssetsComponent",
+  "description": "Run a dlt (data-load-tool) pipeline as Dagster assets via dagster-dlt.",
+  "category": "integration",
+  "icon": "ArrowRight",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "Run a dlt (data-load-tool) pipeline as Dagster assets via dagster-dlt."
+    }
+  },
+  "attributes": {
+    "pipeline_module": {
+      "type": "string",
+      "label": "Pipeline Module",
+      "required": true
+    },
+    "pipeline_name": {
+      "type": "string",
+      "label": "Pipeline Name",
+      "required": true
+    },
+    "source_module": {
+      "type": "string",
+      "label": "Source Module",
+      "required": true
+    },
+    "source_name": {
+      "type": "string",
+      "label": "Source Name",
+      "required": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": true
+    }
+  },
+  "tags": [
+    "integration",
+    "dlt",
+    "elt",
+    "official"
+  ],
+  "name": "DltPipelineAssets"
+}

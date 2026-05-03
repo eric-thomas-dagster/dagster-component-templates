@@ -1,0 +1,50 @@
+{
+  "component_type": "dagster_component_templates.DagstermillNotebookAssetComponent",
+  "description": "Run a Jupyter notebook as a Dagster asset via dagstermill.",
+  "category": "infrastructure",
+  "icon": "BookOpen",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "infrastructure",
+      "description": "Run a Jupyter notebook as a Dagster asset via dagstermill."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "notebook_path": {
+      "type": "string",
+      "label": "Notebook Path",
+      "required": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": true
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "jupyter",
+    "notebook",
+    "papermill",
+    "official"
+  ],
+  "name": "DagstermillNotebookAsset"
+}

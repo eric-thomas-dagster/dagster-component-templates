@@ -1,0 +1,7 @@
+type: dagster_component_templates.DltPipelineAssetsComponent
+attributes:
+  pipeline_module: <fill in>
+  pipeline_name: <fill in>
+  source_module: <fill in>
+  source_name: <fill in>
+  group_name: <fill in>

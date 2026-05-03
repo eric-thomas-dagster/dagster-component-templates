@@ -1,0 +1,9 @@
+type: dagster_component_templates.ShellCommandAssetComponent
+attributes:
+  asset_name: <fill in>
+  command: <fill in>
+  cwd: <fill in>
+  env_vars: <fill in>
+  group_name: <fill in>
+  description: <fill in>
+  deps: <fill in>

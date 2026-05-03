@@ -1,0 +1,41 @@
+{
+  "component_type": "dagster_component_templates.CensusSyncAssetComponent",
+  "description": "Run a Census reverse-ETL sync on materialization via dagster-census.",
+  "category": "integration",
+  "icon": "ArrowRight",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "Run a Census reverse-ETL sync on materialization via dagster-census."
+    }
+  },
+  "attributes": {
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "required": true
+    },
+    "sync_id": {
+      "type": "string",
+      "label": "Sync Id",
+      "required": true
+    },
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": true
+    }
+  },
+  "tags": [
+    "integration",
+    "census",
+    "reverse-etl",
+    "official"
+  ],
+  "name": "CensusSyncAsset"
+}

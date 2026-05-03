@@ -1,0 +1,57 @@
+{
+  "component_type": "dagster_component_templates.ClickhousePolarsIOManagerComponent",
+  "description": "Wrap dagster-clickhouse-polars's ClickhousePolarsIOManager so polars.DataFrame assets persist to ClickHouse.",
+  "category": "io_manager",
+  "icon": "Save",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "io_manager",
+      "description": "Wrap dagster-clickhouse-polars's ClickhousePolarsIOManager so polars.DataFrame assets persist to ClickHouse."
+    }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": true
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "required": true
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "required": true
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "required": true
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": true
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "required": true
+    },
+    "secure": {
+      "type": "boolean",
+      "label": "Secure",
+      "required": true
+    }
+  },
+  "tags": [
+    "io_manager",
+    "clickhouse",
+    "polars",
+    "olap",
+    "official"
+  ],
+  "name": "ClickhousePolarsIOManager"
+}

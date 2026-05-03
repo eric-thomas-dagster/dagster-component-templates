@@ -1,0 +1,5 @@
+type: dagster_component_templates.MSTeamsResourceComponent
+attributes:
+  webhook_url_env_var: <fill in>
+  timeout_seconds: <fill in>
+  resource_key: <fill in>

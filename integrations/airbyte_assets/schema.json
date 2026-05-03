@@ -1,0 +1,49 @@
+{
+  "component_type": "dagster_component_templates.AirbyteAssetsComponent",
+  "description": "Import each Airbyte connection as a Dagster external asset via dagster-airbyte.",
+  "category": "integration",
+  "icon": "Cloud",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "Import each Airbyte connection as a Dagster external asset via dagster-airbyte."
+    }
+  },
+  "attributes": {
+    "workspace_id": {
+      "type": "string",
+      "label": "Workspace Id",
+      "required": true
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client Id Env Var",
+      "required": true
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "required": true
+    },
+    "connection_filter": {
+      "type": "array",
+      "label": "Connection Filter",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": true
+    }
+  },
+  "tags": [
+    "integration",
+    "airbyte",
+    "elt",
+    "official"
+  ],
+  "name": "AirbyteAssets"
+}

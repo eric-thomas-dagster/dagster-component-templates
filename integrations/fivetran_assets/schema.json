@@ -1,0 +1,49 @@
+{
+  "component_type": "dagster_component_templates.FivetranAssetsComponent",
+  "description": "Import each Fivetran connector as a Dagster external asset via dagster-fivetran.",
+  "category": "integration",
+  "icon": "Cloud",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "Import each Fivetran connector as a Dagster external asset via dagster-fivetran."
+    }
+  },
+  "attributes": {
+    "account_id": {
+      "type": "string",
+      "label": "Account Id",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "required": true
+    },
+    "api_secret_env_var": {
+      "type": "string",
+      "label": "Api Secret Env Var",
+      "required": true
+    },
+    "connector_filter": {
+      "type": "array",
+      "label": "Connector Filter",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": true
+    }
+  },
+  "tags": [
+    "integration",
+    "fivetran",
+    "elt",
+    "official"
+  ],
+  "name": "FivetranAssets"
+}

@@ -1,12 +1,12 @@
 {
   "component_type": "dagster_component_templates.PolarsIOManagerComponent",
-  "description": "Persist Polars DataFrames as Parquet files locally (alternative to pandas).",
+  "description": "Wrap the official `dagster-polars` PolarsParquetIOManager so polars.DataFrame assets persist as Parquet.",
   "category": "io_manager",
   "icon": "Save",
   "x-dagster-io": {
     "outputs": {
       "type": "IOManager",
-      "description": "Resource"
+      "description": "Wrap the official `dagster-polars` PolarsParquetIOManager so polars.DataFrame assets persist as Parquet."
     }
   },
   "attributes": {
@@ -26,7 +26,7 @@
     "io_manager",
     "polars",
     "parquet",
-    "local"
+    "official"
   ],
   "name": "PolarsIOManager"
 }

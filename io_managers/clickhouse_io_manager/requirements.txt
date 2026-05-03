@@ -1,2 +1,2 @@
-pandas
-clickhouse-connect
+dagster
+dagster-clickhouse-pandas

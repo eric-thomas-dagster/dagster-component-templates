@@ -1,0 +1,36 @@
+{
+  "component_type": "dagster_component_templates.PrometheusResourceComponent",
+  "description": "Push metrics to a Prometheus pushgateway via dagster-prometheus.",
+  "category": "resource",
+  "icon": "Activity",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "resource",
+      "description": "Push metrics to a Prometheus pushgateway via dagster-prometheus."
+    }
+  },
+  "attributes": {
+    "gateway": {
+      "type": "string",
+      "label": "Gateway",
+      "required": true
+    },
+    "timeout": {
+      "type": "integer",
+      "label": "Timeout",
+      "required": true
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": true
+    }
+  },
+  "tags": [
+    "resource",
+    "prometheus",
+    "metrics",
+    "official"
+  ],
+  "name": "PrometheusResource"
+}

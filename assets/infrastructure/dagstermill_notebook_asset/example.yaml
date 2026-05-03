@@ -1,0 +1,7 @@
+type: dagster_component_templates.DagstermillNotebookAssetComponent
+attributes:
+  asset_name: <fill in>
+  notebook_path: <fill in>
+  group_name: <fill in>
+  description: <fill in>
+  deps: <fill in>

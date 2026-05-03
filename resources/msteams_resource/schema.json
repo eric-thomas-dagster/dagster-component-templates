@@ -1,0 +1,36 @@
+{
+  "component_type": "dagster_component_templates.MSTeamsResourceComponent",
+  "description": "Microsoft Teams notification resource via dagster-msteams.",
+  "category": "resource",
+  "icon": "MessageSquare",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "resource",
+      "description": "Microsoft Teams notification resource via dagster-msteams."
+    }
+  },
+  "attributes": {
+    "webhook_url_env_var": {
+      "type": "string",
+      "label": "Webhook Url Env Var",
+      "required": true
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "required": true
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": true
+    }
+  },
+  "tags": [
+    "resource",
+    "msteams",
+    "notification",
+    "official"
+  ],
+  "name": "MSTeamsResource"
+}

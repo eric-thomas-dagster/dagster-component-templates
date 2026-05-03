@@ -1,0 +1,7 @@
+type: dagster_component_templates.PanderaAssetCheckComponent
+attributes:
+  asset_key: <fill in>
+  schema_module: <fill in>
+  schema_name: <fill in>
+  blocking: <fill in>
+  description: <fill in>

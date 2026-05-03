@@ -1,0 +1,5 @@
+type: dagster_component_templates.SigmaAssetsComponent
+attributes:
+  base_url: <fill in>
+  client_id_env_var: <fill in>
+  client_secret_env_var: <fill in>

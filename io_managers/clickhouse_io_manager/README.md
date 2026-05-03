@@ -1,13 +1,15 @@
-# ClickHouseIOManager
+# ClickhouseIOManager
 
-ConfigurableIOManager that writes pandas DataFrames to ClickHouse via clickhouse-connect. Asset key becomes the table name; default engine is MergeTree.
+ConfigurableIOManager wrapping the official `dagster-clickhouse-pandas` package. Each asset becomes a ClickHouse table; partitioned assets get partitioned tables. Uses the maintained upstream package for type handling, partitions, and schema evolution.
+
+Wraps the official `dagster-clickhouse-pandas` package.
 
 ## Example
 
 ```yaml
-type: dagster_component_templates.ClickHouseIOManagerComponent
+type: dagster_component_templates.ClickhouseIOManagerComponent
 attributes:
-  resource_key: io_manager
+  resource_key: <fill in>
   host: <fill in>
   port: <fill in>
   username_env_var: <fill in>
@@ -19,6 +21,6 @@ attributes:
 ## Requirements
 
 ```
-pandas
-clickhouse-connect
+dagster
+dagster-clickhouse-pandas
 ```

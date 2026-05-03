@@ -1,12 +1,12 @@
 {
   "component_type": "dagster_component_templates.IcebergIOManagerComponent",
-  "description": "Persist DataFrames as Apache Iceberg tables via PyIceberg.",
+  "description": "Wrap the official `dagster-iceberg` IcebergPyarrowIOManager so assets persist as Iceberg tables.",
   "category": "io_manager",
   "icon": "Save",
   "x-dagster-io": {
     "outputs": {
       "type": "IOManager",
-      "description": "Resource"
+      "description": "Wrap the official `dagster-iceberg` IcebergPyarrowIOManager so assets persist as Iceberg tables."
     }
   },
   "attributes": {
@@ -35,18 +35,13 @@
       "type": "string",
       "label": "Warehouse",
       "required": false
-    },
-    "catalog_type": {
-      "type": "string",
-      "label": "Catalog Type",
-      "required": true
     }
   },
   "tags": [
     "io_manager",
     "iceberg",
     "lakehouse",
-    "parquet"
+    "official"
   ],
   "name": "IcebergIOManager"
 }

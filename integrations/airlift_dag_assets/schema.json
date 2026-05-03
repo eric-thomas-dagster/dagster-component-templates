@@ -1,0 +1,41 @@
+{
+  "component_type": "dagster_component_templates.AirliftDagAssetsComponent",
+  "description": "Mirror an Airflow DAG as Dagster assets via dagster-airlift.",
+  "category": "integration",
+  "icon": "ArrowRight",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "Mirror an Airflow DAG as Dagster assets via dagster-airlift."
+    }
+  },
+  "attributes": {
+    "airflow_url": {
+      "type": "string",
+      "label": "Airflow Url",
+      "required": true
+    },
+    "auth_user_env_var": {
+      "type": "string",
+      "label": "Auth User Env Var",
+      "required": true
+    },
+    "auth_pass_env_var": {
+      "type": "string",
+      "label": "Auth Pass Env Var",
+      "required": true
+    },
+    "dag_id": {
+      "type": "string",
+      "label": "Dag Id",
+      "required": true
+    }
+  },
+  "tags": [
+    "integration",
+    "airflow",
+    "migration",
+    "official"
+  ],
+  "name": "AirliftDagAssets"
+}

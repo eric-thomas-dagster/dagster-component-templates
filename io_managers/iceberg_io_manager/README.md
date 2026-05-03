@@ -1,6 +1,8 @@
 # IcebergIOManager
 
-ConfigurableIOManager that writes pandas DataFrames to Iceberg tables. Supports REST, Hive, and Glue catalogs. Each asset becomes a namespaced Iceberg table; partitioned assets get one Iceberg-partition per Dagster-partition.
+ConfigurableIOManager that wraps the official `dagster-iceberg` package's IcebergPyarrowIOManager. Supports REST, Hive, and Glue catalogs via the standard Iceberg catalog config. Each asset becomes a namespaced Iceberg table; partitioned assets get one Iceberg-partition per Dagster-partition.
+
+This component **wraps the official `dagster-iceberg` package** rather than reimplementing the IO manager — gets us format compatibility, schema evolution, partition handling, etc. for free.
 
 ## Example
 
@@ -12,13 +14,12 @@ attributes:
   namespace: <fill in>
   catalog_uri: <fill in>
   warehouse: <fill in>
-  catalog_type: <fill in>
 ```
 
 ## Requirements
 
 ```
-pandas
-pyiceberg
+dagster
+dagster-iceberg
 pyarrow
 ```

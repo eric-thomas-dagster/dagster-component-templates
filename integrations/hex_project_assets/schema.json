@@ -1,0 +1,41 @@
+{
+  "component_type": "dagster_component_templates.HexProjectAssetsComponent",
+  "description": "Run a Hex project on materialization via dagster-hex.",
+  "category": "integration",
+  "icon": "BookOpen",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "Run a Hex project on materialization via dagster-hex."
+    }
+  },
+  "attributes": {
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "required": true
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project Id",
+      "required": true
+    },
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": true
+    }
+  },
+  "tags": [
+    "integration",
+    "hex",
+    "notebook",
+    "official"
+  ],
+  "name": "HexProjectAssets"
+}

@@ -1,0 +1,6 @@
+type: dagster_component_templates.CensusSyncAssetComponent
+attributes:
+  api_key_env_var: <fill in>
+  sync_id: <fill in>
+  asset_name: <fill in>
+  group_name: <fill in>

@@ -1,0 +1,46 @@
+{
+  "component_type": "dagster_component_templates.TableauAssetsComponent",
+  "description": "Import Tableau workbooks + sheets as Dagster external assets via dagster-tableau.",
+  "category": "integration",
+  "icon": "BarChart3",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "Import Tableau workbooks + sheets as Dagster external assets via dagster-tableau."
+    }
+  },
+  "attributes": {
+    "server_url": {
+      "type": "string",
+      "label": "Server Url",
+      "required": true
+    },
+    "site_name": {
+      "type": "string",
+      "label": "Site Name",
+      "required": true
+    },
+    "token_name_env_var": {
+      "type": "string",
+      "label": "Token Name Env Var",
+      "required": true
+    },
+    "token_value_env_var": {
+      "type": "string",
+      "label": "Token Value Env Var",
+      "required": true
+    },
+    "online": {
+      "type": "boolean",
+      "label": "Online",
+      "required": true
+    }
+  },
+  "tags": [
+    "integration",
+    "tableau",
+    "bi",
+    "official"
+  ],
+  "name": "TableauAssets"
+}

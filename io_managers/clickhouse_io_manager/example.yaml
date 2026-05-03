@@ -1,6 +1,6 @@
-type: dagster_component_templates.ClickHouseIOManagerComponent
+type: dagster_component_templates.ClickhouseIOManagerComponent
 attributes:
-  resource_key: io_manager
+  resource_key: <fill in>
   host: <fill in>
   port: <fill in>
   username_env_var: <fill in>

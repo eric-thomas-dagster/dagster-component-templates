@@ -1,0 +1,5 @@
+type: dagster_component_templates.PrometheusResourceComponent
+attributes:
+  gateway: <fill in>
+  timeout: <fill in>
+  resource_key: <fill in>

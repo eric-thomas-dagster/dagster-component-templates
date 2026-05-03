@@ -1,0 +1,62 @@
+{
+  "component_type": "dagster_component_templates.SnowflakePolarsIOManagerComponent",
+  "description": "Wrap dagster-snowflake-polars so polars.DataFrame assets persist to Snowflake.",
+  "category": "io_manager",
+  "icon": "Save",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "io_manager",
+      "description": "Wrap dagster-snowflake-polars so polars.DataFrame assets persist to Snowflake."
+    }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": true
+    },
+    "account": {
+      "type": "string",
+      "label": "Account",
+      "required": true
+    },
+    "user_env_var": {
+      "type": "string",
+      "label": "User Env Var",
+      "required": true
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": true
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "required": true
+    },
+    "schema_name": {
+      "type": "string",
+      "label": "Schema Name",
+      "required": true
+    },
+    "warehouse": {
+      "type": "string",
+      "label": "Warehouse",
+      "required": false
+    },
+    "role": {
+      "type": "string",
+      "label": "Role",
+      "required": false
+    }
+  },
+  "tags": [
+    "io_manager",
+    "snowflake",
+    "polars",
+    "warehouse",
+    "official"
+  ],
+  "name": "SnowflakePolarsIOManager"
+}

@@ -1,0 +1,6 @@
+type: dagster_component_templates.AirliftDagAssetsComponent
+attributes:
+  airflow_url: <fill in>
+  auth_user_env_var: <fill in>
+  auth_pass_env_var: <fill in>
+  dag_id: <fill in>

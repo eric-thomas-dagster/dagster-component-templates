@@ -1,0 +1,7 @@
+type: dagster_component_templates.TableauAssetsComponent
+attributes:
+  server_url: <fill in>
+  site_name: <fill in>
+  token_name_env_var: <fill in>
+  token_value_env_var: <fill in>
+  online: <fill in>

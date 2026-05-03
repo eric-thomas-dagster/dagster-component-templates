@@ -1,2 +1,4 @@
+dagster
+dagster-polars
 polars
 pyarrow

@@ -1,6 +1,8 @@
 # PolarsIOManager
 
-ConfigurableIOManager that reads/writes polars.DataFrame as Parquet. Same disk layout as local_parquet_io_manager but with the Polars query engine — much faster on large rows / wide tables.
+ConfigurableIOManager that wraps the official `dagster-polars` package's PolarsParquetIOManager. Reads/writes polars.DataFrame as Parquet. Same disk layout as a local-Parquet IO manager but with Polars' query engine — much faster on large rows / wide tables than pandas.
+
+This component **wraps the official `dagster-polars` package** rather than reimplementing the IO manager — gets us format compatibility, schema evolution, partition handling, etc. for free.
 
 ## Example
 
@@ -14,6 +16,8 @@ attributes:
 ## Requirements
 
 ```
+dagster
+dagster-polars
 polars
 pyarrow
 ```

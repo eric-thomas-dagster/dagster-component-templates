@@ -1,0 +1,46 @@
+{
+  "component_type": "dagster_component_templates.PanderaAssetCheckComponent",
+  "description": "Validate a DataFrame asset against a Pandera schema as a Dagster asset check.",
+  "category": "check",
+  "icon": "CheckCircle",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "check",
+      "description": "Validate a DataFrame asset against a Pandera schema as a Dagster asset check."
+    }
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "required": true
+    },
+    "schema_module": {
+      "type": "string",
+      "label": "Schema Module",
+      "required": true
+    },
+    "schema_name": {
+      "type": "string",
+      "label": "Schema Name",
+      "required": true
+    },
+    "blocking": {
+      "type": "boolean",
+      "label": "Blocking",
+      "required": true
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    }
+  },
+  "tags": [
+    "check",
+    "pandera",
+    "schema",
+    "official"
+  ],
+  "name": "PanderaAssetCheck"
+}

@@ -1,0 +1,41 @@
+{
+  "component_type": "dagster_component_templates.LookerAssetsComponent",
+  "description": "Import Looker LookML views + dashboards as Dagster external assets via dagster-looker.",
+  "category": "integration",
+  "icon": "BarChart3",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "Import Looker LookML views + dashboards as Dagster external assets via dagster-looker."
+    }
+  },
+  "attributes": {
+    "base_url": {
+      "type": "string",
+      "label": "Base Url",
+      "required": true
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client Id Env Var",
+      "required": true
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "required": true
+    },
+    "project": {
+      "type": "string",
+      "label": "Project",
+      "required": false
+    }
+  },
+  "tags": [
+    "integration",
+    "looker",
+    "bi",
+    "official"
+  ],
+  "name": "LookerAssets"
+}

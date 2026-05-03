@@ -1,0 +1,36 @@
+{
+  "component_type": "dagster_component_templates.SigmaAssetsComponent",
+  "description": "Import Sigma workbooks + datasets as Dagster external assets via dagster-sigma.",
+  "category": "integration",
+  "icon": "BarChart3",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "Import Sigma workbooks + datasets as Dagster external assets via dagster-sigma."
+    }
+  },
+  "attributes": {
+    "base_url": {
+      "type": "string",
+      "label": "Base Url",
+      "required": true
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client Id Env Var",
+      "required": true
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "required": true
+    }
+  },
+  "tags": [
+    "integration",
+    "sigma",
+    "bi",
+    "official"
+  ],
+  "name": "SigmaAssets"
+}

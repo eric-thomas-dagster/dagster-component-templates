@@ -1,6 +1,8 @@
 # Dagster Component Templates
 
-A community library of 195+ reusable [Dagster component](https://docs.dagster.io/guides/components) templates covering data ingestion, AI/LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, and enterprise tool integrations — all configurable via YAML with no Python required.
+A community library of **508 reusable [Dagster component](https://docs.dagster.io/guides/components) templates** covering data ingestion, transformations, ML / analytics, AI / LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, asset checks, and enterprise tool integrations — all configurable via YAML with no Python required.
+
+Field naming conventions across the registry are documented in [`FIELD_CONVENTIONS.md`](./FIELD_CONVENTIONS.md).
 
 ## What are Dagster Components?
 
@@ -19,7 +21,26 @@ attributes:
 
 ## Component Library
 
-### Assets (143)
+| Category | Count | What's in it |
+|---|---:|---|
+| analytics | 90 | ML models, scoring, segmentation, forecasting, geo, A/B testing |
+| ai | 73 | LLMs, vision, embeddings, vector stores, document extraction |
+| transformation | 59 | Pandas-style transforms (filter, join, union, datetime, regex, etc.) |
+| resource | 55 | Connection-handle resources for SaaS / data platforms |
+| ingestion | 49 | Source-to-destination data movement |
+| sensor | 40 | Polling sensors that emit `RunRequest`s |
+| sink | 23 | DataFrame writers (CSV, Parquet, warehouses, NoSQL) |
+| external | 21 | Declare-only external assets (warehouse tables, S3 objects) |
+| observation | 20 | Health-check sensors emitting `AssetObservation`s |
+| infrastructure | 19 | IaC / provisioning + lineage anchors |
+| integration | 18 | Multi-asset wrappers for cloud platforms |
+| source | 18 | Read-only data sources |
+| io_manager | 15 | IO managers for the major warehouses + lakes |
+| check | 7 | Asset-check components (Great Expectations, Soda, etc.) |
+| dbt | 1 | dbt-project wrapper |
+| **total** | **508** | |
+
+### Assets (90 analytics + 73 ai + 59 transformation + 49 ingestion + 23 sink + 21 external + 19 infrastructure + 18 source + 18 integration + 7 check = 377)
 
 **Ingestion — cloud storage**
 `s3_to_database_asset` · `gcs_to_database_asset` · `adls_to_database_asset`
@@ -66,12 +87,27 @@ attributes:
 **Schema discovery**
 `warehouse_schema_assets` — introspects a warehouse at prepare time, creates one external AssetSpec per table with full column metadata
 
-**Analytics & ML**
-`anomaly_detection` · `customer_segmentation` · `ltv_prediction` · `lead_scoring` · `propensity_scoring` · `customer_health_score` · `cohort_analysis` · `funnel_analysis` · `ab_test_analysis` · `campaign_performance` · `multi_touch_attribution` · `product_recommendations` · and more
+**Analytics & ML — predictive**
+`decision_tree_model` · `random_forest_model` · `logistic_regression_model` · `linear_regression_model` · `naive_bayes_model` · `neural_network_model` · `gradient_boosting_model` · `svm` · `count_regression` · `gamma_regression` · `spline_model` · `survival_analysis` · `cross_validation` · `stepwise` · `model_coefficients` · `model_score` · `model_comparison` · `vif`
+
+**Analytics & ML — clustering / dim. reduction**
+`k_means_clustering` · `spatial_cluster` · `pca` · `multidimensional_scaling` · `nearest_neighbors` · `append_cluster` · `k_centroids_diagnostics`
+
+**Analytics — A/B testing**
+`ab_test_analysis` · `ab_treatments` · `ab_controls` · `ab_trend` · `test_of_means`
+
+**Analytics — geospatial**
+`distance_calculator` · `bounding_box_filter` · `coordinate_transformer` · `point_in_polygon` · `spatial_join` · `create_points` · `buffer` · `make_grid` · `smooth`
+
+**Analytics — time series**
+`time_series_generator` · `arima_forecast` · `ets_forecast` · `ts_filler` · `ts_compare` · `ts_forecast` · `ts_covariate_forecast` · `ts_model_factory`
+
+**Analytics — customer / business**
+`anomaly_detection` · `customer_segmentation` · `customer_360` · `customer_health_score` · `customer_journey_mapping` · `cohort_analysis` · `rfm_segmentation` · `funnel_analysis` · `lead_scoring` · `propensity_scoring` · `churn_prediction` · `ltv_prediction` · `subscription_metrics` · `revenue_attribution` · `multi_touch_attribution` · `campaign_performance` · `product_recommendations` · `product_usage_analytics` · `priority_scorer` · `market_basket_rules`
 
 ---
 
-### Sensors (30)
+### Sensors (40)
 
 **Cloud storage**
 `s3_monitor` · `gcs_monitor` · `adls_monitor`
@@ -86,7 +122,13 @@ attributes:
 `coalesce_job_sensor` · `abinitio_job_sensor` · `matillion_job_sensor` · `rivery_job_sensor` · `precisely_job_sensor`
 
 **Notifications**
-`slack_notification` · `pagerduty_alert` · `teams_notification` · `opsgenie_alert` · `twilio_notification`
+`slack_notification` · `twilio_notification`
+
+**SaaS event sensors**
+`github_event_sensor` · `gitlab_event_sensor` · `stripe_event_sensor` · `zendesk_ticket_sensor` · `jira_issue_sensor` · `pagerduty_incident_sensor` · `linear_issue_sensor` · `notion_database_sensor` · `servicenow_sensor`
+
+**Generic / no-auth**
+`http_poll_sensor` · `rss_feed_sensor` · `filesystem_monitor`
 
 **ML triggers**
 `mlflow_model_sensor`

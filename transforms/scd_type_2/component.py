@@ -74,8 +74,8 @@ class ScdType2Component(dg.Component, dg.Model, dg.Resolvable):
                     new[self.is_current_column] = True
                     new_versions.append(new)
                 elif row["_merge"] == "left_only":
-                    # row absent from incoming — keep as-is (could mark deleted)
-                    old = {c: row[c.replace("_old", "")] for c in row.index if c.endswith("_old")}
+                    # row absent from incoming — keep current row as-is
+                    old = {c.replace("_old", ""): row[c] for c in row.index if c.endswith("_old")}
                     old.update({k: row[k] for k in keys})
                     old[self.effective_from_column] = row.get(self.effective_from_column)
                     old[self.effective_to_column] = row.get(self.effective_to_column)
@@ -88,6 +88,7 @@ class ScdType2Component(dg.Component, dg.Model, dg.Resolvable):
                         # expire old
                         old = {c.replace("_old", ""): row[c] for c in row.index if c.endswith("_old")}
                         old.update({k: row[k] for k in keys})
+                        old[self.effective_from_column] = row.get(self.effective_from_column)
                         old[self.effective_to_column] = as_of
                         old[self.is_current_column] = False
                         expired_versions.append(old)

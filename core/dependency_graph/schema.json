@@ -24,9 +24,120 @@
             "description": "Target asset name (depends on source)"
           }
         },
-        "required": ["source", "target"]
+        "required": [
+          "source",
+          "target"
+        ]
       }
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "required": false
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "required": false
+    },
+    "column_lineage": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Column Lineage",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "required": false
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "required": false
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Partition Static Dim",
+      "required": false
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Partition Static Column",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential"
     }
   },
-  "tags": ["core", "dependencies", "graph", "wiring"]
+  "tags": [
+    "core",
+    "dependencies",
+    "graph",
+    "wiring"
+  ]
 }

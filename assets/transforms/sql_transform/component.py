@@ -133,6 +133,57 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Backoff strategy: 'linear' or 'exponential'.",
     )
 
+
+    freshness_max_lag_minutes: Optional[int] = Field(
+        default=None,
+        description="Maximum acceptable lag in minutes before the asset is considered stale. Builds a FreshnessPolicy when set.",
+    )
+
+    freshness_cron: Optional[str] = Field(
+        default=None,
+        description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+    )
+
+    column_lineage: Optional[Dict[str, List[str]]] = Field(
+        default=None,
+        description="Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}.",
+    )
+
+    deps: Optional[List[str]] = Field(
+        default=None,
+        description="Lineage-only upstream asset keys (no data passed at runtime).",
+    )
+
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned.",
+    )
+
+    partition_start: Optional[str] = Field(
+        default=None,
+        description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
+    )
+
+    partition_date_column: Optional[str] = Field(
+        default=None,
+        description="Column used to filter the upstream DataFrame to the current date partition key.",
+    )
+
+    partition_values: Optional[str] = Field(
+        default=None,
+        description="Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'.",
+    )
+
+    partition_static_dim: Optional[str] = Field(
+        default=None,
+        description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
+    )
+
+    partition_static_column: Optional[str] = Field(
+        default=None,
+        description="Column used to filter the upstream DataFrame to the current static partition value.",
+    )
+
     @classmethod
     def get_description(cls) -> str:
         return "Run a SELECT on the warehouse and materialize the result as a table (CTAS pushdown)."

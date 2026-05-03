@@ -184,6 +184,12 @@ class ElasticsearchReaderComponent(Component, Model, Resolvable):
     )
 
 
+
+    description: Optional[str] = Field(
+        default=None,
+        description="Asset description shown in the Dagster catalog.",
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         include_preview = self.include_preview_metadata

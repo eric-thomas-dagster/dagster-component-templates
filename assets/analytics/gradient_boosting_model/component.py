@@ -102,6 +102,17 @@ class GradientBoostingModelComponent(Component, Model, Resolvable):
         ),
     )
 
+
+    description: Optional[str] = Field(
+        default=None,
+        description="Asset description shown in the Dagster catalog.",
+    )
+
+    deps: Optional[List[str]] = Field(
+        default=None,
+        description="Lineage-only upstream asset keys (no data passed at runtime).",
+    )
+
     @classmethod
     def get_description(cls) -> str:
         return "Fit a gradient boosting model and output predictions or feature importance."

@@ -111,6 +111,22 @@ class DataframeToAdlsComponent(Component, Model, Resolvable):
         description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
     )
 
+
+    description: Optional[str] = Field(
+        default=None,
+        description="Asset description shown in the Dagster catalog.",
+    )
+
+    column_lineage: Optional[Dict[str, List[str]]] = Field(
+        default=None,
+        description="Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}.",
+    )
+
+    deps: Optional[List[str]] = Field(
+        default=None,
+        description="Lineage-only upstream asset keys (no data passed at runtime).",
+    )
+
     @classmethod
     def get_description(cls) -> str:
         return "Write a DataFrame to Azure Data Lake Storage Gen2."

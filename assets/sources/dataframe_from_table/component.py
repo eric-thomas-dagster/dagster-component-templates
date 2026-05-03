@@ -111,6 +111,12 @@ class DataframeFromTableComponent(Component, Model, Resolvable):
         ),
     )
 
+
+    description: Optional[str] = Field(
+        default=None,
+        description="Asset description shown in the Dagster catalog.",
+    )
+
     @classmethod
     def get_description(cls) -> str:
         return "Read a database table and output a DataFrame."

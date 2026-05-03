@@ -129,6 +129,17 @@ class SpatialJoinComponent(Component, Model, Resolvable):
         ),
     )
 
+
+    description: Optional[str] = Field(
+        default=None,
+        description="Asset description shown in the Dagster catalog.",
+    )
+
+    deps: Optional[List[str]] = Field(
+        default=None,
+        description="Lineage-only upstream asset keys (no data passed at runtime).",
+    )
+
     @classmethod
     def get_description(cls) -> str:
         return "Spatially join a points DataFrame against a regions DataFrame using GeoPandas."

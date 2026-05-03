@@ -106,6 +106,12 @@ class DataframeFromSqlComponent(Component, Model, Resolvable):
         ),
     )
 
+
+    description: Optional[str] = Field(
+        default=None,
+        description="Asset description shown in the Dagster catalog.",
+    )
+
     @classmethod
     def get_description(cls) -> str:
         return "Run a SQL query and return results as a DataFrame."

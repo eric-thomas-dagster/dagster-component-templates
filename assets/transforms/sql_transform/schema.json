@@ -124,6 +124,62 @@
       "label": "Retry Policy Backoff",
       "required": false,
       "default": "exponential"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "required": false
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "required": false
+    },
+    "column_lineage": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Column Lineage",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "required": false
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "required": false
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Partition Static Dim",
+      "required": false
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Partition Static Column",
+      "required": false
     }
   },
   "tags": [

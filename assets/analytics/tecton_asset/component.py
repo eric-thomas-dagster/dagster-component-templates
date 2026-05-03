@@ -117,6 +117,42 @@ class TectonAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     )
 
 
+
+    description: Optional[str] = Field(
+        default=None,
+        description="Asset description shown in the Dagster catalog.",
+    )
+
+    owners: Optional[List[str]] = Field(
+        default=None,
+        description="Asset owners — team names ('team:analytics') or email addresses.",
+    )
+
+    asset_tags: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Additional key-value tags applied to the asset in the Dagster catalog.",
+    )
+
+    kinds: Optional[List[str]] = Field(
+        default=None,
+        description="Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset.",
+    )
+
+    freshness_max_lag_minutes: Optional[int] = Field(
+        default=None,
+        description="Maximum acceptable lag in minutes before the asset is considered stale. Builds a FreshnessPolicy when set.",
+    )
+
+    freshness_cron: Optional[str] = Field(
+        default=None,
+        description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+    )
+
+    column_lineage: Optional[Dict[str, List[str]]] = Field(
+        default=None,
+        description="Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}.",
+    )
+
     def build_defs(self, load_context: dg.ComponentLoadContext) -> dg.Definitions:
         component = self
 

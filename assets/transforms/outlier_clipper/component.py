@@ -92,6 +92,32 @@ class OutlierClipperComponent(Component, Model, Resolvable):
     freshness_cron: Optional[str] = Field(default=None, description="Cron schedule for the freshness policy.")
     column_lineage: Optional[Dict[str, List[str]]] = Field(default=None, description="Column-level lineage.")
 
+
+    description: Optional[str] = Field(
+        default=None,
+        description="Asset description shown in the Dagster catalog.",
+    )
+
+    deps: Optional[List[str]] = Field(
+        default=None,
+        description="Lineage-only upstream asset keys (no data passed at runtime).",
+    )
+
+    retry_policy_max_retries: Optional[int] = Field(
+        default=None,
+        description="Max retries on failure. Defines a RetryPolicy when set.",
+    )
+
+    retry_policy_delay_seconds: Optional[int] = Field(
+        default=None,
+        description="Seconds between retries (default 1).",
+    )
+
+    retry_policy_backoff: str = Field(
+        default="exponential",
+        description="Backoff strategy: 'linear' or 'exponential'.",
+    )
+
     @classmethod
     def get_description(cls) -> str:
         return "Detect and clip, drop, or flag outliers in numeric columns using IQR, z-score, or quantile thresholds."

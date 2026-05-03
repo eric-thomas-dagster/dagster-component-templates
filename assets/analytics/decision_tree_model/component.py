@@ -93,6 +93,17 @@ class DecisionTreeModelComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
+
+    description: Optional[str] = Field(
+        default=None,
+        description="Asset description shown in the Dagster catalog.",
+    )
+
+    deps: Optional[List[str]] = Field(
+        default=None,
+        description="Lineage-only upstream asset keys (no data passed at runtime).",
+    )
+
     @classmethod
     def get_description(cls) -> str:
         return "Fit a decision tree for classification or regression and output predictions or feature importance."

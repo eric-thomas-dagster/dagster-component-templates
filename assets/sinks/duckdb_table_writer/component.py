@@ -107,6 +107,32 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
         description='Comma-separated list of upstream asset keys to load DataFrames from (automatically set by custom lineage)'
     )
 
+
+    column_lineage: Optional[Dict[str, List[str]]] = Field(
+        default=None,
+        description="Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}.",
+    )
+
+    deps: Optional[List[str]] = Field(
+        default=None,
+        description="Lineage-only upstream asset keys (no data passed at runtime).",
+    )
+
+    retry_policy_max_retries: Optional[int] = Field(
+        default=None,
+        description="Max retries on failure. Defines a RetryPolicy when set.",
+    )
+
+    retry_policy_delay_seconds: Optional[int] = Field(
+        default=None,
+        description="Seconds between retries (default 1).",
+    )
+
+    retry_policy_backoff: str = Field(
+        default="exponential",
+        description="Backoff strategy: 'linear' or 'exponential'.",
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions for the DuckDB table writer."""
 

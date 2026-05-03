@@ -174,6 +174,32 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
 
 
 
+
+    column_lineage: Optional[Dict[str, List[str]]] = Field(
+        default=None,
+        description="Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}.",
+    )
+
+    partition_date_column: Optional[str] = Field(
+        default=None,
+        description="Column used to filter the upstream DataFrame to the current date partition key.",
+    )
+
+    partition_values: Optional[str] = Field(
+        default=None,
+        description="Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'.",
+    )
+
+    partition_static_dim: Optional[str] = Field(
+        default=None,
+        description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
+    )
+
+    partition_static_column: Optional[str] = Field(
+        default=None,
+        description="Column used to filter the upstream DataFrame to the current static partition value.",
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions for the CSV ingestion asset."""
 

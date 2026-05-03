@@ -208,6 +208,27 @@
       "label": "Retry Policy Backoff",
       "required": false,
       "default": "exponential"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "column_lineage": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Column Lineage",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
     }
   },
   "dependencies": {

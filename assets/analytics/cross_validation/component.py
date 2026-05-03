@@ -106,6 +106,17 @@ class CrossValidationComponent(Component, Model, Resolvable):
         ),
     )
 
+
+    description: Optional[str] = Field(
+        default=None,
+        description="Asset description shown in the Dagster catalog.",
+    )
+
+    deps: Optional[List[str]] = Field(
+        default=None,
+        description="Lineage-only upstream asset keys (no data passed at runtime).",
+    )
+
     @classmethod
     def get_description(cls) -> str:
         return "Run k-fold cross-validation on a dataset and return per-fold train/test scores."

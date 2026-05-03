@@ -193,6 +193,22 @@ class FileTransformerComponent(Component, Model, Resolvable):
 
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
+
+    retry_policy_max_retries: Optional[int] = Field(
+        default=None,
+        description="Max retries on failure. Defines a RetryPolicy when set.",
+    )
+
+    retry_policy_delay_seconds: Optional[int] = Field(
+        default=None,
+        description="Seconds between retries (default 1).",
+    )
+
+    retry_policy_backoff: str = Field(
+        default="exponential",
+        description="Backoff strategy: 'linear' or 'exponential'.",
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         include_preview = self.include_preview_metadata

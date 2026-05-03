@@ -105,6 +105,32 @@ class SummarizeComponent(Component, Model, Resolvable):
         ),
     )
 
+
+    description: Optional[str] = Field(
+        default=None,
+        description="Asset description shown in the Dagster catalog.",
+    )
+
+    deps: Optional[List[str]] = Field(
+        default=None,
+        description="Lineage-only upstream asset keys (no data passed at runtime).",
+    )
+
+    retry_policy_max_retries: Optional[int] = Field(
+        default=None,
+        description="Max retries on failure. Defines a RetryPolicy when set.",
+    )
+
+    retry_policy_delay_seconds: Optional[int] = Field(
+        default=None,
+        description="Seconds between retries (default 1).",
+    )
+
+    retry_policy_backoff: str = Field(
+        default="exponential",
+        description="Backoff strategy: 'linear' or 'exponential'.",
+    )
+
     @classmethod
     def get_description(cls) -> str:
         return "Group and aggregate a DataFrame by one or more columns."

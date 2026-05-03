@@ -248,6 +248,14 @@
       "label": "Retry Policy Backoff",
       "required": false,
       "default": "exponential"
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
     }
   },
   "tags": [

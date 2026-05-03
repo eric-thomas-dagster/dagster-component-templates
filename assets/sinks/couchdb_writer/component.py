@@ -153,6 +153,22 @@ class CouchdbWriterComponent(Component, Model, Resolvable):
     )
 
 
+
+    description: Optional[str] = Field(
+        default=None,
+        description="Asset description shown in the Dagster catalog.",
+    )
+
+    column_lineage: Optional[Dict[str, List[str]]] = Field(
+        default=None,
+        description="Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}.",
+    )
+
+    deps: Optional[List[str]] = Field(
+        default=None,
+        description="Lineage-only upstream asset keys (no data passed at runtime).",
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         include_preview = self.include_preview_metadata

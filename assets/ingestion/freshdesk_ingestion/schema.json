@@ -185,6 +185,34 @@
       "label": "Retry Policy Backoff",
       "required": false,
       "default": "exponential"
+    },
+    "column_lineage": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Column Lineage",
+      "required": false
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "required": false
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Partition Static Dim",
+      "required": false
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Partition Static Column",
+      "required": false
     }
   },
   "tags": [

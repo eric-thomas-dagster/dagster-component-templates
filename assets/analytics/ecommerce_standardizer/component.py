@@ -203,6 +203,12 @@ class EcommerceStandardizerComponent(Component, Model, Resolvable):
     )
 
 
+
+    deps: Optional[List[str]] = Field(
+        default=None,
+        description="Lineage-only upstream asset keys (no data passed at runtime).",
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         platform = self.platform

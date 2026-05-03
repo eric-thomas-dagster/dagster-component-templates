@@ -211,6 +211,12 @@ class AdSpendStandardizerComponent(Component, Model, Resolvable):
     )
 
 
+
+    deps: Optional[List[str]] = Field(
+        default=None,
+        description="Lineage-only upstream asset keys (no data passed at runtime).",
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions for ad spend standardization."""
 

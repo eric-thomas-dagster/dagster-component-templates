@@ -14280,6 +14280,112 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/warehouse_maintenance_job/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/warehouse_maintenance_job/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/warehouse_maintenance_job/requirements.txt"
+    },
+    {
+      "id": "dagster_plus_audit_log_ingestion",
+      "name": "DagsterPlusAuditLogIngestionComponent",
+      "category": "ingestion",
+      "description": "Pull Dagster+ audit-log entries (logins, deployment changes, permission edits) via the Dagster+ GraphQL API.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "ingestion/dagster_plus_audit_log_ingestion",
+      "tags": [
+        "dagster-plus",
+        "audit-log",
+        "siem",
+        "security"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/dagster_plus_audit_log_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/dagster_plus_audit_log_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/dagster_plus_audit_log_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/dagster_plus_audit_log_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/dagster_plus_audit_log_ingestion/requirements.txt"
+    },
+    {
+      "id": "dagster_plus_run_events_ingestion",
+      "name": "DagsterPlusRunEventsIngestionComponent",
+      "category": "ingestion",
+      "description": "Pull Dagster+ run records (every job run, status, duration, tags) via the Dagster+ GraphQL API.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "ingestion/dagster_plus_run_events_ingestion",
+      "tags": [
+        "dagster-plus",
+        "runs",
+        "events",
+        "siem"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/dagster_plus_run_events_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/dagster_plus_run_events_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/dagster_plus_run_events_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/dagster_plus_run_events_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/dagster_plus_run_events_ingestion/requirements.txt"
+    },
+    {
+      "id": "dagster_plus_asset_events_ingestion",
+      "name": "DagsterPlusAssetEventsIngestionComponent",
+      "category": "ingestion",
+      "description": "Pull Dagster+ asset materialization / observation events via the GraphQL API.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "ingestion/dagster_plus_asset_events_ingestion",
+      "tags": [
+        "dagster-plus",
+        "assets",
+        "materializations",
+        "siem"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/dagster_plus_asset_events_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/dagster_plus_asset_events_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/dagster_plus_asset_events_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/dagster_plus_asset_events_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/dagster_plus_asset_events_ingestion/requirements.txt"
+    },
+    {
+      "id": "dagster_plus_to_siem_job",
+      "name": "DagsterPlusToSiemJobComponent",
+      "category": "infrastructure",
+      "description": "Compound op job: pull Dagster+ events (audit-log/runs/asset-events) \u2192 optionally normalize \u2192 ship to SIEM (Splunk/Sentinel/Datadog/Sumo/S3) on cron.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/dagster_plus_to_siem_job",
+      "tags": [
+        "compound",
+        "job",
+        "dagster-plus",
+        "siem",
+        "audit-log",
+        "security"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_plus_to_siem_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_plus_to_siem_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_plus_to_siem_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_plus_to_siem_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_plus_to_siem_job/requirements.txt"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

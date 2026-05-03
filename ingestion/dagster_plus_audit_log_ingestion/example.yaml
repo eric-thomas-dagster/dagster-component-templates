@@ -1,0 +1,8 @@
+type: dagster_component_templates.DagsterPlusAuditLogIngestionComponent
+attributes:
+  asset_name: dagster_plus_audit_log
+  endpoint_url: https://my-org.dagster.cloud/prod/graphql
+  user_token_env: DAGSTER_PLUS_USER_TOKEN
+  lookback_minutes: 60
+  page_size: 500
+  group_name: dagster_plus

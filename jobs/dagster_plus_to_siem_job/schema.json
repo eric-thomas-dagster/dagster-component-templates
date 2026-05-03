@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.DagsterPlusToSiemJobComponent",
+  "description": "Compound op job: pull Dagster+ events (audit-log/runs/asset-events) \u2192 optionally normalize \u2192 ship to SIEM (Splunk/Sentinel/Datadog/Sumo/S3) on cron.",
+  "category": "infrastructure",
+  "icon": "Shield",
+  "attributes": {}
+}

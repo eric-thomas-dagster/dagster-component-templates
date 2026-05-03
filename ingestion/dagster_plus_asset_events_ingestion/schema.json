@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.DagsterPlusAssetEventsIngestionComponent",
+  "description": "Pull Dagster+ asset materialization / observation events via the GraphQL API.",
+  "category": "ingestion",
+  "icon": "Shield",
+  "attributes": {}
+}

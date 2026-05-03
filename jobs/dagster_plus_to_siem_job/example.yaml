@@ -1,0 +1,15 @@
+type: dagster_component_templates.DagsterPlusToSiemJobComponent
+attributes:
+  job_name: dagster_plus_audit_to_splunk
+  schedule: "*/15 * * * *"
+  endpoint_url: https://my-org.dagster.cloud/prod/graphql
+  user_token_env: DAGSTER_PLUS_USER_TOKEN
+  event_type: audit_log
+  lookback_minutes: 15
+  normalize_to: ocsf
+  sink: splunk
+  sink_config:
+    hec_url: https://splunk.acme.com:8088/services/collector
+    hec_token_env: SPLUNK_HEC_TOKEN
+    index: security
+    sourcetype: dagster:plus:audit

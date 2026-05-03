@@ -6577,6 +6577,82 @@
       "icon": "Sparkles"
     },
     {
+      "id": "local_csv_io_manager",
+      "name": "LocalCsvIOManager",
+      "category": "io_manager",
+      "description": "Store DataFrames as CSV files on the local filesystem (dev / human-inspectable).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "io_managers/local_csv_io_manager",
+      "tags": [
+        "io_manager",
+        "csv",
+        "local",
+        "dev"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_csv_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_csv_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_csv_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_csv_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_csv_io_manager/requirements.txt"
+    },
+    {
+      "id": "local_json_io_manager",
+      "name": "LocalJsonIOManager",
+      "category": "io_manager",
+      "description": "Store DataFrames as JSON Lines (.jsonl) files on the local filesystem.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "io_managers/local_json_io_manager",
+      "tags": [
+        "io_manager",
+        "json",
+        "local",
+        "dev"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_json_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_json_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_json_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_json_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_json_io_manager/requirements.txt"
+    },
+    {
+      "id": "local_parquet_io_manager",
+      "name": "LocalParquetIOManager",
+      "category": "io_manager",
+      "description": "Store DataFrames as Parquet files on the local filesystem (dev / no-warehouse).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "io_managers/local_parquet_io_manager",
+      "tags": [
+        "io_manager",
+        "parquet",
+        "local",
+        "dev"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "pyarrow"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_parquet_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_parquet_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_parquet_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_parquet_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_parquet_io_manager/requirements.txt"
+    },
+    {
       "id": "logistic_regression_model",
       "name": "Logistic Regression",
       "category": "analytics",

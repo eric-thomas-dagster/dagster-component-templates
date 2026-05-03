@@ -1,0 +1,39 @@
+{
+  "component_type": "dagster_component_templates.LocalCsvIOManagerComponent",
+  "description": "Store DataFrames as CSV files on the local filesystem (dev / human-inspectable).",
+  "category": "io_manager",
+  "icon": "Save",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "IOManager",
+      "description": "Resource registered under resource_key"
+    }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "default": "io_manager",
+      "required": false
+    },
+    "base_dir": {
+      "type": "string",
+      "label": "Base Directory",
+      "default": "dagster_storage",
+      "required": false
+    },
+    "create_dir": {
+      "type": "boolean",
+      "label": "Create Directory",
+      "default": true,
+      "required": false
+    }
+  },
+  "tags": [
+    "io_manager",
+    "csv",
+    "local",
+    "dev"
+  ],
+  "name": "LocalCsvIOManager"
+}

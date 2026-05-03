@@ -32,18 +32,18 @@ class WarehouseMaintenanceJobComponent(dg.Component, dg.Model, dg.Resolvable):
         _self = self
 
         @dg.op
-        def _maint(_ctx):
+        def _maint(context):
             url = os.environ[_self.connection_string_env]
             engine = create_engine(url, isolation_level="AUTOCOMMIT" if _self.autocommit else None)
             errors = []
             with engine.connect() as conn:
                 for i, stmt in enumerate(_self.statements):
-                    _ctx.log.info(f"[{i+1}/{len(_self.statements)}] {stmt[:120]}...")
+                    context.log.info(f"[{i+1}/{len(_self.statements)}] {stmt[:120]}...")
                     try:
                         conn.execute(text(stmt))
                     except Exception as exc:
                         msg = f"stmt {i+1} failed: {exc}"
-                        _ctx.log.error(msg)
+                        context.log.error(msg)
                         errors.append(msg)
                         if _self.fail_fast:
                             raise

@@ -151,7 +151,7 @@ class SiemAuditExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
         _self = self
 
         @dg.op
-        def _fetch(_ctx):
+        def _fetch(context):
             end = dt.datetime.utcnow()
             start = end - dt.timedelta(minutes=_self.lookback_minutes)
             fn = SOURCE_FNS.get(_self.source)
@@ -159,13 +159,13 @@ class SiemAuditExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 raise ValueError(f"unknown source: {_self.source}")
             events = fn(_self.source_config, end, start)
             df = pd.DataFrame(events)
-            _ctx.log.info(f"{_self.source}: {len(df)} events")
+            context.log.info(f"{_self.source}: {len(df)} events")
             if len(df) == 0 and _self.fail_on_zero_events:
                 raise Exception("no events returned and fail_on_zero_events=True")
             return df
 
         @dg.op
-        def _normalize(_ctx, df: pd.DataFrame) -> pd.DataFrame:
+        def _normalize(context, df: pd.DataFrame) -> pd.DataFrame:
             if _self.normalize_to == "none":
                 return df
             if _self.normalize_to == "ocsf":
@@ -173,15 +173,15 @@ class SiemAuditExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
             return df  # ECS support stub — extend as needed
 
         @dg.op
-        def _ship(_ctx, df: pd.DataFrame):
+        def _ship(context, df: pd.DataFrame):
             if len(df) == 0:
-                _ctx.log.info("nothing to ship — skipping")
+                context.log.info("nothing to ship — skipping")
                 return
             fn = SINK_FNS.get(_self.sink)
             if not fn:
                 raise ValueError(f"unknown sink: {_self.sink}")
-            fn(df, _self.sink_config, _ctx.log)
-            _ctx.log.info(f"shipped {len(df)} events to {_self.sink}")
+            fn(df, _self.sink_config, context.log)
+            context.log.info(f"shipped {len(df)} events to {_self.sink}")
 
         @dg.job(name=self.job_name, tags={"compound": "siem_audit_export"})
         def _the_job():

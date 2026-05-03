@@ -132,7 +132,7 @@ class DagsterPlusToSiemJobComponent(dg.Component, dg.Model, dg.Resolvable):
             except Exception:
                 return None
 
-        def _fetch(_ctx):
+        def _fetch(context):
             import requests
             token = os.environ[_self.user_token_env]
             headers = {"Dagster-Cloud-Api-Token": token, "Content-Type": "application/json"}
@@ -185,12 +185,12 @@ class DagsterPlusToSiemJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 if stopped_early or not next_cursor or not has_more:
                     break
                 if page_count >= 100:
-                    _ctx.log.warning("hit 100-page safety limit; stopping")
+                    context.log.warning("hit 100-page safety limit; stopping")
                     break
                 cursor = next_cursor
 
             df = pd.DataFrame(all_records)
-            _ctx.log.info(f"fetched {len(df)} {_self.event_type} from Dagster+ in {page_count} page(s)")
+            context.log.info(f"fetched {len(df)} {_self.event_type} from Dagster+ in {page_count} page(s)")
             if len(df) == 0 and _self.fail_on_zero_events:
                 raise Exception("no events; fail_on_zero_events=True")
             return df
@@ -289,11 +289,11 @@ class DagsterPlusToSiemJobComponent(dg.Component, dg.Model, dg.Resolvable):
         }
 
         @dg.op
-        def _fetch_op(_ctx):
-            return _fetch(_ctx)
+        def _fetch_op(context):
+            return _fetch(context)
 
         @dg.op
-        def _normalize_op(_ctx, df: pd.DataFrame) -> pd.DataFrame:
+        def _normalize_op(context, df: pd.DataFrame) -> pd.DataFrame:
             if _self.normalize_to == "none" or len(df) == 0:
                 return df
             if _self.normalize_to == "ocsf":
@@ -303,15 +303,15 @@ class DagsterPlusToSiemJobComponent(dg.Component, dg.Model, dg.Resolvable):
             return df
 
         @dg.op
-        def _ship_op(_ctx, df: pd.DataFrame):
+        def _ship_op(context, df: pd.DataFrame):
             if len(df) == 0:
-                _ctx.log.info("nothing to ship — skipping")
+                context.log.info("nothing to ship — skipping")
                 return
             fn = SINK_FNS.get(_self.sink)
             if not fn:
                 raise ValueError(f"unknown sink: {_self.sink}")
-            fn(df, _self.sink_config, _ctx.log)
-            _ctx.log.info(f"shipped {len(df)} events to {_self.sink}")
+            fn(df, _self.sink_config, context.log)
+            context.log.info(f"shipped {len(df)} events to {_self.sink}")
 
         @dg.job(name=self.job_name, tags={"compound": "dagster_plus_to_siem"})
         def _the_job():

@@ -34,7 +34,7 @@ class ObservabilityHeartbeatJobComponent(dg.Component, dg.Model, dg.Resolvable):
         _self = self
 
         @dg.op
-        def _heartbeat(_ctx):
+        def _heartbeat(context):
             sent = []
             if _self.slack_webhook_url_env:
                 u = os.environ[_self.slack_webhook_url_env]
@@ -55,7 +55,7 @@ class ObservabilityHeartbeatJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 u = os.environ[_self.teams_webhook_url_env]
                 requests.post(u, json={"@type": "MessageCard", "title": "Heartbeat", "text": _self.message}, timeout=30)
                 sent.append("teams")
-            _ctx.log.info(f"heartbeat -> {', '.join(sent) or 'no targets configured'}")
+            context.log.info(f"heartbeat -> {', '.join(sent) or 'no targets configured'}")
 
         @dg.job(name=self.job_name, tags={"compound": "heartbeat"})
         def _the_job():

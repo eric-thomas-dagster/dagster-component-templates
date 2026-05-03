@@ -84,9 +84,9 @@ class PerPartitionBackfillJobComponent(dg.Component, dg.Model, dg.Resolvable):
             raise ValueError(f"unknown partition_strategy: {_self.partition_strategy}")
 
         @dg.op(out=dg.DynamicOut())
-        def _discover_partitions(_ctx):
+        def _discover_partitions(context):
             keys = _resolve_keys()
-            _ctx.log.info(f"will backfill {len(keys)} partition(s) of {_self.target_asset_key}")
+            context.log.info(f"will backfill {len(keys)} partition(s) of {_self.target_asset_key}")
             if not keys and _self.fail_on_empty:
                 raise Exception("no partitions; fail_on_empty=True")
             for k in keys:
@@ -95,10 +95,10 @@ class PerPartitionBackfillJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 yield dg.DynamicOutput({"partition_key": k, "asset_key": _self.target_asset_key}, mapping_key=safe_key)
 
         @dg.op(retry_policy=retry, tags=op_tags)
-        def _materialize_partition(_ctx, info):
+        def _materialize_partition(context, info):
             from dagster import materialize, AssetKey
             # Resolve the asset definition from the loaded code location.
-            instance = _ctx.instance
+            instance = context.instance
             try:
                 asset_def = instance.get_asset_value_loader  # placeholder check
             except Exception:
@@ -114,7 +114,7 @@ class PerPartitionBackfillJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 # Look up the asset def from this code location's repo.
                 from dagster._core.definitions.repository_definition import RepositoryDefinition  # noqa
                 asset_def = None
-                for asset in (_ctx.repository_def.assets_defs_by_key if hasattr(_ctx, "repository_def") else {}).values():
+                for asset in (context.repository_def.assets_defs_by_key if hasattr(context, "repository_def") else {}).values():
                     if ak in asset.keys:
                         asset_def = asset
                         break
@@ -125,16 +125,16 @@ class PerPartitionBackfillJobComponent(dg.Component, dg.Model, dg.Resolvable):
                     partition_key=info["partition_key"],
                     instance=instance,
                 )
-                _ctx.log.info(f"materialized {info['asset_key']}/{info['partition_key']} success={result.success}")
+                context.log.info(f"materialized {info['asset_key']}/{info['partition_key']} success={result.success}")
                 return {"partition_key": info["partition_key"], "success": bool(result.success)}
             except Exception as exc:
-                _ctx.log.error(f"failed {info['asset_key']}/{info['partition_key']}: {exc}")
+                context.log.error(f"failed {info['asset_key']}/{info['partition_key']}: {exc}")
                 raise
 
         @dg.op
-        def _summary(_ctx, results: list):
+        def _summary(context, results: list):
             success = sum(1 for r in results if r.get("success"))
-            _ctx.log.info(f"backfill summary: {success}/{len(results)} succeeded")
+            context.log.info(f"backfill summary: {success}/{len(results)} succeeded")
             return {"total": len(results), "success": success, "failed": len(results) - success}
 
         @dg.job(name=self.job_name, tags=self.job_tags or None)

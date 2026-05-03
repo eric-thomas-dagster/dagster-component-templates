@@ -124,14 +124,14 @@ class PerFileProcessorJobComponent(dg.Component, dg.Model, dg.Resolvable):
         listers = {"s3": _list_s3, "gcs": _list_gcs, "adls": _list_adls}
 
         @dg.op(out=dg.DynamicOut())
-        def _discover(_ctx):
+        def _discover(context):
             lister = listers.get(_self.storage)
             if not lister:
                 raise ValueError(f"unknown storage: {_self.storage}")
             files = lister()
             if _self.max_files_per_run:
                 files = files[:_self.max_files_per_run]
-            _ctx.log.info(f"found {len(files)} file(s) matching {_self.prefix!r}/{_self.pattern!r}")
+            context.log.info(f"found {len(files)} file(s) matching {_self.prefix!r}/{_self.pattern!r}")
             if not files and _self.fail_on_empty:
                 raise Exception("no files; fail_on_empty=True")
             for f in files:
@@ -140,14 +140,14 @@ class PerFileProcessorJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 yield dg.DynamicOutput(f, mapping_key=key)
 
         @dg.op(retry_policy=retry, tags=op_tags)
-        def _process(_ctx, file_info):
+        def _process(context, file_info):
             fn = _resolve(_self.process_callable_path)
             extra = _self.process_kwargs or {}
             try:
                 result = fn(file_info, **extra)
-                _ctx.log.info(f"processed {file_info.get('key')} -> {str(result)[:200]}")
+                context.log.info(f"processed {file_info.get('key')} -> {str(result)[:200]}")
             except Exception as exc:
-                _ctx.log.error(f"failed to process {file_info.get('key')}: {exc}")
+                context.log.error(f"failed to process {file_info.get('key')}: {exc}")
                 raise
 
             # Post-process: archive or delete
@@ -161,15 +161,15 @@ class PerFileProcessorJobComponent(dg.Component, dg.Model, dg.Resolvable):
                         s3.copy_object(Bucket=file_info["bucket"], Key=new_key,
                                        CopySource={"Bucket": file_info["bucket"], "Key": file_info["key"]})
                         s3.delete_object(Bucket=file_info["bucket"], Key=file_info["key"])
-                        _ctx.log.info(f"archived to {new_key}")
+                        context.log.info(f"archived to {new_key}")
                     elif _self.delete_after:
                         s3.delete_object(Bucket=file_info["bucket"], Key=file_info["key"])
                 # gcs / adls archive/delete left as future work
             return {"key": file_info.get("key"), "result": str(result)[:1000]}
 
         @dg.op
-        def _summary(_ctx, results: list):
-            _ctx.log.info(f"completed {len(results)} file(s)")
+        def _summary(context, results: list):
+            context.log.info(f"completed {len(results)} file(s)")
             return {"processed": len(results)}
 
         @dg.job(name=self.job_name, tags=self.job_tags or None)

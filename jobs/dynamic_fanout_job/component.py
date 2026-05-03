@@ -88,11 +88,11 @@ class DynamicFanoutJobComponent(dg.Component, dg.Model, dg.Resolvable):
         op_tags = {"dagster/concurrency_key": self.max_concurrent_tag_value} if self.max_concurrent_tag_value else None
 
         @dg.op(out=dg.DynamicOut())
-        def _discover(_ctx):
+        def _discover(context):
             fn = _resolve(_self.discover_callable_path)
             items = fn(**(_self.discover_kwargs or {}))
             items = list(items)
-            _ctx.log.info(f"discovered {len(items)} item(s) via {_self.discover_callable_path}")
+            context.log.info(f"discovered {len(items)} item(s) via {_self.discover_callable_path}")
             if not items and _self.fail_on_empty:
                 raise Exception("discover returned no items and fail_on_empty=True")
             for i, item in enumerate(items):
@@ -104,19 +104,19 @@ class DynamicFanoutJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 yield dg.DynamicOutput(item, mapping_key=key)
 
         @dg.op(retry_policy=retry, tags=op_tags)
-        def _process(_ctx, item):
+        def _process(context, item):
             fn = _resolve(_self.process_callable_path)
             extra = _self.process_kwargs or {}
             result = fn(item, **extra)
-            _ctx.log.info(f"processed item -> {str(result)[:200]}")
+            context.log.info(f"processed item -> {str(result)[:200]}")
             return result
 
         @dg.op
-        def _collect(_ctx, results: list):
+        def _collect(context, results: list):
             if _self.collect_callable_path:
                 fn = _resolve(_self.collect_callable_path)
                 final = fn(results)
-                _ctx.log.info(f"collected {len(results)} result(s) -> {str(final)[:200]}")
+                context.log.info(f"collected {len(results)} result(s) -> {str(final)[:200]}")
                 return final
             return results
 

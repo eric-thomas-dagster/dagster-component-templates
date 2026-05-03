@@ -124,6 +124,25 @@ class DataframeJoin(Component, Model, Resolvable):
         return "Join two DataFrame assets on common or specified columns."
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        # Standard catalog fields — phase 2 wiring
+        _retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+        _freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from dagster import FreshnessPolicy
+            _freshness_policy = FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
+        _all_tags = dict(self.asset_tags or {})
+        for _k in (self.kinds or []):
+            _all_tags[f"dagster/kind/{_k}"] = ""
         asset_name = self.asset_name
         left_asset_key = self.left_asset_key
         right_asset_key = self.right_asset_key
@@ -208,7 +227,7 @@ class DataframeJoin(Component, Model, Resolvable):
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
 
-        @asset(partitions_def=partitions_def, name=asset_name, ins=ins, group_name=group_name)
+        @asset(partitions_def=partitions_def, name=asset_name, ins=ins, group_name=group_name, retry_policy=_retry_policy, freshness_policy=_freshness_policy, owners=self.owners or [], tags=_all_tags)
         def _asset(context: AssetExecutionContext, left: pd.DataFrame, right: pd.DataFrame) -> pd.DataFrame:
             # Filter to current partition if partitioned
             if context.has_partition_key:

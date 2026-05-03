@@ -192,6 +192,25 @@ class ChromadbAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     )
 
     def build_defs(self, load_context: dg.ComponentLoadContext) -> dg.Definitions:
+        # Standard catalog fields — phase 2 wiring
+        _retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+        _freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from dagster import FreshnessPolicy
+            _freshness_policy = FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
+        _all_tags = dict(self.asset_tags or {})
+        for _k in (self.kinds or []):
+            _all_tags[f"dagster/kind/{_k}"] = ""
         component = self
 
 
@@ -263,6 +282,9 @@ class ChromadbAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             group_name=component.group_name,
             kinds={"chromadb", "vector"},
             ins={"upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(component.upstream_asset_key))},
+            freshness_policy=_freshness_policy,
+            owners=self.owners or [],
+            tags=_all_tags,
         )
         def _chromadb_asset(
             context: dg.AssetExecutionContext,

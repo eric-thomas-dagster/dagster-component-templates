@@ -265,6 +265,25 @@ class GraphQLAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        # Standard catalog fields — phase 2 wiring
+        _retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+        _freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from dagster import FreshnessPolicy
+            _freshness_policy = FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
+        _all_tags = dict(self.asset_tags or {})
+        for _k in (self.kinds or []):
+            _all_tags[f"dagster/kind/{_k}"] = ""
         dep_keys = [dg.AssetKey.from_user_string(k) for k in (self.deps or [])]
 
         # Build partition definition (auto-generated; supports daily, weekly,
@@ -336,6 +355,9 @@ class GraphQLAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             kinds={"graphql", "api", "sql"},
             deps=dep_keys,
             description=f"GraphQL asset: {len(self.queries)} quer{'y' if len(self.queries) == 1 else 'ies'}",
+            freshness_policy=_freshness_policy,
+            owners=self.owners or [],
+            tags=_all_tags,
         )
         def _graphql_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             import os

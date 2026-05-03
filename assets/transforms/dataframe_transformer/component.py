@@ -246,6 +246,25 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         return v
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        # Standard catalog fields — phase 2 wiring
+        _retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+        _freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from dagster import FreshnessPolicy
+            _freshness_policy = FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
+        _all_tags = dict(self.asset_tags or {})
+        for _k in (self.kinds or []):
+            _all_tags[f"dagster/kind/{_k}"] = ""
         asset_name = self.asset_name
         filter_columns = self.filter_columns
         drop_columns = self.drop_columns
@@ -353,6 +372,7 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
 group_name=group_name,
             deps=upstream_keys if upstream_keys else None,
+            retry_policy=_retry_policy,
         )
         def dataframe_transformer_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
             # Filter to current partition if partitioned

@@ -168,6 +168,25 @@ class ModerationScorerComponent(Component, Model, Resolvable):
     )
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        # Standard catalog fields — phase 2 wiring
+        _retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+        _freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from dagster import FreshnessPolicy
+            _freshness_policy = FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
+        _all_tags = dict(self.asset_tags or {})
+        for _k in (self.kinds or []):
+            _all_tags[f"dagster/kind/{_k}"] = ""
         asset_name = self.asset_name
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
@@ -198,6 +217,9 @@ class ModerationScorerComponent(Component, Model, Resolvable):
             description=description,
             group_name="content_moderation",
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+            freshness_policy=_freshness_policy,
+            owners=self.owners or [],
+            tags=_all_tags,
         )
         def moderation_scorer_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
             """Asset that scores content for moderation."""

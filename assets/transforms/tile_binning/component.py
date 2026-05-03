@@ -155,6 +155,25 @@ class TileBinningComponent(Component, Model, Resolvable):
         return "Assign records to bins/buckets based on a numeric column's value range."
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        # Standard catalog fields — phase 2 wiring
+        _retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+        _freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from dagster import FreshnessPolicy
+            _freshness_policy = FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
+        _all_tags = dict(self.asset_tags or {})
+        for _k in (self.kinds or []):
+            _all_tags[f"dagster/kind/{_k}"] = ""
         asset_name = self.asset_name
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
@@ -246,6 +265,7 @@ class TileBinningComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
 group_name=group_name,
             description=TileBinningComponent.get_description(),
+            retry_policy=_retry_policy,
         )
         def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
             # Filter to current partition if partitioned

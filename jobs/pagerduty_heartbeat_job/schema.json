@@ -3,5 +3,59 @@
   "description": "Send a PagerDuty heartbeat (resolve event) \u2014 confirms a job is alive on a cadence.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "routing_key_env": {
+      "type": "string",
+      "label": "Routing Key Env",
+      "description": "Env var with PD Events API integration key",
+      "required": false,
+      "default": "PAGERDUTY_ROUTING_KEY"
+    },
+    "summary": {
+      "type": "string",
+      "label": "Summary",
+      "description": "Summary",
+      "required": false,
+      "default": "Dagster job heartbeat"
+    },
+    "source": {
+      "type": "string",
+      "label": "Source",
+      "description": "`source` field for the event",
+      "required": false,
+      "default": "dagster"
+    },
+    "severity": {
+      "type": "string",
+      "label": "Severity",
+      "description": "critical | error | warning | info",
+      "required": false,
+      "default": "info"
+    }
+  }
 }

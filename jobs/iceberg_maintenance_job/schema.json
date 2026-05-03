@@ -3,5 +3,81 @@
   "description": "Cron-driven Iceberg maintenance \u2014 OPTIMIZE (compaction), expire snapshots, remove orphans, rewrite manifests. Engine support: Spark, Trino, Athena.",
   "category": "infrastructure",
   "icon": "Wrench",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Default Status",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "engine": {
+      "type": "string",
+      "label": "Engine",
+      "description": "spark | trino | athena",
+      "required": true
+    },
+    "connection_string_env": {
+      "type": "string",
+      "label": "Connection String Env",
+      "description": "Env var with SQLAlchemy URL for the engine (e.g. 'trino://user@host:443/iceberg')",
+      "required": false,
+      "default": "ICEBERG_DB_URL"
+    },
+    "tables": {
+      "type": "array",
+      "label": "Tables",
+      "description": "List of fully-qualified table names (e.g. ['catalog.db.orders'])",
+      "required": true
+    },
+    "operations": {
+      "type": "array",
+      "label": "Operations",
+      "description": "Subset of: optimize | expire_snapshots | remove_orphan_files | rewrite_manifests",
+      "required": false
+    },
+    "operation_params": {
+      "type": "object",
+      "label": "Operation Params",
+      "description": "Per-op params: {optimize: {target_file_size_bytes: ...}, expire_snapshots: {older_than_days: 7, retain_last: 5}}",
+      "required": false
+    },
+    "fail_fast": {
+      "type": "boolean",
+      "label": "Fail Fast",
+      "description": "Stop on first error (False = collect errors and continue)",
+      "required": false,
+      "default": true
+    },
+    "retry_max_retries": {
+      "type": "integer",
+      "label": "Retry Max Retries",
+      "description": "Retry Max Retries",
+      "required": false
+    },
+    "retry_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Delay Seconds",
+      "description": "Retry Delay Seconds",
+      "required": false
+    },
+    "job_tags": {
+      "type": "object",
+      "label": "Job Tags",
+      "description": "Job Tags",
+      "required": false
+    }
+  }
 }

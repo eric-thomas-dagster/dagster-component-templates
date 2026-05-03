@@ -3,5 +3,58 @@
   "description": "Flush keys from a Redis (or compatible) cache as a job \u2014 pattern-based or full FLUSHDB.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "redis_url_env": {
+      "type": "string",
+      "label": "Redis Url Env",
+      "description": "redis://[user:pass@]host:port[/db]",
+      "required": false,
+      "default": "REDIS_URL"
+    },
+    "pattern": {
+      "type": "string",
+      "label": "Pattern",
+      "description": "Key glob pattern (e.g. 'session:*'). If None, FLUSHDB.",
+      "required": false
+    },
+    "db": {
+      "type": "integer",
+      "label": "Db",
+      "description": "Db",
+      "required": false,
+      "default": 0
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "description": "Batch Size",
+      "required": false,
+      "default": 500
+    }
+  }
 }

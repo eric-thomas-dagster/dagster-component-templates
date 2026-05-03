@@ -3,5 +3,114 @@
   "description": "Slowly Changing Dimension Type 2 \u2014 keep history. Detect changed rows, expire prior versions, insert new versions with effective_from / effective_to / is_current.",
   "category": "transformation",
   "icon": "ArrowsRightLeft",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame asset key",
+      "required": true
+    },
+    "upstream_target_key": {
+      "type": "string",
+      "label": "Upstream Target Key",
+      "description": "Existing SCD2 dimension (target)",
+      "required": true
+    },
+    "business_key_columns": {
+      "type": "array",
+      "label": "Business Key Columns",
+      "description": "Natural-key columns",
+      "required": true
+    },
+    "track_columns": {
+      "type": "array",
+      "label": "Track Columns",
+      "description": "Columns whose changes trigger a new history row",
+      "required": true
+    },
+    "effective_from_column": {
+      "type": "string",
+      "label": "Effective From Column",
+      "description": "Column for version start",
+      "required": false,
+      "default": "effective_from"
+    },
+    "effective_to_column": {
+      "type": "string",
+      "label": "Effective To Column",
+      "description": "Column for version end (NULL for current)",
+      "required": false,
+      "default": "effective_to"
+    },
+    "is_current_column": {
+      "type": "string",
+      "label": "Is Current Column",
+      "description": "Is Current Column",
+      "required": false,
+      "default": "is_current"
+    },
+    "as_of_timestamp": {
+      "type": "string",
+      "label": "As Of Timestamp",
+      "description": "ISO timestamp for the new version's effective_from (default: now UTC)",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Group Name",
+      "required": false,
+      "default": "transforms"
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "description": "Deps",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Kinds",
+      "required": false
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include Preview Metadata",
+      "required": false,
+      "default": true
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Preview Rows",
+      "required": false,
+      "default": 20
+    }
+  }
 }

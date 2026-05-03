@@ -3,5 +3,122 @@
   "description": "Compound op job: pull Dagster+ events (audit-log/runs/asset-events) \u2192 optionally normalize \u2192 ship to SIEM (Splunk/Sentinel/Datadog/Sumo/S3) on cron.",
   "category": "infrastructure",
   "icon": "Shield",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "endpoint_url": {
+      "type": "string",
+      "label": "Endpoint Url",
+      "description": "Dagster+ GraphQL endpoint \u2014 US: 'https://<org>.dagster.cloud/<deployment>/graphql', EU: 'https://<org>.eu.dagster.cloud/<deployment>/graphql'",
+      "required": true
+    },
+    "user_token_env": {
+      "type": "string",
+      "label": "User Token Env",
+      "description": "User Token Env",
+      "required": false,
+      "default": "DAGSTER_PLUS_USER_TOKEN"
+    },
+    "event_type": {
+      "type": "string",
+      "label": "Event Type",
+      "description": "audit_log | runs | asset_events",
+      "required": false,
+      "default": "audit_log"
+    },
+    "query": {
+      "type": "string",
+      "label": "Query",
+      "description": "Custom GraphQL query \u2014 overrides the default for the chosen event_type",
+      "required": false
+    },
+    "result_path": {
+      "type": "string",
+      "label": "Result Path",
+      "description": "Override JSON path to records (defaults match the event_type)",
+      "required": false
+    },
+    "page_size": {
+      "type": "integer",
+      "label": "Page Size",
+      "description": "Per-page limit (max 100 for Dagster+ audit log)",
+      "required": false,
+      "default": 100
+    },
+    "lookback_minutes": {
+      "type": "integer",
+      "label": "Lookback Minutes",
+      "description": "Stop pagination once entry timestamps fall outside this window",
+      "required": false,
+      "default": 15
+    },
+    "event_types": {
+      "type": "array",
+      "label": "Event Types",
+      "description": "AuditLog event-type codes (e.g. ['LOG_IN'])",
+      "required": false
+    },
+    "user_emails": {
+      "type": "array",
+      "label": "User Emails",
+      "description": "Filter to events by these user emails",
+      "required": false
+    },
+    "deployment_names": {
+      "type": "array",
+      "label": "Deployment Names",
+      "description": "Filter to events from these deployment names",
+      "required": false
+    },
+    "timestamp_field": {
+      "type": "string",
+      "label": "Timestamp Field",
+      "description": "Entry field used for the lookback cutoff",
+      "required": false,
+      "default": "timestamp"
+    },
+    "normalize_to": {
+      "type": "string",
+      "label": "Normalize To",
+      "description": "ocsf | ecs | none",
+      "required": false,
+      "default": "ocsf"
+    },
+    "sink": {
+      "type": "string",
+      "label": "Sink",
+      "description": "splunk | sentinel | datadog_logs | sumo_logic | s3",
+      "required": true
+    },
+    "sink_config": {
+      "type": "object",
+      "label": "Sink Config",
+      "description": "Sink-specific config \u2014 see README",
+      "required": false
+    },
+    "fail_on_zero_events": {
+      "type": "boolean",
+      "label": "Fail On Zero Events",
+      "description": "Fail On Zero Events",
+      "required": false,
+      "default": false
+    }
+  }
 }

@@ -3,5 +3,44 @@
   "description": "Multi-output conditional split \u2014 emit each output asset with rows matching its predicate. Equivalent to ADF Conditional Split / Informatica Router.",
   "category": "transformation",
   "icon": "ArrowsRightLeft",
-  "attributes": {}
+  "attributes": {
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame",
+      "required": true
+    },
+    "routes": {
+      "type": "array",
+      "label": "Routes",
+      "description": "List of {asset_name, condition} dicts. Conditions evaluated in order; non-matching rows go to default route if set.",
+      "required": true
+    },
+    "default_asset_name": {
+      "type": "string",
+      "label": "Default Asset Name",
+      "description": "Name for the catch-all asset (rows that didn't match any condition)",
+      "required": false
+    },
+    "exclusive": {
+      "type": "boolean",
+      "label": "Exclusive",
+      "description": "If True, each row goes to exactly one route (first match). If False, a row may appear in multiple routes (overlapping conditions).",
+      "required": false,
+      "default": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Group Name",
+      "required": false,
+      "default": "transforms"
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Kinds",
+      "required": false
+    }
+  }
 }

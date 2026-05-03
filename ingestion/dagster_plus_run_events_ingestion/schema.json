@@ -3,5 +3,146 @@
   "description": "Pull Dagster+ run records (every job run, status, duration, tags) via the Dagster+ GraphQL API.",
   "category": "ingestion",
   "icon": "Shield",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "endpoint_url": {
+      "type": "string",
+      "label": "Endpoint Url",
+      "description": "Dagster+ GraphQL endpoint (e.g. 'https://acme.dagster.cloud/prod/graphql')",
+      "required": true
+    },
+    "user_token_env": {
+      "type": "string",
+      "label": "User Token Env",
+      "description": "Env var holding Dagster+ user token",
+      "required": false,
+      "default": "DAGSTER_PLUS_USER_TOKEN"
+    },
+    "query": {
+      "type": "string",
+      "label": "Query",
+      "description": "Override GraphQL query (defaults to a best-guess query \u2014 validate against your schema)",
+      "required": false
+    },
+    "variables": {
+      "type": "object",
+      "label": "Variables",
+      "description": "Extra GraphQL variables to pass through (merged with auto-paging vars)",
+      "required": false
+    },
+    "result_path": {
+      "type": "string",
+      "label": "Result Path",
+      "description": "Dot-path to the list of records inside the GraphQL response",
+      "required": false,
+      "default": "runsOrError.results"
+    },
+    "cursor_path": {
+      "type": "string",
+      "label": "Cursor Path",
+      "description": "Dot-path to the next-page cursor (None if not paginated)",
+      "required": false
+    },
+    "has_more_path": {
+      "type": "string",
+      "label": "Has More Path",
+      "description": "Dot-path to the boolean has-more flag",
+      "required": false
+    },
+    "page_size": {
+      "type": "integer",
+      "label": "Page Size",
+      "description": "Per-page limit",
+      "required": false,
+      "default": 500
+    },
+    "lookback_minutes": {
+      "type": "integer",
+      "label": "Lookback Minutes",
+      "description": "Time window to fetch (None = unbounded)",
+      "required": false,
+      "default": 60
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Group Name",
+      "required": false,
+      "default": "dagster_plus"
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Kinds",
+      "required": false
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "description": "Freshness Max Lag Minutes",
+      "required": false
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "description": "Freshness Cron",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include Preview Metadata",
+      "required": false,
+      "default": true
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Preview Rows",
+      "required": false,
+      "default": 20
+    }
+  }
 }

@@ -3,5 +3,70 @@
   "description": "Compound op job: pull audit logs from a SaaS source, normalize to OCSF/ECS, ship to a SIEM \u2014 all in one YAML config.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (e.g. '*/15 * * * *') \u2014 None = no schedule",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "source": {
+      "type": "string",
+      "label": "Source",
+      "description": "okta | aws_cloudtrail | github | azure_activity | slack | auth0 | snowflake | generic_http",
+      "required": true
+    },
+    "source_config": {
+      "type": "object",
+      "label": "Source Config",
+      "description": "Source-specific config (see README)",
+      "required": false
+    },
+    "lookback_minutes": {
+      "type": "integer",
+      "label": "Lookback Minutes",
+      "description": "How far back to fetch on each run",
+      "required": false,
+      "default": 15
+    },
+    "normalize_to": {
+      "type": "string",
+      "label": "Normalize To",
+      "description": "ocsf | ecs | none",
+      "required": false,
+      "default": "ocsf"
+    },
+    "sink": {
+      "type": "string",
+      "label": "Sink",
+      "description": "splunk | sentinel | datadog_logs | sumo_logic | elastic | qradar | chronicle | s3",
+      "required": true
+    },
+    "sink_config": {
+      "type": "object",
+      "label": "Sink Config",
+      "description": "Sink-specific config (see README)",
+      "required": false
+    },
+    "fail_on_zero_events": {
+      "type": "boolean",
+      "label": "Fail On Zero Events",
+      "description": "Fail the job when 0 events were returned",
+      "required": false,
+      "default": false
+    }
+  }
 }

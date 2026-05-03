@@ -3,5 +3,89 @@
   "description": "Rule-based PII masking \u2014 hash, partial-mask (last 4 only), full-redact, or character-substitute. Per-column policies.",
   "category": "transformation",
   "icon": "ArrowsRightLeft",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame asset key",
+      "required": true
+    },
+    "rules": {
+      "type": "array",
+      "label": "Rules",
+      "description": "List of {column, method, ...} dicts. method: 'hash' | 'partial' | 'redact' | 'substitute' | 'pseudonymize'",
+      "required": true
+    },
+    "salt_env": {
+      "type": "string",
+      "label": "Salt Env",
+      "description": "Env var with hash salt (improves resistance to rainbow attacks)",
+      "required": false,
+      "default": "MASKING_SALT"
+    },
+    "redacted_value": {
+      "type": "string",
+      "label": "Redacted Value",
+      "description": "Replacement value for 'redact' method",
+      "required": false,
+      "default": "***"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Group Name",
+      "required": false,
+      "default": "transforms"
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "description": "Deps",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Kinds",
+      "required": false
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include Preview Metadata",
+      "required": false,
+      "default": true
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Preview Rows",
+      "required": false,
+      "default": 20
+    }
+  }
 }

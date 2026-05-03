@@ -3,5 +3,81 @@
   "description": "Run a `dbt` command (run, build, test, snapshot) as a Dagster job \u2014 no asset modeling.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "project_dir": {
+      "type": "string",
+      "label": "Project Dir",
+      "description": "Path to dbt project root (where dbt_project.yml lives)",
+      "required": true
+    },
+    "profiles_dir": {
+      "type": "string",
+      "label": "Profiles Dir",
+      "description": "Path to profiles.yml (default: ~/.dbt)",
+      "required": false
+    },
+    "target": {
+      "type": "string",
+      "label": "Target",
+      "description": "dbt target name (overrides default)",
+      "required": false
+    },
+    "command": {
+      "type": "string",
+      "label": "Command",
+      "description": "dbt subcommand: run | build | test | snapshot | seed | source",
+      "required": false,
+      "default": "run"
+    },
+    "select": {
+      "type": "string",
+      "label": "Select",
+      "description": "--select expression",
+      "required": false
+    },
+    "exclude": {
+      "type": "string",
+      "label": "Exclude",
+      "description": "--exclude expression",
+      "required": false
+    },
+    "full_refresh": {
+      "type": "boolean",
+      "label": "Full Refresh",
+      "description": "Full Refresh",
+      "required": false,
+      "default": false
+    },
+    "vars": {
+      "type": "object",
+      "label": "Vars",
+      "description": "--vars passed as JSON",
+      "required": false
+    }
+  }
 }

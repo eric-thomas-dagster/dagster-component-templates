@@ -3,5 +3,103 @@
   "description": "Compute MD5/SHA-1/SHA-256 of one or more columns (or the whole row) \u2014 useful for change detection, anonymization, surrogate keys.",
   "category": "transformation",
   "icon": "ArrowsRightLeft",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame asset key",
+      "required": true
+    },
+    "columns": {
+      "type": "array",
+      "label": "Columns",
+      "description": "Columns to include in the hash (None = all)",
+      "required": false
+    },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "description": "Output column name",
+      "required": false,
+      "default": "row_hash"
+    },
+    "algorithm": {
+      "type": "string",
+      "label": "Algorithm",
+      "description": "md5 | sha1 | sha256",
+      "required": false,
+      "default": "sha256"
+    },
+    "separator": {
+      "type": "string",
+      "label": "Separator",
+      "description": "Joiner between column values",
+      "required": false,
+      "default": "|"
+    },
+    "null_token": {
+      "type": "string",
+      "label": "Null Token",
+      "description": "Token substituted for NaN/None",
+      "required": false,
+      "default": "\\N"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Group Name",
+      "required": false,
+      "default": "transforms"
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "description": "Deps",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Kinds",
+      "required": false
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include Preview Metadata",
+      "required": false,
+      "default": true
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Preview Rows",
+      "required": false,
+      "default": 20
+    }
+  }
 }

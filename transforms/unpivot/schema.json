@@ -3,5 +3,102 @@
   "description": "Unpivot a DataFrame from wide to long \u2014 melt N value columns into 2 columns (variable, value).",
   "category": "transformation",
   "icon": "ArrowsRightLeft",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame asset key",
+      "required": true
+    },
+    "id_columns": {
+      "type": "array",
+      "label": "Id Columns",
+      "description": "Columns to keep as identifiers (not melted)",
+      "required": true
+    },
+    "value_columns": {
+      "type": "array",
+      "label": "Value Columns",
+      "description": "Columns to melt (None = all non-id columns)",
+      "required": false
+    },
+    "var_name": {
+      "type": "string",
+      "label": "Var Name",
+      "description": "Name for the new 'variable' column",
+      "required": false,
+      "default": "variable"
+    },
+    "value_name": {
+      "type": "string",
+      "label": "Value Name",
+      "description": "Name for the new 'value' column",
+      "required": false,
+      "default": "value"
+    },
+    "drop_null_values": {
+      "type": "boolean",
+      "label": "Drop Null Values",
+      "description": "Drop rows where the melted value is NaN",
+      "required": false,
+      "default": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Group Name",
+      "required": false,
+      "default": "transforms"
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "description": "Deps",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Kinds",
+      "required": false
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include Preview Metadata",
+      "required": false,
+      "default": true
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Preview Rows",
+      "required": false,
+      "default": 20
+    }
+  }
 }

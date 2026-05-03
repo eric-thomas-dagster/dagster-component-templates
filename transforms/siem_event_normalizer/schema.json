@@ -3,5 +3,88 @@
   "description": "Normalize heterogeneous audit-log events to a common schema (OCSF or ECS) before shipping to a SIEM.",
   "category": "security",
   "icon": "Shield",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame to normalize",
+      "required": true
+    },
+    "schema": {
+      "type": "string",
+      "label": "Schema",
+      "description": "Target schema: 'ocsf' (Open Cybersecurity Schema Framework) | 'ecs' (Elastic Common Schema)",
+      "required": false,
+      "default": "ocsf"
+    },
+    "source_kind": {
+      "type": "string",
+      "label": "Source Kind",
+      "description": "Source hint: 'cloudtrail' | 'okta' | 'github' | 'azure' | 'generic'",
+      "required": false,
+      "default": "generic"
+    },
+    "timestamp_column": {
+      "type": "string",
+      "label": "Timestamp Column",
+      "description": "Source column to map to event timestamp (auto-detect if None)",
+      "required": false
+    },
+    "actor_column": {
+      "type": "string",
+      "label": "Actor Column",
+      "description": "Source column for actor/user (auto-detect if None)",
+      "required": false
+    },
+    "action_column": {
+      "type": "string",
+      "label": "Action Column",
+      "description": "Source column for action/event name",
+      "required": false
+    },
+    "drop_extras": {
+      "type": "boolean",
+      "label": "Drop Extras",
+      "description": "Drop source columns that don't map to the target schema",
+      "required": false,
+      "default": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Group Name",
+      "required": false,
+      "default": "security_normalize"
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Kinds",
+      "required": false
+    }
+  }
 }

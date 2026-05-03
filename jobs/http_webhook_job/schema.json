@@ -3,5 +3,70 @@
   "description": "POST/GET to an HTTP endpoint as a job \u2014 heartbeats, status pings, fire-and-forget triggers.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "url": {
+      "type": "string",
+      "label": "Url",
+      "description": "URL to call",
+      "required": true
+    },
+    "method": {
+      "type": "string",
+      "label": "Method",
+      "description": "HTTP method",
+      "required": false,
+      "default": "POST"
+    },
+    "body": {
+      "type": "object",
+      "label": "Body",
+      "description": "JSON body (POST/PUT)",
+      "required": false
+    },
+    "headers": {
+      "type": "object",
+      "label": "Headers",
+      "description": "HTTP headers",
+      "required": false
+    },
+    "expected_status": {
+      "type": "integer",
+      "label": "Expected Status",
+      "description": "Fail unless this exact status code is returned",
+      "required": false,
+      "default": 200
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Timeout Seconds",
+      "required": false,
+      "default": 30
+    }
+  }
 }

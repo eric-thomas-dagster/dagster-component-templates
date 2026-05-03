@@ -3,5 +3,51 @@
   "description": "Execute a SQL maintenance command (VACUUM, ANALYZE, REFRESH MATERIALIZED VIEW, etc.) \u2014 no asset.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "connection_string_env": {
+      "type": "string",
+      "label": "Connection String Env",
+      "description": "Env var with SQLAlchemy URL",
+      "required": false,
+      "default": "DATABASE_URL"
+    },
+    "sql": {
+      "type": "string",
+      "label": "Sql",
+      "description": "SQL statement to execute (one or many, separated by semicolons)",
+      "required": true
+    },
+    "autocommit": {
+      "type": "boolean",
+      "label": "Autocommit",
+      "description": "Required for VACUUM, certain DDL on Postgres",
+      "required": false,
+      "default": true
+    }
+  }
 }

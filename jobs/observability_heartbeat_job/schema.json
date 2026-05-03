@@ -3,5 +3,56 @@
   "description": "Compound op job: send a heartbeat to multiple destinations (Slack + PagerDuty + HTTP) on cron \u2014 single YAML config.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Default Status",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "message": {
+      "type": "string",
+      "label": "Message",
+      "description": "Common message body",
+      "required": false,
+      "default": "dagster heartbeat"
+    },
+    "slack_webhook_url_env": {
+      "type": "string",
+      "label": "Slack Webhook Url Env",
+      "description": "Slack webhook URL env var",
+      "required": false
+    },
+    "pagerduty_routing_key_env": {
+      "type": "string",
+      "label": "Pagerduty Routing Key Env",
+      "description": "PD routing key env var",
+      "required": false
+    },
+    "http_heartbeat_url": {
+      "type": "string",
+      "label": "Http Heartbeat Url",
+      "description": "GET this URL (e.g. UptimeRobot)",
+      "required": false
+    },
+    "teams_webhook_url_env": {
+      "type": "string",
+      "label": "Teams Webhook Url Env",
+      "description": "Teams webhook URL env var",
+      "required": false
+    }
+  }
 }

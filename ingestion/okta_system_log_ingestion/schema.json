@@ -3,5 +3,127 @@
   "description": "Pull Okta System Log events (every authentication, MFA challenge, admin action) via /api/v1/logs.",
   "category": "security",
   "icon": "Shield",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "okta_domain": {
+      "type": "string",
+      "label": "Okta Domain",
+      "description": "Okta domain (e.g. 'acme.okta.com')",
+      "required": true
+    },
+    "api_token_env": {
+      "type": "string",
+      "label": "Api Token Env",
+      "description": "Env var holding the SSWS API token",
+      "required": false,
+      "default": "OKTA_API_TOKEN"
+    },
+    "lookback_hours": {
+      "type": "integer",
+      "label": "Lookback Hours",
+      "description": "How far back to fetch",
+      "required": false,
+      "default": 24
+    },
+    "event_filter": {
+      "type": "string",
+      "label": "Event Filter",
+      "description": "Okta filter expression (e.g. 'eventType eq \"user.session.start\"')",
+      "required": false
+    },
+    "limit": {
+      "type": "integer",
+      "label": "Limit",
+      "description": "Per-page limit (max 1000)",
+      "required": false,
+      "default": 1000
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group",
+      "required": false,
+      "default": "security_audit"
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "description": "Upstream asset deps",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Asset owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Catalog tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Asset kinds",
+      "required": false
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "description": "Freshness Max Lag Minutes",
+      "required": false
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "description": "Freshness Cron",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Emit preview metadata",
+      "required": false,
+      "default": true
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Preview row count",
+      "required": false,
+      "default": 20
+    }
+  }
 }

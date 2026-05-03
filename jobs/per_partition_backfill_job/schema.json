@@ -3,5 +3,88 @@
   "description": "Cron-driven parallel backfill of N partitions of an existing partitioned asset. Complements Dagster's first-class backfill machinery for predictable recurring rebuilds.",
   "category": "infrastructure",
   "icon": "Bolt",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Default Status",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "target_asset_key": {
+      "type": "string",
+      "label": "Target Asset Key",
+      "description": "Partitioned asset to materialize per partition (must already be defined elsewhere)",
+      "required": true
+    },
+    "partition_strategy": {
+      "type": "string",
+      "label": "Partition Strategy",
+      "description": "last_n_days | explicit | callable",
+      "required": false,
+      "default": "last_n_days"
+    },
+    "partition_count": {
+      "type": "integer",
+      "label": "Partition Count",
+      "description": "Number of partitions to backfill (when strategy=last_n_days)",
+      "required": false,
+      "default": 7
+    },
+    "partition_keys": {
+      "type": "array",
+      "label": "Partition Keys",
+      "description": "Explicit partition keys (when strategy=explicit)",
+      "required": false
+    },
+    "partition_callable_path": {
+      "type": "string",
+      "label": "Partition Callable Path",
+      "description": "'module:function() -> list[str]' (when strategy=callable)",
+      "required": false
+    },
+    "max_concurrent_tag_value": {
+      "type": "string",
+      "label": "Max Concurrent Tag Value",
+      "description": "Max Concurrent Tag Value",
+      "required": false
+    },
+    "retry_max_retries": {
+      "type": "integer",
+      "label": "Retry Max Retries",
+      "description": "Retry Max Retries",
+      "required": false
+    },
+    "retry_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Delay Seconds",
+      "description": "Retry Delay Seconds",
+      "required": false
+    },
+    "fail_on_empty": {
+      "type": "boolean",
+      "label": "Fail On Empty",
+      "description": "Fail On Empty",
+      "required": false,
+      "default": false
+    },
+    "job_tags": {
+      "type": "object",
+      "label": "Job Tags",
+      "description": "Job Tags",
+      "required": false
+    }
+  }
 }

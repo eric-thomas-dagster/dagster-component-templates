@@ -3,5 +3,63 @@
   "description": "Run a shell command as a Dagster job (no asset materialized) \u2014 for cleanup, maintenance, ad-hoc tasks.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "command": {
+      "type": "string",
+      "label": "Command",
+      "description": "Shell command to execute (passed to `bash -c`)",
+      "required": true
+    },
+    "working_dir": {
+      "type": "string",
+      "label": "Working Dir",
+      "description": "cwd for the command",
+      "required": false
+    },
+    "env_vars": {
+      "type": "object",
+      "label": "Env Vars",
+      "description": "Extra environment variables",
+      "required": false
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Timeout in seconds",
+      "required": false,
+      "default": 600
+    },
+    "fail_on_nonzero": {
+      "type": "boolean",
+      "label": "Fail On Nonzero",
+      "description": "Fail the job if exit code != 0",
+      "required": false,
+      "default": true
+    }
+  }
 }

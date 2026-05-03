@@ -3,5 +3,123 @@
   "description": "Ship audit-log DataFrame to IBM QRadar via Syslog (TCP) \u2014 events go to a configured Log Source.",
   "category": "security",
   "icon": "Shield",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame asset key \u2014 events to ship",
+      "required": true
+    },
+    "qradar_host": {
+      "type": "string",
+      "label": "Qradar Host",
+      "description": "QRadar event collector host (or LEEF endpoint)",
+      "required": true
+    },
+    "syslog_port": {
+      "type": "integer",
+      "label": "Syslog Port",
+      "description": "Syslog TCP port",
+      "required": false,
+      "default": 514
+    },
+    "facility": {
+      "type": "integer",
+      "label": "Facility",
+      "description": "Syslog facility (16 = local0)",
+      "required": false,
+      "default": 16
+    },
+    "severity": {
+      "type": "integer",
+      "label": "Severity",
+      "description": "Syslog severity (6 = informational)",
+      "required": false,
+      "default": 6
+    },
+    "leef_format": {
+      "type": "boolean",
+      "label": "Leef Format",
+      "description": "Wrap events in LEEF 2.0 format",
+      "required": false,
+      "default": false
+    },
+    "leef_vendor": {
+      "type": "string",
+      "label": "Leef Vendor",
+      "description": "Leef Vendor",
+      "required": false,
+      "default": "Dagster"
+    },
+    "leef_product": {
+      "type": "string",
+      "label": "Leef Product",
+      "description": "Leef Product",
+      "required": false,
+      "default": "Audit"
+    },
+    "leef_version": {
+      "type": "string",
+      "label": "Leef Version",
+      "description": "Leef Version",
+      "required": false,
+      "default": "1.0"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group",
+      "required": false,
+      "default": "security_sink"
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Kinds",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential"
+    }
+  }
 }

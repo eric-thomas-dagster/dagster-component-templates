@@ -3,5 +3,83 @@
   "description": "Run pg_dump \u2192 upload to S3/GCS/local \u2014 backup as a job, no asset materialized.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "pg_host": {
+      "type": "string",
+      "label": "Pg Host",
+      "description": "Postgres host",
+      "required": true
+    },
+    "pg_port": {
+      "type": "integer",
+      "label": "Pg Port",
+      "description": "Pg Port",
+      "required": false,
+      "default": 5432
+    },
+    "pg_user_env": {
+      "type": "string",
+      "label": "Pg User Env",
+      "description": "Pg User Env",
+      "required": false,
+      "default": "PG_USER"
+    },
+    "pg_password_env": {
+      "type": "string",
+      "label": "Pg Password Env",
+      "description": "Pg Password Env",
+      "required": false,
+      "default": "PG_PASSWORD"
+    },
+    "pg_database": {
+      "type": "string",
+      "label": "Pg Database",
+      "description": "Database name",
+      "required": true
+    },
+    "pg_dump_bin": {
+      "type": "string",
+      "label": "Pg Dump Bin",
+      "description": "Pg Dump Bin",
+      "required": false,
+      "default": "pg_dump"
+    },
+    "output": {
+      "type": "string",
+      "label": "Output",
+      "description": "Destination: 'local:/path/to/file.dump' or 's3://bucket/key' (timestamp inserted before extension)",
+      "required": true
+    },
+    "aws_profile": {
+      "type": "string",
+      "label": "Aws Profile",
+      "description": "Aws Profile",
+      "required": false
+    }
+  }
 }

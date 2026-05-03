@@ -3,5 +3,106 @@
   "description": "Ship audit-log DataFrame to Elastic Security via the bulk indexing API.",
   "category": "security",
   "icon": "Shield",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame asset key \u2014 events to ship",
+      "required": true
+    },
+    "es_url": {
+      "type": "string",
+      "label": "Es Url",
+      "description": "Elasticsearch URL (e.g. 'https://es.acme.com:9200')",
+      "required": true
+    },
+    "api_key_env": {
+      "type": "string",
+      "label": "Api Key Env",
+      "description": "Env var with API key (preferred)",
+      "required": false
+    },
+    "username_env": {
+      "type": "string",
+      "label": "Username Env",
+      "description": "Basic-auth username env var",
+      "required": false
+    },
+    "password_env": {
+      "type": "string",
+      "label": "Password Env",
+      "description": "Basic-auth password env var",
+      "required": false
+    },
+    "index": {
+      "type": "string",
+      "label": "Index",
+      "description": "Target index or data stream",
+      "required": false,
+      "default": "logs-audit-default"
+    },
+    "verify_certs": {
+      "type": "boolean",
+      "label": "Verify Certs",
+      "description": "Verify Certs",
+      "required": false,
+      "default": true
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group",
+      "required": false,
+      "default": "security_sink"
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Kinds",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential"
+    }
+  }
 }

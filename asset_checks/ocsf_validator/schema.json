@@ -3,5 +3,45 @@
   "description": "Asset check: validates OCSF v1.x conformance \u2014 required fields, severity range, known class_uid set.",
   "category": "check",
   "icon": "ShieldCheck",
-  "attributes": {}
+  "attributes": {
+    "check_name": {
+      "type": "string",
+      "label": "Check Name",
+      "description": "Asset check name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "OCSF DataFrame asset to validate",
+      "required": true
+    },
+    "blocking": {
+      "type": "boolean",
+      "label": "Blocking",
+      "description": "Block downstream materializations on failure",
+      "required": false,
+      "default": true
+    },
+    "require_known_class_uid": {
+      "type": "boolean",
+      "label": "Require Known Class Uid",
+      "description": "Fail when class_uid is not in the registered OCSF v1.x set",
+      "required": false,
+      "default": true
+    },
+    "max_invalid_rows": {
+      "type": "integer",
+      "label": "Max Invalid Rows",
+      "description": "Allowed invalid rows before failure (0 = strict)",
+      "required": false,
+      "default": 0
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    }
+  }
 }

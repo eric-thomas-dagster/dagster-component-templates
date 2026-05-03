@@ -3,5 +3,126 @@
   "description": "Pull AWS CloudTrail events via the LookupEvents API. Returns a DataFrame per asset materialization.",
   "category": "security",
   "icon": "Shield",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "region_name": {
+      "type": "string",
+      "label": "Region Name",
+      "description": "AWS region",
+      "required": false,
+      "default": "us-east-1"
+    },
+    "lookback_hours": {
+      "type": "integer",
+      "label": "Lookback Hours",
+      "description": "How far back to fetch events",
+      "required": false,
+      "default": 24
+    },
+    "event_name_filter": {
+      "type": "string",
+      "label": "Event Name Filter",
+      "description": "Filter by EventName (e.g. 'ConsoleLogin')",
+      "required": false
+    },
+    "username_filter": {
+      "type": "string",
+      "label": "Username Filter",
+      "description": "Filter by Username",
+      "required": false
+    },
+    "aws_profile": {
+      "type": "string",
+      "label": "Aws Profile",
+      "description": "Boto3 profile name (overrides env)",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group",
+      "required": false,
+      "default": "security_audit"
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "description": "Upstream asset deps",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Asset owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Catalog tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Asset kinds",
+      "required": false
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "description": "Freshness Max Lag Minutes",
+      "required": false
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "description": "Freshness Cron",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Emit preview metadata",
+      "required": false,
+      "default": true
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Preview row count",
+      "required": false,
+      "default": 20
+    }
+  }
 }

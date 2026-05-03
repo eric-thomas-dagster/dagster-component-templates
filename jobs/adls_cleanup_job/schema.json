@@ -3,5 +3,63 @@
   "description": "Delete Azure ADLS Gen2 / Blob objects older than N days under a prefix.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "account_url": {
+      "type": "string",
+      "label": "Account Url",
+      "description": "e.g. 'https://myaccount.blob.core.windows.net'",
+      "required": true
+    },
+    "container": {
+      "type": "string",
+      "label": "Container",
+      "description": "Container name",
+      "required": true
+    },
+    "prefix": {
+      "type": "string",
+      "label": "Prefix",
+      "description": "Prefix",
+      "required": false,
+      "default": ""
+    },
+    "older_than_days": {
+      "type": "integer",
+      "label": "Older Than Days",
+      "description": "Delete blobs older than this many days",
+      "required": true
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "description": "Dry Run",
+      "required": false,
+      "default": false
+    }
+  }
 }

@@ -3,5 +3,95 @@
   "description": "Ship audit-log DataFrame to Microsoft Sentinel via the Log Analytics Data Collector API.",
   "category": "security",
   "icon": "Shield",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame asset key \u2014 events to ship",
+      "required": true
+    },
+    "workspace_id": {
+      "type": "string",
+      "label": "Workspace Id",
+      "description": "Log Analytics workspace ID (GUID)",
+      "required": true
+    },
+    "workspace_key_env": {
+      "type": "string",
+      "label": "Workspace Key Env",
+      "description": "Env var with primary/secondary key",
+      "required": false,
+      "default": "SENTINEL_WORKSPACE_KEY"
+    },
+    "log_type": {
+      "type": "string",
+      "label": "Log Type",
+      "description": "Custom Logs table name (Sentinel will append _CL)",
+      "required": false,
+      "default": "DagsterAudit"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "description": "Batch Size",
+      "required": false,
+      "default": 500
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group",
+      "required": false,
+      "default": "security_sink"
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Kinds",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential"
+    }
+  }
 }

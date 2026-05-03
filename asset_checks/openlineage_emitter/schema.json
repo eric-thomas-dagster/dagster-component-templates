@@ -3,5 +3,95 @@
   "description": "Asset check that emits OpenLineage START/COMPLETE events to OL-compatible backends (Marquez, DataHub, OpenMetadata) when an upstream asset materializes.",
   "category": "check",
   "icon": "Network",
-  "attributes": {}
+  "attributes": {
+    "check_name": {
+      "type": "string",
+      "label": "Check Name",
+      "description": "Asset check name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Asset whose materialization triggers an OL event",
+      "required": true
+    },
+    "openlineage_url": {
+      "type": "string",
+      "label": "Openlineage Url",
+      "description": "OL backend endpoint (e.g. 'https://marquez.acme.com/api/v1/lineage')",
+      "required": true
+    },
+    "auth_token_env": {
+      "type": "string",
+      "label": "Auth Token Env",
+      "description": "Env var with bearer token (omit for unauthenticated)",
+      "required": false
+    },
+    "namespace": {
+      "type": "string",
+      "label": "Namespace",
+      "description": "OL namespace for the asset",
+      "required": false,
+      "default": "dagster"
+    },
+    "producer_url": {
+      "type": "string",
+      "label": "Producer Url",
+      "description": "`producer` URL field on the event (identifies the emitter)",
+      "required": false,
+      "default": "https://github.com/eric-thomas-dagster/dagster-component-templates"
+    },
+    "job_namespace": {
+      "type": "string",
+      "label": "Job Namespace",
+      "description": "Override job namespace (defaults to `namespace`)",
+      "required": false
+    },
+    "job_name_override": {
+      "type": "string",
+      "label": "Job Name Override",
+      "description": "Override OL job name (default: derived from asset)",
+      "required": false
+    },
+    "schema_facet": {
+      "type": "boolean",
+      "label": "Schema Facet",
+      "description": "Include the schema facet inferred from DataFrame columns",
+      "required": false,
+      "default": true
+    },
+    "column_lineage_facet": {
+      "type": "object",
+      "label": "Column Lineage Facet",
+      "description": "Optional column-lineage map: {output_col: [input_col, ...]} \u2192 emitted as the columnLineage facet",
+      "required": false
+    },
+    "upstream_input_assets": {
+      "type": "array",
+      "label": "Upstream Input Assets",
+      "description": "Asset keys to declare as `inputs` on the OL job (None = no inputs declared)",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "blocking": {
+      "type": "boolean",
+      "label": "Blocking",
+      "description": "Block downstream when emit fails",
+      "required": false,
+      "default": false
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Timeout Seconds",
+      "required": false,
+      "default": 30
+    }
+  }
 }

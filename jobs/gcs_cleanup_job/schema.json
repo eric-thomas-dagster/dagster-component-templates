@@ -3,5 +3,57 @@
   "description": "Delete GCS objects older than N days under a prefix.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "bucket": {
+      "type": "string",
+      "label": "Bucket",
+      "description": "GCS bucket name",
+      "required": true
+    },
+    "prefix": {
+      "type": "string",
+      "label": "Prefix",
+      "description": "Prefix",
+      "required": false,
+      "default": ""
+    },
+    "older_than_days": {
+      "type": "integer",
+      "label": "Older Than Days",
+      "description": "Delete objects older than this many days",
+      "required": true
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "description": "Dry Run",
+      "required": false,
+      "default": false
+    }
+  }
 }

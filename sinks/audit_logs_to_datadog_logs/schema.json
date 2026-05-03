@@ -3,5 +3,109 @@
   "description": "Ship audit-log DataFrame to Datadog Logs via /api/v2/logs.",
   "category": "security",
   "icon": "Shield",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame asset key \u2014 events to ship",
+      "required": true
+    },
+    "api_key_env": {
+      "type": "string",
+      "label": "Api Key Env",
+      "description": "Env var with Datadog API key",
+      "required": false,
+      "default": "DD_API_KEY"
+    },
+    "site": {
+      "type": "string",
+      "label": "Site",
+      "description": "datadoghq.com | datadoghq.eu | us3.datadoghq.com | ...",
+      "required": false,
+      "default": "datadoghq.com"
+    },
+    "service": {
+      "type": "string",
+      "label": "Service",
+      "description": "Datadog service tag",
+      "required": false,
+      "default": "dagster-audit"
+    },
+    "ddsource": {
+      "type": "string",
+      "label": "Ddsource",
+      "description": "ddsource attribute",
+      "required": false,
+      "default": "dagster"
+    },
+    "ddtags": {
+      "type": "string",
+      "label": "Ddtags",
+      "description": "Comma-separated tags (env:prod,team:security)",
+      "required": false
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "description": "Batch Size",
+      "required": false,
+      "default": 1000
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group",
+      "required": false,
+      "default": "security_sink"
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Kinds",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential"
+    }
+  }
 }

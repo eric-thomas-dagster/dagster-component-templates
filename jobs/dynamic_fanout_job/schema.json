@@ -3,5 +3,99 @@
   "description": "Generic DynamicOut op job \u2014 discover\u2192map\u2192collect via Python callables. Parallel fan-out without catalog overhead.",
   "category": "infrastructure",
   "icon": "Bolt",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "job_tags": {
+      "type": "object",
+      "label": "Job Tags",
+      "description": "Tags applied to the job",
+      "required": false
+    },
+    "discover_callable_path": {
+      "type": "string",
+      "label": "Discover Callable Path",
+      "description": "'module:function' that returns a list of items (each item is passed to the process callable)",
+      "required": true
+    },
+    "discover_kwargs": {
+      "type": "object",
+      "label": "Discover Kwargs",
+      "description": "kwargs passed to the discover callable",
+      "required": false
+    },
+    "process_callable_path": {
+      "type": "string",
+      "label": "Process Callable Path",
+      "description": "'module:function' that takes one item and returns a result",
+      "required": true
+    },
+    "process_kwargs": {
+      "type": "object",
+      "label": "Process Kwargs",
+      "description": "extra kwargs merged into each process call",
+      "required": false
+    },
+    "collect_callable_path": {
+      "type": "string",
+      "label": "Collect Callable Path",
+      "description": "Optional 'module:function' that takes the list of results and returns the final value",
+      "required": false
+    },
+    "mapping_key_field": {
+      "type": "string",
+      "label": "Mapping Key Field",
+      "description": "If items are dicts, use this field as the DynamicOutput mapping_key (stable per-item retries). None = use the index.",
+      "required": false
+    },
+    "max_concurrent_tag_value": {
+      "type": "string",
+      "label": "Max Concurrent Tag Value",
+      "description": "If set, applies tag {'dagster/concurrency_key': <value>} to the process op so an instance-level concurrency limit governs fan-out parallelism.",
+      "required": false
+    },
+    "retry_max_retries": {
+      "type": "integer",
+      "label": "Retry Max Retries",
+      "description": "Per-item retry max",
+      "required": false
+    },
+    "retry_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Delay Seconds",
+      "description": "Retry Delay Seconds",
+      "required": false
+    },
+    "retry_backoff": {
+      "type": "string",
+      "label": "Retry Backoff",
+      "description": "Retry Backoff",
+      "required": false,
+      "default": "exponential"
+    },
+    "fail_on_empty": {
+      "type": "boolean",
+      "label": "Fail On Empty",
+      "description": "Fail the job if discover returns no items",
+      "required": false,
+      "default": false
+    }
+  }
 }

@@ -3,5 +3,125 @@
   "description": "Write an OCSF DataFrame to AWS Security Lake \u2014 Parquet with snappy compression and the canonical region/accountId/eventDay partition layout.",
   "category": "sink",
   "icon": "Database",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "OCSF DataFrame to write",
+      "required": true
+    },
+    "bucket": {
+      "type": "string",
+      "label": "Bucket",
+      "description": "Security Lake S3 bucket (e.g. 'aws-security-data-lake-us-east-1-<id>')",
+      "required": true
+    },
+    "source_location": {
+      "type": "string",
+      "label": "Source Location",
+      "description": "Custom-source location/name (e.g. 'ext-dagster-plus-audit'). Becomes the top-level S3 prefix.",
+      "required": true
+    },
+    "region_name": {
+      "type": "string",
+      "label": "Region Name",
+      "description": "AWS region (also used in partition key)",
+      "required": false,
+      "default": "us-east-1"
+    },
+    "account_id": {
+      "type": "string",
+      "label": "Account Id",
+      "description": "AWS account ID \u2014 falls back to AWS_ACCOUNT_ID env if unset",
+      "required": false
+    },
+    "event_day_field": {
+      "type": "string",
+      "label": "Event Day Field",
+      "description": "Field used to derive eventDay partition (epoch ms expected)",
+      "required": false,
+      "default": "time"
+    },
+    "aws_profile": {
+      "type": "string",
+      "label": "Aws Profile",
+      "description": "Aws Profile",
+      "required": false
+    },
+    "register_with_glue": {
+      "type": "boolean",
+      "label": "Register With Glue",
+      "description": "Register With Glue",
+      "required": false,
+      "default": false
+    },
+    "glue_database": {
+      "type": "string",
+      "label": "Glue Database",
+      "description": "Glue Database",
+      "required": false
+    },
+    "glue_table": {
+      "type": "string",
+      "label": "Glue Table",
+      "description": "Glue Table",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Group Name",
+      "required": false,
+      "default": "security_lake"
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Kinds",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential"
+    }
+  }
 }

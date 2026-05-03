@@ -3,5 +3,58 @@
   "description": "Trigger a Fivetran connector sync via REST API.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "api_key_env": {
+      "type": "string",
+      "label": "Api Key Env",
+      "description": "Api Key Env",
+      "required": false,
+      "default": "FIVETRAN_API_KEY"
+    },
+    "api_secret_env": {
+      "type": "string",
+      "label": "Api Secret Env",
+      "description": "Api Secret Env",
+      "required": false,
+      "default": "FIVETRAN_API_SECRET"
+    },
+    "connector_id": {
+      "type": "string",
+      "label": "Connector Id",
+      "description": "Fivetran connector ID",
+      "required": true
+    },
+    "force": {
+      "type": "boolean",
+      "label": "Force",
+      "description": "Sync even if no changes detected",
+      "required": false,
+      "default": false
+    }
+  }
 }

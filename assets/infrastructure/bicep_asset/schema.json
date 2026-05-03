@@ -3,5 +3,125 @@
   "description": "Deploy a Bicep template as a Dagster asset (compiles via `az bicep build` then deploys via ARM).",
   "category": "infrastructure",
   "icon": "Shield",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name for this Bicep deployment",
+      "required": true
+    },
+    "resource_group": {
+      "type": "string",
+      "label": "Resource Group",
+      "description": "Azure resource group to deploy into",
+      "required": true
+    },
+    "deployment_name": {
+      "type": "string",
+      "label": "Deployment Name",
+      "description": "ARM deployment name (idempotent)",
+      "required": true
+    },
+    "bicep_file": {
+      "type": "string",
+      "label": "Bicep File",
+      "description": "Local path to .bicep file",
+      "required": true
+    },
+    "parameters_file": {
+      "type": "string",
+      "label": "Parameters File",
+      "description": "Local path to parameters JSON",
+      "required": false
+    },
+    "parameters": {
+      "type": "object",
+      "label": "Parameters",
+      "description": "Inline parameter overrides",
+      "required": false
+    },
+    "subscription_id": {
+      "type": "string",
+      "label": "Subscription Id",
+      "description": "Azure subscription ID (env: AZURE_SUBSCRIPTION_ID)",
+      "required": false
+    },
+    "az_bin": {
+      "type": "string",
+      "label": "Az Bin",
+      "description": "Path to the az CLI binary",
+      "required": false,
+      "default": "az"
+    },
+    "mode": {
+      "type": "string",
+      "label": "Mode",
+      "description": "'Incremental' or 'Complete'",
+      "required": false,
+      "default": "Incremental"
+    },
+    "what_if": {
+      "type": "boolean",
+      "label": "What If",
+      "description": "What-if preview only",
+      "required": false,
+      "default": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Group Name",
+      "required": false,
+      "default": "infrastructure"
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "description": "Deps",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Kinds",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential"
+    }
+  }
 }

@@ -3,5 +3,57 @@
   "description": "Send a message to a Microsoft Teams channel via incoming webhook.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "webhook_url_env": {
+      "type": "string",
+      "label": "Webhook Url Env",
+      "description": "Env var with Teams incoming-webhook URL",
+      "required": false,
+      "default": "TEAMS_WEBHOOK_URL"
+    },
+    "title": {
+      "type": "string",
+      "label": "Title",
+      "description": "Message title",
+      "required": true
+    },
+    "text": {
+      "type": "string",
+      "label": "Text",
+      "description": "Message body (Markdown)",
+      "required": true
+    },
+    "theme_color": {
+      "type": "string",
+      "label": "Theme Color",
+      "description": "Hex color for the card stripe",
+      "required": false,
+      "default": "0076D7"
+    }
+  }
 }

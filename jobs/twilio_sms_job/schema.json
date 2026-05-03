@@ -3,5 +3,63 @@
   "description": "Send an SMS via Twilio as a job \u2014 useful for on-call paging without a full PagerDuty stack.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "account_sid_env": {
+      "type": "string",
+      "label": "Account Sid Env",
+      "description": "Account Sid Env",
+      "required": false,
+      "default": "TWILIO_ACCOUNT_SID"
+    },
+    "auth_token_env": {
+      "type": "string",
+      "label": "Auth Token Env",
+      "description": "Auth Token Env",
+      "required": false,
+      "default": "TWILIO_AUTH_TOKEN"
+    },
+    "from_number": {
+      "type": "string",
+      "label": "From Number",
+      "description": "Twilio source phone number (E.164, e.g. '+15551234567')",
+      "required": true
+    },
+    "to_numbers": {
+      "type": "array",
+      "label": "To Numbers",
+      "description": "List of destination numbers (E.164)",
+      "required": true
+    },
+    "message": {
+      "type": "string",
+      "label": "Message",
+      "description": "SMS text body",
+      "required": true
+    }
+  }
 }

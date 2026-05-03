@@ -3,5 +3,43 @@
   "description": "Run an arbitrary Python callable as a Dagster job \u2014 Airflow PythonOperator equivalent.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "callable_path": {
+      "type": "string",
+      "label": "Callable Path",
+      "description": "'module.path:function_name' (e.g. 'mypkg.cleanup:run')",
+      "required": true
+    },
+    "kwargs": {
+      "type": "object",
+      "label": "Kwargs",
+      "description": "Keyword arguments passed to the callable",
+      "required": false
+    }
+  }
 }

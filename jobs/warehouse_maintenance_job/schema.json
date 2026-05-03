@@ -3,5 +3,52 @@
   "description": "Compound op job: run warehouse maintenance (VACUUM / ANALYZE / REFRESH MATERIALIZED VIEW) across many statements with one schedule.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Default Status",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "connection_string_env": {
+      "type": "string",
+      "label": "Connection String Env",
+      "description": "Connection String Env",
+      "required": false,
+      "default": "DATABASE_URL"
+    },
+    "statements": {
+      "type": "array",
+      "label": "Statements",
+      "description": "List of SQL statements run sequentially as ops",
+      "required": true
+    },
+    "autocommit": {
+      "type": "boolean",
+      "label": "Autocommit",
+      "description": "Required for VACUUM on Postgres",
+      "required": false,
+      "default": true
+    },
+    "fail_fast": {
+      "type": "boolean",
+      "label": "Fail Fast",
+      "description": "Stop on first failure (False = collect errors and continue)",
+      "required": false,
+      "default": true
+    }
+  }
 }

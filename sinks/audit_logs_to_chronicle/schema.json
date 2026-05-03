@@ -3,5 +3,101 @@
   "description": "Ship audit-log DataFrame to Google Chronicle (SecOps) via the unstructuredlogentries ingestion API.",
   "category": "security",
   "icon": "Shield",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame asset key \u2014 events to ship",
+      "required": true
+    },
+    "customer_id": {
+      "type": "string",
+      "label": "Customer Id",
+      "description": "Chronicle customer ID (GUID)",
+      "required": true
+    },
+    "region": {
+      "type": "string",
+      "label": "Region",
+      "description": "Chronicle region: 'us', 'eu', 'asia-southeast1', etc.",
+      "required": false,
+      "default": "us"
+    },
+    "sa_credentials_path": {
+      "type": "string",
+      "label": "Sa Credentials Path",
+      "description": "Path to GCP service account JSON with chronicle scope",
+      "required": true
+    },
+    "log_type": {
+      "type": "string",
+      "label": "Log Type",
+      "description": "Chronicle log type (WORKDAY, OKTA, AWS_CLOUDTRAIL, etc.)",
+      "required": false,
+      "default": "WORKDAY"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "description": "Batch Size",
+      "required": false,
+      "default": 1000
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group",
+      "required": false,
+      "default": "security_sink"
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Kinds",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential"
+    }
+  }
 }

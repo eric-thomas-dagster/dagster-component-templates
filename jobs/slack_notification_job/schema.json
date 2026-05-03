@@ -3,5 +3,63 @@
   "description": "Send a Slack message as a scheduled job \u2014 daily summaries, weekly reports, ad-hoc alerts.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "webhook_url_env": {
+      "type": "string",
+      "label": "Webhook Url Env",
+      "description": "Env var with Slack incoming-webhook URL",
+      "required": false,
+      "default": "SLACK_WEBHOOK_URL"
+    },
+    "message": {
+      "type": "string",
+      "label": "Message",
+      "description": "Message text (supports Slack markdown)",
+      "required": true
+    },
+    "channel": {
+      "type": "string",
+      "label": "Channel",
+      "description": "Override channel (e.g. '#data-platform')",
+      "required": false
+    },
+    "username": {
+      "type": "string",
+      "label": "Username",
+      "description": "Username",
+      "required": false
+    },
+    "icon_emoji": {
+      "type": "string",
+      "label": "Icon Emoji",
+      "description": "Icon Emoji",
+      "required": false,
+      "default": ":robot_face:"
+    }
+  }
 }

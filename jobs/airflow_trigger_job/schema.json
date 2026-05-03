@@ -3,5 +3,84 @@
   "description": "Trigger an Airflow DAG run via the Airflow REST API as a Dagster job.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "airflow_url": {
+      "type": "string",
+      "label": "Airflow Url",
+      "description": "Airflow web URL (e.g. 'https://airflow.acme.com')",
+      "required": true
+    },
+    "dag_id": {
+      "type": "string",
+      "label": "Dag Id",
+      "description": "DAG to trigger",
+      "required": true
+    },
+    "username_env": {
+      "type": "string",
+      "label": "Username Env",
+      "description": "Username Env",
+      "required": false,
+      "default": "AIRFLOW_USER"
+    },
+    "password_env": {
+      "type": "string",
+      "label": "Password Env",
+      "description": "Password Env",
+      "required": false,
+      "default": "AIRFLOW_PASSWORD"
+    },
+    "conf": {
+      "type": "object",
+      "label": "Conf",
+      "description": "DAG run conf payload",
+      "required": false
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "description": "Wait For Completion",
+      "required": false,
+      "default": false
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "description": "Poll Interval Seconds",
+      "required": false,
+      "default": 15
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Timeout Seconds",
+      "required": false,
+      "default": 3600
+    }
+  }
 }

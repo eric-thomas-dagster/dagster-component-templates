@@ -3,5 +3,171 @@
   "description": "Pull Dagster+ audit-log entries (logins, deployment changes, permission edits) via the Dagster+ GraphQL API.",
   "category": "ingestion",
   "icon": "Shield",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "endpoint_url": {
+      "type": "string",
+      "label": "Endpoint Url",
+      "description": "Dagster+ GraphQL endpoint \u2014 US: 'https://<org>.dagster.cloud/<deployment>/graphql', EU: 'https://<org>.eu.dagster.cloud/<deployment>/graphql'",
+      "required": true
+    },
+    "user_token_env": {
+      "type": "string",
+      "label": "User Token Env",
+      "description": "Env var holding the Dagster+ user token (sent as Dagster-Cloud-Api-Token header)",
+      "required": false,
+      "default": "DAGSTER_PLUS_USER_TOKEN"
+    },
+    "event_types": {
+      "type": "array",
+      "label": "Event Types",
+      "description": "AuditLog event-type codes (e.g. ['LOG_IN', 'CREATE_CODE_LOCATION', 'CHANGE_USER_PERMISSIONS']). None = all.",
+      "required": false
+    },
+    "user_emails": {
+      "type": "array",
+      "label": "User Emails",
+      "description": "Restrict to events authored by these user emails. None = all users.",
+      "required": false
+    },
+    "deployment_names": {
+      "type": "array",
+      "label": "Deployment Names",
+      "description": "Restrict to events from these deployment names (e.g. ['prod']). None = all.",
+      "required": false
+    },
+    "is_branch_deployment": {
+      "type": "boolean",
+      "label": "Is Branch Deployment",
+      "description": "True = only branch deployments; False = only non-branch; None = both.",
+      "required": false
+    },
+    "page_size": {
+      "type": "integer",
+      "label": "Page Size",
+      "description": "Per-page limit (max 100 per Dagster+ API)",
+      "required": false,
+      "default": 100
+    },
+    "lookback_minutes": {
+      "type": "integer",
+      "label": "Lookback Minutes",
+      "description": "Time window. Sets filters.afterDatetime server-side. The Dagster+ audit-log API requires at least one time bound, so this is effectively required.",
+      "required": false,
+      "default": 60
+    },
+    "query": {
+      "type": "string",
+      "label": "Query",
+      "description": "Override the default GraphQL query \u2014 useful when the audit-log schema changes.",
+      "required": false
+    },
+    "extra_variables": {
+      "type": "object",
+      "label": "Extra Variables",
+      "description": "Extra GraphQL variables merged into the request (won't override limit/cursor/filters).",
+      "required": false
+    },
+    "result_path": {
+      "type": "string",
+      "label": "Result Path",
+      "description": "Dot-path to the list of records inside the GraphQL response.",
+      "required": false,
+      "default": "auditLog.auditLogEntries"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Group Name",
+      "required": false,
+      "default": "dagster_plus"
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "description": "Deps",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Kinds",
+      "required": false
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "description": "Freshness Max Lag Minutes",
+      "required": false
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "description": "Freshness Cron",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include Preview Metadata",
+      "required": false,
+      "default": true
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Preview Rows",
+      "required": false,
+      "default": 20
+    },
+    "max_pages": {
+      "type": "integer",
+      "label": "Max Pages",
+      "description": "Safety cap on cursor pagination.",
+      "required": false,
+      "default": 200
+    }
+  }
 }

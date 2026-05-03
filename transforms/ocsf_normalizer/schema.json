@@ -3,5 +3,135 @@
   "description": "Normalize source events to OCSF v1.1 with class_uid / category_uid / activity_id \u2014 per-source mapping tables for dagster_plus, cloudtrail, okta, github, azure_activity, slack.",
   "category": "transformation",
   "icon": "Shield",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame to normalize",
+      "required": true
+    },
+    "source_kind": {
+      "type": "string",
+      "label": "Source Kind",
+      "description": "dagster_plus | aws_cloudtrail | okta | github | azure_activity | slack | generic",
+      "required": false,
+      "default": "generic"
+    },
+    "event_type_column": {
+      "type": "string",
+      "label": "Event Type Column",
+      "description": "Source column holding the event type string (auto-detected when None)",
+      "required": false
+    },
+    "timestamp_column": {
+      "type": "string",
+      "label": "Timestamp Column",
+      "description": "Source column for the event timestamp (auto-detected when None)",
+      "required": false
+    },
+    "actor_email_column": {
+      "type": "string",
+      "label": "Actor Email Column",
+      "description": "Source column for actor email (auto-detected when None)",
+      "required": false
+    },
+    "actor_name_column": {
+      "type": "string",
+      "label": "Actor Name Column",
+      "description": "Source column for actor display name (auto-detected when None)",
+      "required": false
+    },
+    "vendor_name": {
+      "type": "string",
+      "label": "Vendor Name",
+      "description": "metadata.product.vendor_name",
+      "required": false,
+      "default": "Dagster"
+    },
+    "product_name": {
+      "type": "string",
+      "label": "Product Name",
+      "description": "metadata.product.name",
+      "required": false,
+      "default": "Dagster+"
+    },
+    "ocsf_version": {
+      "type": "string",
+      "label": "Ocsf Version",
+      "description": "metadata.version",
+      "required": false,
+      "default": "1.1.0"
+    },
+    "activity_map": {
+      "type": "object",
+      "label": "Activity Map",
+      "description": "Per-event-type override: {event_type: [class_uid, category_uid, activity_id]}",
+      "required": false
+    },
+    "default_class_uid": {
+      "type": "integer",
+      "label": "Default Class Uid",
+      "description": "Fallback class_uid for unmapped events (0 = Base Event)",
+      "required": false,
+      "default": 0
+    },
+    "default_severity_id": {
+      "type": "integer",
+      "label": "Default Severity Id",
+      "description": "OCSF severity_id (0=Unknown, 1=Informational, 2=Low, 3=Medium, 4=High, 5=Critical, 6=Fatal)",
+      "required": false,
+      "default": 1
+    },
+    "drop_unmapped": {
+      "type": "boolean",
+      "label": "Drop Unmapped",
+      "description": "Drop rows whose event_type is not in the mapping table",
+      "required": false,
+      "default": false
+    },
+    "keep_raw": {
+      "type": "boolean",
+      "label": "Keep Raw",
+      "description": "Include the original event as `unmapped`",
+      "required": false,
+      "default": true
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Group Name",
+      "required": false,
+      "default": "ocsf"
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Owners",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Asset Tags",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Kinds",
+      "required": false
+    }
+  }
 }

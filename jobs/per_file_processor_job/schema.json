@@ -3,5 +3,150 @@
   "description": "List files in S3/GCS/ADLS matching a pattern, run a callable per file in parallel via DynamicOut. Optional archive-after-success.",
   "category": "infrastructure",
   "icon": "Bolt",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Default Status",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "storage": {
+      "type": "string",
+      "label": "Storage",
+      "description": "local | s3 | gcs | adls",
+      "required": true
+    },
+    "local_directory": {
+      "type": "string",
+      "label": "Local Directory",
+      "description": "Filesystem directory to scan (used when storage=local)",
+      "required": false
+    },
+    "s3_bucket": {
+      "type": "string",
+      "label": "S3 Bucket",
+      "description": "S3 Bucket",
+      "required": false
+    },
+    "s3_region": {
+      "type": "string",
+      "label": "S3 Region",
+      "description": "S3 Region",
+      "required": false,
+      "default": "us-east-1"
+    },
+    "s3_aws_profile": {
+      "type": "string",
+      "label": "S3 Aws Profile",
+      "description": "S3 Aws Profile",
+      "required": false
+    },
+    "gcs_bucket": {
+      "type": "string",
+      "label": "Gcs Bucket",
+      "description": "Gcs Bucket",
+      "required": false
+    },
+    "adls_account_url": {
+      "type": "string",
+      "label": "Adls Account Url",
+      "description": "https://<account>.blob.core.windows.net",
+      "required": false
+    },
+    "adls_container": {
+      "type": "string",
+      "label": "Adls Container",
+      "description": "Adls Container",
+      "required": false
+    },
+    "prefix": {
+      "type": "string",
+      "label": "Prefix",
+      "description": "Object prefix to scan",
+      "required": false,
+      "default": ""
+    },
+    "pattern": {
+      "type": "string",
+      "label": "Pattern",
+      "description": "Glob pattern for filename (e.g. '*.csv')",
+      "required": false,
+      "default": "*"
+    },
+    "max_files_per_run": {
+      "type": "integer",
+      "label": "Max Files Per Run",
+      "description": "Cap number of files per run (None = no cap)",
+      "required": false
+    },
+    "process_callable_path": {
+      "type": "string",
+      "label": "Process Callable Path",
+      "description": "'module:function(file_info)' \u2014 file_info is dict with bucket/key/size/last_modified",
+      "required": true
+    },
+    "process_kwargs": {
+      "type": "object",
+      "label": "Process Kwargs",
+      "description": "Process Kwargs",
+      "required": false
+    },
+    "archive_prefix": {
+      "type": "string",
+      "label": "Archive Prefix",
+      "description": "If set, move each processed object to <archive_prefix>/<original_key>",
+      "required": false
+    },
+    "delete_after": {
+      "type": "boolean",
+      "label": "Delete After",
+      "description": "Delete each object after successful processing",
+      "required": false,
+      "default": false
+    },
+    "max_concurrent_tag_value": {
+      "type": "string",
+      "label": "Max Concurrent Tag Value",
+      "description": "Max Concurrent Tag Value",
+      "required": false
+    },
+    "retry_max_retries": {
+      "type": "integer",
+      "label": "Retry Max Retries",
+      "description": "Retry Max Retries",
+      "required": false
+    },
+    "retry_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Delay Seconds",
+      "description": "Retry Delay Seconds",
+      "required": false
+    },
+    "fail_on_empty": {
+      "type": "boolean",
+      "label": "Fail On Empty",
+      "description": "Fail On Empty",
+      "required": false,
+      "default": false
+    },
+    "job_tags": {
+      "type": "object",
+      "label": "Job Tags",
+      "description": "Job Tags",
+      "required": false
+    }
+  }
 }

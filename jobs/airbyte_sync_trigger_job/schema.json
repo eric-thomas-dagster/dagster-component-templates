@@ -3,5 +3,78 @@
   "description": "Trigger an Airbyte connection sync via REST API \u2014 fire-and-forget or wait for completion.",
   "category": "infrastructure",
   "icon": "Cog",
-  "attributes": {}
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "airbyte_url": {
+      "type": "string",
+      "label": "Airbyte Url",
+      "description": "Airbyte server URL (e.g. 'https://airbyte.acme.com')",
+      "required": true
+    },
+    "connection_id": {
+      "type": "string",
+      "label": "Connection Id",
+      "description": "Connection UUID to sync",
+      "required": true
+    },
+    "username_env": {
+      "type": "string",
+      "label": "Username Env",
+      "description": "Username Env",
+      "required": false,
+      "default": "AIRBYTE_USER"
+    },
+    "password_env": {
+      "type": "string",
+      "label": "Password Env",
+      "description": "Password Env",
+      "required": false,
+      "default": "AIRBYTE_PASSWORD"
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "description": "Wait For Completion",
+      "required": false,
+      "default": false
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "description": "Poll Interval Seconds",
+      "required": false,
+      "default": 15
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Timeout Seconds",
+      "required": false,
+      "default": 3600
+    }
+  }
 }

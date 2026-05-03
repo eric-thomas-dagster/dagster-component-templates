@@ -29,7 +29,10 @@ class PerFileProcessorJobComponent(dg.Component, dg.Model, dg.Resolvable):
     schedule: Optional[str] = Field(default=None, description="Cron schedule")
     default_status: str = Field(default="STOPPED")
 
-    storage: str = Field(description="s3 | gcs | adls")
+    storage: str = Field(description="local | s3 | gcs | adls")
+
+    # local
+    local_directory: Optional[str] = Field(default=None, description="Filesystem directory to scan (used when storage=local)")
 
     # S3
     s3_bucket: Optional[str] = Field(default=None)
@@ -121,7 +124,29 @@ class PerFileProcessorJobComponent(dg.Component, dg.Model, dg.Resolvable):
                     })
             return files
 
-        listers = {"s3": _list_s3, "gcs": _list_gcs, "adls": _list_adls}
+        def _list_local():
+            import os, datetime as dt
+            base = _self.local_directory
+            if not base:
+                raise ValueError("local_directory is required when storage=local")
+            files = []
+            base_with_prefix = os.path.join(base, _self.prefix) if _self.prefix else base
+            for root, _dirs, names in os.walk(base_with_prefix):
+                for name in names:
+                    if fnmatch.fnmatch(name, _self.pattern):
+                        full = os.path.join(root, name)
+                        st = os.stat(full)
+                        files.append({
+                            "storage": "local",
+                            "directory": base,
+                            "key": os.path.relpath(full, base),
+                            "path": full,
+                            "size": st.st_size,
+                            "last_modified": dt.datetime.fromtimestamp(st.st_mtime, dt.timezone.utc).isoformat(),
+                        })
+            return files
+
+        listers = {"local": _list_local, "s3": _list_s3, "gcs": _list_gcs, "adls": _list_adls}
 
         @dg.op(out=dg.DynamicOut())
         def _discover(context):
@@ -164,6 +189,18 @@ class PerFileProcessorJobComponent(dg.Component, dg.Model, dg.Resolvable):
                         context.log.info(f"archived to {new_key}")
                     elif _self.delete_after:
                         s3.delete_object(Bucket=file_info["bucket"], Key=file_info["key"])
+                elif file_info["storage"] == "local":
+                    import os, shutil
+                    src = file_info["path"]
+                    if _self.archive_prefix:
+                        dest_dir = os.path.join(file_info["directory"], _self.archive_prefix)
+                        os.makedirs(dest_dir, exist_ok=True)
+                        dest = os.path.join(dest_dir, os.path.basename(src))
+                        shutil.move(src, dest)
+                        context.log.info(f"archived to {dest}")
+                    elif _self.delete_after:
+                        os.unlink(src)
+                        context.log.info(f"deleted {src}")
                 # gcs / adls archive/delete left as future work
             return {"key": file_info.get("key"), "result": str(result)[:1000]}
 

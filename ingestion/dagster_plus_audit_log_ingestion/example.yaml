@@ -1,8 +1,25 @@
 type: dagster_component_templates.DagsterPlusAuditLogIngestionComponent
 attributes:
   asset_name: dagster_plus_audit_log
+
+  # US:  https://<org>.dagster.cloud/<deployment>/graphql
+  # EU:  https://<org>.eu.dagster.cloud/<deployment>/graphql
   endpoint_url: https://my-org.dagster.cloud/prod/graphql
   user_token_env: DAGSTER_PLUS_USER_TOKEN
+
+  # Optional filters (omit any field to "match all")
+  event_types:
+    - LOG_IN
+  # user_emails:
+  #   - user@example.com
+  # deployment_names:
+  #   - prod
+
+  page_size: 100
   lookback_minutes: 60
-  page_size: 500
+
   group_name: dagster_plus
+  kinds:
+    - dagster-plus
+    - audit
+    - security

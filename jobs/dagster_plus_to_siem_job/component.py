@@ -20,8 +20,8 @@ from pydantic import Field
 
 
 DEFAULT_QUERIES = {
-    "audit_log": """query AuditLogEntries($cursor: String, $limit: Int, $startTime: Float, $endTime: Float) {
-  auditLogs(cursor: $cursor, limit: $limit, startTime: $startTime, endTime: $endTime) {
+    "audit_log": """query DagsterPlusAuditLogs($limit: Int, $cursor: String, $filters: AuditLogFilters) {
+  auditLogs(limit: $limit, cursor: $cursor, filters: $filters) {
     entries {
       timestamp
       userEmail
@@ -80,13 +80,21 @@ class DagsterPlusToSiemJobComponent(dg.Component, dg.Model, dg.Resolvable):
     default_status: str = Field(default="STOPPED", description="STOPPED | RUNNING")
 
     # Source — Dagster+
-    endpoint_url: str = Field(description="Dagster+ GraphQL endpoint")
+    endpoint_url: str = Field(
+        description="Dagster+ GraphQL endpoint — US: 'https://<org>.dagster.cloud/<deployment>/graphql', EU: 'https://<org>.eu.dagster.cloud/<deployment>/graphql'"
+    )
     user_token_env: str = Field(default="DAGSTER_PLUS_USER_TOKEN")
     event_type: str = Field(default="audit_log", description="audit_log | runs | asset_events")
     query: Optional[str] = Field(default=None, description="Custom GraphQL query — overrides the default for the chosen event_type")
     result_path: Optional[str] = Field(default=None, description="Override JSON path to records (defaults match the event_type)")
-    page_size: int = Field(default=500)
-    lookback_minutes: int = Field(default=15)
+    page_size: int = Field(default=100, description="Per-page limit (max 100 for Dagster+ audit log)")
+    lookback_minutes: int = Field(default=15, description="Stop pagination once entry timestamps fall outside this window")
+
+    # Audit-log filters (only used when event_type=audit_log)
+    event_types: Optional[list[str]] = Field(default=None, description="AuditLog event-type codes (e.g. ['LOG_IN'])")
+    user_emails: Optional[list[str]] = Field(default=None, description="Filter to events by these user emails")
+    deployment_names: Optional[list[str]] = Field(default=None, description="Filter to events from these deployment names")
+    timestamp_field: str = Field(default="timestamp", description="Entry field used for the lookback cutoff")
 
     # Normalize
     normalize_to: str = Field(default="ocsf", description="ocsf | ecs | none")
@@ -110,6 +118,20 @@ class DagsterPlusToSiemJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 if obj is None: return None
             return obj
 
+        def _entry_epoch(entry, field):
+            ts = entry.get(field)
+            if ts is None:
+                return None
+            if isinstance(ts, (int, float)):
+                return ts / 1000.0 if ts > 1e12 else float(ts)
+            try:
+                parsed = dt.datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=dt.timezone.utc)
+                return parsed.timestamp()
+            except Exception:
+                return None
+
         def _fetch(_ctx):
             import requests
             token = os.environ[_self.user_token_env]
@@ -118,17 +140,57 @@ class DagsterPlusToSiemJobComponent(dg.Component, dg.Model, dg.Resolvable):
             if not query:
                 raise ValueError(f"unknown event_type: {_self.event_type}")
             result_path = _self.result_path or DEFAULT_RESULT_PATHS.get(_self.event_type)
-            end = dt.datetime.utcnow()
-            start = end - dt.timedelta(minutes=_self.lookback_minutes)
-            vars_payload = {"limit": _self.page_size, "startTime": start.timestamp(), "endTime": end.timestamp()}
-            r = requests.post(_self.endpoint_url, json={"query": query, "variables": vars_payload}, headers=headers, timeout=120)
-            r.raise_for_status()
-            body = r.json()
-            if "errors" in body:
-                raise Exception(f"Dagster+ GraphQL errors: {body['errors']}")
-            records = _get(body.get("data") or {}, result_path) or []
-            df = pd.DataFrame(records)
-            _ctx.log.info(f"fetched {len(df)} {_self.event_type} from Dagster+")
+
+            # Build the per-event-type variables payload.
+            base_vars: dict = {"limit": _self.page_size}
+            if _self.event_type == "audit_log":
+                filters: dict = {}
+                if _self.event_types: filters["eventTypes"] = _self.event_types
+                if _self.user_emails: filters["userEmails"] = _self.user_emails
+                if _self.deployment_names: filters["deploymentNames"] = _self.deployment_names
+                base_vars["filters"] = filters
+            else:
+                # For runs / asset_events the schema is best-guess — keep startTime/endTime
+                # as a hint that downstream queries may want a time window.
+                end = dt.datetime.utcnow()
+                start = end - dt.timedelta(minutes=_self.lookback_minutes)
+                base_vars["startTime"] = start.timestamp()
+                base_vars["endTime"] = end.timestamp()
+
+            cutoff_epoch = (
+                dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=_self.lookback_minutes)
+            ).timestamp()
+
+            all_records, cursor, page_count, stopped_early = [], None, 0, False
+            while True:
+                page_count += 1
+                vars_payload = dict(base_vars)
+                vars_payload["cursor"] = cursor
+                r = requests.post(_self.endpoint_url, json={"query": query, "variables": vars_payload}, headers=headers, timeout=120)
+                r.raise_for_status()
+                body = r.json()
+                if "errors" in body:
+                    raise Exception(f"Dagster+ GraphQL errors: {body['errors']}")
+                data = body.get("data") or {}
+                page_records = _get(data, result_path) or []
+                for entry in page_records:
+                    if _self.event_type == "audit_log" and isinstance(entry, dict):
+                        e = _entry_epoch(entry, _self.timestamp_field)
+                        if e is not None and e < cutoff_epoch:
+                            stopped_early = True
+                            break
+                    all_records.append(entry)
+                next_cursor = _get(data, "auditLogs.cursor") if _self.event_type == "audit_log" else None
+                has_more = _get(data, "auditLogs.hasMore") if _self.event_type == "audit_log" else False
+                if stopped_early or not next_cursor or not has_more:
+                    break
+                if page_count >= 100:
+                    _ctx.log.warning("hit 100-page safety limit; stopping")
+                    break
+                cursor = next_cursor
+
+            df = pd.DataFrame(all_records)
+            _ctx.log.info(f"fetched {len(df)} {_self.event_type} from Dagster+ in {page_count} page(s)")
             if len(df) == 0 and _self.fail_on_zero_events:
                 raise Exception("no events; fail_on_zero_events=True")
             return df

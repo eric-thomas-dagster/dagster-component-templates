@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.GcsCleanupJobComponent",
+  "description": "Delete GCS objects older than N days under a prefix.",
+  "category": "infrastructure",
+  "icon": "Cog",
+  "attributes": {}
+}

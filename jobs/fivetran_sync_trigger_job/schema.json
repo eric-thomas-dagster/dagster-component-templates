@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.FivetranSyncTriggerJobComponent",
+  "description": "Trigger a Fivetran connector sync via REST API.",
+  "category": "infrastructure",
+  "icon": "Cog",
+  "attributes": {}
+}

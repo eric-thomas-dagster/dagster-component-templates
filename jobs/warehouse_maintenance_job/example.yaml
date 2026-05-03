@@ -1,0 +1,12 @@
+type: dagster_component_templates.WarehouseMaintenanceJobComponent
+attributes:
+  job_name: warehouse_maintenance_job_example
+  schedule: "0 3 * * *"
+  job_name: warehouse_nightly_maintenance
+  schedule: "0 3 * * *"
+  connection_string_env: WAREHOUSE_URL
+  statements:
+    - "VACUUM ANALYZE orders"
+    - "VACUUM ANALYZE customers"
+    - "REFRESH MATERIALIZED VIEW daily_revenue"
+  autocommit: true

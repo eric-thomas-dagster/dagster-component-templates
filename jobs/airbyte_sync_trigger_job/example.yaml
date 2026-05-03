@@ -1,0 +1,7 @@
+type: dagster_component_templates.AirbyteSyncTriggerJobComponent
+attributes:
+  job_name: airbyte_sync_trigger_job_example
+  schedule: "0 3 * * *"
+  airbyte_url: https://airbyte.acme.com
+  connection_id: 550e8400-e29b-41d4-a716-446655440000
+  wait_for_completion: true

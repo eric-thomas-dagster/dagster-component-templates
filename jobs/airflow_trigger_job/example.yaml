@@ -1,0 +1,7 @@
+type: dagster_component_templates.AirflowTriggerJobComponent
+attributes:
+  job_name: airflow_trigger_job_example
+  schedule: "0 3 * * *"
+  airflow_url: https://airflow.acme.com
+  dag_id: nightly_export
+  wait_for_completion: true

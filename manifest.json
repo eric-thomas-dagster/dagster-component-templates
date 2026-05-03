@@ -13773,6 +13773,513 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/siem_event_normalizer/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/siem_event_normalizer/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/siem_event_normalizer/requirements.txt"
+    },
+    {
+      "id": "shell_command_job",
+      "name": "ShellCommandJobComponent",
+      "category": "infrastructure",
+      "description": "Run a shell command as a Dagster job (no asset materialized) \u2014 for cleanup, maintenance, ad-hoc tasks.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/shell_command_job",
+      "tags": [
+        "job",
+        "shell",
+        "task",
+        "maintenance"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/shell_command_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/shell_command_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/shell_command_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/shell_command_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/shell_command_job/requirements.txt"
+    },
+    {
+      "id": "python_callable_job",
+      "name": "PythonCallableJobComponent",
+      "category": "infrastructure",
+      "description": "Run an arbitrary Python callable as a Dagster job \u2014 Airflow PythonOperator equivalent.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/python_callable_job",
+      "tags": [
+        "job",
+        "python",
+        "task",
+        "airflow-style"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/python_callable_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/python_callable_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/python_callable_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/python_callable_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/python_callable_job/requirements.txt"
+    },
+    {
+      "id": "http_webhook_job",
+      "name": "HttpWebhookJobComponent",
+      "category": "infrastructure",
+      "description": "POST/GET to an HTTP endpoint as a job \u2014 heartbeats, status pings, fire-and-forget triggers.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/http_webhook_job",
+      "tags": [
+        "job",
+        "http",
+        "webhook",
+        "heartbeat"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/http_webhook_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/http_webhook_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/http_webhook_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/http_webhook_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/http_webhook_job/requirements.txt"
+    },
+    {
+      "id": "slack_notification_job",
+      "name": "SlackNotificationJobComponent",
+      "category": "infrastructure",
+      "description": "Send a Slack message as a scheduled job \u2014 daily summaries, weekly reports, ad-hoc alerts.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/slack_notification_job",
+      "tags": [
+        "job",
+        "slack",
+        "notification",
+        "alert"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/slack_notification_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/slack_notification_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/slack_notification_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/slack_notification_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/slack_notification_job/requirements.txt"
+    },
+    {
+      "id": "pagerduty_heartbeat_job",
+      "name": "PagerdutyHeartbeatJobComponent",
+      "category": "infrastructure",
+      "description": "Send a PagerDuty heartbeat (resolve event) \u2014 confirms a job is alive on a cadence.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/pagerduty_heartbeat_job",
+      "tags": [
+        "job",
+        "pagerduty",
+        "heartbeat",
+        "monitoring"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/pagerduty_heartbeat_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/pagerduty_heartbeat_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/pagerduty_heartbeat_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/pagerduty_heartbeat_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/pagerduty_heartbeat_job/requirements.txt"
+    },
+    {
+      "id": "teams_notification_job",
+      "name": "TeamsNotificationJobComponent",
+      "category": "infrastructure",
+      "description": "Send a message to a Microsoft Teams channel via incoming webhook.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/teams_notification_job",
+      "tags": [
+        "job",
+        "teams",
+        "microsoft",
+        "notification"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/teams_notification_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/teams_notification_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/teams_notification_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/teams_notification_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/teams_notification_job/requirements.txt"
+    },
+    {
+      "id": "twilio_sms_job",
+      "name": "TwilioSmsJobComponent",
+      "category": "infrastructure",
+      "description": "Send an SMS via Twilio as a job \u2014 useful for on-call paging without a full PagerDuty stack.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/twilio_sms_job",
+      "tags": [
+        "job",
+        "twilio",
+        "sms",
+        "notification"
+      ],
+      "dependencies": {
+        "pip": [
+          "twilio"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/twilio_sms_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/twilio_sms_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/twilio_sms_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/twilio_sms_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/twilio_sms_job/requirements.txt"
+    },
+    {
+      "id": "sql_command_job",
+      "name": "SqlCommandJobComponent",
+      "category": "infrastructure",
+      "description": "Execute a SQL maintenance command (VACUUM, ANALYZE, REFRESH MATERIALIZED VIEW, etc.) \u2014 no asset.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/sql_command_job",
+      "tags": [
+        "job",
+        "sql",
+        "maintenance",
+        "vacuum",
+        "refresh"
+      ],
+      "dependencies": {
+        "pip": [
+          "sqlalchemy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sql_command_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sql_command_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sql_command_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sql_command_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sql_command_job/requirements.txt"
+    },
+    {
+      "id": "s3_cleanup_job",
+      "name": "S3CleanupJobComponent",
+      "category": "infrastructure",
+      "description": "Delete S3 objects older than N days under a prefix \u2014 cost control + compliance retention.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/s3_cleanup_job",
+      "tags": [
+        "job",
+        "aws",
+        "s3",
+        "cleanup",
+        "retention"
+      ],
+      "dependencies": {
+        "pip": [
+          "boto3"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/s3_cleanup_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/s3_cleanup_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/s3_cleanup_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/s3_cleanup_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/s3_cleanup_job/requirements.txt"
+    },
+    {
+      "id": "gcs_cleanup_job",
+      "name": "GcsCleanupJobComponent",
+      "category": "infrastructure",
+      "description": "Delete GCS objects older than N days under a prefix.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/gcs_cleanup_job",
+      "tags": [
+        "job",
+        "gcp",
+        "gcs",
+        "cleanup",
+        "retention"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-storage"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/gcs_cleanup_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/gcs_cleanup_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/gcs_cleanup_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/gcs_cleanup_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/gcs_cleanup_job/requirements.txt"
+    },
+    {
+      "id": "adls_cleanup_job",
+      "name": "AdlsCleanupJobComponent",
+      "category": "infrastructure",
+      "description": "Delete Azure ADLS Gen2 / Blob objects older than N days under a prefix.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/adls_cleanup_job",
+      "tags": [
+        "job",
+        "azure",
+        "adls",
+        "blob",
+        "cleanup",
+        "retention"
+      ],
+      "dependencies": {
+        "pip": [
+          "azure-storage-blob",
+          "azure-identity"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/adls_cleanup_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/adls_cleanup_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/adls_cleanup_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/adls_cleanup_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/adls_cleanup_job/requirements.txt"
+    },
+    {
+      "id": "dbt_run_job",
+      "name": "DbtRunJobComponent",
+      "category": "infrastructure",
+      "description": "Run a `dbt` command (run, build, test, snapshot) as a Dagster job \u2014 no asset modeling.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/dbt_run_job",
+      "tags": [
+        "job",
+        "dbt",
+        "task",
+        "transform"
+      ],
+      "dependencies": {
+        "pip": [
+          "dbt-core"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dbt_run_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dbt_run_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dbt_run_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dbt_run_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dbt_run_job/requirements.txt"
+    },
+    {
+      "id": "airflow_trigger_job",
+      "name": "AirflowTriggerJobComponent",
+      "category": "infrastructure",
+      "description": "Trigger an Airflow DAG run via the Airflow REST API as a Dagster job.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/airflow_trigger_job",
+      "tags": [
+        "job",
+        "airflow",
+        "trigger",
+        "external-orchestrator"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/airflow_trigger_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/airflow_trigger_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/airflow_trigger_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/airflow_trigger_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/airflow_trigger_job/requirements.txt"
+    },
+    {
+      "id": "airbyte_sync_trigger_job",
+      "name": "AirbyteSyncTriggerJobComponent",
+      "category": "infrastructure",
+      "description": "Trigger an Airbyte connection sync via REST API \u2014 fire-and-forget or wait for completion.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/airbyte_sync_trigger_job",
+      "tags": [
+        "job",
+        "airbyte",
+        "trigger",
+        "elt"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/airbyte_sync_trigger_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/airbyte_sync_trigger_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/airbyte_sync_trigger_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/airbyte_sync_trigger_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/airbyte_sync_trigger_job/requirements.txt"
+    },
+    {
+      "id": "fivetran_sync_trigger_job",
+      "name": "FivetranSyncTriggerJobComponent",
+      "category": "infrastructure",
+      "description": "Trigger a Fivetran connector sync via REST API.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/fivetran_sync_trigger_job",
+      "tags": [
+        "job",
+        "fivetran",
+        "trigger",
+        "elt"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fivetran_sync_trigger_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fivetran_sync_trigger_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fivetran_sync_trigger_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fivetran_sync_trigger_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fivetran_sync_trigger_job/requirements.txt"
+    },
+    {
+      "id": "cache_invalidation_job",
+      "name": "CacheInvalidationJobComponent",
+      "category": "infrastructure",
+      "description": "Flush keys from a Redis (or compatible) cache as a job \u2014 pattern-based or full FLUSHDB.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/cache_invalidation_job",
+      "tags": [
+        "job",
+        "redis",
+        "cache",
+        "invalidation"
+      ],
+      "dependencies": {
+        "pip": [
+          "redis"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/cache_invalidation_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/cache_invalidation_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/cache_invalidation_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/cache_invalidation_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/cache_invalidation_job/requirements.txt"
+    },
+    {
+      "id": "postgres_backup_job",
+      "name": "PostgresBackupJobComponent",
+      "category": "infrastructure",
+      "description": "Run pg_dump \u2192 upload to S3/GCS/local \u2014 backup as a job, no asset materialized.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/postgres_backup_job",
+      "tags": [
+        "job",
+        "postgres",
+        "backup",
+        "pg-dump"
+      ],
+      "dependencies": {
+        "pip": [
+          "boto3"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/postgres_backup_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/postgres_backup_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/postgres_backup_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/postgres_backup_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/postgres_backup_job/requirements.txt"
+    },
+    {
+      "id": "siem_audit_export_job",
+      "name": "SiemAuditExportJobComponent",
+      "category": "infrastructure",
+      "description": "Compound op job: pull audit logs from a SaaS source, normalize to OCSF/ECS, ship to a SIEM \u2014 all in one YAML config.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/siem_audit_export_job",
+      "tags": [
+        "compound",
+        "job",
+        "siem",
+        "audit-log",
+        "security",
+        "ocsf"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/siem_audit_export_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/siem_audit_export_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/siem_audit_export_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/siem_audit_export_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/siem_audit_export_job/requirements.txt"
+    },
+    {
+      "id": "observability_heartbeat_job",
+      "name": "ObservabilityHeartbeatJobComponent",
+      "category": "infrastructure",
+      "description": "Compound op job: send a heartbeat to multiple destinations (Slack + PagerDuty + HTTP) on cron \u2014 single YAML config.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/observability_heartbeat_job",
+      "tags": [
+        "compound",
+        "job",
+        "heartbeat",
+        "monitoring",
+        "observability"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/observability_heartbeat_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/observability_heartbeat_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/observability_heartbeat_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/observability_heartbeat_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/observability_heartbeat_job/requirements.txt"
+    },
+    {
+      "id": "warehouse_maintenance_job",
+      "name": "WarehouseMaintenanceJobComponent",
+      "category": "infrastructure",
+      "description": "Compound op job: run warehouse maintenance (VACUUM / ANALYZE / REFRESH MATERIALIZED VIEW) across many statements with one schedule.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/warehouse_maintenance_job",
+      "tags": [
+        "compound",
+        "job",
+        "warehouse",
+        "maintenance",
+        "sql"
+      ],
+      "dependencies": {
+        "pip": [
+          "sqlalchemy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/warehouse_maintenance_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/warehouse_maintenance_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/warehouse_maintenance_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/warehouse_maintenance_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/warehouse_maintenance_job/requirements.txt"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

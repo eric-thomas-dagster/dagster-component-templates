@@ -1,0 +1,8 @@
+type: dagster_component_templates.AdlsCleanupJobComponent
+attributes:
+  job_name: adls_cleanup_job_example
+  schedule: "0 3 * * *"
+  account_url: https://myacct.blob.core.windows.net
+  container: data
+  prefix: tmp/
+  older_than_days: 30

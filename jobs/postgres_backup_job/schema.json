@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.PostgresBackupJobComponent",
+  "description": "Run pg_dump \u2192 upload to S3/GCS/local \u2014 backup as a job, no asset materialized.",
+  "category": "infrastructure",
+  "icon": "Cog",
+  "attributes": {}
+}

@@ -1,0 +1,7 @@
+type: dagster_component_templates.SlackNotificationJobComponent
+attributes:
+  job_name: slack_notification_job_example
+  schedule: "0 3 * * *"
+  webhook_url_env: SLACK_WEBHOOK_URL
+  message: "Daily ETL run complete"
+  channel: "#data-platform"

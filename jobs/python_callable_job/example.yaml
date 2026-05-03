@@ -1,0 +1,7 @@
+type: dagster_component_templates.PythonCallableJobComponent
+attributes:
+  job_name: python_callable_job_example
+  schedule: "0 3 * * *"
+  callable_path: mypkg.cleanup:run
+  kwargs:
+    days: 30

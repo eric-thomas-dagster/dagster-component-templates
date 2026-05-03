@@ -1,0 +1,7 @@
+type: dagster_component_templates.HttpWebhookJobComponent
+attributes:
+  job_name: http_webhook_job_example
+  schedule: "0 3 * * *"
+  url: https://heartbeat.uptimerobot.com/abc123
+  method: GET
+  expected_status: 200

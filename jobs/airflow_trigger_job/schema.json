@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.AirflowTriggerJobComponent",
+  "description": "Trigger an Airflow DAG run via the Airflow REST API as a Dagster job.",
+  "category": "infrastructure",
+  "icon": "Cog",
+  "attributes": {}
+}

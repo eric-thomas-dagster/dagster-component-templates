@@ -1,0 +1,8 @@
+type: dagster_component_templates.TwilioSmsJobComponent
+attributes:
+  job_name: twilio_sms_job_example
+  schedule: "0 3 * * *"
+  from_number: "+15551234567"
+  to_numbers:
+    - "+15559876543"
+  message: "Pipeline failed — see Dagster UI"

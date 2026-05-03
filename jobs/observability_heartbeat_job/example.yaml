@@ -1,0 +1,9 @@
+type: dagster_component_templates.ObservabilityHeartbeatJobComponent
+attributes:
+  job_name: observability_heartbeat_job_example
+  schedule: "0 3 * * *"
+  job_name: ops_heartbeat
+  schedule: "*/5 * * * *"
+  message: "data platform heartbeat"
+  slack_webhook_url_env: SLACK_OPS_WEBHOOK
+  http_heartbeat_url: https://heartbeat.uptimerobot.com/m12345

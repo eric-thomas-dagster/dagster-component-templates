@@ -1,0 +1,7 @@
+type: dagster_component_templates.GcsCleanupJobComponent
+attributes:
+  job_name: gcs_cleanup_job_example
+  schedule: "0 3 * * *"
+  bucket: my-gcs-bucket
+  prefix: tmp/
+  older_than_days: 30

@@ -1,0 +1,5 @@
+type: dagster_component_templates.ShellCommandJobComponent
+attributes:
+  job_name: shell_command_job_example
+  schedule: "0 3 * * *"
+  command: "find /tmp -name \"*.tmp\" -mtime +7 -delete"

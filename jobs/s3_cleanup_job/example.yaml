@@ -1,0 +1,7 @@
+type: dagster_component_templates.S3CleanupJobComponent
+attributes:
+  job_name: s3_cleanup_job_example
+  schedule: "0 3 * * *"
+  bucket: my-bucket
+  prefix: tmp/
+  older_than_days: 30

@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.PagerdutyHeartbeatJobComponent",
+  "description": "Send a PagerDuty heartbeat (resolve event) \u2014 confirms a job is alive on a cadence.",
+  "category": "infrastructure",
+  "icon": "Cog",
+  "attributes": {}
+}

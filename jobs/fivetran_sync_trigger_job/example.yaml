@@ -1,0 +1,6 @@
+type: dagster_component_templates.FivetranSyncTriggerJobComponent
+attributes:
+  job_name: fivetran_sync_trigger_job_example
+  schedule: "0 3 * * *"
+  connector_id: my_connector_id
+  force: false

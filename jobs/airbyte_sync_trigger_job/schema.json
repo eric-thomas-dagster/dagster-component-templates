@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.AirbyteSyncTriggerJobComponent",
+  "description": "Trigger an Airbyte connection sync via REST API \u2014 fire-and-forget or wait for completion.",
+  "category": "infrastructure",
+  "icon": "Cog",
+  "attributes": {}
+}

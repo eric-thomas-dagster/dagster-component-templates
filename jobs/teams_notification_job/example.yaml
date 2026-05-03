@@ -1,0 +1,7 @@
+type: dagster_component_templates.TeamsNotificationJobComponent
+attributes:
+  job_name: teams_notification_job_example
+  schedule: "0 3 * * *"
+  webhook_url_env: TEAMS_WEBHOOK_URL
+  title: "ETL Run Complete"
+  text: "Pipeline ran in 4.2 minutes"

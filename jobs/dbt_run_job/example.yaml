@@ -1,0 +1,7 @@
+type: dagster_component_templates.DbtRunJobComponent
+attributes:
+  job_name: dbt_run_job_example
+  schedule: "0 3 * * *"
+  project_dir: /opt/dbt/my_project
+  command: build
+  select: tag:hourly

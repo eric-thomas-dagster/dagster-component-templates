@@ -1,0 +1,16 @@
+type: dagster_component_templates.SiemAuditExportJobComponent
+attributes:
+  job_name: siem_audit_export_job_example
+  schedule: "0 3 * * *"
+  job_name: okta_to_splunk_export
+  schedule: "*/15 * * * *"
+  source: okta
+  source_config:
+    okta_domain: acme.okta.com
+    api_token_env: OKTA_API_TOKEN
+  normalize_to: ocsf
+  sink: splunk
+  sink_config:
+    hec_url: https://splunk.acme.com:8088/services/collector
+    hec_token_env: SPLUNK_HEC_TOKEN
+  lookback_minutes: 15

@@ -1,0 +1,6 @@
+type: dagster_component_templates.SqlCommandJobComponent
+attributes:
+  job_name: sql_command_job_example
+  schedule: "0 3 * * *"
+  connection_string_env: WAREHOUSE_URL
+  sql: "VACUUM ANALYZE orders; REFRESH MATERIALIZED VIEW daily_revenue;"

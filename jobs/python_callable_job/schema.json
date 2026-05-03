@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.PythonCallableJobComponent",
+  "description": "Run an arbitrary Python callable as a Dagster job \u2014 Airflow PythonOperator equivalent.",
+  "category": "infrastructure",
+  "icon": "Cog",
+  "attributes": {}
+}

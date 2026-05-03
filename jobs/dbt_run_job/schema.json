@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.DbtRunJobComponent",
+  "description": "Run a `dbt` command (run, build, test, snapshot) as a Dagster job \u2014 no asset modeling.",
+  "category": "infrastructure",
+  "icon": "Cog",
+  "attributes": {}
+}

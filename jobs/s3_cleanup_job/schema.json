@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.S3CleanupJobComponent",
+  "description": "Delete S3 objects older than N days under a prefix \u2014 cost control + compliance retention.",
+  "category": "infrastructure",
+  "icon": "Cog",
+  "attributes": {}
+}

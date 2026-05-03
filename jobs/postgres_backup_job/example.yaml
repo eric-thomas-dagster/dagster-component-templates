@@ -1,0 +1,7 @@
+type: dagster_component_templates.PostgresBackupJobComponent
+attributes:
+  job_name: postgres_backup_job_example
+  schedule: "0 3 * * *"
+  pg_host: db.acme.com
+  pg_database: production
+  output: s3://my-backups/prod.dump

@@ -1,0 +1,6 @@
+type: dagster_component_templates.PagerdutyHeartbeatJobComponent
+attributes:
+  job_name: pagerduty_heartbeat_job_example
+  schedule: "0 3 * * *"
+  routing_key_env: PAGERDUTY_ROUTING_KEY
+  summary: nightly-etl heartbeat

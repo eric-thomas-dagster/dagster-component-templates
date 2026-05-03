@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.SqlCommandJobComponent",
+  "description": "Execute a SQL maintenance command (VACUUM, ANALYZE, REFRESH MATERIALIZED VIEW, etc.) \u2014 no asset.",
+  "category": "infrastructure",
+  "icon": "Cog",
+  "attributes": {}
+}

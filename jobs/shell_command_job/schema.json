@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.ShellCommandJobComponent",
+  "description": "Run a shell command as a Dagster job (no asset materialized) \u2014 for cleanup, maintenance, ad-hoc tasks.",
+  "category": "infrastructure",
+  "icon": "Cog",
+  "attributes": {}
+}

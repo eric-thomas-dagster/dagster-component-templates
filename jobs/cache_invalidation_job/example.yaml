@@ -1,0 +1,6 @@
+type: dagster_component_templates.CacheInvalidationJobComponent
+attributes:
+  job_name: cache_invalidation_job_example
+  schedule: "0 3 * * *"
+  redis_url_env: REDIS_URL
+  pattern: "session:*"

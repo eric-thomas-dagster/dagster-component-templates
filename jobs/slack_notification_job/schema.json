@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.SlackNotificationJobComponent",
+  "description": "Send a Slack message as a scheduled job \u2014 daily summaries, weekly reports, ad-hoc alerts.",
+  "category": "infrastructure",
+  "icon": "Cog",
+  "attributes": {}
+}

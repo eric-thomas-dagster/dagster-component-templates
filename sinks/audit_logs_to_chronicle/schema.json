@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.AuditLogsToChronicleComponent",
+  "description": "Ship audit-log DataFrame to Google Chronicle (SecOps) via the unstructuredlogentries ingestion API.",
+  "category": "security",
+  "icon": "Shield",
+  "attributes": {}
+}

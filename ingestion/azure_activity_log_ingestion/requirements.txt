@@ -1,0 +1,3 @@
+pandas
+azure-mgmt-monitor
+azure-identity

@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.AwsCloudTrailIngestionComponent",
+  "description": "Pull AWS CloudTrail events via the LookupEvents API. Returns a DataFrame per asset materialization.",
+  "category": "security",
+  "icon": "Shield",
+  "attributes": {}
+}

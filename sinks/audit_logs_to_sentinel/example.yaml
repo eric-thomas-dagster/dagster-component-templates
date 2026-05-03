@@ -1,0 +1,8 @@
+type: dagster_component_templates.AuditLogsToSentinelComponent
+attributes:
+  asset_name: audit_logs_to_sentinel_shipped
+  upstream_asset_key: normalized_audit_events
+  workspace_id: 00000000-0000-0000-0000-000000000000
+  workspace_key_env: SENTINEL_WORKSPACE_KEY
+  log_type: DagsterAudit
+  group_name: security_sink

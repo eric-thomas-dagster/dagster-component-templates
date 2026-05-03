@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.AzureActivityLogIngestionComponent",
+  "description": "Pull Azure Activity Log entries (control-plane audit) via the Monitor REST API.",
+  "category": "security",
+  "icon": "Shield",
+  "attributes": {}
+}

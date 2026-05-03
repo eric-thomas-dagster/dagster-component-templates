@@ -1,0 +1,9 @@
+type: dagster_component_templates.AuditLogsToSplunkComponent
+attributes:
+  asset_name: audit_logs_to_splunk_shipped
+  upstream_asset_key: normalized_audit_events
+  hec_url: https://splunk.acme.com:8088/services/collector
+  hec_token_env: SPLUNK_HEC_TOKEN
+  index: security
+  sourcetype: dagster:audit
+  group_name: security_sink

@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.AuditLogsToSplunkComponent",
+  "description": "Ship audit-log DataFrame to Splunk via the HTTP Event Collector (HEC).",
+  "category": "security",
+  "icon": "Shield",
+  "attributes": {}
+}

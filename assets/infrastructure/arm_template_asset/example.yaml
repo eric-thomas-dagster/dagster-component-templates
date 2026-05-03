@@ -1,0 +1,11 @@
+type: dagster_component_templates.ArmTemplateAssetComponent
+attributes:
+  asset_name: provision_data_platform
+  resource_group: my-rg
+  deployment_name: data-platform-2026
+  template_file: "{{ project_root }}/arm/data_platform.json"
+  parameters:
+    environment: production
+    storageAccountName: mycompanydata
+  group_name: infrastructure
+  description: Provision storage + cosmos + AKS via ARM before pipeline runs

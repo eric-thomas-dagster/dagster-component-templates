@@ -1,0 +1,10 @@
+type: dagster_component_templates.SnowflakeAccessHistoryIngestionComponent
+attributes:
+  asset_name: snowflake_access_history_ingestion_events
+  account: acme-prod
+  user: AUDIT_READER
+  password_env: SNOWFLAKE_PASSWORD
+  role: ACCOUNTADMIN
+  table: ACCESS_HISTORY
+  lookback_hours: 24
+  group_name: security_audit

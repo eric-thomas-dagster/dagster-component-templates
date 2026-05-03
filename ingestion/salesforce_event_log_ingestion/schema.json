@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.SalesforceEventLogIngestionComponent",
+  "description": "Pull Salesforce EventLogFile records (login, API access, report exports) via SOQL.",
+  "category": "security",
+  "icon": "Shield",
+  "attributes": {}
+}

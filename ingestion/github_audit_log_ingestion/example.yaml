@@ -1,0 +1,7 @@
+type: dagster_component_templates.GithubAuditLogIngestionComponent
+attributes:
+  asset_name: github_audit_log_ingestion_events
+  org: my-github-org
+  token_env: GITHUB_TOKEN
+  lookback_hours: 24
+  group_name: security_audit

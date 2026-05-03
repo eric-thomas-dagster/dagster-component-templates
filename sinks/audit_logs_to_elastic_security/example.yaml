@@ -1,0 +1,8 @@
+type: dagster_component_templates.AuditLogsToElasticSecurityComponent
+attributes:
+  asset_name: audit_logs_to_elastic_security_shipped
+  upstream_asset_key: normalized_audit_events
+  es_url: https://es.acme.com:9200
+  api_key_env: ELASTIC_API_KEY
+  index: logs-audit-default
+  group_name: security_sink

@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.OktaSystemLogIngestionComponent",
+  "description": "Pull Okta System Log events (every authentication, MFA challenge, admin action) via /api/v1/logs.",
+  "category": "security",
+  "icon": "Shield",
+  "attributes": {}
+}

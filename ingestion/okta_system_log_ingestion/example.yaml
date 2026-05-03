@@ -1,0 +1,7 @@
+type: dagster_component_templates.OktaSystemLogIngestionComponent
+attributes:
+  asset_name: okta_system_log_ingestion_events
+  okta_domain: acme.okta.com
+  api_token_env: OKTA_API_TOKEN
+  lookback_hours: 24
+  group_name: security_audit

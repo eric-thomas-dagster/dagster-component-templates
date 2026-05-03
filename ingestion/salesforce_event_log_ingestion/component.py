@@ -1,0 +1,110 @@
+"""SalesforceEventLogIngestionComponent.
+
+Pull Salesforce EventLogFile records (login, API access, report exports) via SOQL.
+
+Authentication: this component reads credentials from environment variables —
+configure your tenant before running. See README.md for the full list.
+"""
+
+import json
+import os
+from typing import Optional
+
+import dagster as dg
+import pandas as pd
+from pydantic import Field
+
+
+class SalesforceEventLogIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
+    """Pull Salesforce EventLogFile records (login, API access, report exports) via SOQL."""
+
+    asset_name: str = Field(description="Dagster asset name")
+
+    instance_url: str = Field(description="Salesforce instance URL (e.g. 'https://acme.my.salesforce.com')")
+    username_env: str = Field(default="SF_USERNAME")
+    password_env: str = Field(default="SF_PASSWORD")
+    security_token_env: str = Field(default="SF_SECURITY_TOKEN")
+    event_type: str = Field(default="Login", description="EventLogFile EventType (Login | API | ReportExport | etc.)")
+    lookback_hours: int = Field(default=24, description="How far back")
+
+    description: Optional[str] = Field(default=None, description="Asset description")
+    group_name: str = Field(default="security_audit", description="Dagster asset group")
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset deps")
+    owners: Optional[list[str]] = Field(default=None, description="Asset owners")
+    asset_tags: Optional[dict] = Field(default=None, description="Catalog tags")
+    kinds: Optional[list[str]] = Field(default=None, description="Asset kinds")
+    freshness_max_lag_minutes: Optional[int] = Field(default=None)
+    freshness_cron: Optional[str] = Field(default=None)
+    retry_policy_max_retries: Optional[int] = Field(default=None)
+    retry_policy_delay_seconds: Optional[int] = Field(default=None)
+    retry_policy_backoff: str = Field(default="exponential")
+    include_preview_metadata: bool = Field(default=True, description="Emit preview metadata")
+    preview_rows: int = Field(default=20, description="Preview row count")
+
+    def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        _self = self
+        retry = None
+        if self.retry_policy_max_retries:
+            retry = dg.RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=dg.Backoff.EXPONENTIAL if self.retry_policy_backoff == "exponential" else dg.Backoff.LINEAR,
+            )
+        freshness = None
+        if self.freshness_max_lag_minutes:
+            freshness = dg.FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
+
+        @dg.asset(
+            name=self.asset_name,
+            description=self.description or "Pull Salesforce EventLogFile records (login, API access, report exports) via SOQL.",
+            group_name=self.group_name,
+            kinds=set(self.kinds or ['salesforce', 'audit', 'crm']),
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
+            owners=self.owners or None,
+            tags=self.asset_tags or None,
+            freshness_policy=freshness,
+            retry_policy=retry,
+        )
+        def _asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+            df: pd.DataFrame
+            from simple_salesforce import Salesforce
+            import requests, datetime as dt
+            sf = Salesforce(
+                username=os.environ[_self.username_env],
+                password=os.environ[_self.password_env],
+                security_token=os.environ[_self.security_token_env],
+                instance_url=_self.instance_url,
+            )
+            end = dt.datetime.utcnow()
+            start = end - dt.timedelta(hours=_self.lookback_hours)
+            soql = (
+                f"SELECT Id, EventType, LogDate, LogFile, LogFileLength FROM EventLogFile "
+                f"WHERE EventType = '{_self.event_type}' "
+                f"AND LogDate >= {start.strftime('%Y-%m-%dT%H:%M:%SZ')}"
+            )
+            files = sf.query_all(soql)["records"]
+            all_events = []
+            headers = {"Authorization": f"Bearer {sf.session_id}"}
+            for f in files:
+                url = f"{_self.instance_url}{f['LogFile']}"
+                r = requests.get(url, headers=headers, timeout=120)
+                r.raise_for_status()
+                import csv as _csv, io as _io
+                for row in _csv.DictReader(_io.StringIO(r.text)):
+                    all_events.append(row)
+            df = pd.DataFrame(all_events)
+            metadata = {
+                "dagster/row_count": dg.MetadataValue.int(len(df)),
+            }
+            if _self.include_preview_metadata and len(df) > 0:
+                try:
+                    sample = df.sample(min(_self.preview_rows, len(df))) if len(df) > _self.preview_rows * 10 else df.head(_self.preview_rows)
+                    metadata["preview"] = dg.MetadataValue.md(sample.to_markdown(index=False))
+                except Exception as exc:
+                    context.log.warning(f"preview emission failed: {exc}")
+            return dg.MaterializeResult(value=df, metadata=metadata)
+
+        return dg.Definitions(assets=[_asset])

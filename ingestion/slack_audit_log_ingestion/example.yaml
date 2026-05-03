@@ -1,0 +1,6 @@
+type: dagster_component_templates.SlackAuditLogIngestionComponent
+attributes:
+  asset_name: slack_audit_log_ingestion_events
+  token_env: SLACK_AUDIT_TOKEN
+  lookback_hours: 24
+  group_name: security_audit

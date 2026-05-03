@@ -1,0 +1,8 @@
+type: dagster_component_templates.AuditLogsToQradarComponent
+attributes:
+  asset_name: audit_logs_to_qradar_shipped
+  upstream_asset_key: normalized_audit_events
+  qradar_host: qradar.acme.com
+  syslog_port: 514
+  leef_format: true
+  group_name: security_sink

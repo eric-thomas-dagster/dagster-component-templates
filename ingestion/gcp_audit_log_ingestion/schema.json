@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.GcpAuditLogIngestionComponent",
+  "description": "Pull GCP audit logs via the Cloud Logging API. Returns a DataFrame.",
+  "category": "security",
+  "icon": "Shield",
+  "attributes": {}
+}

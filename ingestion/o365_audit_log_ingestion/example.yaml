@@ -1,0 +1,8 @@
+type: dagster_component_templates.O365AuditLogIngestionComponent
+attributes:
+  asset_name: o365_audit_log_ingestion_events
+  tenant_id: 00000000-0000-0000-0000-000000000000
+  client_id: my-app-client-id
+  client_secret_env: O365_CLIENT_SECRET
+  content_type: Audit.General
+  group_name: security_audit

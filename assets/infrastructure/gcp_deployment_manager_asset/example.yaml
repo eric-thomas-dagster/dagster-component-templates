@@ -1,0 +1,7 @@
+type: dagster_component_templates.GcpDeploymentManagerAssetComponent
+attributes:
+  asset_name: gcp_data_platform
+  project_id: my-project-12345
+  deployment_name: data-platform
+  config_file: "{{ project_root }}/dm/data_platform.yaml"
+  group_name: infrastructure

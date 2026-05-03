@@ -1,0 +1,7 @@
+type: dagster_component_templates.Auth0LogsIngestionComponent
+attributes:
+  asset_name: auth0_logs_ingestion_events
+  auth0_domain: acme.us.auth0.com
+  mgmt_token_env: AUTH0_MGMT_TOKEN
+  lookback_hours: 24
+  group_name: security_audit

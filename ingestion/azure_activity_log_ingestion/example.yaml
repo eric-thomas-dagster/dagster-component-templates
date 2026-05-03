@@ -1,0 +1,6 @@
+type: dagster_component_templates.AzureActivityLogIngestionComponent
+attributes:
+  asset_name: azure_activity_log_ingestion_events
+  subscription_id: 00000000-0000-0000-0000-000000000000
+  lookback_hours: 24
+  group_name: security_audit

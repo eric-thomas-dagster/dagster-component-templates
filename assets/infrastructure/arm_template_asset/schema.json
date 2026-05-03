@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.ArmTemplateAssetComponent",
+  "description": "Deploy an Azure Resource Manager (ARM) template as a Dagster asset.",
+  "category": "infrastructure",
+  "icon": "Shield",
+  "attributes": {}
+}

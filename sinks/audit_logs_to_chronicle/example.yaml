@@ -1,0 +1,9 @@
+type: dagster_component_templates.AuditLogsToChronicleComponent
+attributes:
+  asset_name: audit_logs_to_chronicle_shipped
+  upstream_asset_key: normalized_audit_events
+  customer_id: 00000000-0000-0000-0000-000000000000
+  region: us
+  sa_credentials_path: /secrets/chronicle-sa.json
+  log_type: OKTA
+  group_name: security_sink

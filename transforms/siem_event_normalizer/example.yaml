@@ -1,0 +1,7 @@
+type: dagster_component_templates.SiemEventNormalizerComponent
+attributes:
+  asset_name: normalized_audit_events
+  upstream_asset_key: raw_audit_events
+  schema: ocsf
+  source_kind: okta
+  group_name: security_normalize

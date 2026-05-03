@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.GcpDeploymentManagerAssetComponent",
+  "description": "Deploy a GCP Deployment Manager configuration (.yaml or jinja) as a Dagster asset.",
+  "category": "infrastructure",
+  "icon": "Shield",
+  "attributes": {}
+}

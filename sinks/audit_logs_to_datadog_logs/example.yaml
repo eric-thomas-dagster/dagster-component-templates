@@ -1,0 +1,9 @@
+type: dagster_component_templates.AuditLogsToDatadogLogsComponent
+attributes:
+  asset_name: audit_logs_to_datadog_logs_shipped
+  upstream_asset_key: normalized_audit_events
+  api_key_env: DD_API_KEY
+  site: datadoghq.com
+  service: dagster-audit
+  ddtags: env:prod,team:security
+  group_name: security_sink

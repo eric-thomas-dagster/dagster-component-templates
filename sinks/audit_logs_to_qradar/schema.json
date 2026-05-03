@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.AuditLogsToQradarComponent",
+  "description": "Ship audit-log DataFrame to IBM QRadar via Syslog (TCP) \u2014 events go to a configured Log Source.",
+  "category": "security",
+  "icon": "Shield",
+  "attributes": {}
+}

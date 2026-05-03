@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.AuditLogsToDatadogLogsComponent",
+  "description": "Ship audit-log DataFrame to Datadog Logs via /api/v2/logs.",
+  "category": "security",
+  "icon": "Shield",
+  "attributes": {}
+}

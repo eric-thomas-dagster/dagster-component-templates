@@ -1,0 +1,2 @@
+google-cloud-deployment-manager
+google-auth

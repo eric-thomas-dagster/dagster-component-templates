@@ -1,0 +1,104 @@
+"""Auth0LogsIngestionComponent.
+
+Pull Auth0 tenant logs via the Management API /api/v2/logs endpoint.
+
+Authentication: this component reads credentials from environment variables —
+configure your tenant before running. See README.md for the full list.
+"""
+
+import json
+import os
+from typing import Optional
+
+import dagster as dg
+import pandas as pd
+from pydantic import Field
+
+
+class Auth0LogsIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
+    """Pull Auth0 tenant logs via the Management API /api/v2/logs endpoint."""
+
+    asset_name: str = Field(description="Dagster asset name")
+
+    auth0_domain: str = Field(description="Auth0 tenant domain (e.g. 'acme.us.auth0.com')")
+    mgmt_token_env: str = Field(default="AUTH0_MGMT_TOKEN", description="Env var with Mgmt API access token")
+    lookback_hours: int = Field(default=24, description="How far back")
+    log_type_filter: Optional[str] = Field(default=None, description="Filter by log type code (e.g. 's' for success login)")
+    page_size: int = Field(default=100, description="Per-page (max 100 for Mgmt API)")
+
+    description: Optional[str] = Field(default=None, description="Asset description")
+    group_name: str = Field(default="security_audit", description="Dagster asset group")
+    deps: Optional[list[str]] = Field(default=None, description="Upstream asset deps")
+    owners: Optional[list[str]] = Field(default=None, description="Asset owners")
+    asset_tags: Optional[dict] = Field(default=None, description="Catalog tags")
+    kinds: Optional[list[str]] = Field(default=None, description="Asset kinds")
+    freshness_max_lag_minutes: Optional[int] = Field(default=None)
+    freshness_cron: Optional[str] = Field(default=None)
+    retry_policy_max_retries: Optional[int] = Field(default=None)
+    retry_policy_delay_seconds: Optional[int] = Field(default=None)
+    retry_policy_backoff: str = Field(default="exponential")
+    include_preview_metadata: bool = Field(default=True, description="Emit preview metadata")
+    preview_rows: int = Field(default=20, description="Preview row count")
+
+    def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        _self = self
+        retry = None
+        if self.retry_policy_max_retries:
+            retry = dg.RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=dg.Backoff.EXPONENTIAL if self.retry_policy_backoff == "exponential" else dg.Backoff.LINEAR,
+            )
+        freshness = None
+        if self.freshness_max_lag_minutes:
+            freshness = dg.FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
+
+        @dg.asset(
+            name=self.asset_name,
+            description=self.description or "Pull Auth0 tenant logs via the Management API /api/v2/logs endpoint.",
+            group_name=self.group_name,
+            kinds=set(self.kinds or ['auth0', 'audit', 'iam']),
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
+            owners=self.owners or None,
+            tags=self.asset_tags or None,
+            freshness_policy=freshness,
+            retry_policy=retry,
+        )
+        def _asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+            df: pd.DataFrame
+            import requests, datetime as dt
+            token = os.environ[_self.mgmt_token_env]
+            end = dt.datetime.utcnow()
+            start = end - dt.timedelta(hours=_self.lookback_hours)
+            q = f"date:[{start.isoformat()}Z TO {end.isoformat()}Z]"
+            if _self.log_type_filter:
+                q += f' AND type:"{_self.log_type_filter}"'
+            url = f"https://{_self.auth0_domain}/api/v2/logs"
+            all_logs, page = [], 0
+            while True:
+                r = requests.get(url, params={"q": q, "page": page, "per_page": _self.page_size, "include_totals": "false"},
+                                 headers={"Authorization": f"Bearer {token}"}, timeout=60)
+                r.raise_for_status()
+                batch = r.json()
+                if not batch:
+                    break
+                all_logs.extend(batch)
+                if len(batch) < _self.page_size:
+                    break
+                page += 1
+            df = pd.DataFrame(all_logs)
+            metadata = {
+                "dagster/row_count": dg.MetadataValue.int(len(df)),
+            }
+            if _self.include_preview_metadata and len(df) > 0:
+                try:
+                    sample = df.sample(min(_self.preview_rows, len(df))) if len(df) > _self.preview_rows * 10 else df.head(_self.preview_rows)
+                    metadata["preview"] = dg.MetadataValue.md(sample.to_markdown(index=False))
+                except Exception as exc:
+                    context.log.warning(f"preview emission failed: {exc}")
+            return dg.MaterializeResult(value=df, metadata=metadata)
+
+        return dg.Definitions(assets=[_asset])

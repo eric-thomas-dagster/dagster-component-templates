@@ -1,0 +1,3 @@
+pandas
+simple-salesforce
+requests

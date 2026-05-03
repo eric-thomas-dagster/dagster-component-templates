@@ -1,0 +1,7 @@
+type: dagster_component_templates.GcpAuditLogIngestionComponent
+attributes:
+  asset_name: gcp_audit_log_ingestion_events
+  project_id: my-project-12345
+  log_filter: 'logName:"cloudaudit.googleapis.com"'
+  lookback_hours: 24
+  group_name: security_audit

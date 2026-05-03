@@ -1,0 +1,7 @@
+type: dagster_component_templates.AuditLogsToSumoLogicComponent
+attributes:
+  asset_name: audit_logs_to_sumo_logic_shipped
+  upstream_asset_key: normalized_audit_events
+  collector_url_env: SUMO_HTTP_URL
+  source_category: dagster/audit
+  group_name: security_sink

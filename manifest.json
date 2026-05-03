@@ -13209,6 +13209,570 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/zero_shot_classifier/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/zero_shot_classifier/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/zero_shot_classifier/requirements.txt"
+    },
+    {
+      "id": "arm_template_asset",
+      "name": "ArmTemplateAssetComponent",
+      "category": "infrastructure",
+      "description": "Deploy an Azure Resource Manager (ARM) template as a Dagster asset.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/arm_template_asset",
+      "tags": [
+        "azure",
+        "arm",
+        "iac",
+        "infrastructure"
+      ],
+      "dependencies": {
+        "pip": [
+          "azure-mgmt-resource",
+          "azure-identity"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/arm_template_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/arm_template_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/arm_template_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/arm_template_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/arm_template_asset/requirements.txt"
+    },
+    {
+      "id": "bicep_asset",
+      "name": "BicepAssetComponent",
+      "category": "infrastructure",
+      "description": "Deploy a Bicep template as a Dagster asset (compiles via `az bicep build` then deploys via ARM).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/bicep_asset",
+      "tags": [
+        "azure",
+        "bicep",
+        "iac",
+        "infrastructure"
+      ],
+      "dependencies": {
+        "pip": [
+          "azure-mgmt-resource",
+          "azure-identity"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bicep_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bicep_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bicep_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bicep_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/bicep_asset/requirements.txt"
+    },
+    {
+      "id": "gcp_deployment_manager_asset",
+      "name": "GcpDeploymentManagerAssetComponent",
+      "category": "infrastructure",
+      "description": "Deploy a GCP Deployment Manager configuration (.yaml or jinja) as a Dagster asset.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/gcp_deployment_manager_asset",
+      "tags": [
+        "gcp",
+        "deployment-manager",
+        "iac",
+        "infrastructure"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-deployment-manager",
+          "google-auth"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/gcp_deployment_manager_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/gcp_deployment_manager_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/gcp_deployment_manager_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/gcp_deployment_manager_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/gcp_deployment_manager_asset/requirements.txt"
+    },
+    {
+      "id": "aws_cloudtrail_ingestion",
+      "name": "AwsCloudTrailIngestionComponent",
+      "category": "ingestion",
+      "description": "Pull AWS CloudTrail events via the LookupEvents API. Returns a DataFrame per asset materialization.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "ingestion/aws_cloudtrail_ingestion",
+      "tags": [
+        "aws",
+        "cloudtrail",
+        "siem",
+        "audit-log",
+        "security"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "boto3"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/aws_cloudtrail_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/aws_cloudtrail_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/aws_cloudtrail_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/aws_cloudtrail_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/aws_cloudtrail_ingestion/requirements.txt"
+    },
+    {
+      "id": "gcp_audit_log_ingestion",
+      "name": "GcpAuditLogIngestionComponent",
+      "category": "ingestion",
+      "description": "Pull GCP audit logs via the Cloud Logging API. Returns a DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "ingestion/gcp_audit_log_ingestion",
+      "tags": [
+        "gcp",
+        "cloud-logging",
+        "siem",
+        "audit-log",
+        "security"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "google-cloud-logging"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/gcp_audit_log_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/gcp_audit_log_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/gcp_audit_log_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/gcp_audit_log_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/gcp_audit_log_ingestion/requirements.txt"
+    },
+    {
+      "id": "azure_activity_log_ingestion",
+      "name": "AzureActivityLogIngestionComponent",
+      "category": "ingestion",
+      "description": "Pull Azure Activity Log entries (control-plane audit) via the Monitor REST API.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "ingestion/azure_activity_log_ingestion",
+      "tags": [
+        "azure",
+        "activity-log",
+        "siem",
+        "audit-log",
+        "security"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "azure-mgmt-monitor",
+          "azure-identity"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/azure_activity_log_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/azure_activity_log_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/azure_activity_log_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/azure_activity_log_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/azure_activity_log_ingestion/requirements.txt"
+    },
+    {
+      "id": "okta_system_log_ingestion",
+      "name": "OktaSystemLogIngestionComponent",
+      "category": "ingestion",
+      "description": "Pull Okta System Log events (every authentication, MFA challenge, admin action) via /api/v1/logs.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "ingestion/okta_system_log_ingestion",
+      "tags": [
+        "okta",
+        "siem",
+        "audit-log",
+        "iam",
+        "sso",
+        "security"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/okta_system_log_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/okta_system_log_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/okta_system_log_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/okta_system_log_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/okta_system_log_ingestion/requirements.txt"
+    },
+    {
+      "id": "auth0_logs_ingestion",
+      "name": "Auth0LogsIngestionComponent",
+      "category": "ingestion",
+      "description": "Pull Auth0 tenant logs via the Management API /api/v2/logs endpoint.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "ingestion/auth0_logs_ingestion",
+      "tags": [
+        "auth0",
+        "siem",
+        "audit-log",
+        "iam",
+        "security"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/auth0_logs_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/auth0_logs_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/auth0_logs_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/auth0_logs_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/auth0_logs_ingestion/requirements.txt"
+    },
+    {
+      "id": "o365_audit_log_ingestion",
+      "name": "O365AuditLogIngestionComponent",
+      "category": "ingestion",
+      "description": "Pull Microsoft 365 / Office 365 Unified Audit Log entries via the Management Activity API.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "ingestion/o365_audit_log_ingestion",
+      "tags": [
+        "o365",
+        "microsoft",
+        "siem",
+        "audit-log",
+        "security"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/o365_audit_log_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/o365_audit_log_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/o365_audit_log_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/o365_audit_log_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/o365_audit_log_ingestion/requirements.txt"
+    },
+    {
+      "id": "salesforce_event_log_ingestion",
+      "name": "SalesforceEventLogIngestionComponent",
+      "category": "ingestion",
+      "description": "Pull Salesforce EventLogFile records (login, API access, report exports) via SOQL.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "ingestion/salesforce_event_log_ingestion",
+      "tags": [
+        "salesforce",
+        "siem",
+        "audit-log",
+        "event-monitoring",
+        "security"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "simple-salesforce",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/salesforce_event_log_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/salesforce_event_log_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/salesforce_event_log_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/salesforce_event_log_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/salesforce_event_log_ingestion/requirements.txt"
+    },
+    {
+      "id": "github_audit_log_ingestion",
+      "name": "GithubAuditLogIngestionComponent",
+      "category": "ingestion",
+      "description": "Pull GitHub Enterprise / Org audit log via /orgs/:org/audit-log.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "ingestion/github_audit_log_ingestion",
+      "tags": [
+        "github",
+        "siem",
+        "audit-log",
+        "vcs",
+        "security"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/github_audit_log_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/github_audit_log_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/github_audit_log_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/github_audit_log_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/github_audit_log_ingestion/requirements.txt"
+    },
+    {
+      "id": "slack_audit_log_ingestion",
+      "name": "SlackAuditLogIngestionComponent",
+      "category": "ingestion",
+      "description": "Pull Slack Enterprise Grid audit log via /audit/v1/logs (requires audit_logs:read scope).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "ingestion/slack_audit_log_ingestion",
+      "tags": [
+        "slack",
+        "siem",
+        "audit-log",
+        "security"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/slack_audit_log_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/slack_audit_log_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/slack_audit_log_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/slack_audit_log_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/slack_audit_log_ingestion/requirements.txt"
+    },
+    {
+      "id": "snowflake_access_history_ingestion",
+      "name": "SnowflakeAccessHistoryIngestionComponent",
+      "category": "ingestion",
+      "description": "Pull Snowflake access history (every query, every column accessed) from the ACCOUNT_USAGE views.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "ingestion/snowflake_access_history_ingestion",
+      "tags": [
+        "snowflake",
+        "siem",
+        "audit-log",
+        "data-access",
+        "security"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "snowflake-connector-python"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/snowflake_access_history_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/snowflake_access_history_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/snowflake_access_history_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/snowflake_access_history_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/snowflake_access_history_ingestion/requirements.txt"
+    },
+    {
+      "id": "audit_logs_to_splunk",
+      "name": "AuditLogsToSplunkComponent",
+      "category": "sink",
+      "description": "Ship audit-log DataFrame to Splunk via the HTTP Event Collector (HEC).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sinks/audit_logs_to_splunk",
+      "tags": [
+        "splunk",
+        "siem",
+        "hec",
+        "audit-log",
+        "security"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_splunk/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_splunk/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_splunk/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_splunk/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_splunk/requirements.txt"
+    },
+    {
+      "id": "audit_logs_to_sentinel",
+      "name": "AuditLogsToSentinelComponent",
+      "category": "sink",
+      "description": "Ship audit-log DataFrame to Microsoft Sentinel via the Log Analytics Data Collector API.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sinks/audit_logs_to_sentinel",
+      "tags": [
+        "sentinel",
+        "azure",
+        "siem",
+        "log-analytics",
+        "security"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_sentinel/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_sentinel/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_sentinel/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_sentinel/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_sentinel/requirements.txt"
+    },
+    {
+      "id": "audit_logs_to_qradar",
+      "name": "AuditLogsToQradarComponent",
+      "category": "sink",
+      "description": "Ship audit-log DataFrame to IBM QRadar via Syslog (TCP) \u2014 events go to a configured Log Source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sinks/audit_logs_to_qradar",
+      "tags": [
+        "qradar",
+        "ibm",
+        "siem",
+        "syslog",
+        "security"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_qradar/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_qradar/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_qradar/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_qradar/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_qradar/requirements.txt"
+    },
+    {
+      "id": "audit_logs_to_chronicle",
+      "name": "AuditLogsToChronicleComponent",
+      "category": "sink",
+      "description": "Ship audit-log DataFrame to Google Chronicle (SecOps) via the unstructuredlogentries ingestion API.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sinks/audit_logs_to_chronicle",
+      "tags": [
+        "chronicle",
+        "google-secops",
+        "siem",
+        "audit-log",
+        "security"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "google-auth",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_chronicle/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_chronicle/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_chronicle/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_chronicle/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_chronicle/requirements.txt"
+    },
+    {
+      "id": "audit_logs_to_datadog_logs",
+      "name": "AuditLogsToDatadogLogsComponent",
+      "category": "sink",
+      "description": "Ship audit-log DataFrame to Datadog Logs via /api/v2/logs.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sinks/audit_logs_to_datadog_logs",
+      "tags": [
+        "datadog",
+        "logs",
+        "siem",
+        "audit-log"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_datadog_logs/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_datadog_logs/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_datadog_logs/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_datadog_logs/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_datadog_logs/requirements.txt"
+    },
+    {
+      "id": "audit_logs_to_elastic_security",
+      "name": "AuditLogsToElasticSecurityComponent",
+      "category": "sink",
+      "description": "Ship audit-log DataFrame to Elastic Security via the bulk indexing API.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sinks/audit_logs_to_elastic_security",
+      "tags": [
+        "elastic",
+        "elasticsearch",
+        "kibana",
+        "siem",
+        "audit-log"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "elasticsearch>=8"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_elastic_security/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_elastic_security/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_elastic_security/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_elastic_security/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_elastic_security/requirements.txt"
+    },
+    {
+      "id": "audit_logs_to_sumo_logic",
+      "name": "AuditLogsToSumoLogicComponent",
+      "category": "sink",
+      "description": "Ship audit-log DataFrame to Sumo Logic via an HTTP Hosted Collector.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sinks/audit_logs_to_sumo_logic",
+      "tags": [
+        "sumo-logic",
+        "siem",
+        "http-collector",
+        "audit-log"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_sumo_logic/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_sumo_logic/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_sumo_logic/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_sumo_logic/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/audit_logs_to_sumo_logic/requirements.txt"
+    },
+    {
+      "id": "siem_event_normalizer",
+      "name": "SiemEventNormalizerComponent",
+      "category": "transformation",
+      "description": "Normalize heterogeneous audit-log events to a common schema (OCSF or ECS) before shipping to a SIEM.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "transforms/siem_event_normalizer",
+      "tags": [
+        "security",
+        "siem",
+        "ocsf",
+        "ecs",
+        "normalizer",
+        "schema"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/siem_event_normalizer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/siem_event_normalizer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/siem_event_normalizer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/siem_event_normalizer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/siem_event_normalizer/requirements.txt"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

@@ -1,0 +1,7 @@
+type: dagster_component_templates.AwsCloudTrailIngestionComponent
+attributes:
+  asset_name: aws_cloudtrail_ingestion_events
+  region_name: us-east-1
+  lookback_hours: 24
+  event_name_filter: ConsoleLogin
+  group_name: security_audit

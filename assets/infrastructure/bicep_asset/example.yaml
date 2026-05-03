@@ -1,0 +1,9 @@
+type: dagster_component_templates.BicepAssetComponent
+attributes:
+  asset_name: provision_via_bicep
+  resource_group: my-rg
+  deployment_name: data-platform
+  bicep_file: "{{ project_root }}/bicep/main.bicep"
+  parameters:
+    environment: production
+  group_name: infrastructure

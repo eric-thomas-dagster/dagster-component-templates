@@ -1,0 +1,57 @@
+{
+  "component_type": "dagster_component_templates.S3CsvIOManagerComponent",
+  "description": "Store DataFrames as CSV files on Amazon S3 (or any S3-compatible endpoint).",
+  "category": "io_manager",
+  "icon": "Save",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "IOManager",
+      "description": "Resource"
+    }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "default": "io_manager",
+      "required": false
+    },
+    "bucket": {
+      "type": "string",
+      "label": "Bucket",
+      "required": true
+    },
+    "prefix": {
+      "type": "string",
+      "label": "Prefix",
+      "required": true
+    },
+    "region_name": {
+      "type": "string",
+      "label": "Region Name",
+      "required": false
+    },
+    "aws_access_key_env_var": {
+      "type": "string",
+      "label": "Aws Access Key Env Var",
+      "required": false
+    },
+    "aws_secret_key_env_var": {
+      "type": "string",
+      "label": "Aws Secret Key Env Var",
+      "required": false
+    },
+    "endpoint_url": {
+      "type": "string",
+      "label": "Endpoint Url",
+      "required": false
+    }
+  },
+  "tags": [
+    "io_manager",
+    "s3",
+    "csv",
+    "aws"
+  ],
+  "name": "S3CsvIOManager"
+}

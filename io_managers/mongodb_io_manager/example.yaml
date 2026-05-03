@@ -1,0 +1,6 @@
+type: dagster_component_templates.MongoDBIOManagerComponent
+attributes:
+  resource_key: io_manager
+  connection_uri_env_var: <fill in>
+  database: <fill in>
+  if_exists: <fill in>

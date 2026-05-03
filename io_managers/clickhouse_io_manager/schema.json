@@ -1,0 +1,57 @@
+{
+  "component_type": "dagster_component_templates.ClickHouseIOManagerComponent",
+  "description": "Persist DataFrames to ClickHouse, one table per asset (columnar OLAP).",
+  "category": "io_manager",
+  "icon": "Save",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "IOManager",
+      "description": "Resource"
+    }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "default": "io_manager",
+      "required": false
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "required": true
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "required": true
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "required": true
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": true
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "required": true
+    },
+    "secure": {
+      "type": "boolean",
+      "label": "Secure",
+      "required": true
+    }
+  },
+  "tags": [
+    "io_manager",
+    "clickhouse",
+    "olap",
+    "columnar"
+  ],
+  "name": "ClickHouseIOManager"
+}

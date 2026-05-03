@@ -1,0 +1,9 @@
+type: dagster_component_templates.ClickHouseIOManagerComponent
+attributes:
+  resource_key: io_manager
+  host: <fill in>
+  port: <fill in>
+  username_env_var: <fill in>
+  password_env_var: <fill in>
+  database: <fill in>
+  secure: <fill in>

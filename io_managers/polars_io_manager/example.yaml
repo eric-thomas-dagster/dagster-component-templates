@@ -1,0 +1,4 @@
+type: dagster_component_templates.PolarsIOManagerComponent
+attributes:
+  resource_key: io_manager
+  base_dir: <fill in>

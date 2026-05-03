@@ -20,25 +20,30 @@ class DeltaLakeIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_deltalake_pandas import DeltaLakePandasIOManager
-        from dagster_deltalake import StorageOptions
+        from dagster_deltalake import LocalConfig, S3Config, AzureConfig, GcsConfig
 
-        storage_options = {}
-        if self.aws_access_key_env_var:
-            storage_options["AWS_ACCESS_KEY_ID"] = os.environ.get(self.aws_access_key_env_var, "")
-        if self.aws_secret_key_env_var:
-            storage_options["AWS_SECRET_ACCESS_KEY"] = os.environ.get(self.aws_secret_key_env_var, "")
-        if self.aws_region:
-            storage_options["AWS_REGION"] = self.aws_region
-        if self.azure_storage_account_env_var:
-            storage_options["AZURE_STORAGE_ACCOUNT_NAME"] = os.environ.get(self.azure_storage_account_env_var, "")
-        if self.azure_storage_key_env_var:
-            storage_options["AZURE_STORAGE_ACCOUNT_KEY"] = os.environ.get(self.azure_storage_key_env_var, "")
-        if self.gcp_credentials_env_var:
-            storage_options["GOOGLE_SERVICE_ACCOUNT"] = os.environ.get(self.gcp_credentials_env_var, "")
+        # Pick a storage_options config based on which credential bundle is set.
+        # Falls back to LocalConfig (treats root_uri as a filesystem path).
+        storage_options = LocalConfig()
+        if self.aws_access_key_env_var or self.aws_region or self.root_uri.startswith("s3://"):
+            storage_options = S3Config(
+                access_key_id=(os.environ.get(self.aws_access_key_env_var, "") if self.aws_access_key_env_var else None),
+                secret_access_key=(os.environ.get(self.aws_secret_key_env_var, "") if self.aws_secret_key_env_var else None),
+                region=self.aws_region,
+            )
+        elif self.azure_storage_account_env_var or self.root_uri.startswith(("az://", "abfss://", "abfs://")):
+            storage_options = AzureConfig(
+                account_name=os.environ.get(self.azure_storage_account_env_var, "") if self.azure_storage_account_env_var else None,
+                account_key=os.environ.get(self.azure_storage_key_env_var, "") if self.azure_storage_key_env_var else None,
+            )
+        elif self.gcp_credentials_env_var or self.root_uri.startswith("gs://"):
+            storage_options = GcsConfig(
+                service_account=os.environ.get(self.gcp_credentials_env_var, "") if self.gcp_credentials_env_var else None,
+            )
 
         io_manager = DeltaLakePandasIOManager(
             root_uri=self.root_uri,
-            storage_options=StorageOptions(**storage_options) if storage_options else StorageOptions(),
-            schema=self.schema_name,
+            storage_options=storage_options,
+            schema=self.schema_name or "",
         )
         return dg.Definitions(resources={self.resource_key: io_manager})

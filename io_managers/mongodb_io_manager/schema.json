@@ -1,0 +1,42 @@
+{
+  "component_type": "dagster_component_templates.MongoDBIOManagerComponent",
+  "description": "Persist DataFrames to MongoDB collections (one per asset, document-store).",
+  "category": "io_manager",
+  "icon": "Save",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "IOManager",
+      "description": "Resource"
+    }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "default": "io_manager",
+      "required": false
+    },
+    "connection_uri_env_var": {
+      "type": "string",
+      "label": "Connection Uri Env Var",
+      "required": true
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "required": true
+    },
+    "if_exists": {
+      "type": "string",
+      "label": "If Exists",
+      "required": true
+    }
+  },
+  "tags": [
+    "io_manager",
+    "mongodb",
+    "nosql",
+    "document-store"
+  ],
+  "name": "MongoDBIOManager"
+}

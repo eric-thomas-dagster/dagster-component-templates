@@ -1,0 +1,8 @@
+type: dagster_component_templates.IcebergIOManagerComponent
+attributes:
+  resource_key: io_manager
+  catalog_name: <fill in>
+  namespace: <fill in>
+  catalog_uri: <fill in>
+  warehouse: <fill in>
+  catalog_type: <fill in>

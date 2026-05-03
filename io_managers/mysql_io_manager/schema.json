@@ -1,0 +1,42 @@
+{
+  "component_type": "dagster_component_templates.MySQLIOManagerComponent",
+  "description": "Persist DataFrames to a MySQL/MariaDB schema, one table per asset.",
+  "category": "io_manager",
+  "icon": "Save",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "IOManager",
+      "description": "Resource"
+    }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "default": "io_manager",
+      "required": false
+    },
+    "connection_url_env_var": {
+      "type": "string",
+      "label": "Connection Url Env Var",
+      "required": true
+    },
+    "schema_name": {
+      "type": "string",
+      "label": "Schema Name",
+      "required": false
+    },
+    "if_exists": {
+      "type": "string",
+      "label": "If Exists",
+      "required": true
+    }
+  },
+  "tags": [
+    "io_manager",
+    "mysql",
+    "mariadb",
+    "sql"
+  ],
+  "name": "MySQLIOManager"
+}

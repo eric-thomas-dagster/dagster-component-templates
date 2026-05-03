@@ -1,0 +1,47 @@
+{
+  "component_type": "dagster_component_templates.AzureBlobParquetIOManagerComponent",
+  "description": "Store DataFrames as Parquet on Azure Blob Storage.",
+  "category": "io_manager",
+  "icon": "Save",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "IOManager",
+      "description": "Resource"
+    }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "default": "io_manager",
+      "required": false
+    },
+    "account_name": {
+      "type": "string",
+      "label": "Account Name",
+      "required": true
+    },
+    "container": {
+      "type": "string",
+      "label": "Container",
+      "required": true
+    },
+    "prefix": {
+      "type": "string",
+      "label": "Prefix",
+      "required": true
+    },
+    "connection_string_env_var": {
+      "type": "string",
+      "label": "Connection String Env Var",
+      "required": false
+    }
+  },
+  "tags": [
+    "io_manager",
+    "azure",
+    "parquet",
+    "lakehouse"
+  ],
+  "name": "AzureBlobParquetIOManager"
+}

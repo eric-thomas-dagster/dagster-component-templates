@@ -905,6 +905,34 @@
       "icon": "si:amazonsagemaker"
     },
     {
+      "id": "azure_blob_parquet_io_manager",
+      "name": "AzureBlobParquetIOManager",
+      "category": "io_manager",
+      "description": "Store DataFrames as Parquet on Azure Blob Storage.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "io_managers/azure_blob_parquet_io_manager",
+      "tags": [
+        "io_manager",
+        "azure",
+        "parquet",
+        "lakehouse"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "pyarrow",
+          "azure-storage-blob",
+          "azure-identity"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/azure_blob_parquet_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/azure_blob_parquet_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/azure_blob_parquet_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/azure_blob_parquet_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/azure_blob_parquet_io_manager/requirements.txt"
+    },
+    {
       "id": "azure_data_factory",
       "name": "Azure Data Factory",
       "category": "integration",
@@ -1324,6 +1352,32 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/churn_prediction/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/churn_prediction/requirements.txt",
       "icon": "BarChart2"
+    },
+    {
+      "id": "clickhouse_io_manager",
+      "name": "ClickHouseIOManager",
+      "category": "io_manager",
+      "description": "Persist DataFrames to ClickHouse, one table per asset (columnar OLAP).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "io_managers/clickhouse_io_manager",
+      "tags": [
+        "io_manager",
+        "clickhouse",
+        "olap",
+        "columnar"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "clickhouse-connect"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/clickhouse_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/clickhouse_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/clickhouse_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/clickhouse_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/clickhouse_io_manager/requirements.txt"
     },
     {
       "id": "clickhouse_table_observation_sensor",
@@ -5354,6 +5408,33 @@
       ]
     },
     {
+      "id": "iceberg_io_manager",
+      "name": "IcebergIOManager",
+      "category": "io_manager",
+      "description": "Persist DataFrames as Apache Iceberg tables via PyIceberg.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "io_managers/iceberg_io_manager",
+      "tags": [
+        "io_manager",
+        "iceberg",
+        "lakehouse",
+        "parquet"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "pyiceberg",
+          "pyarrow"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/iceberg_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/iceberg_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/iceberg_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/iceberg_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/iceberg_io_manager/requirements.txt"
+    },
+    {
       "id": "image_captioner",
       "name": "Image Captioner",
       "category": "ai",
@@ -7199,6 +7280,32 @@
       "icon": "si:mongodb"
     },
     {
+      "id": "mongodb_io_manager",
+      "name": "MongoDBIOManager",
+      "category": "io_manager",
+      "description": "Persist DataFrames to MongoDB collections (one per asset, document-store).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "io_managers/mongodb_io_manager",
+      "tags": [
+        "io_manager",
+        "mongodb",
+        "nosql",
+        "document-store"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "pymongo"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mongodb_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mongodb_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mongodb_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mongodb_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mongodb_io_manager/requirements.txt"
+    },
+    {
       "id": "mongodb_reader",
       "name": "MongoDB Reader",
       "category": "source",
@@ -7393,6 +7500,33 @@
       "component_type": "dagster_component_templates.MQTTToDatabaseAssetComponent"
     },
     {
+      "id": "mssql_io_manager",
+      "name": "MSSQLIOManager",
+      "category": "io_manager",
+      "description": "Persist DataFrames to a Microsoft SQL Server schema, one table per asset.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "io_managers/mssql_io_manager",
+      "tags": [
+        "io_manager",
+        "mssql",
+        "sqlserver",
+        "sql"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "sqlalchemy",
+          "pyodbc"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mssql_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mssql_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mssql_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mssql_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mssql_io_manager/requirements.txt"
+    },
+    {
       "id": "multi_field_binning",
       "name": "MultiFieldBinning",
       "category": "transformation",
@@ -7505,6 +7639,33 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/multidimensional_scaling/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/multidimensional_scaling/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/multidimensional_scaling/requirements.txt"
+    },
+    {
+      "id": "mysql_io_manager",
+      "name": "MySQLIOManager",
+      "category": "io_manager",
+      "description": "Persist DataFrames to a MySQL/MariaDB schema, one table per asset.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "io_managers/mysql_io_manager",
+      "tags": [
+        "io_manager",
+        "mysql",
+        "mariadb",
+        "sql"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "sqlalchemy",
+          "pymysql"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mysql_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mysql_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mysql_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mysql_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mysql_io_manager/requirements.txt"
     },
     {
       "id": "mysql_resource",
@@ -8444,6 +8605,32 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/point_in_polygon/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/point_in_polygon/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/point_in_polygon/requirements.txt"
+    },
+    {
+      "id": "polars_io_manager",
+      "name": "PolarsIOManager",
+      "category": "io_manager",
+      "description": "Persist Polars DataFrames as Parquet files locally (alternative to pandas).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "io_managers/polars_io_manager",
+      "tags": [
+        "io_manager",
+        "polars",
+        "parquet",
+        "local"
+      ],
+      "dependencies": {
+        "pip": [
+          "polars",
+          "pyarrow"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/polars_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/polars_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/polars_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/polars_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/polars_io_manager/requirements.txt"
     },
     {
       "id": "polytomic_asset",
@@ -9616,6 +9803,32 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/running_total/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/running_total/requirements.txt",
       "icon": "Shuffle"
+    },
+    {
+      "id": "s3_csv_io_manager",
+      "name": "S3CsvIOManager",
+      "category": "io_manager",
+      "description": "Store DataFrames as CSV files on Amazon S3 (or any S3-compatible endpoint).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "io_managers/s3_csv_io_manager",
+      "tags": [
+        "io_manager",
+        "s3",
+        "csv",
+        "aws"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "boto3"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/s3_csv_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/s3_csv_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/s3_csv_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/s3_csv_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/s3_csv_io_manager/requirements.txt"
     },
     {
       "id": "s3_monitor",

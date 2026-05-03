@@ -1,0 +1,7 @@
+type: dagster_component_templates.AzureBlobParquetIOManagerComponent
+attributes:
+  resource_key: io_manager
+  account_name: <fill in>
+  container: <fill in>
+  prefix: <fill in>
+  connection_string_env_var: <fill in>

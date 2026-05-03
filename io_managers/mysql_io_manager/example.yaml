@@ -1,0 +1,6 @@
+type: dagster_component_templates.MySQLIOManagerComponent
+attributes:
+  resource_key: io_manager
+  connection_url_env_var: <fill in>
+  schema_name: <fill in>
+  if_exists: <fill in>

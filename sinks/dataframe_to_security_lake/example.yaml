@@ -1,0 +1,11 @@
+type: dagster_component_templates.DataframeToSecurityLakeComponent
+attributes:
+  asset_name: dagster_plus_audit_security_lake
+  upstream_asset_key: dagster_plus_audit_ocsf
+  bucket: aws-security-data-lake-us-east-1-12345
+  source_location: ext-dagster-plus-audit
+  region_name: us-east-1
+  account_id: "123456789012"
+  event_day_field: time
+  register_with_glue: false
+  group_name: security_lake

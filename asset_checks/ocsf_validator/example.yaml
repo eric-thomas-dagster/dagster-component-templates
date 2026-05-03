@@ -1,0 +1,7 @@
+type: dagster_component_templates.OcsfValidatorComponent
+attributes:
+  check_name: ocsf_conformance
+  upstream_asset_key: dagster_plus_audit_ocsf
+  blocking: true
+  require_known_class_uid: true
+  max_invalid_rows: 0

@@ -14386,6 +14386,85 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_plus_to_siem_job/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_plus_to_siem_job/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_plus_to_siem_job/requirements.txt"
+    },
+    {
+      "id": "ocsf_normalizer",
+      "name": "OcsfNormalizerComponent",
+      "category": "transformation",
+      "description": "Normalize source events to OCSF v1.1 with class_uid / category_uid / activity_id \u2014 per-source mapping tables for dagster_plus, cloudtrail, okta, github, azure_activity, slack.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "transforms/ocsf_normalizer",
+      "tags": [
+        "ocsf",
+        "security",
+        "normalize",
+        "schema",
+        "siem"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/ocsf_normalizer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/ocsf_normalizer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/ocsf_normalizer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/ocsf_normalizer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/ocsf_normalizer/requirements.txt"
+    },
+    {
+      "id": "ocsf_validator",
+      "name": "OcsfValidatorComponent",
+      "category": "check",
+      "description": "Asset check: validates OCSF v1.x conformance \u2014 required fields, severity range, known class_uid set.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "asset_checks/ocsf_validator",
+      "tags": [
+        "ocsf",
+        "security",
+        "asset-check",
+        "validation"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/ocsf_validator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/ocsf_validator/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/ocsf_validator/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/ocsf_validator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/ocsf_validator/requirements.txt"
+    },
+    {
+      "id": "dataframe_to_security_lake",
+      "name": "DataframeToSecurityLakeComponent",
+      "category": "sink",
+      "description": "Write an OCSF DataFrame to AWS Security Lake \u2014 Parquet with snappy compression and the canonical region/accountId/eventDay partition layout.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sinks/dataframe_to_security_lake",
+      "tags": [
+        "aws",
+        "security-lake",
+        "ocsf",
+        "parquet",
+        "sink"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "boto3",
+          "pyarrow"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/dataframe_to_security_lake/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/dataframe_to_security_lake/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/dataframe_to_security_lake/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/dataframe_to_security_lake/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/dataframe_to_security_lake/requirements.txt"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

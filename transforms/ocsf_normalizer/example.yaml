@@ -1,0 +1,12 @@
+type: dagster_component_templates.OcsfNormalizerComponent
+attributes:
+  asset_name: dagster_plus_audit_ocsf
+  upstream_asset_key: dagster_plus_audit_raw
+  source_kind: dagster_plus
+  vendor_name: Dagster
+  product_name: Dagster+
+  ocsf_version: "1.1.0"
+  default_severity_id: 1
+  drop_unmapped: false
+  keep_raw: true
+  group_name: ocsf

@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.DataframeToSecurityLakeComponent",
+  "description": "Write an OCSF DataFrame to AWS Security Lake \u2014 Parquet with snappy compression and the canonical region/accountId/eventDay partition layout.",
+  "category": "sink",
+  "icon": "Database",
+  "attributes": {}
+}

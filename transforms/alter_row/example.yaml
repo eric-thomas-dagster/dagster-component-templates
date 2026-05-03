@@ -1,0 +1,12 @@
+type: dagster_component_templates.AlterRowComponent
+attributes:
+  asset_name: alter_row_output
+  upstream_asset_key: upstream_data
+  rules:
+    - operation: delete
+      condition: "is_deleted == True"
+    - operation: update
+      condition: "version > 1"
+  default_operation: insert
+  operation_column: cdc_op
+  group_name: transforms

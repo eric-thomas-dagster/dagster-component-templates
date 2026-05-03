@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.HashComponent",
+  "description": "Compute MD5/SHA-1/SHA-256 of one or more columns (or the whole row) \u2014 useful for change detection, anonymization, surrogate keys.",
+  "category": "transformation",
+  "icon": "ArrowsRightLeft",
+  "attributes": {}
+}

@@ -1,0 +1,9 @@
+type: dagster_component_templates.ScdType1Component
+attributes:
+  asset_name: scd_type_1_output
+  upstream_asset_key: upstream_data
+  upstream_target_key: secondary_data
+  upstream_target_key: dim_customer_current
+  business_key_columns: [customer_id]
+  track_columns: [name, email, plan_tier]
+  group_name: transforms

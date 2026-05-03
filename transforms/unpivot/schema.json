@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.UnpivotComponent",
+  "description": "Unpivot a DataFrame from wide to long \u2014 melt N value columns into 2 columns (variable, value).",
+  "category": "transformation",
+  "icon": "ArrowsRightLeft",
+  "attributes": {}
+}

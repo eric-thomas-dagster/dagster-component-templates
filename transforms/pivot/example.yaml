@@ -1,0 +1,10 @@
+type: dagster_component_templates.PivotComponent
+attributes:
+  asset_name: pivot_output
+  upstream_asset_key: upstream_data
+  index_columns: [region]
+  pivot_column: product_category
+  value_column: revenue
+  agg_func: sum
+  fill_value: 0
+  group_name: transforms

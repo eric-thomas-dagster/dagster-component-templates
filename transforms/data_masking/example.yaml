@@ -1,0 +1,16 @@
+type: dagster_component_templates.DataMaskingComponent
+attributes:
+  asset_name: data_masking_output
+  upstream_asset_key: upstream_data
+  rules:
+    - column: email
+      method: hash
+    - column: phone
+      method: partial
+      keep_last: 4
+    - column: ssn
+      method: redact
+    - column: customer_id
+      method: pseudonymize
+  salt_env: MASKING_SALT
+  group_name: transforms

@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.LookupComponent",
+  "description": "Inline lookup \u2014 left-join an upstream DataFrame against a smaller reference DataFrame, optionally caching the reference per run.",
+  "category": "transformation",
+  "icon": "ArrowsRightLeft",
+  "attributes": {}
+}

@@ -1,0 +1,10 @@
+type: dagster_component_templates.DetectChangesComponent
+attributes:
+  asset_name: detect_changes_output
+  upstream_asset_key: upstream_data
+  upstream_prior_key: secondary_data
+  upstream_prior_key: customers_yesterday
+  business_key_columns: [customer_id]
+  compare_columns: [email, plan_tier, billing_address]
+  include_unchanged: false
+  group_name: transforms

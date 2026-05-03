@@ -1,0 +1,11 @@
+type: dagster_component_templates.RouterComponent
+attributes:
+  upstream_asset_key: orders
+  routes:
+    - asset_name: high_value_orders
+      condition: "total > 1000"
+    - asset_name: medium_value_orders
+      condition: "total >= 100 and total <= 1000"
+  default_asset_name: low_value_orders
+  exclusive: true
+  group_name: transforms

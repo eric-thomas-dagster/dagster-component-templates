@@ -1,0 +1,10 @@
+type: dagster_component_templates.LookupComponent
+attributes:
+  asset_name: lookup_output
+  upstream_asset_key: upstream_data
+  upstream_lookup_key: secondary_data
+  upstream_lookup_key: dim_country_codes
+  on: [country_code]
+  columns_to_add: [country_name, region]
+  multiple_match: first
+  group_name: transforms

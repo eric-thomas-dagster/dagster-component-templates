@@ -1,0 +1,18 @@
+type: dagster_component_templates.WindowCalculationComponent
+attributes:
+  asset_name: window_calculation_output
+  upstream_asset_key: upstream_data
+  partition_by: [customer_id]
+  order_by: [order_date]
+  operations:
+    - output: order_seq
+      func: row_number
+    - output: prev_order_total
+      func: lag
+      column: total
+      periods: 1
+    - output: rolling_3_total
+      func: moving_avg
+      column: total
+      window: 3
+  group_name: transforms

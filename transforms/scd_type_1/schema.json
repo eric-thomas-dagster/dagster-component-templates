@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.ScdType1Component",
+  "description": "Slowly Changing Dimension Type 1 \u2014 overwrite in place. Merge incoming rows into a target on a business key, replacing changed attributes.",
+  "category": "transformation",
+  "icon": "ArrowsRightLeft",
+  "attributes": {}
+}

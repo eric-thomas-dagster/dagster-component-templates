@@ -1,0 +1,8 @@
+type: dagster_component_templates.HashComponent
+attributes:
+  asset_name: hash_output
+  upstream_asset_key: upstream_data
+  columns: [customer_id, plan_tier, billing_address]
+  output_column: row_hash
+  algorithm: sha256
+  group_name: transforms

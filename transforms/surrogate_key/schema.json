@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.SurrogateKeyComponent",
+  "description": "Generate stable surrogate keys \u2014 deterministic SHA-256 hash of business-key columns, or sequential integers.",
+  "category": "transformation",
+  "icon": "ArrowsRightLeft",
+  "attributes": {}
+}

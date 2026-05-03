@@ -1,0 +1,9 @@
+type: dagster_component_templates.SurrogateKeyComponent
+attributes:
+  asset_name: surrogate_key_output
+  upstream_asset_key: upstream_data
+  business_key_columns: [customer_id, source_system]
+  output_column: customer_sk
+  method: sha256
+  truncate_chars: 16
+  group_name: transforms

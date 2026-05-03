@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.PivotComponent",
+  "description": "Pivot a DataFrame from long to wide \u2014 rotate row values into column headers with a chosen aggregation.",
+  "category": "transformation",
+  "icon": "ArrowsRightLeft",
+  "attributes": {}
+}

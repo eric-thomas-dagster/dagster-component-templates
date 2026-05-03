@@ -1,0 +1,9 @@
+type: dagster_component_templates.UnpivotComponent
+attributes:
+  asset_name: unpivot_output
+  upstream_asset_key: upstream_data
+  id_columns: [customer_id]
+  value_columns: [q1_revenue, q2_revenue, q3_revenue, q4_revenue]
+  var_name: quarter
+  value_name: revenue
+  group_name: transforms

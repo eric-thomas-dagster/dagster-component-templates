@@ -1,0 +1,12 @@
+type: dagster_component_templates.ScdType2Component
+attributes:
+  asset_name: scd_type_2_output
+  upstream_asset_key: upstream_data
+  upstream_target_key: secondary_data
+  upstream_target_key: dim_customer_history
+  business_key_columns: [customer_id]
+  track_columns: [plan_tier, billing_address]
+  effective_from_column: effective_from
+  effective_to_column: effective_to
+  is_current_column: is_current
+  group_name: transforms

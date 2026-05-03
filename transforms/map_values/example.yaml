@@ -1,0 +1,12 @@
+type: dagster_component_templates.MapValuesComponent
+attributes:
+  asset_name: map_values_output
+  upstream_asset_key: upstream_data
+  column: country_code
+  mapping:
+    US: United States
+    GB: United Kingdom
+    DE: Germany
+  output_column: country_name
+  default_value: Unknown
+  group_name: transforms

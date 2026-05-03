@@ -1,0 +1,11 @@
+type: dagster_component_templates.AuditColumnsComponent
+attributes:
+  asset_name: audit_columns_output
+  upstream_asset_key: upstream_data
+  include_run_id: true
+  include_asset_key: true
+  include_materialization_time: true
+  static_columns:
+    source_system: salesforce
+    pipeline_owner: data-platform
+  group_name: transforms

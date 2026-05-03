@@ -14465,6 +14465,381 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/dataframe_to_security_lake/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/dataframe_to_security_lake/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sinks/dataframe_to_security_lake/requirements.txt"
+    },
+    {
+      "id": "pivot",
+      "name": "PivotComponent",
+      "category": "transformation",
+      "description": "Pivot a DataFrame from long to wide \u2014 rotate row values into column headers with a chosen aggregation.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "transforms/pivot",
+      "tags": [
+        "pivot",
+        "long-to-wide",
+        "reshape"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/pivot/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/pivot/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/pivot/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/pivot/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/pivot/requirements.txt"
+    },
+    {
+      "id": "unpivot",
+      "name": "UnpivotComponent",
+      "category": "transformation",
+      "description": "Unpivot a DataFrame from wide to long \u2014 melt N value columns into 2 columns (variable, value).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "transforms/unpivot",
+      "tags": [
+        "unpivot",
+        "melt",
+        "wide-to-long",
+        "reshape"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/unpivot/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/unpivot/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/unpivot/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/unpivot/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/unpivot/requirements.txt"
+    },
+    {
+      "id": "scd_type_1",
+      "name": "ScdType1Component",
+      "category": "transformation",
+      "description": "Slowly Changing Dimension Type 1 \u2014 overwrite in place. Merge incoming rows into a target on a business key, replacing changed attributes.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "transforms/scd_type_1",
+      "tags": [
+        "scd",
+        "dimension",
+        "merge",
+        "warehouse"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/scd_type_1/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/scd_type_1/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/scd_type_1/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/scd_type_1/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/scd_type_1/requirements.txt"
+    },
+    {
+      "id": "scd_type_2",
+      "name": "ScdType2Component",
+      "category": "transformation",
+      "description": "Slowly Changing Dimension Type 2 \u2014 keep history. Detect changed rows, expire prior versions, insert new versions with effective_from / effective_to / is_current.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "transforms/scd_type_2",
+      "tags": [
+        "scd",
+        "dimension",
+        "merge",
+        "history",
+        "warehouse"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/scd_type_2/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/scd_type_2/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/scd_type_2/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/scd_type_2/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/scd_type_2/requirements.txt"
+    },
+    {
+      "id": "router",
+      "name": "RouterComponent",
+      "category": "transformation",
+      "description": "Multi-output conditional split \u2014 emit each output asset with rows matching its predicate. Equivalent to ADF Conditional Split / Informatica Router.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "transforms/router",
+      "tags": [
+        "router",
+        "conditional-split",
+        "branch"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/router/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/router/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/router/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/router/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/router/requirements.txt"
+    },
+    {
+      "id": "lookup",
+      "name": "LookupComponent",
+      "category": "transformation",
+      "description": "Inline lookup \u2014 left-join an upstream DataFrame against a smaller reference DataFrame, optionally caching the reference per run.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "transforms/lookup",
+      "tags": [
+        "lookup",
+        "join",
+        "reference",
+        "enrich"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/lookup/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/lookup/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/lookup/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/lookup/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/lookup/requirements.txt"
+    },
+    {
+      "id": "surrogate_key",
+      "name": "SurrogateKeyComponent",
+      "category": "transformation",
+      "description": "Generate stable surrogate keys \u2014 deterministic SHA-256 hash of business-key columns, or sequential integers.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "transforms/surrogate_key",
+      "tags": [
+        "surrogate-key",
+        "warehouse",
+        "dimension",
+        "hash"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/surrogate_key/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/surrogate_key/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/surrogate_key/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/surrogate_key/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/surrogate_key/requirements.txt"
+    },
+    {
+      "id": "hash",
+      "name": "HashComponent",
+      "category": "transformation",
+      "description": "Compute MD5/SHA-1/SHA-256 of one or more columns (or the whole row) \u2014 useful for change detection, anonymization, surrogate keys.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "transforms/hash",
+      "tags": [
+        "hash",
+        "md5",
+        "sha256",
+        "checksum"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/hash/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/hash/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/hash/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/hash/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/hash/requirements.txt"
+    },
+    {
+      "id": "map_values",
+      "name": "MapValuesComponent",
+      "category": "transformation",
+      "description": "Replace values in a column according to a lookup dict \u2014 country code \u2192 country name, status code \u2192 status text, etc.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "transforms/map_values",
+      "tags": [
+        "map-values",
+        "replace",
+        "translate"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/map_values/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/map_values/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/map_values/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/map_values/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/map_values/requirements.txt"
+    },
+    {
+      "id": "window_calculation",
+      "name": "WindowCalculationComponent",
+      "category": "transformation",
+      "description": "Window functions \u2014 PARTITION BY + ORDER BY + (lag, lead, rank, dense_rank, row_number, cumulative sum, moving avg). The full SQL window-function shape, in pandas.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "transforms/window_calculation",
+      "tags": [
+        "window",
+        "analytic",
+        "lag",
+        "lead",
+        "rank",
+        "moving-avg"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/window_calculation/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/window_calculation/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/window_calculation/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/window_calculation/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/window_calculation/requirements.txt"
+    },
+    {
+      "id": "detect_changes",
+      "name": "DetectChangesComponent",
+      "category": "transformation",
+      "description": "Diff incoming DataFrame against a prior snapshot \u2014 emit rows with a change_type column (insert/update/delete/unchanged).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "transforms/detect_changes",
+      "tags": [
+        "detect-changes",
+        "diff",
+        "cdc",
+        "snapshot"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/detect_changes/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/detect_changes/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/detect_changes/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/detect_changes/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/detect_changes/requirements.txt"
+    },
+    {
+      "id": "cross_join",
+      "name": "CrossJoinComponent",
+      "category": "transformation",
+      "description": "Cartesian product of two DataFrames. Optional row-count guard to prevent memory blowups.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "transforms/cross_join",
+      "tags": [
+        "cross-join",
+        "cartesian",
+        "join"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/cross_join/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/cross_join/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/cross_join/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/cross_join/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/cross_join/requirements.txt"
+    },
+    {
+      "id": "alter_row",
+      "name": "AlterRowComponent",
+      "category": "transformation",
+      "description": "Mark each row with a CDC operation (insert / update / delete / upsert) based on conditions \u2014 same semantics as ADF Alter Row.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "transforms/alter_row",
+      "tags": [
+        "cdc",
+        "alter-row",
+        "upsert",
+        "delete-marker"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/alter_row/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/alter_row/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/alter_row/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/alter_row/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/alter_row/requirements.txt"
+    },
+    {
+      "id": "audit_columns",
+      "name": "AuditColumnsComponent",
+      "category": "transformation",
+      "description": "Add system-audit columns to every row \u2014 run_id, dagster_run_id, asset_key, materialization_time, optional username/git_sha.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "transforms/audit_columns",
+      "tags": [
+        "audit",
+        "metadata",
+        "lineage",
+        "warehouse"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/audit_columns/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/audit_columns/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/audit_columns/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/audit_columns/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/audit_columns/requirements.txt"
+    },
+    {
+      "id": "data_masking",
+      "name": "DataMaskingComponent",
+      "category": "transformation",
+      "description": "Rule-based PII masking \u2014 hash, partial-mask (last 4 only), full-redact, or character-substitute. Per-column policies.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "transforms/data_masking",
+      "tags": [
+        "pii",
+        "masking",
+        "anonymize",
+        "compliance",
+        "gdpr"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/data_masking/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/data_masking/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/data_masking/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/data_masking/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/data_masking/requirements.txt"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

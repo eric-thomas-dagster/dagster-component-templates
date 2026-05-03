@@ -1,0 +1,9 @@
+type: dagster_component_templates.CrossJoinComponent
+attributes:
+  asset_name: cross_join_output
+  upstream_asset_key: upstream_data
+  upstream_right_key: secondary_data
+  upstream_right_key: dim_calendar
+  suffixes: [_order, _date]
+  max_result_rows: 1000000
+  group_name: transforms

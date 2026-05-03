@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.AuditColumnsComponent",
+  "description": "Add system-audit columns to every row \u2014 run_id, dagster_run_id, asset_key, materialization_time, optional username/git_sha.",
+  "category": "transformation",
+  "icon": "ArrowsRightLeft",
+  "attributes": {}
+}

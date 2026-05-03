@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.ScdType2Component",
+  "description": "Slowly Changing Dimension Type 2 \u2014 keep history. Detect changed rows, expire prior versions, insert new versions with effective_from / effective_to / is_current.",
+  "category": "transformation",
+  "icon": "ArrowsRightLeft",
+  "attributes": {}
+}

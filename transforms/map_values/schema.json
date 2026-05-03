@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.MapValuesComponent",
+  "description": "Replace values in a column according to a lookup dict \u2014 country code \u2192 country name, status code \u2192 status text, etc.",
+  "category": "transformation",
+  "icon": "ArrowsRightLeft",
+  "attributes": {}
+}

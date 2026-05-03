@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.CrossJoinComponent",
+  "description": "Cartesian product of two DataFrames. Optional row-count guard to prevent memory blowups.",
+  "category": "transformation",
+  "icon": "ArrowsRightLeft",
+  "attributes": {}
+}

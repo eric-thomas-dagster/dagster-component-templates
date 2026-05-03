@@ -14919,6 +14919,61 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/per_partition_backfill_job/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/per_partition_backfill_job/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/per_partition_backfill_job/requirements.txt"
+    },
+    {
+      "id": "openlineage_emitter",
+      "name": "OpenlineageEmitterComponent",
+      "category": "check",
+      "description": "Asset check that emits OpenLineage START/COMPLETE events to OL-compatible backends (Marquez, DataHub, OpenMetadata) when an upstream asset materializes.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "asset_checks/openlineage_emitter",
+      "tags": [
+        "openlineage",
+        "lineage",
+        "observability",
+        "datahub",
+        "marquez",
+        "openmetadata"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/openlineage_emitter/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/openlineage_emitter/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/openlineage_emitter/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/openlineage_emitter/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/openlineage_emitter/requirements.txt"
+    },
+    {
+      "id": "iceberg_maintenance_job",
+      "name": "IcebergMaintenanceJobComponent",
+      "category": "infrastructure",
+      "description": "Cron-driven Iceberg maintenance \u2014 OPTIMIZE (compaction), expire snapshots, remove orphans, rewrite manifests. Engine support: Spark, Trino, Athena.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/iceberg_maintenance_job",
+      "tags": [
+        "iceberg",
+        "maintenance",
+        "compaction",
+        "vacuum",
+        "optimize",
+        "job"
+      ],
+      "dependencies": {
+        "pip": [
+          "sqlalchemy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/iceberg_maintenance_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/iceberg_maintenance_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/iceberg_maintenance_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/iceberg_maintenance_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/iceberg_maintenance_job/requirements.txt"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

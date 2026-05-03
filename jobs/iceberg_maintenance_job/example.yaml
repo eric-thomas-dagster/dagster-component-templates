@@ -1,0 +1,18 @@
+type: dagster_component_templates.IcebergMaintenanceJobComponent
+attributes:
+  job_name: weekly_iceberg_maintenance
+  schedule: "0 4 * * 0"   # Sundays 4am UTC
+  engine: trino
+  connection_string_env: ICEBERG_DB_URL
+  tables:
+    - prod.orders
+    - prod.customers
+    - prod.events
+  operations:
+    - optimize
+    - expire_snapshots
+    - remove_orphan_files
+  operation_params:
+    expire_snapshots:
+      retention: "7d"
+  fail_fast: false

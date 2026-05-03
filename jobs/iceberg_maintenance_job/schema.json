@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.IcebergMaintenanceJobComponent",
+  "description": "Cron-driven Iceberg maintenance \u2014 OPTIMIZE (compaction), expire snapshots, remove orphans, rewrite manifests. Engine support: Spark, Trino, Athena.",
+  "category": "infrastructure",
+  "icon": "Wrench",
+  "attributes": {}
+}

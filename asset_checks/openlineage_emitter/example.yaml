@@ -1,0 +1,13 @@
+type: dagster_component_templates.OpenlineageEmitterComponent
+attributes:
+  check_name: emit_openlineage
+  upstream_asset_key: orders_enriched
+  openlineage_url: https://marquez.acme.com/api/v1/lineage
+  namespace: dagster
+  upstream_input_assets:
+    - orders_raw
+    - customers_raw
+  schema_facet: true
+  column_lineage_facet:
+    revenue: [orders_raw.price, orders_raw.quantity]
+  blocking: false

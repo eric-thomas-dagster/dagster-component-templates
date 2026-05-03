@@ -1,0 +1,8 @@
+type: dagster_component_templates.PerPartitionBackfillJobComponent
+attributes:
+  job_name: weekly_sales_backfill
+  schedule: "0 9 * * 1"  # Mondays 9am UTC
+  target_asset_key: sales_daily
+  partition_strategy: last_n_days
+  partition_count: 7
+  retry_max_retries: 1

@@ -1,0 +1,7 @@
+{
+  "component_type": "dagster_component_templates.DynamicFanoutJobComponent",
+  "description": "Generic DynamicOut op job \u2014 discover\u2192map\u2192collect via Python callables. Parallel fan-out without catalog overhead.",
+  "category": "infrastructure",
+  "icon": "Bolt",
+  "attributes": {}
+}

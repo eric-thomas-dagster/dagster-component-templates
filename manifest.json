@@ -14840,6 +14840,85 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/data_masking/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/data_masking/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/data_masking/requirements.txt"
+    },
+    {
+      "id": "dynamic_fanout_job",
+      "name": "DynamicFanoutJobComponent",
+      "category": "infrastructure",
+      "description": "Generic DynamicOut op job \u2014 discover\u2192map\u2192collect via Python callables. Parallel fan-out without catalog overhead.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/dynamic_fanout_job",
+      "tags": [
+        "job",
+        "dynamic-out",
+        "fanout",
+        "parallelism",
+        "compound"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dynamic_fanout_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dynamic_fanout_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dynamic_fanout_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dynamic_fanout_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dynamic_fanout_job/requirements.txt"
+    },
+    {
+      "id": "per_file_processor_job",
+      "name": "PerFileProcessorJobComponent",
+      "category": "infrastructure",
+      "description": "List files in S3/GCS/ADLS matching a pattern, run a callable per file in parallel via DynamicOut. Optional archive-after-success.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/per_file_processor_job",
+      "tags": [
+        "job",
+        "dynamic-out",
+        "files",
+        "s3",
+        "gcs",
+        "adls",
+        "inbox"
+      ],
+      "dependencies": {
+        "pip": [
+          "boto3",
+          "google-cloud-storage",
+          "azure-storage-blob",
+          "azure-identity"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/per_file_processor_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/per_file_processor_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/per_file_processor_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/per_file_processor_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/per_file_processor_job/requirements.txt"
+    },
+    {
+      "id": "per_partition_backfill_job",
+      "name": "PerPartitionBackfillJobComponent",
+      "category": "infrastructure",
+      "description": "Cron-driven parallel backfill of N partitions of an existing partitioned asset. Complements Dagster's first-class backfill machinery for predictable recurring rebuilds.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "jobs/per_partition_backfill_job",
+      "tags": [
+        "job",
+        "dynamic-out",
+        "partition",
+        "backfill",
+        "schedule"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/per_partition_backfill_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/per_partition_backfill_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/per_partition_backfill_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/per_partition_backfill_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/per_partition_backfill_job/requirements.txt"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

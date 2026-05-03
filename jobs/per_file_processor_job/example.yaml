@@ -1,0 +1,13 @@
+type: dagster_component_templates.PerFileProcessorJobComponent
+attributes:
+  job_name: process_inbox_csvs
+  schedule: "*/5 * * * *"
+  storage: s3
+  s3_bucket: my-inbox
+  s3_region: us-east-1
+  prefix: "incoming/"
+  pattern: "*.csv"
+  process_callable_path: "mypkg.parse:parse_one_file"
+  archive_prefix: "archive"
+  max_files_per_run: 100
+  retry_max_retries: 2

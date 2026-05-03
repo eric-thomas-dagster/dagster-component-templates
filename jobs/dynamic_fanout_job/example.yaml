@@ -1,0 +1,12 @@
+type: dagster_component_templates.DynamicFanoutJobComponent
+attributes:
+  job_name: process_url_list
+  schedule: "0 * * * *"
+  discover_callable_path: "mypkg.discover:list_urls"
+  discover_kwargs:
+    category: news
+  process_callable_path: "mypkg.process:fetch_url"
+  collect_callable_path: "mypkg.process:summarize"
+  mapping_key_field: id
+  retry_max_retries: 3
+  fail_on_empty: false

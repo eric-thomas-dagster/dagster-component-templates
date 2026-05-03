@@ -4,7 +4,7 @@ Pull Dagster+ run records (every job run, status, duration, tags) via the Dagste
 
 Authentication
 --------------
-Reads `Dagster-Cloud-User-Token` from an env var (default: DAGSTER_PLUS_USER_TOKEN).
+Reads `Dagster-Cloud-Api-Token` from an env var (default: DAGSTER_PLUS_USER_TOKEN).
 Generate one at <https://your-org.dagster.cloud/<deployment>/settings/tokens>.
 
 GraphQL endpoint
@@ -108,7 +108,7 @@ class DagsterPlusRunEventsIngestionComponent(dg.Component, dg.Model, dg.Resolvab
             import requests, datetime as dt
 
             token = os.environ[_self.user_token_env]
-            headers = {"Dagster-Cloud-User-Token": token, "Content-Type": "application/json"}
+            headers = {"Dagster-Cloud-Api-Token": token, "Content-Type": "application/json"}
             query = _self.query or DEFAULT_QUERY
 
             base_vars = dict(_self.variables or {})

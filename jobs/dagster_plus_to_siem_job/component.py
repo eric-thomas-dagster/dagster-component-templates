@@ -135,7 +135,7 @@ class DagsterPlusToSiemJobComponent(dg.Component, dg.Model, dg.Resolvable):
         def _fetch(_ctx):
             import requests
             token = os.environ[_self.user_token_env]
-            headers = {"Dagster-Cloud-User-Token": token, "Content-Type": "application/json"}
+            headers = {"Dagster-Cloud-Api-Token": token, "Content-Type": "application/json"}
             query = _self.query or DEFAULT_QUERIES.get(_self.event_type)
             if not query:
                 raise ValueError(f"unknown event_type: {_self.event_type}")

@@ -32,21 +32,59 @@ CATEGORY_UIDS = {
 # (class_uid, category_uid, default activity_id)
 SOURCE_MAPS = {
     "dagster_plus": {
+        # Validated against the live Dagster+ AuditLogEventType enum (43 values, 2026-05).
         # event_type → (class_uid, category_uid, activity_id)
-        "LOG_IN":              (3002, 3, 1),  # Authentication / Logon
-        "LOG_OUT":             (3002, 3, 2),  # Authentication / Logoff
-        "USER_INVITED":        (3005, 3, 1),  # Account Change / Create
-        "USER_REMOVED":        (3005, 3, 3),  # Account Change / Delete
-        "USER_DELETED":        (3005, 3, 3),
-        "ROLE_GRANTED":        (3006, 3, 1),  # User Access / Assign Privileges
-        "ROLE_REVOKED":        (3006, 3, 2),
-        "DEPLOYMENT_CREATED":  (6002, 6, 1),  # Application Lifecycle / Install
-        "DEPLOYMENT_UPDATED":  (6002, 6, 2),
-        "DEPLOYMENT_DELETED":  (6002, 6, 4),
-        "TOKEN_CREATED":       (3005, 3, 1),
-        "TOKEN_REVOKED":       (3005, 3, 3),
-        "AGENT_STARTED":       (6002, 6, 1),
-        "AGENT_STOPPED":       (6002, 6, 4),
+        # Authentication
+        "LOG_IN":                                     (3002, 3, 1),  # Authentication / Logon
+        "IFRAME_LOG_IN":                              (3002, 3, 1),
+        # User access management
+        "CHANGE_USER_PERMISSIONS":                    (3006, 3, 1),  # User Access / Assign Privileges
+        "CHANGE_SERVICE_USER_PERMISSIONS":            (3006, 3, 1),
+        "UPDATE_AGENT_TOKEN_PERMISSIONS":             (3006, 3, 1),
+        # Account / token / service-user changes
+        "CREATE_USER_TOKEN":                          (3005, 3, 1),  # Account Change / Create
+        "REVOKE_USER_TOKEN":                          (3005, 3, 3),  # / Delete
+        "CREATE_AGENT_TOKEN":                         (3005, 3, 1),
+        "REVOKE_AGENT_TOKEN":                         (3005, 3, 3),
+        "CREATE_SERVICE_TOKEN":                       (3005, 3, 1),
+        "REVOKE_SERVICE_TOKEN":                       (3005, 3, 3),
+        "PUT_REVOKE_TOKEN":                           (3005, 3, 3),
+        "CREATE_SERVICE_USER":                        (3005, 3, 1),
+        "UPDATE_SERVICE_USER":                        (3005, 3, 2),  # / Update
+        "DELETE_SERVICE_USER":                        (3005, 3, 3),
+        # Secrets — mapped to Account Change for now (no first-class OCSF class)
+        "CREATE_SECRET":                              (3005, 3, 1),
+        "UPDATE_SECRET":                              (3005, 3, 2),
+        "DELETE_SECRET":                              (3005, 3, 3),
+        # Application / deployment lifecycle
+        "CREATE_DEPLOYMENT":                          (6002, 6, 1),  # App Lifecycle / Install
+        "DELETE_DEPLOYMENT":                          (6002, 6, 4),  # / Remove
+        "UPDATE_DEPLOYMENT_SETTINGS":                 (6002, 6, 2),
+        "CREATE_CODE_LOCATION":                       (6002, 6, 1),
+        "UPDATE_CODE_LOCATION":                       (6002, 6, 2),
+        "DELETE_CODE_LOCATION":                       (6002, 6, 4),
+        "REDEPLOY_SERVERLESS_AGENT":                  (6002, 6, 2),
+        "UPDATE_AGENT_TYPE":                          (6002, 6, 2),
+        "CREATE_ORGANIZATION_SUBDOMAIN":              (6002, 6, 1),
+        "DELETE_ORGANIZATION_SUBDOMAIN":              (6002, 6, 4),
+        # Schedules / sensors / alerts (config changes)
+        "UPDATE_SCHEDULE":                            (6002, 6, 2),
+        "UPDATE_SENSOR":                              (6002, 6, 2),
+        "MODIFY_ALERT_POLICIES":                      (6002, 6, 2),
+        "SET_ALERT_POLICY_MUTE_UNTIL":                (6002, 6, 2),
+        "SET_AUTO_MATERIALIZE_PAUSED":                (6002, 6, 2),
+        # Run launches → API Activity
+        "LAUNCH_RUN":                                 (6003, 6, 2),  # API Activity / Read
+        "LAUNCH_BACKFILL":                            (6003, 6, 2),
+        # Subscription / org admin
+        "UPDATE_SUBSCRIPTION_PLAN":                   (6002, 6, 2),
+        "UPDATE_SUBSCRIPTION_TYPE":                   (6002, 6, 2),
+        "EDIT_CUSTOMER_ID":                           (6002, 6, 2),
+        "EDIT_SALESFORCE_ACCOUNT_ID":                 (6002, 6, 2),
+        "CREATE_ENT_TRIAL":                           (6002, 6, 1),
+        "UPDATE_TRIAL_DAYS":                          (6002, 6, 2),
+        "SET_ACCOUNT_REVIEW":                         (6002, 6, 2),
+        "UPDATE_INTERNAL_ORGANIZATION_SETTINGS":      (6002, 6, 2),
     },
     "aws_cloudtrail": {
         "ConsoleLogin":        (3002, 3, 1),
@@ -189,7 +227,7 @@ class OcsfNormalizerComponent(dg.Component, dg.Model, dg.Resolvable):
                 "eventType", "EventName", "event_type", "action", "operation_name", "operationName",
             )
             email_col = _self.actor_email_column or _autodetect(
-                "userEmail", "actor.alternateId", "Username", "user.email", "actor",
+                "authorUserEmail", "userEmail", "actor.alternateId", "Username", "user.email", "actor",
             )
             name_col = _self.actor_name_column or _autodetect(
                 "actor.displayName", "user.name", "userName",

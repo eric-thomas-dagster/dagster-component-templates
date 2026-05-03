@@ -3,7 +3,7 @@
 Pull Dagster+ asset materialization / observation events via the GraphQL API.
 
 ## Authentication
-Reads `Dagster-Cloud-User-Token` from env var `DAGSTER_PLUS_USER_TOKEN` (configurable).
+Reads `Dagster-Cloud-Api-Token` from env var `DAGSTER_PLUS_USER_TOKEN` (configurable).
 Generate one in your Dagster+ deployment's Settings → Tokens.
 
 ## GraphQL endpoint

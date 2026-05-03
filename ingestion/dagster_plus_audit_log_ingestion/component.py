@@ -1,12 +1,13 @@
 """DagsterPlusAuditLogIngestionComponent.
 
-Pull Dagster+ audit-log entries (logins, deployment changes, permission edits)
-via the Dagster+ GraphQL API.
+Pull Dagster+ audit-log entries (logins, deployment changes, code-location
+edits, permission changes, run launches, etc.) via the Dagster+ GraphQL API.
 
 Authentication
 --------------
-Reads `Dagster-Cloud-User-Token` from an env var (default: DAGSTER_PLUS_USER_TOKEN).
-Generate one at <https://your-org.dagster.cloud/<deployment>/settings/tokens>.
+Reads `Dagster-Cloud-Api-Token` header from an env var (default:
+`DAGSTER_PLUS_USER_TOKEN`). Generate one in your Dagster+ deployment under
+Settings → Tokens → User Tokens.
 
 GraphQL endpoint
 ----------------
@@ -15,24 +16,25 @@ GraphQL endpoint
 
 Query shape (audit log)
 -----------------------
-The API uses **cursor-based pagination** with a `filters` object:
+Validated against the live Dagster+ schema as of 2026-05. The query field is
+`auditLog.auditLogEntries`, paginated via the `cursor` arg (no separate
+cursor/hasMore on the response — the list returns ``[]`` once exhausted).
 
-    {
-      "limit": 100,
-      "cursor": null,
-      "filters": {
-        "eventTypes": ["LOG_IN"],
-        "userEmails": ["user@example.com"],
-        "deploymentNames": ["prod"]
-      }
-    }
+Required filter input: at least one of `afterDatetime` / `beforeDatetime`
+(server returns Internal Server Error without a time bound). The component
+sets `afterDatetime` from `lookback_minutes` automatically.
 
-There is no `startTime`/`endTime` server-side filter. To bound the fetch, set
-`lookback_minutes` — pagination stops once timestamps fall outside the window.
+Available filter fields:
+- `eventTypes: [AuditLogEventType]`
+- `userEmails: [String]`
+- `deploymentNames: [String]`
+- `afterDatetime: Float` (epoch seconds)
+- `beforeDatetime: Float` (epoch seconds)
+- `isBranchDeployment: Boolean`
 
-The default `entries { ... }` selection is a best-guess set of fields and
-should be validated against your live GraphQL schema. Override `query`
-entirely if you need different fields, or pass extra `variables`.
+Available entry fields (from AuditLogEntry):
+- `id`, `eventType`, `authorUserEmail`, `authorAgentTokenId`,
+  `eventMetadata`, `timestamp`, `deploymentName`, `branchDeploymentName`
 """
 
 import json
@@ -45,17 +47,17 @@ from pydantic import Field
 
 
 DEFAULT_QUERY = """query DagsterPlusAuditLogs($limit: Int, $cursor: String, $filters: AuditLogFilters) {
-  auditLogs(limit: $limit, cursor: $cursor, filters: $filters) {
-    entries {
-      timestamp
-      userEmail
+  auditLog {
+    auditLogEntries(limit: $limit, cursor: $cursor, filters: $filters) {
+      id
       eventType
-      targetType
-      targetIdentifier
-      metadata
+      authorUserEmail
+      authorAgentTokenId
+      eventMetadata
+      timestamp
+      deploymentName
+      branchDeploymentName
     }
-    cursor
-    hasMore
   }
 }"""
 
@@ -69,53 +71,45 @@ class DagsterPlusAuditLogIngestionComponent(dg.Component, dg.Model, dg.Resolvabl
     )
     user_token_env: str = Field(
         default="DAGSTER_PLUS_USER_TOKEN",
-        description="Env var holding the Dagster+ user token",
+        description="Env var holding the Dagster+ user token (sent as Dagster-Cloud-Api-Token header)",
     )
 
     # Filters — match the live AuditLogFilters input type
     event_types: Optional[list[str]] = Field(
         default=None,
-        description="AuditLog event-type codes to include (e.g. ['LOG_IN', 'DEPLOYMENT_CREATED']). None = all.",
+        description="AuditLog event-type codes (e.g. ['LOG_IN', 'CREATE_CODE_LOCATION', 'CHANGE_USER_PERMISSIONS']). None = all.",
     )
     user_emails: Optional[list[str]] = Field(
         default=None,
-        description="Restrict to events by these user emails. None = all users.",
+        description="Restrict to events authored by these user emails. None = all users.",
     )
     deployment_names: Optional[list[str]] = Field(
         default=None,
         description="Restrict to events from these deployment names (e.g. ['prod']). None = all.",
     )
+    is_branch_deployment: Optional[bool] = Field(
+        default=None,
+        description="True = only branch deployments; False = only non-branch; None = both.",
+    )
 
     page_size: int = Field(default=100, description="Per-page limit (max 100 per Dagster+ API)")
-    lookback_minutes: Optional[int] = Field(
+    lookback_minutes: int = Field(
         default=60,
-        description="Stop pagination once entry timestamps fall outside this window. None = drain all available history.",
+        description="Time window. Sets filters.afterDatetime server-side. The Dagster+ audit-log API requires at least one time bound, so this is effectively required.",
     )
 
     # Escape hatches
     query: Optional[str] = Field(
         default=None,
-        description="Override the default GraphQL query — useful when the audit-log schema diverges from the shipped default.",
+        description="Override the default GraphQL query — useful when the audit-log schema changes.",
     )
     extra_variables: Optional[dict] = Field(
         default=None,
         description="Extra GraphQL variables merged into the request (won't override limit/cursor/filters).",
     )
     result_path: str = Field(
-        default="auditLogs.entries",
+        default="auditLog.auditLogEntries",
         description="Dot-path to the list of records inside the GraphQL response.",
-    )
-    cursor_path: str = Field(
-        default="auditLogs.cursor",
-        description="Dot-path to the next-page cursor.",
-    )
-    has_more_path: str = Field(
-        default="auditLogs.hasMore",
-        description="Dot-path to the boolean has-more flag.",
-    )
-    timestamp_field: str = Field(
-        default="timestamp",
-        description="Field on each entry used for the lookback_minutes cutoff. Numeric (epoch s/ms) or ISO-8601 string.",
     )
 
     description: Optional[str] = Field(default=None)
@@ -162,39 +156,36 @@ class DagsterPlusAuditLogIngestionComponent(dg.Component, dg.Model, dg.Resolvabl
         )
         def _asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             import datetime as dt
-
             import requests
 
             token = os.environ[_self.user_token_env]
             headers = {
-                "Dagster-Cloud-User-Token": token,
+                "Dagster-Cloud-Api-Token": token,
                 "Content-Type": "application/json",
             }
             query = _self.query or DEFAULT_QUERY
 
-            # Build filters: only include keys the user set, so the server doesn't
-            # interpret an empty list as "match nothing".
-            filters: dict = {}
+            now = dt.datetime.now(dt.timezone.utc)
+            after = now - dt.timedelta(minutes=_self.lookback_minutes)
+
+            filters: dict = {
+                "afterDatetime": after.timestamp(),
+                "beforeDatetime": now.timestamp(),
+            }
             if _self.event_types:
                 filters["eventTypes"] = _self.event_types
             if _self.user_emails:
                 filters["userEmails"] = _self.user_emails
             if _self.deployment_names:
                 filters["deploymentNames"] = _self.deployment_names
+            if _self.is_branch_deployment is not None:
+                filters["isBranchDeployment"] = _self.is_branch_deployment
 
             base_vars: dict = dict(_self.extra_variables or {})
             base_vars["limit"] = _self.page_size
             base_vars["filters"] = filters
 
-            cutoff_epoch = None
-            if _self.lookback_minutes:
-                cutoff_epoch = (
-                    dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=_self.lookback_minutes)
-                ).timestamp()
-
             def _get(obj, path):
-                if not path:
-                    return None
                 for key in path.split("."):
                     if isinstance(obj, dict):
                         obj = obj.get(key)
@@ -204,25 +195,9 @@ class DagsterPlusAuditLogIngestionComponent(dg.Component, dg.Model, dg.Resolvabl
                         return None
                 return obj
 
-            def _entry_epoch(entry: dict) -> Optional[float]:
-                ts = entry.get(_self.timestamp_field)
-                if ts is None:
-                    return None
-                if isinstance(ts, (int, float)):
-                    # Heuristic: ms timestamps are > ~10^12; seconds are smaller.
-                    return ts / 1000.0 if ts > 1e12 else float(ts)
-                try:
-                    parsed = dt.datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
-                    if parsed.tzinfo is None:
-                        parsed = parsed.replace(tzinfo=dt.timezone.utc)
-                    return parsed.timestamp()
-                except Exception:
-                    return None
-
             all_records: list[dict] = []
             cursor = None
             page_count = 0
-            stopped_early = False
             while True:
                 page_count += 1
                 vars_payload = dict(base_vars)
@@ -239,37 +214,29 @@ class DagsterPlusAuditLogIngestionComponent(dg.Component, dg.Model, dg.Resolvabl
                     raise Exception(f"Dagster+ GraphQL errors: {body['errors']}")
                 data = body.get("data") or {}
                 page_records = _get(data, _self.result_path) or []
-
-                # Apply the time-window cutoff client-side; bail out as soon as we
-                # see entries older than the cutoff (entries arrive newest-first).
-                kept_in_page = 0
-                for entry in page_records:
-                    if cutoff_epoch is not None:
-                        e = _entry_epoch(entry)
-                        if e is not None and e < cutoff_epoch:
-                            stopped_early = True
-                            break
-                    all_records.append(entry)
-                    kept_in_page += 1
-
-                next_cursor = _get(data, _self.cursor_path)
-                has_more = _get(data, _self.has_more_path)
-                if stopped_early or not next_cursor or not has_more:
+                all_records.extend(page_records)
+                # Stop when we got fewer than page_size — that's the last page.
+                if len(page_records) < _self.page_size:
                     break
                 if page_count >= _self.max_pages:
                     context.log.warning(
-                        f"hit max_pages={_self.max_pages}; stopping (set max_pages higher to fetch more)"
+                        f"hit max_pages={_self.max_pages}; stopping (raise max_pages to fetch more)"
                     )
                     break
-                cursor = next_cursor
+                # Cursor = id of last entry. Server uses it for the next page.
+                last = page_records[-1]
+                cursor = last.get("id") if isinstance(last, dict) else None
+                if not cursor:
+                    break
 
             df = pd.DataFrame(all_records)
             metadata = {
                 "dagster/row_count": dg.MetadataValue.int(len(df)),
                 "endpoint": dg.MetadataValue.text(_self.endpoint_url),
                 "pages_fetched": dg.MetadataValue.int(page_count),
-                "filters": dg.MetadataValue.json(filters),
-                "stopped_at_lookback_cutoff": dg.MetadataValue.bool(stopped_early),
+                "filters": dg.MetadataValue.json({k: v for k, v in filters.items() if k != "afterDatetime" and k != "beforeDatetime"}),
+                "after_datetime": dg.MetadataValue.text(after.isoformat()),
+                "before_datetime": dg.MetadataValue.text(now.isoformat()),
             }
             if _self.include_preview_metadata and len(df) > 0:
                 try:

@@ -1,0 +1,36 @@
+{
+  "component_type": "dagster_component_templates.SlingReplicationAssetComponent",
+  "description": "Run a Sling YAML replication as Dagster assets via dagster-sling.",
+  "category": "integration",
+  "icon": "ArrowRight",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "Run a Sling YAML replication as Dagster assets via dagster-sling."
+    }
+  },
+  "attributes": {
+    "replication_config_path": {
+      "type": "string",
+      "label": "Replication Config Path",
+      "required": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": true
+    },
+    "name": {
+      "type": "string",
+      "label": "Name",
+      "required": true
+    }
+  },
+  "tags": [
+    "integration",
+    "sling",
+    "elt",
+    "official"
+  ],
+  "name": "SlingReplicationAsset"
+}

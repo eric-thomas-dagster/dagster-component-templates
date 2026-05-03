@@ -1,0 +1,44 @@
+{
+  "component_type": "dagster_component_templates.PandasDataframeCheckComponent",
+  "description": "Validate a DataFrame asset's column constraints via dagster-pandas.",
+  "category": "check",
+  "icon": "CheckCircle",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "check",
+      "description": "Validate a DataFrame asset's column constraints via dagster-pandas."
+    }
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "required": true
+    },
+    "required_columns": {
+      "type": "array",
+      "label": "Required Columns",
+      "required": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "column_types": {
+      "type": "object",
+      "label": "Column Types",
+      "required": false
+    },
+    "blocking": {
+      "type": "boolean",
+      "label": "Blocking",
+      "required": true
+    }
+  },
+  "tags": [
+    "check",
+    "pandas",
+    "schema",
+    "constraints"
+  ],
+  "name": "PandasDataframeCheck"
+}

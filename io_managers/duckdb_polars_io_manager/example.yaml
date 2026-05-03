@@ -1,0 +1,5 @@
+type: dagster_component_templates.DuckDBPolarsIOManagerComponent
+attributes:
+  resource_key: <fill in>
+  database: <fill in>
+  schema_name: <fill in>

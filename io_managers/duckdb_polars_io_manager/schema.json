@@ -1,0 +1,37 @@
+{
+  "component_type": "dagster_component_templates.DuckDBPolarsIOManagerComponent",
+  "description": "Wrap dagster-duckdb-polars's DuckDBPolarsIOManager so polars.DataFrame assets persist to DuckDB.",
+  "category": "io_manager",
+  "icon": "Save",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "io_manager",
+      "description": "Wrap dagster-duckdb-polars's DuckDBPolarsIOManager so polars.DataFrame assets persist to DuckDB."
+    }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": true
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "required": true
+    },
+    "schema_name": {
+      "type": "string",
+      "label": "Schema Name",
+      "required": false
+    }
+  },
+  "tags": [
+    "io_manager",
+    "duckdb",
+    "polars",
+    "local",
+    "official"
+  ],
+  "name": "DuckDBPolarsIOManager"
+}

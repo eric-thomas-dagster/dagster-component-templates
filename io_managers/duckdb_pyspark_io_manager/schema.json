@@ -1,0 +1,37 @@
+{
+  "component_type": "dagster_component_templates.DuckDBPySparkIOManagerComponent",
+  "description": "Wrap dagster-duckdb-pyspark so PySpark DataFrames persist to DuckDB.",
+  "category": "io_manager",
+  "icon": "Save",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "io_manager",
+      "description": "Wrap dagster-duckdb-pyspark so PySpark DataFrames persist to DuckDB."
+    }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": true
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "required": true
+    },
+    "schema_name": {
+      "type": "string",
+      "label": "Schema Name",
+      "required": false
+    }
+  },
+  "tags": [
+    "io_manager",
+    "duckdb",
+    "pyspark",
+    "local",
+    "official"
+  ],
+  "name": "DuckDBPySparkIOManager"
+}

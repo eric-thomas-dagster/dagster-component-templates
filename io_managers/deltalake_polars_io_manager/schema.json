@@ -1,0 +1,37 @@
+{
+  "component_type": "dagster_component_templates.DeltaLakePolarsIOManagerComponent",
+  "description": "Wrap dagster-deltalake-polars so polars.DataFrame assets persist as Delta tables.",
+  "category": "io_manager",
+  "icon": "Save",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "io_manager",
+      "description": "Wrap dagster-deltalake-polars so polars.DataFrame assets persist as Delta tables."
+    }
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": true
+    },
+    "root_uri": {
+      "type": "string",
+      "label": "Root Uri",
+      "required": true
+    },
+    "schema_name": {
+      "type": "string",
+      "label": "Schema Name",
+      "required": false
+    }
+  },
+  "tags": [
+    "io_manager",
+    "deltalake",
+    "polars",
+    "lakehouse",
+    "official"
+  ],
+  "name": "DeltaLakePolarsIOManager"
+}

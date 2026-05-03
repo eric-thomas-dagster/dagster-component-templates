@@ -1,0 +1,5 @@
+type: dagster_component_templates.AirflowDagProxyComponent
+attributes:
+  dag_module: <fill in>
+  dag_id: <fill in>
+  target: <fill in>

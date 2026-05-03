@@ -1,0 +1,73 @@
+{
+  "component_type": "dagster_component_templates.K8sJobAssetComponent",
+  "description": "Run a Kubernetes Job as a Dagster asset via dagster-k8s.",
+  "category": "infrastructure",
+  "icon": "Box",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "infrastructure",
+      "description": "Run a Kubernetes Job as a Dagster asset via dagster-k8s."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "image": {
+      "type": "string",
+      "label": "Image",
+      "required": true
+    },
+    "command": {
+      "type": "array",
+      "label": "Command",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "namespace": {
+      "type": "string",
+      "label": "Namespace",
+      "required": true
+    },
+    "env_vars": {
+      "type": "object",
+      "label": "Env Vars",
+      "required": false
+    },
+    "cpu_limit": {
+      "type": "string",
+      "label": "Cpu Limit",
+      "required": false
+    },
+    "memory_limit": {
+      "type": "string",
+      "label": "Memory Limit",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": true
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "kubernetes",
+    "k8s",
+    "compute",
+    "official"
+  ],
+  "name": "K8sJobAsset"
+}

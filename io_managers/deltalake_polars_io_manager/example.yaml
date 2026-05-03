@@ -1,0 +1,5 @@
+type: dagster_component_templates.DeltaLakePolarsIOManagerComponent
+attributes:
+  resource_key: <fill in>
+  root_uri: <fill in>
+  schema_name: <fill in>

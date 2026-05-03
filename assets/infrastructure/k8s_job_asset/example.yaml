@@ -1,0 +1,11 @@
+type: dagster_component_templates.K8sJobAssetComponent
+attributes:
+  asset_name: <fill in>
+  image: <fill in>
+  command: <fill in>
+  namespace: <fill in>
+  env_vars: <fill in>
+  cpu_limit: <fill in>
+  memory_limit: <fill in>
+  group_name: <fill in>
+  deps: <fill in>

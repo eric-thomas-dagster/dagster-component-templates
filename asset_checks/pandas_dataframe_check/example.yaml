@@ -1,0 +1,6 @@
+type: dagster_component_templates.PandasDataframeCheckComponent
+attributes:
+  asset_key: <fill in>
+  required_columns: <fill in>
+  column_types: <fill in>
+  blocking: <fill in>

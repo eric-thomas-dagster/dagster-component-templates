@@ -334,6 +334,32 @@
       "icon": "si:airbyte"
     },
     {
+      "id": "airflow_dag_proxy",
+      "name": "AirflowDagProxy",
+      "category": "integration",
+      "description": "Convert an Airflow DAG to Dagster definitions via dagster-airflow.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/airflow_dag_proxy",
+      "tags": [
+        "integration",
+        "airflow",
+        "migration",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-airflow"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airflow_dag_proxy/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airflow_dag_proxy/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airflow_dag_proxy/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airflow_dag_proxy/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/airflow_dag_proxy/requirements.txt"
+    },
+    {
       "id": "airlift_dag_assets",
       "name": "AirliftDagAssets",
       "category": "integration",
@@ -2915,6 +2941,34 @@
       ]
     },
     {
+      "id": "deltalake_polars_io_manager",
+      "name": "DeltaLakePolarsIOManager",
+      "category": "io_manager",
+      "description": "Wrap dagster-deltalake-polars so polars.DataFrame assets persist as Delta tables.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "io_managers/deltalake_polars_io_manager",
+      "tags": [
+        "io_manager",
+        "deltalake",
+        "polars",
+        "lakehouse",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-deltalake-polars",
+          "polars"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/deltalake_polars_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/deltalake_polars_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/deltalake_polars_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/deltalake_polars_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/deltalake_polars_io_manager/requirements.txt"
+    },
+    {
       "id": "dependency_graph",
       "name": "Dependency Graph",
       "category": "infrastructure",
@@ -3008,6 +3062,32 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/dlt_pipeline_assets/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/dlt_pipeline_assets/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/dlt_pipeline_assets/requirements.txt"
+    },
+    {
+      "id": "docker_container_asset",
+      "name": "DockerContainerAsset",
+      "category": "infrastructure",
+      "description": "Run a Docker container as a Dagster asset via dagster-docker.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/docker_container_asset",
+      "tags": [
+        "infrastructure",
+        "docker",
+        "container",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-docker"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/docker_container_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/docker_container_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/docker_container_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/docker_container_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/docker_container_asset/requirements.txt"
     },
     {
       "id": "document_chunker",
@@ -3210,6 +3290,62 @@
       "x-dagster-provides": [
         "io_manager"
       ]
+    },
+    {
+      "id": "duckdb_polars_io_manager",
+      "name": "DuckDBPolarsIOManager",
+      "category": "io_manager",
+      "description": "Wrap dagster-duckdb-polars's DuckDBPolarsIOManager so polars.DataFrame assets persist to DuckDB.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "io_managers/duckdb_polars_io_manager",
+      "tags": [
+        "io_manager",
+        "duckdb",
+        "polars",
+        "local",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-duckdb-polars",
+          "polars"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/duckdb_polars_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/duckdb_polars_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/duckdb_polars_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/duckdb_polars_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/duckdb_polars_io_manager/requirements.txt"
+    },
+    {
+      "id": "duckdb_pyspark_io_manager",
+      "name": "DuckDBPySparkIOManager",
+      "category": "io_manager",
+      "description": "Wrap dagster-duckdb-pyspark so PySpark DataFrames persist to DuckDB.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "io_managers/duckdb_pyspark_io_manager",
+      "tags": [
+        "io_manager",
+        "duckdb",
+        "pyspark",
+        "local",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-duckdb-pyspark",
+          "pyspark"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/duckdb_pyspark_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/duckdb_pyspark_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/duckdb_pyspark_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/duckdb_pyspark_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/duckdb_pyspark_io_manager/requirements.txt"
     },
     {
       "id": "duckdb_query_reader",
@@ -6051,6 +6187,33 @@
       "component_type": "dagster_component_templates.JupyterNotebookAssetComponent"
     },
     {
+      "id": "k8s_job_asset",
+      "name": "K8sJobAsset",
+      "category": "infrastructure",
+      "description": "Run a Kubernetes Job as a Dagster asset via dagster-k8s.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/k8s_job_asset",
+      "tags": [
+        "infrastructure",
+        "kubernetes",
+        "k8s",
+        "compute",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-k8s"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/k8s_job_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/k8s_job_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/k8s_job_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/k8s_job_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/k8s_job_asset/requirements.txt"
+    },
+    {
       "id": "k_centroids_diagnostics",
       "name": "KCentroidsDiagnostics",
       "category": "analytics",
@@ -8516,6 +8679,32 @@
       ]
     },
     {
+      "id": "pandas_dataframe_check",
+      "name": "PandasDataframeCheck",
+      "category": "check",
+      "description": "Validate a DataFrame asset's column constraints via dagster-pandas.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "asset_checks/pandas_dataframe_check",
+      "tags": [
+        "check",
+        "pandas",
+        "schema",
+        "constraints"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/pandas_dataframe_check/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/pandas_dataframe_check/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/pandas_dataframe_check/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/pandas_dataframe_check/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/pandas_dataframe_check/requirements.txt"
+    },
+    {
       "id": "pandera_asset_check",
       "name": "PanderaAssetCheck",
       "category": "check",
@@ -8541,6 +8730,32 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/pandera_asset_check/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/pandera_asset_check/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/pandera_asset_check/requirements.txt"
+    },
+    {
+      "id": "papertrail_resource",
+      "name": "PapertrailResource",
+      "category": "resource",
+      "description": "Stream Dagster logs to Papertrail via dagster-papertrail.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/papertrail_resource",
+      "tags": [
+        "resource",
+        "papertrail",
+        "logging",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-papertrail"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/papertrail_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/papertrail_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/papertrail_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/papertrail_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/papertrail_resource/requirements.txt"
     },
     {
       "id": "part_of_speech_tagger",
@@ -10960,6 +11175,33 @@
       ]
     },
     {
+      "id": "sling_replication_asset",
+      "name": "SlingReplicationAsset",
+      "category": "integration",
+      "description": "Run a Sling YAML replication as Dagster assets via dagster-sling.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/sling_replication_asset",
+      "tags": [
+        "integration",
+        "sling",
+        "elt",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-sling",
+          "pyyaml"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sling_replication_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sling_replication_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sling_replication_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sling_replication_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sling_replication_asset/requirements.txt"
+    },
+    {
       "id": "smooth",
       "name": "Smooth",
       "category": "analytics",
@@ -11094,6 +11336,34 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_polars_io_manager/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_polars_io_manager/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_polars_io_manager/requirements.txt"
+    },
+    {
+      "id": "snowflake_pyspark_io_manager",
+      "name": "SnowflakePySparkIOManager",
+      "category": "io_manager",
+      "description": "Wrap dagster-snowflake-pyspark so PySpark DataFrames persist to Snowflake.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "io_managers/snowflake_pyspark_io_manager",
+      "tags": [
+        "io_manager",
+        "snowflake",
+        "pyspark",
+        "warehouse",
+        "official"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-snowflake-pyspark",
+          "pyspark"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_pyspark_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_pyspark_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_pyspark_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_pyspark_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/snowflake_pyspark_io_manager/requirements.txt"
     },
     {
       "id": "snowflake_resource",

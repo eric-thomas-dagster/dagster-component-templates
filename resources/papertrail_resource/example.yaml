@@ -1,0 +1,5 @@
+type: dagster_component_templates.PapertrailResourceComponent
+attributes:
+  papertrail_hostname: <fill in>
+  papertrail_port: <fill in>
+  resource_key: <fill in>

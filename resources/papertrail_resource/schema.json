@@ -1,0 +1,36 @@
+{
+  "component_type": "dagster_component_templates.PapertrailResourceComponent",
+  "description": "Stream Dagster logs to Papertrail via dagster-papertrail.",
+  "category": "resource",
+  "icon": "FileText",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "resource",
+      "description": "Stream Dagster logs to Papertrail via dagster-papertrail."
+    }
+  },
+  "attributes": {
+    "papertrail_hostname": {
+      "type": "string",
+      "label": "Papertrail Hostname",
+      "required": true
+    },
+    "papertrail_port": {
+      "type": "integer",
+      "label": "Papertrail Port",
+      "required": true
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": true
+    }
+  },
+  "tags": [
+    "resource",
+    "papertrail",
+    "logging",
+    "official"
+  ],
+  "name": "PapertrailResource"
+}

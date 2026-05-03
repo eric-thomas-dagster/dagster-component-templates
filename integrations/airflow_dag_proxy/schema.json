@@ -1,0 +1,36 @@
+{
+  "component_type": "dagster_component_templates.AirflowDagProxyComponent",
+  "description": "Convert an Airflow DAG to Dagster definitions via dagster-airflow.",
+  "category": "integration",
+  "icon": "ArrowRight",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "integration",
+      "description": "Convert an Airflow DAG to Dagster definitions via dagster-airflow."
+    }
+  },
+  "attributes": {
+    "dag_module": {
+      "type": "string",
+      "label": "Dag Module",
+      "required": true
+    },
+    "dag_id": {
+      "type": "string",
+      "label": "Dag Id",
+      "required": true
+    },
+    "target": {
+      "type": "string",
+      "label": "Target",
+      "required": true
+    }
+  },
+  "tags": [
+    "integration",
+    "airflow",
+    "migration",
+    "official"
+  ],
+  "name": "AirflowDagProxy"
+}

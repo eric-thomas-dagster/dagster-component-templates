@@ -1,0 +1,7 @@
+type: dagster_component_templates.AssetJobComponent
+attributes:
+  job_name: backfill_revenue
+  asset_keys: [orders_raw, orders_clean, daily_revenue, monthly_revenue]
+  description: One-click revenue refresh from raw orders all the way through monthly rollup.
+  tags:
+    purpose: backfill

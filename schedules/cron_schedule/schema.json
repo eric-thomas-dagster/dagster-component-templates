@@ -1,0 +1,59 @@
+{
+  "component_type": "dagster_component_templates.CronScheduleComponent",
+  "description": "Run an asset selection on a cron schedule.",
+  "category": "infrastructure",
+  "icon": "Clock",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "Schedule",
+      "description": "ScheduleDefinition + asset job"
+    }
+  },
+  "attributes": {
+    "schedule_name": {
+      "type": "string",
+      "label": "Schedule Name",
+      "required": true
+    },
+    "cron_expression": {
+      "type": "string",
+      "label": "Cron Expression",
+      "required": true
+    },
+    "asset_keys": {
+      "type": "array",
+      "label": "Asset Keys",
+      "required": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "required": false
+    },
+    "execution_timezone": {
+      "type": "string",
+      "label": "Execution Timezone",
+      "required": true
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "required": true
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "schedule",
+    "cron",
+    "orchestration"
+  ],
+  "name": "CronSchedule"
+}

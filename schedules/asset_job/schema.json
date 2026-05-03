@@ -1,0 +1,43 @@
+{
+  "component_type": "dagster_component_templates.AssetJobComponent",
+  "description": "Define a named Dagster job from a set of asset keys (without scheduling it).",
+  "category": "infrastructure",
+  "icon": "Clock",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "Schedule",
+      "description": "ScheduleDefinition + asset job"
+    }
+  },
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "required": true
+    },
+    "asset_keys": {
+      "type": "array",
+      "label": "Asset Keys",
+      "required": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "job",
+    "orchestration"
+  ],
+  "name": "AssetJob"
+}

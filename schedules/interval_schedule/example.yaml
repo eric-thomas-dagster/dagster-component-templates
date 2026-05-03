@@ -1,0 +1,6 @@
+type: dagster_component_templates.IntervalScheduleComponent
+attributes:
+  schedule_name: poll_inventory
+  every: 30m
+  asset_keys: [inventory_snapshot, stockout_alerts]
+  default_status: STOPPED

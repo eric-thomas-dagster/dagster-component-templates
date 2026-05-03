@@ -1,0 +1,9 @@
+type: dagster_component_templates.CronScheduleComponent
+attributes:
+  schedule_name: nightly_etl
+  cron_expression: "0 2 * * *"
+  asset_keys: [orders_clean, customer_segments, daily_revenue]
+  execution_timezone: America/Los_Angeles
+  default_status: STOPPED
+  tags:
+    team: data-platform

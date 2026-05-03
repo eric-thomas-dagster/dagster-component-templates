@@ -615,6 +615,28 @@
       ]
     },
     {
+      "id": "asset_job",
+      "name": "AssetJob",
+      "category": "infrastructure",
+      "description": "Define a named Dagster job from a set of asset keys (without scheduling it).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "schedules/asset_job",
+      "tags": [
+        "infrastructure",
+        "job",
+        "orchestration"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schedules/asset_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schedules/asset_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schedules/asset_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schedules/asset_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schedules/asset_job/requirements.txt"
+    },
+    {
       "id": "asset_reference",
       "name": "Asset Reference",
       "category": "infrastructure",
@@ -1801,6 +1823,29 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/crm_data_standardizer/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/crm_data_standardizer/requirements.txt",
       "icon": "BarChart2"
+    },
+    {
+      "id": "cron_schedule",
+      "name": "CronSchedule",
+      "category": "infrastructure",
+      "description": "Run an asset selection on a cron schedule.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "schedules/cron_schedule",
+      "tags": [
+        "infrastructure",
+        "schedule",
+        "cron",
+        "orchestration"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schedules/cron_schedule/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schedules/cron_schedule/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schedules/cron_schedule/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schedules/cron_schedule/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schedules/cron_schedule/requirements.txt"
     },
     {
       "id": "cross_tab",
@@ -5498,6 +5543,29 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/insurance_claim_extractor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/insurance_claim_extractor/requirements.txt",
       "icon": "Shield"
+    },
+    {
+      "id": "interval_schedule",
+      "name": "IntervalSchedule",
+      "category": "infrastructure",
+      "description": "Run an asset selection at a fixed interval (every N minutes / hours / days).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "schedules/interval_schedule",
+      "tags": [
+        "infrastructure",
+        "schedule",
+        "interval",
+        "orchestration"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schedules/interval_schedule/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schedules/interval_schedule/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schedules/interval_schedule/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schedules/interval_schedule/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schedules/interval_schedule/requirements.txt"
     },
     {
       "id": "invoice_extractor",

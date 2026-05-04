@@ -416,10 +416,17 @@ group_name=group_name,
             # explicit {partition_date} / {partition_date_next} templating, since
             # APIs that need explicit param names (USGS, etc.) reject the extras
             # with 400 Unknown Parameter.
+            # params_str may be a dict (after the Union[str, Dict] type widening) or a
+            # JSON string. For the templating-detection check, look for the placeholders
+            # in the dict's *values* when it's a dict; otherwise the JSON string.
+            if isinstance(params_str, dict):
+                _params_text = " ".join(str(v) for v in params_str.values())
+            else:
+                _params_text = params_str or ""
             _user_uses_templating = (
-                "{partition_date}" in (params_str or "")
-                or "{partition_date_next}" in (params_str or "")
-                or "{partition_key}" in (params_str or "")
+                "{partition_date}" in _params_text
+                or "{partition_date_next}" in _params_text
+                or "{partition_key}" in _params_text
                 or "{partition_date}" in (api_url or "")
                 or "{partition_key}" in (api_url or "")
             )

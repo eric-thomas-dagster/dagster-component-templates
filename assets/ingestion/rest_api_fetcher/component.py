@@ -56,14 +56,14 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
         description="HTTP method (GET, POST, PUT, DELETE, etc.)"
     )
 
-    headers: Optional[str] = Field(
+    headers: Optional[Union[str, Dict[str, str]]] = Field(
         default=None,
-        description="JSON string of HTTP headers (e.g., '{\"Authorization\": \"Bearer token\"}')"
+        description="HTTP headers — either a YAML dict ({Authorization: 'Bearer t'}) or a JSON string ('{\"Authorization\": \"Bearer t\"}'). Dict form is recommended (avoids YAML-loader template-resolution gotchas with single-brace strings)."
     )
 
-    params: Optional[str] = Field(
+    params: Optional[Union[str, Dict[str, Any]]] = Field(
         default=None,
-        description="JSON string of query parameters (e.g., '{\"page\": 1, \"limit\": 100}')"
+        description="Query parameters — YAML dict or JSON string (dict form recommended)."
     )
 
     body: Optional[str] = Field(
@@ -386,23 +386,29 @@ group_name=group_name,
             else:
                 context.log.info("Fetching API data (non-partitioned)")
 
-            # Parse headers
+            # Parse headers (accept dict or JSON string)
             headers = {}
             if headers_str:
-                try:
-                    headers = json.loads(headers_str)
-                except json.JSONDecodeError as e:
-                    context.log.error(f"Invalid headers JSON: {e}")
-                    raise
+                if isinstance(headers_str, dict):
+                    headers = headers_str
+                else:
+                    try:
+                        headers = json.loads(headers_str)
+                    except json.JSONDecodeError as e:
+                        context.log.error(f"Invalid headers JSON: {e}")
+                        raise
 
-            # Parse params
+            # Parse params (accept dict or JSON string)
             params = {}
             if params_str:
-                try:
-                    params = json.loads(params_str)
-                except json.JSONDecodeError as e:
-                    context.log.error(f"Invalid params JSON: {e}")
-                    raise
+                if isinstance(params_str, dict):
+                    params = params_str
+                else:
+                    try:
+                        params = json.loads(params_str)
+                    except json.JSONDecodeError as e:
+                        context.log.error(f"Invalid params JSON: {e}")
+                        raise
 
             # Add partition date to params if available.
             # This allows API queries to filter by date using the partition.

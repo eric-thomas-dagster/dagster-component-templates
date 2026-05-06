@@ -8,7 +8,6 @@ reloads fast.
 On first load (state_path is None) returns empty Definitions — run
 `dg utils refresh-defs-state` or `dagster dev` to populate the cache.
 """
-from __future__ import annotations
 
 import json
 import re
@@ -725,7 +724,37 @@ if _HAS_STATE_BACKED:
         description: Optional[str] = None
 
         # ── Per-pipeline asset overrides ───────────────────────────────────────
+        # The `assets_by_pipeline_name` dict supports per-pipeline keys:
+        #   {<pipeline_name>: {key, description, group_name, metadata, tags, kinds, deps}}
+        # `deps` is a list of asset keys this specific ADF pipeline depends on —
+        # use it to wire individual ADF pipelines into the broader Dagster lineage.
         assets_by_pipeline_name: Optional[dict] = None
+
+        # ── Pipeline-execution config ─────────────────────────────────────────
+        pipeline_parameters: Optional[dict] = None
+        partition_parameter_name: Optional[str] = None
+        max_wait_seconds: int = 3600
+        run_poll_interval_seconds: int = 30
+        wait_for_completion: bool = True
+        capture_activity_metadata: bool = True
+
+        # ── Partitions ────────────────────────────────────────────────────────
+        partition_type: Optional[str] = None
+        partition_start: Optional[str] = None
+        partition_values: Optional[list] = None
+
+        # ── Standard catalog fields ───────────────────────────────────────────
+        owners: Optional[list] = None
+        asset_tags: Optional[dict] = None
+        extra_kinds: Optional[list] = None
+        freshness_max_lag_minutes: Optional[int] = None
+        freshness_cron: Optional[str] = None
+        upstream_asset_keys: Optional[list] = None
+
+        # ── Retry policy ──────────────────────────────────────────────────────
+        retry_policy_max_retries: Optional[int] = None
+        retry_policy_delay_seconds: Optional[int] = None
+        retry_policy_backoff: str = "exponential"
 
         # ── State backing ─────────────────────────────────────────────────────
         defs_state: ResolvedDefsStateConfig = field(

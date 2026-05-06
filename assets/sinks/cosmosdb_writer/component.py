@@ -60,6 +60,15 @@ class CosmosdbWriterComponent(Component, Model, Resolvable):
         default="upsert",
         description="Write mode: 'upsert' (create or replace) or 'insert' (create only)",
     )
+    id_field: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set and the upstream rows lack an 'id' field (which Cosmos requires), "
+            "copy the value from this column. e.g. id_field='order_id' will write "
+            "{id: <order_id>, ...} for each row. If the row already has 'id', this "
+            "is a no-op."
+        ),
+    )
     include_preview_metadata: bool = Field(
         default=False,
         description=(
@@ -179,6 +188,7 @@ class CosmosdbWriterComponent(Component, Model, Resolvable):
         database = self.database
         container = self.container
         if_exists = self.if_exists
+        id_field = self.id_field
         group_name = self.group_name
 
         # Build partition definition
@@ -314,6 +324,14 @@ group_name=group_name,
             container_client = db.get_container_client(container)
 
             records = upstream.to_dict(orient="records")
+
+            # Cosmos requires every item to have an 'id' field. If the user
+            # mapped a source column with id_field, copy it here.
+            if id_field:
+                for r in records:
+                    if "id" not in r and id_field in r:
+                        r["id"] = str(r[id_field])
+
             context.log.info(
                 f"Writing {len(records)} items to Cosmos DB {database}.{container} (mode: {if_exists})"
             )

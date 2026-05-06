@@ -1,0 +1,102 @@
+{
+  "component_type": "dagster_component_templates.DataframeToEventHubComponent",
+  "description": "Send each DataFrame row to an Azure Event Hub as a JSON event. Composes with synthetic_data_generator to inject test events into a queue without writing custom asset code.",
+  "category": "sink",
+  "icon": "si:azure",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "DataFrame whose rows become events"
+    },
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "events_sent count + eventhub_name metadata"
+    },
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Asset key of the upstream DataFrame asset",
+      "required": true
+    },
+    "connection_string_env_var": {
+      "type": "string",
+      "label": "Connection String Env Var",
+      "description": "Env var holding the Event Hubs namespace or hub-scoped connection string",
+      "required": true
+    },
+    "eventhub_name": {
+      "type": "string",
+      "label": "Event Hub Name",
+      "description": "Event Hub name (the entity inside the namespace)",
+      "required": true
+    },
+    "partition_key_column": {
+      "type": "string",
+      "label": "Partition Key Column",
+      "description": "Optional column to use as the partition key. Events with the same partition key land in the same partition (preserves ordering).",
+      "required": false,
+      "default": null
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "description": "Max events per send batch (1MB byte cap is enforced independently by SDK).",
+      "required": false,
+      "default": 100
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description shown in the Dagster catalog.",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Owners",
+      "description": "Asset owners — team names ('team:analytics') or email addresses.",
+      "required": false,
+      "default": null
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Additional key-value tags applied to the asset.",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Kinds",
+      "description": "Asset kinds for the catalog. Auto-includes 'azure' + 'eventhubs' if unset.",
+      "required": false,
+      "default": null
+    }
+  }
+}

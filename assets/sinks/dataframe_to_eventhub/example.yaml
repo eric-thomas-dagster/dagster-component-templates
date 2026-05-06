@@ -1,0 +1,9 @@
+type: dagster_component_templates.DataframeToEventHubComponent
+attributes:
+  asset_name: orders_to_eventhub
+  upstream_asset_key: orders_raw
+  connection_string_env_var: EVENTHUB_CONNECTION_STRING
+  eventhub_name: demo-events
+  partition_key_column: customer_id   # optional — pins events with same key to same partition
+  batch_size: 100
+  group_name: producers

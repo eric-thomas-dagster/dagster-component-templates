@@ -2592,6 +2592,27 @@
       "icon": "si:databricks"
     },
     {
+      "id": "dataframe_to_eventhub",
+      "name": "DataFrame to Azure Event Hubs",
+      "category": "sink",
+      "description": "Send each DataFrame row to an Azure Event Hub as a JSON event. Composes with synthetic_data_generator to inject test events into a queue without writing custom asset code.",
+      "path": "assets/sinks/dataframe_to_eventhub",
+      "tags": [
+        "sink",
+        "dataframe",
+        "azure",
+        "eventhubs",
+        "queue",
+        "messaging"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_eventhub/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_eventhub/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_eventhub/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_eventhub/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_eventhub/requirements.txt",
+      "icon": "si:azure"
+    },
+    {
       "id": "dataframe_to_excel",
       "name": "DataFrame to Excel",
       "category": "sink",

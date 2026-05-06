@@ -128,6 +128,7 @@ _CLASS_PATHS: dict[str, str] = {
     "DataframeToBigqueryComponent": "assets/sinks/dataframe_to_bigquery/component.py",
     "DataframeToCsvComponent": "assets/sinks/dataframe_to_csv/component.py",
     "DataframeToDatabricksComponent": "assets/sinks/dataframe_to_databricks/component.py",
+    "DataframeToEventHubComponent": "assets/sinks/dataframe_to_eventhub/component.py",
     "DataframeToExcelComponent": "assets/sinks/dataframe_to_excel/component.py",
     "DataframeToGcsComponent": "assets/sinks/dataframe_to_gcs/component.py",
     "DataframeToJsonComponent": "assets/sinks/dataframe_to_json/component.py",

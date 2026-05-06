@@ -1,0 +1,7 @@
+type: dagster_component_templates.LineageToPurviewComponent
+attributes:
+  asset_name: lineage_to_purview
+  upstream_asset_key: lineage_graph
+  catalog_url: https://my-account.purview.azure.com
+  api_token_env: PURVIEW_ACCESS_TOKEN
+  only_push_on_change: true

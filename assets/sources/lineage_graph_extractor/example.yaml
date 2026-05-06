@@ -1,0 +1,8 @@
+type: dagster_component_templates.LineageGraphExtractorComponent
+attributes:
+  asset_name: lineage_graph
+  scope: code_location          # or "deployment" for full Dagster+ graph
+  group_name: lineage
+  organization: "MyCompany"
+  platform_name: dagster
+  platform_display_name: "Dagster"

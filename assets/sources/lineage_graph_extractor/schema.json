@@ -1,0 +1,20 @@
+{
+  "component_type": "dagster_component_templates.LineageGraphExtractorComponent",
+  "description": "Materialize the canonical Dagster asset lineage graph (nodes + edges + source system identity) as an asset. Downstream lineage_to_<catalog> components fan out from this single source so multiple catalogs stay in lock-step.",
+  "category": "source",
+  "icon": "Network",
+  "x-dagster-io": {"outputs": {"type": "dict", "description": "Canonical lineage payload"}, "supports_partitions": false},
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": false, "default": "lineage_graph"},
+    "scope": {"type": "string", "label": "Scope", "required": false, "default": "code_location", "enum": ["code_location", "deployment"]},
+    "dagster_plus_token_env": {"type": "string", "label": "Dagster+ Token Env Var", "required": false, "default": "DAGSTER_PLUS_TOKEN"},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "lineage"},
+    "description": {"type": "string", "label": "Description", "required": false, "default": null},
+    "platform_name": {"type": "string", "label": "Platform Name", "required": false, "default": "dagster"},
+    "platform_display_name": {"type": "string", "label": "Platform Display Name", "required": false, "default": "Dagster"},
+    "deployment_name": {"type": "string", "label": "Deployment Name", "required": false, "default": ""},
+    "dagster_ui_url": {"type": "string", "label": "Dagster UI URL", "required": false, "default": ""},
+    "organization": {"type": "string", "label": "Organization", "required": false, "default": ""},
+    "code_location_name": {"type": "string", "label": "Code Location Name", "required": false, "default": ""}
+  }
+}

@@ -1,0 +1,7 @@
+type: dagster_component_templates.LineageToWebhookComponent
+attributes:
+  asset_name: lineage_to_webhook
+  upstream_asset_key: lineage_graph
+  catalog_url: https://example.com/lineage-webhook
+  api_token_env: LINEAGE_WEBHOOK_TOKEN
+  only_push_on_change: true

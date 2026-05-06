@@ -1,0 +1,7 @@
+type: dagster_component_templates.LineageToCollibraComponent
+attributes:
+  asset_name: lineage_to_collibra
+  upstream_asset_key: lineage_graph
+  catalog_url: https://example.collibra.com
+  api_token_env: COLLIBRA_API_TOKEN
+  only_push_on_change: true

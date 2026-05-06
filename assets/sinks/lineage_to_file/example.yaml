@@ -1,0 +1,7 @@
+type: dagster_component_templates.LineageToFileComponent
+attributes:
+  asset_name: lineage_to_file
+  upstream_asset_key: lineage_graph
+  catalog_url: data/exports/dagster_lineage.json
+  api_token_env: 
+  only_push_on_change: true

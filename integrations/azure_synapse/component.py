@@ -198,74 +198,65 @@ class AzureSynapseComponent(Component, Model, Resolvable):
         return notebooks
 
     def _get_pipeline_assets(self, client: ArtifactsClient) -> List:
-        """Generate pipeline assets."""
+        """Generate pipeline assets — factory pattern to avoid Dagster
+        interpreting closure default-args as AssetIn dependencies.
+        """
         assets = []
         pipelines = self._list_pipelines(client)
+        component_self = self
 
         for pipeline_name in pipelines:
             asset_key = f"synapse_pipeline_{pipeline_name}"
 
-            @asset(
-                name=asset_key,
-                group_name=self.group_name,
-                metadata={
-                    "pipeline_name": pipeline_name,
-                    "workspace_name": self.workspace_name,
-                },
-            )
-            def pipeline_asset(context: AssetExecutionContext, pipeline_name=pipeline_name):
-                """Trigger Azure Synapse pipeline run."""
-                artifacts_client = self._get_artifacts_client()
-
-                # Create pipeline run
-                run_response = artifacts_client.pipeline_run.create_pipeline_run(
-                    pipeline_name
+            def _make_pipeline_asset(_pipeline_name=pipeline_name, _asset_key=asset_key):
+                @asset(
+                    name=_asset_key,
+                    group_name=component_self.group_name,
+                    metadata={
+                        "pipeline_name": _pipeline_name,
+                        "workspace_name": component_self.workspace_name,
+                    },
                 )
+                def pipeline_asset(context: AssetExecutionContext):
+                    """Trigger Azure Synapse pipeline run."""
+                    artifacts_client = component_self._get_artifacts_client()
 
-                run_id = run_response.run_id
-                context.log.info(f"Pipeline run started. Run ID: {run_id}")
+                    run_response = artifacts_client.pipeline_run.create_pipeline_run(_pipeline_name)
+                    run_id = run_response.run_id
+                    context.log.info(f"Pipeline run started. Run ID: {run_id}")
 
-                # Wait for pipeline run to complete
-                max_wait_minutes = 60
-                poll_interval = 30
-                elapsed = 0
+                    max_wait_minutes = 60
+                    poll_interval = 30
+                    elapsed = 0
+                    while elapsed < max_wait_minutes * 60:
+                        pipeline_run = artifacts_client.pipeline_run.get_pipeline_run(run_id)
+                        status = pipeline_run.status
+                        context.log.info(f"Pipeline run status: {status}")
+                        if status in ["Succeeded", "Failed", "Cancelled"]:
+                            metadata = {
+                                "run_id": run_id,
+                                "status": status,
+                                "pipeline_name": _pipeline_name,
+                                "start_time": str(pipeline_run.run_start),
+                                "end_time": str(pipeline_run.run_end),
+                                "duration_seconds": (
+                                    (pipeline_run.run_end - pipeline_run.run_start).total_seconds()
+                                    if pipeline_run.run_end and pipeline_run.run_start
+                                    else 0
+                                ),
+                            }
+                            if status == "Failed":
+                                metadata["error"] = pipeline_run.message or "Pipeline failed"
+                            return metadata
+                        time.sleep(poll_interval)
+                        elapsed += poll_interval
 
-                while elapsed < max_wait_minutes * 60:
-                    pipeline_run = artifacts_client.pipeline_run.get_pipeline_run(run_id)
-                    status = pipeline_run.status
+                    context.log.warning(f"Pipeline run timed out after {max_wait_minutes} minutes")
+                    return {"run_id": run_id, "status": "Timeout", "pipeline_name": _pipeline_name}
 
-                    context.log.info(f"Pipeline run status: {status}")
+                return pipeline_asset
 
-                    if status in ["Succeeded", "Failed", "Cancelled"]:
-                        metadata = {
-                            "run_id": run_id,
-                            "status": status,
-                            "pipeline_name": pipeline_name,
-                            "start_time": str(pipeline_run.run_start),
-                            "end_time": str(pipeline_run.run_end),
-                            "duration_seconds": (
-                                (pipeline_run.run_end - pipeline_run.run_start).total_seconds()
-                                if pipeline_run.run_end and pipeline_run.run_start
-                                else 0
-                            ),
-                        }
-
-                        if status == "Failed":
-                            metadata["error"] = pipeline_run.message or "Pipeline failed"
-
-                        return metadata
-
-                    time.sleep(poll_interval)
-                    elapsed += poll_interval
-
-                context.log.warning(f"Pipeline run timed out after {max_wait_minutes} minutes")
-                return {
-                    "run_id": run_id,
-                    "status": "Timeout",
-                    "pipeline_name": pipeline_name,
-                }
-
-            assets.append(pipeline_asset)
+            assets.append(_make_pipeline_asset())
 
         return assets
 
@@ -273,40 +264,33 @@ class AzureSynapseComponent(Component, Model, Resolvable):
         """Generate Spark job assets."""
         assets = []
         jobs = self._list_spark_jobs(client)
+        component_self = self
 
         for job_name in jobs:
             asset_key = f"synapse_spark_job_{job_name}"
 
-            @asset(
-                name=asset_key,
-                group_name=self.group_name,
-                metadata={
-                    "job_name": job_name,
-                    "workspace_name": self.workspace_name,
-                },
-            )
-            def spark_job_asset(context: AssetExecutionContext, job_name=job_name):
-                """Execute Azure Synapse Spark job."""
-                artifacts_client = self._get_artifacts_client()
-
-                # Get job definition
-                job_def = artifacts_client.spark_job_definition.get_spark_job_definition(
-                    job_name
+            def _make_spark_asset(_job_name=job_name, _asset_key=asset_key):
+                @asset(
+                    name=_asset_key,
+                    group_name=component_self.group_name,
+                    metadata={
+                        "job_name": _job_name,
+                        "workspace_name": component_self.workspace_name,
+                    },
                 )
+                def spark_job_asset(context: AssetExecutionContext):
+                    """Execute Azure Synapse Spark job."""
+                    artifacts_client = component_self._get_artifacts_client()
+                    job_def = artifacts_client.spark_job_definition.get_spark_job_definition(_job_name)
+                    context.log.info(f"Submitting Spark job: {_job_name}")
+                    return {
+                        "job_name": _job_name,
+                        "status": "Submitted",
+                        "language": job_def.properties.job_properties.language if hasattr(job_def.properties, 'job_properties') else "unknown",
+                    }
+                return spark_job_asset
 
-                context.log.info(f"Submitting Spark job: {job_name}")
-
-                # Submit Spark job
-                # Note: The actual submission depends on the Spark pool configuration
-                # This is a placeholder for the job submission logic
-
-                return {
-                    "job_name": job_name,
-                    "status": "Submitted",
-                    "language": job_def.properties.job_properties.language if hasattr(job_def.properties, 'job_properties') else "unknown",
-                }
-
-            assets.append(spark_job_asset)
+            assets.append(_make_spark_asset())
 
         return assets
 
@@ -314,38 +298,34 @@ class AzureSynapseComponent(Component, Model, Resolvable):
         """Generate notebook assets."""
         assets = []
         notebooks = self._list_notebooks(client)
+        component_self = self
 
         for notebook_name in notebooks:
             asset_key = f"synapse_notebook_{notebook_name}"
 
-            @asset(
-                name=asset_key,
-                group_name=self.group_name,
-                metadata={
-                    "notebook_name": notebook_name,
-                    "workspace_name": self.workspace_name,
-                },
-            )
-            def notebook_asset(context: AssetExecutionContext, notebook_name=notebook_name):
-                """Execute Azure Synapse notebook."""
-                artifacts_client = self._get_artifacts_client()
+            def _make_notebook_asset(_notebook_name=notebook_name, _asset_key=asset_key):
+                @asset(
+                    name=_asset_key,
+                    group_name=component_self.group_name,
+                    metadata={
+                        "notebook_name": _notebook_name,
+                        "workspace_name": component_self.workspace_name,
+                    },
+                )
+                def notebook_asset(context: AssetExecutionContext):
+                    """Execute Azure Synapse notebook (lineage marker — execution via pipeline)."""
+                    artifacts_client = component_self._get_artifacts_client()
+                    notebook = artifacts_client.notebook.get_notebook(_notebook_name)
+                    context.log.info(f"Notebook: {_notebook_name}")
+                    context.log.info("Note: Notebook execution requires pipeline integration")
+                    return {
+                        "notebook_name": _notebook_name,
+                        "status": "Retrieved",
+                        "metadata": notebook.properties.metadata if hasattr(notebook.properties, 'metadata') else {},
+                    }
+                return notebook_asset
 
-                # Get notebook
-                notebook = artifacts_client.notebook.get_notebook(notebook_name)
-
-                context.log.info(f"Notebook: {notebook_name}")
-                context.log.info(f"Note: Notebook execution requires pipeline integration")
-
-                # Notebooks are typically executed via pipeline notebook activities
-                # Direct notebook execution is not supported via SDK
-
-                return {
-                    "notebook_name": notebook_name,
-                    "status": "Retrieved",
-                    "metadata": notebook.properties.metadata if hasattr(notebook.properties, 'metadata') else {},
-                }
-
-            assets.append(notebook_asset)
+            assets.append(_make_notebook_asset())
 
         return assets
 
@@ -412,8 +392,8 @@ class AzureSynapseComponent(Component, Model, Resolvable):
 
         return synapse_observation_sensor
 
-    def resolve(self, load_context: ComponentLoadContext) -> Definitions:
-        """Resolve component to Dagster definitions."""
+    def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        """Build Dagster definitions for the imported Synapse workspace."""
         mgmt_client = self._get_management_client()
         artifacts_client = self._get_artifacts_client()
 

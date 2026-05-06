@@ -10,7 +10,6 @@ from typing import Dict, List, Optional
 import dagster as dg
 from pydantic import Field
 
-from . import lineage_core
 
 
 # ── catalog-specific transform + push ─────────────────────────────────
@@ -56,7 +55,9 @@ def _transform(payload):
 
 def _push(log, transformed, base_url, token_env):
     import requests
-    token = lineage_core.get_token(token_env)
+    token = os.environ.get(token_env)
+    if not token:
+        raise RuntimeError(f"Missing {token_env} environment variable")
     resp = requests.post(
         f"{base_url}/integration/v2/lineage/",
         json=transformed,
@@ -116,7 +117,7 @@ class LineageToAlationComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def lineage_sink(context: dg.AssetExecutionContext, upstream: dict) -> dg.MaterializeResult:
             payload = upstream
-            current_hash = payload.get("sync_metadata", {}).get("payload_hash") or lineage_core.hash_payload(payload)
+            current_hash = payload.get("sync_metadata", {}).get("payload_hash", "")
 
             # Pull last-pushed hash from this asset's previous materialization metadata
             last_hash = None

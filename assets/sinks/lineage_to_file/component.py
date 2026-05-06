@@ -10,7 +10,6 @@ from typing import Dict, List, Optional
 import dagster as dg
 from pydantic import Field
 
-from . import lineage_core
 
 
 # ── catalog-specific transform + push ─────────────────────────────────
@@ -74,7 +73,7 @@ class LineageToFileComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def lineage_sink(context: dg.AssetExecutionContext, upstream: dict) -> dg.MaterializeResult:
             payload = upstream
-            current_hash = payload.get("sync_metadata", {}).get("payload_hash") or lineage_core.hash_payload(payload)
+            current_hash = payload.get("sync_metadata", {}).get("payload_hash", "")
 
             # Pull last-pushed hash from this asset's previous materialization metadata
             last_hash = None

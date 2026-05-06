@@ -18,7 +18,14 @@ def _sanitize(s: str) -> str:
 class MSSQLIOManager(dg.ConfigurableIOManager):
     """Persist DataFrames to a Microsoft SQL Server schema, one table per asset."""
 
-    connection_url: str = Field(description="SQLAlchemy URL, e.g. mssql+pyodbc://user:pwd@host/db?driver=ODBC+Driver+17+for+SQL+Server")
+    connection_url: str = Field(
+        description=(
+            "SQLAlchemy URL. Two driver options: "
+            "pymssql (pure Python, no ODBC needed): mssql+pymssql://user:pwd@host:1433/db; "
+            "pyodbc (requires Microsoft ODBC Driver 18 installed): "
+            "mssql+pyodbc://user:pwd@host/db?driver=ODBC+Driver+18+for+SQL+Server"
+        )
+    )
     schema_name: str = Field(default="dbo", description="SQL Server schema.")
     if_exists: str = Field(default="replace", description="'replace', 'append', or 'fail'.")
 

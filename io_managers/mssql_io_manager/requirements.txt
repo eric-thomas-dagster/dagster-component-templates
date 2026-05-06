@@ -1,3 +1,7 @@
 pandas
 sqlalchemy
-pyodbc
+# Driver — pick ONE (or both). pymssql is pure-Python and easiest on macOS;
+# pyodbc requires the Microsoft ODBC Driver 18 installed at the OS level
+# (e.g. `brew install msodbcsql18`).
+pymssql
+# pyodbc

@@ -1,0 +1,46 @@
+# MssqlResourceComponent
+
+Microsoft SQL Server / Azure SQL Database Dagster resource. Mirrors
+`postgres_resource` and `mysql_resource` — provides a connection string and
+factory other components can share.
+
+## Dependencies
+
+- `sqlalchemy`
+- `pymssql` (default driver) — pure-Python, no ODBC install
+- (optional) `pyodbc` + Microsoft ODBC Driver 18 if `driver: pyodbc`
+
+## Configuration
+
+| Field | Type | Description |
+|---|---|---|
+| `resource_key` | str | Resource registration key (default `mssql_resource`) |
+| `host` | str | Server hostname (e.g. `myserver.database.windows.net`) |
+| `port` | int | Default 1433 |
+| `database` | str | Database name |
+| `username` | str | Login username |
+| `password_env_var` | str | Env var holding the password |
+| `driver` | str | `pymssql` (default) or `pyodbc` |
+| `encrypt` | bool | Connection encryption — **required for Azure SQL** |
+| `trust_server_certificate` | bool | Skip cert verification (only for self-signed local SQL Server) |
+
+## What it provides
+
+```python
+ctx.resources.mssql_resource.connection_string   # SQLAlchemy URL
+ctx.resources.mssql_resource.get_engine()         # SQLAlchemy Engine
+ctx.resources.mssql_resource.get_connection()     # DB-API connection (pymssql or pyodbc)
+```
+
+## When to use this vs `dataframe_to_table`
+
+- **`dataframe_to_table`** — DataFrame in, SQL row-set out. One asset per
+  destination table. Fine for the simple "land my DataFrame in SQL" case.
+- **`MssqlResourceComponent`** — Multiple assets share one connection;
+  Python ops can run arbitrary SQL (DDL, stored procs, multi-statement
+  reports). Use when you need to read+write across several assets.
+
+## See also
+- `postgres_resource`, `mysql_resource` — same shape, different backend
+- `mssql_io_manager` — auto-persist DataFrame assets to per-asset tables
+- [Schema](schema.json) · [Example](example.yaml)

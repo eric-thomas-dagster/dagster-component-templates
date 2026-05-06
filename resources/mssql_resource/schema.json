@@ -1,0 +1,17 @@
+{
+  "component_type": "dagster_component_templates.MssqlResourceComponent",
+  "description": "Register a SQL Server / Azure SQL Database resource for use by other components.",
+  "category": "resource",
+  "icon": "Database",
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "description": "Resource registration key", "required": false, "default": "mssql_resource"},
+    "host": {"type": "string", "label": "Host", "description": "SQL Server hostname (e.g. myserver.database.windows.net)", "required": true},
+    "port": {"type": "integer", "label": "Port", "description": "SQL Server port", "required": false, "default": 1433},
+    "database": {"type": "string", "label": "Database", "description": "Database name", "required": true},
+    "username": {"type": "string", "label": "Username", "description": "Login username", "required": true},
+    "password_env_var": {"type": "string", "label": "Password Env Var", "description": "Env var holding the password", "required": true},
+    "driver": {"type": "string", "label": "Driver", "description": "'pymssql' (default) or 'pyodbc'", "required": false, "default": "pymssql"},
+    "encrypt": {"type": "boolean", "label": "Encrypt", "description": "Enable connection encryption. Required for Azure SQL.", "required": false, "default": true},
+    "trust_server_certificate": {"type": "boolean", "label": "Trust Server Certificate", "description": "Skip server-cert verification. Use only for self-signed local SQL Server.", "required": false, "default": false}
+  }
+}

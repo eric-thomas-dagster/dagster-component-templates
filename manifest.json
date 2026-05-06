@@ -14974,6 +14974,35 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/iceberg_maintenance_job/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/iceberg_maintenance_job/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/iceberg_maintenance_job/requirements.txt"
+    },
+    {
+      "id": "mssql_resource",
+      "name": "MssqlResourceComponent",
+      "category": "resource",
+      "description": "SQL Server / Azure SQL Database Dagster resource \u2014 connection string + connection factory shared across assets. Mirrors postgres_resource and mysql_resource.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/mssql_resource",
+      "tags": [
+        "sql-server",
+        "azure-sql",
+        "mssql",
+        "resource",
+        "sqlalchemy",
+        "pymssql",
+        "pyodbc"
+      ],
+      "dependencies": {
+        "pip": [
+          "sqlalchemy",
+          "pymssql"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mssql_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mssql_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mssql_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mssql_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/mssql_resource/requirements.txt"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

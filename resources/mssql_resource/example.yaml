@@ -1,0 +1,11 @@
+type: dagster_component_templates.MssqlResourceComponent
+attributes:
+  resource_key: mssql_resource
+  host: myserver.database.windows.net
+  port: 1433
+  database: prod
+  username: sqladmin
+  password_env_var: AZURE_SQL_PASSWORD
+  driver: pymssql            # or 'pyodbc'
+  encrypt: true              # required for Azure SQL
+  trust_server_certificate: false

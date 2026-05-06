@@ -57,3 +57,23 @@ For asset key `["analytics","customers","daily"]` with catalog `main`:
 - **Inline `INSERT VALUES`**: when `staging_location` is empty the manager builds an `INSERT INTO ... VALUES (...)` statement. Fine for small/moderate volumes; switch to staging for tens of millions of rows.
 - **`COPY INTO`**: when `staging_location` is set, the manager writes a temporary Parquet file there and runs `COPY INTO` with `mergeSchema=true`. Cheaper and faster for large writes; the warehouse needs read access to the staging URI.
 - **Delta semantics**: per-statement ACID means a `DELETE` or `INSERT` either fully applies or fully rolls back. There's no multi-statement transaction in Databricks SQL, but the partition-replacement pattern is idempotent, so a retry after a partial failure converges to the right state.
+
+
+## Azure Databricks
+
+Azure Databricks is the same Databricks platform, deployed in Azure with
+host URL `https://adb-XXX.azuredatabricks.net`. This component works
+out-of-the-box with Azure Databricks via the standard `host` /
+`server_hostname` / `host_env_var` field — no Azure-specific code needed.
+
+**Auth options for Azure Databricks:**
+- Personal Access Token (PAT) — same as multi-cloud, simplest
+- Microsoft Entra OAuth (preferred for production) — set
+  `ARM_TENANT_ID`, `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET` env vars; the
+  Databricks SDK auto-detects and uses OAuth
+- Managed identity (Azure compute only) — set `DATABRICKS_AZURE_RESOURCE_ID`
+  to the workspace ARM resource ID; SDK uses the attached MSI
+
+The service principal needs the **Contributor** role on the workspace,
+plus appropriate Unity Catalog / cluster permissions inside Databricks.
+

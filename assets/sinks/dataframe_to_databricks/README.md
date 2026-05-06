@@ -70,3 +70,23 @@ Install with:
 ```bash
 pip install dagster pandas databricks-sql-connector
 ```
+
+
+## Azure Databricks
+
+Azure Databricks is the same Databricks platform, deployed in Azure with
+host URL `https://adb-XXX.azuredatabricks.net`. This component works
+out-of-the-box with Azure Databricks via the standard `host` /
+`server_hostname` / `host_env_var` field — no Azure-specific code needed.
+
+**Auth options for Azure Databricks:**
+- Personal Access Token (PAT) — same as multi-cloud, simplest
+- Microsoft Entra OAuth (preferred for production) — set
+  `ARM_TENANT_ID`, `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET` env vars; the
+  Databricks SDK auto-detects and uses OAuth
+- Managed identity (Azure compute only) — set `DATABRICKS_AZURE_RESOURCE_ID`
+  to the workspace ARM resource ID; SDK uses the attached MSI
+
+The service principal needs the **Contributor** role on the workspace,
+plus appropriate Unity Catalog / cluster permissions inside Databricks.
+

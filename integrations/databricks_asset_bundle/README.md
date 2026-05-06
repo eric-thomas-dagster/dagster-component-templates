@@ -290,3 +290,23 @@ attributes:
 `deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
 
 Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).
+
+
+## Azure Databricks
+
+Azure Databricks is the same Databricks platform, deployed in Azure with
+host URL `https://adb-XXX.azuredatabricks.net`. This component works
+out-of-the-box with Azure Databricks via the standard `host` /
+`server_hostname` / `host_env_var` field — no Azure-specific code needed.
+
+**Auth options for Azure Databricks:**
+- Personal Access Token (PAT) — same as multi-cloud, simplest
+- Microsoft Entra OAuth (preferred for production) — set
+  `ARM_TENANT_ID`, `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET` env vars; the
+  Databricks SDK auto-detects and uses OAuth
+- Managed identity (Azure compute only) — set `DATABRICKS_AZURE_RESOURCE_ID`
+  to the workspace ARM resource ID; SDK uses the attached MSI
+
+The service principal needs the **Contributor** role on the workspace,
+plus appropriate Unity Catalog / cluster permissions inside Databricks.
+

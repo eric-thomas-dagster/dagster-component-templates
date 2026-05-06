@@ -221,7 +221,7 @@ class AzureSynapseComponent(Component, Model, Resolvable):
                     """Trigger Azure Synapse pipeline run."""
                     artifacts_client = component_self._get_artifacts_client()
 
-                    run_response = artifacts_client.pipeline_run.create_pipeline_run(_pipeline_name)
+                    run_response = artifacts_client.pipeline.create_pipeline_run(_pipeline_name)
                     run_id = run_response.run_id
                     context.log.info(f"Pipeline run started. Run ID: {run_id}")
 

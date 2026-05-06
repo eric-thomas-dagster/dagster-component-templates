@@ -125,9 +125,11 @@ class LineageToPurviewComponent(dg.Component, dg.Model, dg.Resolvable):
                 try:
                     last_mat = context.instance.get_latest_materialization_event(context.asset_key)
                     if last_mat and last_mat.asset_materialization:
-                        for md_entry in last_mat.asset_materialization.metadata_entries:
-                            if md_entry.label in ("pushed_hash", "payload_hash"):
-                                last_hash = str(md_entry.value)
+                        md = last_mat.asset_materialization.metadata or {}
+                        for label in ("pushed_hash", "payload_hash"):
+                            if label in md:
+                                v = md[label]
+                                last_hash = str(getattr(v, "value", v) or getattr(v, "text", "") or v)
                                 break
                 except Exception:
                     pass  # best-effort

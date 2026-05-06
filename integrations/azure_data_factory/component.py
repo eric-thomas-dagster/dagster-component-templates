@@ -702,9 +702,14 @@ if _HAS_STATE_BACKED:
         factory_name: str
 
         # ── Auth (optional — falls back to DefaultAzureCredential) ────────────
+        # Two ways to provide service-principal creds: literal values or
+        # *_env_var fields the component reads at load time. Either works.
         tenant_id: Optional[str] = None
         client_id: Optional[str] = None
         client_secret: Optional[str] = None
+        tenant_id_env_var: Optional[str] = None
+        client_id_env_var: Optional[str] = None
+        client_secret_env_var: Optional[str] = None
 
         # ── Import toggles ─────────────────────────────────────────────────────
         import_pipelines: bool = True
@@ -772,11 +777,15 @@ if _HAS_STATE_BACKED:
 
         def write_state_to_path(self, state_path: Path) -> None:
             """Call ADF Management API and cache pipeline (and trigger) metadata to disk."""
+            import os as _os
+            _ten = self.tenant_id or (_os.environ.get(self.tenant_id_env_var) if self.tenant_id_env_var else None)
+            _cid = self.client_id or (_os.environ.get(self.client_id_env_var) if self.client_id_env_var else None)
+            _sec = self.client_secret or (_os.environ.get(self.client_secret_env_var) if self.client_secret_env_var else None)
             client = _get_adf_client(
                 self.subscription_id,
-                self.tenant_id,
-                self.client_id,
-                self.client_secret,
+                _ten,
+                _cid,
+                _sec,
             )
 
             state: Dict[str, Any] = {}
@@ -831,9 +840,9 @@ if _HAS_STATE_BACKED:
                 subscription_id=self.subscription_id,
                 resource_group_name=self.resource_group_name,
                 factory_name=self.factory_name,
-                tenant_id=self.tenant_id,
-                client_id=self.client_id,
-                client_secret=self.client_secret,
+                tenant_id=self.tenant_id or (os.environ.get(self.tenant_id_env_var) if getattr(self, 'tenant_id_env_var', None) else None),
+                client_id=self.client_id or (os.environ.get(self.client_id_env_var) if getattr(self, 'client_id_env_var', None) else None),
+                client_secret=self.client_secret or (os.environ.get(self.client_secret_env_var) if getattr(self, 'client_secret_env_var', None) else None),
                 group_name=self.group_name,
                 import_pipelines=self.import_pipelines,
                 import_triggers=self.import_triggers,
@@ -997,11 +1006,15 @@ else:
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             """Build Definitions by calling the ADF API at load time."""
+            import os as _os
+            _ten = self.tenant_id or (_os.environ.get(self.tenant_id_env_var) if self.tenant_id_env_var else None)
+            _cid = self.client_id or (_os.environ.get(self.client_id_env_var) if self.client_id_env_var else None)
+            _sec = self.client_secret or (_os.environ.get(self.client_secret_env_var) if self.client_secret_env_var else None)
             client = _get_adf_client(
                 self.subscription_id,
-                self.tenant_id,
-                self.client_id,
-                self.client_secret,
+                _ten,
+                _cid,
+                _sec,
             )
 
             pipelines: List[Dict[str, Any]] = []
@@ -1033,9 +1046,9 @@ else:
                 subscription_id=self.subscription_id,
                 resource_group_name=self.resource_group_name,
                 factory_name=self.factory_name,
-                tenant_id=self.tenant_id,
-                client_id=self.client_id,
-                client_secret=self.client_secret,
+                tenant_id=self.tenant_id or (os.environ.get(self.tenant_id_env_var) if getattr(self, 'tenant_id_env_var', None) else None),
+                client_id=self.client_id or (os.environ.get(self.client_id_env_var) if getattr(self, 'client_id_env_var', None) else None),
+                client_secret=self.client_secret or (os.environ.get(self.client_secret_env_var) if getattr(self, 'client_secret_env_var', None) else None),
                 group_name=self.group_name,
                 import_pipelines=self.import_pipelines,
                 import_triggers=self.import_triggers,

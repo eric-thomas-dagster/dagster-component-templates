@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import dagster as dg
+from pydantic import Field
 
 try:
     from dagster.components.component.state_backed_component import StateBackedComponent
@@ -55,18 +56,18 @@ class AzureDataFactoryResource(dg.ConfigurableResource):
         ```
     """
 
-    subscription_id: str = dg.Field(description="Azure subscription ID")
-    resource_group_name: str = dg.Field(description="Azure resource group name")
-    factory_name: str = dg.Field(description="Azure Data Factory name")
-    tenant_id_env_var: Optional[str] = dg.Field(
+    subscription_id: str = Field(description="Azure subscription ID")
+    resource_group_name: str = Field(description="Azure resource group name")
+    factory_name: str = Field(description="Azure Data Factory name")
+    tenant_id_env_var: Optional[str] = Field(
         default=None,
         description="Env var holding the Azure AD tenant ID (optional — uses DefaultAzureCredential if absent)",
     )
-    client_id_env_var: Optional[str] = dg.Field(
+    client_id_env_var: Optional[str] = Field(
         default=None,
         description="Env var holding the Azure AD client/application ID (optional)",
     )
-    client_secret_env_var: Optional[str] = dg.Field(
+    client_secret_env_var: Optional[str] = Field(
         default=None,
         description="Env var holding the Azure AD client secret (optional)",
     )
@@ -698,43 +699,43 @@ else:
             ```
         """
 
-        subscription_id: str = dg.Field(description="Azure subscription ID")
-        resource_group_name: str = dg.Field(description="Azure resource group name")
-        factory_name: str = dg.Field(description="Azure Data Factory name")
+        subscription_id: str = Field(description="Azure subscription ID")
+        resource_group_name: str = Field(description="Azure resource group name")
+        factory_name: str = Field(description="Azure Data Factory name")
 
-        tenant_id: Optional[str] = dg.Field(
+        tenant_id: Optional[str] = Field(
             default=None,
             description="Azure AD tenant ID (optional — uses DefaultAzureCredential if absent)",
         )
-        client_id: Optional[str] = dg.Field(
+        client_id: Optional[str] = Field(
             default=None,
             description="Azure AD client/application ID (optional)",
         )
-        client_secret: Optional[str] = dg.Field(
+        client_secret: Optional[str] = Field(
             default=None,
             description="Azure AD client secret (optional)",
         )
 
-        import_pipelines: bool = dg.Field(default=True, description="Import pipelines as assets")
-        import_triggers: bool = dg.Field(default=False, description="Import triggers as assets")
+        import_pipelines: bool = Field(default=True, description="Import pipelines as assets")
+        import_triggers: bool = Field(default=False, description="Import triggers as assets")
 
-        filter_by_name_pattern: Optional[str] = dg.Field(
+        filter_by_name_pattern: Optional[str] = Field(
             default=None, description="Regex to filter entities by name"
         )
-        exclude_name_pattern: Optional[str] = dg.Field(
+        exclude_name_pattern: Optional[str] = Field(
             default=None, description="Regex to exclude entities by name"
         )
-        filter_by_tags: Optional[str] = dg.Field(
+        filter_by_tags: Optional[str] = Field(
             default=None, description="Comma-separated tag keys to filter entities"
         )
 
-        generate_sensor: bool = dg.Field(default=True, description="Generate observation sensor")
-        poll_interval_seconds: int = dg.Field(default=60, description="Sensor poll interval (s)")
+        generate_sensor: bool = Field(default=True, description="Generate observation sensor")
+        poll_interval_seconds: int = Field(default=60, description="Sensor poll interval (s)")
 
-        group_name: str = dg.Field(default="azure_data_factory", description="Asset group name")
-        description: Optional[str] = dg.Field(default=None, description="Component description")
+        group_name: str = Field(default="azure_data_factory", description="Asset group name")
+        description: Optional[str] = Field(default=None, description="Component description")
 
-        assets_by_pipeline_name: Optional[dict] = dg.Field(
+        assets_by_pipeline_name: Optional[dict] = Field(
             default=None,
             description=(
                 "Override or expand AssetSpecs for specific ADF pipelines. "

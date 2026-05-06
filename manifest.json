@@ -2631,6 +2631,29 @@
       "icon": "ArrowDownToLine"
     },
     {
+      "id": "dataframe_to_fabric_lakehouse",
+      "name": "DataFrame \u2192 Fabric Lakehouse",
+      "category": "sink",
+      "description": "Write a DataFrame to a Microsoft Fabric Lakehouse table as Delta on OneLake. Auto-registers in the Fabric SQL endpoint.",
+      "path": "assets/sinks/dataframe_to_fabric_lakehouse",
+      "tags": [
+        "sink",
+        "azure",
+        "fabric",
+        "onelake",
+        "delta",
+        "dataframe"
+      ],
+      "type": "dagster_component_templates.DataframeToFabricLakehouseComponent",
+      "component_type": "dagster_component_templates.DataframeToFabricLakehouseComponent",
+      "icon": "si:microsoftazure",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_fabric_lakehouse/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_fabric_lakehouse/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_fabric_lakehouse/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_fabric_lakehouse/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_fabric_lakehouse/requirements.txt"
+    },
+    {
       "id": "dataframe_to_gcs",
       "name": "DataFrame to GCS",
       "category": "sink",
@@ -4396,6 +4419,48 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sqs_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sqs_asset/requirements.txt",
       "icon": "Link"
+    },
+    {
+      "id": "fabric_pipeline_trigger_job",
+      "name": "Fabric Pipeline Trigger Job",
+      "category": "infrastructure",
+      "description": "Op-job that triggers a Microsoft Fabric Data Pipeline / Notebook / Dataflow Gen2 run via the Fabric REST API. Pair with a schedule for periodic runs.",
+      "path": "jobs/fabric_pipeline_trigger_job",
+      "tags": [
+        "job",
+        "azure",
+        "fabric",
+        "trigger"
+      ],
+      "type": "dagster_component_templates.FabricPipelineTriggerJobComponent",
+      "component_type": "dagster_component_templates.FabricPipelineTriggerJobComponent",
+      "icon": "Play",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fabric_pipeline_trigger_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fabric_pipeline_trigger_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fabric_pipeline_trigger_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fabric_pipeline_trigger_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fabric_pipeline_trigger_job/requirements.txt"
+    },
+    {
+      "id": "fabric_workspace",
+      "name": "Microsoft Fabric Workspace",
+      "category": "integration",
+      "description": "Import Microsoft Fabric workspace items (Lakehouse, Warehouse, Notebook, DataPipeline, Dataflow) as Dagster assets via the Fabric REST API.",
+      "path": "integrations/fabric_workspace",
+      "tags": [
+        "integration",
+        "azure",
+        "fabric",
+        "microsoft"
+      ],
+      "type": "dagster_component_templates.FabricWorkspaceComponent",
+      "component_type": "dagster_component_templates.FabricWorkspaceComponent",
+      "icon": "si:microsoftazure",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/fabric_workspace/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/fabric_workspace/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/fabric_workspace/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/fabric_workspace/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/fabric_workspace/requirements.txt"
     },
     {
       "id": "face_detector",

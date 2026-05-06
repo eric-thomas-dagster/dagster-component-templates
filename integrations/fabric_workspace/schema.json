@@ -1,0 +1,26 @@
+{
+  "component_type": "dagster_component_templates.FabricWorkspaceComponent",
+  "description": "Import Microsoft Fabric workspace items (Lakehouse, Warehouse, Notebook, DataPipeline, Dataflow) as Dagster assets via the Fabric REST API.",
+  "category": "integration",
+  "icon": "si:microsoftazure",
+  "x-dagster-io": {"supports_partitions": false},
+  "attributes": {
+    "workspace_id": {"type": "string", "label": "Workspace ID", "required": true},
+    "tenant_id_env_var": {"type": "string", "label": "Tenant ID Env Var", "required": false, "default": null},
+    "client_id_env_var": {"type": "string", "label": "Client ID Env Var", "required": false, "default": null},
+    "client_secret_env_var": {"type": "string", "label": "Client Secret Env Var", "required": false, "default": null},
+    "import_lakehouses": {"type": "boolean", "label": "Import Lakehouses", "required": false, "default": true},
+    "import_warehouses": {"type": "boolean", "label": "Import Warehouses", "required": false, "default": true},
+    "import_notebooks": {"type": "boolean", "label": "Import Notebooks", "required": false, "default": false},
+    "import_pipelines": {"type": "boolean", "label": "Import Data Pipelines", "required": false, "default": true},
+    "import_dataflows": {"type": "boolean", "label": "Import Dataflows", "required": false, "default": false},
+    "import_semantic_models": {"type": "boolean", "label": "Import Semantic Models", "required": false, "default": false},
+    "import_reports": {"type": "boolean", "label": "Import Reports", "required": false, "default": false},
+    "filter_by_name_pattern": {"type": "string", "label": "Filter By Name (regex)", "required": false, "default": null},
+    "exclude_name_pattern": {"type": "string", "label": "Exclude Name (regex)", "required": false, "default": null},
+    "max_wait_seconds": {"type": "integer", "label": "Max Wait", "required": false, "default": 1800},
+    "poll_interval_seconds": {"type": "integer", "label": "Poll Interval", "required": false, "default": 15},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "fabric"},
+    "upstream_asset_keys": {"type": "array", "items": {"type": "string"}, "label": "Upstream Asset Keys", "required": false, "default": null}
+  }
+}

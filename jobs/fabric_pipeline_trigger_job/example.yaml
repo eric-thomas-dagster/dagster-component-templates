@@ -1,0 +1,21 @@
+type: dagster_component_templates.FabricPipelineTriggerJobComponent
+attributes:
+  job_name: fabric_daily_orders_pipeline
+  workspace_id: "12345678-1234-1234-1234-123456789012"
+  item_id: "abcdef12-3456-7890-abcd-ef1234567890"   # the pipeline / notebook / dataflow GUID
+  item_type: DataPipeline                            # 'DataPipeline' | 'Notebook' | 'Dataflow'
+
+  parameters:                                         # optional pipeline parameters
+    environment: production
+    sla_minutes: 60
+
+  wait_for_completion: true
+  max_wait_seconds: 1800
+
+  # Auth — omit env vars in Azure compute
+  tenant_id_env_var: AZURE_TENANT_ID
+  client_id_env_var: AZURE_CLIENT_ID
+  client_secret_env_var: AZURE_CLIENT_SECRET
+
+  schedule: "0 2 * * *"          # daily at 2am
+  schedule_default_status: STOPPED

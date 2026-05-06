@@ -1,0 +1,27 @@
+{
+  "component_type": "dagster_component_templates.DataframeToFabricLakehouseComponent",
+  "description": "Write a DataFrame to a Microsoft Fabric Lakehouse table as Delta on OneLake. Auto-registers in the Fabric SQL endpoint for use from Fabric Data Warehouse / Power BI / Synapse Serverless.",
+  "category": "sink",
+  "icon": "si:microsoftazure",
+  "x-dagster-io": {
+    "inputs": {"type": "dataframe", "description": "DataFrame to write"},
+    "outputs": {"type": "MaterializeResult", "description": "Write metadata"},
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true},
+    "workspace_id": {"type": "string", "label": "Workspace ID", "required": true},
+    "lakehouse_name": {"type": "string", "label": "Lakehouse Name", "required": true},
+    "table_name": {"type": "string", "label": "Table Name", "required": true},
+    "write_mode": {"type": "string", "label": "Write Mode", "required": false, "default": "overwrite", "enum": ["overwrite", "append"]},
+    "tenant_id_env_var": {"type": "string", "label": "Tenant ID Env Var", "required": false, "default": null},
+    "client_id_env_var": {"type": "string", "label": "Client ID Env Var", "required": false, "default": null},
+    "client_secret_env_var": {"type": "string", "label": "Client Secret Env Var", "required": false, "default": null},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": null},
+    "description": {"type": "string", "label": "Description", "required": false, "default": null},
+    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false, "default": null},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "default": null},
+    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "default": null}
+  }
+}

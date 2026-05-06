@@ -10,6 +10,7 @@ On first load (state_path is None) returns empty Definitions — run
 """
 
 import json
+import os
 import re
 import time
 from dataclasses import dataclass, field

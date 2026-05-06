@@ -1,0 +1,8 @@
+type: dagster_component_templates.LineageToPurviewComponent
+attributes:
+  catalog_url: https://my-account.purview.azure.com
+  api_token_env: PURVIEW_ACCESS_TOKEN
+  sensor_interval_seconds: 3600
+  sensor_default_status: STOPPED   # set to RUNNING after testing
+  organization: "MyCompany"
+  scope: code_location              # or "deployment" for full Dagster+ graph

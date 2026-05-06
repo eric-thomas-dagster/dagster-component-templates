@@ -6699,6 +6699,195 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lift_chart/requirements.txt"
     },
     {
+      "id": "lineage_to_alation",
+      "name": "Lineage \u2192 Alation",
+      "category": "sensor",
+      "description": "Sensor that exports the Dagster asset lineage graph to Alation Data Catalog. Hashes graph and only pushes on change.",
+      "path": "sensors/lineage_to_alation",
+      "tags": [
+        "sensor",
+        "lineage",
+        "catalog",
+        "alation"
+      ],
+      "type": "dagster_component_templates.LineageToAlationComponent",
+      "component_type": "dagster_component_templates.LineageToAlationComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_alation/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_alation/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_alation/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_alation/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_alation/requirements.txt",
+      "icon": "ArrowRightLeft",
+      "additional_files": [
+        {
+          "name": "lineage_core.py",
+          "url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_alation/lineage_core.py"
+        }
+      ]
+    },
+    {
+      "id": "lineage_to_collibra",
+      "name": "Lineage \u2192 Collibra",
+      "category": "sensor",
+      "description": "Sensor that exports the Dagster asset lineage graph to Collibra Data Intelligence Platform.",
+      "path": "sensors/lineage_to_collibra",
+      "tags": [
+        "sensor",
+        "lineage",
+        "catalog",
+        "collibra"
+      ],
+      "type": "dagster_component_templates.LineageToCollibraComponent",
+      "component_type": "dagster_component_templates.LineageToCollibraComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_collibra/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_collibra/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_collibra/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_collibra/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_collibra/requirements.txt",
+      "icon": "ArrowRightLeft",
+      "additional_files": [
+        {
+          "name": "lineage_core.py",
+          "url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_collibra/lineage_core.py"
+        }
+      ]
+    },
+    {
+      "id": "lineage_to_datahub",
+      "name": "Lineage \u2192 DataHub",
+      "category": "sensor",
+      "description": "Sensor that exports the Dagster asset lineage graph to DataHub via Rest.li ingestProposal.",
+      "path": "sensors/lineage_to_datahub",
+      "tags": [
+        "sensor",
+        "lineage",
+        "catalog",
+        "datahub"
+      ],
+      "type": "dagster_component_templates.LineageToDataHubComponent",
+      "component_type": "dagster_component_templates.LineageToDataHubComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_datahub/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_datahub/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_datahub/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_datahub/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_datahub/requirements.txt",
+      "icon": "ArrowRightLeft",
+      "additional_files": [
+        {
+          "name": "lineage_core.py",
+          "url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_datahub/lineage_core.py"
+        }
+      ]
+    },
+    {
+      "id": "lineage_to_file",
+      "name": "Lineage \u2192 JSON File",
+      "category": "sensor",
+      "description": "Sensor that writes the Dagster lineage graph as JSON to a local or mounted path. For demos, debugging, audit trails.",
+      "path": "sensors/lineage_to_file",
+      "tags": [
+        "sensor",
+        "lineage",
+        "catalog",
+        "file"
+      ],
+      "type": "dagster_component_templates.LineageToFileComponent",
+      "component_type": "dagster_component_templates.LineageToFileComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_file/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_file/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_file/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_file/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_file/requirements.txt",
+      "icon": "ArrowRightLeft",
+      "additional_files": [
+        {
+          "name": "lineage_core.py",
+          "url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_file/lineage_core.py"
+        }
+      ]
+    },
+    {
+      "id": "lineage_to_openlineage",
+      "name": "Lineage \u2192 OpenLineage",
+      "category": "sensor",
+      "description": "Sensor that emits Dagster asset lineage as OpenLineage RunEvents (Marquez, Atlan, Astronomer Observe).",
+      "path": "sensors/lineage_to_openlineage",
+      "tags": [
+        "sensor",
+        "lineage",
+        "catalog",
+        "openlineage"
+      ],
+      "type": "dagster_component_templates.LineageToOpenLineageComponent",
+      "component_type": "dagster_component_templates.LineageToOpenLineageComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_openlineage/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_openlineage/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_openlineage/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_openlineage/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_openlineage/requirements.txt",
+      "icon": "ArrowRightLeft",
+      "additional_files": [
+        {
+          "name": "lineage_core.py",
+          "url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_openlineage/lineage_core.py"
+        }
+      ]
+    },
+    {
+      "id": "lineage_to_purview",
+      "name": "Lineage \u2192 Microsoft Purview",
+      "category": "sensor",
+      "description": "Sensor that exports the Dagster asset lineage graph to Microsoft Purview Data Map (Apache Atlas v2 entity bulk API).",
+      "path": "sensors/lineage_to_purview",
+      "tags": [
+        "sensor",
+        "lineage",
+        "catalog",
+        "purview"
+      ],
+      "type": "dagster_component_templates.LineageToPurviewComponent",
+      "component_type": "dagster_component_templates.LineageToPurviewComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_purview/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_purview/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_purview/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_purview/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_purview/requirements.txt",
+      "icon": "ArrowRightLeft",
+      "additional_files": [
+        {
+          "name": "lineage_core.py",
+          "url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_purview/lineage_core.py"
+        }
+      ]
+    },
+    {
+      "id": "lineage_to_webhook",
+      "name": "Lineage \u2192 HTTP Webhook",
+      "category": "sensor",
+      "description": "Sensor that POSTs the raw Dagster lineage graph to any HTTP webhook (Slack, custom internal endpoint, n8n). Optional Bearer auth.",
+      "path": "sensors/lineage_to_webhook",
+      "tags": [
+        "sensor",
+        "lineage",
+        "catalog",
+        "webhook"
+      ],
+      "type": "dagster_component_templates.LineageToWebhookComponent",
+      "component_type": "dagster_component_templates.LineageToWebhookComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_webhook/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_webhook/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_webhook/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_webhook/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_webhook/requirements.txt",
+      "icon": "ArrowRightLeft",
+      "additional_files": [
+        {
+          "name": "lineage_core.py",
+          "url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/lineage_to_webhook/lineage_core.py"
+        }
+      ]
+    },
+    {
       "id": "linear_issue_sensor",
       "name": "LinearIssueSensor",
       "category": "sensor",

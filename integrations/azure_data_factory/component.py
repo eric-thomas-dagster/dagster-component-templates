@@ -230,10 +230,73 @@ def _build_adf_defs(
     filter_by_name_pattern: Optional[str],
     exclude_name_pattern: Optional[str],
     assets_by_pipeline_name: Optional[dict] = None,
+    # Comprehensive options — all default to backward-compatible no-ops
+    pipeline_parameters: Optional[Dict[str, Any]] = None,
+    partition_type: Optional[str] = None,
+    partition_start: Optional[str] = None,
+    partition_values: Optional[List[str]] = None,
+    partition_parameter_name: Optional[str] = None,
+    max_wait_seconds: int = 3600,
+    run_poll_interval_seconds: int = 30,
+    wait_for_completion: bool = True,
+    capture_activity_metadata: bool = True,
+    owners: Optional[List[str]] = None,
+    asset_tags: Optional[Dict[str, str]] = None,
+    extra_kinds: Optional[List[str]] = None,
+    freshness_max_lag_minutes: Optional[int] = None,
+    freshness_cron: Optional[str] = None,
+    retry_policy_max_retries: Optional[int] = None,
+    retry_policy_delay_seconds: Optional[int] = None,
+    retry_policy_backoff: str = "exponential",
 ) -> dg.Definitions:
     """Build Dagster Definitions from pre-fetched ADF metadata (no network calls)."""
     assets: list = []
     sensors: list = []
+
+    # Build the PartitionsDefinition once (shared across all pipeline assets)
+    _partitions_def = None
+    if partition_type == "daily":
+        _partitions_def = dg.DailyPartitionsDefinition(start_date=partition_start or "2024-01-01")
+    elif partition_type == "weekly":
+        _partitions_def = dg.WeeklyPartitionsDefinition(start_date=partition_start or "2024-01-01")
+    elif partition_type == "monthly":
+        _partitions_def = dg.MonthlyPartitionsDefinition(start_date=partition_start or "2024-01-01")
+    elif partition_type == "hourly":
+        _partitions_def = dg.HourlyPartitionsDefinition(start_date=partition_start or "2024-01-01-00:00")
+    elif partition_type == "static":
+        _partitions_def = dg.StaticPartitionsDefinition(partition_values or [])
+
+    # Build the FreshnessPolicy once (legacy API; safe across versions)
+    _freshness = None
+    if freshness_max_lag_minutes:
+        try:
+            _freshness = dg.FreshnessPolicy(
+                maximum_lag_minutes=freshness_max_lag_minutes,
+                cron_schedule=freshness_cron,
+            )
+        except Exception:
+            _freshness = None  # newer Dagster removed this; ignore silently
+
+    # Build the RetryPolicy once
+    _retry_policy = None
+    if retry_policy_max_retries is not None:
+        from dagster import Backoff, RetryPolicy
+        _retry_policy = RetryPolicy(
+            max_retries=retry_policy_max_retries,
+            delay=retry_policy_delay_seconds or 1,
+            backoff=Backoff[retry_policy_backoff.upper()],
+        )
+
+    # Default kinds for ADF pipelines + any user additions
+    _kinds = {"azure", "adf", *(extra_kinds or [])}
+
+    # Helper for the ADF Monitor portal deeplink — always useful in metadata
+    def _monitor_url(run_id: str) -> str:
+        factory_uri = (
+            f"/subscriptions/{subscription_id}/resourceGroups/{resource_group_name}"
+            f"/providers/Microsoft.DataFactory/factories/{factory_name}"
+        )
+        return f"https://adf.azure.com/en/monitoring/pipelineruns/{run_id}?factory={factory_uri}"
 
     # ── Pipeline assets ────────────────────────────────────────────────────────
     if import_pipelines:
@@ -241,7 +304,7 @@ def _build_adf_defs(
             pipeline_name = pipeline_meta["name"]
 
             # Build the default AssetSpec for this pipeline
-            default_spec = dg.AssetSpec(
+            spec_kwargs = dict(
                 key=dg.AssetKey([f"adf_pipeline_{pipeline_name}"]),
                 description=pipeline_meta.get("description") or f"ADF pipeline: {pipeline_name}",
                 group_name=group_name,
@@ -256,8 +319,17 @@ def _build_adf_defs(
                         ", ".join(pipeline_meta.get("parameters", [])) or "(none)"
                     ),
                 },
-                kinds={"azure", "adf"},
+                kinds=_kinds,
             )
+            if owners:
+                spec_kwargs["owners"] = owners
+            if asset_tags:
+                spec_kwargs["tags"] = asset_tags
+            if _partitions_def is not None:
+                spec_kwargs["partitions_def"] = _partitions_def
+            if _freshness is not None:
+                spec_kwargs["freshness_policy"] = _freshness
+            default_spec = dg.AssetSpec(**spec_kwargs)
 
             # Apply any user overrides (may expand to multiple specs)
             expanded_specs = _apply_pipeline_overrides(
@@ -272,6 +344,7 @@ def _build_adf_defs(
             @dg.multi_asset(
                 specs=expanded_specs,
                 name=f"adf_pipeline_{pipeline_name}",
+                retry_policy=_retry_policy,
             )
             def pipeline_multi_asset(
                 context: dg.AssetExecutionContext,
@@ -284,6 +357,12 @@ def _build_adf_defs(
                 _client_secret: Optional[str] = client_secret,
                 _spec_key_to_pipeline: Dict[tuple, str] = spec_key_to_pipeline,
                 _expanded_specs: list = expanded_specs,
+                _pipeline_parameters: Optional[Dict[str, Any]] = pipeline_parameters,
+                _partition_parameter_name: Optional[str] = partition_parameter_name,
+                _max_wait_seconds: int = max_wait_seconds,
+                _poll_interval: int = run_poll_interval_seconds,
+                _wait_for_completion: bool = wait_for_completion,
+                _capture_activity_metadata: bool = capture_activity_metadata,
             ):
                 """Trigger an Azure Data Factory pipeline run and wait for completion."""
                 adf_client = _get_adf_client(
@@ -299,27 +378,55 @@ def _build_adf_defs(
                     if key_path in selected_keys:
                         pipelines_to_run.setdefault(p_name, []).append(key_path)
 
+                # Build the ADF pipeline parameters dict — user-provided +
+                # auto-injected partition_key (when partitioned)
+                adf_params: Dict[str, Any] = dict(_pipeline_parameters or {})
+                if context.has_partition_key:
+                    pkey = context.partition_key
+                    pname = _partition_parameter_name or "partition_key"
+                    adf_params.setdefault(pname, pkey)
+                    context.log.info(
+                        f"partitioned run: passing {pname}={pkey} to ADF"
+                    )
+
                 for p_name, key_paths in pipelines_to_run.items():
+                    create_kwargs: Dict[str, Any] = {}
+                    if adf_params:
+                        create_kwargs["parameters"] = adf_params
                     run_response = adf_client.pipelines.create_run(
                         _resource_group_name,
                         _factory_name,
                         p_name,
+                        **create_kwargs,
                     )
                     run_id = run_response.run_id
-                    context.log.info(f"Pipeline run started. Run ID: {run_id}")
+                    monitor_url = _monitor_url(run_id)
+                    context.log.info(f"ADF pipeline run started. Run ID: {run_id}")
+                    context.log.info(f"Monitor: {monitor_url}")
 
-                    max_wait_seconds = 3600  # 60 minutes
-                    poll_interval = 30
+                    if not _wait_for_completion:
+                        # Fire-and-forget — yield immediately
+                        for key_path in key_paths:
+                            yield dg.MaterializeResult(
+                                asset_key=dg.AssetKey(list(key_path)),
+                                metadata={
+                                    "run_id": dg.MetadataValue.text(run_id),
+                                    "status": dg.MetadataValue.text("Submitted"),
+                                    "pipeline_name": dg.MetadataValue.text(p_name),
+                                    "monitor_url": dg.MetadataValue.url(monitor_url),
+                                    "parameters": dg.MetadataValue.json(adf_params),
+                                },
+                            )
+                        continue
+
                     elapsed = 0
-
-                    while elapsed < max_wait_seconds:
+                    pipeline_run = None
+                    while elapsed < _max_wait_seconds:
                         pipeline_run = adf_client.pipeline_runs.get(
-                            _resource_group_name,
-                            _factory_name,
-                            run_id,
+                            _resource_group_name, _factory_name, run_id,
                         )
                         status = pipeline_run.status
-                        context.log.info(f"Pipeline run status: {status}")
+                        context.log.info(f"  poll: {p_name} status={status} elapsed={elapsed}s")
 
                         if status in ("Succeeded", "Failed", "Cancelled"):
                             duration_seconds = 0.0
@@ -335,16 +442,61 @@ def _build_adf_defs(
                                 "start_time": dg.MetadataValue.text(str(pipeline_run.run_start)),
                                 "end_time": dg.MetadataValue.text(str(pipeline_run.run_end)),
                                 "duration_seconds": dg.MetadataValue.float(duration_seconds),
+                                "monitor_url": dg.MetadataValue.url(monitor_url),
+                                "parameters": dg.MetadataValue.json(adf_params),
                             }
+
+                            # Per-activity metadata: each activity's status, duration, and any error
+                            if _capture_activity_metadata and pipeline_run.run_start and pipeline_run.run_end:
+                                try:
+                                    from azure.mgmt.datafactory.models import RunFilterParameters
+                                    activity_runs = adf_client.activity_runs.query_by_pipeline_run(
+                                        _resource_group_name, _factory_name, run_id,
+                                        RunFilterParameters(
+                                            last_updated_after=pipeline_run.run_start,
+                                            last_updated_before=pipeline_run.run_end,
+                                        ),
+                                    )
+                                    activities_summary = []
+                                    for ar in (activity_runs.value or []):
+                                        ar_dur = 0.0
+                                        if ar.activity_run_end and ar.activity_run_start:
+                                            ar_dur = (ar.activity_run_end - ar.activity_run_start).total_seconds()
+                                        activities_summary.append({
+                                            "name": ar.activity_name,
+                                            "type": ar.activity_type,
+                                            "status": ar.status,
+                                            "duration_seconds": ar_dur,
+                                            "error": (ar.error or {}).get("message") if isinstance(ar.error, dict) else (str(ar.error) if ar.error else None),
+                                            "output_keys": list((ar.output or {}).keys()) if isinstance(ar.output, dict) else None,
+                                        })
+                                        # Stream a per-activity log line so users see them in dg
+                                        context.log.info(
+                                            f"  activity: {ar.activity_name} ({ar.activity_type}) "
+                                            f"status={ar.status} duration={ar_dur:.1f}s"
+                                        )
+                                    run_metadata["activities"] = dg.MetadataValue.json(activities_summary)
+                                    run_metadata["activity_count"] = dg.MetadataValue.int(len(activities_summary))
+                                    failed_activities = [a["name"] for a in activities_summary if a["status"] == "Failed"]
+                                    if failed_activities:
+                                        run_metadata["failed_activities"] = dg.MetadataValue.json(failed_activities)
+                                except Exception as _exc:
+                                    context.log.warning(f"  could not fetch activity metadata: {_exc}")
 
                             if status == "Failed":
                                 error_msg = getattr(pipeline_run, "message", None) or "Pipeline failed"
                                 run_metadata["error"] = dg.MetadataValue.text(error_msg)
+                                # Yield the materialization with status before raising — so the
+                                # failure metadata is recorded in the catalog, not lost.
+                                for key_path in key_paths:
+                                    yield dg.MaterializeResult(
+                                        asset_key=dg.AssetKey(list(key_path)),
+                                        metadata={**run_metadata, "outcome": dg.MetadataValue.text("failed")},
+                                    )
                                 raise Exception(
-                                    f"ADF pipeline '{p_name}' failed: {error_msg}"
+                                    f"ADF pipeline '{p_name}' failed: {error_msg} (run_id={run_id})"
                                 )
 
-                            # Yield MaterializeResult for all asset keys produced by this pipeline
                             for key_path in key_paths:
                                 yield dg.MaterializeResult(
                                     asset_key=dg.AssetKey(list(key_path)),
@@ -352,12 +504,12 @@ def _build_adf_defs(
                                 )
                             break
 
-                        time.sleep(poll_interval)
-                        elapsed += poll_interval
+                        time.sleep(_poll_interval)
+                        elapsed += _poll_interval
 
                     else:
                         context.log.warning(
-                            f"Pipeline run timed out after {max_wait_seconds // 60} minutes"
+                            f"ADF pipeline run timed out after {_max_wait_seconds}s"
                         )
                         for key_path in key_paths:
                             yield dg.MaterializeResult(
@@ -366,6 +518,8 @@ def _build_adf_defs(
                                     "run_id": dg.MetadataValue.text(run_id),
                                     "status": dg.MetadataValue.text("Timeout"),
                                     "pipeline_name": dg.MetadataValue.text(p_name),
+                                    "monitor_url": dg.MetadataValue.url(monitor_url),
+                                    "max_wait_seconds": dg.MetadataValue.int(_max_wait_seconds),
                                 },
                             )
 
@@ -375,26 +529,7 @@ def _build_adf_defs(
     if import_triggers:
         for trigger_name in trigger_names:
 
-            # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
-
-            _retry_policy = None
-
-            if self.retry_policy_max_retries is not None:
-
-                from dagster import Backoff, RetryPolicy
-
-                _retry_policy = RetryPolicy(
-
-                    max_retries=self.retry_policy_max_retries,
-
-                    delay=self.retry_policy_delay_seconds or 1,
-
-                    backoff=Backoff[self.retry_policy_backoff.upper()],
-
-                )
-
-
-            @dg.asset(retry_policy=_retry_policy, 
+            @dg.asset(retry_policy=_retry_policy,
                 name=f"adf_trigger_{trigger_name}",
                 group_name=group_name,
                 description=f"ADF trigger: {trigger_name}",
@@ -675,6 +810,23 @@ if _HAS_STATE_BACKED:
                 filter_by_name_pattern=self.filter_by_name_pattern,
                 exclude_name_pattern=self.exclude_name_pattern,
                 assets_by_pipeline_name=self.assets_by_pipeline_name,
+                pipeline_parameters=getattr(self, "pipeline_parameters", None),
+                partition_type=getattr(self, "partition_type", None),
+                partition_start=getattr(self, "partition_start", None),
+                partition_values=getattr(self, "partition_values", None),
+                partition_parameter_name=getattr(self, "partition_parameter_name", None),
+                max_wait_seconds=getattr(self, "max_wait_seconds", 3600),
+                run_poll_interval_seconds=getattr(self, "run_poll_interval_seconds", 30),
+                wait_for_completion=getattr(self, "wait_for_completion", True),
+                capture_activity_metadata=getattr(self, "capture_activity_metadata", True),
+                owners=getattr(self, "owners", None),
+                asset_tags=getattr(self, "asset_tags", None),
+                extra_kinds=getattr(self, "extra_kinds", None),
+                freshness_max_lag_minutes=getattr(self, "freshness_max_lag_minutes", None),
+                freshness_cron=getattr(self, "freshness_cron", None),
+                retry_policy_max_retries=getattr(self, "retry_policy_max_retries", None),
+                retry_policy_delay_seconds=getattr(self, "retry_policy_delay_seconds", None),
+                retry_policy_backoff=getattr(self, "retry_policy_backoff", "exponential"),
             )
 
 else:
@@ -745,30 +897,61 @@ else:
             ),
         )
 
-        retry_policy_max_retries: Optional[int] = Field(
+        retry_policy_max_retries: Optional[int] = Field(default=None, description="Max retries on asset failure (transient network/rate-limit issues)")
+        retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries (default 1)")
+        retry_policy_backoff: str = Field(default="exponential", description="Backoff: 'linear' or 'exponential'")
 
+        # Pipeline-execution config
+        pipeline_parameters: Optional[Dict[str, Any]] = Field(
             default=None,
-
-            description="Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
-
+            description="Parameters dict passed to every ADF pipeline run (key→value).",
         )
-
-        retry_policy_delay_seconds: Optional[int] = Field(
-
+        partition_parameter_name: Optional[str] = Field(
             default=None,
-
-            description="Seconds between retries (default 1).",
-
+            description=(
+                "When the asset is partitioned, auto-pass the partition_key as this "
+                "ADF pipeline parameter (default: 'partition_key'). Example: a daily-"
+                "partitioned asset with partition_parameter_name='ODATE' passes "
+                "ODATE='2026-05-06' to the ADF pipeline at run time."
+            ),
+        )
+        max_wait_seconds: int = Field(
+            default=3600,
+            description="How long to wait for the pipeline to complete before timing out.",
+        )
+        run_poll_interval_seconds: int = Field(
+            default=30,
+            description="Seconds between status polls while a run is in progress.",
+        )
+        wait_for_completion: bool = Field(
+            default=True,
+            description="If False, fire-and-forget — yield Submitted immediately and don't poll.",
+        )
+        capture_activity_metadata: bool = Field(
+            default=True,
+            description="On completion, fetch each ADF activity's status/duration/error/output and surface as metadata.",
         )
 
-        retry_policy_backoff: str = Field(
-
-            default="exponential",
-
-            description="Backoff strategy: 'linear' or 'exponential'.",
-
+        # Partition fields
+        partition_type: Optional[str] = Field(
+            default=None,
+            description="'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | None (unpartitioned).",
+        )
+        partition_start: Optional[str] = Field(
+            default=None,
+            description="Start date for time-based partitions, ISO format (e.g. '2024-01-01').",
+        )
+        partition_values: Optional[List[str]] = Field(
+            default=None,
+            description="List of partition values for static partitions (e.g. ['us', 'eu', 'apac']).",
         )
 
+        # Standard catalog fields
+        owners: Optional[List[str]] = Field(default=None, description="Asset owners (team or email).")
+        asset_tags: Optional[Dict[str, str]] = Field(default=None, description="Catalog tags.")
+        extra_kinds: Optional[List[str]] = Field(default=None, description="Additional asset kinds beyond the default {azure, adf}.")
+        freshness_max_lag_minutes: Optional[int] = Field(default=None, description="Freshness SLO in minutes (legacy FreshnessPolicy).")
+        freshness_cron: Optional[str] = Field(default=None, description="Cron schedule for the freshness policy.")
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             """Build Definitions by calling the ADF API at load time."""
@@ -819,4 +1002,21 @@ else:
                 filter_by_name_pattern=self.filter_by_name_pattern,
                 exclude_name_pattern=self.exclude_name_pattern,
                 assets_by_pipeline_name=self.assets_by_pipeline_name,
+                pipeline_parameters=getattr(self, "pipeline_parameters", None),
+                partition_type=getattr(self, "partition_type", None),
+                partition_start=getattr(self, "partition_start", None),
+                partition_values=getattr(self, "partition_values", None),
+                partition_parameter_name=getattr(self, "partition_parameter_name", None),
+                max_wait_seconds=getattr(self, "max_wait_seconds", 3600),
+                run_poll_interval_seconds=getattr(self, "run_poll_interval_seconds", 30),
+                wait_for_completion=getattr(self, "wait_for_completion", True),
+                capture_activity_metadata=getattr(self, "capture_activity_metadata", True),
+                owners=getattr(self, "owners", None),
+                asset_tags=getattr(self, "asset_tags", None),
+                extra_kinds=getattr(self, "extra_kinds", None),
+                freshness_max_lag_minutes=getattr(self, "freshness_max_lag_minutes", None),
+                freshness_cron=getattr(self, "freshness_cron", None),
+                retry_policy_max_retries=getattr(self, "retry_policy_max_retries", None),
+                retry_policy_delay_seconds=getattr(self, "retry_policy_delay_seconds", None),
+                retry_policy_backoff=getattr(self, "retry_policy_backoff", "exponential"),
             )

@@ -12223,6 +12223,28 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/svm/requirements.txt"
     },
     {
+      "id": "synapse_sql_pool_admin_job",
+      "name": "Synapse SQL Pool Admin Job",
+      "category": "infrastructure",
+      "description": "Pause / resume / scale a Synapse dedicated SQL pool via the management REST API. Op-job (not an asset) \u2014 schedule it to halve dedicated SQL pool spend by pausing nightly + on weekends.",
+      "path": "jobs/synapse_sql_pool_admin_job",
+      "tags": [
+        "job",
+        "azure",
+        "synapse",
+        "infrastructure",
+        "cost-control"
+      ],
+      "type": "dagster_component_templates.SynapseSqlPoolAdminJobComponent",
+      "component_type": "dagster_component_templates.SynapseSqlPoolAdminJobComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/synapse_sql_pool_admin_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/synapse_sql_pool_admin_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/synapse_sql_pool_admin_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/synapse_sql_pool_admin_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/synapse_sql_pool_admin_job/requirements.txt",
+      "icon": "Power"
+    },
+    {
       "id": "synthetic_data",
       "name": "Synthetic Data",
       "category": "ai",

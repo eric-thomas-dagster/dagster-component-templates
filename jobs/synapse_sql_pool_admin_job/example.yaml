@@ -1,0 +1,17 @@
+type: dagster_component_templates.SynapseSqlPoolAdminJobComponent
+attributes:
+  job_name: synapse_pool_pause_nightly
+  action: pause           # 'pause' | 'resume' | 'scale'
+  subscription_id: "12345678-1234-1234-1234-123456789012"
+  resource_group_name: my-rg
+  workspace_name: my-synapse-workspace
+  sql_pool_name: my-dwh-pool
+
+  # Auth — omit env vars in Azure compute (managed identity used automatically)
+  tenant_id_env_var: AZURE_TENANT_ID
+  client_id_env_var: AZURE_CLIENT_ID
+  client_secret_env_var: AZURE_CLIENT_SECRET
+
+  # Schedule: pause every weekday at 19:00 (7pm)
+  schedule: "0 19 * * 1-5"
+  schedule_default_status: STOPPED   # set to RUNNING after testing

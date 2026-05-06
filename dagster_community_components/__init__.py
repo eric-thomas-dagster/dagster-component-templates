@@ -499,6 +499,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SupportTicketIngestionComponent": "assets/ingestion/support_ticket_ingestion/component.py",
     "SupportTicketStandardizerComponent": "assets/analytics/support_ticket_standardizer/component.py",
     "SurvivalAnalysisComponent": "assets/analytics/survival_analysis/component.py",
+    "SynapseSqlPoolAdminJobComponent": "jobs/synapse_sql_pool_admin_job/component.py",
     "SyntheticDataComponent": "assets/ai/synthetic_data/component.py",
     "SyntheticDataGeneratorComponent": "assets/ai/synthetic_data_generator/component.py",
     "TectonAssetComponent": "assets/analytics/tecton_asset/component.py",

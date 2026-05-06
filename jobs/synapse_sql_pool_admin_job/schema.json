@@ -1,0 +1,22 @@
+{
+  "component_type": "dagster_component_templates.SynapseSqlPoolAdminJobComponent",
+  "description": "Pause / resume / scale a Synapse dedicated SQL pool via the management REST API. Op-job (not an asset) since pause/resume produces no data — schedule it to halve dedicated SQL pool spend by pausing nightly + on weekends.",
+  "category": "infrastructure",
+  "icon": "Power",
+  "x-dagster-io": {"supports_partitions": false},
+  "attributes": {
+    "job_name": {"type": "string", "label": "Job Name", "required": true},
+    "action": {"type": "string", "label": "Action", "required": false, "default": "pause", "enum": ["pause", "resume", "scale"]},
+    "target_sku": {"type": "string", "label": "Target SKU", "required": false, "default": null, "description": "DWU SKU when action=scale (e.g. DW100c, DW200c, DW500c)"},
+    "subscription_id": {"type": "string", "label": "Subscription ID", "required": true},
+    "resource_group_name": {"type": "string", "label": "Resource Group", "required": true},
+    "workspace_name": {"type": "string", "label": "Workspace Name", "required": true},
+    "sql_pool_name": {"type": "string", "label": "SQL Pool Name", "required": true},
+    "tenant_id_env_var": {"type": "string", "label": "Tenant ID Env Var", "required": false, "default": null},
+    "client_id_env_var": {"type": "string", "label": "Client ID Env Var", "required": false, "default": null},
+    "client_secret_env_var": {"type": "string", "label": "Client Secret Env Var", "required": false, "default": null},
+    "schedule": {"type": "string", "label": "Schedule", "required": false, "default": null, "description": "Cron schedule (e.g. '0 19 * * 1-5' for 7pm weekdays)"},
+    "schedule_default_status": {"type": "string", "label": "Schedule Default Status", "required": false, "default": "STOPPED", "enum": ["STOPPED", "RUNNING"]},
+    "tags": {"type": "object", "label": "Tags", "required": false, "default": null}
+  }
+}

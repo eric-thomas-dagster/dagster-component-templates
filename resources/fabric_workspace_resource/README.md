@@ -1,0 +1,47 @@
+# Fabric Workspace Resource
+
+Reusable Microsoft Fabric REST API client. Inject as a resource into
+custom ops/assets that need ad-hoc Fabric API access — listing items,
+triggering item runs, polling job state — without re-implementing the
+auth + token cache pattern in every op.
+
+## Companion components
+
+For most workloads, prefer the dedicated components:
+
+| Need | Component |
+|---|---|
+| Discover workspace items as Dagster assets | `fabric_workspace` (integration) |
+| Write DataFrame to a Lakehouse | `dataframe_to_fabric_lakehouse` (sink) |
+| Auto-serialize asset DataFrames as Delta | `fabric_lakehouse_io_manager` |
+| Trigger one specific item on a schedule | `fabric_pipeline_trigger_job` |
+| Read/write Lakehouse from custom Python | `fabric_lakehouse_resource` (OneLake URL helper) |
+| Ad-hoc Fabric REST API calls from ops | **this component** |
+
+## Usage
+
+```python
+@asset
+def my_custom_asset(fabric: FabricWorkspaceResource):
+    items = fabric.list_items(item_type="DataPipeline")
+    for item in items:
+        instance_url = fabric.trigger_item_run(item["id"], "DataPipeline")
+        state = fabric.wait_for_run(instance_url, log=context.log)
+        ...
+```
+
+```yaml
+type: dagster_component_templates.FabricWorkspaceResourceComponent
+attributes:
+  resource_key: fabric
+  workspace_id: "12345678-1234-1234-1234-123456789012"
+  tenant_id_env_var: AZURE_TENANT_ID
+  client_id_env_var: AZURE_CLIENT_ID
+  client_secret_env_var: AZURE_CLIENT_SECRET
+```
+
+## Auth
+
+Standard `DefaultAzureCredential` chain — env vars locally, managed
+identity in Azure compute. The SP needs Contributor (or Member) on the
+Fabric workspace via Workspace → Manage access.

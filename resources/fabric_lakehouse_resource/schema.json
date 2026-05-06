@@ -1,0 +1,47 @@
+{
+  "component_type": "dagster_component_templates.FabricLakehouseResourceComponent",
+  "description": "OneLake URL helper + storage credentials for Fabric Lakehouse access. Use from custom ops via resource.table_path('orders') / resource.storage_options() to read/write Delta tables without re-deriving the abfss URL pattern.",
+  "category": "resource",
+  "icon": "Cylinder",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "fabric_lakehouse"
+    },
+    "workspace_id": {
+      "type": "string",
+      "label": "Workspace Id",
+      "required": true,
+      "default": null
+    },
+    "lakehouse_name": {
+      "type": "string",
+      "label": "Lakehouse Name",
+      "required": true,
+      "default": null
+    },
+    "tenant_id_env_var": {
+      "type": "string",
+      "label": "Tenant Id Env Var",
+      "required": false,
+      "default": null
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client Id Env Var",
+      "required": false,
+      "default": null
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "required": false,
+      "default": null
+    }
+  }
+}

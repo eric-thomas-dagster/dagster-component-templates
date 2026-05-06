@@ -1,0 +1,70 @@
+# Fabric Lakehouse IO Manager
+
+ConfigurableIOManager that auto-serializes asset DataFrames as Delta
+tables in a Microsoft Fabric Lakehouse on OneLake. Asset key becomes the
+table name (sanitized + underscore-joined for multi-component keys).
+Tables auto-register in the Fabric SQL endpoint, so they're queryable
+from Fabric Data Warehouse / Power BI / Synapse Serverless without
+additional setup.
+
+## Usage
+
+Set `resource_key: io_manager` to make this the workspace's default IO
+manager. Then any asset that returns a DataFrame lands as a Delta table
+in the configured lakehouse:
+
+```yaml
+# defs/iomgr/defs.yaml
+type: dagster_component_templates.FabricLakehouseIOManagerComponent
+attributes:
+  resource_key: io_manager
+  workspace_id: "12345678-1234-1234-1234-123456789012"
+  lakehouse_name: SalesLakehouse
+  if_exists: overwrite          # 'overwrite' | 'append'
+  table_prefix: "dagster__"     # optional — prepends to all table names
+
+  tenant_id_env_var: AZURE_TENANT_ID
+  client_id_env_var: AZURE_CLIENT_ID
+  client_secret_env_var: AZURE_CLIENT_SECRET
+```
+
+```python
+# Any asset elsewhere — auto-serialized as Delta in the Lakehouse
+@asset
+def orders_clean(orders_raw: pd.DataFrame) -> pd.DataFrame:
+    return orders_raw.dropna()
+# → lands as 'dagster__orders_clean' in the SalesLakehouse
+```
+
+## Asset key → table name mapping
+
+| Asset key | Table name |
+|---|---|
+| `orders` | `orders` |
+| `["sales", "orders"]` | `sales__orders` |
+| `["raw", "stripe_charges"]` | `raw__stripe_charges` |
+
+Multi-component asset keys are joined with double-underscore. The
+sanitizer keeps only `[A-Za-z0-9_]`. With `table_prefix` set, the prefix
+is added before the sanitized name.
+
+## Partitioned assets
+
+For partitioned assets, the partition key is appended to the table name:
+`orders_2026_03_15`. Use this when you want one Delta table per partition;
+for one table with a partition column, write a small adapter asset that
+adds a `partition_key` column and uses `if_exists: append`.
+
+## Companion components
+
+- `fabric_lakehouse_resource` — the URL/storage helper this IO manager
+  uses internally; useful when you want manual Delta access from a
+  custom op
+- `dataframe_to_fabric_lakehouse` — explicit per-table sink (when you
+  want one specific asset to land somewhere unique)
+
+## Validation status
+
+Code-validated against the OneLake URL spec + delta-rs azure storage
+options. End-to-end validation requires a Fabric capacity + workspace
++ lakehouse with the SP granted Contributor.

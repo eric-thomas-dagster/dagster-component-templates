@@ -1,0 +1,7 @@
+type: dagster_component_templates.FabricLakehouseIOManagerComponent
+attributes:
+  resource_key: io_manager
+  workspace_id: <required>
+  lakehouse_name: <required>
+  if_exists: overwrite
+  table_prefix: 

@@ -1,0 +1,5 @@
+type: dagster_component_templates.FabricLakehouseResourceComponent
+attributes:
+  resource_key: fabric_lakehouse
+  workspace_id: <required>
+  lakehouse_name: <required>

@@ -4421,6 +4421,51 @@
       "icon": "Link"
     },
     {
+      "id": "fabric_lakehouse_io_manager",
+      "name": "Fabric Lakehouse IO Manager",
+      "category": "io_manager",
+      "description": "ConfigurableIOManager that auto-serializes asset DataFrames as Delta tables in a Fabric Lakehouse on OneLake. Asset key becomes the table name; tables auto-register in the Fabric SQL endpoint.",
+      "path": "io_managers/fabric_lakehouse_io_manager",
+      "tags": [
+        "io_manager",
+        "azure",
+        "fabric",
+        "onelake",
+        "delta",
+        "dataframe"
+      ],
+      "type": "dagster_component_templates.FabricLakehouseIOManagerComponent",
+      "component_type": "dagster_component_templates.FabricLakehouseIOManagerComponent",
+      "icon": "Database",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/fabric_lakehouse_io_manager/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/fabric_lakehouse_io_manager/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/fabric_lakehouse_io_manager/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/fabric_lakehouse_io_manager/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/fabric_lakehouse_io_manager/requirements.txt"
+    },
+    {
+      "id": "fabric_lakehouse_resource",
+      "name": "Fabric Lakehouse Resource",
+      "category": "resource",
+      "description": "OneLake URL helper + storage credentials for Fabric Lakehouse access. Inject into ops that need to read/write Delta tables without re-deriving the abfss URL.",
+      "path": "resources/fabric_lakehouse_resource",
+      "tags": [
+        "resource",
+        "azure",
+        "fabric",
+        "onelake",
+        "delta"
+      ],
+      "type": "dagster_component_templates.FabricLakehouseResourceComponent",
+      "component_type": "dagster_component_templates.FabricLakehouseResourceComponent",
+      "icon": "Cylinder",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fabric_lakehouse_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fabric_lakehouse_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fabric_lakehouse_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fabric_lakehouse_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fabric_lakehouse_resource/requirements.txt"
+    },
+    {
       "id": "fabric_pipeline_trigger_job",
       "name": "Fabric Pipeline Trigger Job",
       "category": "infrastructure",
@@ -4461,6 +4506,27 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/fabric_workspace/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/fabric_workspace/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/fabric_workspace/requirements.txt"
+    },
+    {
+      "id": "fabric_workspace_resource",
+      "name": "Fabric Workspace Resource",
+      "category": "resource",
+      "description": "Reusable Microsoft Fabric REST API client (token caching, list_items, trigger_item_run, wait_for_run helpers). Inject into custom ops that need ad-hoc Fabric API access.",
+      "path": "resources/fabric_workspace_resource",
+      "tags": [
+        "resource",
+        "azure",
+        "fabric",
+        "api"
+      ],
+      "type": "dagster_component_templates.FabricWorkspaceResourceComponent",
+      "component_type": "dagster_component_templates.FabricWorkspaceResourceComponent",
+      "icon": "Plug",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fabric_workspace_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fabric_workspace_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fabric_workspace_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fabric_workspace_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fabric_workspace_resource/requirements.txt"
     },
     {
       "id": "face_detector",

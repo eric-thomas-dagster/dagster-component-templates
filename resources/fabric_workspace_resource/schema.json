@@ -1,0 +1,41 @@
+{
+  "component_type": "dagster_component_templates.FabricWorkspaceResourceComponent",
+  "description": "Reusable Microsoft Fabric REST API client (token caching, list_items, trigger_item_run, wait_for_run helpers). Inject as a resource into custom ops that need ad-hoc Fabric API access.",
+  "category": "resource",
+  "icon": "Plug",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "fabric"
+    },
+    "workspace_id": {
+      "type": "string",
+      "label": "Workspace Id",
+      "required": true,
+      "default": null
+    },
+    "tenant_id_env_var": {
+      "type": "string",
+      "label": "Tenant Id Env Var",
+      "required": false,
+      "default": null
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client Id Env Var",
+      "required": false,
+      "default": null
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "required": false,
+      "default": null
+    }
+  }
+}

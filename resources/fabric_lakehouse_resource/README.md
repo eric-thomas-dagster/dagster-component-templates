@@ -1,0 +1,44 @@
+# Fabric Lakehouse Resource
+
+OneLake URL helper + storage credentials for Fabric Lakehouse access.
+Centralizes the abfss URL pattern so other ops don't have to re-derive it.
+
+## What it gives you
+
+- `resource.table_path(table_name)` → `abfss://<ws>@onelake.dfs.fabric.microsoft.com/<lh>.Lakehouse/Tables/<table>`
+- `resource.file_path(sub_path)` → `abfss://...Lakehouse/Files/<sub_path>`
+- `resource.storage_options()` → dict for delta-rs / pyarrow Azure storage backend
+
+## Usage in custom code
+
+```python
+@asset
+def my_filtered_orders(fabric_lakehouse: FabricLakehouseResource) -> pd.DataFrame:
+    from deltalake import DeltaTable
+    dt = DeltaTable(
+        fabric_lakehouse.table_path("orders"),
+        storage_options=fabric_lakehouse.storage_options(),
+    )
+    return dt.to_pandas().query("total > 100")
+```
+
+## YAML
+
+```yaml
+type: dagster_component_templates.FabricLakehouseResourceComponent
+attributes:
+  resource_key: fabric_lakehouse
+  workspace_id: "12345678-1234-1234-1234-123456789012"
+  lakehouse_name: SalesLakehouse
+  tenant_id_env_var: AZURE_TENANT_ID
+  client_id_env_var: AZURE_CLIENT_ID
+  client_secret_env_var: AZURE_CLIENT_SECRET
+```
+
+## Companion components
+
+For DataFrame-as-asset workloads, use these higher-level components
+instead — they consume this resource's URL pattern internally:
+
+- `dataframe_to_fabric_lakehouse` — write a DataFrame to a Lakehouse table
+- `fabric_lakehouse_io_manager` — auto-Delta-table per asset

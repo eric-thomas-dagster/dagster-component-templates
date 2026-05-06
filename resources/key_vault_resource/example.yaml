@@ -1,0 +1,4 @@
+type: dagster_component_templates.KeyVaultResourceComponent
+attributes:
+  resource_key: key_vault
+  vault_url: https://example.com

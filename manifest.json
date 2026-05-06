@@ -1033,6 +1033,51 @@
       "icon": "si:microsoftazure"
     },
     {
+      "id": "azure_log_analytics_query",
+      "name": "Azure Log Analytics Query",
+      "category": "source",
+      "description": "Materialize a DataFrame from a KQL query against an Azure Log Analytics workspace. Read-side counterpart to audit_logs_to_sentinel.",
+      "path": "assets/sources/azure_log_analytics_query",
+      "tags": [
+        "source",
+        "azure",
+        "log_analytics",
+        "kql",
+        "monitoring",
+        "sentinel"
+      ],
+      "type": "dagster_component_templates.AzureLogAnalyticsQueryComponent",
+      "component_type": "dagster_component_templates.AzureLogAnalyticsQueryComponent",
+      "icon": "Search",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_log_analytics_query/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_log_analytics_query/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_log_analytics_query/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_log_analytics_query/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_log_analytics_query/requirements.txt"
+    },
+    {
+      "id": "azure_openai_resource",
+      "name": "Azure OpenAI Resource",
+      "category": "resource",
+      "description": "Azure OpenAI Service client (distinct from openai_resource). Supports Azure deployment IDs, regional endpoints, api_version, and Microsoft Entra OAuth or API key auth.",
+      "path": "resources/azure_openai_resource",
+      "tags": [
+        "resource",
+        "azure",
+        "openai",
+        "ai",
+        "llm"
+      ],
+      "type": "dagster_component_templates.AzureOpenAIResourceComponent",
+      "component_type": "dagster_component_templates.AzureOpenAIResourceComponent",
+      "icon": "Sparkles",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/azure_openai_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/azure_openai_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/azure_openai_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/azure_openai_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/azure_openai_resource/requirements.txt"
+    },
+    {
       "id": "azure_stream_analytics",
       "name": "Azure Stream Analytics",
       "category": "integration",
@@ -2741,6 +2786,29 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_s3/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_s3/requirements.txt",
       "icon": "ArrowDownToLine"
+    },
+    {
+      "id": "dataframe_to_servicebus",
+      "name": "DataFrame \u2192 Azure Service Bus",
+      "category": "sink",
+      "description": "Send each DataFrame row to an Azure Service Bus queue or topic as a JSON message. Mirrors dataframe_to_eventhub for SB workloads \u2014 completes the registry's existing servicebus_monitor + servicebus_to_database_asset (consumer) pair.",
+      "path": "assets/sinks/dataframe_to_servicebus",
+      "tags": [
+        "sink",
+        "azure",
+        "servicebus",
+        "queue",
+        "messaging",
+        "dataframe"
+      ],
+      "type": "dagster_component_templates.DataframeToServiceBusComponent",
+      "component_type": "dagster_component_templates.DataframeToServiceBusComponent",
+      "icon": "MessageSquare",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_servicebus/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_servicebus/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_servicebus/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_servicebus/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_servicebus/requirements.txt"
     },
     {
       "id": "dataframe_to_snowflake",
@@ -6515,6 +6583,27 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kafka_to_database_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kafka_to_database_asset/requirements.txt",
       "icon": "si:apachekafka"
+    },
+    {
+      "id": "key_vault_resource",
+      "name": "Azure Key Vault Resource",
+      "category": "resource",
+      "description": "Azure Key Vault client for runtime secret retrieval. Replaces per-component *_env_var fields with centralized secret management following Azure RBAC.",
+      "path": "resources/key_vault_resource",
+      "tags": [
+        "resource",
+        "azure",
+        "keyvault",
+        "secrets"
+      ],
+      "type": "dagster_component_templates.KeyVaultResourceComponent",
+      "component_type": "dagster_component_templates.KeyVaultResourceComponent",
+      "icon": "Key",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/key_vault_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/key_vault_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/key_vault_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/key_vault_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/key_vault_resource/requirements.txt"
     },
     {
       "id": "keyword_extractor",

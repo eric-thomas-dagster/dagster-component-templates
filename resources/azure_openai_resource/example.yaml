@@ -1,0 +1,5 @@
+type: dagster_component_templates.AzureOpenAIResourceComponent
+attributes:
+  resource_key: azure_openai
+  azure_endpoint: https://example.com
+  api_version: 2024-10-21

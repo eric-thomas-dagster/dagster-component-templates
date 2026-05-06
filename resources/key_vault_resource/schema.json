@@ -1,0 +1,42 @@
+{
+  "component_type": "dagster_component_templates.KeyVaultResourceComponent",
+  "description": "Azure Key Vault client for runtime secret retrieval. Replaces per-component *_env_var fields with centralized secret management following Azure RBAC.",
+  "category": "resource",
+  "icon": "Key",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "key_vault"
+    },
+    "vault_url": {
+      "type": "string",
+      "label": "Vault Url",
+      "required": true,
+      "default": null,
+      "description": "https://my-kv.vault.azure.net"
+    },
+    "tenant_id_env_var": {
+      "type": "string",
+      "label": "Tenant Id Env Var",
+      "required": false,
+      "default": null
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client Id Env Var",
+      "required": false,
+      "default": null
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "required": false,
+      "default": null
+    }
+  }
+}

@@ -1,0 +1,37 @@
+# Azure Key Vault Resource
+
+Azure Key Vault client for runtime secret retrieval. Replaces per-component *_env_var fields with centralized secret management following Azure RBAC.
+
+## Usage from custom ops/assets
+
+```python
+@asset
+def db_writer(kv: KeyVaultResource):
+    pwd = kv.get("postgres-admin-password")
+    # ... use pwd to connect
+```
+
+## YAML
+
+```yaml
+type: dagster_component_templates.KeyVaultResourceComponent
+attributes:
+  resource_key: key_vault
+  vault_url: https://my-kv.vault.azure.net
+  tenant_id_env_var: AZURE_TENANT_ID
+  client_id_env_var: AZURE_CLIENT_ID
+  client_secret_env_var: AZURE_CLIENT_SECRET
+```
+
+## Auth + RBAC
+
+Standard `DefaultAzureCredential`. Principal needs `Key Vault Secrets
+User` (read-only) or `Key Vault Secrets Officer` (read/write) role on
+the vault. RBAC mode is recommended over legacy access policies.
+
+## Methods
+
+- `get(name, version=None) -> str` — required, raises if missing
+- `try_get(name, default=None) -> Optional[str]` — best-effort
+- `set(name, value, content_type=None)` — for rotation jobs
+- `list_names() -> list[str]` — enumerate (does not return values)

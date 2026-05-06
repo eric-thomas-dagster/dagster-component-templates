@@ -1,0 +1,5 @@
+dagster
+pandas
+azure-identity
+azure-monitor-query
+isodate

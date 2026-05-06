@@ -1,0 +1,60 @@
+{
+  "component_type": "dagster_component_templates.AzureOpenAIResourceComponent",
+  "description": "Azure OpenAI Service client (distinct from generic OpenAI). Supports Azure deployment IDs, regional endpoints, api_version, and Microsoft Entra OAuth (or API key) auth.",
+  "category": "resource",
+  "icon": "Sparkles",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "azure_openai"
+    },
+    "azure_endpoint": {
+      "type": "string",
+      "label": "Azure Endpoint",
+      "required": true,
+      "default": null,
+      "description": "https://my-aoai.openai.azure.com"
+    },
+    "api_version": {
+      "type": "string",
+      "label": "Api Version",
+      "required": false,
+      "default": "2024-10-21"
+    },
+    "default_deployment": {
+      "type": "string",
+      "label": "Default Deployment",
+      "required": false,
+      "default": null
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "required": false,
+      "default": null
+    },
+    "tenant_id_env_var": {
+      "type": "string",
+      "label": "Tenant Id Env Var",
+      "required": false,
+      "default": null
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client Id Env Var",
+      "required": false,
+      "default": null
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "required": false,
+      "default": null
+    }
+  }
+}

@@ -1,0 +1,171 @@
+"""DataFrame to Azure Service Bus.
+
+Sends each DataFrame row as a JSON message to an Azure Service Bus queue
+or topic. Mirrors `dataframe_to_eventhub` for the SB workload — completes
+the producer side of the registry's existing servicebus_monitor +
+servicebus_to_database_asset (consumer-side) components.
+
+Service Bus vs Event Hubs:
+  - SB: enterprise messaging — ordered queues, topics + subscriptions,
+    DLQ, transactions, sessions. Lower throughput, higher per-msg semantics.
+  - EH: event streaming — partitioned, high throughput, no DLQ, no
+    transactions. Higher throughput, lower per-msg semantics.
+
+Use this for SB queues / topics; use dataframe_to_eventhub for EH.
+"""
+
+import json
+import os
+from typing import Dict, List, Optional
+
+import pandas as pd
+from dagster import (
+    AssetExecutionContext,
+    AssetIn,
+    AssetKey,
+    Component,
+    ComponentLoadContext,
+    Definitions,
+    MaterializeResult,
+    MetadataValue,
+    Model,
+    Resolvable,
+    asset,
+)
+from pydantic import Field
+
+
+class DataframeToServiceBusComponent(Component, Model, Resolvable):
+    """Send each DataFrame row to Azure Service Bus as a JSON message."""
+
+    asset_name: str = Field(description="Dagster asset name")
+    upstream_asset_key: str = Field(description="Asset key of upstream DataFrame")
+
+    connection_string_env_var: str = Field(
+        description="Env var holding the SB namespace or queue/topic-scoped connection string"
+    )
+    destination_name: str = Field(
+        description="Queue or topic name (the SB entity to send to)"
+    )
+    destination_type: str = Field(
+        default="queue",
+        description="'queue' (point-to-point) | 'topic' (pub-sub)",
+    )
+
+    session_id_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional column to use as Session ID. Required if the queue/topic has "
+            "sessions enabled — guarantees per-session ordering."
+        ),
+    )
+    message_id_column: Optional[str] = Field(
+        default=None,
+        description="Optional column to use as Message ID for idempotency / dedup.",
+    )
+    correlation_id_column: Optional[str] = Field(
+        default=None,
+        description="Optional column to use as Correlation ID (for request/reply patterns).",
+    )
+
+    batch_size: int = Field(
+        default=100,
+        ge=1,
+        le=4500,
+        description=(
+            "Max messages per ServiceBusMessageBatch. SB enforces a 256KB batch byte cap "
+            "(or 1MB on Premium); the SDK splits batches automatically."
+        ),
+    )
+
+    group_name: Optional[str] = Field(default=None)
+    description: Optional[str] = Field(default=None)
+    deps: Optional[List[str]] = Field(default=None)
+    owners: Optional[List[str]] = Field(default=None)
+    asset_tags: Optional[Dict[str, str]] = Field(default=None)
+    kinds: Optional[List[str]] = Field(default=None)
+
+    def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        asset_name = self.asset_name
+        upstream = self.upstream_asset_key
+        conn_env = self.connection_string_env_var
+        destination = self.destination_name
+        is_topic = (self.destination_type or "queue").lower() == "topic"
+        session_col = self.session_id_column
+        message_col = self.message_id_column
+        correlation_col = self.correlation_id_column
+        batch_size = self.batch_size
+
+        kinds = self.kinds or ["azure", "servicebus"]
+        tags = dict(self.asset_tags or {})
+        for k in kinds:
+            tags[f"dagster/kind/{k}"] = ""
+
+        @asset(
+            name=asset_name,
+            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream))},
+            group_name=self.group_name,
+            description=self.description or (
+                f"Send DataFrame rows to Azure Service Bus {self.destination_type} '{destination}' as JSON messages."
+            ),
+            owners=self.owners or [],
+            tags=tags,
+            deps=[AssetKey.from_user_string(d) for d in (self.deps or [])],
+        )
+        def producer_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> MaterializeResult:
+            try:
+                from azure.servicebus import ServiceBusClient, ServiceBusMessage
+            except ImportError as e:
+                raise ImportError("azure-servicebus required: pip install azure-servicebus") from e
+
+            conn = os.environ[conn_env]
+            client = ServiceBusClient.from_connection_string(conn)
+
+            records = upstream.to_dict(orient="records")
+            context.log.info(
+                f"Sending {len(records)} messages to SB {self.destination_type} '{destination}'"
+            )
+
+            sent = 0
+            try:
+                with client:
+                    sender = (
+                        client.get_topic_sender(topic_name=destination)
+                        if is_topic
+                        else client.get_queue_sender(queue_name=destination)
+                    )
+                    with sender:
+                        for chunk_start in range(0, len(records), batch_size):
+                            chunk = records[chunk_start : chunk_start + batch_size]
+                            batch = sender.create_message_batch()
+                            for row in chunk:
+                                msg = ServiceBusMessage(json.dumps(row, default=str))
+                                if session_col and session_col in row:
+                                    msg.session_id = str(row[session_col])
+                                if message_col and message_col in row:
+                                    msg.message_id = str(row[message_col])
+                                if correlation_col and correlation_col in row:
+                                    msg.correlation_id = str(row[correlation_col])
+                                try:
+                                    batch.add_message(msg)
+                                except ValueError:
+                                    sender.send_messages(batch)
+                                    sent += len(batch)
+                                    batch = sender.create_message_batch()
+                                    batch.add_message(msg)
+                            if len(batch) > 0:
+                                sender.send_messages(batch)
+                                sent += len(batch)
+            finally:
+                pass
+
+            context.log.info(f"Sent {sent}/{len(records)} messages")
+            return MaterializeResult(
+                metadata={
+                    "messages_sent": MetadataValue.int(sent),
+                    "destination": MetadataValue.text(f"{self.destination_type}://{destination}"),
+                    "session_id_column": MetadataValue.text(session_col or "(none)"),
+                }
+            )
+
+        return Definitions(assets=[producer_asset])

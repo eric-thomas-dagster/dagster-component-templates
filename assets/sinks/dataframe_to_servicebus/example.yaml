@@ -1,0 +1,7 @@
+type: dagster_component_templates.DataframeToServiceBusComponent
+attributes:
+  asset_name: dataframe_to_servicebus_output
+  upstream_asset_key: orders_raw
+  connection_string_env_var: CONNECTION_STRING
+  destination_name: my-queue
+  destination_type: queue

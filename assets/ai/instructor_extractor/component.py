@@ -332,7 +332,7 @@ group_name=group_name,
             if api_key_env_var:
                 openai_kwargs["api_key"] = os.environ[api_key_env_var]
 
-            client = instructor.from_openai(openai.OpenAI(**openai_kwargs))
+            client = instructor.from_openai(_make_openai_client(openai_kwargs.get('api_key')))
 
             field_names = list(extraction_schema.keys())
             column_names = [f"{output_prefix}{f}" for f in field_names]
@@ -406,3 +406,35 @@ group_name=group_name,
 
 
         return Definitions(assets=[_asset], asset_checks=list(_schema_checks))
+
+
+
+def _make_openai_client(api_key):
+    """Build an OpenAI or AzureOpenAI client based on env vars.
+
+    Set OPENAI_AZURE_ENDPOINT to route through Azure OpenAI Service. Optional:
+    OPENAI_AZURE_API_VERSION (default 2024-10-21). For Entra OAuth, set
+    OPENAI_AZURE_USE_ENTRA=1 and the standard AZURE_TENANT_ID/CLIENT_ID/
+    CLIENT_SECRET env vars (or rely on managed identity in Azure compute).
+    """
+    import openai as _openai
+    azure_endpoint = os.environ.get("OPENAI_AZURE_ENDPOINT")
+    if not azure_endpoint:
+        return _openai.OpenAI(api_key=api_key)
+    api_version = os.environ.get("OPENAI_AZURE_API_VERSION", "2024-10-21")
+    if os.environ.get("OPENAI_AZURE_USE_ENTRA") == "1":
+        from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+        token_provider = get_bearer_token_provider(
+            DefaultAzureCredential(),
+            "https://cognitiveservices.azure.com/.default",
+        )
+        return _openai.AzureOpenAI(
+            azure_ad_token_provider=token_provider,
+            azure_endpoint=azure_endpoint,
+            api_version=api_version,
+        )
+    return _openai.AzureOpenAI(
+        api_key=api_key,
+        azure_endpoint=azure_endpoint,
+        api_version=api_version,
+    )

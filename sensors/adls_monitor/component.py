@@ -75,6 +75,17 @@ class ADLSMonitorSensorComponent(Component, Model, Resolvable):
         description="Name of the job to trigger when files are detected"
     )
 
+    target_op_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "When the target job materializes a single config-aware op/asset, set this to "
+            "the op's name (e.g. the asset name from adls_to_database_asset). The sensor "
+            "will emit run_config nested under `ops.<target_op_name>.config.{container_name, "
+            "blob_name, blob_size}` so the asset's Config picks up the values directly. "
+            "When None, the legacy generic shape (`ops.config.<keys>`) is emitted."
+        ),
+    )
+
     minimum_interval_seconds: int = Field(
         default=30,
         description="Minimum time (in seconds) between sensor evaluations"
@@ -115,6 +126,7 @@ class ADLSMonitorSensorComponent(Component, Model, Resolvable):
         connection_string_env_var = self.connection_string_env_var
         default_status_str = self.default_status
         resource_key = self.resource_key
+        target_op_name = self.target_op_name
 
         default_status = (
             DefaultSensorStatus.RUNNING
@@ -212,22 +224,34 @@ class ADLSMonitorSensorComponent(Component, Model, Resolvable):
                     if not pattern.search(file_name):
                         continue
 
+                    if target_op_name:
+                        # Emit asset-targeted run_config matching the asset's
+                        # Config field names (e.g. `adls_to_database_asset.ADLSFileConfig`).
+                        op_config = {
+                            "container_name": container_name,
+                            "blob_name": file_path,
+                            "blob_size": size,
+                        }
+                        rc = {"ops": {target_op_name: {"config": op_config}}}
+                    else:
+                        # Legacy generic shape — works for op-jobs whose op is named "config".
+                        rc = {
+                            "ops": {
+                                "config": {
+                                    "storage_account": storage_account_name,
+                                    "container": container_name,
+                                    "file_path": file_path,
+                                    "file_name": file_name,
+                                    "size": size,
+                                    "last_modified": last_modified.isoformat(),
+                                    "directory_path": directory_path,
+                                }
+                            }
+                        }
                     run_requests.append(
                         RunRequest(
                             run_key=f"{storage_account_name}/{container_name}/{file_path}-{last_modified.isoformat()}",
-                            run_config={
-                                "ops": {
-                                    "config": {
-                                        "storage_account": storage_account_name,
-                                        "container": container_name,
-                                        "file_path": file_path,
-                                        "file_name": file_name,
-                                        "size": size,
-                                        "last_modified": last_modified.isoformat(),
-                                        "directory_path": directory_path,
-                                    }
-                                }
-                            },
+                            run_config=rc,
                         )
                     )
 

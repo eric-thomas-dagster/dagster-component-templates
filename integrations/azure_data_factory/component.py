@@ -245,6 +245,7 @@ def _build_adf_defs(
     extra_kinds: Optional[List[str]] = None,
     freshness_max_lag_minutes: Optional[int] = None,
     freshness_cron: Optional[str] = None,
+    upstream_asset_keys: Optional[List[str]] = None,
     retry_policy_max_retries: Optional[int] = None,
     retry_policy_delay_seconds: Optional[int] = None,
     retry_policy_backoff: str = "exponential",
@@ -329,6 +330,8 @@ def _build_adf_defs(
                 spec_kwargs["partitions_def"] = _partitions_def
             if _freshness is not None:
                 spec_kwargs["freshness_policy"] = _freshness
+            if upstream_asset_keys:
+                spec_kwargs["deps"] = [dg.AssetKey.from_user_string(k) for k in upstream_asset_keys]
             default_spec = dg.AssetSpec(**spec_kwargs)
 
             # Apply any user overrides (may expand to multiple specs)
@@ -824,6 +827,7 @@ if _HAS_STATE_BACKED:
                 extra_kinds=getattr(self, "extra_kinds", None),
                 freshness_max_lag_minutes=getattr(self, "freshness_max_lag_minutes", None),
                 freshness_cron=getattr(self, "freshness_cron", None),
+                upstream_asset_keys=getattr(self, "upstream_asset_keys", None),
                 retry_policy_max_retries=getattr(self, "retry_policy_max_retries", None),
                 retry_policy_delay_seconds=getattr(self, "retry_policy_delay_seconds", None),
                 retry_policy_backoff=getattr(self, "retry_policy_backoff", "exponential"),
@@ -902,7 +906,7 @@ else:
         retry_policy_backoff: str = Field(default="exponential", description="Backoff: 'linear' or 'exponential'")
 
         # Pipeline-execution config
-        pipeline_parameters: Optional[Dict[str, Any]] = Field(
+        pipeline_parameters: Optional[dict] = Field(
             default=None,
             description="Parameters dict passed to every ADF pipeline run (key→value).",
         )
@@ -941,17 +945,26 @@ else:
             default=None,
             description="Start date for time-based partitions, ISO format (e.g. '2024-01-01').",
         )
-        partition_values: Optional[List[str]] = Field(
+        partition_values: Optional[list] = Field(
             default=None,
             description="List of partition values for static partitions (e.g. ['us', 'eu', 'apac']).",
         )
 
         # Standard catalog fields
-        owners: Optional[List[str]] = Field(default=None, description="Asset owners (team or email).")
-        asset_tags: Optional[Dict[str, str]] = Field(default=None, description="Catalog tags.")
-        extra_kinds: Optional[List[str]] = Field(default=None, description="Additional asset kinds beyond the default {azure, adf}.")
+        owners: Optional[list] = Field(default=None, description="Asset owners (team or email).")
+        asset_tags: Optional[dict] = Field(default=None, description="Catalog tags.")
+        extra_kinds: Optional[list] = Field(default=None, description="Additional asset kinds beyond the default {azure, adf}.")
         freshness_max_lag_minutes: Optional[int] = Field(default=None, description="Freshness SLO in minutes (legacy FreshnessPolicy).")
         freshness_cron: Optional[str] = Field(default=None, description="Cron schedule for the freshness policy.")
+        upstream_asset_keys: Optional[list] = Field(
+            default=None,
+            description=(
+                "Asset keys that ALL imported ADF pipeline assets should depend on. "
+                "Lets non-ADF Dagster assets gate ADF pipeline runs (e.g. only run "
+                "ADF pipelines after dbt has refreshed the upstream tables). "
+                "For per-pipeline overrides, use assets_by_pipeline_name's `deps` key."
+            ),
+        )
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             """Build Definitions by calling the ADF API at load time."""
@@ -1016,6 +1029,7 @@ else:
                 extra_kinds=getattr(self, "extra_kinds", None),
                 freshness_max_lag_minutes=getattr(self, "freshness_max_lag_minutes", None),
                 freshness_cron=getattr(self, "freshness_cron", None),
+                upstream_asset_keys=getattr(self, "upstream_asset_keys", None),
                 retry_policy_max_retries=getattr(self, "retry_policy_max_retries", None),
                 retry_policy_delay_seconds=getattr(self, "retry_policy_delay_seconds", None),
                 retry_policy_backoff=getattr(self, "retry_policy_backoff", "exponential"),

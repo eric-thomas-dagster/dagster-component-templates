@@ -59,11 +59,11 @@ class ArmTemplateAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def _asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             from azure.identity import DefaultAzureCredential
-            from azure.mgmt.resource import ResourceManagementClient
+            from azure.mgmt.resource.deployments import DeploymentsMgmtClient
 
             sub_id = _self.subscription_id or os.environ["AZURE_SUBSCRIPTION_ID"]
             cred = DefaultAzureCredential()
-            client = ResourceManagementClient(cred, sub_id)
+            client = DeploymentsMgmtClient(cred, sub_id)
 
             if _self.template_file:
                 with open(_self.template_file) as f:

@@ -70,10 +70,10 @@ class BicepAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
             # 2. Reuse the ARM deployment client
             from azure.identity import DefaultAzureCredential
-            from azure.mgmt.resource import ResourceManagementClient
+            from azure.mgmt.resource.deployments import DeploymentsMgmtClient
 
             sub_id = _self.subscription_id or os.environ["AZURE_SUBSCRIPTION_ID"]
-            client = ResourceManagementClient(DefaultAzureCredential(), sub_id)
+            client = DeploymentsMgmtClient(DefaultAzureCredential(), sub_id)
 
             with open(arm_json_path) as f:
                 template = json.load(f)

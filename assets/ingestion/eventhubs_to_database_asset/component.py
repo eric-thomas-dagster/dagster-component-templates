@@ -182,11 +182,21 @@ class EventHubsToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             max_evts = config.max_events or _self.max_events
 
             records = []
+            done_flag = {"stop": False}
+
+            client = EventHubConsumerClient.from_connection_string(
+                conn_str,
+                consumer_group=_self.consumer_group,
+                eventhub_name=_self.eventhub_name,
+            )
 
             def on_event_batch(partition_context, events):
+                if done_flag["stop"]:
+                    return
                 for event in events:
                     if len(records) >= max_evts:
-                        return
+                        done_flag["stop"] = True
+                        break
                     try:
                         body = json.loads(event.body_as_str())
                         if isinstance(body, dict):
@@ -196,23 +206,26 @@ class EventHubsToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     except Exception as e:
                         context.log.warning(f"Skipping unparseable event: {e}")
                 partition_context.update_checkpoint()
-
-            client = EventHubConsumerClient.from_connection_string(
-                conn_str,
-                consumer_group=_self.consumer_group,
-                eventhub_name=_self.eventhub_name,
-            )
+                if done_flag["stop"] or len(records) >= max_evts:
+                    # receive_batch loops forever otherwise — close from callback to break out
+                    client.close()
 
             context.log.info(f"Consuming up to {max_evts} events from {_self.eventhub_name}")
 
-            with client:
-                client.receive_batch(
-                    on_event_batch=on_event_batch,
-                    max_batch_size=min(300, max_evts),
-                    max_wait_time=_self.max_wait_seconds,
-                    partition_id=config.partition_id,
-                    starting_position=config.sequence_number if config.sequence_number is not None else "-1",
-                )
+            try:
+                with client:
+                    client.receive_batch(
+                        on_event_batch=on_event_batch,
+                        max_batch_size=min(300, max_evts),
+                        max_wait_time=_self.max_wait_seconds,
+                        partition_id=config.partition_id,
+                        starting_position=config.sequence_number if config.sequence_number is not None else "-1",
+                    )
+            except Exception as e:
+                # Closing the client mid-receive can raise; treat as clean shutdown if we got events
+                if not records:
+                    raise
+                context.log.info(f"Receiver shut down after collecting {len(records)} events: {e}")
 
             if not records:
                 context.log.info("No events consumed.")

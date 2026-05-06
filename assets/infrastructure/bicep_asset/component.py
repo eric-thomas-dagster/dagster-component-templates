@@ -57,50 +57,55 @@ class BicepAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             retry_policy=retry,
         )
         def _asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
-            import subprocess, tempfile
+            import subprocess
 
-            # 1. Compile bicep -> ARM JSON via az CLI
-            with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as out:
-                arm_json_path = out.name
-            cmd = [_self.az_bin, "bicep", "build", "--file", _self.bicep_file, "--outfile", arm_json_path]
+            # The whole flow uses `az` CLI: it's already required for `az bicep
+            # build`, plus shipping the SDK pulls in azure-mgmt-resource +
+            # azure-identity which version-churn frequently and complicate
+            # auth. `az` CLI uses your existing `az login` session.
+            verb = "what-if" if _self.what_if else "create"
+            cmd = [
+                _self.az_bin, "deployment", "group", verb,
+                "--resource-group", _self.resource_group,
+                "--name", _self.deployment_name,
+                "--template-file", _self.bicep_file,
+                "--mode", _self.mode,
+                "--output", "json",
+            ]
+            if _self.subscription_id:
+                cmd += ["--subscription", _self.subscription_id]
+            elif os.environ.get("AZURE_SUBSCRIPTION_ID"):
+                cmd += ["--subscription", os.environ["AZURE_SUBSCRIPTION_ID"]]
+
+            # Inline parameters become `--parameters key=value`. Parameter
+            # files become `--parameters @path.json`.
+            for k, v in (_self.parameters or {}).items():
+                cmd += ["--parameters", f"{k}={v}"]
+            if _self.parameters_file:
+                cmd += ["--parameters", f"@{_self.parameters_file}"]
+
+            context.log.info("running: " + " ".join(cmd))
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode != 0:
-                raise Exception(f"az bicep build failed: {result.stderr}")
-            context.log.info(f"compiled {_self.bicep_file} -> {arm_json_path}")
+                raise Exception(
+                    f"az deployment group {verb} failed (exit {result.returncode}):\n"
+                    f"stderr: {result.stderr}\nstdout: {result.stdout}"
+                )
 
-            # 2. Reuse the ARM deployment client
-            from azure.identity import DefaultAzureCredential
-            from azure.mgmt.resource.deployments import DeploymentsMgmtClient
-
-            sub_id = _self.subscription_id or os.environ["AZURE_SUBSCRIPTION_ID"]
-            client = DeploymentsMgmtClient(DefaultAzureCredential(), sub_id)
-
-            with open(arm_json_path) as f:
-                template = json.load(f)
-
-            params = {}
-            if _self.parameters_file:
-                with open(_self.parameters_file) as f:
-                    raw = json.load(f)
-                    params = raw.get("parameters", raw)
-            if _self.parameters:
-                for k, v in _self.parameters.items():
-                    params[k] = {"value": v}
-
-            deployment_props = {"mode": _self.mode, "template": template, "parameters": params}
-
-            if _self.what_if:
-                poller = client.deployments.begin_what_if(_self.resource_group, _self.deployment_name, {"properties": deployment_props})
-                result = poller.result()
-                outputs = {"changes": [str(c) for c in (result.changes or [])]}
-            else:
-                poller = client.deployments.begin_create_or_update(_self.resource_group, _self.deployment_name, {"properties": deployment_props})
-                result = poller.result()
-                outputs = result.properties.outputs or {}
+            # Surface the deployment outputs as Dagster metadata so downstream
+            # assets (or callers via dg list events) can pick them up.
+            try:
+                payload = json.loads(result.stdout) if result.stdout else {}
+                outputs = (
+                    payload.get("properties", {}).get("outputs", {}) if isinstance(payload, dict) else {}
+                )
+            except json.JSONDecodeError:
+                outputs = {}
 
             return dg.MaterializeResult(metadata={
                 "outputs": dg.MetadataValue.json(outputs),
                 "deployment_name": dg.MetadataValue.text(_self.deployment_name),
+                "resource_group": dg.MetadataValue.text(_self.resource_group),
                 "bicep_file": dg.MetadataValue.text(_self.bicep_file),
                 "what_if": dg.MetadataValue.bool(_self.what_if),
             })

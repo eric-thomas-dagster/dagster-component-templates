@@ -58,50 +58,49 @@ class ArmTemplateAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             retry_policy=retry,
         )
         def _asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
-            from azure.identity import DefaultAzureCredential
-            from azure.mgmt.resource.deployments import DeploymentsMgmtClient
+            import subprocess
 
-            sub_id = _self.subscription_id or os.environ["AZURE_SUBSCRIPTION_ID"]
-            cred = DefaultAzureCredential()
-            client = DeploymentsMgmtClient(cred, sub_id)
-
+            # Use `az` CLI rather than the Python SDK — avoids the
+            # azure-mgmt-resource version churn (.deployments accessor moved
+            # to a separate package in recent versions). `az` uses the
+            # caller's existing `az login` session.
+            verb = "what-if" if _self.what_if else "create"
+            cmd = [
+                "az", "deployment", "group", verb,
+                "--resource-group", _self.resource_group,
+                "--name", _self.deployment_name,
+                "--mode", _self.mode,
+                "--output", "json",
+            ]
             if _self.template_file:
-                with open(_self.template_file) as f:
-                    template = json.load(f)
+                cmd += ["--template-file", _self.template_file]
             elif _self.template_uri:
-                template = None  # ARM accepts templateLink in deployment props
+                cmd += ["--template-uri", _self.template_uri]
             else:
                 raise ValueError("Either template_file or template_uri is required")
 
-            params = {}
+            sub_id = _self.subscription_id or os.environ.get("AZURE_SUBSCRIPTION_ID")
+            if sub_id:
+                cmd += ["--subscription", sub_id]
+
+            for k, v in (_self.parameters or {}).items():
+                cmd += ["--parameters", f"{k}={v}"]
             if _self.parameters_file:
-                with open(_self.parameters_file) as f:
-                    raw = json.load(f)
-                    params = raw.get("parameters", raw)
-            if _self.parameters:
-                for k, v in _self.parameters.items():
-                    params[k] = {"value": v}
+                cmd += ["--parameters", f"@{_self.parameters_file}"]
 
-            deployment_props = {"mode": _self.mode, "parameters": params}
-            if template is not None:
-                deployment_props["template"] = template
-            else:
-                deployment_props["template_link"] = {"uri": _self.template_uri}
-
-            if _self.what_if:
-                context.log.info(f"what-if: {_self.deployment_name}")
-                result = client.deployments.begin_what_if(
-                    _self.resource_group, _self.deployment_name,
-                    {"properties": deployment_props},
-                ).result()
-                outputs = {"changes": [str(c) for c in (result.changes or [])]}
-            else:
-                poller = client.deployments.begin_create_or_update(
-                    _self.resource_group, _self.deployment_name,
-                    {"properties": deployment_props},
+            context.log.info("running: " + " ".join(cmd))
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                raise Exception(
+                    f"az deployment group {verb} failed (exit {result.returncode}):\n"
+                    f"stderr: {result.stderr}\nstdout: {result.stdout}"
                 )
-                result = poller.result()
-                outputs = result.properties.outputs or {}
+
+            try:
+                payload = json.loads(result.stdout) if result.stdout else {}
+                outputs = payload.get("properties", {}).get("outputs", {}) if isinstance(payload, dict) else {}
+            except json.JSONDecodeError:
+                outputs = {}
 
             return dg.MaterializeResult(metadata={
                 "outputs": dg.MetadataValue.json(outputs),

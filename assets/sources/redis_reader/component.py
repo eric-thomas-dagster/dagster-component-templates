@@ -56,6 +56,13 @@ class RedisReaderComponent(Component, Model, Resolvable):
         default=0,
         description="Redis database number",
     )
+    ssl: bool = Field(
+        default=False,
+        description=(
+            "Enable TLS. Required for Azure Cache for Redis (port 6380), "
+            "AWS ElastiCache (in-transit encryption), and Redis Cloud."
+        ),
+    )
     key_pattern: str = Field(
         default="*",
         description="Glob pattern for keys to fetch (e.g. 'session:*')",
@@ -185,6 +192,7 @@ class RedisReaderComponent(Component, Model, Resolvable):
         port = self.port
         password_env_var = self.password_env_var
         db = self.db
+        ssl = self.ssl
         key_pattern = self.key_pattern
         data_type = self.data_type
         limit = self.limit
@@ -313,6 +321,7 @@ group_name=group_name,
                 port=port,
                 password=os.environ.get(password_env_var) if password_env_var else None,
                 db=db,
+                ssl=ssl,
             )
 
             context.log.info(f"Fetching Redis keys matching pattern: {key_pattern}")

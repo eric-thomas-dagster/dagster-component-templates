@@ -45,6 +45,13 @@
       "required": false,
       "default": 0
     },
+    "ssl": {
+      "type": "boolean",
+      "label": "SSL",
+      "description": "Enable TLS. Required for Azure Cache for Redis (port 6380), AWS ElastiCache (in-transit encryption), and Redis Cloud.",
+      "required": false,
+      "default": false
+    },
     "key_pattern": {
       "type": "string",
       "label": "Key Pattern",

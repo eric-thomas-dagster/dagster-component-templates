@@ -62,6 +62,13 @@ class RedisWriterComponent(Component, Model, Resolvable):
         default=0,
         description="Redis database number",
     )
+    ssl: bool = Field(
+        default=False,
+        description=(
+            "Enable TLS. Required for Azure Cache for Redis (port 6380), "
+            "AWS ElastiCache (in-transit encryption), and Redis Cloud."
+        ),
+    )
     key_column: str = Field(
         description="DataFrame column to use as the Redis key"
     )
@@ -191,6 +198,7 @@ class RedisWriterComponent(Component, Model, Resolvable):
         port = self.port
         password_env_var = self.password_env_var
         db = self.db
+        ssl = self.ssl
         key_column = self.key_column
         write_mode = self.write_mode
         expire_seconds = self.expire_seconds
@@ -330,6 +338,7 @@ group_name=group_name,
                 port=port,
                 password=os.environ.get(password_env_var) if password_env_var else None,
                 db=db,
+                ssl=ssl,
             )
 
             records = upstream.to_dict(orient="records")

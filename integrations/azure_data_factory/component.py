@@ -344,189 +344,192 @@ def _build_adf_defs(
                 tuple(spec.key.path): pipeline_name for spec in expanded_specs
             }
 
-            @dg.multi_asset(
-                specs=expanded_specs,
-                name=f"adf_pipeline_{pipeline_name}",
-                retry_policy=_retry_policy,
-            )
-            def pipeline_multi_asset(
-                context: dg.AssetExecutionContext,
-                _pipeline_name: str = pipeline_name,
-                _subscription_id: str = subscription_id,
-                _resource_group_name: str = resource_group_name,
-                _factory_name: str = factory_name,
-                _tenant_id: Optional[str] = tenant_id,
-                _client_id: Optional[str] = client_id,
-                _client_secret: Optional[str] = client_secret,
-                _spec_key_to_pipeline: Dict[tuple, str] = spec_key_to_pipeline,
-                _expanded_specs: list = expanded_specs,
-                _pipeline_parameters: Optional[Dict[str, Any]] = pipeline_parameters,
-                _partition_parameter_name: Optional[str] = partition_parameter_name,
-                _max_wait_seconds: int = max_wait_seconds,
-                _poll_interval: int = run_poll_interval_seconds,
-                _wait_for_completion: bool = wait_for_completion,
-                _capture_activity_metadata: bool = capture_activity_metadata,
+            # Capture loop-variable values via a factory closure. Putting them as
+            # default arguments confuses Dagster's multi_asset, which treats every
+            # parameter as an asset input.
+            def _make_pipeline_asset(
+                _pipeline_name=pipeline_name,
+                _subscription_id=subscription_id,
+                _resource_group_name=resource_group_name,
+                _factory_name=factory_name,
+                _tenant_id=tenant_id,
+                _client_id=client_id,
+                _client_secret=client_secret,
+                _spec_key_to_pipeline=spec_key_to_pipeline,
+                _pipeline_parameters=pipeline_parameters,
+                _partition_parameter_name=partition_parameter_name,
+                _max_wait_seconds=max_wait_seconds,
+                _poll_interval=run_poll_interval_seconds,
+                _wait_for_completion=wait_for_completion,
+                _capture_activity_metadata=capture_activity_metadata,
             ):
-                """Trigger an Azure Data Factory pipeline run and wait for completion."""
-                adf_client = _get_adf_client(
-                    _subscription_id, _tenant_id, _client_id, _client_secret
+                @dg.multi_asset(
+                    specs=expanded_specs,
+                    name=f"adf_pipeline_{_pipeline_name}",
+                    retry_policy=_retry_policy,
                 )
-
-                # Determine which ADF pipelines need to run for the selected asset keys
-                selected_keys = set(
-                    tuple(k.path) for k in context.selected_asset_keys
-                )
-                pipelines_to_run: Dict[str, list] = {}
-                for key_path, p_name in _spec_key_to_pipeline.items():
-                    if key_path in selected_keys:
-                        pipelines_to_run.setdefault(p_name, []).append(key_path)
-
-                # Build the ADF pipeline parameters dict — user-provided +
-                # auto-injected partition_key (when partitioned)
-                adf_params: Dict[str, Any] = dict(_pipeline_parameters or {})
-                if context.has_partition_key:
-                    pkey = context.partition_key
-                    pname = _partition_parameter_name or "partition_key"
-                    adf_params.setdefault(pname, pkey)
-                    context.log.info(
-                        f"partitioned run: passing {pname}={pkey} to ADF"
+                def pipeline_multi_asset(context: dg.AssetExecutionContext):
+                    adf_client = _get_adf_client(
+                        _subscription_id, _tenant_id, _client_id, _client_secret
                     )
 
-                for p_name, key_paths in pipelines_to_run.items():
-                    create_kwargs: Dict[str, Any] = {}
-                    if adf_params:
-                        create_kwargs["parameters"] = adf_params
-                    run_response = adf_client.pipelines.create_run(
-                        _resource_group_name,
-                        _factory_name,
-                        p_name,
-                        **create_kwargs,
+                    # Determine which ADF pipelines need to run for the selected asset keys
+                    selected_keys = set(
+                        tuple(k.path) for k in context.selected_asset_keys
                     )
-                    run_id = run_response.run_id
-                    monitor_url = _monitor_url(run_id)
-                    context.log.info(f"ADF pipeline run started. Run ID: {run_id}")
-                    context.log.info(f"Monitor: {monitor_url}")
+                    pipelines_to_run: Dict[str, list] = {}
+                    for key_path, p_name in _spec_key_to_pipeline.items():
+                        if key_path in selected_keys:
+                            pipelines_to_run.setdefault(p_name, []).append(key_path)
 
-                    if not _wait_for_completion:
-                        # Fire-and-forget — yield immediately
-                        for key_path in key_paths:
-                            yield dg.MaterializeResult(
-                                asset_key=dg.AssetKey(list(key_path)),
-                                metadata={
-                                    "run_id": dg.MetadataValue.text(run_id),
-                                    "status": dg.MetadataValue.text("Submitted"),
-                                    "pipeline_name": dg.MetadataValue.text(p_name),
-                                    "monitor_url": dg.MetadataValue.url(monitor_url),
-                                    "parameters": dg.MetadataValue.json(adf_params),
-                                },
-                            )
-                        continue
-
-                    elapsed = 0
-                    pipeline_run = None
-                    while elapsed < _max_wait_seconds:
-                        pipeline_run = adf_client.pipeline_runs.get(
-                            _resource_group_name, _factory_name, run_id,
+                    # Build the ADF pipeline parameters dict — user-provided +
+                    # auto-injected partition_key (when partitioned)
+                    adf_params: Dict[str, Any] = dict(_pipeline_parameters or {})
+                    if context.has_partition_key:
+                        pkey = context.partition_key
+                        pname = _partition_parameter_name or "partition_key"
+                        adf_params.setdefault(pname, pkey)
+                        context.log.info(
+                            f"partitioned run: passing {pname}={pkey} to ADF"
                         )
-                        status = pipeline_run.status
-                        context.log.info(f"  poll: {p_name} status={status} elapsed={elapsed}s")
 
-                        if status in ("Succeeded", "Failed", "Cancelled"):
-                            duration_seconds = 0.0
-                            if pipeline_run.run_end and pipeline_run.run_start:
-                                duration_seconds = (
-                                    pipeline_run.run_end - pipeline_run.run_start
-                                ).total_seconds()
+                    for p_name, key_paths in pipelines_to_run.items():
+                        create_kwargs: Dict[str, Any] = {}
+                        if adf_params:
+                            create_kwargs["parameters"] = adf_params
+                        run_response = adf_client.pipelines.create_run(
+                            _resource_group_name,
+                            _factory_name,
+                            p_name,
+                            **create_kwargs,
+                        )
+                        run_id = run_response.run_id
+                        monitor_url = _monitor_url(run_id)
+                        context.log.info(f"ADF pipeline run started. Run ID: {run_id}")
+                        context.log.info(f"Monitor: {monitor_url}")
 
-                            run_metadata: Dict[str, Any] = {
-                                "run_id": dg.MetadataValue.text(run_id),
-                                "status": dg.MetadataValue.text(status),
-                                "pipeline_name": dg.MetadataValue.text(p_name),
-                                "start_time": dg.MetadataValue.text(str(pipeline_run.run_start)),
-                                "end_time": dg.MetadataValue.text(str(pipeline_run.run_end)),
-                                "duration_seconds": dg.MetadataValue.float(duration_seconds),
-                                "monitor_url": dg.MetadataValue.url(monitor_url),
-                                "parameters": dg.MetadataValue.json(adf_params),
-                            }
-
-                            # Per-activity metadata: each activity's status, duration, and any error
-                            if _capture_activity_metadata and pipeline_run.run_start and pipeline_run.run_end:
-                                try:
-                                    from azure.mgmt.datafactory.models import RunFilterParameters
-                                    activity_runs = adf_client.activity_runs.query_by_pipeline_run(
-                                        _resource_group_name, _factory_name, run_id,
-                                        RunFilterParameters(
-                                            last_updated_after=pipeline_run.run_start,
-                                            last_updated_before=pipeline_run.run_end,
-                                        ),
-                                    )
-                                    activities_summary = []
-                                    for ar in (activity_runs.value or []):
-                                        ar_dur = 0.0
-                                        if ar.activity_run_end and ar.activity_run_start:
-                                            ar_dur = (ar.activity_run_end - ar.activity_run_start).total_seconds()
-                                        activities_summary.append({
-                                            "name": ar.activity_name,
-                                            "type": ar.activity_type,
-                                            "status": ar.status,
-                                            "duration_seconds": ar_dur,
-                                            "error": (ar.error or {}).get("message") if isinstance(ar.error, dict) else (str(ar.error) if ar.error else None),
-                                            "output_keys": list((ar.output or {}).keys()) if isinstance(ar.output, dict) else None,
-                                        })
-                                        # Stream a per-activity log line so users see them in dg
-                                        context.log.info(
-                                            f"  activity: {ar.activity_name} ({ar.activity_type}) "
-                                            f"status={ar.status} duration={ar_dur:.1f}s"
-                                        )
-                                    run_metadata["activities"] = dg.MetadataValue.json(activities_summary)
-                                    run_metadata["activity_count"] = dg.MetadataValue.int(len(activities_summary))
-                                    failed_activities = [a["name"] for a in activities_summary if a["status"] == "Failed"]
-                                    if failed_activities:
-                                        run_metadata["failed_activities"] = dg.MetadataValue.json(failed_activities)
-                                except Exception as _exc:
-                                    context.log.warning(f"  could not fetch activity metadata: {_exc}")
-
-                            if status == "Failed":
-                                error_msg = getattr(pipeline_run, "message", None) or "Pipeline failed"
-                                run_metadata["error"] = dg.MetadataValue.text(error_msg)
-                                # Yield the materialization with status before raising — so the
-                                # failure metadata is recorded in the catalog, not lost.
-                                for key_path in key_paths:
-                                    yield dg.MaterializeResult(
-                                        asset_key=dg.AssetKey(list(key_path)),
-                                        metadata={**run_metadata, "outcome": dg.MetadataValue.text("failed")},
-                                    )
-                                raise Exception(
-                                    f"ADF pipeline '{p_name}' failed: {error_msg} (run_id={run_id})"
-                                )
-
+                        if not _wait_for_completion:
+                            # Fire-and-forget — yield immediately
                             for key_path in key_paths:
                                 yield dg.MaterializeResult(
                                     asset_key=dg.AssetKey(list(key_path)),
-                                    metadata=run_metadata,
+                                    metadata={
+                                        "run_id": dg.MetadataValue.text(run_id),
+                                        "status": dg.MetadataValue.text("Submitted"),
+                                        "pipeline_name": dg.MetadataValue.text(p_name),
+                                        "monitor_url": dg.MetadataValue.url(monitor_url),
+                                        "parameters": dg.MetadataValue.json(adf_params),
+                                    },
                                 )
-                            break
+                            continue
 
-                        time.sleep(_poll_interval)
-                        elapsed += _poll_interval
-
-                    else:
-                        context.log.warning(
-                            f"ADF pipeline run timed out after {_max_wait_seconds}s"
-                        )
-                        for key_path in key_paths:
-                            yield dg.MaterializeResult(
-                                asset_key=dg.AssetKey(list(key_path)),
-                                metadata={
-                                    "run_id": dg.MetadataValue.text(run_id),
-                                    "status": dg.MetadataValue.text("Timeout"),
-                                    "pipeline_name": dg.MetadataValue.text(p_name),
-                                    "monitor_url": dg.MetadataValue.url(monitor_url),
-                                    "max_wait_seconds": dg.MetadataValue.int(_max_wait_seconds),
-                                },
+                        elapsed = 0
+                        pipeline_run = None
+                        while elapsed < _max_wait_seconds:
+                            pipeline_run = adf_client.pipeline_runs.get(
+                                _resource_group_name, _factory_name, run_id,
                             )
+                            status = pipeline_run.status
+                            context.log.info(f"  poll: {p_name} status={status} elapsed={elapsed}s")
 
-            assets.append(pipeline_multi_asset)
+                            if status in ("Succeeded", "Failed", "Cancelled"):
+                                duration_seconds = 0.0
+                                if pipeline_run.run_end and pipeline_run.run_start:
+                                    duration_seconds = (
+                                        pipeline_run.run_end - pipeline_run.run_start
+                                    ).total_seconds()
+
+                                run_metadata: Dict[str, Any] = {
+                                    "run_id": dg.MetadataValue.text(run_id),
+                                    "status": dg.MetadataValue.text(status),
+                                    "pipeline_name": dg.MetadataValue.text(p_name),
+                                    "start_time": dg.MetadataValue.text(str(pipeline_run.run_start)),
+                                    "end_time": dg.MetadataValue.text(str(pipeline_run.run_end)),
+                                    "duration_seconds": dg.MetadataValue.float(duration_seconds),
+                                    "monitor_url": dg.MetadataValue.url(monitor_url),
+                                    "parameters": dg.MetadataValue.json(adf_params),
+                                }
+
+                                # Per-activity metadata: each activity's status, duration, and any error
+                                if _capture_activity_metadata and pipeline_run.run_start and pipeline_run.run_end:
+                                    try:
+                                        from azure.mgmt.datafactory.models import RunFilterParameters
+                                        activity_runs = adf_client.activity_runs.query_by_pipeline_run(
+                                            _resource_group_name, _factory_name, run_id,
+                                            RunFilterParameters(
+                                                last_updated_after=pipeline_run.run_start,
+                                                last_updated_before=pipeline_run.run_end,
+                                            ),
+                                        )
+                                        activities_summary = []
+                                        for ar in (activity_runs.value or []):
+                                            ar_dur = 0.0
+                                            if ar.activity_run_end and ar.activity_run_start:
+                                                ar_dur = (ar.activity_run_end - ar.activity_run_start).total_seconds()
+                                            activities_summary.append({
+                                                "name": ar.activity_name,
+                                                "type": ar.activity_type,
+                                                "status": ar.status,
+                                                "duration_seconds": ar_dur,
+                                                "error": (ar.error or {}).get("message") if isinstance(ar.error, dict) else (str(ar.error) if ar.error else None),
+                                                "output_keys": list((ar.output or {}).keys()) if isinstance(ar.output, dict) else None,
+                                            })
+                                            # Stream a per-activity log line so users see them in dg
+                                            context.log.info(
+                                                f"  activity: {ar.activity_name} ({ar.activity_type}) "
+                                                f"status={ar.status} duration={ar_dur:.1f}s"
+                                            )
+                                        run_metadata["activities"] = dg.MetadataValue.json(activities_summary)
+                                        run_metadata["activity_count"] = dg.MetadataValue.int(len(activities_summary))
+                                        failed_activities = [a["name"] for a in activities_summary if a["status"] == "Failed"]
+                                        if failed_activities:
+                                            run_metadata["failed_activities"] = dg.MetadataValue.json(failed_activities)
+                                    except Exception as _exc:
+                                        context.log.warning(f"  could not fetch activity metadata: {_exc}")
+
+                                if status == "Failed":
+                                    error_msg = getattr(pipeline_run, "message", None) or "Pipeline failed"
+                                    run_metadata["error"] = dg.MetadataValue.text(error_msg)
+                                    # Yield the materialization with status before raising — so the
+                                    # failure metadata is recorded in the catalog, not lost.
+                                    for key_path in key_paths:
+                                        yield dg.MaterializeResult(
+                                            asset_key=dg.AssetKey(list(key_path)),
+                                            metadata={**run_metadata, "outcome": dg.MetadataValue.text("failed")},
+                                        )
+                                    raise Exception(
+                                        f"ADF pipeline '{p_name}' failed: {error_msg} (run_id={run_id})"
+                                    )
+
+                                for key_path in key_paths:
+                                    yield dg.MaterializeResult(
+                                        asset_key=dg.AssetKey(list(key_path)),
+                                        metadata=run_metadata,
+                                    )
+                                break
+
+                            time.sleep(_poll_interval)
+                            elapsed += _poll_interval
+
+                        else:
+                            context.log.warning(
+                                f"ADF pipeline run timed out after {_max_wait_seconds}s"
+                            )
+                            for key_path in key_paths:
+                                yield dg.MaterializeResult(
+                                    asset_key=dg.AssetKey(list(key_path)),
+                                    metadata={
+                                        "run_id": dg.MetadataValue.text(run_id),
+                                        "status": dg.MetadataValue.text("Timeout"),
+                                        "pipeline_name": dg.MetadataValue.text(p_name),
+                                        "monitor_url": dg.MetadataValue.url(monitor_url),
+                                        "max_wait_seconds": dg.MetadataValue.int(_max_wait_seconds),
+                                    },
+                                )
+
+                return pipeline_multi_asset
+
+            assets.append(_make_pipeline_asset())
 
     # ── Trigger assets ─────────────────────────────────────────────────────────
     if import_triggers:

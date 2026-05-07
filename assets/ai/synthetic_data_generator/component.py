@@ -53,6 +53,8 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         "customer_churn_metrics",
         "stripe_charges",
         "stripe_subscriptions",
+        "support_tickets",
+        "product_reviews",
     ] = Field(
         default="customers",
         description="Type of data schema to generate"
@@ -356,6 +358,10 @@ group_name=group_name,
                 df = _generate_stripe_subscriptions(row_count, self.schema_options or {})
             elif schema_type == "ab_experiment":
                 df = _generate_ab_experiment(row_count, self.schema_options or {})
+            elif schema_type == "support_tickets":
+                df = _generate_support_tickets(row_count, self.schema_options or {})
+            elif schema_type == "product_reviews":
+                df = _generate_product_reviews(row_count, self.schema_options or {})
             else:
                 raise ValueError(f"Unknown schema type: {schema_type}")
 
@@ -973,5 +979,136 @@ def _generate_ab_experiment(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
             "variant": variant,
             "converted": converted,
             "exposed_at": exposed_at.strftime("%Y-%m-%d %H:%M:%S"),
+        })
+    return pd.DataFrame(rows)
+
+
+def _generate_support_tickets(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
+    """Generate synthetic multilingual support tickets with embedded PII.
+
+    Useful for: NLP demos (keyword/language/PII detection, embeddings,
+    sentiment analysis, classification, summarization). Each ticket has
+    realistic ticket_text including names, emails, phones, and credit
+    card fragments — designed to exercise PII detectors AND multilingual
+    NLP pipelines.
+
+    Columns:
+      ticket_id, customer_id, channel (email|chat|web), priority,
+      created_at, ticket_text (rich free text)
+    """
+    import numpy as np
+    rng = np.random.default_rng(opts.get("random_state"))
+
+    ENGLISH_TEMPLATES = [
+        ("Hi, my name is {name} and my email is {email}. My order #{order} hasn't arrived. Can you check status?", "en"),
+        ("I want to cancel my subscription. Account email: {email}. Phone: {phone}.", "en"),
+        ("Login fails with 2FA. Email: {email}. Please reset.", "en"),
+        ("Refund request for order {order} — product arrived damaged.", "en"),
+        ("Quick question — does the Pro plan include API access?", "en"),
+        ("How do I export my data? Compliance team needs everything by Friday.", "en"),
+        ("Site is down for me — getting 502 errors since 9am EST.", "en"),
+        ("Bug report: search results show duplicates when filtering by date range.", "en"),
+        ("Can I get an enterprise quote? Contact: {email} or {phone}.", "en"),
+        ("Feature request: add dark mode to the mobile app please.", "en"),
+        ("Account security alert — got an email about login from Russia, was that real?", "en"),
+        ("API rate limit too low for production use. Account: {email}.", "en"),
+        ("Charge my card ending in {cc4}.", "en"),
+    ]
+    SPANISH_TEMPLATES = [
+        ("Hola, soy {name}. Mi número de pedido es {order} y aún no lo recibo.", "es"),
+        ("Mi tarjeta de crédito {cc} fue rechazada. ¿Por qué?", "es"),
+        ("El sistema está caído. Llámame al {phone} lo antes posible.", "es"),
+    ]
+    FRENCH_TEMPLATES = [
+        ("Bonjour, je m'appelle {name}. Mon paiement échoue toujours sur le site. Aide?", "fr"),
+        ("Le tableau de bord ne charge plus depuis hier. Email: {email}", "fr"),
+    ]
+    GERMAN_TEMPLATES = [
+        ("Guten Tag! Mein Name ist {name}. Ich brauche eine Rechnung für letzten Monat.", "de"),
+        ("Bekommen ich Rabatte als jährlicher Abonnent?", "de"),
+    ]
+    ALL_TEMPLATES = ENGLISH_TEMPLATES * 4 + SPANISH_TEMPLATES + FRENCH_TEMPLATES + GERMAN_TEMPLATES
+    NAMES = ["Alice Johnson", "Carlos Hernández", "Marie Dupont", "Klaus Müller",
+             "Bob Smith", "Charlie Brown", "Jane Doe", "Maria Garcia",
+             "Hiroshi Tanaka", "Olga Petrova"]
+    EMAIL_DOMAINS = ["example.com", "enterprise.org", "test.io", "gmail.com",
+                     "bigcorp.com", "startup.io", "support.example.fr"]
+
+    rows = []
+    for i in range(n):
+        template, lang = ALL_TEMPLATES[rng.integers(0, len(ALL_TEMPLATES))]
+        name = NAMES[rng.integers(0, len(NAMES))]
+        email = f"{name.lower().replace(' ', '.').replace('é', 'e').replace('ñ', 'n').replace('ü', 'u')}@{EMAIL_DOMAINS[rng.integers(0, len(EMAIL_DOMAINS))]}"
+        phone = f"555-{rng.integers(1000, 9999):04d}"
+        cc4 = f"{rng.integers(1000, 9999):04d}"
+        cc = f"4532-{rng.integers(1000, 9999):04d}-{rng.integers(1000, 9999):04d}-{cc4}"
+        order = f"{rng.integers(10000, 99999)}"
+        text = template.format(name=name, email=email, phone=phone, order=order, cc=cc, cc4=cc4)
+        rows.append({
+            "ticket_id":   f"T{i+1:05d}",
+            "customer_id": f"CUST{rng.integers(1000, 9999):04d}",
+            "channel":     ["email", "chat", "web"][rng.integers(0, 3)],
+            "priority":    ["low", "medium", "high", "urgent"][rng.integers(0, 4)],
+            "created_at":  pd.Timestamp.now() - pd.Timedelta(minutes=int(rng.integers(0, 60 * 24 * 30))),
+            "ticket_text": text,
+            # `expected_language` is for ground-truth comparison in language_detector demos
+            "expected_language": lang,
+        })
+    return pd.DataFrame(rows)
+
+
+def _generate_product_reviews(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
+    """Generate synthetic product reviews with sentiment-rich text.
+
+    Useful for: sentiment analysis, classification, embeddings, RAG.
+    """
+    import numpy as np
+    rng = np.random.default_rng(opts.get("random_state"))
+
+    POSITIVE = [
+        "Absolutely love this product. Quality is fantastic, would buy again. {detail}",
+        "Best purchase I've made this year. {detail}",
+        "Exceeded expectations — fast shipping, perfect packaging. {detail}",
+        "Top notch. {detail}",
+    ]
+    NEUTRAL = [
+        "Product is OK. Does what it says. {detail}",
+        "Average quality for the price. {detail}",
+        "It works. Nothing exciting. {detail}",
+    ]
+    NEGATIVE = [
+        "Disappointed. Build quality is poor. {detail}",
+        "Returned within a week. {detail}",
+        "Customer service was slow and unhelpful. {detail}",
+        "Don't recommend — broke after second use. {detail}",
+    ]
+    DETAILS = [
+        "Battery life could be better.",
+        "The color is exactly as pictured.",
+        "Setup took 10 minutes.",
+        "Heavier than expected.",
+        "App integration is smooth.",
+        "Wish there were more size options.",
+    ]
+    PRODUCTS = ["Wireless Headphones", "Coffee Maker", "Yoga Mat", "Mechanical Keyboard",
+                "Office Chair", "Smart Bulb", "Tablet Stand", "Laptop Backpack"]
+
+    rows = []
+    for i in range(n):
+        rating = int(rng.integers(1, 6))
+        if rating >= 4:
+            template = POSITIVE[rng.integers(0, len(POSITIVE))]; sentiment = "positive"
+        elif rating == 3:
+            template = NEUTRAL[rng.integers(0, len(NEUTRAL))]; sentiment = "neutral"
+        else:
+            template = NEGATIVE[rng.integers(0, len(NEGATIVE))]; sentiment = "negative"
+        detail = DETAILS[rng.integers(0, len(DETAILS))]
+        rows.append({
+            "review_id":   f"R{i+1:05d}",
+            "product_name": PRODUCTS[rng.integers(0, len(PRODUCTS))],
+            "rating":      rating,
+            "expected_sentiment": sentiment,  # ground truth for sentiment demos
+            "review_text": template.format(detail=detail),
+            "created_at":  pd.Timestamp.now() - pd.Timedelta(days=int(rng.integers(0, 365))),
         })
     return pd.DataFrame(rows)

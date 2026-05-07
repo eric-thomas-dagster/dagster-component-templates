@@ -1,0 +1,4 @@
+dagster
+pandas
+azure-data-tables
+azure-identity

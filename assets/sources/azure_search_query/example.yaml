@@ -1,0 +1,10 @@
+type: dagster_component_templates.AzureSearchQueryComponent
+attributes:
+  asset_name: laptop_search_results
+  endpoint: https://my-search.search.windows.net
+  index_name: products
+  api_key_env_var: AZURE_SEARCH_QUERY_KEY
+  search_text: laptop
+  filter_query: "price gt 500 and stock gt 0"
+  top: 100
+  order_by: ["price asc"]

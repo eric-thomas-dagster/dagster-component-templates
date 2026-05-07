@@ -1,0 +1,119 @@
+{
+  "component_type": "dagster_component_templates.AzureSearchQueryComponent",
+  "description": "Query an Azure AI Search index and materialize results as a DataFrame. Supports keyword search, OData filters, semantic ranker, and (with index config) vector search.",
+  "category": "source",
+  "icon": "Search",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "endpoint": {
+      "type": "string",
+      "label": "Endpoint",
+      "required": true
+    },
+    "index_name": {
+      "type": "string",
+      "label": "Index Name",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "required": false,
+      "default": null
+    },
+    "search_text": {
+      "type": "string",
+      "label": "Search Text",
+      "required": false,
+      "default": "*"
+    },
+    "filter_query": {
+      "type": "string",
+      "label": "Filter Query",
+      "required": false,
+      "default": null
+    },
+    "select": {
+      "type": "array",
+      "label": "Select",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "order_by": {
+      "type": "array",
+      "label": "Order By",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "top": {
+      "type": "integer",
+      "label": "Top",
+      "required": false,
+      "default": 1000
+    },
+    "semantic_configuration_name": {
+      "type": "string",
+      "label": "Semantic Configuration Name",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

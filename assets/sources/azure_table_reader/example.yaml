@@ -1,0 +1,8 @@
+type: dagster_component_templates.AzureTableReaderComponent
+attributes:
+  asset_name: high_value_orders
+  account_name_env_var: AZURE_STORAGE_ACCOUNT
+  account_key_env_var: AZURE_STORAGE_ACCOUNT_KEY
+  table_name: orders
+  filter_query: "PartitionKey eq 'C100' and RowKey gt 'O500'"
+  top: 1000

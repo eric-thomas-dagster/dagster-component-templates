@@ -1,0 +1,99 @@
+{
+  "component_type": "dagster_component_templates.AzureTableReaderComponent",
+  "description": "Read entities from an Azure Table as a DataFrame. Supports OData filters for partition-scoped, RowKey-scoped, or property filtering.",
+  "category": "source",
+  "icon": "Table",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "account_name_env_var": {
+      "type": "string",
+      "label": "Account Name Env Var",
+      "required": false,
+      "default": "AZURE_STORAGE_ACCOUNT"
+    },
+    "account_key_env_var": {
+      "type": "string",
+      "label": "Account Key Env Var",
+      "required": false,
+      "default": "AZURE_STORAGE_ACCOUNT_KEY"
+    },
+    "table_name": {
+      "type": "string",
+      "label": "Table Name",
+      "required": true
+    },
+    "filter_query": {
+      "type": "string",
+      "label": "Filter Query",
+      "required": false,
+      "default": null
+    },
+    "select": {
+      "type": "array",
+      "label": "Select",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "limit": {
+      "type": "integer",
+      "label": "Limit",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

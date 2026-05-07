@@ -1,0 +1,88 @@
+{
+  "component_type": "dagster_component_templates.FabricCapacityAdminJobComponent",
+  "description": "Pause / resume / scale a Microsoft Fabric capacity via the management REST API. Op-job \u2014 schedule it nightly + weekends to halve Fabric capacity spend.",
+  "category": "infrastructure",
+  "icon": "Power",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "required": true
+    },
+    "action": {
+      "type": "string",
+      "label": "Action",
+      "required": false,
+      "default": "suspend",
+      "enum": [
+        "suspend",
+        "resume",
+        "scale"
+      ]
+    },
+    "target_sku": {
+      "type": "string",
+      "label": "Target Sku",
+      "required": false,
+      "default": null
+    },
+    "subscription_id": {
+      "type": "string",
+      "label": "Subscription Id",
+      "required": true
+    },
+    "resource_group_name": {
+      "type": "string",
+      "label": "Resource Group Name",
+      "required": true
+    },
+    "capacity_name": {
+      "type": "string",
+      "label": "Capacity Name",
+      "required": true
+    },
+    "tenant_id_env_var": {
+      "type": "string",
+      "label": "Tenant Id Env Var",
+      "required": false,
+      "default": null
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client Id Env Var",
+      "required": false,
+      "default": null
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "required": false,
+      "default": null
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "required": false,
+      "default": null
+    },
+    "schedule_default_status": {
+      "type": "string",
+      "label": "Schedule Default Status",
+      "required": false,
+      "default": "STOPPED",
+      "enum": [
+        "STOPPED",
+        "RUNNING"
+      ]
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "default": null
+    }
+  }
+}

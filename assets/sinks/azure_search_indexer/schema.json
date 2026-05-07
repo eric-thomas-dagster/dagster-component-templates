@@ -1,0 +1,118 @@
+{
+  "component_type": "dagster_component_templates.AzureSearchIndexerComponent",
+  "description": "Push DataFrame rows as documents to an Azure AI Search index. Backbone of RAG, semantic search, enterprise knowledge bases. Each row = one document; the DataFrame must include the index's key field.",
+  "category": "sink",
+  "icon": "Search",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "endpoint": {
+      "type": "string",
+      "label": "Endpoint",
+      "required": true
+    },
+    "index_name": {
+      "type": "string",
+      "label": "Index Name",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "required": false,
+      "default": null
+    },
+    "tenant_id_env_var": {
+      "type": "string",
+      "label": "Tenant Id Env Var",
+      "required": false,
+      "default": null
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client Id Env Var",
+      "required": false,
+      "default": null
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "required": false,
+      "default": null
+    },
+    "action": {
+      "type": "string",
+      "label": "Action",
+      "required": false,
+      "default": "mergeOrUpload",
+      "enum": [
+        "upload",
+        "merge",
+        "mergeOrUpload",
+        "delete"
+      ]
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "default": 1000
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

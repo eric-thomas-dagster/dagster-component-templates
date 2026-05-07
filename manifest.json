@@ -1078,6 +1078,51 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/azure_openai_resource/requirements.txt"
     },
     {
+      "id": "azure_search_indexer",
+      "name": "DataFrame \u2192 Azure AI Search",
+      "category": "sink",
+      "description": "Push DataFrame rows as documents to an Azure AI Search index. Backbone of RAG, semantic search, enterprise knowledge bases.",
+      "path": "assets/sinks/azure_search_indexer",
+      "tags": [
+        "sink",
+        "azure",
+        "ai_search",
+        "search",
+        "rag",
+        "vector"
+      ],
+      "type": "dagster_component_templates.AzureSearchIndexerComponent",
+      "component_type": "dagster_component_templates.AzureSearchIndexerComponent",
+      "icon": "Search",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/azure_search_indexer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/azure_search_indexer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/azure_search_indexer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/azure_search_indexer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/azure_search_indexer/requirements.txt"
+    },
+    {
+      "id": "azure_search_query",
+      "name": "Azure AI Search Query",
+      "category": "source",
+      "description": "Query an Azure AI Search index and materialize results as a DataFrame. Supports keyword search, OData filters, semantic ranker, and vector search.",
+      "path": "assets/sources/azure_search_query",
+      "tags": [
+        "source",
+        "azure",
+        "ai_search",
+        "search",
+        "rag"
+      ],
+      "type": "dagster_component_templates.AzureSearchQueryComponent",
+      "component_type": "dagster_component_templates.AzureSearchQueryComponent",
+      "icon": "Search",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_search_query/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_search_query/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_search_query/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_search_query/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_search_query/requirements.txt"
+    },
+    {
       "id": "azure_stream_analytics",
       "name": "Azure Stream Analytics",
       "category": "integration",
@@ -1119,6 +1164,27 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_synapse/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_synapse/requirements.txt",
       "icon": "si:microsoftazure"
+    },
+    {
+      "id": "azure_table_reader",
+      "name": "Azure Tables Reader",
+      "category": "source",
+      "description": "Read entities from an Azure Table as a DataFrame. Supports OData filters for partition-scoped, RowKey-scoped, or property filtering.",
+      "path": "assets/sources/azure_table_reader",
+      "tags": [
+        "source",
+        "azure",
+        "table_storage",
+        "nosql"
+      ],
+      "type": "dagster_component_templates.AzureTableReaderComponent",
+      "component_type": "dagster_component_templates.AzureTableReaderComponent",
+      "icon": "Table",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_table_reader/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_table_reader/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_table_reader/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_table_reader/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_table_reader/requirements.txt"
     },
     {
       "id": "bank_statement_extractor",
@@ -2581,6 +2647,28 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_adls/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_adls/requirements.txt",
       "icon": "si:microsoftazure"
+    },
+    {
+      "id": "dataframe_to_azure_table",
+      "name": "DataFrame \u2192 Azure Tables",
+      "category": "sink",
+      "description": "Write DataFrame rows as entities to Azure Table Storage. NoSQL key-value store, way cheaper than Cosmos for simple structured data.",
+      "path": "assets/sinks/dataframe_to_azure_table",
+      "tags": [
+        "sink",
+        "azure",
+        "table_storage",
+        "nosql",
+        "dataframe"
+      ],
+      "type": "dagster_component_templates.DataframeToAzureTableComponent",
+      "component_type": "dagster_component_templates.DataframeToAzureTableComponent",
+      "icon": "Table",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_azure_table/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_azure_table/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_azure_table/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_azure_table/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_azure_table/requirements.txt"
     },
     {
       "id": "dataframe_to_bigquery",
@@ -4487,6 +4575,28 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sqs_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_sqs_asset/requirements.txt",
       "icon": "Link"
+    },
+    {
+      "id": "fabric_capacity_admin_job",
+      "name": "Fabric Capacity Admin Job",
+      "category": "infrastructure",
+      "description": "Pause / resume / scale a Microsoft Fabric capacity via the management REST API. Op-job \u2014 schedule it nightly + weekends to halve Fabric capacity spend.",
+      "path": "jobs/fabric_capacity_admin_job",
+      "tags": [
+        "job",
+        "azure",
+        "fabric",
+        "infrastructure",
+        "cost-control"
+      ],
+      "type": "dagster_component_templates.FabricCapacityAdminJobComponent",
+      "component_type": "dagster_component_templates.FabricCapacityAdminJobComponent",
+      "icon": "Power",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fabric_capacity_admin_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fabric_capacity_admin_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fabric_capacity_admin_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fabric_capacity_admin_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fabric_capacity_admin_job/requirements.txt"
     },
     {
       "id": "fabric_lakehouse_io_manager",

@@ -1,0 +1,14 @@
+type: dagster_component_templates.FabricCapacityAdminJobComponent
+attributes:
+  job_name: fabric_capacity_pause_nightly
+  action: suspend           # 'suspend' | 'resume' | 'scale'
+  subscription_id: "12345678-1234-1234-1234-123456789012"
+  resource_group_name: my-rg
+  capacity_name: my-fabric-capacity
+
+  tenant_id_env_var: AZURE_TENANT_ID
+  client_id_env_var: AZURE_CLIENT_ID
+  client_secret_env_var: AZURE_CLIENT_SECRET
+
+  schedule: "0 19 * * *"           # 7pm daily
+  schedule_default_status: STOPPED

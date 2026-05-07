@@ -1,0 +1,9 @@
+type: dagster_component_templates.AzureSearchIndexerComponent
+attributes:
+  asset_name: docs_in_search_index
+  upstream_asset_key: documents_with_embeddings
+  endpoint: https://my-search.search.windows.net
+  index_name: knowledge-base
+  api_key_env_var: AZURE_SEARCH_ADMIN_KEY
+  action: mergeOrUpload         # 'upload' | 'merge' | 'mergeOrUpload' | 'delete'
+  batch_size: 1000

@@ -1,0 +1,86 @@
+{
+  "component_type": "dagster_component_templates.NewRelicNrqlQueryComponent",
+  "description": "Run an NRQL query via NerdGraph \u2192 DataFrame. Use for ops dashboards, anomaly detection, capacity planning, alerting trends.",
+  "category": "source",
+  "icon": "Search",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "required": true
+    },
+    "account_id": {
+      "type": "string",
+      "label": "Account Id",
+      "required": true
+    },
+    "region": {
+      "type": "string",
+      "label": "Region",
+      "required": false,
+      "default": "US",
+      "enum": [
+        "US",
+        "EU"
+      ]
+    },
+    "query": {
+      "type": "string",
+      "label": "Query",
+      "required": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

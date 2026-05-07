@@ -1,0 +1,8 @@
+type: dagster_component_templates.DynatraceMetricsQueryComponent
+attributes:
+  asset_name: dynatrace_metrics_query_output
+  environment_url: https://example.com
+  api_token_env_var: API_TOKEN
+  metric_selector: builtin:host.cpu.usage:avg
+  resolution: 1m
+  timeframe: now-1h

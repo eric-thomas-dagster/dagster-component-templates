@@ -1,0 +1,4 @@
+dagster
+pandas
+azure-kusto-data
+azure-kusto-ingest

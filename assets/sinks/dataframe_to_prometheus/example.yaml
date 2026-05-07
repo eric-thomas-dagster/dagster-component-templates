@@ -1,0 +1,13 @@
+type: dagster_component_templates.DataframeToPrometheusComponent
+attributes:
+  asset_name: orders_metrics_pushed
+  upstream_asset_key: orders_summary
+  pushgateway_url: http://pushgateway.example.com:9091
+  job: dagster_orders_etl
+  metric_name: orders_total
+  metric_type: gauge
+  metric_help: Total orders processed by category
+  value_column: orders
+  label_columns:
+    - region
+    - category

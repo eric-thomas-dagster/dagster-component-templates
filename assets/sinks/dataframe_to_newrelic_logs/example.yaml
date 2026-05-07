@@ -1,0 +1,7 @@
+type: dagster_component_templates.DataframeToNewRelicLogsComponent
+attributes:
+  asset_name: dataframe_to_newrelic_logs_output
+  upstream_asset_key: upstream_data
+  api_key_env_var: API_KEY
+  region: US
+  batch_size: 1000

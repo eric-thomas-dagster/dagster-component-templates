@@ -1,0 +1,12 @@
+# Dynatrace Resource
+
+Dynatrace API client wrapper (Environment API v2 + Metrics API v2). Works with SaaS and Managed environments.
+
+## Companion components
+
+- `dataframe_to_dynatrace_events` — push events to Dynatrace
+- `dynatrace_metrics_query` — query metrics → DataFrame
+
+## Validation
+
+Code-validated against Dynatrace API v2 spec. End-to-end validation requires a Dynatrace tenant (15-day free trial).

@@ -1,0 +1,113 @@
+{
+  "component_type": "dagster_component_templates.DataframeFromPrometheusComponent",
+  "description": "Run a PromQL query against any Prometheus-compatible server's HTTP API and return results as a DataFrame. Works against open-source Prometheus, Cortex, Thanos, Mimir, VictoriaMetrics, Azure Managed Prometheus, Grafana Cloud.",
+  "category": "source",
+  "icon": "LineChart",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "server_url": {
+      "type": "string",
+      "label": "Server Url",
+      "required": true
+    },
+    "query": {
+      "type": "string",
+      "label": "Query",
+      "required": true
+    },
+    "range_query": {
+      "type": "boolean",
+      "label": "Range Query",
+      "required": false,
+      "default": false
+    },
+    "range_seconds": {
+      "type": "integer",
+      "label": "Range Seconds",
+      "required": false,
+      "default": 3600
+    },
+    "step_seconds": {
+      "type": "integer",
+      "label": "Step Seconds",
+      "required": false,
+      "default": 60
+    },
+    "bearer_token_env_var": {
+      "type": "string",
+      "label": "Bearer Token Env Var",
+      "required": false,
+      "default": null
+    },
+    "basic_auth_user_env_var": {
+      "type": "string",
+      "label": "Basic Auth User Env Var",
+      "required": false,
+      "default": null
+    },
+    "basic_auth_pass_env_var": {
+      "type": "string",
+      "label": "Basic Auth Pass Env Var",
+      "required": false,
+      "default": null
+    },
+    "extra_headers": {
+      "type": "object",
+      "label": "Extra Headers",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

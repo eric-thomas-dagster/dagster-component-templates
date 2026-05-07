@@ -1,0 +1,12 @@
+type: dagster_component_templates.DataframeToKustoComponent
+attributes:
+  asset_name: events_in_kusto
+  upstream_asset_key: events_normalized
+  cluster_url: https://mycluster.eastus.kusto.windows.net
+  database: SecurityAnalytics
+  table: NormalizedEvents
+  use_streaming_ingestion: false
+  if_exists: append
+  tenant_id_env_var: AZURE_TENANT_ID
+  client_id_env_var: AZURE_CLIENT_ID
+  client_secret_env_var: AZURE_CLIENT_SECRET

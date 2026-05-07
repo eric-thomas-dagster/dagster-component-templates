@@ -1,0 +1,115 @@
+{
+  "component_type": "dagster_component_templates.DataframeToKustoComponent",
+  "description": "Push a DataFrame to a Kusto table on an ADX cluster. Queued ingestion (durable) by default; streaming ingestion (low latency) optional.",
+  "category": "sink",
+  "icon": "Upload",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "cluster_url": {
+      "type": "string",
+      "label": "Cluster Url",
+      "required": true
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "required": true
+    },
+    "table": {
+      "type": "string",
+      "label": "Table",
+      "required": true
+    },
+    "use_streaming_ingestion": {
+      "type": "boolean",
+      "label": "Use Streaming Ingestion",
+      "required": false,
+      "default": false
+    },
+    "if_exists": {
+      "type": "string",
+      "label": "If Exists",
+      "required": false,
+      "default": "append",
+      "enum": [
+        "append",
+        "replace"
+      ]
+    },
+    "tenant_id_env_var": {
+      "type": "string",
+      "label": "Tenant Id Env Var",
+      "required": false,
+      "default": null
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client Id Env Var",
+      "required": false,
+      "default": null
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "required": false,
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

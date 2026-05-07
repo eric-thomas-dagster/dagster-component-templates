@@ -1,0 +1,56 @@
+{
+  "component_type": "dagster_component_templates.SapHanaResourceComponent",
+  "description": "SAP HANA database resource \u2014 provides a SQLAlchemy URL helper. Works with HANA Cloud, on-prem, and Azure HANA (preview). Use with existing dataframe_to_table / dataframe_from_sql.",
+  "category": "resource",
+  "icon": "Database",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "sap_hana"
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "required": true
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "required": false,
+      "default": 443
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "required": false,
+      "default": null
+    },
+    "user": {
+      "type": "string",
+      "label": "User",
+      "required": true
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": true
+    },
+    "encrypt": {
+      "type": "boolean",
+      "label": "Encrypt",
+      "required": false,
+      "default": true
+    },
+    "validate_certificate": {
+      "type": "boolean",
+      "label": "Validate Certificate",
+      "required": false,
+      "default": true
+    }
+  }
+}

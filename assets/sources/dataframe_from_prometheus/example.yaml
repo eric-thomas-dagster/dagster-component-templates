@@ -1,0 +1,15 @@
+type: dagster_component_templates.DataframeFromPrometheusComponent
+attributes:
+  asset_name: cpu_usage_last_hour
+  server_url: http://prometheus.example.com:9090
+  query: 'rate(node_cpu_seconds_total{mode="user"}[5m])'
+  range_query: true
+  range_seconds: 3600
+  step_seconds: 60
+
+  # Azure Managed Prometheus auth
+  # bearer_token_env_var: AZURE_PROMETHEUS_TOKEN
+
+  # Multi-tenant Cortex/Mimir
+  # extra_headers:
+  #   X-Scope-OrgID: tenant1

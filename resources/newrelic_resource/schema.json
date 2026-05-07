@@ -1,0 +1,37 @@
+{
+  "component_type": "dagster_component_templates.NewRelicResourceComponent",
+  "description": "New Relic API client wrapper (NerdGraph + Logs/Metrics/Events ingestion endpoints). Supports US + EU regions.",
+  "category": "resource",
+  "icon": "Activity",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "newrelic"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "required": true
+    },
+    "account_id": {
+      "type": "string",
+      "label": "Account Id",
+      "required": true
+    },
+    "region": {
+      "type": "string",
+      "label": "Region",
+      "required": false,
+      "default": "US",
+      "enum": [
+        "US",
+        "EU"
+      ]
+    }
+  }
+}

@@ -1,0 +1,5 @@
+type: dagster_component_templates.DynatraceResourceComponent
+attributes:
+  resource_key: dynatrace
+  environment_url: https://example.com
+  api_token_env_var: API_TOKEN

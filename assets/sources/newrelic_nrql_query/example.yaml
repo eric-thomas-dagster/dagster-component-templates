@@ -1,0 +1,7 @@
+type: dagster_component_templates.NewRelicNrqlQueryComponent
+attributes:
+  asset_name: newrelic_nrql_query_output
+  api_key_env_var: API_KEY
+  account_id: 1234567
+  region: US
+  query: SELECT 1

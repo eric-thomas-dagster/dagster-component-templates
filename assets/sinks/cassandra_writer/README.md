@@ -62,3 +62,24 @@ attributes:
 
 - `pandas>=1.5.0`
 - `cassandra-driver>=3.25.0`
+
+
+## Azure Cosmos DB Cassandra API + Azure Managed Instance for Cassandra
+
+This component works against:
+
+- **Azure Cosmos DB Cassandra API** — wire-compatible CQL endpoint;
+  use `<account>.cassandra.cosmos.azure.com:10350` and TLS.
+- **Azure Managed Instance for Apache Cassandra** — fully-managed
+  multi-node Cassandra; use the seed node hosts from the cluster.
+
+```yaml
+attributes:
+  contact_points: ["myaccount.cassandra.cosmos.azure.com"]
+  port: 10350
+  ssl: true
+  keyspace: orders
+  username_env_var: COSMOS_CASSANDRA_USERNAME
+  password_env_var: COSMOS_CASSANDRA_PASSWORD
+```
+

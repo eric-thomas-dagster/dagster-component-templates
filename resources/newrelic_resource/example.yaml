@@ -1,0 +1,6 @@
+type: dagster_component_templates.NewRelicResourceComponent
+attributes:
+  resource_key: newrelic
+  api_key_env_var: API_KEY
+  account_id: 1234567
+  region: US

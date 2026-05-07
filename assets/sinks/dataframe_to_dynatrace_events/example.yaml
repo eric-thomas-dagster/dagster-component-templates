@@ -1,0 +1,7 @@
+type: dagster_component_templates.DataframeToDynatraceEventsComponent
+attributes:
+  asset_name: dataframe_to_dynatrace_events_output
+  upstream_asset_key: upstream_data
+  environment_url: https://example.com
+  api_token_env_var: API_TOKEN
+  event_type: CUSTOM_INFO

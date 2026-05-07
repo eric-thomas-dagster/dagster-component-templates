@@ -1,0 +1,10 @@
+{
+  "component_type": "dagster_component_templates.AwsCloudwatchLogsInsightsQueryComponent",
+  "description": "Run a Logs Insights query against CloudWatch Logs and materialize the result as a DataFrame.",
+  "category": "source",
+  "icon": "Search",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {}
+}

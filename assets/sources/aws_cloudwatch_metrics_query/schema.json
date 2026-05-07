@@ -1,0 +1,10 @@
+{
+  "component_type": "dagster_component_templates.AwsCloudwatchMetricsQueryComponent",
+  "description": "Run a CloudWatch GetMetricData query and materialize the result as a DataFrame asset. Counterpart to azure_log_analytics_query but for AWS.",
+  "category": "source",
+  "icon": "LineChart",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {}
+}

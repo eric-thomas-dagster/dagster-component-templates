@@ -1,0 +1,10 @@
+{
+  "component_type": "dagster_component_templates.PlaidResourceComponent",
+  "description": "Plaid REST API client for fintech data: accounts, transactions, identity, balance.",
+  "category": "resource",
+  "icon": "CreditCard",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {}
+}

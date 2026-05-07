@@ -900,6 +900,48 @@
       "component_type": "dagster_component_templates.AWSCDKAssetComponent"
     },
     {
+      "id": "aws_cloudwatch_logs_insights_query",
+      "name": "AWS CloudWatch Logs Insights Query",
+      "category": "source",
+      "description": "Run a Logs Insights query against CloudWatch Logs and materialize the result as a DataFrame.",
+      "path": "assets/sources/aws_cloudwatch_logs_insights_query",
+      "tags": [
+        "source",
+        "aws",
+        "cloudwatch",
+        "logs"
+      ],
+      "type": "dagster_component_templates.AwsCloudwatchLogsInsightsQueryComponent",
+      "component_type": "dagster_component_templates.AwsCloudwatchLogsInsightsQueryComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_logs_insights_query/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_logs_insights_query/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_logs_insights_query/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_logs_insights_query/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_logs_insights_query/requirements.txt",
+      "icon": "Search"
+    },
+    {
+      "id": "aws_cloudwatch_metrics_query",
+      "name": "AWS CloudWatch Metrics Query",
+      "category": "source",
+      "description": "Run a CloudWatch GetMetricData query and materialize the result as a DataFrame asset. Counterpart to azure_log_analytics_query but for AWS.",
+      "path": "assets/sources/aws_cloudwatch_metrics_query",
+      "tags": [
+        "source",
+        "aws",
+        "cloudwatch",
+        "metrics"
+      ],
+      "type": "dagster_component_templates.AwsCloudwatchMetricsQueryComponent",
+      "component_type": "dagster_component_templates.AwsCloudwatchMetricsQueryComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_metrics_query/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_metrics_query/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_metrics_query/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_metrics_query/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_metrics_query/requirements.txt",
+      "icon": "LineChart"
+    },
+    {
       "id": "aws_dms",
       "name": "Aws Dms",
       "category": "integration",
@@ -3052,9 +3094,10 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_fabric_lakehouse/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_fabric_lakehouse/requirements.txt",
       "validation": {
-        "level": "live",
+        "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
-        "last_validated": "2026-05-06"
+        "last_validated": "2026-05-06",
+        "validation_blocker": "Fabric tenant blocked"
       }
     },
     {
@@ -3141,6 +3184,88 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_newrelic_logs/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_newrelic_logs/requirements.txt",
       "icon": "Upload"
+    },
+    {
+      "id": "dataframe_to_otlp_logs",
+      "name": "DataFrame \u2192 OTLP Logs",
+      "category": "sink",
+      "description": "Push DataFrame rows as OpenTelemetry log records via OTLP/HTTP. Same universal-backend story as the metrics sink.",
+      "path": "assets/sinks/dataframe_to_otlp_logs",
+      "tags": [
+        "sink",
+        "opentelemetry",
+        "otel",
+        "logs",
+        "observability"
+      ],
+      "type": "dagster_component_templates.DataframeToOtlpLogsComponent",
+      "component_type": "dagster_component_templates.DataframeToOtlpLogsComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_logs/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_logs/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_logs/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_logs/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_logs/requirements.txt",
+      "icon": "FileText",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/opentelemetry_demo.md",
+        "last_validated": "2026-05-06"
+      }
+    },
+    {
+      "id": "dataframe_to_otlp_metrics",
+      "name": "DataFrame \u2192 OTLP Metrics",
+      "category": "sink",
+      "description": "Push DataFrame rows as OpenTelemetry metrics via OTLP/HTTP. ONE sink, ANY backend (OTel collector, Honeycomb, Lightstep, Datadog, Splunk Observability, Grafana Cloud, etc.).",
+      "path": "assets/sinks/dataframe_to_otlp_metrics",
+      "tags": [
+        "sink",
+        "opentelemetry",
+        "otel",
+        "metrics",
+        "observability"
+      ],
+      "type": "dagster_component_templates.DataframeToOtlpMetricsComponent",
+      "component_type": "dagster_component_templates.DataframeToOtlpMetricsComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_metrics/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_metrics/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_metrics/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_metrics/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_metrics/requirements.txt",
+      "icon": "LineChart",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/opentelemetry_demo.md",
+        "last_validated": "2026-05-06"
+      }
+    },
+    {
+      "id": "dataframe_to_otlp_traces",
+      "name": "DataFrame \u2192 OTLP Traces",
+      "category": "sink",
+      "description": "Push DataFrame rows as OpenTelemetry spans via OTLP/HTTP. Emit synthetic spans for batch jobs / ETL stages so they show up in tracing UIs alongside live application traces.",
+      "path": "assets/sinks/dataframe_to_otlp_traces",
+      "tags": [
+        "sink",
+        "opentelemetry",
+        "otel",
+        "traces",
+        "tracing",
+        "observability"
+      ],
+      "type": "dagster_component_templates.DataframeToOtlpTracesComponent",
+      "component_type": "dagster_component_templates.DataframeToOtlpTracesComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_traces/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_traces/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_traces/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_traces/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_otlp_traces/requirements.txt",
+      "icon": "GitBranch",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/opentelemetry_demo.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "dataframe_to_parquet",
@@ -5066,9 +5191,10 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/fabric_lakehouse_io_manager/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/fabric_lakehouse_io_manager/requirements.txt",
       "validation": {
-        "level": "live",
+        "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
-        "last_validated": "2026-05-06"
+        "last_validated": "2026-05-06",
+        "validation_blocker": "Fabric tenant blocked"
       }
     },
     {
@@ -5093,9 +5219,10 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fabric_lakehouse_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fabric_lakehouse_resource/requirements.txt",
       "validation": {
-        "level": "live",
+        "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
-        "last_validated": "2026-05-06"
+        "last_validated": "2026-05-06",
+        "validation_blocker": "Fabric tenant blocked"
       }
     },
     {
@@ -5119,9 +5246,10 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fabric_pipeline_trigger_job/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fabric_pipeline_trigger_job/requirements.txt",
       "validation": {
-        "level": "live",
+        "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
-        "last_validated": "2026-05-06"
+        "last_validated": "2026-05-06",
+        "validation_blocker": "Fabric tenant blocked"
       }
     },
     {
@@ -5145,9 +5273,10 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/fabric_workspace/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/fabric_workspace/requirements.txt",
       "validation": {
-        "level": "live",
+        "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
-        "last_validated": "2026-05-06"
+        "last_validated": "2026-05-06",
+        "validation_blocker": "Fabric tenant blocked at Power BI admin settings"
       }
     },
     {
@@ -5171,9 +5300,10 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fabric_workspace_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fabric_workspace_resource/requirements.txt",
       "validation": {
-        "level": "live",
+        "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
-        "last_validated": "2026-05-06"
+        "last_validated": "2026-05-06",
+        "validation_blocker": "Fabric tenant blocked"
       }
     },
     {
@@ -6788,6 +6918,27 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/insurance_claim_extractor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/insurance_claim_extractor/requirements.txt",
       "icon": "Shield"
+    },
+    {
+      "id": "intercom_resource",
+      "name": "Intercom Resource",
+      "category": "resource",
+      "description": "Intercom REST API client for support data ingestion.",
+      "path": "resources/intercom_resource",
+      "tags": [
+        "resource",
+        "intercom",
+        "support",
+        "saas"
+      ],
+      "type": "dagster_component_templates.IntercomResourceComponent",
+      "component_type": "dagster_component_templates.IntercomResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/intercom_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/intercom_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/intercom_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/intercom_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/intercom_resource/requirements.txt",
+      "icon": "MessageCircle"
     },
     {
       "id": "interval_schedule",
@@ -8405,6 +8556,27 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/marketing_data_standardizer/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/marketing_data_standardizer/requirements.txt",
       "icon": "BarChart2"
+    },
+    {
+      "id": "marketo_resource",
+      "name": "Marketo Resource",
+      "category": "resource",
+      "description": "Marketo REST API client wrapper. OAuth client_credentials grant.",
+      "path": "resources/marketo_resource",
+      "tags": [
+        "resource",
+        "marketo",
+        "marketing",
+        "saas"
+      ],
+      "type": "dagster_component_templates.MarketoResourceComponent",
+      "component_type": "dagster_component_templates.MarketoResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/marketo_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/marketo_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/marketo_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/marketo_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/marketo_resource/requirements.txt",
+      "icon": "Megaphone"
     },
     {
       "id": "matillion_job_sensor",
@@ -10265,6 +10437,27 @@
       "x-dagster-provides": [
         "pipedrive_resource"
       ]
+    },
+    {
+      "id": "plaid_resource",
+      "name": "Plaid Resource",
+      "category": "resource",
+      "description": "Plaid REST API client for fintech data: accounts, transactions, identity, balance.",
+      "path": "resources/plaid_resource",
+      "tags": [
+        "resource",
+        "plaid",
+        "fintech",
+        "saas"
+      ],
+      "type": "dagster_component_templates.PlaidResourceComponent",
+      "component_type": "dagster_component_templates.PlaidResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/plaid_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/plaid_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/plaid_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/plaid_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/plaid_resource/requirements.txt",
+      "icon": "CreditCard"
     },
     {
       "id": "point_in_polygon",
@@ -13339,9 +13532,10 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/synapse_sql_pool_admin_job/requirements.txt",
       "icon": "Power",
       "validation": {
-        "level": "live",
+        "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
-        "last_validated": "2026-05-06"
+        "last_validated": "2026-05-06",
+        "validation_blocker": "no dedicated SQL pool provisioned (cost)"
       }
     },
     {
@@ -14448,6 +14642,27 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/workable_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/workable_ingestion/requirements.txt",
       "icon": "ArrowUpFromLine"
+    },
+    {
+      "id": "workday_resource",
+      "name": "Workday Resource",
+      "category": "resource",
+      "description": "Workday REST API client wrapper (OAuth Client Grant flow).",
+      "path": "resources/workday_resource",
+      "tags": [
+        "resource",
+        "workday",
+        "hr",
+        "saas"
+      ],
+      "type": "dagster_component_templates.WorkdayResourceComponent",
+      "component_type": "dagster_component_templates.WorkdayResourceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/workday_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/workday_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/workday_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/workday_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/workday_resource/requirements.txt",
+      "icon": "Briefcase"
     },
     {
       "id": "xml_parser",

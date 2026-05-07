@@ -1,0 +1,10 @@
+{
+  "component_type": "dagster_component_templates.WorkdayResourceComponent",
+  "description": "Workday REST API client wrapper (OAuth Client Grant flow).",
+  "category": "resource",
+  "icon": "Briefcase",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {}
+}

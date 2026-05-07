@@ -1,0 +1,10 @@
+{
+  "component_type": "dagster_component_templates.IntercomResourceComponent",
+  "description": "Intercom REST API client for support data ingestion.",
+  "category": "resource",
+  "icon": "MessageCircle",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {}
+}

@@ -1,0 +1,10 @@
+{
+  "component_type": "dagster_component_templates.DataframeToOtlpMetricsComponent",
+  "description": "Push DataFrame rows as OpenTelemetry metrics via OTLP/HTTP. ONE sink, ANY backend (OTel collector, Honeycomb, Lightstep, Datadog, Splunk Observability, Grafana Cloud, etc.).",
+  "category": "sink",
+  "icon": "LineChart",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {}
+}

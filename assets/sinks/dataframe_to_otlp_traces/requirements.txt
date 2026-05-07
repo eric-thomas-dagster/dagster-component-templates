@@ -1,0 +1,4 @@
+dagster
+pandas
+opentelemetry-sdk
+opentelemetry-exporter-otlp-proto-http

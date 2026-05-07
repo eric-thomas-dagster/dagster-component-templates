@@ -1,0 +1,10 @@
+{
+  "component_type": "dagster_component_templates.DataframeToOtlpTracesComponent",
+  "description": "Push DataFrame rows as OpenTelemetry spans via OTLP/HTTP. Emit synthetic spans for batch jobs / ETL stages so they show up in tracing UIs alongside live application traces.",
+  "category": "sink",
+  "icon": "GitBranch",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {}
+}

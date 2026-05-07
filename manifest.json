@@ -918,7 +918,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_logs_insights_query/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_logs_insights_query/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_logs_insights_query/requirements.txt",
-      "icon": "Search"
+      "icon": "Search",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/aws_cloudwatch.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "aws_cloudwatch_metrics_query",
@@ -939,7 +944,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_metrics_query/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_metrics_query/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/aws_cloudwatch_metrics_query/requirements.txt",
-      "icon": "LineChart"
+      "icon": "LineChart",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/aws_cloudwatch.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "aws_dms",
@@ -1130,7 +1140,7 @@
       "icon": "si:microsoftazure",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/bicep_self_provision.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_data_factory.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -1155,7 +1165,12 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_log_analytics_query/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_log_analytics_query/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_log_analytics_query/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_log_analytics_query/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_log_analytics_query/requirements.txt",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_data_explorer.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "azure_openai_resource",
@@ -1203,7 +1218,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/azure_search_indexer/requirements.txt",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/azure_search_indexer/README.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_search.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -1230,7 +1245,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_search_query/requirements.txt",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_search_query/README.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_search.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -1304,7 +1319,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_table_reader/requirements.txt",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/azure_table_reader/README.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_tables.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -1470,7 +1485,12 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/buffer/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/buffer/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/buffer/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/buffer/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/buffer/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/store_coverage.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "campaign_performance",
@@ -2385,7 +2405,7 @@
       "icon": "ArrowUpFromLine",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/store_coverage.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/airports_cluster.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -2791,7 +2811,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_kusto/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_kusto/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_kusto/requirements.txt",
-      "icon": "Search"
+      "icon": "Search",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_data_explorer.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "dataframe_from_prometheus",
@@ -2816,7 +2841,7 @@
       "icon": "LineChart",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_prometheus/README.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/prometheus_demo.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -2840,7 +2865,7 @@
       "icon": "Database",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_synapse_serverless.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -2887,7 +2912,7 @@
       "icon": "Shuffle",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/spacex_join.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/adls_round_trip.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -2910,7 +2935,7 @@
       "icon": "si:microsoftazure",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/bicep_self_provision.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/adls_round_trip.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -2937,7 +2962,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_azure_table/requirements.txt",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_azure_table/README.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_tables.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -2978,7 +3003,7 @@
       "icon": "ArrowDownToLine",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/sensor_gapfill.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_redis.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -3020,7 +3045,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_dynatrace_events/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_dynatrace_events/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_dynatrace_events/requirements.txt",
-      "icon": "Upload"
+      "icon": "Upload",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/newrelic_dynatrace.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "dataframe_to_eventhub",
@@ -3096,8 +3126,7 @@
       "validation": {
         "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
-        "last_validated": "2026-05-06",
-        "validation_blocker": "Fabric tenant blocked"
+        "last_validated": "2026-05-06"
       }
     },
     {
@@ -3137,7 +3166,7 @@
       "icon": "ArrowDownToLine",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/earthquakes.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/books_scraper.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -3161,7 +3190,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_kusto/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_kusto/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_kusto/requirements.txt",
-      "icon": "Upload"
+      "icon": "Upload",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_data_explorer.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "dataframe_to_newrelic_logs",
@@ -3183,7 +3217,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_newrelic_logs/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_newrelic_logs/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_newrelic_logs/requirements.txt",
-      "icon": "Upload"
+      "icon": "Upload",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/newrelic_dynatrace.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "dataframe_to_otlp_logs",
@@ -3286,7 +3325,7 @@
       "icon": "ArrowDownToLine",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/releases.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/dagster_plus_security_lake.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -3313,7 +3352,7 @@
       "icon": "Upload",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_prometheus/README.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/prometheus_demo.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -3373,7 +3412,12 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_servicebus/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_servicebus/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_servicebus/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_servicebus/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_servicebus/requirements.txt",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_servicebus.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "dataframe_to_snowflake",
@@ -3412,7 +3456,7 @@
       "icon": "ArrowDownToLine",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_mysql.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -3504,7 +3548,7 @@
       "icon": "Shuffle",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/releases.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/cars_sql.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -4224,7 +4268,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dynatrace_metrics_query/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dynatrace_metrics_query/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dynatrace_metrics_query/requirements.txt",
-      "icon": "LineChart"
+      "icon": "LineChart",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/newrelic_dynatrace.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "dynatrace_resource",
@@ -4246,7 +4295,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dynatrace_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dynatrace_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dynatrace_resource/requirements.txt",
-      "icon": "Activity"
+      "icon": "Activity",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/newrelic_dynatrace.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "ecommerce_standardizer",
@@ -4401,7 +4455,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/embeddings_generator/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/embeddings_generator/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/embeddings_generator/requirements.txt",
-      "icon": "Sparkles"
+      "icon": "Sparkles",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_search.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "enhanced_data_quality_checks",
@@ -5193,8 +5252,7 @@
       "validation": {
         "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
-        "last_validated": "2026-05-06",
-        "validation_blocker": "Fabric tenant blocked"
+        "last_validated": "2026-05-06"
       }
     },
     {
@@ -5221,8 +5279,7 @@
       "validation": {
         "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
-        "last_validated": "2026-05-06",
-        "validation_blocker": "Fabric tenant blocked"
+        "last_validated": "2026-05-06"
       }
     },
     {
@@ -5248,8 +5305,7 @@
       "validation": {
         "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
-        "last_validated": "2026-05-06",
-        "validation_blocker": "Fabric tenant blocked"
+        "last_validated": "2026-05-06"
       }
     },
     {
@@ -5275,8 +5331,7 @@
       "validation": {
         "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
-        "last_validated": "2026-05-06",
-        "validation_blocker": "Fabric tenant blocked at Power BI admin settings"
+        "last_validated": "2026-05-06"
       }
     },
     {
@@ -5302,8 +5357,7 @@
       "validation": {
         "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
-        "last_validated": "2026-05-06",
-        "validation_blocker": "Fabric tenant blocked"
+        "last_validated": "2026-05-06"
       }
     },
     {
@@ -5425,7 +5479,7 @@
       "icon": "TrendingUp",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/wine_ml_pipeline.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/iris_unsupervised.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -5516,7 +5570,12 @@
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/filter/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/filter/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/filter/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/filter/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/filter/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/cities_distance.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "find_replace",
@@ -5672,7 +5731,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/formula/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/formula/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/formula/requirements.txt",
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/arxiv_pdf.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "freshdesk_ingestion",
@@ -6867,7 +6931,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/imputation/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/imputation/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/imputation/requirements.txt",
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/penguins.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "instructor_extractor",
@@ -6938,7 +7007,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/intercom_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/intercom_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/intercom_resource/requirements.txt",
-      "icon": "MessageCircle"
+      "icon": "MessageCircle",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/enterprise_saas.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "interval_schedule",
@@ -7367,7 +7441,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/key_vault_resource/requirements.txt",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/key_vault_resource/README.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/key_vault.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -7862,7 +7936,7 @@
       "icon": "ArrowRightLeft",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lineage_catalogs.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -8576,7 +8650,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/marketo_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/marketo_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/marketo_resource/requirements.txt",
-      "icon": "Megaphone"
+      "icon": "Megaphone",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/enterprise_saas.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "matillion_job_sensor",
@@ -9362,7 +9441,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mysql_io_manager/requirements.txt",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_postgres.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_mysql.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -9396,7 +9475,7 @@
       ],
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_postgres.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_mysql.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -9652,7 +9731,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/newrelic_nrql_query/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/newrelic_nrql_query/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/newrelic_nrql_query/requirements.txt",
-      "icon": "Search"
+      "icon": "Search",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/newrelic_dynatrace.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "newrelic_resource",
@@ -9674,7 +9758,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/newrelic_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/newrelic_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/newrelic_resource/requirements.txt",
-      "icon": "Activity"
+      "icon": "Activity",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/newrelic_dynatrace.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "notion_database_sensor",
@@ -9815,7 +9904,7 @@
       "icon": "Grid3x3",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/titanic_complete.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/penguins.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -10131,7 +10220,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pca/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pca/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pca/requirements.txt",
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/iris_unsupervised.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "pdf_text_extractor",
@@ -10457,7 +10551,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/plaid_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/plaid_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/plaid_resource/requirements.txt",
-      "icon": "CreditCard"
+      "icon": "CreditCard",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/enterprise_saas.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "point_in_polygon",
@@ -11205,7 +11304,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/rank/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/rank/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/rank/requirements.txt",
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/kitchen_sink.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "receipt_extractor",
@@ -11487,7 +11591,7 @@
       "icon": "Shuffle",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/books_scraper.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/arxiv_pdf.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -11548,7 +11652,7 @@
       "icon": "ArrowUpFromLine",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/earthquakes.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/books_scraper.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -11761,7 +11865,7 @@
       "icon": "Shuffle",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/sensor_gapfill.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/retail_analytics.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -11994,9 +12098,8 @@
       "icon": "Database",
       "validation": {
         "level": "code",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sap_hana_resource/README.md",
-        "last_validated": "2026-05-06",
-        "validation_blocker": "HANA Express Docker image is x86_64-only (incompatible with arm64 hosts); HANA Cloud requires SAP BTP manual signup; HANA on Azure is partner-licensed (SAP) with multi-thousand-dollar minimum cost."
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/sap_hana.md",
+        "last_validated": "2026-05-06"
       }
     },
     {
@@ -12166,7 +12269,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/servicebus_monitor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/servicebus_monitor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/servicebus_monitor/requirements.txt",
-      "icon": "Radar"
+      "icon": "Radar",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_servicebus.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "servicebus_observation_sensor",
@@ -12213,7 +12321,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/servicebus_to_database_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/servicebus_to_database_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/servicebus_to_database_asset/requirements.txt",
-      "component_type": "dagster_component_templates.ServiceBusToDatabaseAssetComponent"
+      "component_type": "dagster_component_templates.ServiceBusToDatabaseAssetComponent",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_servicebus.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "servicenow_sensor",
@@ -12690,7 +12803,12 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/smooth/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/smooth/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/smooth/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/smooth/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/smooth/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/store_coverage.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "smtp_resource",
@@ -12944,7 +13062,12 @@
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/sort/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/sort/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/sort/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/sort/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/sort/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/cities_distance.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "spatial_cluster",
@@ -13389,7 +13512,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/subscription_metrics/requirements.txt",
       "icon": "BarChart2",
       "validation": {
-        "level": "live",
+        "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/saas_metrics.md",
         "last_validated": "2026-05-06"
       }
@@ -13409,7 +13532,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/summarize/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/summarize/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/summarize/requirements.txt",
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/adls_inbox.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "support_ticket_ingestion",
@@ -13540,8 +13668,7 @@
       "validation": {
         "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
-        "last_validated": "2026-05-06",
-        "validation_blocker": "no dedicated SQL pool provisioned (cost)"
+        "last_validated": "2026-05-06"
       }
     },
     {
@@ -13589,7 +13716,7 @@
       "icon": "Sparkles",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/sensor_gapfill.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/adls_round_trip.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -14045,7 +14172,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/transpose/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/transpose/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/transpose/requirements.txt",
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/pivot_unpivot.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "trino_io_manager",
@@ -14176,7 +14308,7 @@
       "icon": "Shuffle",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/sensor_gapfill.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/forecast_comparison.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -14668,7 +14800,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/workday_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/workday_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/workday_resource/requirements.txt",
-      "icon": "Briefcase"
+      "icon": "Briefcase",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/enterprise_saas.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "xml_parser",
@@ -14689,7 +14826,7 @@
       "icon": "Shuffle",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/rss_sensor.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/hn_xml.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -15910,7 +16047,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/ingestion/dagster_plus_audit_log_ingestion/requirements.txt",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/dagster_plus_security_lake.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/dagster_plus_to_sentinel.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -16026,7 +16163,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/ocsf_normalizer/requirements.txt",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/dagster_plus_security_lake.md",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/dagster_plus_to_sentinel.md",
         "last_validated": "2026-05-06"
       }
     },
@@ -16115,7 +16252,12 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/pivot/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/pivot/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/pivot/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/pivot/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/pivot/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/pivot_unpivot.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "unpivot",
@@ -16140,7 +16282,12 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/unpivot/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/unpivot/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/unpivot/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/unpivot/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/unpivot/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/prometheus_demo.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "scd_type_1",
@@ -16220,7 +16367,12 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/router/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/router/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/router/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/router/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/router/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/router.md",
+        "last_validated": "2026-05-06"
+      }
     },
     {
       "id": "lookup",

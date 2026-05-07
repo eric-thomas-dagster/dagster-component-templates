@@ -2317,21 +2317,27 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             return self._flat_config.get(field_name, default)
         return default
     
-    def _get_check_severity(self, check_config: dict) -> str:
-        """Get severity level from check configuration, defaulting to WARN."""
-        severity = check_config.get("severity", CheckSeverity.WARN)
-        # If it's already an enum, return the value
-        if isinstance(severity, CheckSeverity):
-            return severity.value
-        # If it's a string, validate and convert
-        if isinstance(severity, str):
+    def _get_check_severity(self, check_config: dict):
+        """Get severity level from check configuration, defaulting to WARN.
+
+        Returns a Dagster AssetCheckSeverity enum (required by AssetCheckResult,
+        not a plain string).
+        """
+        from dagster import AssetCheckSeverity
+        raw = check_config.get("severity", CheckSeverity.WARN)
+        # Resolve to a string value first
+        if isinstance(raw, CheckSeverity):
+            level = raw.value
+        elif isinstance(raw, str):
             try:
-                return CheckSeverity(severity.upper()).value
+                level = CheckSeverity(raw.upper()).value
             except ValueError:
-                print(f"Warning: Invalid severity '{severity}', defaulting to 'WARN'")
-                return CheckSeverity.WARN.value
-        # Default to WARN
-        return CheckSeverity.WARN.value
+                print(f"Warning: Invalid severity '{raw}', defaulting to 'WARN'")
+                level = CheckSeverity.WARN.value
+        else:
+            level = CheckSeverity.WARN.value
+        # Map to Dagster's AssetCheckSeverity enum (required by AssetCheckResult)
+        return AssetCheckSeverity.WARN if level.upper() == "WARN" else AssetCheckSeverity.ERROR
 
     def _get_check_name(self, asset_key: AssetKey, component, default_suffix: str) -> str:
         """Get check name from config or generate default.
@@ -2456,6 +2462,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             component = self
             
         check_name = self._get_check_name(asset_key, component, "entropy_analysis")
+        sanitized_name = self._sanitize_asset_key_name(asset_key)
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
             @asset_check(asset=asset_key, name=f"{sanitized_name}_entropy")
             def dataframe_entropy_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
@@ -2481,6 +2488,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             component = self
             
         check_name = self._get_check_name(asset_key, component, "correlation_check")
+        sanitized_name = self._sanitize_asset_key_name(asset_key)
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
             @asset_check(asset=asset_key, name=f"{sanitized_name}_correlation")
             def dataframe_correlation_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
@@ -2656,6 +2664,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             component = self
             
         check_name = self._get_check_name(asset_key, component, "predicted_range")
+        sanitized_name = self._sanitize_asset_key_name(asset_key)
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
             @asset_check(asset=asset_key, name=f"{sanitized_name}_data_type")
             def dataframe_data_type_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
@@ -2731,6 +2740,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             component = self
             
         check_name = self._get_check_name(asset_key, component, "data_type_check")
+        sanitized_name = self._sanitize_asset_key_name(asset_key)
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
             @asset_check(asset=asset_key, name=f"{sanitized_name}_custom_dataframe_check")
             def dataframe_custom_dataframe_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:

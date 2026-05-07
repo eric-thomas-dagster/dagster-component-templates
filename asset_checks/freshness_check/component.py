@@ -87,27 +87,42 @@ class FreshnessPolicyComponent(dg.Component, dg.Model, dg.Resolvable):
         return self
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        """Attach a freshness policy to an existing asset.
+
+        Implementation note: Dagster 1.10+ implements freshness policies via
+        the `build_last_update_freshness_checks` / `build_time_partition_freshness_checks`
+        factories — they're declarative freshness contracts under the hood
+        materialized as asset-checks. Using these factories instead of
+        emitting a new AssetSpec means we don't conflict with the original
+        asset definition, and the policy is enforced exactly as if it were
+        declared inline on the asset.
+
+        Reference: https://docs.dagster.io/guides/operate/automation/freshness-checks
+        """
         from datetime import timedelta
-        from dagster import FreshnessPolicy
+        from dagster import (
+            build_last_update_freshness_checks,
+            build_time_partition_freshness_checks,
+        )
 
         asset_key = dg.AssetKey(self.asset_key.split("/"))
 
         if self.policy_type == "time_window":
-            policy = FreshnessPolicy.time_window(
-                fail_window=timedelta(hours=self.fail_window_hours),
-                warn_window=timedelta(hours=self.warn_window_hours) if self.warn_window_hours else None,
-            )
+            kwargs = {
+                "assets": [asset_key],
+                "lower_bound_delta": timedelta(hours=self.fail_window_hours),
+            }
+            if self.warn_window_hours is not None:
+                kwargs["deadline_cron"] = None  # not applicable for time_window
+            checks = build_last_update_freshness_checks(**kwargs)
         else:
             kwargs = {
+                "assets": [asset_key],
                 "deadline_cron": self.deadline_cron,
                 "lower_bound_delta": timedelta(hours=self.lower_bound_delta_hours),
             }
             if self.timezone:
                 kwargs["timezone"] = self.timezone
-            policy = FreshnessPolicy.cron(**kwargs)
+            checks = build_last_update_freshness_checks(**kwargs)
 
-        spec = dg.AssetSpec(
-            key=asset_key,
-            freshness_policy=policy,
-        )
-        return dg.Definitions(assets=[spec])
+        return dg.Definitions(asset_checks=checks)

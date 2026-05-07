@@ -118,10 +118,11 @@ class DataframeToOtlpLogsComponent(Component, Model, Resolvable):
             provider.add_log_record_processor(BatchLogRecordProcessor(exporter))
             set_logger_provider(provider)
 
-            # Bridge through stdlib logging — public path for LogRecord creation
-            handler = LoggingHandler(level=logging.NOTSET, logger_provider=provider)
+            # Bridge through stdlib logging — public path for LogRecord creation.
+            # Use DEBUG level so all severities make it through (we filter per-row by severity_to_log_level).
+            handler = LoggingHandler(level=logging.DEBUG, logger_provider=provider)
             otel_logger = logging.getLogger(f"dagster_otlp_sink.{id(self)}")
-            otel_logger.setLevel(logging.NOTSET)
+            otel_logger.setLevel(logging.DEBUG)
             otel_logger.addHandler(handler)
             otel_logger.propagate = False
 

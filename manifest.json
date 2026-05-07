@@ -11991,7 +11991,13 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sap_hana_resource/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sap_hana_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sap_hana_resource/requirements.txt",
-      "icon": "Database"
+      "icon": "Database",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sap_hana_resource/README.md",
+        "last_validated": "2026-05-06",
+        "validation_blocker": "HANA Express Docker image is x86_64-only (incompatible with arm64 hosts); HANA Cloud requires SAP BTP manual signup; HANA on Azure is partner-licensed (SAP) with multi-thousand-dollar minimum cost."
+      }
     },
     {
       "id": "schema_fit",

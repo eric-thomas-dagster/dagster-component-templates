@@ -23,6 +23,15 @@ have no example:
   small inference batch. Validation level `live` requires Ollama running
   on the target machine.
 
+## Canonicalize text_column → input_column across AI components
+
+Four AI components (`keyword_extractor`, `language_detector`,
+`pii_detector`, `pii_redactor`) use `text_column`; the rest of the AI
+family (embeddings_generator, entity_extractor, document_summarizer,
+sentiment_analyzer, etc.) uses the canonical `input_column`. Sweep
+these four to `input_column` for consistency across the YAML surface
+users actually write.
+
 ## OpenLineage op-job export
 
 The current `lineage_to_openlineage` (and the broader `lineage_to_*`

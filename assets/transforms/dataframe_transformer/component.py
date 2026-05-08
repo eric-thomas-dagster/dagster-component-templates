@@ -205,10 +205,15 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         description='JSON config for unpivot/melt: {"id_vars": ["id", "name"], "value_vars": ["q1", "q2", "q3"], "var_name": "quarter", "value_name": "sales"}'
     )
 
-    # Upstream asset keys for explicit data loading
-    upstream_asset_keys: Optional[str] = Field(
+    # Upstream asset wiring — per FIELD_CONVENTIONS: singular for one upstream,
+    # plural list for multi-source. If both are set, singular is prepended.
+    upstream_asset_key: Optional[str] = Field(
         default=None,
-        description='Comma-separated list of upstream asset keys to load data from (automatically set by custom lineage)'
+        description="Single upstream asset key. Convenience field for the common single-source case.",
+    )
+    upstream_asset_keys: Optional[List[str]] = Field(
+        default=None,
+        description="Multiple upstream asset keys for multi-source transforms.",
     )
 
     # Sample metadata
@@ -296,16 +301,18 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         calculated_columns_str = self.calculated_columns
         pivot_config_str = self.pivot_config
         unpivot_config_str = self.unpivot_config
-        upstream_asset_keys_str = self.upstream_asset_keys
         description = self.description or "Transform DataFrames from upstream assets"
         group_name = self.group_name
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
 
-        # Parse upstream asset keys if provided
-        upstream_keys = []
-        if upstream_asset_keys_str:
-            upstream_keys = [k.strip() for k in upstream_asset_keys_str.split(',')]
+        # Combine single + list upstreams. Singular field is for the common
+        # one-source case; list is for multi-source. Both may be set.
+        upstream_keys: List[str] = []
+        if self.upstream_asset_key:
+            upstream_keys.append(self.upstream_asset_key)
+        if self.upstream_asset_keys:
+            upstream_keys.extend(self.upstream_asset_keys)
 
         # Build partition definition
         partitions_def = None

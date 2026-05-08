@@ -21,6 +21,13 @@
       "description": "Name of the asset",
       "required": true
     },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame asset key. When set, reads the DataFrame from upstream (no input file) and writes it to output_directory in the requested format. Mutually exclusive with input_file_path.",
+      "required": false,
+      "default": null
+    },
     "input_file_path": {
       "type": "string",
       "label": "Input File Path",

@@ -19,7 +19,7 @@ columns, reading left-to-right and top-to-bottom.
 | `upstream_asset_key` | `str` | Yes | — | Upstream asset key providing a DataFrame |
 | `n_columns` | `int` | No | `2` | Number of output columns to wrap data into |
 | `value_column` | `str` | Yes | — | Column whose values to reshape |
-| `key_column` | `str` | No | `None` | Column to use as row labels in the output |
+| `pivot_column` | `str` | No | `None` | Column to use as row labels in the output |
 | `fill_value` | `str` | No | `None` | Fill value for the last row if values don't divide evenly |
 | `group_name` | `str` | No | `None` | Dagster asset group name |
 
@@ -49,7 +49,7 @@ attributes:
   upstream_asset_key: feature_list
   n_columns: 4
   value_column: feature_value
-  key_column: feature_name
+  pivot_column: feature_name
   fill_value: "N/A"
   group_name: wide_format
 ```
@@ -84,4 +84,4 @@ has an IO manager configured that can handle DataFrames.
 - Output columns are named `col_1`, `col_2`, ..., `col_N`.
 - The total number of output rows is `ceil(len(values) / n_columns)`.
 - `fill_value` pads the last row; set to `None` to leave cells as `NaN`.
-- When `key_column` is set, the output DataFrame index is set from that column's values.
+- When `pivot_column` is set, the output DataFrame index is set from that column's values.

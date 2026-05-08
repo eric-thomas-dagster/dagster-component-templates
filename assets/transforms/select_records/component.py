@@ -25,11 +25,15 @@ class SelectRecordsComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    mode: str = Field(default="range", description="'range', 'head', 'tail', or 'indices'")
+    mode: str = Field(default="range", description="'range', 'head', 'tail', 'indices', or 'expression'")
     start: int = Field(default=0, description="Starting row index for 'range' mode.")
     end: Optional[int] = Field(default=None, description="Ending row index (exclusive) for 'range' mode.")
     n: int = Field(default=10, description="Row count for 'head' or 'tail' mode.")
     indices: Optional[List[int]] = Field(default=None, description="Specific row indices for 'indices' mode.")
+    filter_expression: Optional[str] = Field(
+        default=None,
+        description="pandas-query expression for 'expression' mode, e.g. \"status == 'shipped' and quantity > 1\".",
+    )
 
     include_preview_metadata: bool = Field(
         default=False,
@@ -154,12 +158,18 @@ class SelectRecordsComponent(Component, Model, Resolvable):
         )
         def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
             df = upstream
-            if _self.mode == "head":
+            # Setting filter_expression implies mode='expression' — infer for ergonomics.
+            effective_mode = "expression" if _self.filter_expression else _self.mode
+            if effective_mode == "head":
                 out_df = df.head(_self.n)
-            elif _self.mode == "tail":
+            elif effective_mode == "tail":
                 out_df = df.tail(_self.n)
-            elif _self.mode == "indices":
+            elif effective_mode == "indices":
                 out_df = df.iloc[_self.indices or []]
+            elif effective_mode == "expression":
+                if not _self.filter_expression:
+                    raise ValueError("mode='expression' requires filter_expression")
+                out_df = df.query(_self.filter_expression)
             else:
                 end = _self.end if _self.end is not None else len(df)
                 out_df = df.iloc[_self.start : end]

@@ -1,6 +1,6 @@
 # SampleComponent
 
-Sample rows from a DataFrame using a fixed count (`n`) or a fraction (`frac`).
+Sample rows from a DataFrame using a fixed count (`sample_size`) or a fraction (`frac`).
 Supports weighted sampling and sampling with replacement for bootstrapping.
 
 ## Use Cases
@@ -16,14 +16,14 @@ Supports weighted sampling and sampling with replacement for bootstrapping.
 |-------|------|----------|---------|-------------|
 | `asset_name` | `str` | Yes | — | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Yes | — | Upstream asset key providing a DataFrame |
-| `n` | `int` | No* | `None` | Number of rows to sample. Mutually exclusive with `frac`. |
-| `frac` | `float` | No* | `None` | Fraction of rows to sample, e.g. `0.1` = 10%. Mutually exclusive with `n`. |
+| `sample_size` | `int` | No* | `None` | Number of rows to sample. Mutually exclusive with `frac`. |
+| `frac` | `float` | No* | `None` | Fraction of rows to sample, e.g. `0.1` = 10%. Mutually exclusive with `sample_size`. |
 | `random_state` | `int` | No | `42` | Random seed for reproducibility |
 | `replace` | `bool` | No | `False` | Sample with replacement (allows duplicate rows) |
 | `weights` | `str` | No | `None` | Column name to use as sampling weights |
 | `group_name` | `str` | No | `None` | Dagster asset group name |
 
-*Exactly one of `n` or `frac` must be provided.
+*Exactly one of `sample_size` or `frac` must be provided.
 
 ## Example YAML
 
@@ -45,7 +45,7 @@ type: dagster_component_templates.SampleComponent
 attributes:
   asset_name: events_1000
   upstream_asset_key: raw_events
-  n: 1000
+  sample_size: 1000
   random_state: 7
   group_name: dev_samples
 ```
@@ -64,7 +64,7 @@ has an IO manager configured that can handle DataFrames.
 
 ## Notes
 
-- Exactly one of `n` or `frac` must be specified; a `ValueError` is raised otherwise.
+- Exactly one of `sample_size` or `frac` must be specified; a `ValueError` is raised otherwise.
 - The output index is always reset to a clean integer range.
 - `weights` must refer to a numeric column in the upstream DataFrame.
 - Use `replace=True` with `frac > 1.0` for bootstrap samples larger than the input.

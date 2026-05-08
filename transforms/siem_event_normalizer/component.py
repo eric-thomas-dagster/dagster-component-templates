@@ -20,6 +20,14 @@ class SiemEventNormalizerComponent(dg.Component, dg.Model, dg.Resolvable):
 
     schema: str = Field(default="ocsf", description="Target schema: 'ocsf' (Open Cybersecurity Schema Framework) | 'ecs' (Elastic Common Schema)")
     source_kind: str = Field(default="generic", description="Source hint: 'cloudtrail' | 'okta' | 'github' | 'azure' | 'generic'")
+    event_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, treat this column as a JSON-encoded event payload and parse it into "
+            "the source columns before normalization. Use when the upstream stores raw "
+            "events as JSON strings in a single column."
+        ),
+    )
     timestamp_column: Optional[str] = Field(default=None, description="Source column to map to event timestamp (auto-detect if None)")
     actor_column: Optional[str] = Field(default=None, description="Source column for actor/user (auto-detect if None)")
     action_column: Optional[str] = Field(default=None, description="Source column for action/event name")
@@ -45,6 +53,14 @@ class SiemEventNormalizerComponent(dg.Component, dg.Model, dg.Resolvable):
             tags=self.asset_tags or None,
         )
         def _asset(context: dg.AssetExecutionContext, df: pd.DataFrame) -> pd.DataFrame:
+            # If event_column is set, parse JSON payloads out into individual columns first.
+            if _self.event_column and _self.event_column in df.columns:
+                parsed = df[_self.event_column].apply(
+                    lambda v: json.loads(v) if isinstance(v, str) and v.startswith("{") else {}
+                )
+                expanded = pd.json_normalize(parsed.tolist())
+                # Concat parsed columns alongside the originals so auto-detect can find them.
+                df = pd.concat([df.reset_index(drop=True), expanded.reset_index(drop=True)], axis=1)
             # Auto-detect commonly-named fields from each source
             auto_ts = {
                 "cloudtrail": "EventTime",

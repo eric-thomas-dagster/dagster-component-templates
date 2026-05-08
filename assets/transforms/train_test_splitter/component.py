@@ -27,7 +27,7 @@ class TrainTestSplitterComponent(Component, Model, Resolvable):
     """Split a DataFrame into train / test / (optional) validation assets.
 
     Three strategies:
-    - `random`: Deterministic random split using `seed`. Optionally stratified
+    - `random`: Deterministic random split using `random_state`. Optionally stratified
       by `stratify_column` (preserves class balance) or grouped by `group_column`
       (all rows sharing a group key end up in the same split).
     - `time`: Chronological split — earliest rows → train, latest → test.
@@ -44,7 +44,7 @@ class TrainTestSplitterComponent(Component, Model, Resolvable):
     strategy: str = Field(default="random", description="Split strategy: 'random', 'time', or 'hash'.")
     test_size: float = Field(default=0.2, description="Fraction allocated to the test set (0.0–1.0).")
     val_size: float = Field(default=0.0, description="Fraction allocated to a validation set. 0.0 = no validation asset emitted.")
-    seed: int = Field(default=42, description="Random seed for 'random' strategy.")
+    random_state: int = Field(default=42, description="Random seed for 'random' strategy. (sklearn-compatible name)")
     stratify_column: Optional[str] = Field(
         default=None,
         description="Column to stratify the random split on (preserves class balance). Mutually exclusive with group_column.",
@@ -164,7 +164,7 @@ class TrainTestSplitterComponent(Component, Model, Resolvable):
         strategy = self.strategy
         test_size = self.test_size
         val_size = self.val_size
-        seed = self.seed
+        seed = self.random_state
         stratify_column = self.stratify_column
         group_column = self.group_column
         time_column = self.time_column

@@ -4,6 +4,6 @@ attributes:
   upstream_asset_key: feature_list
   n_columns: 4
   value_column: feature_value
-  key_column: feature_name
+  pivot_column: feature_name
   fill_value: "N/A"
   group_name: wide_format

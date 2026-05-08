@@ -27,3 +27,22 @@ have no example:
 
 Tracked separately as Phase 1 of the partition-handling improvements.
 See conversation context, not yet broken into sub-tasks here.
+
+## Demo failures discovered during validation (transforms)
+
+`setup_transformations_demo.sh` materializes 34/37 components clean. Three
+fail with bugs unrelated to convention drift:
+
+- **`orders_sql` (sql_transform)** — demo's defs.yaml references env var
+  `DUCKDB_PATH_VAR`, but `setup_transformations_demo.sh` exports
+  `SQL_DB_URL`. Either fix the setup script to also export the var the
+  demo expects, or change the demo to point at `SQL_DB_URL`.
+- **`orders_formula` (multi_field_formula)** — demo passes
+  `expression: 'col * 1.1'` with `columns: [unit_price]`, expecting the
+  component to substitute `col` with each column name in turn. Component
+  doesn't support that placeholder — `NameError: name 'col' is not defined`.
+  Either add `col` substitution to the component or rewrite the demo to
+  use the column name literally.
+- **`orders_row_formula` (multi_row_formula)** — fails with
+  `KeyError: 'column'`. Component appears to require a `column` key in
+  each operation, but the demo uses `output` + `expression`. Reconcile.

@@ -3,7 +3,7 @@ attributes:
   asset_name: split_address_fields
   upstream_asset_key: raw_addresses
   column: full_address
-  delimiter: ","
+  separator: ","
   max_splits: null
   output_columns:
     - street

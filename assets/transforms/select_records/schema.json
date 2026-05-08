@@ -50,6 +50,13 @@
       "label": "Indices",
       "required": false
     },
+    "filter_expression": {
+      "type": "string",
+      "label": "Filter Expression",
+      "description": "pandas-query expression for 'expression' mode, e.g. \"status == 'shipped' and quantity > 1\". Setting this auto-selects mode='expression'.",
+      "required": false,
+      "default": null
+    },
     "include_preview_metadata": {
       "type": "boolean",
       "label": "Include Preview Metadata",

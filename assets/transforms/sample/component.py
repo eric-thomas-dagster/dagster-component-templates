@@ -25,13 +25,13 @@ class SampleComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    n: Optional[int] = Field(
+    sample_size: Optional[int] = Field(
         default=None,
         description="Number of rows to sample. Mutually exclusive with frac.",
     )
     frac: Optional[float] = Field(
         default=None,
-        description="Fraction of rows to sample, e.g. 0.1 for 10%. Mutually exclusive with n.",
+        description="Fraction of rows to sample, e.g. 0.1 for 10%. Mutually exclusive with sample_size.",
     )
     random_state: int = Field(default=42, description="Random seed for reproducibility")
     replace: bool = Field(default=False, description="Sample with replacement")
@@ -164,7 +164,7 @@ class SampleComponent(Component, Model, Resolvable):
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
-        n = self.n
+        n = self.sample_size
         frac = self.frac
         random_state = self.random_state
         replace = self.replace

@@ -40,10 +40,10 @@
       "description": "Column whose values to reshape into wide format",
       "required": true
     },
-    "key_column": {
+    "pivot_column": {
       "type": "string",
-      "label": "Key Column",
-      "description": "Key Column",
+      "label": "Pivot Column",
+      "description": "Column to use as row labels (index) in the output",
       "required": false,
       "default": null
     },

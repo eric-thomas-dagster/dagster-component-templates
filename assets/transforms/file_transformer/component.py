@@ -47,6 +47,16 @@ class FileTransformerComponent(Component, Model, Resolvable):
         description="Name of the asset"
     )
 
+    upstream_asset_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Upstream DataFrame asset key. When set, the component reads the DataFrame "
+            "from the upstream asset (no file I/O on input) and writes it to "
+            "output_directory in the requested output_format. Mutually exclusive "
+            "with input_file_path / run_config-driven file paths."
+        ),
+    )
+
     input_file_path: Optional[str] = Field(
         default=None,
         description="Fixed input file path (optional, can use run_config instead)"
@@ -326,6 +336,14 @@ class FileTransformerComponent(Component, Model, Resolvable):
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
 
+        upstream_asset_key = self.upstream_asset_key
+        from dagster import AssetIn
+        _ins = (
+            {"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}
+            if upstream_asset_key
+            else None
+        )
+
         @asset(
             name=asset_name,
             description=description,
@@ -334,68 +352,87 @@ class FileTransformerComponent(Component, Model, Resolvable):
             tags=_all_tags,
             freshness_policy=_freshness_policy,
 group_name=group_name,
+            ins=_ins,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             retry_policy=_retry_policy,
         )
-        def file_transformer_asset(context: AssetExecutionContext, config: FileConfig):
-            # Filter to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    upstream = upstream[upstream[partition_date_column].astype(str) == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-            """Asset that transforms files between formats."""
+        def file_transformer_asset(context: AssetExecutionContext, config: FileConfig, **kwargs):
+            """Asset that transforms files between formats, or writes an upstream
+            DataFrame to a file in the requested output format."""
 
-            # Determine input file path (from run_config or fixed path)
-            if config.file_path:
-                input_path = config.file_path
-                context.log.info(f"Using file from run_config: {input_path}")
-            elif fixed_input_path:
-                input_path = fixed_input_path
-                context.log.info(f"Using fixed input path: {input_path}")
+            # Path A: upstream-asset mode — skip file read, take DataFrame directly.
+            if upstream_asset_key:
+                df = kwargs.get("upstream")
+                if df is None:
+                    raise ValueError(
+                        f"upstream_asset_key={upstream_asset_key!r} set but no upstream "
+                        "DataFrame was provided (IO manager mis-wiring?)"
+                    )
+                input_path = None
+                detected_format = None  # not applicable
+                context.log.info(f"Using upstream asset '{upstream_asset_key}' as input ({len(df)} rows)")
+                # Filter to current partition if partitioned (works on the upstream df)
+                if context.has_partition_key:
+                    _pk = context.partition_key
+                    _is_multi = hasattr(_pk, "keys_by_dimension")
+                    _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                    _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                    if partition_date_column and partition_date_column in df.columns and _date_key:
+                        df = df[df[partition_date_column].astype(str) == _date_key]
+                    if partition_static_column and partition_static_column in df.columns and _static_key:
+                        df = df[df[partition_static_column].astype(str) == _static_key]
+                    elif partition_static_column and partition_static_column in df.columns and not _is_multi:
+                        df = df[df[partition_static_column].astype(str) == str(_pk)]
+                # Skip file-input branch entirely
+                input_filename_stem = asset_name
             else:
-                raise ValueError("No input file path provided (via run_config or input_file_path)")
+                # Path B: file-input mode — read input file, transform, write output.
+                # Determine input file path (from run_config or fixed path)
+                if config.file_path:
+                    input_path = config.file_path
+                    context.log.info(f"Using file from run_config: {input_path}")
+                elif fixed_input_path:
+                    input_path = fixed_input_path
+                    context.log.info(f"Using fixed input path: {input_path}")
+                else:
+                    raise ValueError("No input file path provided (via run_config, input_file_path, or upstream_asset_key)")
+                df = None
+                input_filename_stem = Path(input_path).stem
 
-            # Verify input file exists
-            if not os.path.exists(input_path):
-                raise FileNotFoundError(f"Input file not found: {input_path}")
+                # Verify input file exists
+                if not os.path.exists(input_path):
+                    raise FileNotFoundError(f"Input file not found: {input_path}")
 
-            # Auto-detect input format if needed
-            detected_format = input_format
-            if detected_format == "auto":
-                ext = Path(input_path).suffix.lower()
-                format_map = {
-                    '.csv': 'csv',
-                    '.json': 'json',
-                    '.parquet': 'parquet',
-                    '.pq': 'parquet',
-                    '.xlsx': 'excel',
-                    '.xls': 'excel',
-                }
-                detected_format = format_map.get(ext)
-                if not detected_format:
-                    raise ValueError(f"Cannot auto-detect format for extension: {ext}")
-                context.log.info(f"Auto-detected input format: {detected_format}")
+                # Auto-detect input format if needed
+                detected_format = input_format
+                if detected_format == "auto":
+                    ext = Path(input_path).suffix.lower()
+                    format_map = {
+                        '.csv': 'csv',
+                        '.json': 'json',
+                        '.parquet': 'parquet',
+                        '.pq': 'parquet',
+                        '.xlsx': 'excel',
+                        '.xls': 'excel',
+                    }
+                    detected_format = format_map.get(ext)
+                    if not detected_format:
+                        raise ValueError(f"Cannot auto-detect format for extension: {ext}")
+                    context.log.info(f"Auto-detected input format: {detected_format}")
 
-            # Read input file
-            context.log.info(f"Reading {detected_format} file: {input_path}")
+                # Read input file
+                context.log.info(f"Reading {detected_format} file: {input_path}")
 
-            if detected_format == "csv":
-                df = pd.read_csv(input_path, delimiter=csv_delimiter, encoding=csv_encoding)
-            elif detected_format == "json":
-                df = pd.read_json(input_path, orient=json_orient)
-            elif detected_format == "parquet":
-                df = pd.read_parquet(input_path)
-            elif detected_format == "excel":
-                df = pd.read_excel(input_path, sheet_name=excel_sheet_name)
-            else:
-                raise ValueError(f"Unsupported input format: {detected_format}")
+                if detected_format == "csv":
+                    df = pd.read_csv(input_path, delimiter=csv_delimiter, encoding=csv_encoding)
+                elif detected_format == "json":
+                    df = pd.read_json(input_path, orient=json_orient)
+                elif detected_format == "parquet":
+                    df = pd.read_parquet(input_path)
+                elif detected_format == "excel":
+                    df = pd.read_excel(input_path, sheet_name=excel_sheet_name)
+                else:
+                    raise ValueError(f"Unsupported input format: {detected_format}")
 
             context.log.info(f"Loaded {len(df)} rows, {len(df.columns)} columns")
 
@@ -422,7 +459,7 @@ group_name=group_name,
             if output_filename:
                 out_filename = output_filename
             else:
-                base_name = Path(input_path).stem
+                base_name = input_filename_stem
                 ext_map = {
                     'csv': '.csv',
                     'json': '.json',
@@ -468,7 +505,7 @@ group_name=group_name,
             _effective_lineage = column_lineage
             if not _effective_lineage:
                 try:
-                    _upstream_cols = set(upstream.columns)
+                    _upstream_cols = set(df.columns)
                     _effective_lineage = {
                         col: [col] for col in _col_schema.columns_by_name
                         if col in _upstream_cols

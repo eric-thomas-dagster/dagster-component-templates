@@ -27,9 +27,9 @@
       "description": "Upstream asset key providing a DataFrame",
       "required": true
     },
-    "n": {
+    "sample_size": {
       "type": "integer",
-      "label": "N",
+      "label": "Sample Size",
       "description": "Number of rows to sample. Mutually exclusive with frac.",
       "required": false,
       "default": null

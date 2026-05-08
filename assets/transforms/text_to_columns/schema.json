@@ -33,10 +33,10 @@
       "description": "Column to split",
       "required": true
     },
-    "delimiter": {
+    "separator": {
       "type": "string",
-      "label": "Delimiter",
-      "description": "Delimiter string",
+      "label": "Separator",
+      "description": "Separator string",
       "required": false,
       "default": ""
     },

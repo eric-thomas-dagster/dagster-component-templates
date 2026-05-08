@@ -27,7 +27,7 @@ class MakeColumnsComponent(Component, Model, Resolvable):
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     n_columns: int = Field(default=2, description="Number of output columns to wrap data into")
     value_column: str = Field(description="Column whose values to reshape into wide format")
-    key_column: Optional[str] = Field(
+    pivot_column: Optional[str] = Field(
         default=None,
         description="Column to use as row labels (index) in the output",
     )
@@ -162,7 +162,7 @@ class MakeColumnsComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         n_columns = self.n_columns
         value_column = self.value_column
-        key_column = self.key_column
+        pivot_column = self.pivot_column
         fill_value = self.fill_value
         group_name = self.group_name
 
@@ -269,8 +269,8 @@ group_name=group_name,
             col_data = {f"col_{i + 1}": values[i::n_columns] for i in range(n_columns)}
             result = pd.DataFrame(col_data)
 
-            if key_column and key_column in df.columns:
-                keys = df[key_column].tolist()
+            if pivot_column and pivot_column in df.columns:
+                keys = df[pivot_column].tolist()
                 keys += [None] * pad
                 result.index = keys[::n_columns][: len(result)]
 

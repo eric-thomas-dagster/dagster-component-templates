@@ -1,6 +1,6 @@
 """TextToColumns.
 
-Split a text column into multiple columns or rows by a delimiter.
+Split a text column into multiple columns or rows by a separator.
 """
 from typing import Dict, List, Optional
 
@@ -21,12 +21,12 @@ from pydantic import Field
 
 
 class TextToColumns(Component, Model, Resolvable):
-    """Split a text column into multiple columns or rows by a delimiter."""
+    """Split a text column into multiple columns or rows by a separator."""
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     column: str = Field(description="Column to split")
-    delimiter: str = Field(default=",", description="Delimiter string")
+    separator: str = Field(default=",", description="Delimiter string")
     max_splits: Optional[int] = Field(default=None, description="Max number of splits")
     output_columns: Optional[List[str]] = Field(default=None, description="Names for resulting columns (auto-generated if None)")
     expand_to_rows: bool = Field(default=False, description="If True, split into rows instead of columns")
@@ -127,7 +127,7 @@ class TextToColumns(Component, Model, Resolvable):
 
     @classmethod
     def get_description(cls) -> str:
-        return "Split a text column into multiple columns or rows by a delimiter."
+        return "Split a text column into multiple columns or rows by a separator."
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         # Standard catalog fields — phase 2 wiring
@@ -154,7 +154,7 @@ class TextToColumns(Component, Model, Resolvable):
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         column = self.column
-        delimiter = self.delimiter
+        separator = self.separator
         max_splits = self.max_splits
         output_columns = self.output_columns
         expand_to_rows = self.expand_to_rows
@@ -260,14 +260,14 @@ group_name=group_name,
             df = upstream.copy()
 
             if expand_to_rows:
-                df[column] = df[column].str.split(delimiter)
+                df[column] = df[column].str.split(separator)
                 if strip_whitespace:
                     df[column] = df[column].apply(
                         lambda parts: [p.strip() for p in parts] if isinstance(parts, list) else parts
                     )
                 df = df.explode(column).reset_index(drop=True)
             else:
-                split_df = df[column].str.split(delimiter, expand=True, n=max_splits)
+                split_df = df[column].str.split(separator, expand=True, n=max_splits)
 
                 if strip_whitespace:
                     split_df = split_df.apply(

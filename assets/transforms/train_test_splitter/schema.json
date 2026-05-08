@@ -54,10 +54,10 @@
       "required": false,
       "default": 0.0
     },
-    "seed": {
+    "random_state": {
       "type": "integer",
-      "label": "Random Seed",
-      "description": "Deterministic seed for 'random' and 'hash' strategies.",
+      "label": "Random State",
+      "description": "Deterministic seed for 'random' and 'hash' strategies. (sklearn-compatible name)",
       "required": false,
       "default": 42
     },

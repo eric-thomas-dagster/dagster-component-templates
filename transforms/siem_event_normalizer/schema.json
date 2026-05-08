@@ -30,6 +30,13 @@
       "required": false,
       "default": "generic"
     },
+    "event_column": {
+      "type": "string",
+      "label": "Event Column",
+      "description": "If set, treat this column as a JSON-encoded event payload and parse it into source columns before normalization.",
+      "required": false,
+      "default": null
+    },
     "timestamp_column": {
       "type": "string",
       "label": "Timestamp Column",

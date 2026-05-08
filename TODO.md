@@ -17,10 +17,16 @@ no live walkthrough yet. Each example covers ~5–40 components, so we need
 - **io_manager (15)** — most are validated via `setup_local_io_demo.sh`,
   but cloud-backed (s3, gcs, adls) IO managers need separate validation.
 - **external (21)** — declare-only assets; mostly need a "you can see them
-  in the UI" smoke test rather than full materialization.
+  in the UI" smoke test rather than full materialization. Now also support
+  the canonical partition shape (including `dynamic`) so a multi-tenant
+  external-table walkthrough is a natural follow-up.
 - **check (7)** — Great Expectations / Soda / etc.
 - **resource (55)** — most are connection-handle wrappers; validation =
   resource initializes without error against the real backend.
+- **partition-shape demo** — a small walkthrough showing the new shape
+  end-to-end: dynamic partitions on a `external_snowflake_table` plus a
+  `PerPartitionBackfillJob` driving multi-tenant rebuilds. Closes the loop
+  on the original consumer feedback.
 
 The web UI's "Trust & feedback" surface reads from `manifest.json`'s
 `validation.level` field — every new walkthrough should bump that for
@@ -41,36 +47,20 @@ candidates that fit the same op-job pattern (run-shaped, not asset-shaped):
 
 These should land in `jobs/` alongside the existing cleanup / trigger jobs.
 
-## Partition shape rework (Phase 1)
+## Partition shape rework — Phase 1 item 5 (strict validation)
 
-The registry's partition handling has known gaps from external consumer
-feedback. See conversation history for the full diagnosis. Five concrete
-items, in priority order:
+Items 1–4 of the partition rework landed. Item 5 — Pydantic
+`model_validator(mode="after")` enforcing the rules below — is the only
+piece outstanding. Additive change, doesn't require touching every
+component again.
 
-1. **Dynamic partitions support across all 324 partition-aware templates.**
-   Add `type: dynamic` to the partition-type enum + a `dynamic_partition_name`
-   field. Required for multi-tenant SaaS use cases where partitions grow at
-   runtime. Highest value of all the partition fixes.
-2. **Generalize MultiPartitionsDefinition.** Currently hardcoded as
-   `{"date": Daily, _dim: Static}`. Replace with a list of dimension specs
-   so users can express `(tenant, date)`, `(static, static)`, `(dynamic, date)`.
-3. **Add partitions_def support to all 21 `external_*` templates.** They
-   currently declare-only with no partition surface; the implementation is
-   `dg.AssetSpec(partitions_def=...)`.
-4. **PerPartitionBackfillJobComponent** — add `dynamic_partitions_all` and
-   `dynamic_partitions_subset(filter)` strategies. Replace
-   `context.repository_def.assets_defs_by_key` (internal API) with
-   `define_asset_job(selection=...)`. Add `concurrency_key_template: str`
-   so per-partition runs get partition-derived concurrency keys.
-5. **Strict validation.** Pydantic `model_validator(mode="after")` that
-   fails on `partition_type=multi` without explicit dim, and on missing
-   `partition_start` when type is time-based. No more silent `"segment"`
-   default or `"2020-01-01"` start.
-
-Each item is a self-contained PR. Items 1–3 will touch the most files
-(~324 components); a codemod is the right tool, since the registry's
-distribution model is one self-contained `component.py` per template
-(no shared helper module).
+- `partition_type=dynamic` requires `dynamic_partition_name`.
+- `partition_type=multi` (legacy shape) requires `partition_values`.
+- Time-based types (`daily`/`weekly`/`monthly`/`hourly`) require
+  `partition_start`. Currently silently default to `2024-01-01`.
+- `partition_dimensions` and the flat fields are mutually informative:
+  setting both should raise a clear error rather than silently choosing
+  one.
 
 ## Demo runtime issues — secondary
 
@@ -78,3 +68,9 @@ distribution model is one self-contained `component.py` per template
 - `pip_output` (point_in_polygon) — works against a public Natural Earth
   states geojson URL, but that's an external dependency. Could ship a
   small bundled geojson with the demo for hermetic tests.
+
+`setup_transformations_demo.sh`:
+- `orders_in_duckdb` is a custom asset (not a component) that
+  occasionally fails under the multiprocess executor due to duckdb file
+  lock contention with parallel tasks. Race condition, retry usually
+  passes. Could serialize against a duckdb-touching tag.

@@ -6,31 +6,20 @@ from pydantic import Field
 
 
 def _build_partitions_def(
-    partition_type: Optional[str],
-    partition_start: Optional[str],
-    partition_values: Optional[str],
-    dynamic_partition_name: Optional[str],
-    partition_dimensions: Optional[List[Dict[str, Any]]],
+    partition_type,
+    partition_start,
+    partition_values,
+    dynamic_partition_name,
+    partition_dimensions,
 ):
     """Construct a Dagster partitions_def from the canonical partition fields.
 
-    Two paths:
-      1. Flat-field shape (`partition_type` + sibling fields). Covers the
-         single-axis cases including `daily/weekly/monthly/hourly/static/dynamic`
-         and the legacy `multi` shape ((date, static_dim)) where both dimensions
-         are inferred from the flat fields.
-      2. `partition_dimensions` (list of dim specs). When set, overrides the
-         flat fields — gives you full multi-axis control including
-         (tenant, date), (static, static), (dynamic, date), etc.
-
-    Each dim spec is a dict:
-        {"name": str,
-         "type": "daily"|"weekly"|"monthly"|"hourly"|"static"|"dynamic",
-         # type-specific:
-         "start": "YYYY-MM-DD",                # time-based types
-         "values": ["a", "b", ...],            # static
-         "dynamic_partition_name": "tenants",  # dynamic
-        }
+    Strict: raises ValueError on misconfigured combinations rather than
+    silently picking a default. Specifically:
+      - time-based partition_type without partition_start
+      - partition_type=multi without partition_values
+      - partition_type=dynamic without dynamic_partition_name
+      - both partition_dimensions AND flat fields set (ambiguous intent)
     """
     from dagster import (
         DailyPartitionsDefinition, WeeklyPartitionsDefinition,
@@ -39,8 +28,17 @@ def _build_partitions_def(
         DynamicPartitionsDefinition,
     )
 
-    def _build_axis(spec: Dict[str, Any]):
+    # Both shapes set: ambiguous. Pick one.
+    if partition_dimensions and partition_type:
+        raise ValueError(
+            "Set either partition_type (flat-fields shape) or "
+            "partition_dimensions (multi-axis shape), not both."
+        )
+
+    def _build_axis(spec):
         t = spec.get("type")
+        if t in ("daily", "weekly", "monthly", "hourly") and not spec.get("start"):
+            raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
         if t == "daily":
             return DailyPartitionsDefinition(start_date=spec["start"])
         if t == "weekly":
@@ -53,49 +51,54 @@ def _build_partitions_def(
             vals = spec.get("values") or []
             if isinstance(vals, str):
                 vals = [v.strip() for v in vals.split(",") if v.strip()]
+            if not vals:
+                raise ValueError("partition dimension type='static' requires non-empty 'values'")
             return StaticPartitionsDefinition(list(vals))
         if t == "dynamic":
             name = spec.get("dynamic_partition_name") or spec.get("name")
             if not name:
-                raise ValueError("dynamic partition dimension requires a name")
+                raise ValueError("partition dimension type='dynamic' requires a name")
             return DynamicPartitionsDefinition(name=name)
         raise ValueError(f"unknown partition type: {t!r}")
 
-    # Path 2: explicit multi-axis spec
     if partition_dimensions:
         if len(partition_dimensions) == 1:
             return _build_axis(partition_dimensions[0])
         axes = {d["name"]: _build_axis(d) for d in partition_dimensions}
         return MultiPartitionsDefinition(axes)
 
-    # Path 1: flat fields
     if not partition_type:
         return None
     _values = [v.strip() for v in (partition_values or "").split(",") if v.strip()]
+    if partition_type in ("daily", "weekly", "monthly", "hourly") and not partition_start:
+        raise ValueError(
+            f"partition_type={partition_type!r} requires partition_start (ISO date, e.g. '2024-01-01')."
+        )
     if partition_type == "daily":
-        return DailyPartitionsDefinition(start_date=partition_start or "2024-01-01")
+        return DailyPartitionsDefinition(start_date=partition_start)
     if partition_type == "weekly":
-        return WeeklyPartitionsDefinition(start_date=partition_start or "2024-01-01")
+        return WeeklyPartitionsDefinition(start_date=partition_start)
     if partition_type == "monthly":
-        return MonthlyPartitionsDefinition(start_date=partition_start or "2024-01-01")
+        return MonthlyPartitionsDefinition(start_date=partition_start)
     if partition_type == "hourly":
-        return HourlyPartitionsDefinition(start_date=partition_start or "2024-01-01")
+        return HourlyPartitionsDefinition(start_date=partition_start)
     if partition_type == "static":
+        if not _values:
+            raise ValueError("partition_type='static' requires partition_values (comma-separated).")
         return StaticPartitionsDefinition(_values)
     if partition_type == "dynamic":
         if not dynamic_partition_name:
             raise ValueError(
-                "partition_type='dynamic' requires dynamic_partition_name "
-                "(e.g. 'tenants') — this becomes the name= on the "
-                "DynamicPartitionsDefinition that runtime tooling uses to "
-                "register/read keys."
+                "partition_type='dynamic' requires dynamic_partition_name."
             )
         return DynamicPartitionsDefinition(name=dynamic_partition_name)
     if partition_type == "multi":
-        # legacy shape: (date Daily) × (static_dim Static). For richer
-        # multi-axis combinations, use partition_dimensions instead.
+        if not _values:
+            raise ValueError("partition_type='multi' requires partition_values (comma-separated).")
+        if not partition_start:
+            raise ValueError("partition_type='multi' requires partition_start (the date axis start).")
         return MultiPartitionsDefinition({
-            "date": DailyPartitionsDefinition(start_date=partition_start or "2024-01-01"),
+            "date": DailyPartitionsDefinition(start_date=partition_start),
             "static_dim": StaticPartitionsDefinition(_values),
         })
     raise ValueError(f"unknown partition_type: {partition_type!r}")

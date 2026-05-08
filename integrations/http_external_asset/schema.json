@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.HttpExternalAssetComponent",
-  "description": "Wrap any HTTP-driven external job runner as one or more Dagster assets. Users configure trigger / status / log endpoints in YAML; the component runs the trigger → poll → finalize loop, surfaces structured metadata, and honors all standard Dagster per-asset attributes.",
+  "description": "Generic wrapper for HTTP-driven external job runners — internal job APIs, less-common SaaS tools, GitHub Actions / Jenkins / CircleCI / Argo / Kestra style runners, or for prototyping before investing in a custom SDK. Users configure trigger / status / log endpoints in YAML; the component runs the trigger → poll → finalize loop, surfaces structured metadata, and honors all standard Dagster per-asset attributes. NOTE: prefer dedicated registry components (fivetran_assets, airbyte_assets, dbt_run_job, matillion_run_asset, etc.) when one exists for your vendor.",
   "category": "integration",
   "icon": "lu:globe",
   "x-dagster-io": {

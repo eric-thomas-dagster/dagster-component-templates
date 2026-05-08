@@ -1,10 +1,20 @@
 """HttpExternalAssetComponent.
 
-Dagster Component that wraps any HTTP-driven external job runner (Fivetran,
-Airbyte, dbt Cloud, GitHub Actions, internal job APIs) as one or more Dagster
-assets. Users configure trigger / status / log endpoints in YAML; the component
-runs the trigger → poll → finalize loop, surfaces structured metadata, and
-honors all standard Dagster per-asset attributes.
+Generic Dagster Component that wraps an HTTP-driven external job runner as
+one or more Dagster assets. Users configure trigger / status / log endpoints
+in YAML; the component runs the trigger → poll → finalize loop, surfaces
+structured metadata, and honors all standard Dagster per-asset attributes.
+
+USE THIS WHEN there is no dedicated registry component for your tool —
+typical fits are internal/in-house job APIs, less-common SaaS tools,
+GitHub Actions / Jenkins / CircleCI / Argo / Kestra / Azure DevOps style
+runners, or for prototyping before investing in a custom SDK wrapper.
+
+DO NOT USE for Fivetran, Airbyte, dbt Cloud, Matillion, Rivery, Precisely,
+Coalesce, Databricks, Dataiku, or any other vendor with a dedicated
+*_assets / *_run_asset / *_run_job component already in the registry —
+those use the vendor's real SDK + metadata model and are always
+preferable.
 
 Self-contained — no shared helper modules, per the registry's distribution
 model. The condition language, templating engine, HTTP client, and execution

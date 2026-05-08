@@ -7939,7 +7939,7 @@
       "id": "http_external_asset",
       "name": "HttpExternalAssetComponent",
       "category": "integration",
-      "description": "Wrap any HTTP-driven external job runner (Fivetran, Airbyte, dbt Cloud, GitHub Actions, internal job APIs) as one or more Dagster assets. YAML-configured trigger / poll / fetch-logs loop with a JSONPath/regex/header condition language and Jinja2 templating.",
+      "description": "Generic wrapper for HTTP-driven external job runners \u2014 internal job APIs, less-common SaaS tools, GitHub Actions / Jenkins / CircleCI / Argo / Kestra style runners, or prototyping before investing in a custom SDK. Configure trigger / status / log endpoints in YAML; runs the trigger \u2192 poll \u2192 fetch logs loop with a JSONPath/regex/header condition language and Jinja2 templating. Prefer dedicated registry components (fivetran_assets, airbyte_assets, dbt_run_job, matillion_run_asset, etc.) when one exists for your vendor.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "integrations/http_external_asset",

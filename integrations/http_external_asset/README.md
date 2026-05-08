@@ -1,8 +1,30 @@
 # HTTP External Asset
 
-Wrap any HTTP-driven external job runner — Fivetran, Airbyte, dbt Cloud, GitHub Actions, Jenkins, internal job APIs — as one or more Dagster assets. Configure trigger / status / log endpoints in YAML; the component runs the trigger → poll → finalize loop, surfaces structured metadata, and honors all standard Dagster per-asset attributes.
+Generic wrapper for HTTP-driven external job runners — wrap an "internal job API," a less-common SaaS tool, or anything else with a `trigger → poll → fetch logs` shape as one or more Dagster assets. Configure trigger / status / log endpoints in YAML; the component runs the loop, surfaces structured metadata, and honors all standard Dagster per-asset attributes.
 
-Same shape as community wrappers like `fivetran_assets` / `airbyte_assets`, but **declarative** — a single component config defines N assets, each with its own trigger / status / logs spec.
+## When to use this — and when NOT to
+
+**Use this when you don't have a dedicated registry component for your tool.** Good fits:
+
+- Internal / in-house job APIs (your team's own service, no SDK).
+- Less-common SaaS tools without a dedicated `*_run_asset` / `*_assets` component.
+- GitHub Actions / Jenkins / CircleCI / Argo Workflows / Kestra / Azure DevOps style runners.
+- Prototyping or wiring something up before investing in a real SDK wrapper.
+
+**Don't use this when there's a dedicated component.** The registry already has tailored components that use real vendor SDKs / OAuth / metadata for these — always prefer them:
+
+| Vendor | Use instead |
+|---|---|
+| Fivetran | `fivetran_assets`, `fivetran_sync_sensor`, `fivetran_sync_trigger_job` |
+| Airbyte | `airbyte_assets`, `airbyte_sync_sensor`, `airbyte_sync_trigger_job` |
+| dbt Cloud | `dbt_run_job`, `dbt_cloud_job_sensor`, `dbt_cloud_resource` |
+| Matillion | `matillion_run_asset`, `matillion_job_sensor` |
+| Rivery | `rivery_run_asset`, `rivery_job_sensor` |
+| Precisely | `precisely_run_asset`, `precisely_job_sensor` |
+| Coalesce | `coalesce_project`, `coalesce_job_sensor` |
+| Autosys | `autosys_asset` |
+| Dataiku | `dataiku_asset` |
+| Databricks | `databricks_asset_bundle`, `databricks_io_manager`, `databricks_resource` |
 
 ## Required packages
 

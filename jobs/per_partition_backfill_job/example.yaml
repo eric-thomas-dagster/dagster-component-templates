@@ -1,8 +1,25 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/per_partition_backfill_job/schema.json
 type: dagster_component_templates.PerPartitionBackfillJobComponent
 attributes:
+  # Last-N-days time-window backfill (the original use case).
   job_name: weekly_sales_backfill
-  schedule: "0 9 * * 1"  # Mondays 9am UTC
+  schedule: "0 9 * * 1"            # Mondays 9am UTC
   target_asset_key: sales_daily
   partition_strategy: last_n_days
   partition_count: 7
   retry_max_retries: 1
+
+  # ── Dynamic-partition backfill (multi-tenant SaaS shape) ──────────────
+  # Comment out the time-window section above and uncomment below:
+  #
+  # job_name: tenant_rollup_refresh
+  # schedule: "0 * * * *"                 # hourly
+  # target_asset_key: tenant_daily_rollup
+  # partition_strategy: dynamic_all       # read every registered key
+  # dynamic_partitions_def_name: tenants  # name= passed to DynamicPartitionsDefinition
+  # concurrency_key_template: "tenant-{partition_key}"  # serialize per-tenant, parallelize cross-tenant
+  #
+  # Or filter to a subset:
+  # partition_strategy: dynamic_subset
+  # dynamic_partitions_def_name: tenants
+  # dynamic_filter: "^enterprise-"        # only enterprise-prefixed tenants

@@ -32,7 +32,7 @@
     "partition_strategy": {
       "type": "string",
       "label": "Partition Strategy",
-      "description": "last_n_days | explicit | callable",
+      "description": "last_n_days | explicit | callable | dynamic_all | dynamic_subset",
       "required": false,
       "default": "last_n_days"
     },
@@ -45,6 +45,7 @@
     },
     "partition_keys": {
       "type": "array",
+      "items": { "type": "string" },
       "label": "Partition Keys",
       "description": "Explicit partition keys (when strategy=explicit)",
       "required": false
@@ -55,10 +56,31 @@
       "description": "'module:function() -> list[str]' (when strategy=callable)",
       "required": false
     },
+    "dynamic_partitions_def_name": {
+      "type": "string",
+      "label": "Dynamic Partitions Def Name",
+      "description": "Name of the DynamicPartitionsDefinition to read keys from (when strategy=dynamic_all or dynamic_subset). Must match the name argument the target asset's partitions_def was constructed with.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_filter": {
+      "type": "string",
+      "label": "Dynamic Filter",
+      "description": "Python regex applied to each dynamic-partition key (when strategy=dynamic_subset). Keys matching are kept.",
+      "required": false,
+      "default": null
+    },
+    "concurrency_key_template": {
+      "type": "string",
+      "label": "Concurrency Key Template",
+      "description": "Template for per-partition concurrency keys. Placeholder: {partition_key}. e.g. 'tenant-{partition_key}' makes same-tenant runs serialize while cross-tenant parallelize.",
+      "required": false,
+      "default": null
+    },
     "max_concurrent_tag_value": {
       "type": "string",
-      "label": "Max Concurrent Tag Value",
-      "description": "Max Concurrent Tag Value",
+      "label": "Max Concurrent Tag Value (legacy)",
+      "description": "A single static concurrency-key applied to every per-partition op. Use concurrency_key_template instead for the per-partition shape.",
       "required": false
     },
     "retry_max_retries": {

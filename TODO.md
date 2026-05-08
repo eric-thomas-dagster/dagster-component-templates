@@ -3,15 +3,6 @@
 Open work tracked across the registry. Closed items get deleted, not crossed
 out — git log is the history.
 
-## subscription_metrics + ad_spend_std need ins= wiring
-
-Both components use `deps=` + manual `context.load_asset_value()` instead of
-`ins={"role": AssetIn(...)}`. When all assets launch together, the manual
-loader hits the storage path before the upstream has been written, and the
-component raises. Same bug pattern as priority_scorer had — apply the same
-fix (declare AssetIn, take upstream as kwarg, let Dagster's IO manager
-handle the chaining).
-
 ## More example walkthroughs needed
 
 The manifest tracks `validation: { level: code|infra|live, ... }` per
@@ -83,13 +74,7 @@ distribution model is one self-contained `component.py` per template
 
 ## Demo runtime issues — secondary
 
-These don't block validation of our pending changes, but are real bugs.
-
 `setup_analytics_demo.sh`:
-- `pip_output` (point_in_polygon) — needs a real geojson source; demo
-  currently points at a public Natural Earth states URL, which works
-  but is a fragile dependency.
-- `gradient_boosting`, `nn`, `stepwise` — sklearn data-shape errors
-  (continuous label vs classifier, n_features mismatch). Demo synthetic
-  data may need richer columns to satisfy these models in their default
-  configs.
+- `pip_output` (point_in_polygon) — works against a public Natural Earth
+  states geojson URL, but that's an external dependency. Could ship a
+  small bundled geojson with the demo for hermetic tests.

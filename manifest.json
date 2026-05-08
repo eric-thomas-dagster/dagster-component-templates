@@ -7262,7 +7262,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/requirements.txt",
-      "component_type": "dagster_component_templates.GeminiImageGenerationComponent"
+      "component_type": "dagster_component_templates.GeminiImageGenerationComponent",
+      "validation": {
+        "level": "code",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/nano_banana.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "gemini_resource",

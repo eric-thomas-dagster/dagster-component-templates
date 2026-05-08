@@ -1,8 +1,0 @@
-type: dagster_component_templates.LineageToAlationComponent
-attributes:
-  catalog_url: https://alation.example.com
-  api_token_env: ALATION_API_TOKEN
-  sensor_interval_seconds: 3600
-  sensor_default_status: STOPPED   # set to RUNNING after testing
-  organization: "MyCompany"
-  scope: code_location              # or "deployment" for full Dagster+ graph

@@ -1,8 +1,0 @@
-type: dagster_component_templates.LineageToFileComponent
-attributes:
-  catalog_url: data/exports/dagster_lineage.json
-  api_token_env: 
-  sensor_interval_seconds: 3600
-  sensor_default_status: STOPPED   # set to RUNNING after testing
-  organization: "MyCompany"
-  scope: code_location              # or "deployment" for full Dagster+ graph

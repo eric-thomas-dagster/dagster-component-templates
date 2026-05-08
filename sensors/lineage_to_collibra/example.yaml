@@ -1,8 +1,0 @@
-type: dagster_component_templates.LineageToCollibraComponent
-attributes:
-  catalog_url: https://example.collibra.com
-  api_token_env: COLLIBRA_API_TOKEN
-  sensor_interval_seconds: 3600
-  sensor_default_status: STOPPED   # set to RUNNING after testing
-  organization: "MyCompany"
-  scope: code_location              # or "deployment" for full Dagster+ graph

@@ -661,10 +661,15 @@ group_name=group_name,
                         api_params["tool_choice"] = tool_choice
 
                     if stream and not input_column:
-                        # Streaming mode for single prompts
+                        # Streaming mode for single prompts. Bind the context
+                        # manager to a different name to avoid shadowing the
+                        # outer `stream` flag (Python's compile-time scoping
+                        # would otherwise treat `stream` as local everywhere
+                        # in this function and raise UnboundLocalError on the
+                        # `if stream` line above).
                         response_chunks = []
-                        with client.messages.stream(**api_params) as stream:
-                            for text in stream.text_stream:
+                        with client.messages.stream(**api_params) as stream_resp:
+                            for text in stream_resp.text_stream:
                                 response_chunks.append(text)
                         response_text = "".join(response_chunks)
                         # Note: streaming doesn't return detailed token counts

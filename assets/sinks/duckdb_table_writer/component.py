@@ -102,9 +102,14 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
         description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
     )
 
-    upstream_asset_keys: Optional[str] = Field(
+    # Per FIELD_CONVENTIONS: singular for one upstream, plural list for multi.
+    upstream_asset_key: Optional[str] = Field(
         default=None,
-        description='Comma-separated list of upstream asset keys to load DataFrames from (automatically set by custom lineage)'
+        description="Single upstream asset key. Convenience field for the common single-source case.",
+    )
+    upstream_asset_keys: Optional[List[str]] = Field(
+        default=None,
+        description="Multiple upstream asset keys for multi-source writes.",
     )
 
 
@@ -143,12 +148,12 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
         write_mode = self.write_mode
         description = self.description or f"Write data to DuckDB table {table_name}"
         group_name = self.group_name or None
-        upstream_asset_keys_str = self.upstream_asset_keys
-
-        # Parse upstream asset keys if provided
-        upstream_keys = []
-        if upstream_asset_keys_str:
-            upstream_keys = [k.strip() for k in upstream_asset_keys_str.split(',')]
+        # Combine single + list upstreams (singular for the common one-source case).
+        upstream_keys: List[str] = []
+        if self.upstream_asset_key:
+            upstream_keys.append(self.upstream_asset_key)
+        if self.upstream_asset_keys:
+            upstream_keys.extend(self.upstream_asset_keys)
 
         # Build partition definition
         partitions_def = None

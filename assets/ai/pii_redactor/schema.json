@@ -133,7 +133,7 @@
       "required": false,
       "ui:widget": "key-value"
     },
-    "text_column": {
+    "input_column": {
       "type": "string",
       "label": "Text Column",
       "description": "Column containing text to redact PII from",
@@ -142,7 +142,7 @@
     "output_column": {
       "type": "string",
       "label": "Output Column",
-      "description": "Column to write redacted text. Defaults to overwriting text_column.",
+      "description": "Column to write redacted text. Defaults to overwriting input_column.",
       "required": false,
       "default": null
     },

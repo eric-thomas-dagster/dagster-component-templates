@@ -90,7 +90,7 @@ class LanguageDetectorComponent(Component, Model, Resolvable):
             "reflects the data distribution; otherwise head() is used."
         ),
     )
-    text_column: str = Field(description="Column containing text to detect language from")
+    input_column: str = Field(description="Column containing text to detect language from")
     output_column: str = Field(default="language", description="Column to write ISO 639-1 language code e.g. 'en', 'es'")
     confidence_column: Optional[str] = Field(
         default=None,
@@ -147,7 +147,7 @@ class LanguageDetectorComponent(Component, Model, Resolvable):
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         group_name = self.group_name
-        text_column = self.text_column
+        input_column = self.input_column
         output_column = self.output_column
         confidence_column = self.confidence_column
         backend = self.backend
@@ -272,8 +272,8 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-            if text_column not in upstream.columns:
-                raise ValueError(f"Column '{text_column}' not found in DataFrame.")
+            if input_column not in upstream.columns:
+                raise ValueError(f"Column '{input_column}' not found in DataFrame.")
 
             if backend == "langdetect":
                 try:
@@ -337,7 +337,7 @@ group_name=group_name,
                 raise ValueError(f"Unknown backend: {backend}. Choose from langdetect, fasttext, lingua.")
 
             df = upstream.copy()
-            results = df[text_column].apply(detect_fn)
+            results = df[input_column].apply(detect_fn)
             df[output_column] = results.apply(lambda x: x[0])
             if confidence_column:
                 df[confidence_column] = results.apply(lambda x: x[1])

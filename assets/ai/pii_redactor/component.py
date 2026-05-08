@@ -90,10 +90,10 @@ class PiiRedactorComponent(Component, Model, Resolvable):
             "reflects the data distribution; otherwise head() is used."
         ),
     )
-    text_column: str = Field(description="Column containing text to redact PII from")
+    input_column: str = Field(description="Column containing text to redact PII from")
     output_column: Optional[str] = Field(
         default=None,
-        description="Column to write redacted text. Defaults to overwriting text_column.",
+        description="Column to write redacted text. Defaults to overwriting input_column.",
     )
     entity_types: Optional[List[str]] = Field(
         default=None,
@@ -148,7 +148,7 @@ class PiiRedactorComponent(Component, Model, Resolvable):
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         group_name = self.group_name
-        text_column = self.text_column
+        input_column = self.input_column
         output_column = self.output_column
         entity_types = self.entity_types
         replacement_style = self.replacement_style
@@ -281,12 +281,12 @@ group_name=group_name,
             except ImportError:
                 raise ImportError("pip install presidio-analyzer>=2.2.0 presidio-anonymizer>=2.2.0")
 
-            if text_column not in upstream.columns:
-                raise ValueError(f"Column '{text_column}' not found in DataFrame.")
+            if input_column not in upstream.columns:
+                raise ValueError(f"Column '{input_column}' not found in DataFrame.")
 
             analyzer = AnalyzerEngine()
             anonymizer = AnonymizerEngine()
-            out_col = output_column if output_column else text_column
+            out_col = output_column if output_column else input_column
 
             def _build_operators(results, text: str) -> dict:
                 ops = {}
@@ -331,7 +331,7 @@ group_name=group_name,
                     return str(text)
 
             df = upstream.copy()
-            df[out_col] = df[text_column].apply(redact_text)
+            df[out_col] = df[input_column].apply(redact_text)
 
 
             # Build column schema metadata

@@ -1,12 +1,12 @@
 {
   "component_type": "dagster_component_templates.IcebergIOManagerComponent",
-  "description": "Wrap the official `dagster-iceberg` IcebergPyarrowIOManager so assets persist as Iceberg tables.",
+  "description": "Wrap the official `dagster-iceberg` PyArrowIcebergIOManager so assets persist as Iceberg tables.",
   "category": "io_manager",
   "icon": "Save",
   "x-dagster-io": {
     "outputs": {
       "type": "IOManager",
-      "description": "Wrap the official `dagster-iceberg` IcebergPyarrowIOManager so assets persist as Iceberg tables."
+      "description": "Wrap the official `dagster-iceberg` PyArrowIcebergIOManager so assets persist as Iceberg tables."
     }
   },
   "attributes": {

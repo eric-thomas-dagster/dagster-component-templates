@@ -1,6 +1,6 @@
 # IcebergIOManager
 
-ConfigurableIOManager that wraps the official `dagster-iceberg` package's IcebergPyarrowIOManager. Supports REST, Hive, and Glue catalogs via the standard Iceberg catalog config. Each asset becomes a namespaced Iceberg table; partitioned assets get one Iceberg-partition per Dagster-partition.
+ConfigurableIOManager that wraps the official `dagster-iceberg` package's PyArrowIcebergIOManager. Supports REST, Hive, and Glue catalogs via the standard Iceberg catalog config. Each asset becomes a namespaced Iceberg table; partitioned assets get one Iceberg-partition per Dagster-partition.
 
 This component **wraps the official `dagster-iceberg` package** rather than reimplementing the IO manager — gets us format compatibility, schema evolution, partition handling, etc. for free.
 

@@ -91,7 +91,7 @@ class KeywordExtractorComponent(Component, Model, Resolvable):
             "reflects the data distribution; otherwise head() is used."
         ),
     )
-    text_column: str = Field(description="Column containing text to extract keywords from")
+    input_column: str = Field(description="Column containing text to extract keywords from")
     output_column: str = Field(default="keywords", description="Column to write list of keyword strings")
     method: str = Field(
         default="tfidf",
@@ -146,7 +146,7 @@ class KeywordExtractorComponent(Component, Model, Resolvable):
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         group_name = self.group_name
-        text_column = self.text_column
+        input_column = self.input_column
         output_column = self.output_column
         method = self.method
         top_n = self.top_n
@@ -272,11 +272,11 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-            if text_column not in upstream.columns:
-                raise ValueError(f"Column '{text_column}' not found in DataFrame.")
+            if input_column not in upstream.columns:
+                raise ValueError(f"Column '{input_column}' not found in DataFrame.")
 
             df = upstream.copy()
-            texts = df[text_column].fillna("").astype(str).tolist()
+            texts = df[input_column].fillna("").astype(str).tolist()
             ng_min = int(ngram_range[0]) if len(ngram_range) > 0 else 1
             ng_max = int(ngram_range[1]) if len(ngram_range) > 1 else 2
 

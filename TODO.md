@@ -23,13 +23,23 @@ have no example:
   small inference batch. Validation level `live` requires Ollama running
   on the target machine.
 
-## iceberg_io_manager broken import
+## More example walkthroughs needed
 
-`setup_local_io_demo.sh` fails on project load because
-`iceberg_io_manager/component.py` imports
-`from dagster_iceberg.io_manager.pyarrow import IcebergPyarrowIOManager`,
-but that module path doesn't exist in the installed `dagster-iceberg`
-version. Either pin a compatible version or update the import path.
+The manifest tracks `validation: { level: code|infra|live, ... }` per
+component (see VALIDATION.md). Roughly 500 components in the registry
+have no live walkthrough at all. Each example covers ~5–40 components,
+so we need 10–20 more example demos to hit broad live-coverage.
+Targets: ingestion (49 components), sensor (40), io_manager (15),
+external (21), checks (7), specific resource families.
+
+## subscription_metrics + ad_spend_std need ins= wiring
+
+Both components use deps= + manual context.load_asset_value() instead
+of ins={"role": AssetIn(...)}. When all assets launch together, the
+manual loader hits the storage path before the upstream has been
+written, and the component raises. Same bug pattern as priority_scorer
+had — apply the same fix (declare AssetIn, take upstream as kwarg,
+let Dagster's IO manager handle the chaining).
 
 ## Canonicalize text_column → input_column across AI components
 

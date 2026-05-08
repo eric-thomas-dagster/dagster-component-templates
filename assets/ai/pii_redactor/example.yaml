@@ -3,7 +3,7 @@ component_type: dagster_component_templates.PiiRedactorComponent
 asset_name: redacted_messages
 upstream_asset_key: raw_user_messages
 group_name: ai
-text_column: message_body
+input_column: message_body
 output_column: redacted_body
 entity_types:
   - PERSON

@@ -141,10 +141,20 @@
       "required": false,
       "default": null
     },
-    "upstream_asset_keys": {
+    "upstream_asset_key": {
       "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Single upstream asset key. Convenience field for the common single-source case.",
+      "required": false,
+      "default": null
+    },
+    "upstream_asset_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
       "label": "Upstream Asset Keys",
-      "description": "Upstream Asset Keys",
+      "description": "Multiple upstream asset keys for multi-source writes.",
       "required": false,
       "default": null
     },

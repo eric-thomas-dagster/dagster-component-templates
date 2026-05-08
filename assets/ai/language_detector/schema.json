@@ -133,7 +133,7 @@
       "required": false,
       "ui:widget": "key-value"
     },
-    "text_column": {
+    "input_column": {
       "type": "string",
       "label": "Text Column",
       "description": "Column containing text to detect language from",

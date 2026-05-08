@@ -90,7 +90,7 @@ class PiiDetectorComponent(Component, Model, Resolvable):
             "reflects the data distribution; otherwise head() is used."
         ),
     )
-    text_column: str = Field(description="Column containing text to analyze for PII")
+    input_column: str = Field(description="Column containing text to analyze for PII")
     output_column: str = Field(
         default="pii_entities",
         description="Column to write list of detected entity dicts [{'type', 'text', 'start', 'end', 'score'}]",
@@ -148,7 +148,7 @@ class PiiDetectorComponent(Component, Model, Resolvable):
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         group_name = self.group_name
-        text_column = self.text_column
+        input_column = self.input_column
         output_column = self.output_column
         entity_types = self.entity_types
         language = self.language
@@ -279,8 +279,8 @@ group_name=group_name,
             except ImportError:
                 raise ImportError("pip install presidio-analyzer>=2.2.0")
 
-            if text_column not in upstream.columns:
-                raise ValueError(f"Column '{text_column}' not found in DataFrame.")
+            if input_column not in upstream.columns:
+                raise ValueError(f"Column '{input_column}' not found in DataFrame.")
 
             analyzer = AnalyzerEngine()
             df = upstream.copy()
@@ -309,7 +309,7 @@ group_name=group_name,
                     context.log.warning(f"PII detection failed for row: {e}")
                     return []
 
-            df[output_column] = df[text_column].apply(detect_pii)
+            df[output_column] = df[input_column].apply(detect_pii)
 
             if add_count_column:
                 df[f"{output_column}_count"] = df[output_column].apply(len)

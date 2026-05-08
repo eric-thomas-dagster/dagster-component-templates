@@ -9,7 +9,7 @@ Extract keywords and key phrases from a text column. Supports TF-IDF (corpus-lev
 | `asset_name` | string | yes | — | Output Dagster asset name |
 | `upstream_asset_key` | string | yes | — | Upstream asset key providing a DataFrame |
 | `group_name` | string | no | null | Dagster asset group name |
-| `text_column` | string | yes | — | Column containing text |
+| `input_column` | string | yes | — | Column containing text |
 | `output_column` | string | no | `"keywords"` | Column to write keyword list |
 | `method` | enum | no | `"tfidf"` | `tfidf`, `yake`, or `rake` |
 | `top_n` | integer | no | `10` | Number of keywords per row |
@@ -22,7 +22,7 @@ Extract keywords and key phrases from a text column. Supports TF-IDF (corpus-lev
 component_type: dagster_component_templates.KeywordExtractorComponent
 asset_name: extracted_keywords
 upstream_asset_key: article_text
-text_column: body
+input_column: body
 method: tfidf
 top_n: 10
 ngram_range: [1, 2]

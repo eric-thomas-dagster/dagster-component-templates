@@ -589,7 +589,7 @@ group_name=group_name,
                 path_counts = result_df['journey_path'].value_counts().head(20)
                 context.log.info(f"\nTop 10 Journey Paths:")
                 for path, count in path_counts.head(10).items():
-                    pct = (count / len(result_df) * 100).round(1)
+                    pct = round(count / len(result_df) * 100, 1)
                     context.log.info(f"  ({count} customers, {pct}%): {path}")
 
                 # Conversion rate by journey length

@@ -28,6 +28,27 @@ have no example:
 Tracked separately as Phase 1 of the partition-handling improvements.
 See conversation context, not yet broken into sub-tasks here.
 
+## Demo failures discovered during validation (analytics)
+
+`setup_analytics_demo.sh` now scaffolds + validates clean (was broken on
+all 8 multi-role components — fixed). At runtime, several still fail on
+unrelated bugs:
+
+- **`subscription_metrics_output`** — `KeyError: 'status'`. The component
+  expects a `status` column (presumably `active` / `cancelled`) but the
+  synthetic ecommerce_dataset doesn't have one. Either give synthetic
+  data the right columns, or make the component tolerate missing
+  optional columns.
+- **`pip_output`** — `ValueError: One of geojson_path or geojson_url
+  must be provided`. Demo's defs.yaml is missing a required field.
+- **`gradient_boosting_model_output`, `nn_output`** — sklearn errors
+  about classifier/regressor mismatch on synthetic data ("Unknown label
+  type: continuous"). Data shape vs component config.
+- **`stepwise_output`** — `n_features_to_select must be < n_features`.
+  Synthetic data has too few features for the demo's config.
+- **`model_compare`** — fails because upstream `gradient_boosting_*` and
+  `nn_*` failed.
+
 ## Demo failures discovered during validation (transforms)
 
 `setup_transformations_demo.sh` materializes 34/37 components clean. Three

@@ -21,7 +21,7 @@
       "description": "Name of the unified customer profile asset",
       "required": true
     },
-    "stripe_customers_asset": {
+    "stripe_customers_asset_key": {
       "type": "string",
       "label": "Stripe Customers Asset",
       "description": "Stripe Customers Asset",

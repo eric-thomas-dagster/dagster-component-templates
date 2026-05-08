@@ -55,8 +55,8 @@ class AdSpendStandardizerComponent(Component, Model, Resolvable):
         type: dagster_component_templates.AdSpendStandardizerComponent
         attributes:
           asset_name: standardized_ad_spend
-          google_ads_asset: "google_ads_data"
-          facebook_ads_asset: "facebook_ads_data"
+          google_ads_asset_key: "google_ads_data"
+          facebook_ads_asset_key: "facebook_ads_data"
           currency_normalization: "USD"
         ```
     """
@@ -66,17 +66,17 @@ class AdSpendStandardizerComponent(Component, Model, Resolvable):
     )
 
     # Input assets (set via visual lineage)
-    google_ads_asset: Optional[str] = Field(
+    google_ads_asset_key: Optional[str] = Field(
         default=None,
         description="Google Ads data asset (automatically set via lineage)"
     )
 
-    facebook_ads_asset: Optional[str] = Field(
+    facebook_ads_asset_key: Optional[str] = Field(
         default=None,
         description="Facebook Ads data asset (automatically set via lineage)"
     )
 
-    other_ad_platform_asset: Optional[str] = Field(
+    other_ad_platform_asset_key: Optional[str] = Field(
         default=None,
         description="Other ad platform data asset (automatically set via lineage)"
     )
@@ -224,9 +224,9 @@ class AdSpendStandardizerComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
-        google_ads_asset = self.google_ads_asset
-        facebook_ads_asset = self.facebook_ads_asset
-        other_ad_platform_asset = self.other_ad_platform_asset
+        google_ads_asset_key = self.google_ads_asset_key
+        facebook_ads_asset_key = self.facebook_ads_asset_key
+        other_ad_platform_asset_key = self.other_ad_platform_asset_key
         currency_normalization = self.currency_normalization
         date_column_name = self.date_column_name
         aggregate_by_day = self.aggregate_by_day
@@ -237,12 +237,12 @@ class AdSpendStandardizerComponent(Component, Model, Resolvable):
 
         # Build dependency list
         deps = []
-        if google_ads_asset:
-            deps.append(AssetKey(google_ads_asset))
-        if facebook_ads_asset:
-            deps.append(AssetKey(facebook_ads_asset))
-        if other_ad_platform_asset:
-            deps.append(AssetKey(other_ad_platform_asset))
+        if google_ads_asset_key:
+            deps.append(AssetKey(google_ads_asset_key))
+        if facebook_ads_asset_key:
+            deps.append(AssetKey(facebook_ads_asset_key))
+        if other_ad_platform_asset_key:
+            deps.append(AssetKey(other_ad_platform_asset_key))
 
         # Build partition definition
         partitions_def = None
@@ -357,9 +357,9 @@ group_name=group_name,
             standardized_datasets = []
 
             # Process Google Ads data
-            if google_ads_asset:
+            if google_ads_asset_key:
                 try:
-                    google_ads_df = context.load_asset_value(AssetKey(google_ads_asset))
+                    google_ads_df = context.load_asset_value(AssetKey(google_ads_asset_key))
                     context.log.info(f"Loaded Google Ads data: {len(google_ads_df)} rows")
 
                     standardized_google = self._standardize_google_ads(
@@ -373,9 +373,9 @@ group_name=group_name,
                     context.log.warning(f"Could not process Google Ads data: {e}")
 
             # Process Facebook Ads data
-            if facebook_ads_asset:
+            if facebook_ads_asset_key:
                 try:
-                    facebook_ads_df = context.load_asset_value(AssetKey(facebook_ads_asset))
+                    facebook_ads_df = context.load_asset_value(AssetKey(facebook_ads_asset_key))
                     context.log.info(f"Loaded Facebook Ads data: {len(facebook_ads_df)} rows")
 
                     standardized_facebook = self._standardize_facebook_ads(
@@ -389,9 +389,9 @@ group_name=group_name,
                     context.log.warning(f"Could not process Facebook Ads data: {e}")
 
             # Process other platform data
-            if other_ad_platform_asset:
+            if other_ad_platform_asset_key:
                 try:
-                    other_ads_df = context.load_asset_value(AssetKey(other_ad_platform_asset))
+                    other_ads_df = context.load_asset_value(AssetKey(other_ad_platform_asset_key))
                     context.log.info(f"Loaded other ad platform data: {len(other_ads_df)} rows")
 
                     standardized_other = self._standardize_generic_ads(

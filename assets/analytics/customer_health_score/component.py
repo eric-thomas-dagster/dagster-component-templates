@@ -44,12 +44,12 @@ class CustomerHealthScoreComponent(Component, Model, Resolvable):
         description="Subscription/billing data asset",
     )
 
-    product_usage_asset: Optional[str] = Field(
+    product_usage_asset_key: Optional[str] = Field(
         default="",
         description="Product usage/activity data asset",
     )
 
-    support_ticket_asset: Optional[str] = Field(
+    support_ticket_asset_key: Optional[str] = Field(
         default="",
         description="Support ticket data asset",
     )
@@ -492,11 +492,11 @@ class CustomerHealthScoreComponent(Component, Model, Resolvable):
         if self.subscription_data_asset_key:
             asset_ins["subscription_data"] = AssetIn(key=AssetKey.from_user_string(self.subscription_data_asset_key))
 
-        if self.product_usage_asset:
-            asset_ins["product_usage"] = AssetIn(key=AssetKey.from_user_string(self.product_usage_asset))
+        if self.product_usage_asset_key:
+            asset_ins["product_usage"] = AssetIn(key=AssetKey.from_user_string(self.product_usage_asset_key))
 
-        if self.support_ticket_asset:
-            asset_ins["support_tickets"] = AssetIn(key=AssetKey.from_user_string(self.support_ticket_asset))
+        if self.support_ticket_asset_key:
+            asset_ins["support_tickets"] = AssetIn(key=AssetKey.from_user_string(self.support_ticket_asset_key))
 
         # Require at least one input
         if not asset_ins:

@@ -21,21 +21,21 @@
       "description": "Name of the standardized ad spend output asset",
       "required": true
     },
-    "google_ads_asset": {
+    "google_ads_asset_key": {
       "type": "string",
       "label": "Google Ads Asset",
       "description": "Google Ads Asset",
       "required": false,
       "default": null
     },
-    "facebook_ads_asset": {
+    "facebook_ads_asset_key": {
       "type": "string",
       "label": "Facebook Ads Asset",
       "description": "Facebook Ads Asset",
       "required": false,
       "default": null
     },
-    "other_ad_platform_asset": {
+    "other_ad_platform_asset_key": {
       "type": "string",
       "label": "Other Ad Platform Asset",
       "description": "Other Ad Platform Asset",

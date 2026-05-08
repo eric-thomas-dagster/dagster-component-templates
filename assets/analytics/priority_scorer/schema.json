@@ -21,6 +21,13 @@
       "description": "Name of the asset that will hold prioritized ticket data",
       "required": true
     },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame asset key providing the rows to score.",
+      "required": false,
+      "default": null
+    },
     "method": {
       "type": "string",
       "label": "Method",

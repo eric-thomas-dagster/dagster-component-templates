@@ -70,6 +70,11 @@ class PriorityScorerComponent(Component, Model, Resolvable):
         description="Name of the asset that will hold prioritized ticket data"
     )
 
+    upstream_asset_key: Optional[str] = Field(
+        default=None,
+        description="Upstream DataFrame asset key providing the rows to score.",
+    )
+
     method: str = Field(
         default="rules",
         description="Scoring method: llm, ml (logistic/XGBoost), or rules"
@@ -284,6 +289,7 @@ class PriorityScorerComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
+        upstream_asset_key = self.upstream_asset_key
         method = self.method
         llm_provider = self.llm_provider
         llm_model = self.llm_model
@@ -418,7 +424,14 @@ class PriorityScorerComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        from dagster import AssetIn
+        _ins = (
+            {"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}
+            if upstream_asset_key
+            else None
+        )
+
+        @asset(retry_policy=_retry_policy,
             name=asset_name,
             description=description,
             partitions_def=partitions_def,
@@ -426,6 +439,7 @@ class PriorityScorerComponent(Component, Model, Resolvable):
             tags=_all_tags,
             freshness_policy=_freshness_policy,
 group_name=group_name,
+            ins=_ins,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def priority_scorer_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:

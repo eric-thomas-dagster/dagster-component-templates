@@ -57,7 +57,7 @@ class Customer360Component(Component, Model, Resolvable):
         type: dagster_component_templates.Customer360Component
         attributes:
           asset_name: customer_360
-          stripe_customers_asset: "stripe_data"
+          stripe_customers_asset_key: "stripe_data"
           marketing_data_asset: "standardized_marketing_data"
           ga4_data_asset: "google_analytics_data"
           join_key: "email"
@@ -69,7 +69,7 @@ class Customer360Component(Component, Model, Resolvable):
     )
 
     # Input assets (set via visual lineage)
-    stripe_customers_asset: Optional[str] = Field(
+    stripe_customers_asset_key: Optional[str] = Field(
         default=None,
         description="Stripe customers data asset (automatically set via lineage)"
     )
@@ -214,7 +214,7 @@ class Customer360Component(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        stripe_asset = self.stripe_customers_asset
+        stripe_asset = self.stripe_customers_asset_key
         marketing_asset = self.marketing_data_asset_key
         ga4_asset = self.ga4_data_asset_key
         crm_asset = self.crm_data_asset_key

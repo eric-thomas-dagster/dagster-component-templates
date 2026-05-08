@@ -36,14 +36,14 @@
       "default": "",
       "ui:widget": "code"
     },
-    "product_usage_asset": {
+    "product_usage_asset_key": {
       "type": "string",
       "label": "Product Usage Asset",
       "description": "Product usage/activity data asset",
       "required": false,
       "default": ""
     },
-    "support_ticket_asset": {
+    "support_ticket_asset_key": {
       "type": "string",
       "label": "Support Ticket Asset",
       "description": "Support ticket data asset",

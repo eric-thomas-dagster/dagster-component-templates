@@ -1,0 +1,93 @@
+{
+  "component_type": "dagster_component_templates.OpenLineageExportJobComponent",
+  "description": "Op-shaped job that emits OpenLineage RunEvent (START / COMPLETE) per Dagster run to a configured collector (Marquez, OpenLineage Proxy, Datakin, etc.)",
+  "category": "jobs",
+  "icon": "Activity",
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule. None = manual / sensor-triggered.",
+      "required": false,
+      "default": null
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Job Tags",
+      "description": "Dagster job tags as key-value pairs.",
+      "required": false,
+      "default": null
+    },
+    "endpoint_env_var": {
+      "type": "string",
+      "label": "Endpoint Env Var",
+      "description": "Env var holding the OpenLineage collector URL (e.g. http://marquez:5000/api/v1/lineage).",
+      "required": false,
+      "default": "OPENLINEAGE_URL"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var with a bearer token if the collector requires auth.",
+      "required": false,
+      "default": null
+    },
+    "namespace": {
+      "type": "string",
+      "label": "Namespace",
+      "description": "OpenLineage namespace. Events from this code location group under this string.",
+      "required": false,
+      "default": "dagster"
+    },
+    "ol_job_name": {
+      "type": "string",
+      "label": "OpenLineage Job Name",
+      "description": "Job name as seen in OpenLineage. Defaults to job_name.",
+      "required": false,
+      "default": null
+    },
+    "producer": {
+      "type": "string",
+      "label": "Producer URI",
+      "description": "OpenLineage producer URI identifying the emitter.",
+      "required": false,
+      "default": "https://github.com/eric-thomas-dagster/dagster-component-templates/openlineage_export_job"
+    },
+    "inputs_template": {
+      "type": "array",
+      "items": { "type": "object" },
+      "label": "Inputs Template",
+      "description": "Static inputs list to attach to each event, e.g. [{'namespace': 'snowflake', 'name': 'analytics.public.orders'}].",
+      "required": false,
+      "default": null
+    },
+    "outputs_template": {
+      "type": "array",
+      "items": { "type": "object" },
+      "label": "Outputs Template",
+      "description": "Static outputs list to attach to each event.",
+      "required": false,
+      "default": null
+    },
+    "fail_on_collector_error": {
+      "type": "boolean",
+      "label": "Fail on Collector Error",
+      "description": "If true, fail the run when the collector is unreachable. Default false (best-effort emit, log warning).",
+      "required": false,
+      "default": false
+    }
+  }
+}

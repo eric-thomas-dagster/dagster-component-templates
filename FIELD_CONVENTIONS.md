@@ -154,16 +154,61 @@ All components should accept the standard Dagster catalog fields:
 
 ## Partitioning fields
 
-For partitioned assets, components accept this set:
+Two shapes — pick whichever fits your component's complexity. Components
+that accept partitions accept both: the flat-fields path is enough for
+the common single-axis cases; `partition_dimensions` overrides them when
+you need full multi-axis flexibility.
+
+### Flat-fields shape (single-axis or legacy multi)
 
 | Field | Type | Notes |
 |---|---|---|
-| `partition_type` | `Optional[str]` | `daily` \| `weekly` \| `monthly` \| `hourly` \| `static` \| `multi` |
-| `partition_start` | `Optional[str]` | ISO date string |
-| `partition_date_column` | `Optional[str]` | Column to filter by current date partition |
-| `partition_values` | `Optional[str]` | Comma-separated values for static / multi |
-| `partition_static_dim` | `Optional[str]` | Dimension name for multi |
-| `partition_static_column` | `Optional[str]` | Column to filter by static partition value |
+| `partition_type` | `Optional[str]` | `daily` \| `weekly` \| `monthly` \| `hourly` \| `static` \| `dynamic` \| `multi` |
+| `partition_start` | `Optional[str]` | ISO date string for time-based types |
+| `partition_values` | `Optional[str]` | Comma-separated values for `static` and legacy `multi` |
+| `dynamic_partition_name` | `Optional[str]` | Required when `partition_type=dynamic`. Becomes the `name=` on `DynamicPartitionsDefinition`. e.g. `tenants` |
+| `partition_date_column` | `Optional[str]` | Column to filter rows by current date partition (in transform/sink components) |
+| `partition_static_column` | `Optional[str]` | Column to filter rows by current static partition value |
+| `partition_static_dim` | `Optional[str]` | Dimension name for the static axis in legacy `multi` shape |
+
+`partition_type=multi` is the legacy `(date Daily, static_dim Static)`
+shape. For richer multi-axis combinations — `(tenant Dynamic, date
+Daily)`, `(static, static)`, etc. — use `partition_dimensions` below.
+
+### Multi-axis shape (`partition_dimensions`)
+
+When set, this list of dim specs overrides the flat fields:
+
+```yaml
+partition_dimensions:
+  - name: tenant
+    type: dynamic
+    dynamic_partition_name: tenants
+  - name: date
+    type: daily
+    start: "2024-01-01"
+```
+
+Each spec accepts:
+
+| Key | Required when | Notes |
+|---|---|---|
+| `name` | always | Dimension name in the resulting `MultiPartitionsDefinition` |
+| `type` | always | `daily` \| `weekly` \| `monthly` \| `hourly` \| `static` \| `dynamic` |
+| `start` | time-based types | ISO date string |
+| `values` | `static` | List or comma-separated string |
+| `dynamic_partition_name` | `dynamic` | Defaults to `name` if omitted |
+
+A single-element `partition_dimensions` produces a single-axis def
+(equivalent to the flat-fields shape but with custom dim name). Two or
+more produces a `MultiPartitionsDefinition`.
+
+### Implementation
+
+Components include a self-contained `_build_partitions_def(...)` helper
+at module top that maps both shapes to a Dagster `partitions_def`. This
+is the canonical implementation across the registry — copy it as-is when
+authoring a new partition-aware component.
 
 ## Retry policy
 

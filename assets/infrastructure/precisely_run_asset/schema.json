@@ -210,6 +210,13 @@
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "submit_path_template": {
+      "type": "string",
+      "label": "Submit Path Template",
+      "description": "Template for the job-submit endpoint when not using a resource. Default is a best-guess RESTful shape; replace if your install uses a different path.",
+      "required": false,
+      "default": "/projects/{job_id}/run"
     }
   },
   "tags": [

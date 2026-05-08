@@ -1,21 +1,39 @@
 """Precisely Run Asset Component.
 
-Triggers a Precisely Connect (formerly Syncsort DMX / Precisely Data Integration)
-job on demand and waits for completion. Dagster owns the schedule; Precisely executes.
+Triggers a Precisely Connect ETL (formerly Syncsort DMX / DMExpress) job on
+demand and waits for completion. Dagster owns the schedule; Precisely executes.
 
 Includes PreciselyResource for shared connection config across components.
 
-Precisely Connect REST API: https://{host}/api
+Precisely Connect ETL REST API:
+- Job Status (verified): GET {base}/projects/{jobRunId}/status
+  Returns a plain-text status string from this enum:
+    WAITING | RUNNING | COMPLETED | COMPLETED_WITH_WARNINGS |
+    COMPLETED_WITH_ERRORS | CANCELLED | ERRORED | LOST_CONTACT
+  See https://help.precisely.com/r/Connect-ETL/pub/Latest/en-US/Connect-ETL-Rest-API-Reference/Job-Status
+- Submit / trigger endpoint: not publicly documented. The default below
+  (POST {base}/projects/{job_id}/run) is a best-guess RESTful shape and may
+  need adjustment when validated against actual customer docs. Override
+  with `submit_path_template` if your install uses a different path.
 """
 import time
-from typing import Optional
+from typing import Any, Dict, List, Optional
+
 import dagster as dg
 from dagster import AssetExecutionContext, ConfigurableResource, MaterializeResult
 from pydantic import Field
 
 
+# Status values from the Connect ETL Job Status endpoint:
+# https://help.precisely.com/r/Connect-ETL/pub/Latest/en-US/Connect-ETL-Rest-API-Reference/Job-Status
+PRECISELY_TERMINAL_SUCCESS = {"COMPLETED", "COMPLETED_WITH_WARNINGS"}
+PRECISELY_TERMINAL_FAIL = {"COMPLETED_WITH_ERRORS", "CANCELLED", "ERRORED", "LOST_CONTACT"}
+PRECISELY_TERMINAL = PRECISELY_TERMINAL_SUCCESS | PRECISELY_TERMINAL_FAIL
+PRECISELY_IN_PROGRESS = {"WAITING", "RUNNING"}
+
+
 class PreciselyResource(ConfigurableResource):
-    """Resource for connecting to the Precisely Connect REST API.
+    """Resource for connecting to the Precisely Connect ETL REST API.
 
     Example:
         ```python
@@ -26,46 +44,59 @@ class PreciselyResource(ConfigurableResource):
         ```
     """
 
-    host: str = Field(description="Precisely Connect host URL (e.g. https://precisely.mycompany.com)")
+    host: str = Field(description="Precisely Connect ETL host URL (e.g. https://precisely.mycompany.com)")
     api_token: str = Field(description="Precisely API token (Bearer)")
+    submit_path_template: str = Field(
+        default="/projects/{job_id}/run",
+        description=(
+            "Template for the job-submit endpoint. Default is a best-guess "
+            "RESTful shape; replace if your Connect ETL install uses a "
+            "different path. Available placeholder: {job_id}."
+        ),
+    )
 
     def _base(self) -> str:
         return self.host.rstrip("/")
 
-    def _headers(self) -> dict:
-        return {"Authorization": f"Bearer {self.api_token}", "Accept": "application/json", "Content-Type": "application/json"}
+    def _headers(self) -> Dict[str, str]:
+        return {"Authorization": f"Bearer {self.api_token}", "Accept": "application/json"}
 
-    def run_job(self, job_id: str, parameters: dict | None = None) -> str:
-        """Trigger a job run and return the run ID."""
+    def run_job(self, job_id: str, parameters: Optional[dict] = None) -> str:
+        """Submit a job run and return the run ID returned by Precisely."""
         import requests
+        path = self.submit_path_template.format(job_id=job_id)
         resp = requests.post(
-            f"{self._base()}/api/v1/jobs/{job_id}/run",
-            headers=self._headers(),
+            f"{self._base()}{path}",
+            headers={**self._headers(), "Content-Type": "application/json"},
             json={"parameters": parameters or {}},
             timeout=30,
         )
         resp.raise_for_status()
-        data = resp.json()
-        return str(data.get("runId", data.get("id", "")))
+        # Submit response shape varies by install; tolerate both JSON {runId|id|jobRunId}
+        # and plain-text run-id responses.
+        try:
+            data = resp.json()
+            return str(data.get("jobRunId") or data.get("runId") or data.get("id") or "")
+        except ValueError:
+            return resp.text.strip()
 
-    def get_run_status(self, job_id: str, run_id: str) -> dict:
-        import requests
-        resp = requests.get(f"{self._base()}/api/v1/jobs/{job_id}/runs/{run_id}", headers=self._headers(), timeout=30)
-        resp.raise_for_status()
-        return resp.json()
+    def get_run_status(self, job_run_id: str) -> str:
+        """Fetch the current status of a Connect ETL job run.
 
-    def get_latest_run(self, job_id: str) -> dict | None:
+        Returns one of: WAITING | RUNNING | COMPLETED | COMPLETED_WITH_WARNINGS |
+        COMPLETED_WITH_ERRORS | CANCELLED | ERRORED | LOST_CONTACT.
+
+        Per Precisely Connect ETL docs, this endpoint returns a plain-text
+        status string, not JSON.
+        """
         import requests
         resp = requests.get(
-            f"{self._base()}/api/v1/jobs/{job_id}/runs",
+            f"{self._base()}/projects/{job_run_id}/status",
             headers=self._headers(),
-            params={"limit": 1, "sort": "-startTime"},
             timeout=30,
         )
         resp.raise_for_status()
-        data = resp.json()
-        runs = data.get("runs", data if isinstance(data, list) else [])
-        return runs[0] if runs else None
+        return resp.text.strip().upper()
 
 
 class PreciselyRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -186,19 +217,31 @@ class PreciselyRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Backoff strategy: 'linear' or 'exponential'.",
     )
 
+    submit_path_template: str = Field(
+        default="/projects/{job_id}/run",
+        description=(
+            "Template for the job-submit endpoint when not using a resource. "
+            "Default is a best-guess RESTful shape; replace if your Connect ETL "
+            "install uses a different path. Available placeholder: {job_id}. "
+            "The status-poll path is fixed at /projects/{jobRunId}/status per "
+            "Precisely's documented Connect ETL Job Status endpoint."
+        ),
+    )
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
 
         @dg.asset(
             key=dg.AssetKey(self.asset_key.split("/")),
-            description=f"Run Precisely Connect job {self.job_id}",
+            description=f"Run Precisely Connect ETL job {self.job_id}",
             group_name=self.group_name,
             kinds={"precisely"},
             required_resource_keys={self.resource_key} if self.resource_key else set(),
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def precisely_run_asset(context: AssetExecutionContext) -> MaterializeResult:
-            import os, requests
+            import os
+            import requests
 
             if _self.resource_key:
                 resource: PreciselyResource = getattr(context.resources, _self.resource_key)
@@ -209,46 +252,65 @@ class PreciselyRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 host = os.environ.get(_self.host_env_var or "", "").rstrip("/")
                 token = os.environ.get(_self.api_token_env_var or "", "")
                 base = host
-                headers = {"Authorization": f"Bearer {token}", "Accept": "application/json", "Content-Type": "application/json"}
+                headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
+                submit_path = _self.submit_path_template.format(job_id=_self.job_id)
                 resp = requests.post(
-                    f"{base}/api/v1/jobs/{_self.job_id}/run",
-                    headers=headers,
+                    f"{base}{submit_path}",
+                    headers={**headers, "Content-Type": "application/json"},
                     json={"parameters": _self.parameters or {}},
                     timeout=30,
                 )
                 resp.raise_for_status()
-                data = resp.json()
-                run_id = str(data.get("runId", data.get("id", "")))
+                # Submit response shape varies; tolerate JSON or plain text run-id.
+                try:
+                    data = resp.json()
+                    run_id = str(data.get("jobRunId") or data.get("runId") or data.get("id") or "")
+                except ValueError:
+                    run_id = resp.text.strip()
+
+            if not run_id:
+                raise Exception(
+                    "Precisely submit returned no job-run ID. Check submit_path_template "
+                    "matches your install's API and the response shape."
+                )
 
             context.log.info(f"Precisely job triggered. job_id={_self.job_id} run_id={run_id}")
 
+            # Poll the documented Job Status endpoint until terminal status.
+            # Returns a plain-text status string from this enum:
+            #   WAITING | RUNNING | COMPLETED | COMPLETED_WITH_WARNINGS |
+            #   COMPLETED_WITH_ERRORS | CANCELLED | ERRORED | LOST_CONTACT
             elapsed = 0.0
+            status = ""
             while elapsed < _self.timeout_seconds:
                 time.sleep(_self.poll_interval_seconds)
                 elapsed += _self.poll_interval_seconds
                 try:
-                    resp = requests.get(f"{base}/api/v1/jobs/{_self.job_id}/runs/{run_id}", headers=headers, timeout=30)
+                    resp = requests.get(
+                        f"{base}/projects/{run_id}/status",
+                        headers=headers,
+                        timeout=30,
+                    )
                     resp.raise_for_status()
-                    status_data = resp.json()
-                    status = (status_data.get("status") or status_data.get("state") or "").upper()
+                    status = resp.text.strip().upper()
                     context.log.info(f"Run {run_id} status: {status}")
                 except Exception as e:
                     context.log.warning(f"Poll error: {e}")
                     continue
 
-                if status in ("SUCCESS", "COMPLETED", "SUCCEEDED"):
+                if status in PRECISELY_TERMINAL_SUCCESS:
                     return MaterializeResult(metadata={
                         "run_id": run_id,
                         "job_id": _self.job_id,
                         "status": status,
-                        "records_processed": status_data.get("recordsProcessed", 0),
-                        "records_failed": status_data.get("recordsFailed", 0),
-                        "start_time": status_data.get("startTime", ""),
-                        "end_time": status_data.get("endTime", ""),
                     })
-                elif status in ("FAILED", "ERROR", "ABORTED", "CANCELLED"):
-                    raise Exception(f"Precisely run {run_id} {status}. message={status_data.get('message', '')}")
+                if status in PRECISELY_TERMINAL_FAIL:
+                    raise Exception(f"Precisely run {run_id} terminal status: {status}")
+                # Otherwise: WAITING or RUNNING — keep polling.
 
-            raise Exception(f"Precisely run {run_id} timed out after {_self.timeout_seconds}s")
+            raise Exception(
+                f"Precisely run {run_id} timed out after {_self.timeout_seconds}s "
+                f"(last status: {status or 'unknown'})"
+            )
 
         return dg.Definitions(assets=[precisely_run_asset])

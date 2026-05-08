@@ -18,9 +18,10 @@
     },
     "job_id": {
       "type": "string",
-      "label": "Job Id",
-      "description": "Precisely Connect job ID to monitor",
-      "required": true
+      "label": "Job ID",
+      "description": "Precisely Connect ETL job ID (use with list-runs mode).",
+      "required": false,
+      "default": null
     },
     "job_name": {
       "type": "string",
@@ -64,6 +65,20 @@
       "description": "running or stopped",
       "required": false,
       "default": "running"
+    },
+    "job_run_id": {
+      "type": "string",
+      "label": "Job Run ID",
+      "description": "Specific job-run ID to watch. Uses verified Job Status endpoint.",
+      "required": false,
+      "default": null
+    },
+    "list_runs_path_template": {
+      "type": "string",
+      "label": "List Runs Path Template",
+      "description": "Path template for listing recent runs. Validate vs your install (not in Precisely's public REST docs).",
+      "required": false,
+      "default": "/api/v1/jobs/{job_id}/runs"
     }
   },
   "tags": [

@@ -23,6 +23,14 @@ have no example:
   small inference batch. Validation level `live` requires Ollama running
   on the target machine.
 
+## iceberg_io_manager broken import
+
+`setup_local_io_demo.sh` fails on project load because
+`iceberg_io_manager/component.py` imports
+`from dagster_iceberg.io_manager.pyarrow import IcebergPyarrowIOManager`,
+but that module path doesn't exist in the installed `dagster-iceberg`
+version. Either pin a compatible version or update the import path.
+
 ## Canonicalize text_column → input_column across AI components
 
 Four AI components (`keyword_extractor`, `language_detector`,

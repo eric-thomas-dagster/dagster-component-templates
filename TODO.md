@@ -23,6 +23,20 @@ have no example:
   small inference batch. Validation level `live` requires Ollama running
   on the target machine.
 
+## OpenLineage op-job export
+
+The current `lineage_to_openlineage` (and the broader `lineage_to_*`
+family) expose lineage as **assets** that materialize a graph snapshot.
+That works for a Dagster-native view, but doesn't fit teams that
+already have an OpenLineage collector and want events emitted on the
+**job-run** boundary (each op start / complete → an OpenLineage event).
+
+What to build: an op-shaped job component that, when added to a code
+location, registers run-event hooks (or a sensor) that emit OpenLineage
+events to a configured endpoint (Marquez, Datakin, etc.) for each op
+execution. Independent of the asset-lineage sinks; not a replacement,
+a complement.
+
 ## Partition shape rework
 
 Tracked separately as Phase 1 of the partition-handling improvements.

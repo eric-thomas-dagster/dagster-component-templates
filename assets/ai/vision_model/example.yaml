@@ -3,7 +3,7 @@ attributes:
   asset_name: product_image_analysis
 
   # Source Configuration
-  source_asset: product_images_df
+  upstream_asset_key: product_images_df
 
   # Provider Configuration
   provider: "openai"  # Options: openai, anthropic

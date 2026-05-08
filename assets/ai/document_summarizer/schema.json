@@ -27,7 +27,7 @@
       "description": "Upstream asset key providing a DataFrame with documents to summarize",
       "required": true
     },
-    "text_column": {
+    "input_column": {
       "type": "string",
       "label": "Text Column",
       "description": "Column name containing document text to summarize",
@@ -35,7 +35,7 @@
       "default": "text",
       "ui:widget": "textarea"
     },
-    "summary_column": {
+    "output_column": {
       "type": "string",
       "label": "Summary Column",
       "description": "Column name for generated summaries",

@@ -27,7 +27,7 @@ class DocumentSummarizerComponent(Component, Model, Resolvable):
     """Component for summarizing documents with LLMs.
 
     Accepts a DataFrame via ins= and applies LLM summarization to each row's
-    text_column, adding the summary as summary_column.
+    input_column, adding the summary as output_column.
 
     Example:
         ```yaml
@@ -35,8 +35,8 @@ class DocumentSummarizerComponent(Component, Model, Resolvable):
         attributes:
           asset_name: document_summary
           upstream_asset_key: extracted_documents
-          text_column: document_text
-          summary_column: summary
+          input_column: document_text
+          output_column: summary
           provider: openai
           model: gpt-4
           summary_type: concise
@@ -45,8 +45,8 @@ class DocumentSummarizerComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame with documents to summarize")
-    text_column: str = Field(default="text", description="Column name containing document text to summarize")
-    summary_column: str = Field(default="summary", description="Column name for generated summaries")
+    input_column: str = Field(default="text", description="Column name containing document text to summarize")
+    output_column: str = Field(default="summary", description="Column name for generated summaries")
     provider: str = Field(description="LLM provider")
     model: str = Field(description="Model name")
     summary_type: str = Field(default="concise", description="Type: 'concise', 'detailed', 'bullet_points', 'executive'")
@@ -160,8 +160,8 @@ class DocumentSummarizerComponent(Component, Model, Resolvable):
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
-        text_column = self.text_column
-        summary_column = self.summary_column
+        input_column = self.input_column
+        output_column = self.output_column
         provider = self.provider
         model = self.model
         summary_type = self.summary_type
@@ -297,8 +297,8 @@ group_name=group_name,
 
             df = upstream.copy()
 
-            if text_column not in df.columns:
-                raise ValueError(f"Text column '{text_column}' not found. Available: {list(df.columns)}")
+            if input_column not in df.columns:
+                raise ValueError(f"Text column '{input_column}' not found. Available: {list(df.columns)}")
 
             context.log.info(f"Summarizing {len(df)} documents using {provider}/{model}")
 
@@ -367,11 +367,11 @@ group_name=group_name,
 
             summaries = []
             for idx, row in df.iterrows():
-                text = str(row[text_column])
+                text = str(row[input_column])
                 context.log.info(f"Summarizing document {idx + 1}/{len(df)} ({len(text)} characters)")
                 summaries.append(summarize_text(text))
 
-            df[summary_column] = summaries
+            df[output_column] = summaries
 
             context.log.info(f"Summarization complete: {len(df)} documents processed")
             context.add_output_metadata({

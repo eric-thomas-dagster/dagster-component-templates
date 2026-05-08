@@ -70,6 +70,13 @@
       "required": false,
       "default": "text"
     },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "description": "Column name for the extracted entities (when output_format=\"structured\").",
+      "required": false,
+      "default": "entities"
+    },
     "entity_types": {
       "type": "string",
       "label": "Entity Types",

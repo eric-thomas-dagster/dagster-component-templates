@@ -104,6 +104,11 @@ class EntityExtractorComponent(Component, Model, Resolvable):
         description="Column name containing text to extract entities from"
     )
 
+    output_column: str = Field(
+        default="entities",
+        description="Column name for the extracted entities (used when output_format='structured')."
+    )
+
     entity_types: str = Field(
         default="person,organization,location,email,phone,product,order_id,date,money",
         description="Comma-separated list of entity types to extract"
@@ -286,6 +291,7 @@ class EntityExtractorComponent(Component, Model, Resolvable):
         transformer_model = self.transformer_model
         api_key = self.api_key
         input_column = self.input_column
+        output_column = self.output_column
         entity_types_str = self.entity_types
         custom_entities_str = self.custom_entities
         output_format = self.output_format
@@ -781,7 +787,7 @@ Return empty array [] if no entities found."""
 
             if output_format == "structured":
                 # Add entities as JSON column
-                result_df['entities'] = [json.dumps(entities) if entities else "[]" for entities in all_entities]
+                result_df[output_column] = [json.dumps(entities) if entities else "[]" for entities in all_entities]
 
                 # Also add entity count
                 result_df['entity_count'] = [len(entities) for entities in all_entities]

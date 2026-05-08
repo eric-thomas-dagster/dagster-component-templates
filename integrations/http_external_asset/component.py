@@ -10,8 +10,6 @@ Self-contained — no shared helper modules, per the registry's distribution
 model. The condition language, templating engine, HTTP client, and execution
 loop are all inlined in this file.
 """
-from __future__ import annotations
-
 import datetime as _dt
 import importlib
 import json

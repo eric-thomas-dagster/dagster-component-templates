@@ -3,108 +3,93 @@
 Open work tracked across the registry. Closed items get deleted, not crossed
 out — git log is the history.
 
-## Examples to write
+## subscription_metrics + ad_spend_std need ins= wiring
 
-Per the project pattern (`dagster-community-components-cli/examples/setup_*.sh`
-+ `examples/<demo>.md`), every component should have at least one walkthrough
-that materializes it end-to-end. The following changed components currently
-have no example:
-
-- **`moderation_scorer`** — needs a walkthrough that scores a batch of
-  user-generated text and demonstrates the threshold/flag output. Likely
-  pairs naturally with `synthetic_data_generator` (support_tickets schema)
-  or a slim "user comments" synthetic source.
-- **`text_moderator`** — same shape as `moderation_scorer`; could share an
-  example (`setup_content_moderation_demo.sh`?) that runs both side-by-side
-  and contrasts their output.
-- **`ollama_inference_asset`** — needs an example that doesn't require
-  OpenAI credentials. Should document the local Ollama install step
-  (e.g. `brew install ollama && ollama pull llama3.2:3b`) and run a
-  small inference batch. Validation level `live` requires Ollama running
-  on the target machine.
+Both components use `deps=` + manual `context.load_asset_value()` instead of
+`ins={"role": AssetIn(...)}`. When all assets launch together, the manual
+loader hits the storage path before the upstream has been written, and the
+component raises. Same bug pattern as priority_scorer had — apply the same
+fix (declare AssetIn, take upstream as kwarg, let Dagster's IO manager
+handle the chaining).
 
 ## More example walkthroughs needed
 
 The manifest tracks `validation: { level: code|infra|live, ... }` per
-component (see VALIDATION.md). Roughly 500 components in the registry
-have no live walkthrough at all. Each example covers ~5–40 components,
-so we need 10–20 more example demos to hit broad live-coverage.
-Targets: ingestion (49 components), sensor (40), io_manager (15),
-external (21), checks (7), specific resource families.
+component (see VALIDATION.md). Roughly 500 components in the registry have
+no live walkthrough yet. Each example covers ~5–40 components, so we need
+10–20 more example demos to hit broad live-coverage. Priority targets:
 
-## subscription_metrics + ad_spend_std need ins= wiring
+- **ingestion (49 components)** — kafka_to_db, sqs_to_db, kinesis, eventhubs,
+  pubsub, sftp, csv_file, etc. Many share infra patterns and could be
+  validated together with a single localstack/redpanda/etc. setup.
+- **sensor (40)** — file watchers, polling sensors, webhook receivers.
+- **io_manager (15)** — most are validated via `setup_local_io_demo.sh`,
+  but cloud-backed (s3, gcs, adls) IO managers need separate validation.
+- **external (21)** — declare-only assets; mostly need a "you can see them
+  in the UI" smoke test rather than full materialization.
+- **check (7)** — Great Expectations / Soda / etc.
+- **resource (55)** — most are connection-handle wrappers; validation =
+  resource initializes without error against the real backend.
 
-Both components use deps= + manual context.load_asset_value() instead
-of ins={"role": AssetIn(...)}. When all assets launch together, the
-manual loader hits the storage path before the upstream has been
-written, and the component raises. Same bug pattern as priority_scorer
-had — apply the same fix (declare AssetIn, take upstream as kwarg,
-let Dagster's IO manager handle the chaining).
+The web UI's "Trust & feedback" surface reads from `manifest.json`'s
+`validation.level` field — every new walkthrough should bump that for
+its components.
 
-## Canonicalize text_column → input_column across AI components
+## Op-job category: more "export to X" jobs
 
-Four AI components (`keyword_extractor`, `language_detector`,
-`pii_detector`, `pii_redactor`) use `text_column`; the rest of the AI
-family (embeddings_generator, entity_extractor, document_summarizer,
-sentiment_analyzer, etc.) uses the canonical `input_column`. Sweep
-these four to `input_column` for consistency across the YAML surface
-users actually write.
+`jobs/openlineage_export_job` (just landed) is one example. Other
+candidates that fit the same op-job pattern (run-shaped, not asset-shaped):
 
-## OpenLineage op-job export
+- **SIEM audit log export** — emit Dagster run events to Splunk / Datadog /
+  Sumo on a schedule, separate from `dagster_plus_to_siem_job` which is
+  cloud-specific.
+- **Cost telemetry export** — push run-cost metrics (compute time × tier)
+  to a billing system.
+- **Compliance export** — periodic snapshot of which assets ran with what
+  data classification, for audit trails.
 
-The current `lineage_to_openlineage` (and the broader `lineage_to_*`
-family) expose lineage as **assets** that materialize a graph snapshot.
-That works for a Dagster-native view, but doesn't fit teams that
-already have an OpenLineage collector and want events emitted on the
-**job-run** boundary (each op start / complete → an OpenLineage event).
+These should land in `jobs/` alongside the existing cleanup / trigger jobs.
 
-What to build: an op-shaped job component that, when added to a code
-location, registers run-event hooks (or a sensor) that emit OpenLineage
-events to a configured endpoint (Marquez, Datakin, etc.) for each op
-execution. Independent of the asset-lineage sinks; not a replacement,
-a complement.
+## Partition shape rework (Phase 1)
 
-## Partition shape rework
+The registry's partition handling has known gaps from external consumer
+feedback. See conversation history for the full diagnosis. Five concrete
+items, in priority order:
 
-Tracked separately as Phase 1 of the partition-handling improvements.
-See conversation context, not yet broken into sub-tasks here.
+1. **Dynamic partitions support across all 324 partition-aware templates.**
+   Add `type: dynamic` to the partition-type enum + a `dynamic_partition_name`
+   field. Required for multi-tenant SaaS use cases where partitions grow at
+   runtime. Highest value of all the partition fixes.
+2. **Generalize MultiPartitionsDefinition.** Currently hardcoded as
+   `{"date": Daily, _dim: Static}`. Replace with a list of dimension specs
+   so users can express `(tenant, date)`, `(static, static)`, `(dynamic, date)`.
+3. **Add partitions_def support to all 21 `external_*` templates.** They
+   currently declare-only with no partition surface; the implementation is
+   `dg.AssetSpec(partitions_def=...)`.
+4. **PerPartitionBackfillJobComponent** — add `dynamic_partitions_all` and
+   `dynamic_partitions_subset(filter)` strategies. Replace
+   `context.repository_def.assets_defs_by_key` (internal API) with
+   `define_asset_job(selection=...)`. Add `concurrency_key_template: str`
+   so per-partition runs get partition-derived concurrency keys.
+5. **Strict validation.** Pydantic `model_validator(mode="after")` that
+   fails on `partition_type=multi` without explicit dim, and on missing
+   `partition_start` when type is time-based. No more silent `"segment"`
+   default or `"2020-01-01"` start.
 
-## Demo failures discovered during validation (analytics)
+Each item is a self-contained PR. Items 1–3 will touch the most files
+(~324 components); a codemod is the right tool, since the registry's
+distribution model is one self-contained `component.py` per template
+(no shared helper module).
 
-`setup_analytics_demo.sh` now scaffolds + validates clean (was broken on
-all 8 multi-role components — fixed). At runtime, several still fail on
-unrelated bugs:
+## Demo runtime issues — secondary
 
-- **`subscription_metrics_output`** — `KeyError: 'status'`. The component
-  expects a `status` column (presumably `active` / `cancelled`) but the
-  synthetic ecommerce_dataset doesn't have one. Either give synthetic
-  data the right columns, or make the component tolerate missing
-  optional columns.
-- **`pip_output`** — `ValueError: One of geojson_path or geojson_url
-  must be provided`. Demo's defs.yaml is missing a required field.
-- **`gradient_boosting_model_output`, `nn_output`** — sklearn errors
-  about classifier/regressor mismatch on synthetic data ("Unknown label
-  type: continuous"). Data shape vs component config.
-- **`stepwise_output`** — `n_features_to_select must be < n_features`.
-  Synthetic data has too few features for the demo's config.
-- **`model_compare`** — fails because upstream `gradient_boosting_*` and
-  `nn_*` failed.
+These don't block validation of our pending changes, but are real bugs.
 
-## Demo failures discovered during validation (transforms)
-
-`setup_transformations_demo.sh` materializes 34/37 components clean. Three
-fail with bugs unrelated to convention drift:
-
-- **`orders_sql` (sql_transform)** — demo's defs.yaml references env var
-  `DUCKDB_PATH_VAR`, but `setup_transformations_demo.sh` exports
-  `SQL_DB_URL`. Either fix the setup script to also export the var the
-  demo expects, or change the demo to point at `SQL_DB_URL`.
-- **`orders_formula` (multi_field_formula)** — demo passes
-  `expression: 'col * 1.1'` with `columns: [unit_price]`, expecting the
-  component to substitute `col` with each column name in turn. Component
-  doesn't support that placeholder — `NameError: name 'col' is not defined`.
-  Either add `col` substitution to the component or rewrite the demo to
-  use the column name literally.
-- **`orders_row_formula` (multi_row_formula)** — fails with
-  `KeyError: 'column'`. Component appears to require a `column` key in
-  each operation, but the demo uses `output` + `expression`. Reconcile.
+`setup_analytics_demo.sh`:
+- `pip_output` (point_in_polygon) — needs a real geojson source; demo
+  currently points at a public Natural Earth states URL, which works
+  but is a fragile dependency.
+- `gradient_boosting`, `nn`, `stepwise` — sklearn data-shape errors
+  (continuous label vs classifier, n_features mismatch). Demo synthetic
+  data may need richer columns to satisfy these models in their default
+  configs.

@@ -316,7 +316,16 @@ class SubscriptionMetricsComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        # Build ins= so Dagster's IO manager loads upstreams in the right order.
+        # Each named role maps to a kwarg name we'll look up below.
+        from dagster import AssetIn
+        _ins: dict = {}
+        if stripe_asset:
+            _ins["stripe"] = AssetIn(key=AssetKey.from_user_string(stripe_asset))
+        if revenue_asset:
+            _ins["revenue"] = AssetIn(key=AssetKey.from_user_string(revenue_asset))
+
+        @asset(retry_policy=_retry_policy,
             name=asset_name,
             description=description,
             partitions_def=partitions_def,
@@ -324,7 +333,7 @@ class SubscriptionMetricsComponent(Component, Model, Resolvable):
             tags=_all_tags,
             freshness_policy=_freshness_policy,
 group_name=group_name,
-            deps=upstream_keys if upstream_keys else None,
+            ins=_ins or None,
         )
         def subscription_metrics_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
             # Filter to current partition if partitioned
@@ -343,21 +352,13 @@ group_name=group_name,
 
             context.log.info(f"Calculating subscription metrics with {calculation_period} granularity")
 
-            # Load upstream data
-            upstream_data = {}
-            if upstream_keys and hasattr(context, 'load_asset_value'):
-                for key in upstream_keys:
-                    try:
-                        value = context.load_asset_value(AssetKey(key))
-                        upstream_data[key] = value
-                        context.log.info(f"Loaded {key}: {len(value)} rows")
-                    except Exception as e:
-                        context.log.warning(f"Could not load {key}: {e}")
-            else:
-                upstream_data = kwargs
-
-            # Get Stripe data
-            stripe_data = upstream_data.get(stripe_asset)
+            # Upstreams arrive as kwargs via Dagster's IO manager (see ins= above).
+            stripe_data = kwargs.get("stripe")
+            revenue_data = kwargs.get("revenue")
+            if stripe_data is not None:
+                context.log.info(f"Loaded stripe: {len(stripe_data)} rows")
+            if revenue_data is not None:
+                context.log.info(f"Loaded revenue: {len(revenue_data)} rows")
 
             if stripe_data is None or len(stripe_data) == 0:
                 raise ValueError("Stripe data is required for subscription metrics")

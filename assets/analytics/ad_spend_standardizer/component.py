@@ -235,14 +235,16 @@ class AdSpendStandardizerComponent(Component, Model, Resolvable):
         description = self.description or "Standardized advertising spend data"
         group_name = self.group_name or "standardizers"
 
-        # Build dependency list
-        deps = []
+        # Build ins= so Dagster's IO manager loads each platform DataFrame
+        # in the right order. Each named role maps to a kwarg name below.
+        from dagster import AssetIn
+        _ins: dict = {}
         if google_ads_asset_key:
-            deps.append(AssetKey(google_ads_asset_key))
+            _ins["google_ads"] = AssetIn(key=AssetKey.from_user_string(google_ads_asset_key))
         if facebook_ads_asset_key:
-            deps.append(AssetKey(facebook_ads_asset_key))
+            _ins["facebook_ads"] = AssetIn(key=AssetKey.from_user_string(facebook_ads_asset_key))
         if other_ad_platform_asset_key:
-            deps.append(AssetKey(other_ad_platform_asset_key))
+            _ins["other_ads"] = AssetIn(key=AssetKey.from_user_string(other_ad_platform_asset_key))
 
         # Build partition definition
         partitions_def = None
@@ -341,7 +343,7 @@ class AdSpendStandardizerComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        @asset(retry_policy=_retry_policy,
             name=asset_name,
             description=description,
             partitions_def=partitions_def,
@@ -349,55 +351,44 @@ class AdSpendStandardizerComponent(Component, Model, Resolvable):
             tags=_all_tags,
             freshness_policy=_freshness_policy,
 group_name=group_name,
-            deps=deps if deps else None,
+            ins=_ins or None,
         )
-        def ad_spend_standardizer_asset(context: AssetExecutionContext) -> pd.DataFrame:
+        def ad_spend_standardizer_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
             """Standardize ad spend data from multiple platforms."""
 
             standardized_datasets = []
 
-            # Process Google Ads data
-            if google_ads_asset_key:
+            # Upstream DataFrames arrive via Dagster's IO manager (see ins= above).
+            google_ads_df = kwargs.get("google_ads")
+            if google_ads_df is not None:
                 try:
-                    google_ads_df = context.load_asset_value(AssetKey(google_ads_asset_key))
                     context.log.info(f"Loaded Google Ads data: {len(google_ads_df)} rows")
-
                     standardized_google = self._standardize_google_ads(
-                        google_ads_df,
-                        date_column_name,
-                        currency_normalization
+                        google_ads_df, date_column_name, currency_normalization,
                     )
                     standardized_datasets.append(standardized_google)
                     context.log.info(f"Standardized Google Ads: {len(standardized_google)} rows")
                 except Exception as e:
                     context.log.warning(f"Could not process Google Ads data: {e}")
 
-            # Process Facebook Ads data
-            if facebook_ads_asset_key:
+            facebook_ads_df = kwargs.get("facebook_ads")
+            if facebook_ads_df is not None:
                 try:
-                    facebook_ads_df = context.load_asset_value(AssetKey(facebook_ads_asset_key))
                     context.log.info(f"Loaded Facebook Ads data: {len(facebook_ads_df)} rows")
-
                     standardized_facebook = self._standardize_facebook_ads(
-                        facebook_ads_df,
-                        date_column_name,
-                        currency_normalization
+                        facebook_ads_df, date_column_name, currency_normalization,
                     )
                     standardized_datasets.append(standardized_facebook)
                     context.log.info(f"Standardized Facebook Ads: {len(standardized_facebook)} rows")
                 except Exception as e:
                     context.log.warning(f"Could not process Facebook Ads data: {e}")
 
-            # Process other platform data
-            if other_ad_platform_asset_key:
+            other_ads_df = kwargs.get("other_ads")
+            if other_ads_df is not None:
                 try:
-                    other_ads_df = context.load_asset_value(AssetKey(other_ad_platform_asset_key))
                     context.log.info(f"Loaded other ad platform data: {len(other_ads_df)} rows")
-
                     standardized_other = self._standardize_generic_ads(
-                        other_ads_df,
-                        date_column_name,
-                        currency_normalization
+                        other_ads_df, date_column_name, currency_normalization,
                     )
                     standardized_datasets.append(standardized_other)
                     context.log.info(f"Standardized other ads: {len(standardized_other)} rows")
@@ -427,8 +418,10 @@ group_name=group_name,
                 combined_df = combined_df[combined_df['spend'] > 0]
                 context.log.info(f"Filtered zero spend days: {original_count} → {len(combined_df)} rows")
 
-            # Sort by date and platform
-            combined_df = combined_df.sort_values(['date', 'platform', 'campaign_name'])
+            # Sort by date and platform (only include columns the source actually has)
+            sort_cols = [c for c in ['date', 'platform', 'campaign_name'] if c in combined_df.columns]
+            if sort_cols:
+                combined_df = combined_df.sort_values(sort_cols)
 
             context.log.info(f"✅ Standardized ad spend data: {len(combined_df)} rows")
             context.log.info(f"Platforms: {combined_df['platform'].unique().tolist()}")
@@ -678,34 +671,21 @@ group_name=group_name,
         return aggregated
 
     def _calculate_derived_metrics(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Calculate CTR, CPC, CPA, ROAS."""
+        """Calculate CTR, CPC, CPA, ROAS.
 
-        # CTR = (clicks / impressions) * 100
-        df['ctr'] = np.where(
-            df['impressions'] > 0,
-            (df['clicks'] / df['impressions']) * 100,
-            0
-        )
+        np.where() evaluates both branches eagerly, so wrapping
+        `df['x'] / df['y']` in np.where() still divides element-wise
+        first and raises on a zero denominator. Replace 0 with NaN in
+        the denominator so the division yields NaN, then fillna(0).
+        """
+        impressions_safe = df['impressions'].replace(0, np.nan)
+        clicks_safe = df['clicks'].replace(0, np.nan)
+        conversions_safe = df['conversions'].replace(0, np.nan)
+        spend_safe = df['spend'].replace(0, np.nan)
 
-        # CPC = spend / clicks
-        df['cpc'] = np.where(
-            df['clicks'] > 0,
-            df['spend'] / df['clicks'],
-            0
-        )
-
-        # CPA = spend / conversions
-        df['cpa'] = np.where(
-            df['conversions'] > 0,
-            df['spend'] / df['conversions'],
-            0
-        )
-
-        # ROAS = conversion_value / spend
-        df['roas'] = np.where(
-            df['spend'] > 0,
-            df['conversion_value'] / df['spend'],
-            0
-        )
+        df['ctr'] = ((df['clicks'] / impressions_safe) * 100).fillna(0)
+        df['cpc'] = (df['spend'] / clicks_safe).fillna(0)
+        df['cpa'] = (df['spend'] / conversions_safe).fillna(0)
+        df['roas'] = (df['conversion_value'] / spend_safe).fillna(0)
 
         return df

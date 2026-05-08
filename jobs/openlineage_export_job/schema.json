@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.OpenLineageExportJobComponent",
-  "description": "Op-shaped job that emits OpenLineage RunEvent (START / COMPLETE) per Dagster run to a configured collector (Marquez, OpenLineage Proxy, Datakin, etc.)",
+  "description": "Op-shaped job that walks the live Dagster asset graph and emits one OpenLineage RunEvent per asset to a collector (Marquez, OpenLineage Proxy, Datakin).",
   "category": "jobs",
   "icon": "Activity",
   "attributes": {
@@ -34,7 +34,7 @@
     "endpoint_env_var": {
       "type": "string",
       "label": "Endpoint Env Var",
-      "description": "Env var holding the OpenLineage collector URL (e.g. http://marquez:5000/api/v1/lineage).",
+      "description": "Env var with the OpenLineage collector base URL (e.g. http://marquez:5000). The job appends /api/v1/lineage if no path is set.",
       "required": false,
       "default": "OPENLINEAGE_URL"
     },
@@ -48,16 +48,9 @@
     "namespace": {
       "type": "string",
       "label": "Namespace",
-      "description": "OpenLineage namespace. Events from this code location group under this string.",
+      "description": "OpenLineage namespace. All datasets and jobs from this code location group under this string.",
       "required": false,
       "default": "dagster"
-    },
-    "ol_job_name": {
-      "type": "string",
-      "label": "OpenLineage Job Name",
-      "description": "Job name as seen in OpenLineage. Defaults to job_name.",
-      "required": false,
-      "default": null
     },
     "producer": {
       "type": "string",
@@ -66,26 +59,17 @@
       "required": false,
       "default": "https://github.com/eric-thomas-dagster/dagster-component-templates/openlineage_export_job"
     },
-    "inputs_template": {
-      "type": "array",
-      "items": { "type": "object" },
-      "label": "Inputs Template",
-      "description": "Static inputs list to attach to each event, e.g. [{'namespace': 'snowflake', 'name': 'analytics.public.orders'}].",
+    "only_export_on_change": {
+      "type": "boolean",
+      "label": "Only Export on Change",
+      "description": "Hash the structural payload and skip emit when unchanged from the previous successful run.",
       "required": false,
-      "default": null
-    },
-    "outputs_template": {
-      "type": "array",
-      "items": { "type": "object" },
-      "label": "Outputs Template",
-      "description": "Static outputs list to attach to each event.",
-      "required": false,
-      "default": null
+      "default": true
     },
     "fail_on_collector_error": {
       "type": "boolean",
       "label": "Fail on Collector Error",
-      "description": "If true, fail the run when the collector is unreachable. Default false (best-effort emit, log warning).",
+      "description": "If true, fail the run when the collector is unreachable. Default false (best-effort emit).",
       "required": false,
       "default": false
     }

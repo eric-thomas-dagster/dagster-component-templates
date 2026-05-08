@@ -1,13 +1,13 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/openlineage_export_job/schema.json
 type: dagster_component_templates.OpenLineageExportJobComponent
 attributes:
-  job_name: emit_openlineage_run_events
-  schedule: "*/15 * * * *"           # every 15 minutes
+  job_name: emit_openlineage_lineage
+  schedule: "0 */4 * * *"             # every 4 hours
   default_status: STOPPED
-  endpoint_env_var: OPENLINEAGE_URL  # e.g. http://marquez:5000/api/v1/lineage
+  endpoint_env_var: OPENLINEAGE_URL   # base URL, e.g. http://marquez:5000 — /api/v1/lineage appended automatically
+  api_key_env_var: OPENLINEAGE_API_KEY  # optional, omit if collector is unauthenticated
   namespace: dagster.prod
-  ol_job_name: nightly_pipeline
-  producer: https://github.com/eric-thomas-dagster/dagster-component-templates/openlineage_export_job
-  fail_on_collector_error: false     # best-effort emit
+  only_export_on_change: true         # skip emit when graph structurally unchanged
+  fail_on_collector_error: false      # best-effort emit
   tags:
     team: platform

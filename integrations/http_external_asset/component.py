@@ -807,8 +807,14 @@ def _execute_asset(
                 f"asset {asset_key_str!r} trigger.run_id extractor is required — "
                 "the component needs to know the external run identifier to poll."
             )
+        # The trigger.run_id extractor always operates on the trigger response —
+        # status/logs aren't available yet. Force the source to override any
+        # default the user may have inherited from `source: status_response`.
+        run_id_extractor = asset_spec.trigger.run_id.model_copy(
+            update={"source": "trigger_response"}
+        )
         external_run_id = extract_value(
-            asset_spec.trigger.run_id,
+            run_id_extractor,
             _SourceData(trigger_response=trigger_response_data),
         )
         if external_run_id is None:

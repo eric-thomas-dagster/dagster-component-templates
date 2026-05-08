@@ -7971,8 +7971,8 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/http_external_asset/requirements.txt",
       "component_type": "dagster_component_templates.HttpExternalAssetComponent",
       "validation": {
-        "level": "code",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/integrations/http_external_asset/tests",
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/http_external_asset.md",
         "last_validated": "2026-05-08"
       }
     },

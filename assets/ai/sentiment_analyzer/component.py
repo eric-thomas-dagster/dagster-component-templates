@@ -552,7 +552,7 @@ Return your analysis as JSON:
 
                 # Process each text
                 for idx, text in enumerate(texts):
-                    prompt = prompt_template.format(text=text)
+                    prompt = prompt_template.replace("{text}", text)
 
                     try:
                         # Call LLM

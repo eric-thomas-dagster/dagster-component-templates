@@ -391,11 +391,11 @@ group_name=group_name,
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[
-                TableColumn(name=str(col), type=str(result.dtypes[col]))
-                for col in result.columns
+                TableColumn(name=str(col), type=str(df.dtypes[col]))
+                for col in df.columns
             ])
             _metadata = {
-                "dagster/row_count": MetadataValue.int(len(result)),
+                "dagster/row_count": MetadataValue.int(len(df)),
                 "dagster/column_schema": MetadataValue.table_schema(_col_schema),
             }
             # Use explicit lineage, or auto-infer passthrough columns at runtime

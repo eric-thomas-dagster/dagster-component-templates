@@ -326,6 +326,7 @@ group_name=self.group_name,
                 model=model,
                 messages=[{"role": "user", "content": mapping_prompt}],
                 api_key=os.environ.get(api_key_env_var),
+                response_format={"type": "json_object"},
             )
 
             raw = resp.choices[0].message.content.strip()

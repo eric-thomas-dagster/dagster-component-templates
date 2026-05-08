@@ -280,7 +280,7 @@ class DocumentSummarizerComponent(Component, Model, Resolvable):
 group_name=group_name,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
         )
-        def document_summarizer_asset(ctx: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def document_summarizer_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -300,7 +300,7 @@ group_name=group_name,
             if text_column not in df.columns:
                 raise ValueError(f"Text column '{text_column}' not found. Available: {list(df.columns)}")
 
-            ctx.log.info(f"Summarizing {len(df)} documents using {provider}/{model}")
+            context.log.info(f"Summarizing {len(df)} documents using {provider}/{model}")
 
             # Expand environment variables in API key
             expanded_api_key = None
@@ -330,7 +330,7 @@ group_name=group_name,
                     # Map: Summarize each chunk
                     chunk_summaries = []
                     for i, chunk in enumerate(chunks):
-                        ctx.log.info(f"Summarizing chunk {i+1}/{len(chunks)}")
+                        context.log.info(f"Summarizing chunk {i+1}/{len(chunks)}")
                         chunk_prompt = f"Summarize this section:\n\n{chunk}"
                         chunk_summaries.append(_call_llm(chunk_prompt))
 
@@ -368,13 +368,13 @@ group_name=group_name,
             summaries = []
             for idx, row in df.iterrows():
                 text = str(row[text_column])
-                ctx.log.info(f"Summarizing document {idx + 1}/{len(df)} ({len(text)} characters)")
+                context.log.info(f"Summarizing document {idx + 1}/{len(df)} ({len(text)} characters)")
                 summaries.append(summarize_text(text))
 
             df[summary_column] = summaries
 
-            ctx.log.info(f"Summarization complete: {len(df)} documents processed")
-            ctx.add_output_metadata({
+            context.log.info(f"Summarization complete: {len(df)} documents processed")
+            context.add_output_metadata({
                 "rows_processed": len(df),
                 "provider": provider,
                 "model": model,

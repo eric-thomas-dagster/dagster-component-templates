@@ -610,7 +610,9 @@ Return your classification as JSON:
                         if field in row.index:
                             context_vars[field] = str(row[field])
 
-                    prompt = prompt_template.format(**context_vars)
+                    prompt = prompt_template
+                    for _k, _v in context_vars.items():
+                        prompt = prompt.replace("{" + _k + "}", str(_v))
 
                     # Call LLM with retry logic
                     attempt = 0

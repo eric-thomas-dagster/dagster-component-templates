@@ -523,7 +523,7 @@ Return empty array [] if no entities found."""
 
                 # Process each text
                 for idx, text in enumerate(texts):
-                    prompt = prompt_template.format(text=text)
+                    prompt = prompt_template.replace("{text}", text)
 
                     attempt = 0
                     success = False

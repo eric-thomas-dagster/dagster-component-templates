@@ -6,7 +6,7 @@ a configurable LLM prompt via LiteLLM, and returns the enriched DataFrame.
 LiteLLM supports 100+ providers: OpenAI, Anthropic, Azure, Bedrock, Gemini,
 Mistral, Cohere, and more — all through a unified API.
 """
-from typing import Optional
+from typing import Any, Dict, List, Optional
 import pandas as pd
 import dagster as dg
 from dagster import AssetExecutionContext, AssetIn, AssetKey

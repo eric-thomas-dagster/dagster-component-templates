@@ -541,20 +541,20 @@ group_name=group_name,
                     else:
                         context.log.info(f"  {campaign_name}: Spend ${row['spend']:,.2f}")
 
-            # Add metadata
+            # Add metadata (coerce numpy types → native Python for serialization)
             metadata = {
                 "row_count": len(performance_df),
                 "total_campaigns": len(performance_df),
-                "total_spend": round(total_spend, 2),
+                "total_spend": float(round(total_spend, 2)),
             }
 
             if 'revenue' in performance_df.columns:
-                metadata['total_revenue'] = round(total_revenue, 2)
-                metadata['overall_roas'] = round(overall_roas, 2)
+                metadata['total_revenue'] = float(round(total_revenue, 2))
+                metadata['overall_roas'] = float(round(overall_roas, 2))
 
             if 'conversions' in performance_df.columns:
                 metadata['total_conversions'] = int(total_conversions)
-                metadata['overall_cpa'] = round(overall_cpa, 2)
+                metadata['overall_cpa'] = float(round(overall_cpa, 2))
 
             if target_roas:
                 metadata['target_roas'] = target_roas

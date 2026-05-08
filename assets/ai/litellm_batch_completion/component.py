@@ -318,7 +318,9 @@ group_name=group_name,
 
             def process_row(row_dict: dict) -> str:
                 if prompt_template:
-                    user_content = prompt_template.format(**row_dict)
+                    # Alias text_column → 'text' for templates
+                    rd = {**row_dict, "text": row_dict.get(text_column, "")}
+                    user_content = prompt_template.format(**rd)
                 else:
                     user_content = str(row_dict.get(text_column, ""))
 
@@ -342,7 +344,8 @@ group_name=group_name,
                 total_cost = 0.0
                 for row_dict in rows:
                     if prompt_template:
-                        user_content = prompt_template.format(**row_dict)
+                        rd = {**row_dict, "text": row_dict.get(text_column, "")}
+                        user_content = prompt_template.format(**rd)
                     else:
                         user_content = str(row_dict.get(text_column, ""))
                     messages = []

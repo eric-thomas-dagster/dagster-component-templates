@@ -275,7 +275,7 @@ class LLMOutputParserComponent(Component, Model, Resolvable):
 group_name=group_name,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
         )
-        def llm_output_parser_asset(ctx: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def llm_output_parser_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -295,7 +295,7 @@ group_name=group_name,
             if input_column not in df.columns:
                 raise ValueError(f"Input column '{input_column}' not found. Available: {list(df.columns)}")
 
-            ctx.log.info(f"Parsing {len(df)} rows with {parser_type} parser")
+            context.log.info(f"Parsing {len(df)} rows with {parser_type} parser")
 
             def parse_single(raw_output: str) -> str:
                 """Parse a single LLM output string."""
@@ -364,18 +364,18 @@ group_name=group_name,
                         schema = json.loads(validation_schema_str)
                         jsonschema.validate(json.loads(parsed_result), schema)
                     except ImportError:
-                        ctx.log.warning("jsonschema not installed, skipping validation")
+                        context.log.warning("jsonschema not installed, skipping validation")
                     except Exception as e:
                         if strict_validation:
                             raise
-                        ctx.log.warning(f"Schema validation failed: {e}")
+                        context.log.warning(f"Schema validation failed: {e}")
 
                 return parsed_result
 
             df[output_column] = df[input_column].apply(parse_single)
 
-            ctx.log.info(f"Parsed {len(df)} rows successfully")
-            ctx.add_output_metadata({
+            context.log.info(f"Parsed {len(df)} rows successfully")
+            context.add_output_metadata({
                 "parser_type": parser_type,
                 "rows_processed": len(df),
                 "input_column": input_column,

@@ -49,6 +49,7 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
     filter_metadata: Optional[str] = Field(default=None, description="JSON filter for metadata")
     include_distances: bool = Field(default=True, description="Include similarity distances")
     embedding_column: str = Field(default="embedding", description="Column name containing query embeddings in the upstream DataFrame")
+    query_text_column: Optional[str] = Field(default=None, description="Column with query text to copy into output rows (helps downstream rerankers correlate query+document)")
     description: Optional[str] = Field(default=None, description="Asset description")
     group_name: Optional[str] = Field(default=None, description="Asset group")
     partition_type: Optional[str] = Field(
@@ -163,6 +164,7 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
         filter_metadata = self.filter_metadata
         include_distances = self.include_distances
         embedding_column = self.embedding_column
+        query_text_column = self.query_text_column
         description = self.description or f"Query {provider}/{collection_name}"
         group_name = self.group_name
         upstream_asset_key = self.upstream_asset_key
@@ -338,6 +340,8 @@ group_name=group_name,
                             "document": query_results['documents'][0][i] if 'documents' in query_results else None,
                             "metadata": query_results['metadatas'][0][i] if 'metadatas' in query_results else {},
                         }
+                        if query_text_column and query_text_column in row.index:
+                            result["query"] = row[query_text_column]
                         if include_distances and 'distances' in query_results:
                             result["distance"] = query_results['distances'][0][i]
                         results.append(result)

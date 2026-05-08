@@ -753,7 +753,7 @@ Score 0.0 = safe, 1.0 = definitely violates policy."""
 
                 # Process each text
                 for idx, text in enumerate(texts):
-                    prompt = prompt_template.format(text=text)
+                    prompt = prompt_template.replace("{text}", text)
 
                     attempt = 0
                     success = False

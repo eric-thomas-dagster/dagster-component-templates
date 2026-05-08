@@ -61,10 +61,14 @@
       "required": true
     },
     "categories": {
-      "type": "string",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
       "label": "Categories",
-      "description": "JSON array of categories",
-      "required": true
+      "description": "List of categories to classify into",
+      "required": true,
+      "ui:widget": "list"
     },
     "classification_task": {
       "type": "string",

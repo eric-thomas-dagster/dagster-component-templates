@@ -389,9 +389,11 @@ group_name=group_name,
             responses = []
 
             for idx, row in df.iterrows():
-                # Build prompt for this row
+                # Build prompt for this row (alias input_column → 'input' for templates)
                 if user_prompt_template:
-                    prompt = user_prompt_template.format(**row.to_dict())
+                    row_data = row.to_dict()
+                    row_data["input"] = row[input_column]
+                    prompt = user_prompt_template.format(**row_data)
                 else:
                     prompt = str(row[input_column])
 

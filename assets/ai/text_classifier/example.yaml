@@ -4,7 +4,10 @@ attributes:
   asset_name: sentiment
   provider: openai
   model: gpt-4
-  categories: '["positive", "negative", "neutral"]'
+  categories:
+    - positive
+    - negative
+    - neutral
   classification_task: "sentiment analysis"
   api_key: ${OPENAI_API_KEY}  # Upstream assets are automatically connected via IO manager
   group_name: classification

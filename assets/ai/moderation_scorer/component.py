@@ -4,7 +4,7 @@ Score content for moderation decisions based on various risk factors.
 Uses rule-based scoring and can be extended with ML models.
 """
 
-from typing import Optional
+from typing import Any, Dict, List, Optional
 import pandas as pd
 from dagster import (
     AssetExecutionContext,

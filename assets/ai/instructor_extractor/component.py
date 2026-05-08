@@ -3,6 +3,7 @@
 Extract structured Pydantic models from text using the Instructor library.
 Works with any OpenAI-compatible LLM and dynamically creates extraction schemas.
 """
+import os
 from typing import Any, Dict, List, Optional
 import pandas as pd
 from dagster import (

@@ -6,7 +6,7 @@ a locally-running Ollama model, and returns the enriched DataFrame.
 Ollama runs open-source models locally: Llama 3, Mistral, Gemma, Phi-3, etc.
 No API key required — just a running Ollama server.
 """
-from typing import Optional
+from typing import Any, Dict, List, Optional
 import pandas as pd
 import dagster as dg
 from dagster import AssetExecutionContext, AssetIn, AssetKey

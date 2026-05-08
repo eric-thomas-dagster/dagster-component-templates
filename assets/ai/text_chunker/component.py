@@ -419,11 +419,11 @@ group_name=group_name,
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[
-                TableColumn(name=str(col), type=str(chunks.dtypes[col]))
-                for col in chunks.columns
+                TableColumn(name=str(col), type=str(result_df.dtypes[col]))
+                for col in result_df.columns
             ])
             _metadata = {
-                "dagster/row_count": MetadataValue.int(len(chunks)),
+                "dagster/row_count": MetadataValue.int(len(result_df)),
                 "dagster/column_schema": MetadataValue.table_schema(_col_schema),
             }
             # Add column lineage if defined

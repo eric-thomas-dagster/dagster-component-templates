@@ -352,7 +352,7 @@ group_name=group_name,
                 ]
 
                 try:
-                    response = litellm.completion(messages=messages, api_key=api_key, **kwargs)
+                    response = litellm.completion(messages=messages, **kwargs)
                     content = response.choices[0].message.content or "{}"
                     parsed = json.loads(content)
                     scores.append(float(parsed.get("score", 0)))

@@ -273,7 +273,7 @@ class ConversationMemoryComponent(Component, Model, Resolvable):
 group_name=group_name,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
         )
-        def conversation_memory_asset(ctx: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def conversation_memory_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -318,11 +318,11 @@ group_name=group_name,
 
                 if user_message:
                     memory["messages"].append({"role": "user", "content": user_message})
-                    ctx.log.info(f"Row {idx}: Added user message: {user_message[:50]}...")
+                    context.log.info(f"Row {idx}: Added user message: {user_message[:50]}...")
 
                 if assistant_message:
                     memory["messages"].append({"role": "assistant", "content": assistant_message})
-                    ctx.log.info(f"Row {idx}: Added assistant message: {assistant_message[:50]}...")
+                    context.log.info(f"Row {idx}: Added assistant message: {assistant_message[:50]}...")
 
             # Trim to max messages (keep system prompt)
             if len(memory["messages"]) > max_messages + 1:
@@ -336,13 +336,13 @@ group_name=group_name,
             with open(memory_file, 'w') as f:
                 json.dump(memory, f, indent=2)
 
-            ctx.log.info(f"Memory updated: {len(memory['messages'])} messages")
+            context.log.info(f"Memory updated: {len(memory['messages'])} messages")
 
             # Enrich DataFrame with current memory state
             df["memory_message_count"] = len(memory["messages"])
             df["memory_file"] = memory_file
 
-            ctx.add_output_metadata({
+            context.add_output_metadata({
                 "num_messages": len(memory["messages"]),
                 "rows_processed": len(df),
             })

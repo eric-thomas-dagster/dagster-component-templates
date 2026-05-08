@@ -40,7 +40,10 @@ class TextClassifierComponent(Component, Model, Resolvable):
           output_column: category
           provider: openai
           model: gpt-4
-          categories: '["positive", "negative", "neutral"]'
+          categories:
+            - positive
+            - negative
+            - neutral
           classification_task: "sentiment analysis"
         ```
     """
@@ -52,7 +55,7 @@ class TextClassifierComponent(Component, Model, Resolvable):
     confidence_column: Optional[str] = Field(default="confidence", description="Column name for confidence score (None to skip)")
     provider: str = Field(description="LLM provider")
     model: str = Field(description="Model name")
-    categories: str = Field(description="JSON array of categories")
+    categories: List[str] = Field(description="List of categories to classify into")
     classification_task: str = Field(default="classification", description="Task description")
     include_confidence: bool = Field(default=True, description="Include confidence scores")
     include_reasoning: bool = Field(default=False, description="Include reasoning")
@@ -168,7 +171,7 @@ class TextClassifierComponent(Component, Model, Resolvable):
         confidence_column = self.confidence_column
         provider = self.provider
         model = self.model
-        categories_str = self.categories
+        categories_list = self.categories
         classification_task = self.classification_task
         include_confidence = self.include_confidence
         include_reasoning = self.include_reasoning
@@ -284,7 +287,7 @@ class TextClassifierComponent(Component, Model, Resolvable):
 group_name=group_name,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
         )
-        def text_classifier_asset(ctx: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def text_classifier_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -304,7 +307,7 @@ group_name=group_name,
             if input_column not in df.columns:
                 raise ValueError(f"Input column '{input_column}' not found. Available: {list(df.columns)}")
 
-            categories = json.loads(categories_str)
+            categories = list(categories_list)
 
             # Expand environment variables in API key
             expanded_api_key = None
@@ -313,7 +316,7 @@ group_name=group_name,
                 if expanded_api_key == api_key and '${' in api_key:
                     raise ValueError(f"Environment variable in api_key '{api_key}' is not set")
 
-            ctx.log.info(f"Classifying {len(df)} rows into {len(categories)} categories using {provider}/{model}")
+            context.log.info(f"Classifying {len(df)} rows into {len(categories)} categories using {provider}/{model}")
 
             def build_prompt(text: str) -> str:
                 p = f"Perform {classification_task} on the following text.\n\n"
@@ -361,14 +364,14 @@ group_name=group_name,
                 categories_out.append(result.get("category"))
                 confidences_out.append(result.get("confidence"))
                 if idx % 10 == 0:
-                    ctx.log.info(f"Classified {idx + 1}/{len(df)}")
+                    context.log.info(f"Classified {idx + 1}/{len(df)}")
 
             df[output_column] = categories_out
             if include_confidence and confidence_column:
                 df[confidence_column] = confidences_out
 
-            ctx.log.info(f"Classification complete: {len(df)} rows processed")
-            ctx.add_output_metadata({
+            context.log.info(f"Classification complete: {len(df)} rows processed")
+            context.add_output_metadata({
                 "rows_processed": len(df),
                 "provider": provider,
                 "model": model,

@@ -289,7 +289,7 @@ class RAGPipelineComponent(Component, Model, Resolvable):
 group_name=group_name,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
         )
-        def rag_pipeline_asset(ctx: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def rag_pipeline_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -315,7 +315,7 @@ group_name=group_name,
             if query_column not in df.columns:
                 raise ValueError(f"Query column '{query_column}' not found. Available: {list(df.columns)}")
 
-            ctx.log.info(f"Running RAG pipeline on {len(df)} queries")
+            context.log.info(f"Running RAG pipeline on {len(df)} queries")
 
             # Expand environment variables in API keys
             expanded_llm_api_key = None
@@ -406,7 +406,7 @@ Answer:"""
 
             for idx, row in df.iterrows():
                 query = str(row[query_column])
-                ctx.log.info(f"Processing query {idx + 1}/{len(df)}: {query[:80]}...")
+                context.log.info(f"Processing query {idx + 1}/{len(df)}: {query[:80]}...")
 
                 query_embedding = get_query_embedding(query)
                 retrieved_docs = retrieve_docs(query_embedding)
@@ -419,8 +419,8 @@ Answer:"""
             if include_sources:
                 df[sources_column] = sources_list
 
-            ctx.log.info(f"RAG pipeline complete: {len(df)} queries processed")
-            ctx.add_output_metadata({
+            context.log.info(f"RAG pipeline complete: {len(df)} queries processed")
+            context.add_output_metadata({
                 "rows_processed": len(df),
                 "vector_store_provider": vector_store_provider,
                 "llm_provider": llm_provider,

@@ -52,7 +52,7 @@ class LLMChainExecutorComponent(Component, Model, Resolvable):
     output_column: str = Field(default="chain_result", description="Column name to store chain result (JSON string)")
     provider: str = Field(description="LLM provider")
     model: str = Field(description="Model name")
-    chain_steps: str = Field(description="JSON array of chain steps, each with 'prompt' and 'output_key'")
+    chain_steps: List[Dict[str, Any]] = Field(description="List of chain steps, each with 'prompt' and 'output_key'")
     temperature: float = Field(default=0.7, description="Temperature")
     api_key: Optional[str] = Field(default=None, description="API key (use ${VAR_NAME} for environment variable)")
     description: Optional[str] = Field(default=None, description="Asset description")
@@ -277,7 +277,7 @@ class LLMChainExecutorComponent(Component, Model, Resolvable):
 group_name=group_name,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
         )
-        def llm_chain_executor_asset(ctx: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def llm_chain_executor_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -297,7 +297,7 @@ group_name=group_name,
             if input_column not in df.columns:
                 raise ValueError(f"Input column '{input_column}' not found. Available: {list(df.columns)}")
 
-            chain_steps = json.loads(chain_steps_str)
+            chain_steps = list(chain_steps_str)
 
             # Expand environment variables in API key (supports ${VAR_NAME} pattern)
             expanded_api_key = None
@@ -307,12 +307,13 @@ group_name=group_name,
                     var_name = api_key.strip('${}')
                     raise ValueError(f"Environment variable not set: {var_name}")
 
-            ctx.log.info(f"Executing {len(chain_steps)}-step chain over {len(df)} rows")
+            context.log.info(f"Executing {len(chain_steps)}-step chain over {len(df)} rows")
 
             results = []
             for idx, row in df.iterrows():
-                # Start context from this row
+                # Start context from this row, plus alias input_column → 'input'
                 context_data: Dict[str, Any] = row.to_dict()
+                context_data["input"] = row[input_column]
 
                 for i, step in enumerate(chain_steps):
                     prompt_template = step['prompt']
@@ -346,14 +347,14 @@ group_name=group_name,
 
                     context_data[output_key] = output
 
-                results.append(json.dumps(context_data))
+                results.append(json.dumps(context_data, default=str))
 
                 if idx % 10 == 0:
-                    ctx.log.info(f"Processed {idx + 1}/{len(df)}")
+                    context.log.info(f"Processed {idx + 1}/{len(df)}")
 
             df[output_column] = results
-            ctx.log.info(f"Completed chain execution on {len(df)} rows")
-            ctx.add_output_metadata({"num_steps": len(chain_steps), "rows_processed": len(df)})
+            context.log.info(f"Completed chain execution on {len(df)} rows")
+            context.add_output_metadata({"num_steps": len(chain_steps), "rows_processed": len(df)})
 
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

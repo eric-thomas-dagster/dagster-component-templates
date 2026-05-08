@@ -6,7 +6,7 @@ and returns the enriched DataFrame.
 
 Supports any LangChain-compatible LLM: OpenAI, Anthropic, Azure, Ollama, etc.
 """
-from typing import Optional
+from typing import Any, Dict, List, Optional
 import pandas as pd
 import dagster as dg
 from dagster import AssetExecutionContext, AssetIn, AssetKey

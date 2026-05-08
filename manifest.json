@@ -7936,6 +7936,47 @@
       }
     },
     {
+      "id": "http_external_asset",
+      "name": "HttpExternalAssetComponent",
+      "category": "integration",
+      "description": "Wrap any HTTP-driven external job runner (Fivetran, Airbyte, dbt Cloud, GitHub Actions, internal job APIs) as one or more Dagster assets. YAML-configured trigger / poll / fetch-logs loop with a JSONPath/regex/header condition language and Jinja2 templating.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/http_external_asset",
+      "tags": [
+        "integration",
+        "http",
+        "rest",
+        "external",
+        "trigger",
+        "poll",
+        "webhook",
+        "fivetran",
+        "airbyte",
+        "dbt-cloud",
+        "github-actions"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "httpx>=0.24.0",
+          "jinja2>=3.0.0",
+          "jsonpath-ng>=1.6.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/http_external_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/http_external_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/http_external_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/http_external_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/http_external_asset/requirements.txt",
+      "component_type": "dagster_component_templates.HttpExternalAssetComponent",
+      "validation": {
+        "level": "code",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/integrations/http_external_asset/tests",
+        "last_validated": "2026-05-08"
+      }
+    },
+    {
       "id": "http_poll_sensor",
       "name": "HttpPollSensor",
       "category": "sensor",
@@ -17739,5 +17780,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 663
+  "total": 664
 }

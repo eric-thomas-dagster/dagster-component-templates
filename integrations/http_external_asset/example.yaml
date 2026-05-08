@@ -1,0 +1,55 @@
+type: dagster_component_templates.HttpExternalAssetComponent
+attributes:
+  base_url: https://api.example.com
+  auth_resource_key: api_auth
+  assets:
+    - key: external/orders_sync
+      description: Triggers an external orders-sync job and polls until terminal.
+      group_name: external
+      kinds: [http]
+      tags:
+        owner: data-platform
+
+      trigger:
+        method: POST
+        path: /v1/jobs
+        headers:
+          Content-Type: application/json
+        body:
+          job_type: orders_sync
+          # Wrap runtime templates in {% raw %}…{% endraw %} so Dagster's
+          # YAML-load Jinja doesn't try to resolve them at load time —
+          # the component re-evaluates them at materialization time.
+          partition: "{% raw %}{{ partition_key }}{% endraw %}"
+        run_id:
+          jsonpath: $.id
+
+      status:
+        method: GET
+        path: /v1/jobs/{run_id}
+        poll_interval_seconds: 15
+        timeout_seconds: 3600
+        is_terminal:
+          jsonpath: $.status
+          in: [succeeded, failed, cancelled, errored]
+        is_success:
+          jsonpath: $.status
+          equals: succeeded
+        metadata:
+          rows_processed:
+            jsonpath: $.metrics.rows_processed
+          duration_ms:
+            jsonpath: $.metrics.duration_ms
+
+      logs:
+        path: /v1/jobs/{run_id}/logs
+        patterns:
+          - name: error_count
+            regex: "ERROR"
+            mode: count
+          - name: warning_count
+            regex: "WARN"
+            mode: count
+        failure_patterns:
+          - "OutOfMemoryError"
+          - "FATAL: "

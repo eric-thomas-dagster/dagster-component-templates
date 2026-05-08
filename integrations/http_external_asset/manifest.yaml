@@ -1,0 +1,3 @@
+component_type: dagster_component_templates.HttpExternalAssetComponent
+name: HTTP External Asset
+description: Wrap any HTTP-driven external job runner (trigger / poll / fetch logs) as one or more Dagster assets, configured entirely in YAML.

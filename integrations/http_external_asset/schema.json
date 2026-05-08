@@ -1,0 +1,207 @@
+{
+  "component_type": "dagster_component_templates.HttpExternalAssetComponent",
+  "description": "Wrap any HTTP-driven external job runner as one or more Dagster assets. Users configure trigger / status / log endpoints in YAML; the component runs the trigger → poll → finalize loop, surfaces structured metadata, and honors all standard Dagster per-asset attributes.",
+  "category": "integration",
+  "icon": "lu:globe",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "One MaterializeResult per asset, with external_run_id, duration, poll_count, plus user-extracted metadata."
+    }
+  },
+  "attributes": {
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "description": "Base URL prepended to every endpoint path. Supports Jinja templating (env, secrets).",
+      "required": true
+    },
+    "auth_resource_key": {
+      "type": "string",
+      "label": "Auth Resource Key",
+      "description": "Resource key of an HttpAuthResource subclass (BearerTokenAuth, BasicAuth, HeaderAuth, or a custom subclass). Resource must be wired in your Definitions resources dict.",
+      "required": false,
+      "default": null
+    },
+    "assets": {
+      "type": "array",
+      "label": "Assets",
+      "description": "One or more asset specs. Each emits a Dagster asset with its own trigger / status / logs configuration.",
+      "required": true,
+      "items": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Dagster asset key. Use slashes for path-style keys (e.g. 'external/orders_sync').",
+            "required": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Asset description shown in the Dagster UI.",
+            "required": false
+          },
+          "group_name": {
+            "type": "string",
+            "description": "Dagster asset group name.",
+            "required": false
+          },
+          "kinds": {
+            "type": "array",
+            "description": "List of asset kinds (compute kind tags). Defaults to ['http'].",
+            "items": {"type": "string"},
+            "required": false
+          },
+          "tags": {
+            "type": "object",
+            "description": "String-string tag map.",
+            "required": false
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Static metadata to attach to every materialization.",
+            "required": false
+          },
+          "owners": {
+            "type": "array",
+            "description": "Asset owners (emails or team names).",
+            "items": {"type": "string"},
+            "required": false
+          },
+          "deps": {
+            "type": "array",
+            "description": "Upstream Dagster asset keys for lineage.",
+            "items": {"type": "string"},
+            "required": false
+          },
+          "automation_condition": {
+            "type": "string",
+            "description": "AutomationCondition factory call as a Python expression. Supported helpers: on_cron('expr'), eager(), any_downstream_conditions().",
+            "required": false
+          },
+          "retry_policy": {
+            "type": "object",
+            "description": "Dagster RetryPolicy spec. Keys: max_retries, delay (seconds), backoff (linear|exponential), jitter (full|plus_minus).",
+            "required": false
+          },
+          "code_version": {
+            "type": "string",
+            "description": "Asset code version string (used for staleness tracking).",
+            "required": false
+          },
+          "partition_type": {
+            "type": "string",
+            "description": "daily | weekly | monthly | hourly | static | dynamic | multi.",
+            "required": false
+          },
+          "partition_start": {
+            "type": "string",
+            "description": "ISO date for time partitions (required for daily/weekly/monthly/hourly/multi).",
+            "required": false
+          },
+          "partition_values": {
+            "type": "string",
+            "description": "Comma-separated values for static partitions or the static dimension of multi.",
+            "required": false
+          },
+          "dynamic_partition_name": {
+            "type": "string",
+            "description": "Name of the DynamicPartitionsDefinition (required for partition_type='dynamic').",
+            "required": false
+          },
+          "partition_dimensions": {
+            "type": "array",
+            "description": "Multi-axis partitions: list of {name, type, ...} dicts. Mutually exclusive with partition_type.",
+            "required": false
+          },
+          "trigger": {
+            "type": "object",
+            "description": "HTTP request that starts the external run. Required.",
+            "required": true,
+            "properties": {
+              "method": {"type": "string", "description": "GET | POST | PUT | PATCH | DELETE.", "default": "POST"},
+              "path": {"type": "string", "description": "Path appended to base_url. Supports Jinja templating.", "required": true},
+              "path_params": {"type": "object", "description": "Map substituted into {placeholder} segments of path.", "required": false},
+              "query_params": {"type": "object", "description": "Query string parameters.", "required": false},
+              "headers": {"type": "object", "description": "Request headers (templated).", "required": false},
+              "body": {
+                "type": "any",
+                "description": "Request body. String → sent verbatim (or as JSON if it parses); dict/list → JSON-serialized; null → no body. Supports {from_python: 'mod:fn'} escape hatch.",
+                "required": false
+              },
+              "run_id": {
+                "type": "object",
+                "description": "Extractor that pulls the external run-id out of the trigger response (jsonpath / regex / header). Required.",
+                "required": true
+              }
+            }
+          },
+          "status": {
+            "type": "object",
+            "description": "Status-poll spec. Required.",
+            "required": true,
+            "properties": {
+              "method": {"type": "string", "description": "GET | POST.", "default": "GET"},
+              "path": {"type": "string", "description": "Path; {run_id} is auto-substituted from the trigger response.", "required": true},
+              "path_params": {"type": "object", "required": false},
+              "query_params": {"type": "object", "required": false},
+              "headers": {"type": "object", "required": false},
+              "poll_interval_seconds": {"type": "number", "default": 15.0},
+              "timeout_seconds": {"type": "number", "description": "Max wall-clock seconds to wait for a terminal status.", "default": 3600.0},
+              "is_terminal": {
+                "type": "object",
+                "description": "Condition that evaluates true when the external run has reached a terminal state (success or failure). Required.",
+                "required": true
+              },
+              "is_success": {
+                "type": "object",
+                "description": "Condition that, given a terminal response, evaluates true when the run succeeded. Optional — a fallback heuristic logs a warning.",
+                "required": false
+              },
+              "metadata": {
+                "type": "object",
+                "description": "Map of {metadata_key: extractor}. Extractors pull values from the terminal status response and attach them to the materialization.",
+                "required": false
+              }
+            }
+          },
+          "logs": {
+            "type": "object",
+            "description": "Optional log-fetch + pattern-extraction spec.",
+            "required": false,
+            "properties": {
+              "method": {"type": "string", "default": "GET"},
+              "path": {"type": "string", "required": true},
+              "path_params": {"type": "object", "required": false},
+              "query_params": {"type": "object", "required": false},
+              "headers": {"type": "object", "required": false},
+              "next_cursor": {"type": "object", "description": "Optional extractor for pagination cursor (from response body or headers).", "required": false},
+              "max_total_bytes": {"type": "integer", "description": "Cap on total bytes fetched.", "default": 10485760},
+              "patterns": {
+                "type": "array",
+                "description": "List of {name, regex, group?, cast?, mode}. mode: first_match | count | exists.",
+                "required": false
+              },
+              "failure_patterns": {
+                "type": "array",
+                "description": "Regex list — if any match, override is_success → False even if the status said success.",
+                "items": {"type": "string"},
+                "required": false
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    "integration",
+    "http",
+    "rest",
+    "external",
+    "trigger",
+    "poll",
+    "webhook"
+  ],
+  "name": "HTTP External Asset"
+}

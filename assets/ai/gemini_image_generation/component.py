@@ -137,8 +137,13 @@ class GeminiImageGenerationComponent(Component, Model, Resolvable):
         description="Env var holding the Google AI Studio API key. Defaults to GEMINI_API_KEY (also accepts GOOGLE_API_KEY).",
     )
     image_model: str = Field(
-        default="gemini-2.5-flash-image-preview",
-        description="Gemini image model id. Default is the public 'Nano Banana' model.",
+        default="gemini-2.5-flash-image",
+        description=(
+            "Gemini image model id. Default is the GA 'Nano Banana' model "
+            "(gemini-2.5-flash-image). For preview models use "
+            "'nano-banana-pro-preview', 'gemini-3-pro-image-preview', or "
+            "'gemini-3.1-flash-image-preview'."
+        ),
     )
 
     prompt_column: Optional[str] = Field(
@@ -304,9 +309,12 @@ class GeminiImageGenerationComponent(Component, Model, Resolvable):
                         last_err = None
                         break
                     except Exception as e:
+                        # Don't retry on 404 (model not found) — retrying won't help.
+                        err_str = str(e)
+                        is_not_found = "404" in err_str or "NOT_FOUND" in err_str
                         last_err = e
                         attempt += 1
-                        if attempt > max_retries_local:
+                        if is_not_found or attempt > max_retries_local:
                             break
                         wait = (2 ** attempt) * 0.5
                         context.log.warning(
@@ -317,8 +325,27 @@ class GeminiImageGenerationComponent(Component, Model, Resolvable):
 
                 if last_err is not None or resp is None:
                     paths.append(None)
-                    errors.append(str(last_err) if last_err else "no response")
-                    context.log.error(f"row {idx}: gemini call ultimately failed: {last_err}")
+                    err_str = str(last_err) if last_err else "no response"
+                    errors.append(err_str)
+                    if "404" in err_str or "NOT_FOUND" in err_str:
+                        context.log.error(
+                            f"row {idx}: model {image_model_local!r} returned 404 NOT_FOUND. "
+                            f"Set `image_model:` in your defs.yaml to a current model. "
+                            f"Known-good ids (as of writing): "
+                            f"gemini-2.5-flash-image (GA), nano-banana-pro-preview, "
+                            f"gemini-3-pro-image-preview, gemini-3.1-flash-image-preview. "
+                            f"Run `client.models.list()` against your key to see what's available."
+                        )
+                    elif "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "quota" in err_str.lower():
+                        context.log.error(
+                            f"row {idx}: quota exhausted for {image_model_local!r}. "
+                            f"Image generation often requires a billed account on Google AI Studio "
+                            f"(free-tier quota is 0 for image models). "
+                            f"Enable billing at console.cloud.google.com or check "
+                            f"https://ai.dev/rate-limit."
+                        )
+                    else:
+                        context.log.error(f"row {idx}: gemini call ultimately failed: {last_err}")
                     time.sleep(rate_limit_delay_local)
                     continue
 
@@ -359,14 +386,31 @@ class GeminiImageGenerationComponent(Component, Model, Resolvable):
             if any(errors):
                 df[f"{output_path_column_local}_error"] = errors
 
+            n_404 = sum(1 for e in errors if e and ("404" in e or "NOT_FOUND" in e))
+            n_429 = sum(1 for e in errors if e and ("429" in e or "RESOURCE_EXHAUSTED" in e or "quota" in e.lower()))
+
             preview_md = df.head(5).to_markdown(index=False) or ""
-            context.add_output_metadata({
+            md_metadata: Dict[str, Any] = {
                 "rows":           MetadataValue.int(len(df)),
                 "images_saved":   MetadataValue.int(success_count),
                 "output_dir":     MetadataValue.path(output_dir_local),
                 "model":          MetadataValue.text(image_model_local),
                 "preview":        MetadataValue.md(preview_md),
-            })
+            }
+            if n_404:
+                md_metadata["model_not_found_count"] = MetadataValue.int(n_404)
+                md_metadata["hint"] = MetadataValue.text(
+                    f"Model {image_model_local!r} returned 404. Set `image_model:` "
+                    f"to one of: gemini-2.5-flash-image (GA), nano-banana-pro-preview, "
+                    f"gemini-3-pro-image-preview, gemini-3.1-flash-image-preview."
+                )
+            if n_429:
+                md_metadata["quota_exhausted_count"] = MetadataValue.int(n_429)
+                md_metadata["hint"] = MetadataValue.text(
+                    "Quota exhausted — image gen typically requires a billed Google AI account. "
+                    "Enable billing at console.cloud.google.com."
+                )
+            context.add_output_metadata(md_metadata)
             return df
 
         return Definitions(assets=[_asset])

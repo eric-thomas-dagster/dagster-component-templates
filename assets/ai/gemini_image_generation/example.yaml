@@ -6,8 +6,10 @@ attributes:
   # Auth — set GEMINI_API_KEY (or GOOGLE_API_KEY) in the env
   api_key_env_var: GEMINI_API_KEY
 
-  # Model — default is the public "Nano Banana" Gemini 2.5 Flash Image
-  image_model: gemini-2.5-flash-image-preview
+  # Model — default is the GA "Nano Banana" Gemini 2.5 Flash Image.
+  # Other valid ids (preview): nano-banana-pro-preview,
+  # gemini-3-pro-image-preview, gemini-3.1-flash-image-preview.
+  image_model: gemini-2.5-flash-image
 
   # Prompt source: per-row prompt column, OR a static template with placeholders
   prompt_column: description

@@ -1,5 +1,7 @@
 # Vision Model Component
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Analyze images using GPT-4 Vision and Claude 3 models for OCR, image captioning, object detection, visual question answering, and content moderation.
 
 ## Overview

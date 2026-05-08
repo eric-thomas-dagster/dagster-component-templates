@@ -1,5 +1,7 @@
 # LLM Chain Executor Asset
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Execute chains of LLM calls with context passing using Dagster's IO manager pattern. Accepts context data from upstream assets and runs multi-step reasoning workflows - just connect data-producing assets!
 
 ## Overview

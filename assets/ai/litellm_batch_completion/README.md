@@ -1,5 +1,7 @@
 # LiteLLM Batch Completion
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Process a DataFrame column row-by-row through any LLM using LiteLLM. Supports routing, fallbacks, cost tracking, and parallel thread execution.
 
 ## Overview

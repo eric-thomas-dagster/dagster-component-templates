@@ -1,5 +1,7 @@
 # OpenAI LLM Component
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Process text data using OpenAI's GPT models (GPT-4, GPT-3.5-turbo, GPT-4-turbo) with support for batch processing, streaming, function calling, and cost tracking.
 
 ## Overview

@@ -1,5 +1,7 @@
 # LiteLLM Audio Transcription
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Transcribe audio files using Whisper via LiteLLM. Processes a column of audio file paths and writes transcribed text to a new column.
 
 ## Overview

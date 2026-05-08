@@ -1,5 +1,7 @@
 # Vector Store Writer Asset
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Write embeddings to vector databases (Pinecone, ChromaDB, Qdrant, FAISS) with metadata and batch operations. Works seamlessly with Dagster's IO manager pattern - connect embedding assets and automatically store vectors!
 
 ## Overview

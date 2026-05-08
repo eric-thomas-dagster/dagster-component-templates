@@ -1,5 +1,7 @@
 # precision_match
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Use an LLM to fuzzy-match varied string values in a DataFrame column to a canonical list. Values are batched and sent to the model, which returns a mapping and optional confidence score. Useful for standardizing free-text fields like product categories, country names, job titles, or industry labels against a controlled vocabulary.
 
 ## Fields

@@ -1,5 +1,7 @@
 # Snowflake Cortex Asset Component
 
+> **🔑 Snowflake account required.** This component runs Cortex LLM functions inside Snowflake — it does NOT call OpenAI/Anthropic. Configure via Snowflake connection fields (account, user, password/private_key, warehouse, database, schema).
+
 Runs [Snowflake Cortex](https://docs.snowflake.com/en/user-guide/snowflake-cortex/llm-functions) LLM functions directly inside Snowflake and writes enriched results to a target table — no data leaves the warehouse.
 
 ---

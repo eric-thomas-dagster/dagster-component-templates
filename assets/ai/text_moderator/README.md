@@ -1,5 +1,7 @@
 # Text Moderator Component
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Detect toxic content, hate speech, PII, profanity, and inappropriate content using OpenAI Moderation API, Perspective API, transformer models, or LLM-based methods.
 
 ## Overview

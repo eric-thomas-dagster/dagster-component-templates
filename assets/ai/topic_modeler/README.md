@@ -1,5 +1,7 @@
 # TopicModelerComponent
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Assign topic labels to rows using LDA (Latent Dirichlet Allocation) or NMF (Non-negative Matrix Factorization) topic modeling. Each row gets a topic ID and a human-readable label of top keywords.
 
 ## Fields

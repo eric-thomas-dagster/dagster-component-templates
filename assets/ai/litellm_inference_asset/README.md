@@ -1,5 +1,7 @@
 # LiteLLM Inference Asset
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 A Dagster component that reads rows from an upstream asset or database table, enriches each row by running it through a configurable LLM prompt, and writes the results to a destination database table.
 
 Powered by [LiteLLM](https://github.com/BerriAI/litellm), this component gives you a single unified interface to **100+ LLM providers** — including OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, Google Gemini, Mistral, Cohere, Groq, Together AI, and many more. Switching providers requires changing only the `model` string and `api_key_env_var`; your prompt logic stays the same.

@@ -1,5 +1,7 @@
 # OCR Extractor Component
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Extract text from images using Tesseract OCR. Processes a column of image file paths and writes extracted text to a new column. Supports multi-language OCR, configurable page segmentation modes, and optional PIL-based preprocessing.
 
 ## Overview

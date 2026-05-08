@@ -1,5 +1,7 @@
 # Vector Store Query Asset
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Query vector databases for semantic search using embeddings. Returns most relevant documents based on similarity. Works seamlessly with Dagster's IO manager pattern - connect query embedding assets and automatically search!
 
 ## Overview

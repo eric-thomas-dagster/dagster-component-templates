@@ -1,5 +1,7 @@
 # Entity Extractor Component
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Extract named entities from text using NER (Named Entity Recognition) with LLM-based (GPT/Claude), spaCy, or transformer-based methods.
 
 ## Overview

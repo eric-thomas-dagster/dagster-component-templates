@@ -1,5 +1,7 @@
 # Ollama Inference Asset
 
+> **🟢 No external API key.** This component talks to a local Ollama server (default http://localhost:11434). Make sure Ollama is running and the requested model has been pulled (`ollama pull llama3`).
+
 A Dagster component that reads rows from an upstream asset or database table, enriches each row by running it through a locally-hosted Ollama model, and writes the results to a destination database table.
 
 **No API key or internet connection required.** Ollama runs open-source LLMs entirely on your own hardware, making this component ideal for sensitive data, air-gapped environments, cost-sensitive workloads, or local development and testing.

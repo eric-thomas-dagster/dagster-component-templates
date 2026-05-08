@@ -1,5 +1,7 @@
 # Instructor Extractor
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Extract structured Pydantic models from text using the Instructor library. Works with any OpenAI-compatible LLM.
 
 ## Overview

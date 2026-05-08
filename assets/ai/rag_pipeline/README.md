@@ -1,5 +1,7 @@
 # RAG Pipeline Asset
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Complete Retrieval-Augmented Generation pipeline combining query embedding, vector search, and LLM generation to answer questions using your document knowledge base. Works seamlessly with Dagster's IO manager pattern - connect query assets and automatically generate answers!
 
 ## Overview

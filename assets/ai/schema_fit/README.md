@@ -1,5 +1,7 @@
 # Schema Fit Component
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Use an LLM to automatically map a source DataFrame's columns to a target schema, applying direct copies, concatenation, splitting, formatting, or computed transformations.
 
 ## Overview

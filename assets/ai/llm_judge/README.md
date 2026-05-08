@@ -1,5 +1,7 @@
 # LLM Judge
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Evaluate and score LLM outputs against a rubric using another LLM as a judge. Useful for automated quality assessment and regression testing of AI pipelines.
 
 ## Overview

@@ -1,5 +1,7 @@
 # Image LLM Extractor Component
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Send images to a vision LLM (GPT-4o, Claude, Gemini) and extract structured fields as new DataFrame columns. Like an invoice extractor but for any image type — define the fields you want and the LLM fills them in.
 
 ## Overview

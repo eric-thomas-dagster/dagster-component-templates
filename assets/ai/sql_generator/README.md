@@ -1,5 +1,7 @@
 # SqlGeneratorComponent
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Generate SQL queries from natural language questions using an LLM. Optionally provide database schema context (DDL) and a SQL dialect to improve accuracy.
 
 ## Fields

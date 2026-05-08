@@ -1,5 +1,7 @@
 # LiteLLM Structured Output
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Extract structured JSON data from text using LiteLLM's JSON mode. Expands extracted fields as new DataFrame columns.
 
 ## Overview

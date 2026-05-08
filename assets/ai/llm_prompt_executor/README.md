@@ -1,5 +1,7 @@
 # LLM Prompt Executor Asset
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Execute prompts against LLM APIs (OpenAI, Anthropic, Cohere, Hugging Face) using Dagster's IO manager pattern. Accepts prompt text from upstream assets and materializes LLM responses - just connect prompt-generating assets!
 
 ## Overview

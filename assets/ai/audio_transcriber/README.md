@@ -1,5 +1,7 @@
 # AudioTranscriberComponent
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Transcribe audio files from a file path column using OpenAI Whisper (local model). Supports multiple model sizes from tiny to large and optional language hinting.
 
 ## Fields

@@ -1,5 +1,7 @@
 # synthetic_data
 
+> **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
+
 Generate synthetic DataFrame rows using an LLM based on a declarative schema. Rows are generated in batches and concatenated into a single DataFrame. Useful for creating test fixtures, populating demo environments, or augmenting training data. Optionally provide an upstream seed data asset for few-shot examples.
 
 ## Fields

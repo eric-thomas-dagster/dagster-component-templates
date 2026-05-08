@@ -1,0 +1,48 @@
+{
+  "component_type": "dagster_component_templates.GeminiImageGenerationComponent",
+  "description": "Native (no-LiteLLM) image generation / edit per DataFrame row using Google's Gemini 2.5 Flash Image — the model the community nicknames 'Nano Banana'. Default model: gemini-2.5-flash-image-preview. Supports text-to-image and image-to-image editing. For multi-vendor workflows, use litellm_image_generation instead.",
+  "category": "ai",
+  "icon": "si:google",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "DataFrame",
+      "description": "Upstream DataFrame with an added `generated_image_path` column (one PNG per row written to output_dir)."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true, "description": "Output asset name"},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true, "description": "Upstream DataFrame asset key — one row produces one image"},
+    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "required": false, "default": "GEMINI_API_KEY", "description": "Env var holding the Google AI Studio API key (also accepts GOOGLE_API_KEY as fallback)"},
+    "image_model": {"type": "string", "label": "Image Model", "required": false, "default": "gemini-2.5-flash-image-preview", "description": "Gemini image model id (default is the public 'Nano Banana' model)"},
+    "prompt_column": {"type": "string", "label": "Prompt Column", "required": false, "default": null, "description": "Column with per-row prompt text. Set this OR prompt_template."},
+    "prompt_template": {"type": "string", "label": "Prompt Template", "required": false, "default": null, "description": "Static template with {column} placeholders. Set this OR prompt_column.", "ui:widget": "textarea"},
+    "input_image_column": {"type": "string", "label": "Input Image Column", "required": false, "default": null, "description": "Optional column with source-image file paths for image-to-image edits"},
+    "output_dir": {"type": "string", "label": "Output Directory", "required": false, "default": "/tmp/gemini_image_generation", "description": "Where to save generated PNGs"},
+    "output_path_column": {"type": "string", "label": "Output Path Column", "required": false, "default": "generated_image_path", "description": "Column added with the saved file path"},
+    "output_filename_template": {"type": "string", "label": "Output Filename Template", "required": false, "default": "row_{idx}.png", "description": "Per-row filename pattern; supports {idx} and {column} placeholders"},
+    "temperature": {"type": "number", "label": "Temperature", "required": false, "default": 1.0, "description": "Generation temperature (0.0–2.0)"},
+    "rate_limit_delay": {"type": "number", "label": "Rate Limit Delay", "required": false, "default": 0.5, "description": "Seconds between API calls"},
+    "max_retries": {"type": "integer", "label": "Max Retries", "required": false, "default": 3, "description": "Retries on transient errors"},
+    "description": {"type": "string", "label": "Description", "required": false, "default": null, "ui:widget": "textarea"},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": null},
+    "deps": {"type": "array", "label": "Deps", "required": false, "items": {"type": "string"}, "description": "Upstream asset keys for lineage"},
+    "tags": {"type": "object", "label": "Tags", "required": false},
+    "owners": {"type": "array", "label": "Owners", "required": false, "items": {"type": "string"}},
+    "partition_type": {"type": "string", "label": "Partition Type", "required": false, "default": null},
+    "partition_start": {"type": "string", "label": "Partition Start", "required": false, "default": null},
+    "partition_values": {"type": "string", "label": "Partition Values", "required": false, "default": null},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false, "default": null},
+    "partition_dimensions": {"type": "array", "label": "Partition Dimensions", "required": false}
+  },
+  "tags": [
+    "ai",
+    "image",
+    "image-generation",
+    "gemini",
+    "google",
+    "nano-banana",
+    "image-edit",
+    "vision"
+  ],
+  "name": "Gemini Image Generation (Nano Banana)"
+}

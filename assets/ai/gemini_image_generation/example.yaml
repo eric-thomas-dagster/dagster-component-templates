@@ -1,0 +1,27 @@
+type: dagster_component_templates.GeminiImageGenerationComponent
+attributes:
+  asset_name: product_hero_images
+  upstream_asset_key: product_descriptions
+
+  # Auth — set GEMINI_API_KEY (or GOOGLE_API_KEY) in the env
+  api_key_env_var: GEMINI_API_KEY
+
+  # Model — default is the public "Nano Banana" Gemini 2.5 Flash Image
+  image_model: gemini-2.5-flash-image-preview
+
+  # Prompt source: per-row prompt column, OR a static template with placeholders
+  prompt_column: description
+  # prompt_template: "A photo-realistic product hero shot of {sku}: {description}"
+
+  # Optional: image-to-image edits — provide a column with source-image paths
+  # input_image_column: source_image_path
+
+  output_dir: /tmp/gemini_image_generation
+  output_path_column: generated_image_path
+  output_filename_template: "row_{idx}.png"
+
+  temperature: 1.0
+  rate_limit_delay: 0.5
+  max_retries: 3
+
+  group_name: ai_media

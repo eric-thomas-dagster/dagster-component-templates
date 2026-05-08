@@ -7233,6 +7233,38 @@
       "icon": "si:googlecloud"
     },
     {
+      "id": "gemini_image_generation",
+      "name": "GeminiImageGenerationComponent",
+      "category": "ai",
+      "description": "Native (no-LiteLLM) image generation / edit per DataFrame row using Google's Gemini 2.5 Flash Image \u2014 the model the community nicknames 'Nano Banana'. Default: gemini-2.5-flash-image-preview. Supports text-to-image and image-to-image editing. For multi-vendor workflows, use litellm_image_generation instead.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/gemini_image_generation",
+      "tags": [
+        "ai",
+        "image",
+        "image-generation",
+        "gemini",
+        "google",
+        "nano-banana",
+        "image-edit",
+        "vision"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-genai>=0.3.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/requirements.txt",
+      "component_type": "dagster_component_templates.GeminiImageGenerationComponent"
+    },
+    {
       "id": "gemini_resource",
       "name": "Google Gemini Resource",
       "category": "resource",
@@ -17790,5 +17822,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 664
+  "total": 665
 }

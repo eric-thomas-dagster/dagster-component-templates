@@ -1,6 +1,6 @@
 # Dagster Component Templates
 
-A community library of **676 reusable [Dagster component](https://docs.dagster.io/guides/components) templates** covering data ingestion, transformations, ML / analytics, AI / LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, asset checks, and enterprise tool integrations — all configurable via YAML with no Python required.
+A community library of **681 reusable [Dagster component](https://docs.dagster.io/guides/components) templates** covering data ingestion, transformations, ML / analytics, AI / LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, asset checks, and enterprise tool integrations — all configurable via YAML with no Python required.
 
 Field naming conventions across the registry are documented in [`FIELD_CONVENTIONS.md`](./FIELD_CONVENTIONS.md).
 
@@ -25,21 +25,21 @@ attributes:
 |---|---:|---|
 | analytics | 90 | ML models, scoring, segmentation, forecasting, geo, A/B testing |
 | transformation | 78 | Pandas-style transforms (filter, join, union, datetime, regex, etc.) |
-| ai | 77 | LLMs, vision, embeddings, vector stores, document extraction |
+| ai | 78 | LLMs, vision, embeddings, vector stores, document extraction |
 | resource | 70 | Connection-handle resources for SaaS / data platforms |
 | ingestion | 66 | Source-to-destination data movement |
-| sink | 51 | DataFrame writers (CSV, Parquet, warehouses, NoSQL) |
+| sink | 53 | DataFrame writers (CSV, Parquet, warehouses, NoSQL) |
 | sensor | 40 | Polling sensors that emit `RunRequest`s |
 | io_manager | 33 | IO managers for the major warehouses + lakes |
 | integration | 31 | Multi-asset wrappers for cloud platforms |
-| infrastructure | 29 | IaC / provisioning + lineage anchors |
+| infrastructure | 30 | IaC / provisioning + lineage anchors |
 | jobs | 29 | Op-job components (cleanup, triggers, exports, heartbeats) |
-| source | 29 | Read-only data sources |
+| source | 30 | Read-only data sources |
 | external | 21 | Declare-only external assets (warehouse tables, S3 objects) |
 | observation | 20 | Health-check sensors emitting `AssetObservation`s |
 | check | 11 | Asset-check components (Great Expectations, Soda, etc.) |
 | dbt | 1 | dbt-project wrapper |
-| **total** | **676** | |
+| **total** | **681** | |
 
 ### Assets (90 analytics + 73 ai + 59 transformation + 49 ingestion + 23 sink + 21 external + 19 infrastructure + 18 source + 18 integration + 7 check = 377)
 

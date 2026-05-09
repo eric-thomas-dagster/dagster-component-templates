@@ -1,0 +1,13 @@
+type: dagster_component_templates.FirestoreWriterAssetComponent
+attributes:
+  asset_name: customer_360_to_firestore
+  upstream_asset_key: customer_360
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+
+  collection: customer_360
+  id_column: customer_id
+  drop_id_column_from_body: true
+
+  write_mode: merge          # set | merge | create
+  batch_size: 500
+  group_name: sink

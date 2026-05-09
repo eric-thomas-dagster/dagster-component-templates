@@ -2563,6 +2563,37 @@
       "icon": "si:clickhouse"
     },
     {
+      "id": "cloud_run_job_trigger_asset",
+      "name": "CloudRunJobTriggerAssetComponent",
+      "category": "infrastructure",
+      "description": "Trigger a single deployed Cloud Run job and wait for it to finish, with optional per-execution container overrides (env / args / task_count / timeout). Use google_cloud_run_jobs (integration) for batch import of all jobs in a project.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/cloud_run_job_trigger_asset",
+      "tags": [
+        "infrastructure",
+        "google",
+        "cloud-run",
+        "compute",
+        "trigger",
+        "external-job"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-run>=0.10.0",
+          "google-auth>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cloud_run_job_trigger_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cloud_run_job_trigger_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cloud_run_job_trigger_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cloud_run_job_trigger_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cloud_run_job_trigger_asset/requirements.txt",
+      "component_type": "dagster_component_templates.CloudRunJobTriggerAssetComponent"
+    },
+    {
       "id": "cloudformation_asset",
       "name": "CloudFormation Asset",
       "category": "infrastructure",
@@ -6925,6 +6956,36 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/firestore_reader/requirements.txt"
     },
     {
+      "id": "firestore_reader_asset",
+      "name": "FirestoreReaderAssetComponent",
+      "category": "source",
+      "description": "Read documents from a Firestore collection (or collection group) into a pandas DataFrame. Supports where filters, ordering, limit. The doc id lands in a `_id` column.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/source/firestore_reader_asset",
+      "tags": [
+        "source",
+        "google",
+        "firestore",
+        "nosql",
+        "document-db"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-firestore>=2.13.0",
+          "google-auth>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/firestore_reader_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/firestore_reader_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/firestore_reader_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/firestore_reader_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/firestore_reader_asset/requirements.txt",
+      "component_type": "dagster_component_templates.FirestoreReaderAssetComponent"
+    },
+    {
       "id": "firestore_resource",
       "name": "Google Firestore Resource",
       "category": "resource",
@@ -6974,6 +7035,37 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/firestore_writer/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/firestore_writer/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/firestore_writer/requirements.txt"
+    },
+    {
+      "id": "firestore_writer_asset",
+      "name": "FirestoreWriterAssetComponent",
+      "category": "sink",
+      "description": "Write DataFrame rows to a Firestore collection \u2014 one document per row. Set / merge / create write modes; doc id from a column or auto-generated. Useful as a real-time-readable sink behind ML scoring, customer 360, dynamic config tables.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/firestore_writer_asset",
+      "tags": [
+        "sink",
+        "google",
+        "firestore",
+        "nosql",
+        "document-db",
+        "real-time"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-firestore>=2.13.0",
+          "google-auth>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/firestore_writer_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/firestore_writer_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/firestore_writer_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/firestore_writer_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/firestore_writer_asset/requirements.txt",
+      "component_type": "dagster_component_templates.FirestoreWriterAssetComponent"
     },
     {
       "id": "fivetran_assets",
@@ -13541,6 +13633,36 @@
       "icon": "Eye"
     },
     {
+      "id": "pubsub_publish_asset",
+      "name": "PubSubPublishAssetComponent",
+      "category": "sink",
+      "description": "Publish DataFrame rows as Google Cloud Pub/Sub messages \u2014 one message per row. Columns can be mapped into Pub/Sub message attributes for downstream filter routing on subscribers.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/pubsub_publish_asset",
+      "tags": [
+        "sink",
+        "google",
+        "pubsub",
+        "messaging",
+        "streaming"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-pubsub>=2.18.0",
+          "google-auth>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pubsub_publish_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pubsub_publish_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pubsub_publish_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pubsub_publish_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pubsub_publish_asset/requirements.txt",
+      "component_type": "dagster_component_templates.PubSubPublishAssetComponent"
+    },
+    {
       "id": "pubsub_to_database_asset",
       "name": "Pub/Sub to Database",
       "category": "ingestion",
@@ -17763,6 +17885,38 @@
       }
     },
     {
+      "id": "vertex_ai_text_embeddings_asset",
+      "name": "VertexAITextEmbeddingsAssetComponent",
+      "category": "ai",
+      "description": "Generate text embeddings via Vertex AI's text-embedding models (text-embedding-004, gemini-embedding-001, text-multilingual-embedding-002, etc.). Drop-in shape parallel to embeddings_generator and the openai/anthropic embedding components. Useful for RAG, semantic search, vector store loaders.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/vertex_ai_text_embeddings_asset",
+      "tags": [
+        "ai",
+        "embeddings",
+        "vertex-ai",
+        "google",
+        "rag",
+        "vector-search",
+        "semantic-search"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-aiplatform>=1.40.0",
+          "google-auth>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vertex_ai_text_embeddings_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vertex_ai_text_embeddings_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vertex_ai_text_embeddings_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vertex_ai_text_embeddings_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vertex_ai_text_embeddings_asset/requirements.txt",
+      "component_type": "dagster_component_templates.VertexAITextEmbeddingsAssetComponent"
+    },
+    {
       "id": "vif",
       "name": "Vif",
       "category": "analytics",
@@ -18243,5 +18397,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 676
+  "total": 681
 }

@@ -1,0 +1,4 @@
+dagster>=1.8.0
+pandas>=1.5.0
+google-cloud-run>=0.10.0
+google-auth>=2.0.0

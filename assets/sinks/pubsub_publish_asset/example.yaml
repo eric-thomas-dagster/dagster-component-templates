@@ -1,0 +1,21 @@
+type: dagster_component_templates.PubSubPublishAssetComponent
+attributes:
+  asset_name: events_published
+  upstream_asset_key: enriched_events
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+
+  topic: my-events-topic
+  auto_create_topic: false
+
+  # Body: defaults to JSON-serialized full row.
+  # message_column: payload   # publish only this column instead
+
+  # Pull these columns out as Pub/Sub message attributes (used for
+  # downstream filter routing on subscribers).
+  attribute_columns: [event_type, region]
+
+  # Optional ordering — requires the topic to have message ordering enabled.
+  # ordering_key_column: customer_id
+
+  flush_batch_size: 100
+  group_name: stream

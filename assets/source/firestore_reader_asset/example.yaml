@@ -1,0 +1,17 @@
+type: dagster_component_templates.FirestoreReaderAssetComponent
+attributes:
+  asset_name: active_orders
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+
+  collection: orders            # or 'tenants/acme/orders' for sub-collection
+  collection_group: false       # true → match any 'orders' across the database
+
+  where:
+    - { field: status, op: "==", value: active }
+    - { field: amount, op: ">=", value: 100 }
+
+  order_by:
+    - "-created_at"             # leading "-" = descending
+  limit: 1000
+
+  group_name: source

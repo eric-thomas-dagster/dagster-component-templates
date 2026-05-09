@@ -1,0 +1,26 @@
+{
+  "component_type": "dagster_component_templates.FirestoreReaderAssetComponent",
+  "description": "Read documents from a Firestore collection (or collection group) into a pandas DataFrame. Supports where filters, ordering, limit. The doc id lands in a `_id` column.",
+  "category": "source",
+  "icon": "si:firebase",
+  "x-dagster-io": {"outputs": {"type": "DataFrame", "description": "One row per Firestore document; doc id in `_id` column."}},
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "credentials": {"type": "object", "label": "Credentials (dict)", "required": false, "default": null},
+    "credentials_path": {"type": "string", "label": "Credentials Path", "required": false, "default": null},
+    "project_id": {"type": "string", "label": "Project ID", "required": false, "default": null},
+    "database": {"type": "string", "label": "Database", "required": false, "default": "(default)"},
+    "collection": {"type": "string", "label": "Collection", "required": true},
+    "collection_group": {"type": "boolean", "label": "Collection Group", "required": false, "default": false},
+    "where": {"type": "array", "label": "Where", "required": false, "default": null, "description": "List of {field, op, value} filters."},
+    "order_by": {"type": "array", "label": "Order By", "required": false, "items": {"type": "string"}},
+    "limit": {"type": "integer", "label": "Limit", "required": false, "default": null},
+    "description": {"type": "string", "label": "Description", "required": false, "default": null, "ui:widget": "textarea"},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": null},
+    "deps": {"type": "array", "label": "Deps", "required": false, "items": {"type": "string"}},
+    "tags": {"type": "object", "label": "Tags", "required": false},
+    "owners": {"type": "array", "label": "Owners", "required": false, "items": {"type": "string"}}
+  },
+  "tags": ["source", "google", "firestore", "nosql", "document-db"],
+  "name": "Firestore Reader"
+}

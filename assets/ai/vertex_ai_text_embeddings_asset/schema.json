@@ -1,0 +1,30 @@
+{
+  "component_type": "dagster_component_templates.VertexAITextEmbeddingsAssetComponent",
+  "description": "Generate text embeddings via Vertex AI's text-embedding models (text-embedding-004, gemini-embedding-001, text-multilingual-embedding-002, etc.). Drop-in shape parallel to embeddings_generator and the openai/anthropic embedding components. Useful for RAG, semantic search, vector store loaders.",
+  "category": "ai",
+  "icon": "si:googlecloud",
+  "x-dagster-io": {"outputs": {"type": "DataFrame", "description": "Upstream DataFrame with an added embedding column (list of floats per row)."}},
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true},
+    "credentials": {"type": "object", "label": "Credentials (dict)", "required": false, "default": null},
+    "credentials_path": {"type": "string", "label": "Credentials Path", "required": false, "default": null},
+    "project_id": {"type": "string", "label": "Project ID", "required": false, "default": null},
+    "location": {"type": "string", "label": "Location", "required": false, "default": "us-central1"},
+    "text_column": {"type": "string", "label": "Text Column", "required": true},
+    "output_column": {"type": "string", "label": "Output Column", "required": false, "default": "embedding"},
+    "model_name": {"type": "string", "label": "Model Name", "required": false, "default": "text-embedding-004"},
+    "task_type": {"type": "string", "label": "Task Type", "required": false, "default": "RETRIEVAL_DOCUMENT", "description": "RETRIEVAL_QUERY | RETRIEVAL_DOCUMENT | SEMANTIC_SIMILARITY | CLASSIFICATION | CLUSTERING | QUESTION_ANSWERING | FACT_VERIFICATION | CODE_RETRIEVAL_QUERY"},
+    "output_dimensionality": {"type": "integer", "label": "Output Dimensionality", "required": false, "default": null},
+    "batch_size": {"type": "integer", "label": "Batch Size", "required": false, "default": 20},
+    "rate_limit_delay": {"type": "number", "label": "Rate Limit Delay", "required": false, "default": 0.2},
+    "max_retries": {"type": "integer", "label": "Max Retries", "required": false, "default": 3},
+    "description": {"type": "string", "label": "Description", "required": false, "default": null, "ui:widget": "textarea"},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": null},
+    "deps": {"type": "array", "label": "Deps", "required": false, "items": {"type": "string"}},
+    "tags": {"type": "object", "label": "Tags", "required": false},
+    "owners": {"type": "array", "label": "Owners", "required": false, "items": {"type": "string"}}
+  },
+  "tags": ["ai", "embeddings", "vertex-ai", "google", "rag", "vector-search", "semantic-search"],
+  "name": "Vertex AI Text Embeddings"
+}

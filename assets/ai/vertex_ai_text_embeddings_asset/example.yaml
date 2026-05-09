@@ -1,0 +1,17 @@
+type: dagster_component_templates.VertexAITextEmbeddingsAssetComponent
+attributes:
+  asset_name: doc_embeddings
+  upstream_asset_key: doc_texts
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+  text_column: text
+  output_column: embedding
+
+  model_name: text-embedding-004
+  task_type: RETRIEVAL_DOCUMENT       # tune for downstream RAG-style retrieval
+  output_dimensionality: 768          # null = full default (768)
+
+  location: us-central1
+  batch_size: 20
+  rate_limit_delay: 0.2
+  max_retries: 3
+  group_name: ai

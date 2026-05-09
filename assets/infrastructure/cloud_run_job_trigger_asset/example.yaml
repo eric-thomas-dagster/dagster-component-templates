@@ -1,0 +1,23 @@
+type: dagster_component_templates.CloudRunJobTriggerAssetComponent
+attributes:
+  asset_name: nightly_etl_run
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+
+  job_name: nightly-etl
+  location: us-central1
+  # project_id: my-project       # defaults to the SA's project
+
+  # Optional per-execution overrides
+  container_overrides:
+    - name: main
+      env:
+        - { name: RUN_DATE, value: "${RUN_DATE}" }
+        - { name: TARGET, value: prod }
+
+  task_count: 1
+  task_timeout_seconds: 1800
+
+  poll_interval_seconds: 5
+  timeout_seconds: 3600
+
+  group_name: orchestration

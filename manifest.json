@@ -1856,6 +1856,39 @@
       }
     },
     {
+      "id": "bigquery_create_table_from_query_asset",
+      "name": "BigQueryCreateTableFromQueryAssetComponent",
+      "category": "transformation",
+      "description": "CTAS as a Dagster asset \u2014 CREATE OR REPLACE TABLE / VIEW / MATERIALIZED VIEW from a SELECT statement. The transform layer of any BQ-native ELT pipeline. Same shape as a dbt model but run directly without dbt.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/bigquery_create_table_from_query_asset",
+      "tags": [
+        "transformation",
+        "google",
+        "bigquery",
+        "ctas",
+        "etl",
+        "warehouse",
+        "elt"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-bigquery>=3.0.0",
+          "google-auth>=2.0.0",
+          "db-dtypes>=1.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/bigquery_create_table_from_query_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/bigquery_create_table_from_query_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/bigquery_create_table_from_query_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/bigquery_create_table_from_query_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/bigquery_create_table_from_query_asset/requirements.txt",
+      "component_type": "dagster_component_templates.BigQueryCreateTableFromQueryAssetComponent"
+    },
+    {
       "id": "bigquery_io_manager",
       "name": "BigQuery IO Manager",
       "category": "io_manager",
@@ -1884,6 +1917,75 @@
       "x-dagster-provides": [
         "io_manager"
       ]
+    },
+    {
+      "id": "bigquery_ml_predict_asset",
+      "name": "BigQueryMLPredictAssetComponent",
+      "category": "ai",
+      "description": "Run ML.PREDICT / ML.FORECAST / ML.EXPLAIN_PREDICT / ML.DETECT_ANOMALIES against a trained BQML model. Returns a DataFrame of predictions with input columns preserved by default.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/bigquery_ml_predict_asset",
+      "tags": [
+        "ai",
+        "ml",
+        "google",
+        "bigquery",
+        "bqml",
+        "prediction",
+        "forecasting",
+        "inference"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-bigquery>=3.0.0",
+          "google-auth>=2.0.0",
+          "db-dtypes>=1.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bigquery_ml_predict_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bigquery_ml_predict_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bigquery_ml_predict_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bigquery_ml_predict_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bigquery_ml_predict_asset/requirements.txt",
+      "component_type": "dagster_component_templates.BigQueryMLPredictAssetComponent"
+    },
+    {
+      "id": "bigquery_ml_train_asset",
+      "name": "BigQueryMLTrainAssetComponent",
+      "category": "ai",
+      "description": "Train a BigQuery ML model from a SELECT statement \u2014 ML in pure SQL, no Python ML stack. Supports LINEAR_REG, LOGISTIC_REG, KMEANS, ARIMA_PLUS, DNN_*, BOOSTED_TREE_*, AUTOML_*, MATRIX_FACTORIZATION, PCA, TENSORFLOW.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/bigquery_ml_train_asset",
+      "tags": [
+        "ai",
+        "ml",
+        "google",
+        "bigquery",
+        "bqml",
+        "training",
+        "forecasting",
+        "classification",
+        "regression"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-bigquery>=3.0.0",
+          "google-auth>=2.0.0",
+          "db-dtypes>=1.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bigquery_ml_train_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bigquery_ml_train_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bigquery_ml_train_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bigquery_ml_train_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bigquery_ml_train_asset/requirements.txt",
+      "component_type": "dagster_component_templates.BigQueryMLTrainAssetComponent"
     },
     {
       "id": "bigquery_query_asset",
@@ -18013,5 +18115,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 670
+  "total": 673
 }

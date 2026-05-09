@@ -1,0 +1,12 @@
+type: dagster_component_templates.BigQueryMLTrainAssetComponent
+attributes:
+  asset_name: arima_model
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+  destination_model_id: my-project.ml.iris_logreg
+  model_options:
+    model_type: LOGISTIC_REG
+    input_label_cols: [species]
+    auto_class_weights: true
+  select_query: |
+    SELECT * FROM `bigquery-public-data.ml_datasets.iris`
+  group_name: ml

@@ -1,0 +1,17 @@
+type: dagster_component_templates.BigQueryCreateTableFromQueryAssetComponent
+attributes:
+  asset_name: orders_clean
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+  destination_table_id: my-project.analytics.orders_clean
+  materialization: table
+  query: |
+    SELECT order_id, customer_id, amount,
+           DATE(created_at) AS order_date
+    FROM `my-project.raw.orders`
+    WHERE status = 'completed'
+  partition_field: order_date
+  cluster_fields: [customer_id]
+  table_options:
+    description: "Cleaned orders for analytics"
+    labels: { tier: gold, owner: analytics }
+  group_name: warehouse

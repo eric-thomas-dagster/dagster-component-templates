@@ -1,0 +1,9 @@
+type: dagster_component_templates.BigQueryMLPredictAssetComponent
+attributes:
+  asset_name: iris_predictions
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+  model_id: my-project.ml.iris_logreg
+  operation: predict
+  input_query: |
+    SELECT * FROM `bigquery-public-data.ml_datasets.iris` LIMIT 10
+  group_name: ml

@@ -168,6 +168,16 @@ class GeminiLLMComponent(Component, Model, Resolvable):
     temperature: float = Field(default=0.0, description="Temperature (0.0–2.0). 0 = deterministic.")
     top_p: Optional[float] = Field(default=None, description="Optional nucleus sampling parameter.")
     top_k: Optional[int] = Field(default=None, description="Optional top-k sampling parameter.")
+    thinking_budget: Optional[int] = Field(
+        default=None,
+        description=(
+            "Tokens reserved for internal reasoning on Gemini 2.5+ thinking models. "
+            "max_output_tokens is the budget for thinking + visible output combined; "
+            "if thinking burns most of it, the visible response gets truncated. Set to 0 "
+            "to disable thinking entirely (recommended for short, structured outputs "
+            "like one-sentence summaries or labels). Leave unset to let the model decide."
+        ),
+    )
 
     rate_limit_delay: float = Field(default=0.2, description="Seconds to sleep between API calls.")
     max_retries: int = Field(default=3, description="Retries on transient errors (5xx, 429).")
@@ -217,6 +227,7 @@ class GeminiLLMComponent(Component, Model, Resolvable):
         top_k_local = self.top_k
         rate_limit_delay_local = self.rate_limit_delay
         max_retries_local = self.max_retries
+        thinking_budget_local = self.thinking_budget
 
         @asset(
             name=self.asset_name,
@@ -282,6 +293,19 @@ class GeminiLLMComponent(Component, Model, Resolvable):
                     config_kwargs["top_k"] = top_k_local
                 if system_prompt_local:
                     config_kwargs["system_instruction"] = system_prompt_local
+                if thinking_budget_local is not None:
+                    # ThinkingConfig requires the typed object on Gemini 2.5+; it
+                    # silently is a no-op on older models that don't support thinking.
+                    try:
+                        config_kwargs["thinking_config"] = genai_types.ThinkingConfig(
+                            thinking_budget=thinking_budget_local,
+                        )
+                    except AttributeError:
+                        # Older google-genai versions without ThinkingConfig — fall back
+                        # to a plain dict, which the SDK accepts.
+                        config_kwargs["thinking_config"] = {
+                            "thinking_budget": thinking_budget_local,
+                        }
 
                 attempt = 0
                 last_err: Optional[Exception] = None

@@ -312,7 +312,12 @@ class GoogleDocsExtractorComponent(Component, Model, Resolvable):
                         context.log.error(f"doc {doc_id}: 404. ID may be wrong.")
                     else:
                         context.log.error(f"doc {doc_id}: {e}")
-                    rows.append({"id": doc_id, "title": None, "word_count": 0})
+                    fallback = {"id": doc_id, "title": None, "word_count": 0}
+                    if include_text:
+                        fallback["text"] = None
+                    if include_headings:
+                        fallback["headings"] = None
+                    rows.append(fallback)
                     errors.append(err_str)
                 _time.sleep(rate_limit_delay)
 

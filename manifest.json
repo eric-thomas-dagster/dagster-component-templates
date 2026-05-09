@@ -7739,7 +7739,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_docs_extractor/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_docs_extractor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_docs_extractor/requirements.txt",
-      "component_type": "dagster_component_templates.GoogleDocsExtractorComponent"
+      "component_type": "dagster_component_templates.GoogleDocsExtractorComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/google_drive_docs.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "google_drive_ingestion",
@@ -7770,7 +7775,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_drive_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_drive_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_drive_ingestion/requirements.txt",
-      "component_type": "dagster_component_templates.GoogleDriveIngestionComponent"
+      "component_type": "dagster_component_templates.GoogleDriveIngestionComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/google_drive_docs.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "google_pubsub",

@@ -7299,7 +7299,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_llm/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_llm/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_llm/requirements.txt",
-      "component_type": "dagster_component_templates.GeminiLLMComponent"
+      "component_type": "dagster_component_templates.GeminiLLMComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/gemini_llm.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "gemini_resource",

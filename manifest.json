@@ -17487,7 +17487,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/translation_api_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/translation_api_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/translation_api_asset/requirements.txt",
-      "component_type": "dagster_component_templates.TranslationApiAssetComponent"
+      "component_type": "dagster_component_templates.TranslationApiAssetComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vision_translate.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "transpose",
@@ -18044,7 +18049,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vision_api_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vision_api_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vision_api_asset/requirements.txt",
-      "component_type": "dagster_component_templates.VisionApiAssetComponent"
+      "component_type": "dagster_component_templates.VisionApiAssetComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vision_translate.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "vision_model",

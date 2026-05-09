@@ -175,9 +175,16 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
                 )
                 job.result()
                 source_descr = source_table_id
-                bytes_processed = int(job.total_bytes_processed or 0)
-                bytes_billed = 0  # extract jobs are free (egress not billed)
-                slot_millis = int(job.slot_millis or 0) if hasattr(job, "slot_millis") and job.slot_millis else 0
+                # ExtractJob does not expose total_bytes_processed/billed —
+                # extracts are free for the BQ side. Surface input table size
+                # instead so the metadata shows what got exported.
+                try:
+                    src_t = bq.get_table(source_table_id)
+                    bytes_processed = int(src_t.num_bytes or 0)
+                except Exception:
+                    bytes_processed = 0
+                bytes_billed = 0  # extract jobs are free
+                slot_millis = 0
             else:
                 # EXPORT DATA SQL — runs the query, exports results.
                 try:

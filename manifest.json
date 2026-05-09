@@ -1923,7 +1923,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/bigquery_export_to_gcs_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/bigquery_export_to_gcs_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/bigquery_export_to_gcs_asset/requirements.txt",
-      "component_type": "dagster_component_templates.BigQueryExportToGcsAssetComponent"
+      "component_type": "dagster_component_templates.BigQueryExportToGcsAssetComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/bigquery_bulk_bridge.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "bigquery_io_manager",
@@ -1985,7 +1990,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bigquery_load_from_gcs_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bigquery_load_from_gcs_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bigquery_load_from_gcs_asset/requirements.txt",
-      "component_type": "dagster_component_templates.BigQueryLoadFromGcsAssetComponent"
+      "component_type": "dagster_component_templates.BigQueryLoadFromGcsAssetComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/bigquery_bulk_bridge.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "bigquery_ml_predict_asset",

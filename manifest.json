@@ -7755,7 +7755,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_sheets_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_sheets_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_sheets_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine"
+      "icon": "ArrowUpFromLine",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/google_sheets.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "google_sheets_resource",

@@ -1894,6 +1894,38 @@
       }
     },
     {
+      "id": "bigquery_export_to_gcs_asset",
+      "name": "BigQueryExportToGcsAssetComponent",
+      "category": "sink",
+      "description": "Export a BigQuery table or query result to GCS as parquet / CSV / JSONL / AVRO via native BQ EXTRACT / EXPORT DATA. Data never round-trips through the Dagster executor \u2014 BQ pushes directly to GCS, so it's fast at any scale. Two source modes: source_table_id (uses EXTRACT, free) or source_query (uses EXPORT DATA SQL).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/bigquery_export_to_gcs_asset",
+      "tags": [
+        "sink",
+        "google",
+        "bigquery",
+        "gcs",
+        "export",
+        "warehouse-to-lake"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-bigquery>=3.0.0",
+          "google-cloud-storage>=2.0.0",
+          "google-auth>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/bigquery_export_to_gcs_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/bigquery_export_to_gcs_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/bigquery_export_to_gcs_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/bigquery_export_to_gcs_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/bigquery_export_to_gcs_asset/requirements.txt",
+      "component_type": "dagster_component_templates.BigQueryExportToGcsAssetComponent"
+    },
+    {
       "id": "bigquery_io_manager",
       "name": "BigQuery IO Manager",
       "category": "io_manager",
@@ -1922,6 +1954,38 @@
       "x-dagster-provides": [
         "io_manager"
       ]
+    },
+    {
+      "id": "bigquery_load_from_gcs_asset",
+      "name": "BigQueryLoadFromGcsAssetComponent",
+      "category": "ingestion",
+      "description": "Load GCS objects into a BigQuery table via BQ's native load-job API (data never round-trips through the executor). The lake \u2192 warehouse step. Supports parquet, CSV, JSONL, AVRO, ORC, with optional explicit schema, partitioning, and clustering on the destination.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/bigquery_load_from_gcs_asset",
+      "tags": [
+        "ingestion",
+        "google",
+        "bigquery",
+        "gcs",
+        "load",
+        "lake-to-warehouse"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-bigquery>=3.0.0",
+          "google-cloud-storage>=2.0.0",
+          "google-auth>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bigquery_load_from_gcs_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bigquery_load_from_gcs_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bigquery_load_from_gcs_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bigquery_load_from_gcs_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/bigquery_load_from_gcs_asset/requirements.txt",
+      "component_type": "dagster_component_templates.BigQueryLoadFromGcsAssetComponent"
     },
     {
       "id": "bigquery_ml_predict_asset",
@@ -4064,7 +4128,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_gcs/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_gcs/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_gcs/requirements.txt",
-      "icon": "si:googlecloud"
+      "icon": "si:googlecloud",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/google_calendar.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "dataframe_to_json",
@@ -18164,5 +18233,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 674
+  "total": 676
 }

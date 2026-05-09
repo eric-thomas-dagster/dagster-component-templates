@@ -1,0 +1,16 @@
+type: dagster_component_templates.BigQueryExportToGcsAssetComponent
+attributes:
+  asset_name: orders_export
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+
+  # Source — set ONE of:
+  source_table_id: my-project.analytics.orders_clean
+  # source_query: |
+  #   SELECT order_id, customer_id, amount FROM `my-project.analytics.orders_clean`
+
+  destination_uri: "gs://my-bucket/exports/orders_*.parquet"
+  format: parquet
+  compression: snappy
+  overwrite: true
+
+  group_name: warehouse_export

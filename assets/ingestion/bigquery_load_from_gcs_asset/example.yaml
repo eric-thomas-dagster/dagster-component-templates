@@ -1,0 +1,19 @@
+type: dagster_component_templates.BigQueryLoadFromGcsAssetComponent
+attributes:
+  asset_name: orders_landing
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+
+  source_uris:
+    - "gs://my-bucket/landing/orders/*.parquet"
+  destination_table_id: my-project.raw.orders_landing
+  format: parquet
+  write_disposition: WRITE_TRUNCATE
+  create_disposition: CREATE_IF_NEEDED
+  autodetect: true
+
+  # Optional: partition + cluster the destination
+  # partition_field: order_date
+  # partition_type: DAY
+  # cluster_fields: [customer_id]
+
+  group_name: warehouse

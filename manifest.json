@@ -8276,7 +8276,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/hris_normalizer/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/hris_normalizer/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/hris_normalizer/requirements.txt",
-      "component_type": "dagster_component_templates.HrisNormalizerComponent"
+      "component_type": "dagster_component_templates.HrisNormalizerComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/hris_normalizer.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "html_parser",

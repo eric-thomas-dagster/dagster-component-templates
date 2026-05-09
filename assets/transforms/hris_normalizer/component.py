@@ -207,7 +207,17 @@ class HrisNormalizerComponent(Component, Model, Resolvable):
                 derived = (fn + " " + ln).str.strip()
                 normalized["full_name"] = derived.where(derived.ne(""), other=None)
 
-            # Apply status_map + type_map.
+            # Apply status_map + type_map. When case_insensitive_map is True we
+            # lowercase BOTH the input value AND the map keys before lookup,
+            # so user maps like {A: active} match raw values like 'A' / 'a'.
+            def _build_lookup(mapping: Dict[str, str]) -> Dict[str, str]:
+                if not case_insensitive_map:
+                    return dict(mapping)
+                return {str(k).strip().lower(): v for k, v in mapping.items()}
+
+            status_lookup = _build_lookup(status_map)
+            type_lookup = _build_lookup(type_map)
+
             def _norm_value(v: Any, mapping: Dict[str, str]) -> Optional[str]:
                 if v is None or (isinstance(v, float) and pd.isna(v)):
                     return None
@@ -216,8 +226,8 @@ class HrisNormalizerComponent(Component, Model, Resolvable):
                     key = key.lower()
                 return mapping.get(key, str(v))  # fallback: pass through
 
-            normalized["employment_status"] = normalized["employment_status"].apply(lambda v: _norm_value(v, status_map))
-            normalized["employment_type"]   = normalized["employment_type"].apply(lambda v: _norm_value(v, type_map))
+            normalized["employment_status"] = normalized["employment_status"].apply(lambda v: _norm_value(v, status_lookup))
+            normalized["employment_type"]   = normalized["employment_type"].apply(lambda v: _norm_value(v, type_lookup))
 
             # Parse dates.
             for col in ("hire_date", "termination_date"):

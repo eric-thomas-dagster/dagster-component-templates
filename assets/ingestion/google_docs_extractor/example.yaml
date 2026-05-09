@@ -1,0 +1,21 @@
+type: dagster_component_templates.GoogleDocsExtractorComponent
+attributes:
+  asset_name: doc_texts
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+
+  # Source A: explicit list of Google Doc IDs
+  doc_ids:
+    - "1abcdefGHIjklmnoPQRstuvwXYZ0123456789"
+    - "1OTHERdocID9876543210FGHIJKLmnopQRStuvw"
+
+  # Source B (alternative): pair with google_drive_ingestion upstream.
+  # Set the asset to filter Drive to mimeType='application/vnd.google-apps.document'
+  # then point id_column at its `id` column.
+  # upstream_asset_key: drive_docs_listing
+  # id_column: id
+
+  include_text: true
+  include_headings: true
+
+  description: Plain text + headings extracted from Google Docs
+  group_name: docs

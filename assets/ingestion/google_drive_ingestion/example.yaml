@@ -1,0 +1,25 @@
+type: dagster_component_templates.GoogleDriveIngestionComponent
+attributes:
+  asset_name: drive_files
+
+  # Auth — uses GOOGLE_APPLICATION_CREDENTIALS by default, or set
+  # credentials_path: /path/to/sa.json
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+
+  # What to fetch (set folder_id OR query, not both):
+  # folder_id: 1ABCdefGHIjklMNOpqrSTUv
+  query: "mimeType='application/pdf' and name contains 'invoice'"
+
+  # Optional: filter by MIME type after the q is applied
+  # mime_type_filter: ["application/pdf", "text/csv"]
+
+  max_files: 50
+
+  # Download behavior
+  download: true
+  download_dir: /tmp/drive_invoices
+  download_max_bytes: 10485760     # 10 MB
+  inline_text_content: false       # true → text/* files get a `content` column too
+
+  description: PDFs from Drive matching the invoice query.
+  group_name: drive

@@ -7711,6 +7711,68 @@
       "icon": "Plug"
     },
     {
+      "id": "google_docs_extractor",
+      "name": "GoogleDocsExtractorComponent",
+      "category": "ingestion",
+      "description": "Extract plain text + headings from Google Docs by ID via a service account. Works with explicit doc_ids OR upstream of google_drive_ingestion (filter Drive to application/vnd.google-apps.document, feed IDs here).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/google_docs_extractor",
+      "tags": [
+        "ingestion",
+        "google",
+        "docs",
+        "documents",
+        "text-extraction",
+        "rag"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-auth>=2.0.0",
+          "google-api-python-client>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_docs_extractor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_docs_extractor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_docs_extractor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_docs_extractor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_docs_extractor/requirements.txt",
+      "component_type": "dagster_component_templates.GoogleDocsExtractorComponent"
+    },
+    {
+      "id": "google_drive_ingestion",
+      "name": "GoogleDriveIngestionComponent",
+      "category": "ingestion",
+      "description": "List (and optionally download) Google Drive files via a service account. Returns a pandas DataFrame, one row per matching file. For Google Sheets use google_sheets_ingestion; for Google Docs text use google_docs_extractor.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/google_drive_ingestion",
+      "tags": [
+        "ingestion",
+        "google",
+        "drive",
+        "files",
+        "documents",
+        "pdf"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-auth>=2.0.0",
+          "google-api-python-client>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_drive_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_drive_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_drive_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_drive_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_drive_ingestion/requirements.txt",
+      "component_type": "dagster_component_templates.GoogleDriveIngestionComponent"
+    },
+    {
       "id": "google_pubsub",
       "name": "Google Pubsub",
       "category": "integration",
@@ -17869,5 +17931,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 666
+  "total": 668
 }

@@ -1,0 +1,35 @@
+{
+  "component_type": "dagster_component_templates.GoogleDocsExtractorComponent",
+  "description": "Extract plain text + headings from Google Docs by ID via a service account. Works with an explicit list of doc_ids OR upstream of google_drive_ingestion (filter Drive to application/vnd.google-apps.document, feed IDs here).",
+  "category": "ingestion",
+  "icon": "si:googledocs",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "DataFrame",
+      "description": "One row per Doc with id, title, word_count, plus optional `text` and `headings` columns."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "credentials": {"type": "object", "label": "Credentials (dict)", "required": false, "default": null},
+    "credentials_path": {"type": "string", "label": "Credentials Path", "required": false, "default": null, "description": "Path to service-account JSON. Falls back to GOOGLE_APPLICATION_CREDENTIALS."},
+    "doc_ids": {"type": "array", "label": "Doc IDs", "required": false, "items": {"type": "string"}, "description": "Explicit list of Google Doc IDs. Mutually exclusive with upstream_asset_key."},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null, "description": "Upstream DataFrame asset. Each row's id_column value is treated as a Doc ID."},
+    "id_column": {"type": "string", "label": "ID Column", "required": false, "default": "id", "description": "Column with the Doc IDs in the upstream DataFrame."},
+    "include_headings": {"type": "boolean", "label": "Include Headings", "required": false, "default": true},
+    "include_text": {"type": "boolean", "label": "Include Text", "required": false, "default": true},
+    "rate_limit_delay": {"type": "number", "label": "Rate Limit Delay", "required": false, "default": 0.2},
+    "description": {"type": "string", "label": "Description", "required": false, "default": null, "ui:widget": "textarea"},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": null},
+    "deps": {"type": "array", "label": "Deps", "required": false, "items": {"type": "string"}},
+    "tags": {"type": "object", "label": "Tags", "required": false},
+    "owners": {"type": "array", "label": "Owners", "required": false, "items": {"type": "string"}},
+    "partition_type": {"type": "string", "label": "Partition Type", "required": false, "default": null},
+    "partition_start": {"type": "string", "label": "Partition Start", "required": false, "default": null},
+    "partition_values": {"type": "string", "label": "Partition Values", "required": false, "default": null},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false, "default": null},
+    "partition_dimensions": {"type": "array", "label": "Partition Dimensions", "required": false}
+  },
+  "tags": ["ingestion", "google", "docs", "documents", "text-extraction", "rag"],
+  "name": "Google Docs Extractor"
+}

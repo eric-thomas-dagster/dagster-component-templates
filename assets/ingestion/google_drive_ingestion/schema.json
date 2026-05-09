@@ -1,0 +1,38 @@
+{
+  "component_type": "dagster_component_templates.GoogleDriveIngestionComponent",
+  "description": "List (and optionally download) Google Drive files via a service account. Returns a pandas DataFrame, one row per matching file. For Google Sheets, prefer google_sheets_ingestion. For Google Docs text, prefer google_docs_extractor. This component handles everything else: PDFs, CSVs, images, arbitrary uploads.",
+  "category": "ingestion",
+  "icon": "si:googledrive",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "DataFrame",
+      "description": "One row per matching Drive file with id, name, mimeType, size, modifiedTime, webViewLink, owner_email. Optional `path` and `content` columns when download=true."
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "credentials": {"type": "object", "label": "Credentials (dict)", "required": false, "default": null, "description": "Service account credentials as a dict. Set this OR credentials_path OR rely on GOOGLE_APPLICATION_CREDENTIALS."},
+    "credentials_path": {"type": "string", "label": "Credentials Path", "required": false, "default": null, "description": "Path to the service-account JSON file. Falls back to GOOGLE_APPLICATION_CREDENTIALS env var."},
+    "folder_id": {"type": "string", "label": "Folder ID", "required": false, "default": null, "description": "Drive folder ID to list. Mutually exclusive with `query`."},
+    "query": {"type": "string", "label": "Query", "required": false, "default": null, "description": "Drive search query (Drive's `q` syntax). Mutually exclusive with `folder_id`."},
+    "mime_type_filter": {"type": "array", "label": "MIME Type Filter", "required": false, "items": {"type": "string"}, "description": "Optional list of MIME types to keep."},
+    "include_trashed": {"type": "boolean", "label": "Include Trashed", "required": false, "default": false},
+    "max_files": {"type": "integer", "label": "Max Files", "required": false, "default": 100, "description": "Stop after this many files (avoids accidental full-Drive scans)."},
+    "download": {"type": "boolean", "label": "Download", "required": false, "default": false, "description": "If true, also download file contents."},
+    "download_dir": {"type": "string", "label": "Download Directory", "required": false, "default": "/tmp/google_drive_ingestion"},
+    "download_max_bytes": {"type": "integer", "label": "Download Max Bytes", "required": false, "default": 10485760, "description": "Skip files larger than this. Default 10 MB."},
+    "inline_text_content": {"type": "boolean", "label": "Inline Text Content", "required": false, "default": false, "description": "When download=true and the file is text-ish, also write decoded content into a `content` column."},
+    "description": {"type": "string", "label": "Description", "required": false, "default": null, "ui:widget": "textarea"},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": null},
+    "deps": {"type": "array", "label": "Deps", "required": false, "items": {"type": "string"}},
+    "tags": {"type": "object", "label": "Tags", "required": false},
+    "owners": {"type": "array", "label": "Owners", "required": false, "items": {"type": "string"}},
+    "partition_type": {"type": "string", "label": "Partition Type", "required": false, "default": null},
+    "partition_start": {"type": "string", "label": "Partition Start", "required": false, "default": null},
+    "partition_values": {"type": "string", "label": "Partition Values", "required": false, "default": null},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false, "default": null},
+    "partition_dimensions": {"type": "array", "label": "Partition Dimensions", "required": false}
+  },
+  "tags": ["ingestion", "google", "drive", "files", "documents", "pdf"],
+  "name": "Google Drive Ingestion"
+}

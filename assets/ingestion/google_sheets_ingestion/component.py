@@ -8,6 +8,7 @@ Set `destination` to persist directly to any dlt-supported destination
 `assets/ingestion/DESTINATIONS.md` for the full configuration reference.
 """
 
+import json
 import os
 from typing import Any, Dict, List, Optional
 
@@ -153,7 +154,23 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    credentials: Dict[str, Any] = Field(description="Google service account credentials JSON (as dict or JSON string)")
+    credentials: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Google service account credentials JSON (as dict or JSON string). "
+            "Provide this OR credentials_path OR rely on GOOGLE_APPLICATION_CREDENTIALS."
+        ),
+    )
+
+    credentials_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "Path to the service-account JSON file. If neither credentials nor "
+            "credentials_path is set, the component falls back to "
+            "GOOGLE_APPLICATION_CREDENTIALS in the environment (the standard "
+            "google-auth convention)."
+        ),
+    )
 
     spreadsheet_id: str = Field(description="Google Sheets spreadsheet ID (from the URL)")
 
@@ -373,7 +390,20 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
+
+        # Resolve credentials: explicit dict, then path, then GOOGLE_APPLICATION_CREDENTIALS.
         credentials = self.credentials
+        if credentials is None:
+            cred_path = self.credentials_path or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+            if cred_path:
+                with open(cred_path, "r") as fh:
+                    credentials = json.load(fh)
+        if credentials is None:
+            raise ValueError(
+                "GoogleSheetsIngestionComponent: provide one of `credentials` (dict), "
+                "`credentials_path` (file path), or set GOOGLE_APPLICATION_CREDENTIALS in the environment."
+            )
+
         spreadsheet_id = self.spreadsheet_id
         sheet_names = self.sheet_names
         description = self.description or f"Google Sheets data ({', '.join(sheet_names)})"

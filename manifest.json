@@ -2563,6 +2563,38 @@
       "icon": "si:clickhouse"
     },
     {
+      "id": "cloud_functions_invoke_asset",
+      "name": "CloudFunctionsInvokeAssetComponent",
+      "category": "infrastructure",
+      "description": "Invoke a deployed Cloud Function (gen 1 / gen 2 / Cloud Run-deployed) over HTTPS with automatic OIDC authentication. Static-call mode or per-row mode with payload_template column substitution.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/cloud_functions_invoke_asset",
+      "tags": [
+        "infrastructure",
+        "google",
+        "cloud-functions",
+        "cloud-run",
+        "compute",
+        "trigger",
+        "oidc"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-auth>=2.0.0",
+          "requests>=2.28.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cloud_functions_invoke_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cloud_functions_invoke_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cloud_functions_invoke_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cloud_functions_invoke_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cloud_functions_invoke_asset/requirements.txt",
+      "component_type": "dagster_component_templates.CloudFunctionsInvokeAssetComponent"
+    },
+    {
       "id": "cloud_run_job_trigger_asset",
       "name": "CloudRunJobTriggerAssetComponent",
       "category": "infrastructure",
@@ -17914,7 +17946,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vertex_ai_text_embeddings_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vertex_ai_text_embeddings_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vertex_ai_text_embeddings_asset/requirements.txt",
-      "component_type": "dagster_component_templates.VertexAITextEmbeddingsAssetComponent"
+      "component_type": "dagster_component_templates.VertexAITextEmbeddingsAssetComponent",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vertex_ai_text_embeddings_asset/README.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "vif",
@@ -18397,5 +18434,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 681
+  "total": 682
 }

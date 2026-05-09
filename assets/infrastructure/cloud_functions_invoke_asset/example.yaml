@@ -1,0 +1,23 @@
+type: dagster_component_templates.CloudFunctionsInvokeAssetComponent
+attributes:
+  asset_name: notify_function
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+
+  function_url: https://us-central1-my-project.cloudfunctions.net/notify
+  method: POST
+
+  # Static call mode:
+  payload:
+    event: pipeline_done
+    severity: info
+
+  # OR per-row call mode (mutually exclusive with `payload`):
+  # upstream_asset_key: events_to_send
+  # payload_template:
+  #   id: "{event_id}"
+  #   level: "{severity}"
+  #   message: "{description}"
+
+  timeout_seconds: 60
+  max_retries: 3
+  group_name: orchestration

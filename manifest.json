@@ -7624,6 +7624,36 @@
       "icon": "si:googlebigquery"
     },
     {
+      "id": "google_calendar_ingestion",
+      "name": "GoogleCalendarIngestionComponent",
+      "category": "ingestion",
+      "description": "List events from a Google Calendar via a service account. Returns one row per event in the configured time window with summary, time, location, organizer, attendees, html_link.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/google_calendar_ingestion",
+      "tags": [
+        "ingestion",
+        "google",
+        "calendar",
+        "events",
+        "scheduling"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-auth>=2.0.0",
+          "google-api-python-client>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_calendar_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_calendar_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_calendar_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_calendar_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_calendar_ingestion/requirements.txt",
+      "component_type": "dagster_component_templates.GoogleCalendarIngestionComponent"
+    },
+    {
       "id": "google_cloud_functions",
       "name": "Google Cloud Functions",
       "category": "integration",
@@ -17941,5 +17971,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 668
+  "total": 669
 }

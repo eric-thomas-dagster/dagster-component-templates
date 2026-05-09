@@ -1,0 +1,21 @@
+type: dagster_component_templates.GoogleCalendarIngestionComponent
+attributes:
+  asset_name: calendar_events
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+
+  # Calendar to read. Use the OWNER's email if you want their primary
+  # calendar (the SA must be shared with "See all event details").
+  # Don't pass 'primary' — that means the SA's own calendar, which is
+  # always empty for service accounts.
+  calendar_id: someone@example.com
+
+  # Time window. Defaults to now → now + 30 days.
+  # time_min: "2026-05-01T00:00:00Z"
+  # time_max: "2026-06-01T00:00:00Z"
+  days_ahead: 30
+
+  max_results: 250
+  single_events: true   # expand recurring events into instances
+
+  description: Upcoming events from the shared calendar
+  group_name: calendar

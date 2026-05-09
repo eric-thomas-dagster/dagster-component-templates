@@ -1886,6 +1886,38 @@
       ]
     },
     {
+      "id": "bigquery_query_asset",
+      "name": "BigQueryQueryAssetComponent",
+      "category": "source",
+      "description": "Run a SQL query against Google BigQuery and return a pandas DataFrame. Drop-in peer of duckdb_query_reader (DuckDB) and database_query (generic SQL). Supports {placeholder} substitution from query_params, dry-run cost preview, partition_key auto-injection. For heavier 'import every BQ entity as an asset' use google_bigquery.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/source/bigquery_query_asset",
+      "tags": [
+        "source",
+        "google",
+        "bigquery",
+        "sql",
+        "warehouse",
+        "query"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-bigquery>=3.0.0",
+          "google-auth>=2.0.0",
+          "db-dtypes>=1.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigquery_query_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigquery_query_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigquery_query_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigquery_query_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigquery_query_asset/requirements.txt",
+      "component_type": "dagster_component_templates.BigQueryQueryAssetComponent"
+    },
+    {
       "id": "bigquery_resource",
       "name": "BigQuery Resource",
       "category": "resource",
@@ -17971,5 +18003,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 669
+  "total": 670
 }

@@ -1,0 +1,21 @@
+type: dagster_component_templates.BigQueryQueryAssetComponent
+attributes:
+  asset_name: top_shakespeare_words
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+
+  query: |
+    SELECT word, SUM(word_count) AS occurrences
+    FROM `bigquery-public-data.samples.shakespeare`
+    GROUP BY word
+    ORDER BY occurrences DESC
+    LIMIT {top_n}
+  query_params:
+    top_n: 20
+
+  # Optional: override the project for the BQ job (the billing project).
+  # Defaults to the SA's project. The query above hits a public dataset
+  # so it's billed to the BQ job's project, not the data's.
+  # project_id: my-billing-project
+  # location: US
+
+  group_name: warehouse

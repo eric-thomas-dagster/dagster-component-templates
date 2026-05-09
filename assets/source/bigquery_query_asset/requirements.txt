@@ -1,0 +1,5 @@
+dagster>=1.8.0
+pandas>=1.5.0
+google-cloud-bigquery>=3.0.0
+google-auth>=2.0.0
+db-dtypes>=1.0.0

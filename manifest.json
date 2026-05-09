@@ -1886,7 +1886,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/bigquery_create_table_from_query_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/bigquery_create_table_from_query_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/bigquery_create_table_from_query_asset/requirements.txt",
-      "component_type": "dagster_component_templates.BigQueryCreateTableFromQueryAssetComponent"
+      "component_type": "dagster_component_templates.BigQueryCreateTableFromQueryAssetComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/bigquery_ml_pipeline.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "bigquery_io_manager",
@@ -1950,7 +1955,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bigquery_ml_predict_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bigquery_ml_predict_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bigquery_ml_predict_asset/requirements.txt",
-      "component_type": "dagster_component_templates.BigQueryMLPredictAssetComponent"
+      "component_type": "dagster_component_templates.BigQueryMLPredictAssetComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/bigquery_ml_pipeline.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "bigquery_ml_train_asset",
@@ -1985,7 +1995,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bigquery_ml_train_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bigquery_ml_train_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bigquery_ml_train_asset/requirements.txt",
-      "component_type": "dagster_component_templates.BigQueryMLTrainAssetComponent"
+      "component_type": "dagster_component_templates.BigQueryMLTrainAssetComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/bigquery_ml_pipeline.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "bigquery_query_asset",

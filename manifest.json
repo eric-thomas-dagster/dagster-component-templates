@@ -1915,7 +1915,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigquery_query_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigquery_query_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigquery_query_asset/requirements.txt",
-      "component_type": "dagster_component_templates.BigQueryQueryAssetComponent"
+      "component_type": "dagster_component_templates.BigQueryQueryAssetComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/bigquery_query.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "bigquery_resource",
@@ -7683,7 +7688,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_calendar_ingestion/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_calendar_ingestion/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/google_calendar_ingestion/requirements.txt",
-      "component_type": "dagster_component_templates.GoogleCalendarIngestionComponent"
+      "component_type": "dagster_component_templates.GoogleCalendarIngestionComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/google_calendar.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "google_cloud_functions",

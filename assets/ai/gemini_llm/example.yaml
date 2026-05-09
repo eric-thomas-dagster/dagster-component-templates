@@ -1,0 +1,18 @@
+type: dagster_component_templates.GeminiLLMComponent
+attributes:
+  asset_name: ticket_summaries
+  upstream_asset_key: support_tickets
+
+  api_key_env_var: GEMINI_API_KEY
+  text_model: gemini-2.5-flash
+
+  system_prompt: "You are a customer-support analyst. Output a one-sentence summary under 20 words. No preamble."
+  input_column: ticket_text
+  output_column: summary
+
+  max_output_tokens: 100
+  temperature: 0.0
+  rate_limit_delay: 0.2
+  max_retries: 3
+
+  group_name: ai

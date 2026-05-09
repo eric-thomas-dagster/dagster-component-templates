@@ -7270,6 +7270,38 @@
       }
     },
     {
+      "id": "gemini_llm",
+      "name": "GeminiLLMComponent",
+      "category": "ai",
+      "description": "Native (no-LiteLLM) per-row text generation with Google Gemini text models (gemini-2.5-flash, gemini-2.5-pro, gemini-2.0-flash-lite, etc.). Drop-in peer of openai_llm / anthropic_llm \u2014 same field shape so providers swap by changing `type:` and the api_key env var. For multi-vendor workflows use litellm_inference_asset.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/gemini_llm",
+      "tags": [
+        "ai",
+        "llm",
+        "text-generation",
+        "gemini",
+        "google",
+        "completion",
+        "summarization",
+        "classification"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-genai>=0.3.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_llm/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_llm/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_llm/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_llm/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_llm/requirements.txt",
+      "component_type": "dagster_component_templates.GeminiLLMComponent"
+    },
+    {
       "id": "gemini_resource",
       "name": "Google Gemini Resource",
       "category": "resource",
@@ -17827,5 +17859,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 665
+  "total": 666
 }

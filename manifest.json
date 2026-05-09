@@ -17460,6 +17460,36 @@
       }
     },
     {
+      "id": "translation_api_asset",
+      "name": "TranslationApiAssetComponent",
+      "category": "ai",
+      "description": "Translate a text column to one or more target languages via Cloud Translation v3. Returns the upstream DataFrame with one new column per target language. Supports html / plain-text mime types and per-row source-language auto-detection.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/translation_api_asset",
+      "tags": [
+        "ai",
+        "translation",
+        "google",
+        "i18n",
+        "localization"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-translate>=3.12.0",
+          "google-auth>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/translation_api_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/translation_api_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/translation_api_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/translation_api_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/translation_api_asset/requirements.txt",
+      "component_type": "dagster_component_templates.TranslationApiAssetComponent"
+    },
+    {
       "id": "transpose",
       "name": "Transpose",
       "category": "transformation",
@@ -17948,8 +17978,8 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vertex_ai_text_embeddings_asset/requirements.txt",
       "component_type": "dagster_component_templates.VertexAITextEmbeddingsAssetComponent",
       "validation": {
-        "level": "code",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vertex_ai_text_embeddings_asset/README.md",
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vertex_ai_embeddings.md",
         "last_validated": "2026-05-08"
       }
     },
@@ -17984,6 +18014,37 @@
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
       }
+    },
+    {
+      "id": "vision_api_asset",
+      "name": "VisionApiAssetComponent",
+      "category": "ai",
+      "description": "Cloud Vision API per-row image analysis. Supports LABEL_DETECTION, OBJECT_LOCALIZATION, FACE_DETECTION, LANDMARK_DETECTION, LOGO_DETECTION, TEXT_DETECTION (basic OCR), DOCUMENT_TEXT_DETECTION, SAFE_SEARCH_DETECTION, IMAGE_PROPERTIES, CROP_HINTS, WEB_DETECTION. For form/table/structured-document parsing, prefer Document AI.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/vision_api_asset",
+      "tags": [
+        "ai",
+        "vision",
+        "google",
+        "ocr",
+        "image-analysis",
+        "object-detection"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-vision>=3.4.0",
+          "google-auth>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vision_api_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vision_api_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vision_api_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vision_api_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vision_api_asset/requirements.txt",
+      "component_type": "dagster_component_templates.VisionApiAssetComponent"
     },
     {
       "id": "vision_model",
@@ -18434,5 +18495,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 682
+  "total": 684
 }

@@ -1,0 +1,17 @@
+type: dagster_component_templates.VisionApiAssetComponent
+attributes:
+  asset_name: image_analysis
+  upstream_asset_key: product_images
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+
+  image_column: file_path       # local path, gs:// URI, or http(s) URL
+  image_source: auto
+
+  features:
+    - LABEL_DETECTION
+    - OBJECT_LOCALIZATION
+    - SAFE_SEARCH_DETECTION
+
+  max_results: 10
+  output_prefix: vision_
+  group_name: vision

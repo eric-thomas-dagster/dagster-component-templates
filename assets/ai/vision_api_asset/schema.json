@@ -1,0 +1,27 @@
+{
+  "component_type": "dagster_component_templates.VisionApiAssetComponent",
+  "description": "Cloud Vision API per-row image analysis. Supports LABEL_DETECTION, OBJECT_LOCALIZATION, FACE_DETECTION, LANDMARK_DETECTION, LOGO_DETECTION, TEXT_DETECTION (basic OCR), DOCUMENT_TEXT_DETECTION, SAFE_SEARCH_DETECTION, IMAGE_PROPERTIES, CROP_HINTS, WEB_DETECTION. For form/table/structured-document parsing, prefer Document AI.",
+  "category": "ai",
+  "icon": "si:googlecloud",
+  "x-dagster-io": {"outputs": {"type": "DataFrame", "description": "Upstream DataFrame with vision_* columns added per requested feature."}},
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true},
+    "credentials": {"type": "object", "label": "Credentials (dict)", "required": false, "default": null},
+    "credentials_path": {"type": "string", "label": "Credentials Path", "required": false, "default": null},
+    "image_column": {"type": "string", "label": "Image Column", "required": true},
+    "image_source": {"type": "string", "label": "Image Source", "required": false, "default": "auto", "description": "path | gcs | url | auto"},
+    "features": {"type": "array", "label": "Features", "required": true, "items": {"type": "string"}},
+    "max_results": {"type": "integer", "label": "Max Results", "required": false, "default": 10},
+    "output_prefix": {"type": "string", "label": "Output Prefix", "required": false, "default": "vision_"},
+    "rate_limit_delay": {"type": "number", "label": "Rate Limit Delay", "required": false, "default": 0.0},
+    "max_retries": {"type": "integer", "label": "Max Retries", "required": false, "default": 3},
+    "description": {"type": "string", "label": "Description", "required": false, "default": null, "ui:widget": "textarea"},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": null},
+    "deps": {"type": "array", "label": "Deps", "required": false, "items": {"type": "string"}},
+    "tags": {"type": "object", "label": "Tags", "required": false},
+    "owners": {"type": "array", "label": "Owners", "required": false, "items": {"type": "string"}}
+  },
+  "tags": ["ai", "vision", "google", "ocr", "image-analysis", "object-detection"],
+  "name": "Cloud Vision API"
+}

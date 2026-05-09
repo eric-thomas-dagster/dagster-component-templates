@@ -1,0 +1,15 @@
+type: dagster_component_templates.TranslationApiAssetComponent
+attributes:
+  asset_name: ticket_translations
+  upstream_asset_key: support_tickets
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+
+  text_column: ticket_text
+  target_languages: [es, fr, de, ja]   # one output column per target
+
+  # source_language: en        # leave unset to auto-detect per row
+  output_prefix: text_           # produces text_es, text_fr, text_de, text_ja
+
+  mime_type: text/plain
+  batch_size: 64
+  group_name: ai

@@ -1,6 +1,6 @@
 # Dagster Component Templates
 
-A community library of **673 reusable [Dagster component](https://docs.dagster.io/guides/components) templates** covering data ingestion, transformations, ML / analytics, AI / LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, asset checks, and enterprise tool integrations — all configurable via YAML with no Python required.
+A community library of **674 reusable [Dagster component](https://docs.dagster.io/guides/components) templates** covering data ingestion, transformations, ML / analytics, AI / LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, asset checks, and enterprise tool integrations — all configurable via YAML with no Python required.
 
 Field naming conventions across the registry are documented in [`FIELD_CONVENTIONS.md`](./FIELD_CONVENTIONS.md).
 
@@ -24,7 +24,7 @@ attributes:
 | Category | Count | What's in it |
 |---|---:|---|
 | analytics | 90 | ML models, scoring, segmentation, forecasting, geo, A/B testing |
-| transformation | 77 | Pandas-style transforms (filter, join, union, datetime, regex, etc.) |
+| transformation | 78 | Pandas-style transforms (filter, join, union, datetime, regex, etc.) |
 | ai | 77 | LLMs, vision, embeddings, vector stores, document extraction |
 | resource | 70 | Connection-handle resources for SaaS / data platforms |
 | ingestion | 65 | Source-to-destination data movement |
@@ -39,7 +39,7 @@ attributes:
 | observation | 20 | Health-check sensors emitting `AssetObservation`s |
 | check | 11 | Asset-check components (Great Expectations, Soda, etc.) |
 | dbt | 1 | dbt-project wrapper |
-| **total** | **673** | |
+| **total** | **674** | |
 
 ### Assets (90 analytics + 73 ai + 59 transformation + 49 ingestion + 23 sink + 21 external + 19 infrastructure + 18 source + 18 integration + 7 check = 377)
 

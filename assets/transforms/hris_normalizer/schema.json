@@ -1,0 +1,28 @@
+{
+  "component_type": "dagster_component_templates.HrisNormalizerComponent",
+  "description": "Vendor-agnostic HRIS schema normalization. Maps any DataFrame of employee data (Workday / BambooHR / ADP / Gusto / Rippling / Hibob / internal export) to a canonical schema (employee_id, email, name, department, manager, hire_date, status, etc.) usable by downstream HR analytics.",
+  "category": "transformation",
+  "icon": "lu:users",
+  "x-dagster-io": {
+    "outputs": {"type": "DataFrame", "description": "Canonical employee table; raw vendor columns optionally preserved with vendor_ prefix."}
+  },
+  "attributes": {
+    "asset_name":           {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key":   {"type": "string", "label": "Upstream Asset Key", "required": true},
+    "column_map":           {"type": "object", "label": "Column Map", "required": true, "description": "{canonical_field: source_column}. Canonical fields: employee_id, email, first_name, last_name, full_name, manager_employee_id, department, job_title, location, country, employment_status, employment_type, hire_date, termination_date."},
+    "status_map":           {"type": "object", "label": "Status Map", "required": false, "default": null, "description": "{vendor_value: canonical_value}. Defaults to active/inactive/terminated/on_leave/pending."},
+    "type_map":             {"type": "object", "label": "Type Map", "required": false, "default": null, "description": "{vendor_value: canonical_value}. Defaults to full_time/part_time/contractor/intern/temporary."},
+    "derive_full_name":     {"type": "boolean", "label": "Derive Full Name", "required": false, "default": true},
+    "compute_tenure":       {"type": "boolean", "label": "Compute Tenure Days", "required": false, "default": true},
+    "derive_is_active":     {"type": "boolean", "label": "Derive is_active", "required": false, "default": true},
+    "drop_extra_columns":   {"type": "boolean", "label": "Drop Extra Columns", "required": false, "default": false},
+    "case_insensitive_map": {"type": "boolean", "label": "Case-Insensitive Map", "required": false, "default": true},
+    "description":          {"type": "string", "label": "Description", "required": false, "default": null, "ui:widget": "textarea"},
+    "group_name":           {"type": "string", "label": "Group Name", "required": false, "default": null},
+    "deps":                 {"type": "array", "label": "Deps", "required": false, "items": {"type": "string"}},
+    "tags":                 {"type": "object", "label": "Tags", "required": false},
+    "owners":               {"type": "array", "label": "Owners", "required": false, "items": {"type": "string"}}
+  },
+  "tags": ["transformation", "hris", "hr", "people-data", "normalization", "schema-mapping"],
+  "name": "HRIS Normalizer"
+}

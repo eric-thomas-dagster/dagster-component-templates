@@ -1,0 +1,32 @@
+type: dagster_component_templates.HrisNormalizerComponent
+attributes:
+  asset_name: employees_normalized
+  upstream_asset_key: employees_raw
+
+  column_map:
+    employee_id: emp_id
+    email: work_email
+    first_name: given_name
+    last_name: family_name
+    manager_employee_id: supervisor_id
+    department: dept
+    job_title: position
+    location: office
+    country: country_iso
+    employment_status: status
+    employment_type: emp_type
+    hire_date: start_date
+    termination_date: end_date
+
+  status_map:
+    A: active
+    T: terminated
+    L: on_leave
+
+  derive_full_name: true
+  compute_tenure: true
+  derive_is_active: true
+  drop_extra_columns: false
+
+  description: Normalized employee table from any HRIS export.
+  group_name: hris

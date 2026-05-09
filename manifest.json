@@ -8250,6 +8250,35 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hex_project_assets/requirements.txt"
     },
     {
+      "id": "hris_normalizer",
+      "name": "HrisNormalizerComponent",
+      "category": "transformation",
+      "description": "Vendor-agnostic HRIS schema normalization. Maps any DataFrame of employee data (Workday / BambooHR / ADP / Gusto / Rippling / Hibob / internal export) to a canonical schema (employee_id, email, name, department, manager, hire_date, status, etc.) usable by downstream HR analytics.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/hris_normalizer",
+      "tags": [
+        "transformation",
+        "hris",
+        "hr",
+        "people-data",
+        "normalization",
+        "schema-mapping"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/hris_normalizer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/hris_normalizer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/hris_normalizer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/hris_normalizer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/hris_normalizer/requirements.txt",
+      "component_type": "dagster_component_templates.HrisNormalizerComponent"
+    },
+    {
       "id": "html_parser",
       "name": "Html Parser",
       "category": "transformation",
@@ -18130,5 +18159,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 673
+  "total": 674
 }

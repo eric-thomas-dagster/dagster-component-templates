@@ -16315,7 +16315,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/speech_to_text_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/speech_to_text_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/speech_to_text_asset/requirements.txt",
-      "component_type": "dagster_component_templates.SpeechToTextAssetComponent"
+      "component_type": "dagster_component_templates.SpeechToTextAssetComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/speech_translate.md",
+        "last_validated": "2026-05-08"
+      }
     },
     {
       "id": "spline_model",

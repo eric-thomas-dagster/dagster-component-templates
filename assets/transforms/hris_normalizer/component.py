@@ -111,14 +111,25 @@ class HrisNormalizerComponent(Component, Model, Resolvable):
     status_map: Optional[Dict[str, str]] = Field(
         default=None,
         description=(
-            "{vendor_value: canonical_value} for employment_status. Defaults to "
-            "a sane mapping (active/inactive/terminated/on_leave/pending). "
-            "Set explicitly to override."
+            "Ergonomic shorthand for value_maps['employment_status']. "
+            "{vendor_value: canonical_value}. Defaults applied: "
+            "active/inactive/terminated/on_leave/pending."
         ),
     )
     type_map: Optional[Dict[str, str]] = Field(
         default=None,
-        description="{vendor_value: canonical_value} for employment_type. Defaults to full_time/part_time/contractor/intern/temporary.",
+        description=(
+            "Ergonomic shorthand for value_maps['employment_type']. "
+            "Defaults applied: full_time/part_time/contractor/intern/temporary."
+        ),
+    )
+    value_maps: Optional[Dict[str, Dict[str, str]]] = Field(
+        default=None,
+        description=(
+            "Generic per-field value normalization. {canonical_field: {vendor_value: canonical_value}}. "
+            "Apply to ANY canonical field (department, location, country, job_title, etc.). "
+            "Wins over status_map / type_map when both are set for the same field."
+        ),
     )
 
     derive_full_name: bool = Field(
@@ -160,8 +171,25 @@ class HrisNormalizerComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
         upstream_key = AssetKey.from_user_string(self.upstream_asset_key)
         column_map = dict(self.column_map)
-        status_map = {**_DEFAULT_STATUS_MAP, **(self.status_map or {})}
-        type_map = {**_DEFAULT_TYPE_MAP, **(self.type_map or {})}
+
+        # Build the per-field value-normalization config. Generic
+        # value_maps wins; status_map / type_map are sugar that lands
+        # in value_maps['employment_status'] / value_maps['employment_type'].
+        value_maps_combined: Dict[str, Dict[str, str]] = {
+            "employment_status": {**_DEFAULT_STATUS_MAP, **(self.status_map or {})},
+            "employment_type":   {**_DEFAULT_TYPE_MAP,   **(self.type_map or {})},
+        }
+        for canon_field, vmap in (self.value_maps or {}).items():
+            if canon_field not in _CANONICAL_FIELDS:
+                raise ValueError(
+                    f"value_maps key {canon_field!r} is not a canonical field. "
+                    f"Allowed: {_CANONICAL_FIELDS}"
+                )
+            # Generic value_maps overrides ergonomic shorthands when both set.
+            value_maps_combined[canon_field] = {
+                **value_maps_combined.get(canon_field, {}),
+                **vmap,
+            }
         derive_full_name = self.derive_full_name
         compute_tenure = self.compute_tenure
         derive_is_active = self.derive_is_active
@@ -207,16 +235,15 @@ class HrisNormalizerComponent(Component, Model, Resolvable):
                 derived = (fn + " " + ln).str.strip()
                 normalized["full_name"] = derived.where(derived.ne(""), other=None)
 
-            # Apply status_map + type_map. When case_insensitive_map is True we
-            # lowercase BOTH the input value AND the map keys before lookup,
-            # so user maps like {A: active} match raw values like 'A' / 'a'.
+            # Apply per-field value normalization. When case_insensitive_map
+            # is True we lowercase BOTH the input value AND the map keys
+            # before lookup, so user maps like {A: active} match raw values
+            # like 'A' / 'a'. Loops over EVERY configured canonical field
+            # (status, type, plus anything in value_maps).
             def _build_lookup(mapping: Dict[str, str]) -> Dict[str, str]:
                 if not case_insensitive_map:
                     return dict(mapping)
                 return {str(k).strip().lower(): v for k, v in mapping.items()}
-
-            status_lookup = _build_lookup(status_map)
-            type_lookup = _build_lookup(type_map)
 
             def _norm_value(v: Any, mapping: Dict[str, str]) -> Optional[str]:
                 if v is None or (isinstance(v, float) and pd.isna(v)):
@@ -226,8 +253,13 @@ class HrisNormalizerComponent(Component, Model, Resolvable):
                     key = key.lower()
                 return mapping.get(key, str(v))  # fallback: pass through
 
-            normalized["employment_status"] = normalized["employment_status"].apply(lambda v: _norm_value(v, status_lookup))
-            normalized["employment_type"]   = normalized["employment_type"].apply(lambda v: _norm_value(v, type_lookup))
+            for canon_field, vmap in value_maps_combined.items():
+                if canon_field not in normalized.columns:
+                    continue
+                lookup = _build_lookup(vmap)
+                normalized[canon_field] = normalized[canon_field].apply(
+                    lambda v, _l=lookup: _norm_value(v, _l)
+                )
 
             # Parse dates.
             for col in ("hire_date", "termination_date"):

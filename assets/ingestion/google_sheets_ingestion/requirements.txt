@@ -1,2 +1,5 @@
-dlt[google_sheets]>=0.4.0
+dagster
 pandas>=1.5.0
+google-auth>=2.0.0
+google-api-python-client>=2.0.0
+dlt>=0.4.0

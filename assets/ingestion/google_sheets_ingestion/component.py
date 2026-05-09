@@ -501,36 +501,99 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def google_sheets_ingestion_asset(context: AssetExecutionContext):
-            from dlt.sources.google_sheets import google_spreadsheet
+            # Direct google-api-python-client implementation. Original used
+            # dlt's verified `google_sheets` source, which isn't pip-installable
+            # (it's a `dlt init` template, not a package). Calling the Sheets
+            # API directly is simpler and avoids an extra layer of indirection.
+            try:
+                from google.oauth2 import service_account
+                from googleapiclient.discovery import build
+            except ImportError:
+                raise ImportError(
+                    "google_sheets_ingestion requires google-auth and "
+                    "google-api-python-client. Install with: "
+                    "pip install google-auth google-api-python-client"
+                )
 
             context.log.info(
                 f"Starting Google Sheets ingestion: spreadsheet_id={spreadsheet_id}, "
-                f"sheets={sheet_names}, destination={destination or 'duckdb (in-memory)'}"
+                f"sheets={sheet_names}, destination={destination or 'in-memory DataFrame'}"
             )
 
-            pipeline = dlt.pipeline(
-                pipeline_name=f"{asset_name}_pipeline",
-                destination=component._resolve_destination(),
-                dataset_name=dataset_name,
+            sa_creds = service_account.Credentials.from_service_account_info(
+                credentials,
+                scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
             )
+            service = build("sheets", "v4", credentials=sa_creds, cache_discovery=False)
 
-            source = google_spreadsheet(
-                credentials=credentials,
-                spreadsheet_id=spreadsheet_id,
-                range_names=sheet_names,
-            )
+            all_data = []
+            for sheet_name in sheet_names:
+                try:
+                    resp = (
+                        service.spreadsheets()
+                        .values()
+                        .get(spreadsheetId=spreadsheet_id, range=sheet_name)
+                        .execute()
+                    )
+                    values = resp.get("values", [])
+                    if not values:
+                        context.log.warning(f"sheet {sheet_name!r} returned no rows")
+                        continue
+                    header, *rows = values
+                    # Normalize: pad short rows so DataFrame doesn't error.
+                    rows = [r + [None] * (len(header) - len(r)) for r in rows]
+                    df = pd.DataFrame(rows, columns=header)
+                    df["_resource_type"] = sheet_name.replace(" ", "_").replace("-", "_").lower()
+                    all_data.append(df)
+                    context.log.info(f"Extracted {len(df)} rows from {sheet_name!r}")
+                except Exception as e:
+                    err_str = str(e)
+                    if "403" in err_str or "PERMISSION_DENIED" in err_str:
+                        context.log.error(
+                            f"sheet {sheet_name!r}: 403 PERMISSION_DENIED. "
+                            f"Share the spreadsheet with the service-account email "
+                            f"({credentials.get('client_email', '<sa-email>')}) — "
+                            f"open https://docs.google.com/spreadsheets/d/{spreadsheet_id} "
+                            f"→ Share → paste the SA email → Viewer."
+                        )
+                    elif "404" in err_str:
+                        context.log.error(
+                            f"sheet {sheet_name!r}: 404. Verify spreadsheet_id and that "
+                            f"the named sheet/tab exists."
+                        )
+                    else:
+                        context.log.error(f"sheet {sheet_name!r}: {e}")
 
-            load_info = pipeline.run(source)
-            context.log.info(f"Google Sheets data loaded: {load_info}")
-
-            resource_keys = [s.replace(" ", "_").replace("-", "_").lower() for s in sheet_names]
-
-            base_metadata = {
-                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
-                "dataset_name": MetadataValue.text(dataset_name),
-                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
-                "resources_extracted": MetadataValue.json(list(resource_keys)),
+            base_metadata: Dict[str, Any] = {
+                "spreadsheet_id": MetadataValue.text(spreadsheet_id),
+                "spreadsheet_url": MetadataValue.url(
+                    f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}"
+                ),
+                "sheets_requested": MetadataValue.json(list(sheet_names)),
+                "sheets_extracted": MetadataValue.int(len(all_data)),
             }
+
+            # Optional dlt destination passthrough — only honored if explicitly set.
+            if destination:
+                pipeline = dlt.pipeline(
+                    pipeline_name=f"{asset_name}_pipeline",
+                    destination=component._resolve_destination(),
+                    dataset_name=dataset_name,
+                )
+                # Each sheet → its own dlt resource, materialized then read back.
+                resources = []
+                for df in all_data:
+                    rname = df["_resource_type"].iloc[0]
+                    @dlt.resource(name=rname, write_disposition="replace")
+                    def _row_resource(_df=df, _rname=rname):
+                        for r in _df.drop(columns=["_resource_type"]).to_dict(orient="records"):
+                            yield r
+                    resources.append(_row_resource())
+                if resources:
+                    load_info = pipeline.run(resources)
+                    context.log.info(f"dlt load_info: {load_info}")
+                base_metadata["destination"] = MetadataValue.text(destination)
+                base_metadata["dataset_name"] = MetadataValue.text(dataset_name)
 
             non_sql_destinations = {
                 "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
@@ -545,22 +608,6 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
                         f"Set persist_only=true to silence this warning."
                     )
                 return MaterializeResult(metadata=base_metadata)
-
-            all_data = []
-            for resource_name in resource_keys:
-                try:
-                    query = f"SELECT * FROM {dataset_name}.{resource_name}"
-                    with pipeline.sql_client() as client:
-                        with client.execute_query(query) as cursor:
-                            columns = [d[0] for d in cursor.description]
-                            rows = cursor.fetchall()
-                    if rows:
-                        df = pd.DataFrame(rows, columns=columns)
-                        df["_resource_type"] = resource_name
-                        all_data.append(df)
-                        context.log.info(f"Extracted {len(df)} rows from {resource_name}")
-                except Exception as e:
-                    context.log.warning(f"Could not extract {resource_name}: {e}")
 
             if not all_data:
                 context.log.warning("No data extracted.")

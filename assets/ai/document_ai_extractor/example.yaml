@@ -1,0 +1,20 @@
+type: dagster_component_templates.DocumentAiExtractorComponent
+attributes:
+  asset_name: parsed_invoices
+  upstream_asset_key: invoice_files
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+
+  # Document AI processor (UUID-style id from the console).
+  # Different from processor TYPE — each processor is a deployed instance.
+  processor_id: 1234567890abcdef
+  location: us                          # us | eu
+
+  document_column: file_path            # local path or gs:// URI
+
+  extract_text: true
+  extract_form_fields: false            # turn on for FORM_PARSER processors
+  extract_entities: true                # for INVOICE / RECEIPT / W2 / 1040 / etc.
+  extract_tables: false
+
+  output_prefix: doc_
+  group_name: ai

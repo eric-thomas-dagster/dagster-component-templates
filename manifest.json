@@ -5000,6 +5000,39 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/docker_container_asset/requirements.txt"
     },
     {
+      "id": "document_ai_extractor",
+      "name": "DocumentAiExtractorComponent",
+      "category": "ai",
+      "description": "Cloud Document AI structured document parsing. Use a deployed processor (FORM_PARSER, INVOICE_PROCESSOR, OCR_PROCESSOR, LAYOUT_PARSER, custom CDE, etc.) to extract text, form fields, entities, and tables from documents. For flat OCR on photos, prefer vision_api_asset (DOCUMENT_TEXT_DETECTION).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/document_ai_extractor",
+      "tags": [
+        "ai",
+        "document-ai",
+        "google",
+        "ocr",
+        "form-parser",
+        "invoice",
+        "receipt",
+        "structured-extraction"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-documentai>=2.20.0",
+          "google-auth>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_ai_extractor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_ai_extractor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_ai_extractor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_ai_extractor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/document_ai_extractor/requirements.txt",
+      "component_type": "dagster_component_templates.DocumentAiExtractorComponent"
+    },
+    {
       "id": "document_chunker",
       "name": "Document Chunker",
       "category": "ai",
@@ -16254,6 +16287,37 @@
       }
     },
     {
+      "id": "speech_to_text_asset",
+      "name": "SpeechToTextAssetComponent",
+      "category": "ai",
+      "description": "Transcribe audio files via Cloud Speech-to-Text v2. Per-row recognition on a column of audio paths or gs:// URIs; supports multilingual recognition, automatic punctuation, word time offsets, speaker diarization. Specialized models include latest_short / latest_long / chirp / chirp_2 / phone_call / medical_conversation.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/speech_to_text_asset",
+      "tags": [
+        "ai",
+        "speech-to-text",
+        "transcription",
+        "google",
+        "audio",
+        "voice"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-cloud-speech>=2.20.0",
+          "google-auth>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/speech_to_text_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/speech_to_text_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/speech_to_text_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/speech_to_text_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/speech_to_text_asset/requirements.txt",
+      "component_type": "dagster_component_templates.SpeechToTextAssetComponent"
+    },
+    {
       "id": "spline_model",
       "name": "SplineModel",
       "category": "analytics",
@@ -18505,5 +18569,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 684
+  "total": 686
 }

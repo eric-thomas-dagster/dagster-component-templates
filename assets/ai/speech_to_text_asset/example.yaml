@@ -1,0 +1,16 @@
+type: dagster_component_templates.SpeechToTextAssetComponent
+attributes:
+  asset_name: call_transcripts
+  upstream_asset_key: support_calls
+  credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
+
+  audio_column: audio_path           # local path or gs:// URI
+  output_column: transcript
+
+  language_codes: [en-US]
+  recognizer_model: latest_long      # or 'phone_call', 'medical_conversation', 'chirp_2', etc.
+
+  enable_automatic_punctuation: true
+  enable_word_time_offsets: false
+  enable_speaker_diarization: false
+  group_name: ai

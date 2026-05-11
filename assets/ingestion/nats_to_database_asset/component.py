@@ -5,7 +5,7 @@ database table via SQLAlchemy. Designed to be triggered by nats_monitor.
 
 Each message payload is expected to be JSON.
 """
-from typing import Optional
+from typing import Dict, List, Optional
 import dagster as dg
 from dagster import AssetExecutionContext, Config
 from pydantic import Field

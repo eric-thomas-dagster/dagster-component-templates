@@ -5,7 +5,7 @@ table via SQLAlchemy. Designed to be triggered by kafka_monitor.
 
 Each message body is expected to be JSON. The batch size is configurable.
 """
-from typing import Optional
+from typing import Dict, List, Optional
 import dagster as dg
 from dagster import AssetExecutionContext, Config
 from pydantic import Field

@@ -6,7 +6,7 @@ mqtt_monitor or run on a schedule.
 
 Each message payload is expected to be JSON.
 """
-from typing import Optional
+from typing import Dict, List, Optional
 import dagster as dg
 from dagster import AssetExecutionContext, Config
 from pydantic import Field

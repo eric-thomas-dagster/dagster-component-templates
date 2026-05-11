@@ -6,7 +6,7 @@ to a database table via SQLAlchemy. Designed to be triggered by servicebus_monit
 Each message body is expected to be JSON. Messages are completed (deleted) after
 successful write.
 """
-from typing import Optional
+from typing import Dict, List, Optional
 import dagster as dg
 from dagster import AssetExecutionContext, Config
 from pydantic import Field

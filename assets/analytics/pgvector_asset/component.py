@@ -6,7 +6,6 @@ import dagster as dg
 from pydantic import Field
 
 
-@dg.definitions
 def _build_partitions_def(
     partition_type,
     partition_start,
@@ -308,7 +307,7 @@ class PgvectorAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Lineage-only upstream asset keys (no data passed at runtime).",
     )
 
-    def build_defs(self, load_context: dg.ComponentLoadContext) -> dg.Definitions:
+    def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         # Standard catalog fields — phase 2 wiring
         _retry_policy = None
         if self.retry_policy_max_retries is not None:

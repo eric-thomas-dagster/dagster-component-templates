@@ -4,7 +4,7 @@ A control-plane Dagster asset that runs git-like operations on a lakeFS
 repository: `commit`, `merge`, or `create_branch`. Does NOT read or write
 data — pair with `io_managers/lakefs_io_manager` for the data plane.
 """
-from typing import Optional
+from typing import Dict, List, Optional
 
 import dagster as dg
 from pydantic import Field

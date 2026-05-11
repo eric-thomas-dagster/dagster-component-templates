@@ -1,6 +1,6 @@
 import os
 import subprocess
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional, Set, Type
 
 import dagster as dg
 import requests
@@ -173,7 +173,6 @@ class VaultResource(dg.ConfigurableResource):
 # ---------------------------------------------------------------------------
 
 
-@dg.component_type(name="VaultAssetComponent")
 class VaultAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """Read secrets from HashiCorp Vault at pipeline runtime.
 

@@ -10,7 +10,7 @@ Uses subprocess to call the Terraform CLI — no Python Terraform SDK required.
 import json
 import os
 import subprocess
-from typing import Optional
+from typing import Dict, List, Optional, Set
 
 import dagster as dg
 from dagster import AssetExecutionContext, MaterializeResult

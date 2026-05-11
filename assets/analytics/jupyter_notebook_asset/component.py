@@ -7,7 +7,6 @@ import dagster as dg
 from pydantic import Field
 
 
-@dg.definitions
 def _build_partitions_def(
     partition_type,
     partition_start,
@@ -310,7 +309,7 @@ class JupyterNotebookAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}.",
     )
 
-    def build_defs(self, load_context: dg.ComponentLoadContext) -> dg.Definitions:
+    def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         component = self  # capture for closure
 
         asset_deps = [dg.AssetKey(d) for d in (component.deps or [])]

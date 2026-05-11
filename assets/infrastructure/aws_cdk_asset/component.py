@@ -2,13 +2,12 @@ import json
 import os
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Dict, List, Optional, Set
 
 import dagster as dg
 from pydantic import Field
 
 
-@dg.component_type(name="AWSCDKAssetComponent")
 class AWSCDKAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """Deploy AWS CDK stacks as a Dagster asset.
 

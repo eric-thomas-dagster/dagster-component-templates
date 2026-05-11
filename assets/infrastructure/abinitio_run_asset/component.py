@@ -13,7 +13,7 @@ Shares AbInitioResource with abinitio_job_sensor for connection config.
 EME REST API: https://{host}/abinitio/eme-rest-api/v1
 """
 import time
-from typing import Optional
+from typing import Dict, List, Optional, Type
 import dagster as dg
 from dagster import AssetExecutionContext, ConfigurableResource, MaterializeResult
 from pydantic import Field

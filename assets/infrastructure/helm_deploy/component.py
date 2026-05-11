@@ -13,7 +13,7 @@ inference assets, or provision a database Helm chart before data loading assets.
 import json
 import os
 import subprocess
-from typing import Optional
+from typing import Dict, List, Optional
 
 import dagster as dg
 from dagster import AssetExecutionContext, MaterializeResult

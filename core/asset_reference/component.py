@@ -1,9 +1,9 @@
 """AssetReferenceComponent for including existing assets in pipeline definitions."""
 
-from typing import Optional
+from typing import Dict, List, Optional
 from pydantic import Field
 from dagster import Definitions, Resolvable, Model
-from dagster._core.definitions.component import Component, ComponentLoadContext
+from dagster import Component, ComponentLoadContext
 
 
 class AssetReferenceComponent(Component, Model, Resolvable):

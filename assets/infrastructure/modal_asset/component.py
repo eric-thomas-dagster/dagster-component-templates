@@ -1,13 +1,12 @@
 import json
 import os
 import subprocess
-from typing import Optional
+from typing import Dict, List, Optional
 
 import dagster as dg
 from pydantic import Field
 
 
-@dg.definitions
 class ModalAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """Trigger a Modal function as a Dagster asset.
 

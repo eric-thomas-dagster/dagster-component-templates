@@ -5,7 +5,6 @@ import dagster as dg
 from pydantic import Field
 
 
-@dg.definitions
 def _build_partitions_def(
     partition_type,
     partition_start,
@@ -262,7 +261,7 @@ class TectonAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}.",
     )
 
-    def build_defs(self, load_context: dg.ComponentLoadContext) -> dg.Definitions:
+    def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         component = self
 
         dep_keys = [dg.AssetKey.from_user_string(k) for k in (component.deps or [])]

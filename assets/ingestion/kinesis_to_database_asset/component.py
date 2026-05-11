@@ -5,7 +5,7 @@ table via SQLAlchemy. Designed to be triggered by kinesis_monitor.
 
 Each record data is expected to be JSON. Uses GetRecords API with shard iteration.
 """
-from typing import Optional
+from typing import Dict, List, Optional
 import dagster as dg
 from dagster import AssetExecutionContext, Config
 from pydantic import Field

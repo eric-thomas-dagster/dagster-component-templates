@@ -10,7 +10,7 @@ Uses subprocess to call the Pulumi CLI — no Pulumi Automation API SDK required
 import json
 import os
 import subprocess
-from typing import Optional
+from typing import Dict, List, Optional
 
 import dagster as dg
 from dagster import AssetExecutionContext, MaterializeResult

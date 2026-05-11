@@ -5,7 +5,7 @@ via SQLAlchemy. Designed to be triggered by gcs_monitor.
 
 Mirrors s3_to_database_asset — same format support, same destination config.
 """
-from typing import Optional
+from typing import Dict, List, Optional
 import dagster as dg
 from dagster import AssetExecutionContext, Config
 from pydantic import Field

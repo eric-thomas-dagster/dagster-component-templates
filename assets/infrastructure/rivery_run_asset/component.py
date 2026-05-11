@@ -8,7 +8,7 @@ Includes RiveryResource for shared connection config across components.
 Rivery API: https://{region}.rivery.io/api/v1
 """
 import time
-from typing import Optional
+from typing import Dict, List, Optional, Type
 import dagster as dg
 from dagster import AssetExecutionContext, ConfigurableResource, MaterializeResult
 from pydantic import Field

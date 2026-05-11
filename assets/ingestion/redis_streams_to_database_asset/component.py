@@ -5,7 +5,7 @@ Designed to be triggered by redis_streams_monitor.
 
 Each entry's fields are treated as a flat record. Uses XREAD with count/block.
 """
-from typing import Optional
+from typing import Dict, List, Optional
 import dagster as dg
 from dagster import AssetExecutionContext, Config
 from pydantic import Field

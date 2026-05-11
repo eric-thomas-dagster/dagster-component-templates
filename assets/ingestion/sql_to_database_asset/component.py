@@ -6,7 +6,7 @@ database table via SQLAlchemy. Designed to be triggered by sql_monitor or a sche
 Supports any SQLAlchemy-compatible source and destination (Postgres, MySQL, MSSQL,
 SQLite, Snowflake, BigQuery, Redshift, DuckDB, etc.).
 """
-from typing import Optional
+from typing import Dict, List, Optional
 import dagster as dg
 from dagster import AssetExecutionContext, Config
 from pydantic import Field

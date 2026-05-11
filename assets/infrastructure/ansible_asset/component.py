@@ -1,13 +1,12 @@
 import os
 import subprocess
 import tempfile
-from typing import Optional
+from typing import Dict, List, Optional
 
 import dagster as dg
 from pydantic import Field
 
 
-@dg.definitions
 class AnsibleAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """Run an Ansible playbook as a Dagster asset.
 

@@ -8,7 +8,7 @@ Idempotent: uses change sets for updates, so re-running the asset when the
 stack is already up-to-date is safe (no-op).
 """
 import time
-from typing import Optional
+from typing import Dict, List, Optional
 import dagster as dg
 from pydantic import Field
 

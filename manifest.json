@@ -10287,8 +10287,8 @@
       "component_type": "dagster_component_templates.LiteLLMInferenceAssetComponent",
       "validation": {
         "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/llm_execution.md",
-        "last_validated": "2026-05-08"
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/litellm_multi_provider.md",
+        "last_validated": "2026-05-11"
       }
     },
     {

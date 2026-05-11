@@ -1320,12 +1320,14 @@ def _generate_employees(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
 
 
 def _generate_fhir_patients(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
-    """Synthetic FHIR R4/R5 Patient + Observation resources.
+    """Synthetic FHIR R4/R5 resources covering a mixed payload.
 
     Emits a DataFrame with one row per resource and a `resource` column
-    holding the parsed FHIR JSON (as a dict, ready for downstream parsing
-    by `fhir_resource_normalizer`). Mix is: each "patient" gets 1 Patient
-    resource plus ~3 Observations (vitals: HR, BP, temperature).
+    holding the parsed FHIR JSON (dict, ready for `fhir_resource_normalizer`).
+
+    Cycle per "patient": 1 Patient, 2 Observations (HR + temperature),
+    1 Practitioner, 1 Organization, 1 Coverage, 1 Claim. Mix realistically
+    exercises every extractor.
     """
     import numpy as np
     rng = np.random.default_rng(opts.get("random_state"))
@@ -1390,16 +1392,99 @@ def _generate_fhir_patients(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
                 "valueQuantity":     {"value": round(36.5 + float(rng.normal(0, 0.5)), 1), "unit": "Cel"},
             },
         })
+        if len(rows) >= n: break
+
+        # Practitioner
+        prac_id = f"prac-{pid:05d}"
+        prac_fn = first_names[rng.integers(0, len(first_names))]
+        prac_ln = last_names[rng.integers(0, len(last_names))]
+        npi = f"{rng.integers(1000000000, 9999999999)}"
+        rows.append({
+            "row_id":   f"r-{len(rows)+1:05d}",
+            "resource": {
+                "resourceType": "Practitioner",
+                "id":           prac_id,
+                "active":       True,
+                "name":         [{"given": [prac_fn], "family": prac_ln, "prefix": ["Dr."]}],
+                "gender":       genders[rng.integers(0, len(genders))],
+                "identifier":   [{"system": "http://hl7.org/fhir/sid/us-npi", "value": npi}],
+                "address":      [{"city": cities[city_idx], "state": states[city_idx],
+                                  "postalCode": f"{rng.integers(10000, 99999)}", "country": "US"}],
+            },
+        })
+        if len(rows) >= n: break
+
+        # Organization (payor/hospital)
+        org_id = f"org-{pid:05d}"
+        rows.append({
+            "row_id":   f"r-{len(rows)+1:05d}",
+            "resource": {
+                "resourceType": "Organization",
+                "id":           org_id,
+                "active":       True,
+                "name":         f"{cities[city_idx]} Medical Center",
+                "type":         [{"coding": [{"system": "http://terminology.hl7.org/CodeSystem/organization-type",
+                                              "code": "prov", "display": "Healthcare Provider"}]}],
+                "address":      [{"city": cities[city_idx], "state": states[city_idx],
+                                  "postalCode": f"{rng.integers(10000, 99999)}", "country": "US"}],
+            },
+        })
+        if len(rows) >= n: break
+
+        # Coverage
+        cov_id = f"cov-{pid:05d}"
+        rows.append({
+            "row_id":   f"r-{len(rows)+1:05d}",
+            "resource": {
+                "resourceType":   "Coverage",
+                "id":             cov_id,
+                "status":         "active",
+                "type":           {"coding": [{"system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+                                               "code": "EHCPOL", "display": "Extended healthcare"}]},
+                "subscriber":     {"reference": f"Patient/{pat_id}"},
+                "beneficiary":    {"reference": f"Patient/{pat_id}"},
+                "payor":          [{"reference": f"Organization/{org_id}"}],
+                "subscriberId":   f"MEM{rng.integers(100000000, 999999999)}",
+                "period":         {"start": "2025-01-01", "end": "2025-12-31"},
+                "network":        ["PPO-Standard", "HMO-Premium"][int(rng.integers(0, 2))],
+            },
+        })
+        if len(rows) >= n: break
+
+        # Claim
+        claim_total = round(float(rng.uniform(150, 5000)), 2)
+        rows.append({
+            "row_id":   f"r-{len(rows)+1:05d}",
+            "resource": {
+                "resourceType":   "Claim",
+                "id":             f"claim-{pid:05d}",
+                "status":         "active",
+                "use":            "claim",
+                "created":        "2025-01-20",
+                "patient":        {"reference": f"Patient/{pat_id}"},
+                "provider":       {"reference": f"Practitioner/{prac_id}"},
+                "insurance":      [{"sequence": 1, "focal": True, "coverage": {"reference": f"Coverage/{cov_id}"}}],
+                "billablePeriod": {"start": "2025-01-15", "end": "2025-01-16"},
+                "total":          {"value": claim_total, "currency": "USD"},
+                "priority":       {"coding": [{"system": "http://terminology.hl7.org/CodeSystem/processpriority",
+                                                "code": "normal"}]},
+            },
+        })
         pid += 1
 
     return pd.DataFrame(rows[:n])
 
 
 def _generate_hl7_messages(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
-    """Synthetic HL7 v2 ADT^A01 and ORU^R01 messages.
+    """Synthetic HL7 v2 ADT, ORU, and ORM messages.
 
-    Emits a DataFrame with `message_id` and `message` columns; `message` is
-    the raw pipe-delimited HL7 string with \\r between segments — ready for
+    Emits a DataFrame with `message_id`, `message_type`, and `message`
+    columns. Cycles through:
+      - ADT^A01 (admit) — full PV1 + EVN + DG1 + AL1
+      - ORU^R01 (lab result) — OBR + multiple OBX rows
+      - ORM^O01 (order message) — ORC + OBR
+
+    All messages are pipe-delimited with \\r between segments — ready for
     `hl7_v2_parser` to flatten.
     """
     import numpy as np
@@ -1407,6 +1492,14 @@ def _generate_hl7_messages(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
 
     last_names  = ["Doe", "Smith", "Garcia", "Tanaka", "Patel", "Mueller", "Romano"]
     first_names = ["John", "Jane", "Maria", "Hiroshi", "Anand", "Ingrid", "Marco"]
+    diagnoses = [("E11.9", "Type 2 diabetes mellitus", "I10"),
+                 ("J18.9", "Pneumonia, unspecified", "I10"),
+                 ("I10",   "Essential hypertension", "I10"),
+                 ("R10.9", "Abdominal pain, unspecified", "I10")]
+    allergies = [("DA", "PENICILLIN^Penicillin^L", "SV", "Anaphylaxis"),
+                 ("FA", "PEANUT^Peanuts^L",         "MO", "Hives"),
+                 ("DA", "ASPIRIN^Aspirin^L",       "MI", "Rash"),
+                 ("EA", "POLLEN^Pollen^L",         "MI", "Sneezing")]
     rows: List[Dict[str, Any]] = []
 
     for i in range(n):
@@ -1417,27 +1510,46 @@ def _generate_hl7_messages(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
         dob = f"19{rng.integers(40, 99):02d}{rng.integers(1, 12):02d}{rng.integers(1, 28):02d}"
         sex = "M" if rng.integers(0, 2) == 0 else "F"
 
-        if i % 2 == 0:
-            # ADT^A01 — admit
+        mod = i % 3
+        if mod == 0:
+            # ADT^A01 — admit (with EVN, PV1, DG1, AL1)
+            dx_code, dx_name, dx_codeset = diagnoses[rng.integers(0, len(diagnoses))]
+            al_type, al_code, al_sev, al_rxn = allergies[rng.integers(0, len(allergies))]
+            visit_num = f"VST{rng.integers(100000, 999999)}"
             msg = (
                 f"MSH|^~\\&|HOSPITAL|EHR|LAB|HOSPITAL|202501151200||ADT^A01|{msg_id}|P|2.5\r"
-                f"EVN|A01|202501151200\r"
+                f"EVN|A01|202501151200|||OP9999^Operator^Bob\r"
                 f"PID|1||{pat_id}||{ln}^{fn}^A||{dob}|{sex}|||123 Main St^^Boston^MA^02101^US\r"
-                f"PV1|1|I|ICU^301^A||||1234^Smith^Jane^^^DR\r"
+                f"PV1|1|I|ICU^301^A^Main Hospital||||1234^Smith^Jane^^^DR|||MED||||7|||||{visit_num}|||||||||||||||||||||||||202501151200|\r"
+                f"DG1|1|I10|{dx_code}^{dx_name}^{dx_codeset}||202501151200|A\r"
+                f"AL1|1|{al_type}|{al_code}|{al_sev}|{al_rxn}|20200101\r"
             )
             msg_type = "ADT^A01"
-        else:
+        elif mod == 1:
             # ORU^R01 — lab result with 2 OBX observations
             glu = float(rng.integers(70, 250))
             hr  = int(rng.integers(55, 110))
+            order_num = f"ORD{rng.integers(100000, 999999)}"
+            filler_num = f"FIL{rng.integers(100000, 999999)}"
             msg = (
                 f"MSH|^~\\&|LAB|HOSPITAL|EHR|HOSPITAL|202501151200||ORU^R01|{msg_id}|P|2.5\r"
                 f"PID|1||{pat_id}||{ln}^{fn}^A||{dob}|{sex}|||123 Main St^^Boston^MA^02101^US\r"
-                f"OBR|1|||LAB001^Lab Panel^L\r"
+                f"ORC|RE|{order_num}|{filler_num}||CM|||||202501151200|||5678^Brown^Tim^^^DR\r"
+                f"OBR|1|{order_num}|{filler_num}|LAB001^Lab Panel^L|||202501151200||||||||||||||||202501151230|||F\r"
                 f"OBX|1|NM|GLU^Glucose^L||{glu}|mg/dL|70-100|H||F\r"
                 f"OBX|2|NM|HR^Heart Rate^L||{hr}|/min|60-100|N||F\r"
             )
             msg_type = "ORU^R01"
+        else:
+            # ORM^O01 — order message
+            order_num = f"ORD{rng.integers(100000, 999999)}"
+            msg = (
+                f"MSH|^~\\&|EHR|HOSPITAL|LAB|HOSPITAL|202501151200||ORM^O01|{msg_id}|P|2.5\r"
+                f"PID|1||{pat_id}||{ln}^{fn}^A||{dob}|{sex}|||123 Main St^^Boston^MA^02101^US\r"
+                f"ORC|NW|{order_num}|||SC|||||202501151200|||9012^Lee^Sarah^^^DR\r"
+                f"OBR|1|{order_num}||CBC^Complete Blood Count^L|||202501151400\r"
+            )
+            msg_type = "ORM^O01"
 
         rows.append({"message_id": msg_id, "message_type": msg_type, "message": msg})
 

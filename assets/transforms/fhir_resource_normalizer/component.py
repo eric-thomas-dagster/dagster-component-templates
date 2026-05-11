@@ -2,9 +2,20 @@
 
 Takes an upstream DataFrame whose values are FHIR JSON resources (either as
 parsed dicts or JSON strings) and emits one flat row per resource. Supports
-the common resource types out of the box (`Patient`, `Observation`,
-`Encounter`, `Condition`, `MedicationRequest`) with sane field extraction;
-falls back to a generic field-walker for everything else.
+the common resource types out of the box with full extractors:
+
+  - `Patient`           — demographics, name, address
+  - `Observation`       — code, value, unit, status, effective_dt
+  - `Encounter`         — class, period, reason
+  - `Condition`         — code, clinical_status, onset
+  - `MedicationRequest` — med code/display, dosage, authored_on
+  - `Claim`             — patient, provider, insurer, total amount
+  - `Coverage`          — subscriber, payor, plan period
+  - `Practitioner`      — name, NPI, address
+  - `Organization`      — name, type, address, parent org
+  - `Bundle`            — wraps a container with entry_count + entries_by_type
+
+Falls back to a generic field-walker for everything else.
 
 Inspired by the `hris_normalizer` pattern: messy vendor data → canonical
 flat schema. Same `value_maps` + case-insensitive matching shape.
@@ -127,6 +138,121 @@ def _extract_medication_request(r: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _extract_claim(r: Dict[str, Any]) -> Dict[str, Any]:
+    """Claim resource — insurance claim header. Surfaces patient, provider,
+    insurer, total amount, claim period."""
+    total = r.get("total") or {}
+    period = r.get("billablePeriod") or {}
+    insurance0 = (r.get("insurance") or [{}])[0]
+    insurer_ref = ((insurance0.get("coverage") or {}).get("reference")) or ""
+    return {
+        "resource_type":   r.get("resourceType"),
+        "id":              r.get("id"),
+        "status":          r.get("status"),
+        "use":             r.get("use"),  # claim / preauthorization / predetermination
+        "patient_id":      (r.get("patient") or {}).get("reference", "").replace("Patient/", ""),
+        "provider_id":     (r.get("provider") or {}).get("reference", "").replace("Practitioner/", "").replace("Organization/", ""),
+        "insurer_id":      insurer_ref.replace("Coverage/", ""),
+        "total_amount":    total.get("value"),
+        "total_currency":  total.get("currency"),
+        "billable_start":  period.get("start"),
+        "billable_end":    period.get("end"),
+        "created":         r.get("created"),
+        "priority_code":   ((r.get("priority") or {}).get("coding") or [{}])[0].get("code"),
+    }
+
+
+def _extract_coverage(r: Dict[str, Any]) -> Dict[str, Any]:
+    """Coverage resource — insurance coverage record. Subscriber, payer, plan."""
+    period = r.get("period") or {}
+    type_coding = ((r.get("type") or {}).get("coding") or [{}])[0]
+    payor_ref = ((r.get("payor") or [{}])[0]).get("reference", "")
+    return {
+        "resource_type":   r.get("resourceType"),
+        "id":              r.get("id"),
+        "status":          r.get("status"),
+        "type_code":       type_coding.get("code"),
+        "type_display":    type_coding.get("display"),
+        "policy_holder_id": (r.get("policyHolder") or {}).get("reference", "").replace("Patient/", ""),
+        "subscriber_id":   (r.get("subscriber") or {}).get("reference", "").replace("Patient/", ""),
+        "beneficiary_id":  (r.get("beneficiary") or {}).get("reference", "").replace("Patient/", ""),
+        "payor_id":        payor_ref.replace("Organization/", ""),
+        "subscriber_member_id": r.get("subscriberId"),
+        "period_start":    period.get("start"),
+        "period_end":      period.get("end"),
+        "network":         r.get("network"),
+    }
+
+
+def _extract_practitioner(r: Dict[str, Any]) -> Dict[str, Any]:
+    """Practitioner resource — clinician/provider directory entry."""
+    name0 = (r.get("name") or [{}])[0]
+    given = " ".join(name0.get("given") or [])
+    addr0 = (r.get("address") or [{}])[0]
+    # NPI is conventionally an identifier with system http://hl7.org/fhir/sid/us-npi
+    npi = None
+    for ident in (r.get("identifier") or []):
+        if (ident.get("system") or "").endswith("us-npi"):
+            npi = ident.get("value")
+            break
+    return {
+        "resource_type":   r.get("resourceType"),
+        "id":              r.get("id"),
+        "active":          r.get("active"),
+        "first_name":      given.strip() or None,
+        "last_name":       name0.get("family") or None,
+        "prefix":          " ".join(name0.get("prefix") or []) or None,
+        "suffix":          " ".join(name0.get("suffix") or []) or None,
+        "gender":          r.get("gender"),
+        "birth_date":      r.get("birthDate"),
+        "npi":             npi,
+        "city":            addr0.get("city"),
+        "state":           addr0.get("state"),
+        "postal_code":     addr0.get("postalCode"),
+        "country":         addr0.get("country"),
+    }
+
+
+def _extract_organization(r: Dict[str, Any]) -> Dict[str, Any]:
+    """Organization resource — hospital/clinic/payor entity."""
+    addr0 = (r.get("address") or [{}])[0]
+    type0 = ((r.get("type") or [{}])[0].get("coding") or [{}])[0]
+    return {
+        "resource_type":   r.get("resourceType"),
+        "id":              r.get("id"),
+        "active":          r.get("active"),
+        "name":            r.get("name"),
+        "alias":           ", ".join(r.get("alias") or []) or None,
+        "type_code":       type0.get("code"),
+        "type_display":    type0.get("display"),
+        "city":            addr0.get("city"),
+        "state":           addr0.get("state"),
+        "postal_code":     addr0.get("postalCode"),
+        "country":         addr0.get("country"),
+        "part_of_id":      (r.get("partOf") or {}).get("reference", "").replace("Organization/", "") or None,
+    }
+
+
+def _extract_bundle(r: Dict[str, Any]) -> Dict[str, Any]:
+    """Bundle resource — a container for other resources. Surface the bundle
+    metadata and a count of entries by type (as `entries_by_type` JSON column)."""
+    entries = r.get("entry") or []
+    by_type: Dict[str, int] = {}
+    for e in entries:
+        res = e.get("resource") or {}
+        rt = res.get("resourceType") or "unknown"
+        by_type[rt] = by_type.get(rt, 0) + 1
+    return {
+        "resource_type":   r.get("resourceType"),
+        "id":              r.get("id"),
+        "bundle_type":     r.get("type"),  # document / message / transaction / batch / searchset / etc.
+        "timestamp":       r.get("timestamp"),
+        "total":           r.get("total"),
+        "entry_count":     len(entries),
+        "entries_by_type": by_type,
+    }
+
+
 def _extract_generic(r: Dict[str, Any]) -> Dict[str, Any]:
     """Fallback — pull common top-level fields any FHIR resource may have."""
     return {
@@ -144,6 +270,11 @@ _EXTRACTORS = {
     "Encounter":         _extract_encounter,
     "Condition":         _extract_condition,
     "MedicationRequest": _extract_medication_request,
+    "Claim":             _extract_claim,
+    "Coverage":          _extract_coverage,
+    "Practitioner":      _extract_practitioner,
+    "Organization":      _extract_organization,
+    "Bundle":            _extract_bundle,
 }
 
 
@@ -245,7 +376,7 @@ class FhirResourceNormalizerComponent(Component, Model, Resolvable):
                 if filter_types and rtype not in filter_types:
                     continue
 
-                extractor = _EXTRACTORS.get(rtype, _extract_generic)
+                extractor = _EXTRACTORS.get(rtype or "", _extract_generic)
                 flat = extractor(resource)
 
                 # Apply value_maps

@@ -10,8 +10,17 @@ HL7 v2.x is the dominant healthcare messaging standard for hospital systems
     OBX|1|NM|GLU^Glucose^L||120|mg/dL|...
 
 This component takes a column of raw HL7 messages and emits ONE ROW PER
-SEGMENT-OF-INTEREST. The default behavior extracts the most useful fields
-from MSH (message header), PID (patient), and OBX (observation) segments.
+SEGMENT-OF-INTEREST. Supported segments with full extractors:
+
+  - **MSH** — Message header (sending/receiving app, datetime, version)
+  - **PID** — Patient identification (name, DOB, sex, address)
+  - **OBX** — Observation/result (code, value, units, status)
+  - **ORC** — Order control (placer/filler order numbers, ordering provider)
+  - **OBR** — Observation request (service code, observation/report times)
+  - **PV1** — Patient visit (class, location, attending, admit/discharge dt)
+  - **EVN** — Event type (event code, recorded/occurred dt, operator)
+  - **DG1** — Diagnosis (code, name, codeset, type)
+  - **AL1** — Patient allergy (allergen, severity, reaction, onset)
 
 Common use:
   - Hospital LIS / EHR firehose → BQ events table
@@ -115,10 +124,149 @@ def _parse_obx(seg_fields: List[str], comp_sep: str) -> Dict[str, Any]:
     }
 
 
+def _parse_orc(seg_fields: List[str], comp_sep: str) -> Dict[str, Any]:
+    """Order Control. ORC-1=order_control_code (NW/CA/RE/etc.),
+       ORC-2=placer_order_num, ORC-3=filler_order_num, ORC-5=order_status,
+       ORC-9=transaction_datetime, ORC-12=ordering_provider (id^last^first),
+       ORC-15=order_effective_datetime."""
+    def at(idx: int) -> Optional[str]:
+        return seg_fields[idx] if idx < len(seg_fields) else None
+    op = (at(12) or "").split(comp_sep)
+    return {
+        "segment":                 "ORC",
+        "order_control_code":      at(1),
+        "placer_order_num":        (at(2) or "").split(comp_sep)[0] or None,
+        "filler_order_num":        (at(3) or "").split(comp_sep)[0] or None,
+        "order_status":            at(5),
+        "transaction_datetime":    at(9),
+        "ordering_provider_id":    op[0] if len(op) > 0 and op[0] else None,
+        "ordering_provider_last":  op[1] if len(op) > 1 and op[1] else None,
+        "ordering_provider_first": op[2] if len(op) > 2 and op[2] else None,
+        "order_effective_dt":      at(15),
+    }
+
+
+def _parse_obr(seg_fields: List[str], comp_sep: str) -> Dict[str, Any]:
+    """Observation Request. OBR-1=set_id, OBR-2=placer_order_num,
+       OBR-3=filler_order_num, OBR-4=universal_service_id (code^name^codeset),
+       OBR-7=observation_datetime, OBR-14=specimen_received_dt,
+       OBR-22=results_report_dt, OBR-24=diagnostic_service_section,
+       OBR-25=result_status."""
+    def at(idx: int) -> Optional[str]:
+        return seg_fields[idx] if idx < len(seg_fields) else None
+    svc = (at(4) or "").split(comp_sep)
+    return {
+        "segment":                  "OBR",
+        "set_id":                   at(1),
+        "placer_order_num":         (at(2) or "").split(comp_sep)[0] or None,
+        "filler_order_num":         (at(3) or "").split(comp_sep)[0] or None,
+        "service_code":             svc[0] if len(svc) > 0 and svc[0] else None,
+        "service_name":             svc[1] if len(svc) > 1 and svc[1] else None,
+        "service_code_system":      svc[2] if len(svc) > 2 and svc[2] else None,
+        "observation_dt":           at(7),
+        "specimen_received_dt":     at(14),
+        "results_report_dt":        at(22),
+        "diagnostic_service":       at(24),
+        "result_status":            at(25),
+    }
+
+
+def _parse_pv1(seg_fields: List[str], comp_sep: str) -> Dict[str, Any]:
+    """Patient Visit. PV1-2=patient_class (I/O/E/etc.),
+       PV1-3=assigned_location (point_of_care^room^bed^facility),
+       PV1-7=attending_doctor (id^last^first), PV1-10=hospital_service,
+       PV1-14=admit_source, PV1-19=visit_number, PV1-44=admit_dt,
+       PV1-45=discharge_dt."""
+    def at(idx: int) -> Optional[str]:
+        return seg_fields[idx] if idx < len(seg_fields) else None
+    loc = (at(3) or "").split(comp_sep)
+    att = (at(7) or "").split(comp_sep)
+    return {
+        "segment":            "PV1",
+        "patient_class":      at(2),
+        "point_of_care":      loc[0] if len(loc) > 0 and loc[0] else None,
+        "room":               loc[1] if len(loc) > 1 and loc[1] else None,
+        "bed":                loc[2] if len(loc) > 2 and loc[2] else None,
+        "facility":           loc[3] if len(loc) > 3 and loc[3] else None,
+        "attending_id":       att[0] if len(att) > 0 and att[0] else None,
+        "attending_last":     att[1] if len(att) > 1 and att[1] else None,
+        "attending_first":    att[2] if len(att) > 2 and att[2] else None,
+        "hospital_service":   at(10),
+        "admit_source":       at(14),
+        "visit_number":       (at(19) or "").split(comp_sep)[0] or None,
+        "admit_dt":           at(44),
+        "discharge_dt":       at(45),
+    }
+
+
+def _parse_evn(seg_fields: List[str], comp_sep: str) -> Dict[str, Any]:
+    """Event Type. EVN-1=event_type_code, EVN-2=recorded_dt,
+       EVN-4=event_reason_code, EVN-5=operator (id^last^first),
+       EVN-6=event_occurred_dt."""
+    def at(idx: int) -> Optional[str]:
+        return seg_fields[idx] if idx < len(seg_fields) else None
+    op = (at(5) or "").split(comp_sep)
+    return {
+        "segment":           "EVN",
+        "event_type_code":   at(1),
+        "recorded_dt":       at(2),
+        "event_reason":      at(4),
+        "operator_id":       op[0] if len(op) > 0 and op[0] else None,
+        "operator_last":     op[1] if len(op) > 1 and op[1] else None,
+        "operator_first":    op[2] if len(op) > 2 and op[2] else None,
+        "event_occurred_dt": at(6),
+    }
+
+
+def _parse_dg1(seg_fields: List[str], comp_sep: str) -> Dict[str, Any]:
+    """Diagnosis. DG1-1=set_id, DG1-2=diag_coding_method (e.g. I10/I9/SNM),
+       DG1-3=diagnosis_code (code^name^codeset), DG1-5=diagnosis_datetime,
+       DG1-6=diagnosis_type (A=admitting, W=working, F=final)."""
+    def at(idx: int) -> Optional[str]:
+        return seg_fields[idx] if idx < len(seg_fields) else None
+    diag = (at(3) or "").split(comp_sep)
+    return {
+        "segment":            "DG1",
+        "set_id":             at(1),
+        "coding_method":      at(2),
+        "diagnosis_code":     diag[0] if len(diag) > 0 and diag[0] else None,
+        "diagnosis_name":     diag[1] if len(diag) > 1 and diag[1] else None,
+        "diagnosis_codeset":  diag[2] if len(diag) > 2 and diag[2] else None,
+        "diagnosis_dt":       at(5),
+        "diagnosis_type":     at(6),
+    }
+
+
+def _parse_al1(seg_fields: List[str], comp_sep: str) -> Dict[str, Any]:
+    """Patient Allergy. AL1-1=set_id, AL1-2=allergen_type (DA=drug, FA=food,
+       EA=environmental), AL1-3=allergen_code (code^name^codeset),
+       AL1-4=severity (SV/MO/MI/U), AL1-5=reaction, AL1-6=onset_dt."""
+    def at(idx: int) -> Optional[str]:
+        return seg_fields[idx] if idx < len(seg_fields) else None
+    allg = (at(3) or "").split(comp_sep)
+    return {
+        "segment":          "AL1",
+        "set_id":           at(1),
+        "allergen_type":    at(2),
+        "allergen_code":    allg[0] if len(allg) > 0 and allg[0] else None,
+        "allergen_name":    allg[1] if len(allg) > 1 and allg[1] else None,
+        "allergen_codeset": allg[2] if len(allg) > 2 and allg[2] else None,
+        "severity":         at(4),
+        "reaction":         at(5),
+        "onset_dt":         at(6),
+    }
+
+
 _SEGMENT_PARSERS = {
     "MSH": lambda fields, _comp: _parse_msh(fields),
     "PID": _parse_pid,
     "OBX": _parse_obx,
+    "ORC": _parse_orc,
+    "OBR": _parse_obr,
+    "PV1": _parse_pv1,
+    "EVN": _parse_evn,
+    "DG1": _parse_dg1,
+    "AL1": _parse_al1,
 }
 
 
@@ -201,8 +349,8 @@ class Hl7V2ParserComponent(Component, Model, Resolvable):
     ] = Field(
         default=["MSH", "PID", "OBX"],
         description=(
-            "Segments to emit. MSH/PID/OBX have full extractors; others are "
-            "currently skipped (you can extend the component for more)."
+            "Segments to emit. Full extractors: MSH, PID, OBX, ORC, OBR, "
+            "PV1, EVN, DG1, AL1. Other segments are silently skipped."
         ),
     )
 

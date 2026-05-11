@@ -30,6 +30,16 @@ attributes:
 
 `{column}` placeholders in `payload_template` values get replaced per-row before the call. For one-column-per-row payloads, use `payload_column` instead.
 
+## Cloud Run services (HTTPS-invoked)
+
+This component works unchanged against any Cloud Run **service** URL — Cloud Functions Gen 2 *is* Cloud Run under the hood, and the OIDC auth flow is identical. Just use the Cloud Run service URL as `function_url`:
+
+```yaml
+function_url: https://my-service-abc123-uc.a.run.app/process
+```
+
+Use `cloud_run_job_trigger_asset` for Cloud Run **jobs** (long-running batch), not HTTPS services.
+
 ## OIDC auth (private functions)
 
 The component automatically mints an ID token with the function URL as the `target_audience` and sends it in the `Authorization` header. For this to work the SA needs:

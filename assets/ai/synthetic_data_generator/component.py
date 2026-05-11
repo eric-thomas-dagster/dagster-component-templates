@@ -154,6 +154,12 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         "stripe_subscriptions",
         "support_tickets",
         "product_reviews",
+        "audio_samples",
+        "image_prompts",
+        "employees",
+        "fhir_patients",
+        "hl7_messages",
+        "iso20022_payments",
     ] = Field(
         default="customers",
         description="Type of data schema to generate"
@@ -452,6 +458,18 @@ group_name=group_name,
                 df = _generate_support_tickets(row_count, self.schema_options or {})
             elif schema_type == "product_reviews":
                 df = _generate_product_reviews(row_count, self.schema_options or {})
+            elif schema_type == "audio_samples":
+                df = _generate_audio_samples(row_count, self.schema_options or {})
+            elif schema_type == "image_prompts":
+                df = _generate_image_prompts(row_count, self.schema_options or {})
+            elif schema_type == "employees":
+                df = _generate_employees(row_count, self.schema_options or {})
+            elif schema_type == "fhir_patients":
+                df = _generate_fhir_patients(row_count, self.schema_options or {})
+            elif schema_type == "hl7_messages":
+                df = _generate_hl7_messages(row_count, self.schema_options or {})
+            elif schema_type == "iso20022_payments":
+                df = _generate_iso20022_payments(row_count, self.schema_options or {})
             else:
                 raise ValueError(f"Unknown schema type: {schema_type}")
 
@@ -1201,4 +1219,297 @@ def _generate_product_reviews(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
             "review_text": template.format(detail=detail),
             "created_at":  pd.Timestamp.now() - pd.Timedelta(days=int(rng.integers(0, 365))),
         })
+    return pd.DataFrame(rows)
+
+
+def _generate_audio_samples(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
+    """Public-domain GCS sample audio URIs — the gs:// ones Google ships.
+
+    Columns: audio_id, language_code, gcs_uri, expected_phrase (where known).
+    """
+    samples = [
+        ("brooklyn_bridge", "en-US", "gs://cloud-samples-data/speech/brooklyn_bridge.mp3",
+         "how old is the Brooklyn Bridge"),
+        ("commercial_mono", "en-US", "gs://cloud-samples-data/speech/commercial_mono.wav",
+         None),
+        ("hello",           "en-US", "gs://cloud-samples-data/speech/hello.wav",
+         "hello"),
+        ("multi_speaker",   "en-US", "gs://cloud-samples-data/speech/multi.wav",
+         None),
+    ]
+    rows = [
+        {"audio_id": s[0], "language_code": s[1], "gcs_uri": s[2], "expected_phrase": s[3]}
+        for s in samples[: max(1, min(n, len(samples)))]
+    ]
+    return pd.DataFrame(rows)
+
+
+def _generate_image_prompts(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
+    """Synthetic image-generation prompts. Columns: prompt_id, prompt, kind."""
+    import numpy as np
+    rng = np.random.default_rng(opts.get("random_state"))
+    subjects = [
+        "a vintage racing car", "a futuristic city skyline at sunset",
+        "a cozy mountain cabin in winter", "a fierce dragon in a misty forest",
+        "a serene japanese garden", "a steampunk airship",
+        "an astronaut on the moon", "a deep-sea anglerfish",
+        "a marble greek statue", "a neon-lit night market",
+    ]
+    styles = [
+        "photorealistic", "oil painting", "watercolor sketch",
+        "anime", "studio ghibli", "low-poly 3d render",
+        "cinematic", "isometric pixel art",
+    ]
+    kinds = ["hero", "thumbnail", "banner", "social", "marketing"]
+    rows = []
+    for i in range(n):
+        s = subjects[rng.integers(0, len(subjects))]
+        st = styles[rng.integers(0, len(styles))]
+        rows.append({
+            "prompt_id": f"P{i+1:04d}",
+            "prompt": f"{s}, {st}",
+            "kind": kinds[rng.integers(0, len(kinds))],
+        })
+    return pd.DataFrame(rows)
+
+
+def _generate_employees(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
+    """Synthetic HRIS-style employee export.
+
+    Designed for hris_normalizer / HR analytics demos. Vendor-y column names
+    (employee_number, work_email, employment_type, hire_dt) plus mixed-format
+    values for status/employment_type to exercise normalization paths.
+    """
+    import numpy as np
+    from datetime import timedelta
+    rng = np.random.default_rng(opts.get("random_state"))
+    first_names = ["Alice", "Bob", "Carlos", "Diana", "Eli", "Fatima", "Grace",
+                   "Hiroshi", "Ivy", "Jamal", "Klaus", "Lin", "Marco", "Nia",
+                   "Olga", "Pria", "Quinn", "Rashid", "Sofia", "Theo"]
+    last_names  = ["Johnson", "Hernandez", "Smith", "Tanaka", "Petrova",
+                   "Mueller", "Dupont", "Garcia", "Patel", "Brown", "Lee",
+                   "Cohen", "Nguyen", "Khan", "Rossi", "Singh"]
+    departments = ["Engineering", "Sales", "Marketing", "Finance", "Operations",
+                   "Customer Success", "Product", "Data"]
+    # Vendor-y status values — should normalize to ACTIVE / INACTIVE etc.
+    statuses    = ["Active", "active", "ACTIVE", "Terminated", "term", "On Leave"]
+    emp_types   = ["FT", "Full-Time", "FULL_TIME", "PT", "Part-Time", "Contractor", "Intern"]
+    today = pd.Timestamp.now().normalize()
+    rows = []
+    for i in range(n):
+        fn = first_names[rng.integers(0, len(first_names))]
+        ln = last_names[rng.integers(0, len(last_names))]
+        hire_days_ago = int(rng.integers(30, 365 * 8))
+        rows.append({
+            "employee_number": f"E{i+1:06d}",
+            "first_name":      fn,
+            "last_name":       ln,
+            "work_email":      f"{fn.lower()}.{ln.lower()}@example.com",
+            "department":      departments[rng.integers(0, len(departments))],
+            "status":          statuses[rng.integers(0, len(statuses))],
+            "employment_type": emp_types[rng.integers(0, len(emp_types))],
+            "hire_dt":         (today - timedelta(days=hire_days_ago)).strftime("%Y-%m-%d"),
+        })
+    return pd.DataFrame(rows)
+
+
+def _generate_fhir_patients(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
+    """Synthetic FHIR R4/R5 Patient + Observation resources.
+
+    Emits a DataFrame with one row per resource and a `resource` column
+    holding the parsed FHIR JSON (as a dict, ready for downstream parsing
+    by `fhir_resource_normalizer`). Mix is: each "patient" gets 1 Patient
+    resource plus ~3 Observations (vitals: HR, BP, temperature).
+    """
+    import numpy as np
+    rng = np.random.default_rng(opts.get("random_state"))
+
+    first_names = ["Alice", "Bob", "Carlos", "Diana", "Eli", "Fatima", "Grace",
+                   "Hiroshi", "Ivy", "Jamal", "Klaus", "Lin", "Marco", "Nia"]
+    last_names  = ["Johnson", "Hernandez", "Smith", "Tanaka", "Petrova",
+                   "Mueller", "Dupont", "Garcia", "Patel", "Brown"]
+    cities = ["Boston", "Austin", "Seattle", "Denver", "Atlanta", "Phoenix"]
+    states = ["MA", "TX", "WA", "CO", "GA", "AZ"]
+    genders = ["M", "F"]   # intentionally messy — exercises value_maps
+    rows: List[Dict[str, Any]] = []
+
+    # Each "patient" cycle emits 1 Patient + ~3 Observations.
+    pid = 1
+    while len(rows) < n:
+        pat_id = f"pat-{pid:05d}"
+        fn = first_names[rng.integers(0, len(first_names))]
+        ln = last_names[rng.integers(0, len(last_names))]
+        gender = genders[rng.integers(0, len(genders))]
+        birth = f"19{rng.integers(50, 99):02d}-{rng.integers(1, 12):02d}-{rng.integers(1, 28):02d}"
+        city_idx = int(rng.integers(0, len(cities)))
+        rows.append({
+            "row_id":   f"r-{len(rows)+1:05d}",
+            "resource": {
+                "resourceType": "Patient",
+                "id":           pat_id,
+                "name":         [{"given": [fn], "family": ln}],
+                "gender":       gender,
+                "birthDate":    birth,
+                "address":      [{"city": cities[city_idx], "state": states[city_idx],
+                                  "country": "US", "postalCode": f"{rng.integers(10000, 99999)}"}],
+            },
+        })
+        if len(rows) >= n: break
+
+        # Heart rate observation
+        rows.append({
+            "row_id":   f"r-{len(rows)+1:05d}",
+            "resource": {
+                "resourceType":      "Observation",
+                "id":                f"obs-{pid:05d}-hr",
+                "status":            "final",
+                "subject":           {"reference": f"Patient/{pat_id}"},
+                "code":              {"coding": [{"system": "http://loinc.org", "code": "8867-4", "display": "Heart rate"}]},
+                "effectiveDateTime": "2025-01-15T09:00:00Z",
+                "valueQuantity":     {"value": int(rng.integers(55, 105)), "unit": "/min"},
+            },
+        })
+        if len(rows) >= n: break
+
+        # Body temperature observation
+        rows.append({
+            "row_id":   f"r-{len(rows)+1:05d}",
+            "resource": {
+                "resourceType":      "Observation",
+                "id":                f"obs-{pid:05d}-temp",
+                "status":            "final",
+                "subject":           {"reference": f"Patient/{pat_id}"},
+                "code":              {"coding": [{"system": "http://loinc.org", "code": "8310-5", "display": "Body temperature"}]},
+                "effectiveDateTime": "2025-01-15T09:01:00Z",
+                "valueQuantity":     {"value": round(36.5 + float(rng.normal(0, 0.5)), 1), "unit": "Cel"},
+            },
+        })
+        pid += 1
+
+    return pd.DataFrame(rows[:n])
+
+
+def _generate_hl7_messages(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
+    """Synthetic HL7 v2 ADT^A01 and ORU^R01 messages.
+
+    Emits a DataFrame with `message_id` and `message` columns; `message` is
+    the raw pipe-delimited HL7 string with \\r between segments — ready for
+    `hl7_v2_parser` to flatten.
+    """
+    import numpy as np
+    rng = np.random.default_rng(opts.get("random_state"))
+
+    last_names  = ["Doe", "Smith", "Garcia", "Tanaka", "Patel", "Mueller", "Romano"]
+    first_names = ["John", "Jane", "Maria", "Hiroshi", "Anand", "Ingrid", "Marco"]
+    rows: List[Dict[str, Any]] = []
+
+    for i in range(n):
+        msg_id = f"MSG{i+1:07d}"
+        pat_id = f"PAT{rng.integers(10000, 99999)}"
+        ln = last_names[rng.integers(0, len(last_names))]
+        fn = first_names[rng.integers(0, len(first_names))]
+        dob = f"19{rng.integers(40, 99):02d}{rng.integers(1, 12):02d}{rng.integers(1, 28):02d}"
+        sex = "M" if rng.integers(0, 2) == 0 else "F"
+
+        if i % 2 == 0:
+            # ADT^A01 — admit
+            msg = (
+                f"MSH|^~\\&|HOSPITAL|EHR|LAB|HOSPITAL|202501151200||ADT^A01|{msg_id}|P|2.5\r"
+                f"EVN|A01|202501151200\r"
+                f"PID|1||{pat_id}||{ln}^{fn}^A||{dob}|{sex}|||123 Main St^^Boston^MA^02101^US\r"
+                f"PV1|1|I|ICU^301^A||||1234^Smith^Jane^^^DR\r"
+            )
+            msg_type = "ADT^A01"
+        else:
+            # ORU^R01 — lab result with 2 OBX observations
+            glu = float(rng.integers(70, 250))
+            hr  = int(rng.integers(55, 110))
+            msg = (
+                f"MSH|^~\\&|LAB|HOSPITAL|EHR|HOSPITAL|202501151200||ORU^R01|{msg_id}|P|2.5\r"
+                f"PID|1||{pat_id}||{ln}^{fn}^A||{dob}|{sex}|||123 Main St^^Boston^MA^02101^US\r"
+                f"OBR|1|||LAB001^Lab Panel^L\r"
+                f"OBX|1|NM|GLU^Glucose^L||{glu}|mg/dL|70-100|H||F\r"
+                f"OBX|2|NM|HR^Heart Rate^L||{hr}|/min|60-100|N||F\r"
+            )
+            msg_type = "ORU^R01"
+
+        rows.append({"message_id": msg_id, "message_type": msg_type, "message": msg})
+
+    return pd.DataFrame(rows)
+
+
+def _generate_iso20022_payments(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
+    """Synthetic ISO 20022 pacs.008 and pacs.002 XML messages.
+
+    Emits a DataFrame with `message_id`, `message_type`, and `xml` columns.
+    Alternates between pacs.008 (credit transfer) and pacs.002 (status report).
+    """
+    import numpy as np
+    rng = np.random.default_rng(opts.get("random_state"))
+
+    debtors  = [("Acme Corp",        "DE89370400440532013000", "DEUTDEFFXXX"),
+                ("Globex Industries","GB29NWBK60161331926819", "NWBKGB2L"),
+                ("Initech LLC",      "US12345678901234567890", "CHASUS33"),
+                ("Soylent SA",       "FR1420041010050500013M02606", "BNPAFRPP")]
+    creditors = [("Hooli Inc",       "US98765432109876543210", "BOFAUS3N"),
+                 ("Pied Piper Ltd",  "GB94BARC10201530093459", "BARCGB22"),
+                 ("Stark Industries","DE12500105170648489890", "INGDDEFFXXX")]
+
+    rows = []
+    for i in range(n):
+        msg_id = f"MSG{i+1:08d}"
+        e2e_id = f"E2E{i+1:08d}"
+        amt = round(float(rng.uniform(100, 50000)), 2)
+        ccy = ["USD", "EUR", "GBP"][int(rng.integers(0, 3))]
+        d_name, d_iban, d_bic = debtors[rng.integers(0, len(debtors))]
+        c_name, c_iban, c_bic = creditors[rng.integers(0, len(creditors))]
+
+        if i % 2 == 0:
+            # pacs.008 — Customer Credit Transfer
+            xml = f'''<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08">
+  <FIToFICstmrCdtTrf>
+    <GrpHdr>
+      <MsgId>{msg_id}</MsgId>
+      <CreDtTm>2025-01-15T09:00:00Z</CreDtTm>
+      <NbOfTxs>1</NbOfTxs>
+      <SttlmInf><SttlmMtd>CLRG</SttlmMtd></SttlmInf>
+    </GrpHdr>
+    <CdtTrfTxInf>
+      <PmtId><InstrId>{msg_id}-1</InstrId><EndToEndId>{e2e_id}</EndToEndId></PmtId>
+      <IntrBkSttlmAmt Ccy="{ccy}">{amt}</IntrBkSttlmAmt>
+      <Dbtr><Nm>{d_name}</Nm></Dbtr>
+      <DbtrAcct><Id><IBAN>{d_iban}</IBAN></Id></DbtrAcct>
+      <DbtrAgt><FinInstnId><BICFI>{d_bic}</BICFI></FinInstnId></DbtrAgt>
+      <CdtrAgt><FinInstnId><BICFI>{c_bic}</BICFI></FinInstnId></CdtrAgt>
+      <Cdtr><Nm>{c_name}</Nm></Cdtr>
+      <CdtrAcct><Id><IBAN>{c_iban}</IBAN></Id></CdtrAcct>
+      <RmtInf><Ustrd>Invoice {i+1:05d}</Ustrd></RmtInf>
+    </CdtTrfTxInf>
+  </FIToFICstmrCdtTrf>
+</Document>'''
+            mt = "pacs.008"
+        else:
+            # pacs.002 — Payment Status Report
+            status = ["ACCP", "ACSC", "RJCT", "PDNG"][int(rng.integers(0, 4))]
+            reason = "AC01" if status == "RJCT" else ""
+            xml = f'''<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.002.001.10">
+  <FIToFIPmtStsRpt>
+    <GrpHdr>
+      <MsgId>{msg_id}</MsgId>
+      <CreDtTm>2025-01-15T09:30:00Z</CreDtTm>
+    </GrpHdr>
+    <TxInfAndSts>
+      <OrgnlInstrId>{msg_id}-1</OrgnlInstrId>
+      <OrgnlEndToEndId>{e2e_id}</OrgnlEndToEndId>
+      <TxSts>{status}</TxSts>
+      {f"<StsRsnInf><Rsn><Cd>{reason}</Cd></Rsn></StsRsnInf>" if reason else ""}
+    </TxInfAndSts>
+  </FIToFIPmtStsRpt>
+</Document>'''
+            mt = "pacs.002"
+
+        rows.append({"message_id": msg_id, "message_type": mt, "xml": xml})
+
     return pd.DataFrame(rows)

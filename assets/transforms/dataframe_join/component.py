@@ -125,6 +125,14 @@ class DataframeJoin(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name")
     left_asset_key: str = Field(description="Left DataFrame asset key")
     right_asset_key: str = Field(description="Right DataFrame asset key")
+    additional_asset_keys: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Optional list of further DataFrame asset keys to join in after `right` "
+            "(N-way merge). Each is merged onto the running result using the same "
+            "`how` / `on` / `suffixes`. Cannot be combined with `left_on`/`right_on`."
+        ),
+    )
     how: str = Field(default="inner", description="Join type: 'inner', 'left', 'right', 'outer', 'cross'")
     on: Optional[List[str]] = Field(default=None, description="Column(s) to join on (same name in both DataFrames)")
     left_on: Optional[List[str]] = Field(default=None, description="Left join columns (when column names differ)")
@@ -262,10 +270,23 @@ class DataframeJoin(Component, Model, Resolvable):
         suffixes = self.suffixes
         group_name = self.group_name
 
+        additional_asset_keys = list(self.additional_asset_keys or [])
+        if additional_asset_keys and (left_on or right_on):
+            raise ValueError(
+                "additional_asset_keys (N-way join) requires `on=`; `left_on`/`right_on` "
+                "only work for 2-way joins where left/right keys differ."
+            )
+
         ins = {
             "left": AssetIn(key=AssetKey.from_user_string(left_asset_key)),
             "right": AssetIn(key=AssetKey.from_user_string(right_asset_key)),
         }
+        # Sanitize each extra asset key into a valid Python identifier suitable for kwargs.
+        _extra_slots: List[str] = []
+        for _i, _k in enumerate(additional_asset_keys):
+            _slot = f"extra_{_i}_" + _k.replace(".", "__").replace("/", "__").replace("-", "_")
+            _extra_slots.append(_slot)
+            ins[_slot] = AssetIn(key=AssetKey.from_user_string(_k))
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -317,8 +338,10 @@ class DataframeJoin(Component, Model, Resolvable):
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
 
+        extra_slots = list(_extra_slots)
+
         @asset(partitions_def=partitions_def, name=asset_name, ins=ins, group_name=group_name, retry_policy=_retry_policy, freshness_policy=_freshness_policy, owners=self.owners or [], tags=_all_tags)
-        def _asset(context: AssetExecutionContext, left: pd.DataFrame, right: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, left: pd.DataFrame, right: pd.DataFrame, **extras) -> pd.DataFrame:
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -365,7 +388,7 @@ class DataframeJoin(Component, Model, Resolvable):
                         TableColumnLineage(_lineage_deps)
                     )
             context.add_output_metadata(_metadata)
-            return left.merge(
+            merged = left.merge(
                 right,
                 how=how,
                 on=on,
@@ -373,6 +396,17 @@ class DataframeJoin(Component, Model, Resolvable):
                 right_on=right_on,
                 suffixes=tuple(suffixes),
             )
+            for slot in extra_slots:
+                nxt = extras.get(slot)
+                if nxt is None:
+                    continue
+                merged = merged.merge(
+                    nxt,
+                    how=how,
+                    on=on,
+                    suffixes=tuple(suffixes),
+                )
+            return merged
 
         from dagster import build_column_schema_change_checks
 

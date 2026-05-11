@@ -109,7 +109,16 @@ class PubSubPublishAssetComponent(Component, Model, Resolvable):
                 raise ImportError("pip install google-cloud-pubsub google-auth")
 
             sa_creds = service_account.Credentials.from_service_account_info(creds_dict)
-            publisher = pubsub_v1.PublisherClient(credentials=sa_creds)
+            # If ordering_key_column is set, the publisher client MUST be created
+            # with message-ordering enabled, AND the subscription must have
+            # `enableMessageOrdering=true` (set at sub creation, immutable).
+            if ordering_key_column:
+                publisher = pubsub_v1.PublisherClient(
+                    credentials=sa_creds,
+                    publisher_options=pubsub_v1.types.PublisherOptions(enable_message_ordering=True),
+                )
+            else:
+                publisher = pubsub_v1.PublisherClient(credentials=sa_creds)
             topic_path = publisher.topic_path(project_id, topic)
 
             # Optional auto-create.

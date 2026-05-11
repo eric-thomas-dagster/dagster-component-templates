@@ -1,0 +1,26 @@
+type: dagster_component_templates.SmtpSendAssetComponent
+attributes:
+  asset_name: email_send_log
+  upstream_asset_key: notifications
+
+  host: smtp.gmail.com
+  port: 587
+  use_ssl: false
+  use_starttls: true
+
+  username_env_var: SMTP_USER
+  password_env_var: SMTP_APP_PASSWORD
+  sender: "Pipeline Bot <pipeline-bot@me.com>"
+
+  mode: per_row             # 'per_row' or 'summary'
+  to_template: "{user_email}"
+  subject_template: "Action required for {customer_id}"
+  body_template: |
+    Hi {first_name},
+
+    Your account {customer_id} has {issue_count} issue(s) that need attention.
+
+    Reply to this email if you have questions.
+
+  group_name: notifications
+  dry_run: true             # flip to false for live sending

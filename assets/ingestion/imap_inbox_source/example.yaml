@@ -1,0 +1,18 @@
+type: dagster_component_templates.ImapInboxSourceComponent
+attributes:
+  asset_name: inbound_emails
+  host: imap.gmail.com
+  port: 993
+  use_ssl: true
+
+  username_env_var: IMAP_USER
+  password_env_var: IMAP_APP_PASSWORD
+
+  mailbox: INBOX
+  search_criteria: UNSEEN     # IMAP search expression; common: UNSEEN, ALL, 'SINCE 01-Jan-2025'
+  max_messages: 100
+  mark_read: false            # set true to advance the UNSEEN cursor between runs
+
+  include_body_html: false
+  fallback_html_to_text: true
+  group_name: email

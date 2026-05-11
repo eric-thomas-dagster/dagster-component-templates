@@ -10240,6 +10240,37 @@
       }
     },
     {
+      "id": "imap_inbox_source",
+      "name": "IMAP Inbox Source",
+      "category": "source",
+      "description": "Fetch emails from any IMAP-compliant mailbox (Gmail/Outlook/Yahoo/Dovecot). Emits one row per message with subject/body/attachments.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/imap_inbox_source",
+      "tags": [
+        "imap-inbox-source",
+        "source",
+        "email"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "tabulate"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/imap_inbox_source/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/imap_inbox_source/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/imap_inbox_source/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/imap_inbox_source/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/imap_inbox_source/requirements.txt",
+      "validation": {
+        "level": "code",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
       "id": "imputation",
       "name": "Imputation",
       "category": "transformation",
@@ -17879,6 +17910,36 @@
       ],
       "validation": {
         "level": "code",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "smtp_send_asset",
+      "name": "SMTP Send Asset",
+      "category": "sink",
+      "description": "Send emails via SMTP \u2014 one per upstream row (data-driven) or one summary per run. Templates, attachments, STARTTLS/SSL.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/smtp_send_asset",
+      "tags": [
+        "smtp-send-asset",
+        "sink",
+        "email"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/smtp_send_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/smtp_send_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/smtp_send_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/smtp_send_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/smtp_send_asset/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "",
         "last_validated": "2026-05-11"
       }
     },

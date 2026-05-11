@@ -12,8 +12,6 @@ Pairs naturally with other components via deps:
     sql_to_database_asset can declare deps: ['raw/orders'] to reference
     tables discovered by this component.
 """
-from __future__ import annotations
-
 import json
 from dataclasses import dataclass, field
 from pathlib import Path

@@ -7,8 +7,6 @@ At execution time each asset calls its endpoints and writes the responses to a
 destination database table. Uses StateBackedComponent so the spec is only fetched
 once — code-server reloads are instant even for large specs.
 """
-from __future__ import annotations
-
 import json
 from dataclasses import field
 from pathlib import Path

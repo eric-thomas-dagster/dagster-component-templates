@@ -10,8 +10,6 @@ Features
 - Bearer-token (or custom-header) authentication.
 - Configurable ``data_path`` to navigate nested responses, e.g. ``data.users``.
 """
-from __future__ import annotations
-
 from typing import Any, Dict, List, Optional
 
 import dagster as dg

@@ -11,8 +11,6 @@ On first load (state_path is None) returns empty Definitions — run
 The Dataiku Python SDK is NOT required. All API calls use the Dataiku DSS REST API
 directly via `requests`, with HTTP Basic Auth (api_key, "").
 """
-from __future__ import annotations
-
 import json
 import os
 import re

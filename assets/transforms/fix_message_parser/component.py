@@ -42,7 +42,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import Field, field_validator
 
 
 # Common FIX tag → human name mapping (subset of the full ~1500-tag spec)
@@ -180,9 +180,16 @@ class FixMessageParserComponent(Component, Model, Resolvable):
         default=None,
         description=(
             "Optional list of MsgType codes to emit. E.g. ['D', '8'] for orders + executions only. "
-            "Default: all."
+            "Default: all. Numeric codes like 8 may be passed as ints in YAML — they're coerced to str."
         ),
     )
+
+    @field_validator("msg_type_filter", mode="before")
+    @classmethod
+    def _coerce_msg_types(cls, v):
+        if v is None:
+            return v
+        return [str(x) for x in v]
 
     description: Optional[str] = Field(default=None)
     group_name: Optional[str] = Field(default=None)

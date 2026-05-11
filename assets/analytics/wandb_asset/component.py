@@ -7,8 +7,6 @@ Supports two modes:
   row as a W&B run step.
 - ``log_artifact``: uploads a local file or directory as a W&B artifact.
 """
-from __future__ import annotations
-
 from typing import Any, Dict, List, Optional
 
 import dagster as dg

@@ -16,8 +16,6 @@ from the dbt manifest that is not captured by default:
 This component is a thin subclass of DbtProjectComponent — all dbt execution,
 asset key mapping, partitions, and check generation work identically.
 """
-from __future__ import annotations
-
 import json
 from dataclasses import dataclass, field
 from pathlib import Path

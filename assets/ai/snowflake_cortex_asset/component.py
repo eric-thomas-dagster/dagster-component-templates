@@ -13,8 +13,6 @@ Supported Cortex functions
 - ``TRANSLATE``       — Translates text to a target language.
 - ``EXTRACT_ANSWER``  — Extracts an answer to a question from the text.
 """
-from __future__ import annotations
-
 from typing import Optional
 
 import dagster as dg

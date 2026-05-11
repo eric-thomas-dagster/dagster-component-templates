@@ -8,8 +8,6 @@ reloads fast.
 On first load (state_path is None) returns empty Definitions — run
 `dg utils refresh-defs-state` or `dagster dev` to populate the cache.
 """
-from __future__ import annotations
-
 import json
 import os
 import re

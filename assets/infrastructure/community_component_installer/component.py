@@ -24,8 +24,6 @@ each downloaded component will appear as its own editable node in the UI.
 Registry: https://dagster-component-ui.vercel.app/
 CLI: https://github.com/eric-thomas-dagster/dagster-community-components-cli
 """
-from __future__ import annotations
-
 import json
 import os
 import shutil

@@ -255,7 +255,15 @@ class SmtpSendAssetComponent(Component, Model, Resolvable):
                 with conn_cls(host, port) as server:
                     if not use_ssl and use_starttls:
                         server.starttls(context=ctx)
-                    server.login(username, password)
+                    # Skip LOGIN if the server doesn't advertise AUTH —
+                    # supports auth-less local/dev relays (aiosmtpd, mailpit, etc.)
+                    server.ehlo_or_helo_if_needed()
+                    if "auth" in server.esmtp_features:
+                        server.login(username, password)
+                    else:
+                        context.log.info(
+                            f"SMTP server at {host}:{port} did not advertise AUTH — skipping login."
+                        )
                     for m in messages:
                         try:
                             server.send_message(m)

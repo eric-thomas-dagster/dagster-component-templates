@@ -1,0 +1,6 @@
+type: dagster_component_templates.X12EdiParserComponent
+attributes:
+  asset_name: edi_transactions
+  upstream_asset_key: x12_messages
+  message_column: message
+  group_name: edi

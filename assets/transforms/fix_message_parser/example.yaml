@@ -1,0 +1,8 @@
+type: dagster_component_templates.FixMessageParserComponent
+attributes:
+  asset_name: fix_messages_parsed
+  upstream_asset_key: fix_messages
+  message_column: message
+  # Filter to just orders + executions (NewOrderSingle + ExecutionReport)
+  msg_type_filter: [D, 8]
+  group_name: trading

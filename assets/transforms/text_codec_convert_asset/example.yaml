@@ -1,0 +1,18 @@
+type: dagster_component_templates.TextCodecConvertAssetComponent
+attributes:
+  asset_name: utf8_files
+  upstream_asset_key: ebcdic_files
+  mode: file
+  source_path_column: file_path
+  from_codec: cp037        # IBM US EBCDIC
+  to_codec:   utf-8
+  errors:     replace
+  output_dir: /tmp/utf8_out
+  group_name: ingest
+
+# Alt: in-DataFrame string conversion (no files)
+# mode: string
+# source_column: text_field
+# target_column: text_field   # in-place
+# from_codec: cp1252
+# to_codec:   utf-8

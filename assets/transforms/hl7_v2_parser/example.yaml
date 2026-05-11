@@ -1,0 +1,7 @@
+type: dagster_component_templates.Hl7V2ParserComponent
+attributes:
+  asset_name: hl7_segments
+  upstream_asset_key: hl7_messages
+  message_column: message
+  keep_segments: [MSH, PID, OBX]
+  group_name: healthcare

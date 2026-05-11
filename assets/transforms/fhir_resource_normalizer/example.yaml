@@ -1,0 +1,14 @@
+type: dagster_component_templates.FhirResourceNormalizerComponent
+attributes:
+  asset_name: patients_flat
+  upstream_asset_key: fhir_resources
+  resource_column: resource
+  resource_types: [Patient]
+  value_maps:
+    gender:
+      M: male
+      F: female
+      U: unknown
+  case_insensitive_map: true
+  drop_invalid: true
+  group_name: healthcare

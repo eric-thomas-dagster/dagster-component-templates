@@ -162,6 +162,7 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         "iso20022_payments",
         "x12_messages",
         "fix_messages",
+        "acord_messages",
     ] = Field(
         default="customers",
         description="Type of data schema to generate"
@@ -476,6 +477,8 @@ group_name=group_name,
                 df = _generate_x12_messages(row_count, self.schema_options or {})
             elif schema_type == "fix_messages":
                 df = _generate_fix_messages(row_count, self.schema_options or {})
+            elif schema_type == "acord_messages":
+                df = _generate_acord_messages(row_count, self.schema_options or {})
             else:
                 raise ValueError(f"Unknown schema type: {schema_type}")
 
@@ -1869,5 +1872,106 @@ def _generate_fix_messages(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
         message = header + body + f"10={checksum:03d}{delim}"
 
         rows.append({"seq_num": seq, "msg_type": mt, "message": message})
+
+    return pd.DataFrame(rows)
+
+
+def _generate_acord_messages(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
+    """Synthetic ACORD insurance XML messages.
+
+    Rotates through four common envelopes:
+      - InsurancePolicyAddRq    (new-business submission, with Policy)
+      - InsurancePolicyChangeRq (endorsement, with Policy)
+      - ClaimsNotificationRq    (FNOL, with Claim)
+      - InsurancePolicyQuoteInqRq (rate quote, with Quote)
+
+    Output: DataFrame with `transaction_id`, `message_type`, `xml`.
+    """
+    import numpy as np
+    rng = np.random.default_rng(opts.get("random_state"))
+
+    debtors = ["Acme Logistics LLC", "Pied Piper Co", "Hooli Industries", "Initech Corp",
+               "Bluth Co", "Soylent Brands", "Sterling Cooper Advertising"]
+    persons = [("Alice", "Hernandez"), ("Bob", "Smith"), ("Carlos", "Garcia"),
+               ("Diana", "Tanaka"), ("Eli", "Patel"), ("Fatima", "Mueller")]
+    lobs = [("PAUTO", "Personal Auto"), ("HOME", "Homeowners"), ("CAUTO", "Commercial Auto"),
+            ("GLI", "General Liability"), ("WORK", "Workers Compensation")]
+    causes = [("AAA", "Vehicle collision"), ("BBB", "Theft"), ("CCC", "Fire/smoke"),
+              ("DDD", "Water damage"), ("EEE", "Wind/storm")]
+    envelopes = ["InsurancePolicyAddRq", "InsurancePolicyChangeRq",
+                 "ClaimsNotificationRq", "InsurancePolicyQuoteInqRq"]
+    ns = "http://www.ACORD.org/standards/PC_Surety/ACORD1/xml/"
+
+    rows = []
+    for i in range(n):
+        txid = f"TX{i+1:08d}"
+        env_type = envelopes[i % len(envelopes)]
+        is_commercial = bool(rng.integers(0, 2))
+        if is_commercial:
+            insured_xml = f"<CommercialName>\n      <CommercialName>{debtors[rng.integers(0, len(debtors))]}</CommercialName>\n    </CommercialName>"
+        else:
+            fn, ln = persons[rng.integers(0, len(persons))]
+            insured_xml = f"<PersonName>\n      <GivenName>{fn}</GivenName>\n      <Surname>{ln}</Surname>\n    </PersonName>"
+
+        if env_type in ("InsurancePolicyAddRq", "InsurancePolicyChangeRq"):
+            lob_code, _ = lobs[rng.integers(0, len(lobs))]
+            premium = round(float(rng.uniform(500, 50000)), 2)
+            policy_num = f"POL{rng.integers(1000000, 9999999)}"
+            body = f"""    <Policy>
+      <PolicyNumber>{policy_num}</PolicyNumber>
+      <LOBCd>{lob_code}</LOBCd>
+      <PolicyStatusCd>InForce</PolicyStatusCd>
+      <ContractTerm>
+        <EffectiveDt>2025-01-15</EffectiveDt>
+        <ExpirationDt>2026-01-15</ExpirationDt>
+      </ContractTerm>
+      <FullTermAmt><Amt>{premium}</Amt></FullTermAmt>
+      <PartyInfo>
+        <PartyRoleCd>Insured</PartyRoleCd>
+        {insured_xml}
+      </PartyInfo>
+    </Policy>"""
+        elif env_type == "ClaimsNotificationRq":
+            cause_code, cause_desc = causes[rng.integers(0, len(causes))]
+            policy_num = f"POL{rng.integers(1000000, 9999999)}"
+            claim_num = f"CLM{rng.integers(100000, 999999)}"
+            loss_amt = round(float(rng.uniform(500, 75000)), 2)
+            body = f"""    <Claim>
+      <ClaimsOccurrence>
+        <ClaimsOccurrenceNumber>{claim_num}</ClaimsOccurrenceNumber>
+        <LossDt>2025-01-10</LossDt>
+      </ClaimsOccurrence>
+      <ReportedDt>2025-01-12</ReportedDt>
+      <PolicyNumber>{policy_num}</PolicyNumber>
+      <LossCauseCd>{cause_code}</LossCauseCd>
+      <LossDesc>{cause_desc}</LossDesc>
+      <ClaimsStatusCd>Open</ClaimsStatusCd>
+      <LossAmt><Amt>{loss_amt}</Amt></LossAmt>
+    </Claim>"""
+        else:  # InsurancePolicyQuoteInqRq
+            quote_num = f"QUO{rng.integers(10000, 99999)}"
+            body = f"""    <Quote>
+      <QuoteInfo>
+        <QuoteNumber>{quote_num}</QuoteNumber>
+        <DateQuoted>2025-01-15</DateQuoted>
+        <ExpirationDt>2025-02-14</ExpirationDt>
+      </QuoteInfo>
+      <RatingResult>
+        <EngineName>SureRate v3</EngineName>
+      </RatingResult>
+    </Quote>"""
+
+        xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<ACORD xmlns="{ns}">
+  <SignonRq>
+    <ClientApp><Name>BrokerPortal</Name></ClientApp>
+  </SignonRq>
+  <{env_type}>
+    <RqUID>{txid}</RqUID>
+{body}
+  </{env_type}>
+</ACORD>"""
+
+        rows.append({"transaction_id": txid, "message_type": env_type, "xml": xml})
 
     return pd.DataFrame(rows)

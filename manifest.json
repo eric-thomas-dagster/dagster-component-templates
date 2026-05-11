@@ -212,6 +212,38 @@
       }
     },
     {
+      "id": "acord_xml_parser",
+      "name": "ACORD XML Parser",
+      "category": "transformation",
+      "description": "Parse ACORD insurance XML envelopes (policies, claims, quotes) into a flat DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/acord_xml_parser",
+      "tags": [
+        "acord-xml-parser",
+        "transforms",
+        "insurance",
+        "xml"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "tabulate"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/acord_xml_parser/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/acord_xml_parser/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/acord_xml_parser/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/acord_xml_parser/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/acord_xml_parser/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
       "id": "ad_spend_standardizer",
       "name": "Ad Spend Standardizer",
       "category": "analytics",

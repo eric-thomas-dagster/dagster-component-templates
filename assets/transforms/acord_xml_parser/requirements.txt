@@ -1,0 +1,4 @@
+# Required
+dagster
+pandas
+tabulate

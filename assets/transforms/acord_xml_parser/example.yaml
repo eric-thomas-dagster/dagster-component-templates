@@ -1,0 +1,6 @@
+type: dagster_component_templates.AcordXmlParserComponent
+attributes:
+  asset_name: acord_flat
+  upstream_asset_key: acord_messages
+  xml_column: xml
+  group_name: insurance

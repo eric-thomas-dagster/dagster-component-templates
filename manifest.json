@@ -999,6 +999,34 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/audio_transcriber/requirements.txt"
     },
     {
+      "id": "audio_transform_asset",
+      "name": "Audio Transform Asset",
+      "category": "transformation",
+      "description": "Run ffmpeg per row to resample / convert / trim audio files.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/audio_transform_asset",
+      "tags": [
+        "audio-transform-asset",
+        "transforms"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/audio_transform_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/audio_transform_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/audio_transform_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/audio_transform_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/audio_transform_asset/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
       "id": "audit_columns",
       "name": "AuditColumnsComponent",
       "category": "transformation",
@@ -1894,6 +1922,35 @@
       }
     },
     {
+      "id": "bigquery_dry_run_check",
+      "name": "Bigquery Dry Run Check",
+      "category": "check",
+      "description": "Asset check that dry-runs a BigQuery query and fails on excessive bytes scanned.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "asset_checks/bigquery_dry_run_check",
+      "tags": [
+        "bigquery-dry-run-check",
+        "asset_checks"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-bigquery",
+          "google-auth"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/bigquery_dry_run_check/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/bigquery_dry_run_check/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/bigquery_dry_run_check/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/bigquery_dry_run_check/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/bigquery_dry_run_check/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
       "id": "bigquery_export_to_gcs_asset",
       "name": "BigQueryExportToGcsAssetComponent",
       "category": "sink",
@@ -2142,6 +2199,35 @@
       ]
     },
     {
+      "id": "bigquery_table_freshness_check",
+      "name": "Bigquery Table Freshness Check",
+      "category": "check",
+      "description": "Asset check that fails if a BigQuery table's last_modified_time is too old.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "asset_checks/bigquery_table_freshness_check",
+      "tags": [
+        "bigquery-table-freshness-check",
+        "asset_checks"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-bigquery",
+          "google-auth"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/bigquery_table_freshness_check/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/bigquery_table_freshness_check/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/bigquery_table_freshness_check/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/bigquery_table_freshness_check/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/bigquery_table_freshness_check/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
       "id": "bigquery_table_observation_sensor",
       "name": "BigQuery Table Observation Sensor",
       "category": "observation",
@@ -2166,6 +2252,96 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/bigquery_table_observation_sensor/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/bigquery_table_observation_sensor/requirements.txt",
       "icon": "si:googlebigquery"
+    },
+    {
+      "id": "bigquery_vector_search_asset",
+      "name": "Bigquery Vector Search Asset",
+      "category": "source",
+      "description": "Run BigQuery VECTOR_SEARCH against an indexed embedding column.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/source/bigquery_vector_search_asset",
+      "tags": [
+        "bigquery-vector-search-asset",
+        "source"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-bigquery",
+          "google-auth",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigquery_vector_search_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigquery_vector_search_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigquery_vector_search_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigquery_vector_search_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigquery_vector_search_asset/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "bigtable_reader_asset",
+      "name": "Bigtable Reader Asset",
+      "category": "source",
+      "description": "Read rows from a Bigtable table into a DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/source/bigtable_reader_asset",
+      "tags": [
+        "bigtable-reader-asset",
+        "source"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-bigtable",
+          "google-auth",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigtable_reader_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigtable_reader_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigtable_reader_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigtable_reader_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/bigtable_reader_asset/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "bigtable_writer_asset",
+      "name": "Bigtable Writer Asset",
+      "category": "sink",
+      "description": "Write rows of an upstream DataFrame into a Bigtable table.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/bigtable_writer_asset",
+      "tags": [
+        "bigtable-writer-asset",
+        "sinks"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-bigtable",
+          "google-auth",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/bigtable_writer_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/bigtable_writer_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/bigtable_writer_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/bigtable_writer_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/bigtable_writer_asset/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
     },
     {
       "id": "bounding_box_filter",
@@ -2563,6 +2739,66 @@
       "icon": "si:clickhouse"
     },
     {
+      "id": "cloud_dlp_inspect_asset",
+      "name": "Cloud Dlp Inspect Asset",
+      "category": "ai",
+      "description": "Inspect DataFrame text columns for PII / sensitive data via Cloud DLP.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/cloud_dlp_inspect_asset",
+      "tags": [
+        "cloud-dlp-inspect-asset",
+        "ai"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-dlp",
+          "google-auth",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cloud_dlp_inspect_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cloud_dlp_inspect_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cloud_dlp_inspect_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cloud_dlp_inspect_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cloud_dlp_inspect_asset/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "cloud_dlp_pii_check",
+      "name": "Cloud Dlp Pii Check",
+      "category": "check",
+      "description": "Cloud DLP-backed asset check: fail (or warn) if forbidden PII is present.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "asset_checks/cloud_dlp_pii_check",
+      "tags": [
+        "cloud-dlp-pii-check",
+        "asset_checks"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-dlp",
+          "google-auth",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/cloud_dlp_pii_check/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/cloud_dlp_pii_check/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/cloud_dlp_pii_check/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/cloud_dlp_pii_check/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/cloud_dlp_pii_check/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
       "id": "cloud_functions_invoke_asset",
       "name": "CloudFunctionsInvokeAssetComponent",
       "category": "infrastructure",
@@ -2595,6 +2831,66 @@
       "component_type": "dagster_component_templates.CloudFunctionsInvokeAssetComponent"
     },
     {
+      "id": "cloud_logging_query_asset",
+      "name": "Cloud Logging Query Asset",
+      "category": "source",
+      "description": "Run a Cloud Logging filter and return matching entries as a DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/source/cloud_logging_query_asset",
+      "tags": [
+        "cloud-logging-query-asset",
+        "source"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-logging",
+          "google-auth",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/cloud_logging_query_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/cloud_logging_query_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/cloud_logging_query_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/cloud_logging_query_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/cloud_logging_query_asset/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "cloud_monitoring_metrics_asset",
+      "name": "Cloud Monitoring Metrics Asset",
+      "category": "source",
+      "description": "Query Cloud Monitoring time-series and return as a DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/source/cloud_monitoring_metrics_asset",
+      "tags": [
+        "cloud-monitoring-metrics-asset",
+        "source"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-monitoring",
+          "google-auth",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/cloud_monitoring_metrics_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/cloud_monitoring_metrics_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/cloud_monitoring_metrics_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/cloud_monitoring_metrics_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/cloud_monitoring_metrics_asset/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
       "id": "cloud_run_job_trigger_asset",
       "name": "CloudRunJobTriggerAssetComponent",
       "category": "infrastructure",
@@ -2624,6 +2920,66 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cloud_run_job_trigger_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/cloud_run_job_trigger_asset/requirements.txt",
       "component_type": "dagster_component_templates.CloudRunJobTriggerAssetComponent"
+    },
+    {
+      "id": "cloud_tasks_enqueue_asset",
+      "name": "Cloud Tasks Enqueue Asset",
+      "category": "sink",
+      "description": "Enqueue one Cloud Tasks HTTP task per row of an upstream DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/cloud_tasks_enqueue_asset",
+      "tags": [
+        "cloud-tasks-enqueue-asset",
+        "sinks"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-tasks",
+          "google-auth",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cloud_tasks_enqueue_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cloud_tasks_enqueue_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cloud_tasks_enqueue_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cloud_tasks_enqueue_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cloud_tasks_enqueue_asset/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "cloud_text_to_speech_asset",
+      "name": "Cloud Text To Speech Asset",
+      "category": "ai",
+      "description": "Synthesize speech audio from a text column via Cloud Text-to-Speech.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/cloud_text_to_speech_asset",
+      "tags": [
+        "cloud-text-to-speech-asset",
+        "ai"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-texttospeech",
+          "google-auth",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cloud_text_to_speech_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cloud_text_to_speech_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cloud_text_to_speech_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cloud_text_to_speech_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/cloud_text_to_speech_asset/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
     },
     {
       "id": "cloudformation_asset",
@@ -2702,6 +3058,36 @@
       "icon": "Server"
     },
     {
+      "id": "coalesce_run_asset",
+      "name": "Coalesce Project",
+      "category": "integration",
+      "description": "State-backed component that materializes Coalesce nodes as Dagster assets.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/coalesce_run_asset",
+      "tags": [
+        "coalesce-run-asset",
+        "infrastructure",
+        "integration"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/coalesce_run_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/coalesce_run_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/coalesce_run_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/coalesce_run_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/coalesce_run_asset/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
       "id": "cohort_analysis",
       "name": "Cohort Analysis",
       "category": "analytics",
@@ -2752,6 +3138,35 @@
       "icon": "Download",
       "type": "dagster_component_templates.CommunityComponentInstallerComponent",
       "component_type": "dagster_component_templates.CommunityComponentInstallerComponent"
+    },
+    {
+      "id": "composer_airflow_auth_backend",
+      "name": "Composer Airflow Auth Backend",
+      "category": "resource",
+      "description": "Provide a dagster-airlift AirflowAuthBackend backed by GCP OIDC for Cloud Composer.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/composer_airflow_auth_backend",
+      "tags": [
+        "composer-airflow-auth-backend",
+        "resources"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster-airlift",
+          "google-auth"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/composer_airflow_auth_backend/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/composer_airflow_auth_backend/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/composer_airflow_auth_backend/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/composer_airflow_auth_backend/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/composer_airflow_auth_backend/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
     },
     {
       "id": "content_ingestion",
@@ -3824,6 +4239,92 @@
       ]
     },
     {
+      "id": "dataform_repository_resource",
+      "name": "Dataform Repository Resource",
+      "category": "resource",
+      "description": "Expose `dagster_dataform.DataformRepositoryResource` via YAML config.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/dataform_repository_resource",
+      "tags": [
+        "dataform-repository-resource",
+        "resources"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster-dataform",
+          "google-cloud-dataform",
+          "google-auth"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dataform_repository_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dataform_repository_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dataform_repository_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dataform_repository_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/dataform_repository_resource/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "dataframe_extract_field",
+      "name": "Dataframe Extract Field",
+      "category": "transformation",
+      "description": "Pluck one element + optional field out of a list/dict column.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/dataframe_extract_field",
+      "tags": [
+        "dataframe-extract-field",
+        "transforms"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dataframe_extract_field/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dataframe_extract_field/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dataframe_extract_field/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dataframe_extract_field/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dataframe_extract_field/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "dataframe_flatten_nested_columns",
+      "name": "Dataframe Flatten Nested Columns",
+      "category": "transformation",
+      "description": "JSON-stringify dict / list values in selected DataFrame columns.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/dataframe_flatten_nested_columns",
+      "tags": [
+        "dataframe-flatten-nested-columns",
+        "transforms"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dataframe_flatten_nested_columns/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dataframe_flatten_nested_columns/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dataframe_flatten_nested_columns/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dataframe_flatten_nested_columns/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dataframe_flatten_nested_columns/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
       "id": "dataframe_from_csv",
       "name": "DataFrame from CSV",
       "category": "source",
@@ -4627,6 +5128,36 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/dataiku_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/dataiku_asset/requirements.txt",
       "component_type": "dagster_component_templates.DataikuAssetComponent"
+    },
+    {
+      "id": "dataplex_dq_scan_results_asset",
+      "name": "Dataplex Dq Scan Results Asset",
+      "category": "source",
+      "description": "Pull Dataplex Data-Quality scan results into a DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/source/dataplex_dq_scan_results_asset",
+      "tags": [
+        "dataplex-dq-scan-results-asset",
+        "source"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-dataplex",
+          "google-auth",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/dataplex_dq_scan_results_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/dataplex_dq_scan_results_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/dataplex_dq_scan_results_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/dataplex_dq_scan_results_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/dataplex_dq_scan_results_asset/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
     },
     {
       "id": "datetime_parser",
@@ -6875,6 +7406,34 @@
       }
     },
     {
+      "id": "fhir_resource_normalizer",
+      "name": "Fhir Resource Normalizer",
+      "category": "transformation",
+      "description": "Flatten FHIR R4/R5 JSON resources into a flat DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/fhir_resource_normalizer",
+      "tags": [
+        "fhir-resource-normalizer",
+        "transforms"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/fhir_resource_normalizer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/fhir_resource_normalizer/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/fhir_resource_normalizer/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/fhir_resource_normalizer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/fhir_resource_normalizer/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
       "id": "field_mapper",
       "name": "Field Mapper",
       "category": "transformation",
@@ -7207,6 +7766,34 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fivetran_sync_trigger_job/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fivetran_sync_trigger_job/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/fivetran_sync_trigger_job/requirements.txt"
+    },
+    {
+      "id": "fix_message_parser",
+      "name": "Fix Message Parser",
+      "category": "transformation",
+      "description": "Parse FIX trading-protocol messages into a flat DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/fix_message_parser",
+      "tags": [
+        "fix-message-parser",
+        "transforms"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/fix_message_parser/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/fix_message_parser/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/fix_message_parser/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/fix_message_parser/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/fix_message_parser/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
     },
     {
       "id": "formula",
@@ -8518,6 +9105,34 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/hex_project_assets/requirements.txt"
     },
     {
+      "id": "hl7_v2_parser",
+      "name": "Hl7 V2 Parser",
+      "category": "transformation",
+      "description": "Parse a column of pipe-delimited HL7 v2 messages into a flat DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/hl7_v2_parser",
+      "tags": [
+        "hl7-v2-parser",
+        "transforms"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/hl7_v2_parser/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/hl7_v2_parser/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/hl7_v2_parser/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/hl7_v2_parser/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/hl7_v2_parser/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
       "id": "hris_normalizer",
       "name": "HrisNormalizerComponent",
       "category": "transformation",
@@ -8862,6 +9477,35 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_classifier/requirements.txt"
     },
     {
+      "id": "image_exif_extractor",
+      "name": "Image Exif Extractor",
+      "category": "transformation",
+      "description": "Extract EXIF metadata from a column of image file paths.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/image_exif_extractor",
+      "tags": [
+        "image-exif-extractor",
+        "transforms"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "pillow"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/image_exif_extractor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/image_exif_extractor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/image_exif_extractor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/image_exif_extractor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/image_exif_extractor/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
       "id": "image_llm_extractor",
       "name": "Image LLM Extractor",
       "category": "ai",
@@ -8953,6 +9597,35 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_similarity_scorer/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_similarity_scorer/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_similarity_scorer/requirements.txt"
+    },
+    {
+      "id": "image_transform_asset",
+      "name": "Image Transform Asset",
+      "category": "transformation",
+      "description": "Resize / crop / convert / grayscale image files in a DataFrame column.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/image_transform_asset",
+      "tags": [
+        "image-transform-asset",
+        "transforms"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "pillow"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/image_transform_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/image_transform_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/image_transform_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/image_transform_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/image_transform_asset/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
     },
     {
       "id": "imputation",
@@ -9107,6 +9780,34 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/document_extractors.md",
         "last_validated": "2026-05-08"
+      }
+    },
+    {
+      "id": "iso20022_payment_parser",
+      "name": "Iso20022 Payment Parser",
+      "category": "transformation",
+      "description": "Parse a column of ISO 20022 XML payment messages into a flat DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/iso20022_payment_parser",
+      "tags": [
+        "iso20022-payment-parser",
+        "transforms"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/iso20022_payment_parser/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/iso20022_payment_parser/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/iso20022_payment_parser/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/iso20022_payment_parser/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/iso20022_payment_parser/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
       }
     },
     {
@@ -10348,6 +11049,35 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/llm_execution.md",
         "last_validated": "2026-05-08"
+      }
+    },
+    {
+      "id": "litellm_text_to_speech",
+      "name": "Litellm Text To Speech",
+      "category": "ai",
+      "description": "Multi-provider text-to-speech via LiteLLM.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/litellm_text_to_speech",
+      "tags": [
+        "litellm-text-to-speech",
+        "ai"
+      ],
+      "dependencies": {
+        "pip": [
+          "litellm",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_text_to_speech/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_text_to_speech/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_text_to_speech/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_text_to_speech/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_text_to_speech/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
       }
     },
     {
@@ -16301,6 +17031,36 @@
       }
     },
     {
+      "id": "spanner_query_asset",
+      "name": "Spanner Query Asset",
+      "category": "source",
+      "description": "Run a Spanner SQL query and return rows as a DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/source/spanner_query_asset",
+      "tags": [
+        "spanner-query-asset",
+        "source"
+      ],
+      "dependencies": {
+        "pip": [
+          "google-cloud-spanner",
+          "google-auth",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/spanner_query_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/spanner_query_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/spanner_query_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/spanner_query_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/spanner_query_asset/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
       "id": "spatial_cluster",
       "name": "Spatial Cluster",
       "category": "analytics",
@@ -17025,6 +17785,34 @@
       }
     },
     {
+      "id": "synthetic_audio_generator",
+      "name": "Synthetic Audio Generator",
+      "category": "source",
+      "description": "Generate sample WAV files (sine tones) and emit a DataFrame describing them.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/source/synthetic_audio_generator",
+      "tags": [
+        "synthetic-audio-generator",
+        "source"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_audio_generator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_audio_generator/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_audio_generator/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_audio_generator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_audio_generator/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
       "id": "synthetic_data",
       "name": "Synthetic Data",
       "category": "ai",
@@ -17076,6 +17864,93 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/adls_round_trip.md",
         "last_validated": "2026-05-06"
+      }
+    },
+    {
+      "id": "synthetic_image_generator",
+      "name": "Synthetic Image Generator",
+      "category": "source",
+      "description": "Generate sample PNG images and emit a DataFrame describing them.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/source/synthetic_image_generator",
+      "tags": [
+        "synthetic-image-generator",
+        "source"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "pillow",
+          "piexif"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_image_generator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_image_generator/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_image_generator/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_image_generator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_image_generator/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "synthetic_pdf_generator",
+      "name": "Synthetic Pdf Generator",
+      "category": "source",
+      "description": "Generate sample PDFs and emit a DataFrame describing them.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/source/synthetic_pdf_generator",
+      "tags": [
+        "synthetic-pdf-generator",
+        "source"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "reportlab"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_pdf_generator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_pdf_generator/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_pdf_generator/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_pdf_generator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_pdf_generator/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "synthetic_video_generator",
+      "name": "Synthetic Video Generator",
+      "category": "source",
+      "description": "Generate small test MP4s (color-bars video + sine tone audio) via ffmpeg.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/source/synthetic_video_generator",
+      "tags": [
+        "synthetic-video-generator",
+        "source"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_video_generator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_video_generator/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_video_generator/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_video_generator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/synthetic_video_generator/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
       }
     },
     {
@@ -17288,6 +18163,34 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/ai_with_llm.md",
         "last_validated": "2026-05-08"
+      }
+    },
+    {
+      "id": "text_codec_convert_asset",
+      "name": "Text Codec Convert Asset",
+      "category": "transformation",
+      "description": "Convert text between codecs (e.g. ASCII\u2194EBCDIC) per-row.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/text_codec_convert_asset",
+      "tags": [
+        "text-codec-convert-asset",
+        "transforms"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/text_codec_convert_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/text_codec_convert_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/text_codec_convert_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/text_codec_convert_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/text_codec_convert_asset/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
       }
     },
     {
@@ -18120,6 +19023,90 @@
       }
     },
     {
+      "id": "video_audio_extract_asset",
+      "name": "Video Audio Extract Asset",
+      "category": "transformation",
+      "description": "Extract the audio track from a video file via ffmpeg.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/video_audio_extract_asset",
+      "tags": [
+        "video-audio-extract-asset",
+        "transforms"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/video_audio_extract_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/video_audio_extract_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/video_audio_extract_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/video_audio_extract_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/video_audio_extract_asset/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "video_frame_extract_asset",
+      "name": "Video Frame Extract Asset",
+      "category": "transformation",
+      "description": "Extract N frames per video as image files; emit a per-frame DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/video_frame_extract_asset",
+      "tags": [
+        "video-frame-extract-asset",
+        "transforms"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/video_frame_extract_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/video_frame_extract_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/video_frame_extract_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/video_frame_extract_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/video_frame_extract_asset/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "video_metadata_extractor",
+      "name": "Video Metadata Extractor",
+      "category": "transformation",
+      "description": "Extract container + stream metadata from video files via ffprobe.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/video_metadata_extractor",
+      "tags": [
+        "video-metadata-extractor",
+        "transforms"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/video_metadata_extractor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/video_metadata_extractor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/video_metadata_extractor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/video_metadata_extractor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/video_metadata_extractor/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
+      }
+    },
+    {
       "id": "vif",
       "name": "Vif",
       "category": "analytics",
@@ -18504,6 +19491,34 @@
         "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/enterprise_saas.md",
         "last_validated": "2026-05-06"
+      }
+    },
+    {
+      "id": "x12_edi_parser",
+      "name": "X12 Edi Parser",
+      "category": "transformation",
+      "description": "Parse a column of ASC X12 EDI messages into one row per transaction set.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/x12_edi_parser",
+      "tags": [
+        "x12-edi-parser",
+        "transforms"
+      ],
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/x12_edi_parser/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/x12_edi_parser/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/x12_edi_parser/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/x12_edi_parser/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/x12_edi_parser/requirements.txt",
+      "validation": {
+        "level": "structural",
+        "evidence": "",
+        "last_validated": "2026-05-11"
       }
     },
     {

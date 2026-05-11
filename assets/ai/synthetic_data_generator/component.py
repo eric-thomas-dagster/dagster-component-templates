@@ -160,6 +160,8 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         "fhir_patients",
         "hl7_messages",
         "iso20022_payments",
+        "x12_messages",
+        "fix_messages",
     ] = Field(
         default="customers",
         description="Type of data schema to generate"
@@ -470,6 +472,10 @@ group_name=group_name,
                 df = _generate_hl7_messages(row_count, self.schema_options or {})
             elif schema_type == "iso20022_payments":
                 df = _generate_iso20022_payments(row_count, self.schema_options or {})
+            elif schema_type == "x12_messages":
+                df = _generate_x12_messages(row_count, self.schema_options or {})
+            elif schema_type == "fix_messages":
+                df = _generate_fix_messages(row_count, self.schema_options or {})
             else:
                 raise ValueError(f"Unknown schema type: {schema_type}")
 
@@ -1511,5 +1517,245 @@ def _generate_iso20022_payments(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
             mt = "pacs.002"
 
         rows.append({"message_id": msg_id, "message_type": mt, "xml": xml})
+
+    return pd.DataFrame(rows)
+
+
+def _generate_x12_messages(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
+    """Synthetic ASC X12 EDI messages.
+
+    Emits 270 (eligibility inquiry), 271 (eligibility response), 835 (remittance),
+    837 (healthcare claim), and 850 (purchase order) transactions wrapped in ISA/GS/ST
+    envelopes. Default delimiter is '~' for segment, '*' for element, ':' for sub-element.
+
+    Output DataFrame columns: `control_number`, `transaction_set`, `message`.
+    """
+    import numpy as np
+    rng = np.random.default_rng(opts.get("random_state"))
+
+    seg = "~"
+    el = "*"
+    senders = ["SENDERID01", "PAYER001ABC", "PROVIDER12"]
+    receivers = ["RECEIVERID", "CLEARNGHSE", "VENDORACME"]
+    members = [("DOE", "JOHN", "M123456789"), ("SMITH", "JANE", "M987654321"),
+               ("LEE", "WEI", "M444555666"), ("PATEL", "RAJ", "M777888999")]
+    payers = ["AETNA", "BCBS", "UNITEDHEALTH", "CIGNA"]
+    providers = [("DR HOUSE", "1234567890"), ("DR GREY", "2345678901"), ("DR STRANGE", "3456789012")]
+    products = [("WIDGET-A", 12.50), ("WIDGET-B", 25.00), ("GADGET-C", 99.99), ("PART-D", 7.25)]
+
+    tx_types = ["270", "271", "835", "837", "850"]
+    rows = []
+    for i in range(n):
+        ctrl = f"{i+1:09d}"
+        gs_ctrl = f"{i+1:06d}"
+        st_ctrl = f"{i+1:04d}"
+        tx = tx_types[i % len(tx_types)]
+        snd = senders[rng.integers(0, len(senders))]
+        rcv = receivers[rng.integers(0, len(receivers))]
+
+        isa = el.join([
+            "ISA", "00", "          ", "00", "          ",
+            "ZZ", snd.ljust(15), "ZZ", rcv.ljust(15),
+            "250115", "0900", "U", "00401", ctrl, "0", "P", ":"
+        ]) + seg
+
+        if tx == "270":
+            # Eligibility inquiry
+            ln, fn, mid = members[rng.integers(0, len(members))]
+            payer = payers[rng.integers(0, len(payers))]
+            segs = [
+                f"GS{el}HS{el}{snd}{el}{rcv}{el}20250115{el}0900{el}{gs_ctrl}{el}X{el}005010X279A1",
+                f"ST{el}270{el}{st_ctrl}{el}005010X279A1",
+                f"BHT{el}0022{el}13{el}{ctrl}{el}20250115{el}0900",
+                f"HL{el}1{el}{el}20{el}1",
+                f"NM1{el}PR{el}2{el}{payer}{el}{el}{el}{el}{el}PI{el}{payer[:5]}",
+                f"HL{el}2{el}1{el}21{el}1",
+                f"NM1{el}1P{el}2{el}PROVIDER GROUP{el}{el}{el}{el}{el}XX{el}1234567890",
+                f"HL{el}3{el}2{el}22{el}0",
+                f"NM1{el}IL{el}1{el}{ln}{el}{fn}{el}{el}{el}{el}MI{el}{mid}",
+                f"DMG{el}D8{el}19800515{el}M",
+                f"EQ{el}30",
+                f"SE{el}11{el}{st_ctrl}",
+                f"GE{el}1{el}{gs_ctrl}",
+                f"IEA{el}1{el}{ctrl}",
+            ]
+        elif tx == "271":
+            # Eligibility response
+            ln, fn, mid = members[rng.integers(0, len(members))]
+            payer = payers[rng.integers(0, len(payers))]
+            active = rng.choice([True, False])
+            segs = [
+                f"GS{el}HB{el}{snd}{el}{rcv}{el}20250115{el}0930{el}{gs_ctrl}{el}X{el}005010X279A1",
+                f"ST{el}271{el}{st_ctrl}{el}005010X279A1",
+                f"BHT{el}0022{el}11{el}{ctrl}{el}20250115{el}0930",
+                f"HL{el}1{el}{el}20{el}1",
+                f"NM1{el}PR{el}2{el}{payer}",
+                f"HL{el}2{el}1{el}21{el}1",
+                f"NM1{el}1P{el}2{el}PROVIDER GROUP",
+                f"HL{el}3{el}2{el}22{el}0",
+                f"NM1{el}IL{el}1{el}{ln}{el}{fn}{el}{el}{el}{el}MI{el}{mid}",
+                f"EB{el}{'1' if active else '6'}{el}IND{el}30",
+                f"SE{el}10{el}{st_ctrl}",
+                f"GE{el}1{el}{gs_ctrl}",
+                f"IEA{el}1{el}{ctrl}",
+            ]
+        elif tx == "835":
+            # Remittance advice
+            payer = payers[rng.integers(0, len(payers))]
+            prv_name, prv_npi = providers[rng.integers(0, len(providers))]
+            ln, fn, mid = members[rng.integers(0, len(members))]
+            chrg = round(float(rng.uniform(100, 2000)), 2)
+            paid = round(chrg * float(rng.uniform(0.6, 0.95)), 2)
+            segs = [
+                f"GS{el}HP{el}{snd}{el}{rcv}{el}20250115{el}1000{el}{gs_ctrl}{el}X{el}005010X221A1",
+                f"ST{el}835{el}{st_ctrl}",
+                f"BPR{el}I{el}{paid}{el}C{el}ACH{el}CCP{el}{el}{el}{el}{el}{el}{el}{el}{el}{el}{el}20250115",
+                f"TRN{el}1{el}TRACE{ctrl}{el}1{payer[:9].ljust(9, '0')}",
+                f"N1{el}PR{el}{payer}",
+                f"N1{el}PE{el}{prv_name}{el}XX{el}{prv_npi}",
+                f"LX{el}1",
+                f"CLP{el}CLAIM{ctrl}{el}1{el}{chrg}{el}{paid}{el}{el}MC{el}PAYER{i+1:06d}",
+                f"NM1{el}QC{el}1{el}{ln}{el}{fn}{el}{el}{el}{el}MI{el}{mid}",
+                f"SVC{el}HC:99213{el}{chrg}{el}{paid}",
+                f"SE{el}10{el}{st_ctrl}",
+                f"GE{el}1{el}{gs_ctrl}",
+                f"IEA{el}1{el}{ctrl}",
+            ]
+        elif tx == "837":
+            # Healthcare claim
+            ln, fn, mid = members[rng.integers(0, len(members))]
+            prv_name, prv_npi = providers[rng.integers(0, len(providers))]
+            payer = payers[rng.integers(0, len(payers))]
+            chrg = round(float(rng.uniform(100, 2000)), 2)
+            segs = [
+                f"GS{el}HC{el}{snd}{el}{rcv}{el}20250115{el}1100{el}{gs_ctrl}{el}X{el}005010X222A1",
+                f"ST{el}837{el}{st_ctrl}{el}005010X222A1",
+                f"BHT{el}0019{el}00{el}{ctrl}{el}20250115{el}1100{el}CH",
+                f"NM1{el}41{el}2{el}SUBMITTER{el}{el}{el}{el}{el}46{el}{snd}",
+                f"NM1{el}40{el}2{el}{payer}{el}{el}{el}{el}{el}46{el}{rcv}",
+                f"HL{el}1{el}{el}20{el}1",
+                f"NM1{el}85{el}2{el}{prv_name}{el}{el}{el}{el}{el}XX{el}{prv_npi}",
+                f"HL{el}2{el}1{el}22{el}0",
+                f"SBR{el}P{el}18{el}{el}{el}{el}{el}{el}{el}CI",
+                f"NM1{el}IL{el}1{el}{ln}{el}{fn}{el}{el}{el}{el}MI{el}{mid}",
+                f"NM1{el}PR{el}2{el}{payer}",
+                f"CLM{el}CLAIM{ctrl}{el}{chrg}{el}{el}{el}11:B:1{el}Y{el}A{el}Y{el}Y",
+                f"LX{el}1",
+                f"SV1{el}HC:99213{el}{chrg}{el}UN{el}1{el}{el}{el}1",
+                f"DTP{el}472{el}D8{el}20250114",
+                f"SE{el}15{el}{st_ctrl}",
+                f"GE{el}1{el}{gs_ctrl}",
+                f"IEA{el}1{el}{ctrl}",
+            ]
+        else:
+            # 850 — purchase order
+            qty = int(rng.integers(1, 100))
+            sku, unit = products[rng.integers(0, len(products))]
+            total = round(qty * unit, 2)
+            segs = [
+                f"GS{el}PO{el}{snd}{el}{rcv}{el}20250115{el}1200{el}{gs_ctrl}{el}X{el}004010",
+                f"ST{el}850{el}{st_ctrl}",
+                f"BEG{el}00{el}SA{el}PO{ctrl}{el}{el}20250115",
+                f"REF{el}DP{el}DEPT{i+1:04d}",
+                f"DTM{el}002{el}20250130",
+                f"N1{el}ST{el}SHIP TO LOCATION",
+                f"PO1{el}1{el}{qty}{el}EA{el}{unit}{el}{el}VP{el}{sku}",
+                f"CTT{el}1{el}{qty}",
+                f"AMT{el}TT{el}{total}",
+                f"SE{el}9{el}{st_ctrl}",
+                f"GE{el}1{el}{gs_ctrl}",
+                f"IEA{el}1{el}{ctrl}",
+            ]
+
+        msg = isa + seg.join(segs) + seg
+        rows.append({"control_number": ctrl, "transaction_set": tx, "message": msg})
+
+    return pd.DataFrame(rows)
+
+
+def _generate_fix_messages(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
+    """Synthetic FIX 4.4 trading messages.
+
+    Emits NewOrderSingle (D) and ExecutionReport (8) messages with realistic
+    tag mappings. Delimiter is SOH (\\x01) per canonical FIX; tests can use
+    `delimiter='|'` via schema_options to emit pipe-delimited logs instead.
+
+    Output DataFrame columns: `seq_num`, `msg_type`, `message`.
+    """
+    import numpy as np
+    rng = np.random.default_rng(opts.get("random_state"))
+    delim = opts.get("delimiter", "\x01")
+
+    senders = ["BUYSIDE01", "HEDGE_FUND_A", "PROP_DESK_B"]
+    targets = ["BROKER_XYZ", "EXCHANGE_NYSE", "ECN_BATS"]
+    symbols = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA", "META", "SPY"]
+    sides = ["1", "2"]  # buy, sell
+    ord_types = ["1", "2"]  # market, limit
+    tifs = ["0", "1", "3", "4"]  # day, gtc, ioc, fok
+
+    rows = []
+    for i in range(n):
+        seq = i + 1
+        snd = senders[rng.integers(0, len(senders))]
+        tgt = targets[rng.integers(0, len(targets))]
+        sym = symbols[rng.integers(0, len(symbols))]
+        side = sides[rng.integers(0, len(sides))]
+        ord_type = ord_types[rng.integers(0, len(ord_types))]
+        tif = tifs[rng.integers(0, len(tifs))]
+        qty = int(rng.integers(100, 10000))
+        px = round(float(rng.uniform(50, 500)), 2)
+        ts = f"20250115-09:30:{(i % 60):02d}.000"
+
+        if i % 3 == 0:
+            # NewOrderSingle
+            mt = "D"
+            body_fields = [
+                f"35={mt}", f"34={seq}", f"49={snd}", f"56={tgt}", f"52={ts}",
+                f"11=CLORD{seq:08d}",
+                f"55={sym}",
+                f"54={side}",
+                f"60={ts}",
+                f"38={qty}",
+                f"40={ord_type}",
+            ]
+            if ord_type == "2":
+                body_fields.append(f"44={px}")
+            body_fields.append(f"59={tif}")
+        else:
+            # ExecutionReport
+            mt = "8"
+            exec_type = "F"  # trade
+            ord_status = "1" if i % 5 == 0 else "2"  # partial vs filled
+            last_qty = qty if ord_status == "2" else int(qty * 0.5)
+            cum_qty = last_qty
+            leaves = qty - cum_qty if ord_status == "1" else 0
+            body_fields = [
+                f"35={mt}", f"34={seq}", f"49={snd}", f"56={tgt}", f"52={ts}",
+                f"37=ORD{seq:08d}",
+                f"17=EXEC{seq:08d}",
+                f"11=CLORD{seq:08d}",
+                f"150={exec_type}",
+                f"39={ord_status}",
+                f"55={sym}",
+                f"54={side}",
+                f"38={qty}",
+                f"32={last_qty}",
+                f"31={px}",
+                f"14={cum_qty}",
+                f"151={leaves}",
+                f"6={px}",
+            ]
+
+        # Compute body length and checksum per FIX wire format
+        body = delim.join(body_fields) + delim
+        prefix_for_length = body
+        body_length = len(prefix_for_length)
+        header = f"8=FIX.4.4{delim}9={body_length}{delim}"
+        # FIX checksum = sum of all bytes (header + body) mod 256, zero-padded to 3 digits
+        pre_checksum = (header + body).encode("ascii")
+        checksum = sum(pre_checksum) % 256
+        message = header + body + f"10={checksum:03d}{delim}"
+
+        rows.append({"seq_num": seq, "msg_type": mt, "message": message})
 
     return pd.DataFrame(rows)

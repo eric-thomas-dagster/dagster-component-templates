@@ -1,0 +1,10 @@
+type: dagster_component_templates.BigtableReaderAssetComponent
+attributes:
+  asset_name: device_telemetry_recent
+  instance_id: prod-bigtable
+  table_id: device_telemetry
+  row_key_prefix: "device#"
+  column_families: [meta, metrics]
+  limit: 1000
+  decode_values_as: utf-8
+  group_name: ingest

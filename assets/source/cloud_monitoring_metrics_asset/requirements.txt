@@ -1,0 +1,3 @@
+google-cloud-monitoring
+google-auth
+pandas

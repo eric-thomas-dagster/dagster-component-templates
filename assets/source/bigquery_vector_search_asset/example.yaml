@@ -1,0 +1,18 @@
+type: dagster_component_templates.BigqueryVectorSearchAssetComponent
+attributes:
+  asset_name: top_matches
+  base_table: my-project.rag.documents
+  base_column: embedding
+  select_columns: [doc_id, title, content]
+  top_k: 5
+  distance_type: COSINE
+
+  # Mode A — from upstream DataFrame of query embeddings
+  upstream_asset_key: query_embeddings
+  query_vector_column: vector
+  query_id_column: query_id
+
+  # Mode B — static (uncomment to use, comment out the upstream lines)
+  # query_vectors:
+  #   - [0.012, -0.034, 0.876, ...]   # 768-dim vector
+  group_name: retrieval

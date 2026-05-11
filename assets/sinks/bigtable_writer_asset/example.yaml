@@ -1,0 +1,14 @@
+type: dagster_component_templates.BigtableWriterAssetComponent
+attributes:
+  asset_name: device_state_written
+  upstream_asset_key: device_state
+  instance_id: prod-bigtable
+  table_id: device_telemetry
+  row_key_column: device_id
+  column_family: meta
+  column_map:
+    temperature: { family: metrics, qualifier: temp_c }
+    last_seen:   { family: meta,    qualifier: ts }
+  json_columns: [labels]
+  batch_size: 500
+  group_name: warehouse

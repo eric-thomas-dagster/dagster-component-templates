@@ -1,0 +1,8 @@
+type: dagster_component_templates.DataformRepositoryResourceComponent
+attributes:
+  resource_key: dataform_repo
+  location: us-central1
+  repository_id: my-dataform-repo
+  environment: production
+  # credentials_path: /path/to/sa.json   # or GOOGLE_APPLICATION_CREDENTIALS
+  asset_fresh_policy_lag_minutes: 1440

@@ -1,0 +1,11 @@
+type: dagster_component_templates.CloudTasksEnqueueAssetComponent
+attributes:
+  asset_name: tasks_enqueued
+  upstream_asset_key: pending_jobs
+  location: us-central1
+  queue_id: my-worker-queue
+  target_url: https://my-worker-abc-uc.a.run.app/process
+  http_method: POST
+  body_columns: [job_id, payload]
+  oidc_service_account_email: worker-invoker@my-project.iam.gserviceaccount.com
+  group_name: dispatch

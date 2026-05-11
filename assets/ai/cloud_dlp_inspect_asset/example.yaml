@@ -1,0 +1,9 @@
+type: dagster_component_templates.CloudDlpInspectAssetComponent
+attributes:
+  asset_name: tickets_dlp_scanned
+  upstream_asset_key: support_tickets
+  text_columns: [subject, body]
+  info_types: [EMAIL_ADDRESS, PHONE_NUMBER, US_SOCIAL_SECURITY_NUMBER, CREDIT_CARD_NUMBER]
+  min_likelihood: POSSIBLE
+  include_quote: false
+  group_name: compliance

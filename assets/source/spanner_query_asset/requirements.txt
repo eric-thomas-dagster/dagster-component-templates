@@ -1,0 +1,3 @@
+google-cloud-spanner
+google-auth
+pandas

@@ -1,0 +1,67 @@
+# Composer Airflow Auth Backend
+
+Plug Cloud Composer into [`dagster-airlift`](https://docs.dagster.io/integrations/airlift). Returns a configured `AirflowAuthBackend` you hand to `AirflowInstance`, then use dagster-airlift's full set of APIs (DAG triggering, observation, migration helpers) against your Composer environment.
+
+```yaml
+type: dagster_component_templates.ComposerAirflowAuthBackendComponent
+attributes:
+  resource_key: composer_airflow_auth
+  airflow_url: https://abc123-dot-us-central1.composer.googleusercontent.com
+```
+
+## Why this exists
+
+dagster-airlift ships `AirflowBasicAuthBackend` (OSS Airflow) and `MwaaSessionAuthBackend` (AWS MWAA) but **no built-in Composer backend**. Composer's Airflow REST API needs a GCP-minted OIDC ID token whose `target_audience` equals the airflow URL — this component handles that and gives you back a drop-in `AirflowAuthBackend`.
+
+## Using the backend
+
+```python
+import dagster as dg
+from dagster_airlift.core import AirflowInstance, build_defs_from_airflow_instance
+
+
+@dg.definitions
+def defs(context: dg.ComponentLoadContext):
+    composer_backend = context.resources["composer_airflow_auth"]
+    af = AirflowInstance(name="composer-prod", auth_backend=composer_backend)
+    return build_defs_from_airflow_instance(airflow_instance=af)
+```
+
+Or for ad-hoc triggering inside an asset:
+
+```python
+@dg.asset
+def trigger_nightly(composer_airflow_auth) -> str:
+    af = AirflowInstance(name="composer-prod", auth_backend=composer_airflow_auth)
+    run_id = af.trigger_dag(dag_id="nightly_etl")
+    af.wait_for_run_completion(dag_id="nightly_etl", run_id=run_id, timeout=3600)
+    return run_id
+```
+
+## What you get for free
+
+By plugging into dagster-airlift instead of rolling a custom trigger:
+- **DAG observation** — `build_defs_from_airflow_instance` projects every Composer DAG as a Dagster asset automatically.
+- **Run-state sensor** — keeps Dagster's view of DAG runs in sync via polling sensors.
+- **Migration tooling** — proxy individual tasks to Dagster gradually (Airflow's `BaseOperator` stays, the work runs in Dagster). See [airlift migration guide](https://docs.dagster.io/integrations/airlift/airflow-migration).
+
+## Looking up `airflow_url`
+
+```bash
+gcloud composer environments describe <env> --location=<region> \
+  --format="value(config.airflowUri)"
+```
+
+## Auth
+
+Service account needs `roles/composer.user` on the Composer environment. Composer 2+ uses IAM; Composer 1 uses Identity-Aware Proxy (set the appropriate `target_audience` for that flow if needed).
+
+## When you'd build a trigger asset instead
+
+You wouldn't. dagster-airlift covers triggering + observation. Use this resource to give it Composer auth — that's the whole gap.
+
+## Sister components
+
+- `cloud_functions_invoke_asset` — synchronous HTTPS call into Cloud Run / Cloud Functions
+- `cloud_run_job_trigger_asset` — Cloud Run **Job** trigger (long-running batch container, not HTTPS)
+- `dataform_run_asset` — BQ-native SQL DAG orchestration (lighter than Composer for pure-SQL pipelines)

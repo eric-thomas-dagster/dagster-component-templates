@@ -1,0 +1,9 @@
+type: dagster_component_templates.CloudMonitoringMetricsAssetComponent
+attributes:
+  asset_name: gce_cpu_utilization
+  # credentials_path: /path/to/sa.json  # or GOOGLE_APPLICATION_CREDENTIALS
+  filter: 'metric.type="compute.googleapis.com/instance/cpu/utilization"'
+  lookback_minutes: 60
+  alignment_period_seconds: 60
+  aligner: MEAN
+  group_name: observability

@@ -1,0 +1,16 @@
+type: dagster_component_templates.SpannerQueryAssetComponent
+attributes:
+  asset_name: active_orders
+  instance_id: my-instance
+  database_id: app-prod
+  sql: |
+    SELECT order_id, customer_id, total_cents, created_at
+    FROM Orders
+    WHERE status = @status AND created_at >= @cutoff
+  params:
+    status: ACTIVE
+    cutoff: "2025-01-01T00:00:00Z"
+  param_types:
+    status: STRING
+    cutoff: TIMESTAMP
+  group_name: ingest

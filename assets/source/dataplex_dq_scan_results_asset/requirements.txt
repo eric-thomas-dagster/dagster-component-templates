@@ -1,0 +1,3 @@
+google-cloud-dataplex
+google-auth
+pandas

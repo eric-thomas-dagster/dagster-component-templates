@@ -1,0 +1,5 @@
+type: dagster_component_templates.ComposerAirflowAuthBackendComponent
+attributes:
+  resource_key: composer_airflow_auth
+  airflow_url: https://abc123-dot-us-central1.composer.googleusercontent.com
+  # credentials_path: /path/to/sa.json   # or GOOGLE_APPLICATION_CREDENTIALS

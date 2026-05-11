@@ -1,0 +1,10 @@
+type: dagster_component_templates.DataplexDqScanResultsAssetComponent
+attributes:
+  asset_name: orders_dq_results
+  project_id: my-project
+  location: us-central1
+  scan_id: orders-table-dq-scan
+  mode: latest    # or `history` with since_iso
+  # since_iso: "2026-01-01T00:00:00Z"
+  # max_jobs: 50
+  group_name: data_quality

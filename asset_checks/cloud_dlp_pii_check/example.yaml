@@ -1,0 +1,11 @@
+type: dagster_component_templates.CloudDlpPiiCheckComponent
+attributes:
+  asset_key: support_tickets
+  check_name: no_payment_pii
+  text_columns: [subject, body]
+  forbidden_info_types: [US_SOCIAL_SECURITY_NUMBER, CREDIT_CARD_NUMBER, IBAN_CODE]
+  min_likelihood: LIKELY
+  max_allowed_findings: 0
+  sample_size: 200
+  severity: ERROR
+  blocking: true

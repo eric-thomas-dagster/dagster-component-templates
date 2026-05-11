@@ -1,0 +1,9 @@
+type: dagster_component_templates.CloudLoggingQueryAssetComponent
+attributes:
+  asset_name: recent_errors
+  # credentials_path: /path/to/sa.json   # or set GOOGLE_APPLICATION_CREDENTIALS
+  filter: 'severity>=ERROR'
+  lookback_minutes: 60
+  order_by: timestamp desc
+  max_entries: 500
+  group_name: observability

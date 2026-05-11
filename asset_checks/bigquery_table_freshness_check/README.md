@@ -1,0 +1,48 @@
+# BigQuery Table Freshness Check
+
+SLO check on the maximum age of a BigQuery table. Reads `last_modified_time` from table metadata (free, < 1s) and fails the asset check if the table is older than `max_age_minutes`.
+
+```yaml
+type: dagster_component_templates.BigqueryTableFreshnessCheckComponent
+attributes:
+  asset_key: customer_summary
+  table_id: my-project.analytics.customer_summary
+  max_age_minutes: 1440   # 24 hours
+  severity: ERROR
+  blocking: false         # default — SLO alert, not a hard gate
+```
+
+## Two freshness modes
+
+| Setting | Reads | Use for |
+|---|---|---|
+| `use_partition_freshness: false` (default) | Table-level `last_modified_time` | Non-partitioned tables, or where any write counts as "fresh" |
+| `use_partition_freshness: true` | Freshest partition's `last_modified_time` from `INFORMATION_SCHEMA.PARTITIONS` | Ingest-time-partitioned tables where old partitions are unchanged but new ones must keep arriving |
+
+## When to set `blocking: true`
+
+Rarely. Freshness failures are almost always operational alerts ("the upstream loader missed its window") — not failures the consuming pipeline can recover from by waiting. Default is `blocking: false` so downstream materializations continue with stale data, but the SLO breach is recorded in Dagster's UI and surfaced to whatever alert pipeline you've wired up.
+
+Set `blocking: true` only when stale data is genuinely worse than no data (e.g. compliance / regulatory feeds).
+
+## Metadata produced
+
+- `last_modified` — ISO-8601 timestamp from BQ
+- `age_minutes` — current age vs. now
+- `max_age_minutes` — your configured threshold
+- `freshness_source` — `table` or `freshest_partition`
+- `num_rows` — current row count (sanity-check signal)
+
+## Cost
+
+`get_table` is metadata, free. The `INFORMATION_SCHEMA.PARTITIONS` query (only with `use_partition_freshness: true`) scans a few KB of metadata — still essentially free.
+
+## Auth
+
+Service account needs `roles/bigquery.metadataViewer` (table-level) or `roles/bigquery.dataViewer`. With partition freshness, also `roles/bigquery.jobUser` for the INFORMATION_SCHEMA query.
+
+## Sister checks
+
+- `bigquery_dry_run_check` — pre-flight cost guardrail (different signal)
+- `pandas_dataframe_check` — column existence + dtype, runs on materialized DataFrame
+- `great_expectations_check` — full expectation-suite checks

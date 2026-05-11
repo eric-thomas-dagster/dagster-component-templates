@@ -1,0 +1,25 @@
+type: dagster_component_templates.BigqueryDryRunCheckComponent
+attributes:
+  asset_key: nightly_revenue_rollup
+  check_name: nightly_revenue_rollup_cost_guard
+  project_id: my-project
+  location: US
+  sql: |
+    SELECT customer_id, SUM(amount_cents) AS revenue_cents, COUNT(*) AS orders
+    FROM `my-project.warehouse.orders`
+    WHERE order_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
+    GROUP BY customer_id
+
+  # Ground-truth cap: bytes (always safe)
+  max_bytes: 100000000000   # 100 GB
+
+  # Optional convenience cap: USD at on-demand pricing
+  # Computed locally as bytes × rate / 1e12. Rate must reflect YOUR region + contract.
+  # max_cost_usd: 1.00
+  # on_demand_price_per_tb_usd: 6.25   # default; verify at https://cloud.google.com/bigquery/pricing
+
+  # Capacity reservation users: use this instead (bytes/cost don't reflect spend)
+  # max_slot_ms: 60000
+
+  severity: ERROR
+  blocking: true

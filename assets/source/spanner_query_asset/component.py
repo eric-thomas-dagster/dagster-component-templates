@@ -1,0 +1,143 @@
+"""SpannerQueryAssetComponent — run a SQL query against Cloud Spanner.
+
+Returns a pandas DataFrame. Useful for:
+  - Reading transactional / operational data into a warehouse pipeline
+  - Periodic snapshots / CDC-style polling against Spanner
+  - Cross-database joins downstream (Spanner + BigQuery side-by-side)
+
+Spanner is GCP's globally-distributed strongly-consistent RDBMS — distinct
+from BigQuery (analytic) and Firestore (document). If you're not sure why
+you'd query it, you probably want BigQuery instead.
+"""
+
+import json
+import os
+from typing import Any, Dict, List, Optional
+
+import pandas as pd
+
+from dagster import (
+    AssetExecutionContext,
+    AssetKey,
+    Component,
+    ComponentLoadContext,
+    Definitions,
+    MetadataValue,
+    Model,
+    Output,
+    Resolvable,
+    asset,
+)
+from pydantic import Field
+
+
+class SpannerQueryAssetComponent(Component, Model, Resolvable):
+    """Run a Spanner SQL query and return rows as a DataFrame."""
+
+    asset_name: str = Field(description="Output asset name.")
+
+    credentials: Optional[Dict[str, Any]] = Field(default=None)
+    credentials_path: Optional[str] = Field(default=None)
+
+    project_id: Optional[str] = Field(default=None)
+    instance_id: str = Field(description="Spanner instance id.")
+    database_id: str = Field(description="Spanner database id.")
+
+    sql: str = Field(description="The SQL query to run. Spanner GoogleSQL dialect by default.")
+
+    params: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Optional named parameters for the query (use `@name` in SQL).",
+    )
+    param_types: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Optional explicit type hints per param (string names: STRING, INT64, FLOAT64, "
+            "BOOL, BYTES, TIMESTAMP, DATE, NUMERIC). Default: inferred."
+        ),
+    )
+
+    description: Optional[str] = Field(default=None)
+    group_name: Optional[str] = Field(default=None)
+    deps: Optional[List[str]] = Field(default=None)
+    tags: Optional[Dict[str, str]] = Field(default=None)
+    owners: Optional[List[str]] = Field(default=None)
+
+    def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        creds_dict = self.credentials
+        if creds_dict is None:
+            cred_path = self.credentials_path or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+            if cred_path:
+                with open(cred_path, "r") as fh:
+                    creds_dict = json.load(fh)
+        if creds_dict is None:
+            raise ValueError("Provide credentials, credentials_path, or set GOOGLE_APPLICATION_CREDENTIALS.")
+
+        asset_name = self.asset_name
+        project_id = self.project_id or creds_dict.get("project_id")
+        instance_id = self.instance_id
+        database_id = self.database_id
+        sql = self.sql
+        params = self.params or None
+        param_types_in = self.param_types or {}
+
+        @asset(
+            name=asset_name,
+            description=self.description or f"Spanner query: {project_id}/{instance_id}/{database_id}.",
+            group_name=self.group_name,
+            kinds={"google", "spanner"},
+            tags=self.tags or None,
+            owners=self.owners or None,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])] or None,
+        )
+        def _asset(context: AssetExecutionContext) -> Output:
+            try:
+                from google.cloud import spanner
+                from google.cloud.spanner_v1 import param_types as spanner_param_types
+                from google.oauth2 import service_account
+            except ImportError:
+                raise ImportError("pip install google-cloud-spanner google-auth")
+
+            type_map = {
+                "STRING":    spanner_param_types.STRING,
+                "INT64":     spanner_param_types.INT64,
+                "FLOAT64":   spanner_param_types.FLOAT64,
+                "BOOL":      spanner_param_types.BOOL,
+                "BYTES":     spanner_param_types.BYTES,
+                "TIMESTAMP": spanner_param_types.TIMESTAMP,
+                "DATE":      spanner_param_types.DATE,
+                "NUMERIC":   spanner_param_types.NUMERIC,
+            }
+            spanner_param_types_dict = {k: type_map[v] for k, v in param_types_in.items() if v in type_map}
+
+            sa_creds = service_account.Credentials.from_service_account_info(creds_dict)
+            client = spanner.Client(project=project_id, credentials=sa_creds)
+            instance = client.instance(instance_id)
+            database = instance.database(database_id)
+
+            context.log.info(f"Spanner query → {project_id}/{instance_id}/{database_id}")
+
+            with database.snapshot() as snapshot:
+                results = snapshot.execute_sql(
+                    sql,
+                    params=params,
+                    param_types=spanner_param_types_dict or None,
+                )
+                results.fields  # force metadata fetch
+                columns = [f.name for f in results.fields]
+                rows = list(results)
+
+            df = pd.DataFrame(rows, columns=columns)
+            preview = df.head(10).to_markdown(index=False) if not df.empty else "(no rows)"
+            return Output(
+                value=df,
+                metadata={
+                    "instance":  MetadataValue.text(instance_id),
+                    "database":  MetadataValue.text(database_id),
+                    "row_count": MetadataValue.int(len(df)),
+                    "columns":   MetadataValue.json(columns),
+                    "preview":   MetadataValue.md(preview or ""),
+                },
+            )
+
+        return Definitions(assets=[_asset])

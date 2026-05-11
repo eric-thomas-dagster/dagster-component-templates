@@ -1,0 +1,3 @@
+google-cloud-tasks
+google-auth
+pandas

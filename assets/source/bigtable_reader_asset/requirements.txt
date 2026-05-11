@@ -1,0 +1,3 @@
+google-cloud-bigtable
+google-auth
+pandas

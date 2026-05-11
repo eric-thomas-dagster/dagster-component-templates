@@ -1,0 +1,9 @@
+type: dagster_component_templates.BigqueryTableFreshnessCheckComponent
+attributes:
+  asset_key: customer_summary
+  check_name: customer_summary_freshness
+  table_id: my-project.analytics.customer_summary
+  max_age_minutes: 1440           # 24 hours
+  use_partition_freshness: false  # set true for ingest-partitioned tables
+  severity: ERROR
+  blocking: false                 # SLO alert, don't block downstream

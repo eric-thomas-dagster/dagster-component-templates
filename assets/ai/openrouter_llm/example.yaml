@@ -1,0 +1,34 @@
+type: dagster_component_templates.OpenRouterLLMComponent
+attributes:
+  asset_name: ticket_summaries
+  upstream_asset_key: support_tickets
+
+  api_key_env_var: OPENROUTER_API_KEY
+
+  # OpenRouter model ids are "<provider>/<model>". Examples:
+  #   anthropic/claude-haiku-4-5
+  #   openai/gpt-4o-mini
+  #   google/gemini-2.5-flash
+  #   meta-llama/llama-3.3-70b-instruct
+  #   deepseek/deepseek-chat-v3
+  #   mistralai/mistral-large-latest
+  #   x-ai/grok-2-1212
+  # Full list: https://openrouter.ai/models
+  text_model: anthropic/claude-haiku-4-5
+
+  # Optional: routing preferences (allow_fallbacks etc.)
+  # provider_preferences:
+  #   order: [Anthropic]
+  #   allow_fallbacks: true
+
+  # Optional: get on OpenRouter's leaderboard at https://openrouter.ai/rankings
+  # referer: https://yourapp.com
+  # x_title: "Your App Name"
+
+  system_prompt: "You are a customer-support analyst. Output a one-sentence summary under 20 words. No preamble."
+  input_column: ticket_text
+  output_column: summary
+
+  max_tokens: 100
+  temperature: 0.0
+  group_name: ai

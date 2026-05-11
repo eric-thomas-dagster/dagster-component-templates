@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-05-08",
+  "last_updated": "2026-05-11",
   "components": [
     {
       "id": "ab_controls",
@@ -8390,6 +8390,38 @@
       }
     },
     {
+      "id": "groq_llm",
+      "name": "GroqLLMComponent",
+      "category": "ai",
+      "description": "Native Groq LLM inference via the OpenAI-compatible Groq API. Drop-in peer of openai_llm / anthropic_llm / gemini_llm. Groq is uniquely fast \u2014 500+ tokens/sec on Llama-3.x / Mixtral / Gemma / DeepSeek-R1, generous free tier (no card required).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/groq_llm",
+      "tags": [
+        "ai",
+        "llm",
+        "groq",
+        "fast-inference",
+        "llama",
+        "mixtral",
+        "gemma",
+        "deepseek"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "openai>=1.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/groq_llm/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/groq_llm/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/groq_llm/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/groq_llm/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/groq_llm/requirements.txt",
+      "component_type": "dagster_component_templates.GroqLLMComponent"
+    },
+    {
       "id": "hash",
       "name": "HashComponent",
       "category": "transformation",
@@ -12494,6 +12526,36 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/openlineage_export_job/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/openlineage_export_job/requirements.txt",
       "component_type": "dagster_component_templates.OpenLineageExportJobComponent"
+    },
+    {
+      "id": "openrouter_llm",
+      "name": "OpenRouterLLMComponent",
+      "category": "ai",
+      "description": "Per-row LLM inference via OpenRouter \u2014 one API key gives access to 100+ models from Anthropic, OpenAI, Google, Meta/Llama, Mistral, DeepSeek, xAI, Cohere, with automatic fallback, caching, and unified billing.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/openrouter_llm",
+      "tags": [
+        "ai",
+        "llm",
+        "openrouter",
+        "router",
+        "multi-provider",
+        "fallback"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "openai>=1.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openrouter_llm/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openrouter_llm/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openrouter_llm/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openrouter_llm/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openrouter_llm/requirements.txt",
+      "component_type": "dagster_component_templates.OpenRouterLLMComponent"
     },
     {
       "id": "optimization",
@@ -18574,5 +18636,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 686
+  "total": 688
 }

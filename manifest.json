@@ -1135,7 +1135,7 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/audit_columns/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/audit_columns/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-11"
       }
@@ -3706,7 +3706,7 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/count_records/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/count_records/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-11"
       }
@@ -4313,7 +4313,7 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/data_masking/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/data_masking/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-11"
       }
@@ -7874,7 +7874,7 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/field_mapper/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/field_mapper/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-11"
       }
@@ -9601,7 +9601,7 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/hash/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/hash/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-11"
       }
@@ -12242,7 +12242,7 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/map_values/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/map_values/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-11"
       }
@@ -15950,7 +15950,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/record_id/requirements.txt",
       "icon": "Shuffle",
       "validation": {
-        "level": "code",
+        "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-11"
       }
@@ -16974,7 +16974,7 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/schema_validator/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/schema_validator/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-11"
       }
@@ -17938,7 +17938,7 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/smtp_send_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/smtp_send_asset/requirements.txt",
       "validation": {
-        "level": "live",
+        "level": "code",
         "evidence": "",
         "last_validated": "2026-05-11"
       }
@@ -18956,7 +18956,7 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/surrogate_key/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/transforms/surrogate_key/requirements.txt",
       "validation": {
-        "level": "code",
+        "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-11"
       }

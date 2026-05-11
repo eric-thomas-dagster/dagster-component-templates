@@ -1,0 +1,11 @@
+type: dagster_component_templates.SyntheticImageGeneratorComponent
+attributes:
+  asset_name: sample_images
+  output_dir: /tmp/synthetic_images
+  samples: default       # built-in: apple + blue car + green plant
+  # samples: custom
+  # images:
+  #   - { sku: A1, name: "apple", kind: fruit }
+  width: 320
+  height: 320
+  group_name: ingest

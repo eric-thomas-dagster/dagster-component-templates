@@ -1,0 +1,10 @@
+type: dagster_component_templates.SyntheticAudioGeneratorComponent
+attributes:
+  asset_name: sample_audio
+  output_dir: /tmp/synthetic_audio
+  samples: default        # built-in: 440 Hz, 880 Hz, 1760 Hz sine tones
+  sample_rate: 44100
+  # samples: custom
+  # clips:
+  #   - { clip_id: my_tone, frequency_hz: 523.25, duration_seconds: 2.0, kind: sine }
+  group_name: ingest

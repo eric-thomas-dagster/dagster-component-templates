@@ -1,0 +1,11 @@
+type: dagster_component_templates.ImageTransformAssetComponent
+attributes:
+  asset_name: thumbnails
+  upstream_asset_key: sample_images
+  image_path_column: file_path
+  output_dir: /tmp/thumbnails
+  resize_to: [128, 128]
+  preserve_aspect_ratio: true
+  convert_to: webp
+  quality: 80
+  group_name: media

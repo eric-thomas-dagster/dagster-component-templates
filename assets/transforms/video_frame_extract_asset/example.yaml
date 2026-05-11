@@ -1,0 +1,12 @@
+type: dagster_component_templates.VideoFrameExtractAssetComponent
+attributes:
+  asset_name: video_frames
+  upstream_asset_key: sample_videos
+  video_path_column: file_path
+  video_id_column: clip_id
+  output_dir: /tmp/video_frames
+  image_format: jpg
+  image_quality: 85
+  mode: every_seconds
+  every_seconds: 1.0
+  group_name: media

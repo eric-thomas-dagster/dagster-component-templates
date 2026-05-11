@@ -1,0 +1,10 @@
+type: dagster_component_templates.VideoAudioExtractAssetComponent
+attributes:
+  asset_name: video_audio
+  upstream_asset_key: sample_videos
+  video_path_column: file_path
+  output_dir: /tmp/video_audio
+  target_format: wav
+  sample_rate: 16000
+  channels: 1
+  group_name: media

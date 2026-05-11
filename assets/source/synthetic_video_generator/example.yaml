@@ -1,0 +1,6 @@
+type: dagster_component_templates.SyntheticVideoGeneratorComponent
+attributes:
+  asset_name: sample_videos
+  output_dir: /tmp/synthetic_videos
+  samples: default
+  group_name: ingest

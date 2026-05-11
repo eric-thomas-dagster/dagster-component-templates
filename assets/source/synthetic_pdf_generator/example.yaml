@@ -1,0 +1,12 @@
+type: dagster_component_templates.SyntheticPdfGeneratorComponent
+attributes:
+  asset_name: sample_documents
+  output_dir: /tmp/synthetic_pdfs
+  samples: default     # built-in 2-doc set (invoice + letter)
+  # samples: custom    # ...or define documents explicitly
+  # documents:
+  #   - doc_id: alpha
+  #     kind: invoice
+  #     title: "INVOICE #A1"
+  #     body: [ "Line 1", "Line 2", "Total: $100" ]
+  group_name: ingest

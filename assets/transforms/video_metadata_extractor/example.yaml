@@ -1,0 +1,6 @@
+type: dagster_component_templates.VideoMetadataExtractorComponent
+attributes:
+  asset_name: video_meta
+  upstream_asset_key: sample_videos
+  video_path_column: file_path
+  group_name: media

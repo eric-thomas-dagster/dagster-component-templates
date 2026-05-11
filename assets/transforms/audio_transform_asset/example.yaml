@@ -1,0 +1,11 @@
+type: dagster_component_templates.AudioTransformAssetComponent
+attributes:
+  asset_name: whisper_ready_audio
+  upstream_asset_key: raw_audio
+  audio_path_column: file_path
+  output_dir: /tmp/whisper_ready
+  target_format: wav
+  sample_rate: 16000
+  channels: 1
+  normalize: true
+  group_name: media

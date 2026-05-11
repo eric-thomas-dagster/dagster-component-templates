@@ -1,0 +1,9 @@
+type: dagster_component_templates.DataframeExtractFieldComponent
+attributes:
+  asset_name: top_label_per_image
+  upstream_asset_key: image_analysis
+  source_column: vision_labels    # column of list[{description, score, ...}]
+  target_column: top_label
+  index: 0
+  field: description
+  group_name: vision

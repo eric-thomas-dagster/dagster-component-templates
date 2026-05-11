@@ -1,0 +1,6 @@
+type: dagster_component_templates.ImageExifExtractorComponent
+attributes:
+  asset_name: image_metadata
+  upstream_asset_key: sample_images
+  image_path_column: file_path
+  group_name: media

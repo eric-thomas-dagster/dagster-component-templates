@@ -1,0 +1,8 @@
+type: dagster_component_templates.DataframeFlattenNestedColumnsComponent
+attributes:
+  asset_name: events_flat
+  upstream_asset_key: recent_errors
+  # Optional: limit to specific columns. Default = auto-detect dict/list columns.
+  # columns: [resource_labels, labels, json_payload]
+  # exclude_columns: [some_already_string_column]
+  group_name: warehouse

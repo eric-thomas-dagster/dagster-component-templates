@@ -1,0 +1,46 @@
+# Image EXIF Extractor
+
+Pull EXIF metadata from images. Adds columns for camera, capture settings, GPS, and the full EXIF dict.
+
+```yaml
+type: dagster_component_templates.ImageExifExtractorComponent
+attributes:
+  asset_name: image_metadata
+  upstream_asset_key: sample_images
+  image_path_column: file_path
+```
+
+## Added columns
+
+| Column | Source EXIF tag |
+|---|---|
+| `exif_width`, `exif_height` | PIL `Image.size` (works even on EXIF-less PNGs) |
+| `exif_make`, `exif_model`, `exif_software` | Camera body identification |
+| `exif_datetime_original` | When the photo was taken |
+| `exif_iso`, `exif_focal_length_mm`, `exif_exposure_time`, `exif_f_number` | Capture settings |
+| `exif_orientation` | EXIF orientation code (1-8); 1 is normal |
+| `exif_gps_lat`, `exif_gps_lon`, `exif_gps_altitude_m` | GPS in decimal degrees + meters |
+| `exif_raw` | Full dict of every parsed EXIF tag (JSON-serializable) |
+| `exif_error` | Per-row parse error (None on success) |
+
+## Use cases
+
+| Goal | What to do |
+|---|---|
+| **PII / compliance** — strip GPS before publishing | Check `exif_gps_lat is not None`; route to a redaction step |
+| **ML training filter** | `WHERE exif_iso < 800 AND exif_make = 'Canon'` |
+| **Date-bucket asset library** | Group by `DATE(exif_datetime_original)` |
+| **Audit camera fleet** | `GROUP BY exif_make, exif_model` for inventory |
+
+## Behavior
+
+- Works on any format Pillow opens (JPEG, TIFF, HEIC w/ `pillow-heif`, PNG, etc.)
+- PNG files typically have no EXIF — every `exif_*` column will be None but `exif_width`/`exif_height` still populate
+- Synthetic test images: `synthetic_image_generator` with default samples doesn't inject EXIF; for a complete demo use the standalone `synthetic_image_generator` plus actual camera photos, or extend the generator (see wave 2).
+
+## Sister components
+
+- [`image_transform_asset`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/transforms/image_transform_asset) — sibling: resize / crop / convert
+- [`vision_api_asset`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/ai/vision_api_asset) — Cloud Vision label / OCR
+- [`video_metadata_extractor`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/transforms/video_metadata_extractor) — same pattern for video files (ffprobe)
+- [`cloud_dlp_inspect_asset`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/ai/cloud_dlp_inspect_asset) — pair with this to detect PII in BOTH EXIF and image content

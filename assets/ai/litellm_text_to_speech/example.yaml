@@ -1,0 +1,21 @@
+type: dagster_component_templates.LitellmTextToSpeechComponent
+attributes:
+  asset_name: announcements_audio
+  upstream_asset_key: announcements
+  text_column: text
+  output_dir: /tmp/litellm_tts
+  output_filename_template: "{announcement_id}.mp3"
+
+  # OpenAI TTS — natural voices, low latency, 6 voices
+  model: openai/tts-1
+  voice: nova
+  api_key_env_var: OPENAI_API_KEY
+  response_format: mp3
+  speed: 1.0
+
+  # ElevenLabs — best quality, voice cloning
+  # model: elevenlabs/eleven_multilingual_v2
+  # voice: <eleven_voice_uuid>
+  # api_key_env_var: ELEVEN_API_KEY
+
+  group_name: ai_media

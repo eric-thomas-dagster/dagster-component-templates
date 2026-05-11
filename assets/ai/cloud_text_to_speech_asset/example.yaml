@@ -1,0 +1,13 @@
+type: dagster_component_templates.CloudTextToSpeechAssetComponent
+attributes:
+  asset_name: announcements_audio
+  upstream_asset_key: announcements
+  text_column: text
+  output_dir: /tmp/tts_audio
+  output_filename_template: "{announcement_id}.mp3"
+  language_code: en-US
+  voice_name: en-US-Neural2-D
+  audio_encoding: MP3
+  speaking_rate: 1.0
+  pitch: 0.0
+  group_name: ai_media

@@ -29,6 +29,7 @@ import os
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
@@ -281,6 +282,7 @@ def _build_reporting_defs(
 
 if _HAS_STATE_BACKED:
 
+    @dataclass
     class CommunityComponentInstallerComponent(StateBackedComponent, dg.Resolvable):
         """Install Dagster community components declared via YAML.
 
@@ -292,37 +294,12 @@ if _HAS_STATE_BACKED:
         https://github.com/eric-thomas-dagster/dagster-community-components-cli
         """
 
-        components: List[str] = Field(
-            description=(
-                "Community component IDs to install. See the registry: "
-                "https://dagster-community-ui.vercel.app/"
-            )
-        )
-        registry_url: Optional[str] = Field(
-            default=None,
-            description=(
-                "Override the default registry manifest URL. Useful for forks or "
-                "internal mirrors."
-            ),
-        )
-        install_pip_requirements: bool = Field(
-            default=True,
-            description=(
-                "If True, run `pip install -r requirements.txt` for each downloaded "
-                "component. Disable in environments where the runtime can't install "
-                "packages (e.g. read-only images)."
-            ),
-        )
-        asset_name: str = Field(
-            default="community_components_installed",
-            description="Name of the reporting asset that surfaces install state in the catalog.",
-        )
-        group_name: str = Field(
-            default="community_components",
-            description="Dagster asset group for the reporting asset.",
-        )
-
-        defs_state: DefsStateConfigArgs = field(default_factory=DefsStateConfigArgs)  # noqa: F821
+        components: List[str]
+        registry_url: Optional[str] = None
+        install_pip_requirements: bool = True
+        asset_name: str = "community_components_installed"
+        group_name: str = "community_components"
+        defs_state: ResolvedDefsStateConfig = field(default_factory=DefsStateConfigArgs.local_filesystem)
 
         @property
         def defs_state_config(self) -> DefsStateConfig:

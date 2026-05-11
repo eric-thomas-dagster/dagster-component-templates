@@ -13,6 +13,7 @@ Features
 from typing import Any, Dict, List, Optional
 
 import dagster as dg
+from pydantic import Field
 
 
 def _get_nested(obj: Any, path: str) -> Any:
@@ -165,59 +166,59 @@ class GraphQLAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         ```
     """
 
-    endpoint_env_var: str = dg.Field(
+    endpoint_env_var: str = Field(
         description="Env var name holding the GraphQL endpoint URL."
     )
-    api_key_env_var: Optional[str] = dg.Field(
+    api_key_env_var: Optional[str] = Field(
         default=None,
         description="Env var name holding the API key / token. Omit to disable auth.",
     )
-    auth_header: str = dg.Field(
+    auth_header: str = Field(
         default="Authorization",
         description="HTTP header name used for the API key.",
     )
-    auth_prefix: str = dg.Field(
+    auth_prefix: str = Field(
         default="Bearer",
         description='Prefix added before the key value, e.g. "Bearer". Set to "" for raw key.',
     )
-    queries: list = dg.Field(
+    queries: list = Field(
         description=(
             "List of query configs. Each entry must have a ``name`` (used as table name "
             "suffix) and ``query`` (GraphQL query string). Optional: ``variables`` (dict), "
             "``data_path`` (dot-separated path to the result array in the response)."
         )
     )
-    database_url_env_var: str = dg.Field(
+    database_url_env_var: str = Field(
         description="Env var name holding the SQLAlchemy database connection URL."
     )
-    target_schema: Optional[str] = dg.Field(
+    target_schema: Optional[str] = Field(
         default=None,
         description="Database schema to write tables into. Uses default schema if None.",
     )
-    if_exists: str = dg.Field(
+    if_exists: str = Field(
         default="replace",
         description='Behaviour when a table already exists: "replace", "append", or "fail".',
     )
-    paginate: bool = dg.Field(
+    paginate: bool = Field(
         default=False,
         description=(
             "If True, paginate results. Cursor-based pagination is attempted first "
             "(pageInfo.endCursor / pageInfo.hasNextPage). Falls back to integer page variable."
         ),
     )
-    page_size: int = dg.Field(
+    page_size: int = Field(
         default=100,
         description="Records per page when paginating.",
     )
-    max_pages: int = dg.Field(
+    max_pages: int = Field(
         default=100,
         description="Maximum pages to fetch per query as a safety cap.",
     )
-    group_name: Optional[str] = dg.Field(
+    group_name: Optional[str] = Field(
         default="graphql",
         description="Dagster asset group name shown in the UI.",
     )
-    asset_name: str = dg.Field(description="Dagster asset key name.")
+    asset_name: str = Field(description="Dagster asset key name.")
     include_preview_metadata: bool = Field(
         default=False,
         description=(
@@ -236,7 +237,7 @@ class GraphQLAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
-    deps: Optional[list] = dg.Field(
+    deps: Optional[list] = Field(
         default=None,
         description="Upstream asset keys for lineage.",
     )

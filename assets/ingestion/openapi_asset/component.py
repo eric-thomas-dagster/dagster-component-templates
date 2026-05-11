@@ -8,7 +8,7 @@ destination database table. Uses StateBackedComponent so the spec is only fetche
 once — code-server reloads are instant even for large specs.
 """
 import json
-from dataclasses import field
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 

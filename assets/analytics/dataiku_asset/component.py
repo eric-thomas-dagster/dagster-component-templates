@@ -380,54 +380,20 @@ if _HAS_STATE_BACKED:
             ```
         """
 
-        host_env_var: str = dg.Field(
-            description="Env var containing the Dataiku DSS host URL (e.g. https://dataiku.company.com)"
-        )
-        api_key_env_var: str = dg.Field(
-            description="Env var containing the Dataiku DSS API key"
-        )
-        project_keys: Optional[list[str]] = dg.Field(
-            default=None,
-            description="Specific project keys to include. Includes all projects if None.",
-        )
-        exclude_project_keys: Optional[list[str]] = dg.Field(
-            default=None,
-            description="Project keys to exclude (applied after project_keys filter).",
-        )
-        scenario_name_prefix: Optional[str] = dg.Field(
-            default=None,
-            description="Only include scenarios whose name starts with this prefix.",
-        )
-        exclude_scenario_ids: Optional[list[str]] = dg.Field(
-            default=None,
-            description="Scenario IDs to exclude.",
-        )
-        group_name: str = dg.Field(
-            default="dataiku",
-            description="Dagster asset group name for all generated assets.",
-        )
-        key_prefix: Optional[str] = dg.Field(
-            default=None,
-            description="Optional prefix segment for all generated asset keys.",
-        )
-        wait_for_completion: bool = dg.Field(
-            default=True,
-            description="If True, poll until the scenario finishes before returning.",
-        )
-        poll_interval_seconds: int = dg.Field(
-            default=10,
-            description="Seconds between status polls when wait_for_completion=True.",
-        )
-        scenario_timeout_seconds: int = dg.Field(
-            default=7200,
-            description="Maximum seconds to wait for a scenario to finish.",
-        )
-        assets_by_scenario_name: Optional[dict] = dg.Field(
-            default=None,
-            description="Override AssetSpec per scenario name. Value can be a single override dict or a list of dicts (one scenario → multiple assets).",
-        )
+        host_env_var: str
+        api_key_env_var: str
+        project_keys: Optional[list[str]] = None
+        exclude_project_keys: Optional[list[str]] = None
+        scenario_name_prefix: Optional[str] = None
+        exclude_scenario_ids: Optional[list[str]] = None
+        group_name: str = "dataiku"
+        key_prefix: Optional[str] = None
+        wait_for_completion: bool = True
+        poll_interval_seconds: int = 10
+        scenario_timeout_seconds: int = 7200
+        assets_by_scenario_name: Optional[dict] = None
         defs_state: ResolvedDefsStateConfig = field(
-            default_factory=ResolvedDefsStateConfig
+            default_factory=DefsStateConfigArgs.local_filesystem
         )
 
         @property
@@ -485,48 +451,21 @@ else:
         Upgrade to dagster>=1.8 to get StateBackedComponent caching.
         """
 
-        host_env_var: str = dg.Field(
-            description="Env var containing the Dataiku DSS host URL"
-        )
-        api_key_env_var: str = dg.Field(
-            description="Env var containing the Dataiku DSS API key"
-        )
-        project_keys: Optional[list[str]] = dg.Field(default=None)
-        exclude_project_keys: Optional[list[str]] = dg.Field(default=None)
-        scenario_name_prefix: Optional[str] = dg.Field(default=None)
-        exclude_scenario_ids: Optional[list[str]] = dg.Field(default=None)
-        group_name: str = dg.Field(default="dataiku")
-        key_prefix: Optional[str] = dg.Field(default=None)
-        wait_for_completion: bool = dg.Field(default=True)
-        poll_interval_seconds: int = dg.Field(default=10)
-        scenario_timeout_seconds: int = dg.Field(default=7200)
-        assets_by_scenario_name: Optional[dict] = dg.Field(default=None)
-
-        retry_policy_max_retries: Optional[int] = Field(
-
-            default=None,
-
-            description="Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
-
-        )
-
-        retry_policy_delay_seconds: Optional[int] = Field(
-
-            default=None,
-
-            description="Seconds between retries (default 1).",
-
-        )
-
-        retry_policy_backoff: str = Field(
-
-            default="exponential",
-
-            description="Backoff strategy: 'linear' or 'exponential'.",
-
-        )
-
-
+        host_env_var: str
+        api_key_env_var: str
+        project_keys: Optional[list[str]] = None
+        exclude_project_keys: Optional[list[str]] = None
+        scenario_name_prefix: Optional[str] = None
+        exclude_scenario_ids: Optional[list[str]] = None
+        group_name: str = "dataiku"
+        key_prefix: Optional[str] = None
+        wait_for_completion: bool = True
+        poll_interval_seconds: int = 10
+        scenario_timeout_seconds: int = 7200
+        assets_by_scenario_name: Optional[dict] = None
+        retry_policy_max_retries: Optional[int] = None
+        retry_policy_delay_seconds: Optional[int] = None
+        retry_policy_backoff: str = "exponential"
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             host = dg.EnvVar(self.host_env_var).get_value()
             api_key = dg.EnvVar(self.api_key_env_var).get_value()

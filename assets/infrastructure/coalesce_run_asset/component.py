@@ -15,6 +15,7 @@ from typing import Optional
 
 import dagster as dg
 import requests
+from pydantic import Field
 
 try:
     from dagster.components.component.state_backed_component import StateBackedComponent
@@ -44,9 +45,9 @@ class CoalesceResource(dg.ConfigurableResource):
         }
         ```
     """
-    api_token_env_var: str = dg.Field(description="Env var with Coalesce API token")
-    environment_id: str = dg.Field(description="Coalesce environment ID")
-    api_base_url: str = dg.Field(
+    api_token_env_var: str = Field(description="Env var with Coalesce API token")
+    environment_id: str = Field(description="Coalesce environment ID")
+    api_base_url: str = Field(
         default="https://app.coalescesoftware.io",
         description="Coalesce API base URL",
     )
@@ -301,14 +302,14 @@ else:
 
         Upgrade to dagster>=1.8 to get StateBackedComponent caching.
         """
-        environment_id: str = dg.Field(description="Coalesce environment ID")
-        api_token_env_var: str = dg.Field(description="Env var with Coalesce API token")
-        api_base_url: str = dg.Field(default="https://app.coalescesoftware.io")
-        asset_name_prefix: Optional[str] = dg.Field(default=None)
-        group_name: Optional[str] = dg.Field(default="coalesce")
-        poll_interval_seconds: int = dg.Field(default=10)
-        timeout_seconds: int = dg.Field(default=1800)
-        assets_by_node_name: Optional[dict] = dg.Field(default=None)
+        environment_id: str = Field(description="Coalesce environment ID")
+        api_token_env_var: str = Field(description="Env var with Coalesce API token")
+        api_base_url: str = Field(default="https://app.coalescesoftware.io")
+        asset_name_prefix: Optional[str] = Field(default=None)
+        group_name: Optional[str] = Field(default="coalesce")
+        poll_interval_seconds: int = Field(default=10)
+        timeout_seconds: int = Field(default=1800)
+        assets_by_node_name: Optional[dict] = Field(default=None)
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             token = dg.EnvVar(self.api_token_env_var).get_value()

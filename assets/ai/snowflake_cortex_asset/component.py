@@ -13,9 +13,10 @@ Supported Cortex functions
 - ``TRANSLATE``       — Translates text to a target language.
 - ``EXTRACT_ANSWER``  — Extracts an answer to a question from the text.
 """
-from typing import Optional
+from typing import Dict, List, Optional
 
 import dagster as dg
+from pydantic import Field
 
 
 class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -42,86 +43,86 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         ```
     """
 
-    snowflake_account_env_var: str = dg.Field(
+    snowflake_account_env_var: str = Field(
         default="SNOWFLAKE_ACCOUNT",
         description="Env var name holding the Snowflake account identifier.",
     )
-    snowflake_user_env_var: str = dg.Field(
+    snowflake_user_env_var: str = Field(
         default="SNOWFLAKE_USER",
         description="Env var name holding the Snowflake username.",
     )
-    snowflake_password_env_var: str = dg.Field(
+    snowflake_password_env_var: str = Field(
         default="SNOWFLAKE_PASSWORD",
         description="Env var name holding the Snowflake password.",
     )
-    snowflake_database: str = dg.Field(description="Snowflake database name.")
-    snowflake_schema: str = dg.Field(
+    snowflake_database: str = Field(description="Snowflake database name.")
+    snowflake_schema: str = Field(
         default="PUBLIC",
         description="Snowflake schema name.",
     )
-    snowflake_warehouse: Optional[str] = dg.Field(
+    snowflake_warehouse: Optional[str] = Field(
         default=None,
         description="Snowflake virtual warehouse to use. Uses the user default if None.",
     )
-    source_table: str = dg.Field(
+    source_table: str = Field(
         description="Source table name (fully qualified or relative to database/schema)."
     )
-    target_table: str = dg.Field(
+    target_table: str = Field(
         description="Target table where enriched results are written."
     )
-    cortex_function: str = dg.Field(
+    cortex_function: str = Field(
         default="COMPLETE",
         description=(
             "Cortex function to apply: COMPLETE, CLASSIFY_TEXT, SENTIMENT, SUMMARIZE, "
             "TRANSLATE, or EXTRACT_ANSWER."
         ),
     )
-    model: str = dg.Field(
+    model: str = Field(
         default="claude-3-5-sonnet",
         description=(
             "LLM model name for COMPLETE. Examples: claude-3-5-sonnet, mistral-large, llama3-70b."
         ),
     )
-    text_column: str = dg.Field(
+    text_column: str = Field(
         description="Column passed as the text argument to the Cortex function."
     )
-    output_column: str = dg.Field(
+    output_column: str = Field(
         default="cortex_result",
         description="Name of the output column added to the target table.",
     )
-    prompt_template: Optional[str] = dg.Field(
+    prompt_template: Optional[str] = Field(
         default=None,
         description=(
             "For COMPLETE: prompt template with a {text} placeholder. "
             "E.g. 'Summarize this in one sentence: {text}'"
         ),
     )
-    classify_categories: Optional[list] = dg.Field(
+    classify_categories: Optional[list] = Field(
         default=None,
         description="For CLASSIFY_TEXT: list of category strings to classify into.",
     )
-    translate_target_language: Optional[str] = dg.Field(
+    translate_target_language: Optional[str] = Field(
         default=None,
         description='For TRANSLATE: BCP-47 language code, e.g. "en", "fr", "de".',
     )
-    extract_answer_question: Optional[str] = dg.Field(
+    extract_answer_question: Optional[str] = Field(
         default=None,
         description="For EXTRACT_ANSWER: the question to answer from the text.",
     )
-    if_exists: str = dg.Field(
+    if_exists: str = Field(
         default="replace",
         description='Table write mode: "replace" (CREATE OR REPLACE) or "append" (INSERT INTO).',
     )
-    batch_size: int = dg.Field(
+    batch_size: int = Field(
         default=1000,
         description="Row batch size for logging progress (does not affect SQL execution).",
     )
-    group_name: Optional[str] = dg.Field(
+    group_name: Optional[str] = Field(
         default="ai_enrichment",
         description="Dagster asset group name shown in the UI.",
     )
-    asset_name: str = dg.Field(description="Dagster asset key name.")
-    deps: Optional[list] = dg.Field(
+    asset_name: str = Field(description="Dagster asset key name.")
+    deps: Optional[list] = Field(
         default=None,
         description="Upstream asset keys for lineage.",
     )

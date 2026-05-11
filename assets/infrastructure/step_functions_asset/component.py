@@ -323,49 +323,19 @@ if _HAS_STATE_BACKED:
             ```
         """
 
-        region_name: str = dg.Field(description="AWS region where state machines live")
-        aws_profile: Optional[str] = dg.Field(
-            default=None,
-            description="AWS named profile (uses default credential chain if omitted)",
-        )
-        role_arn: Optional[str] = dg.Field(
-            default=None,
-            description="IAM Role ARN to assume for cross-account access",
-        )
-        name_prefix: Optional[str] = dg.Field(
-            default=None,
-            description="Only include state machines whose names start with this prefix",
-        )
-        exclude_names: Optional[list[str]] = dg.Field(
-            default=None,
-            description="State machine names to exclude from asset generation",
-        )
-        group_name: str = dg.Field(
-            default="step_functions",
-            description="Dagster asset group name for all generated assets",
-        )
-        key_prefix: Optional[str] = dg.Field(
-            default=None,
-            description="Asset key prefix prepended to every state machine asset key",
-        )
-        wait_for_completion: bool = dg.Field(
-            default=True,
-            description="Poll until execution reaches a terminal status before returning",
-        )
-        poll_interval_seconds: int = dg.Field(
-            default=10,
-            description="Seconds between describe_execution polls",
-        )
-        execution_timeout_seconds: int = dg.Field(
-            default=3600,
-            description="Maximum seconds to wait for an execution before raising",
-        )
-        assets_by_state_machine_name: Optional[dict] = dg.Field(
-            default=None,
-            description="Override AssetSpec per state machine name. Value can be a single override dict or a list of dicts (one item → multiple assets).",
-        )
+        region_name: str
+        aws_profile: Optional[str] = None
+        role_arn: Optional[str] = None
+        name_prefix: Optional[str] = None
+        exclude_names: Optional[list[str]] = None
+        group_name: str = "step_functions"
+        key_prefix: Optional[str] = None
+        wait_for_completion: bool = True
+        poll_interval_seconds: int = 10
+        execution_timeout_seconds: int = 3600
+        assets_by_state_machine_name: Optional[dict] = None
         defs_state: ResolvedDefsStateConfig = field(
-            default_factory=ResolvedDefsStateConfig
+            default_factory=DefsStateConfigArgs.local_filesystem
         )
 
         @property
@@ -417,18 +387,17 @@ else:
         Upgrade to dagster>=1.8 to get StateBackedComponent caching.
         """
 
-        region_name: str = dg.Field(description="AWS region where state machines live")
-        aws_profile: Optional[str] = dg.Field(default=None)
-        role_arn: Optional[str] = dg.Field(default=None)
-        name_prefix: Optional[str] = dg.Field(default=None)
-        exclude_names: Optional[list[str]] = dg.Field(default=None)
-        group_name: str = dg.Field(default="step_functions")
-        key_prefix: Optional[str] = dg.Field(default=None)
-        wait_for_completion: bool = dg.Field(default=True)
-        poll_interval_seconds: int = dg.Field(default=10)
-        execution_timeout_seconds: int = dg.Field(default=3600)
-        assets_by_state_machine_name: Optional[dict] = dg.Field(default=None)
-
+        region_name: str
+        aws_profile: Optional[str] = None
+        role_arn: Optional[str] = None
+        name_prefix: Optional[str] = None
+        exclude_names: Optional[list[str]] = None
+        group_name: str = "step_functions"
+        key_prefix: Optional[str] = None
+        wait_for_completion: bool = True
+        poll_interval_seconds: int = 10
+        execution_timeout_seconds: int = 3600
+        assets_by_state_machine_name: Optional[dict] = None
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             sfn = _make_boto3_client(self.region_name, self.aws_profile, self.role_arn)
             machines = _list_state_machines(sfn, self.name_prefix, self.exclude_names)

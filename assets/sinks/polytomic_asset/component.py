@@ -376,47 +376,18 @@ if _HAS_STATE_BACKED:
             ```
         """
 
-        api_key_env_var: str = dg.Field(
-            description="Name of the environment variable containing the Polytomic API key."
-        )
-        organization_id: Optional[str] = dg.Field(
-            default=None,
-            description="Optional: filter syncs to a specific Polytomic organization ID.",
-        )
-        name_filter: Optional[str] = dg.Field(
-            default=None,
-            description="Optional substring filter applied to sync names.",
-        )
-        exclude_sync_ids: Optional[list[str]] = dg.Field(
-            default=None,
-            description="Optional list of Polytomic sync IDs to exclude.",
-        )
-        group_name: str = dg.Field(
-            default="polytomic",
-            description="Dagster asset group name assigned to all generated assets.",
-        )
-        key_prefix: Optional[str] = dg.Field(
-            default=None,
-            description="Optional prefix prepended to every generated asset key.",
-        )
-        wait_for_completion: bool = dg.Field(
-            default=True,
-            description="When True, each asset polls until the sync run completes.",
-        )
-        poll_interval_seconds: int = dg.Field(
-            default=15,
-            description="Seconds between status-poll requests while waiting for completion.",
-        )
-        sync_timeout_seconds: int = dg.Field(
-            default=7200,
-            description="Maximum seconds to wait before raising a timeout error.",
-        )
-        assets_by_sync_name: Optional[dict] = dg.Field(
-            default=None,
-            description="Override AssetSpec per sync name. Value can be a single override dict or a list of dicts (one sync → multiple assets).",
-        )
+        api_key_env_var: str
+        organization_id: Optional[str] = None
+        name_filter: Optional[str] = None
+        exclude_sync_ids: Optional[list[str]] = None
+        group_name: str = "polytomic"
+        key_prefix: Optional[str] = None
+        wait_for_completion: bool = True
+        poll_interval_seconds: int = 15
+        sync_timeout_seconds: int = 7200
+        assets_by_sync_name: Optional[dict] = None
         defs_state: ResolvedDefsStateConfig = field(
-            default_factory=ResolvedDefsStateConfig
+            default_factory=DefsStateConfigArgs.local_filesystem
         )
 
         @property
@@ -489,44 +460,19 @@ else:
 
         Upgrade to dagster>=1.8 to get StateBackedComponent caching.
         """
-        api_key_env_var: str = dg.Field(
-            description="Name of the environment variable containing the Polytomic API key."
-        )
-        organization_id: Optional[str] = dg.Field(default=None)
-        name_filter: Optional[str] = dg.Field(default=None)
-        exclude_sync_ids: Optional[list[str]] = dg.Field(default=None)
-        group_name: str = dg.Field(default="polytomic")
-        key_prefix: Optional[str] = dg.Field(default=None)
-        wait_for_completion: bool = dg.Field(default=True)
-        poll_interval_seconds: int = dg.Field(default=15)
-        sync_timeout_seconds: int = dg.Field(default=7200)
-        assets_by_sync_name: Optional[dict] = dg.Field(default=None)
-
-        retry_policy_max_retries: Optional[int] = Field(
-
-            default=None,
-
-            description="Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
-
-        )
-
-        retry_policy_delay_seconds: Optional[int] = Field(
-
-            default=None,
-
-            description="Seconds between retries (default 1).",
-
-        )
-
-        retry_policy_backoff: str = Field(
-
-            default="exponential",
-
-            description="Backoff strategy: 'linear' or 'exponential'.",
-
-        )
-
-
+        api_key_env_var: str
+        organization_id: Optional[str] = None
+        name_filter: Optional[str] = None
+        exclude_sync_ids: Optional[list[str]] = None
+        group_name: str = "polytomic"
+        key_prefix: Optional[str] = None
+        wait_for_completion: bool = True
+        poll_interval_seconds: int = 15
+        sync_timeout_seconds: int = 7200
+        assets_by_sync_name: Optional[dict] = None
+        retry_policy_max_retries: Optional[int] = None
+        retry_policy_delay_seconds: Optional[int] = None
+        retry_policy_backoff: str = "exponential"
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             api_key = dg.EnvVar(self.api_key_env_var).get_value()
             all_syncs = _list_syncs(api_key)

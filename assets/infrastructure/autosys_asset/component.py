@@ -828,110 +828,33 @@ if _HAS_STATE_BACKED:
         """
 
         # ── Connection — REST API (v12+) ──────────────────────────────────
-        host: str = dg.Field(description="AutoSys server hostname")
-        port: int = dg.Field(default=9443, description="AutoSys REST API port (default 9443)")
-        username_env_var: Optional[str] = dg.Field(
-            default=None,
-            description="Env var containing the Basic-auth username",
-        )
-        password_env_var: Optional[str] = dg.Field(
-            default=None,
-            description="Env var containing the Basic-auth password",
-        )
-        token_env_var: Optional[str] = dg.Field(
-            default=None,
-            description="Env var containing the X-AUTH-TOKEN header value",
-        )
-        use_ssl: bool = dg.Field(default=True, description="Use HTTPS for REST calls")
-        verify_ssl: bool = dg.Field(
-            default=True,
-            description="Verify SSL certificate (set False for self-signed certs in dev)",
-        )
-
+        host: str
+        port: int = 9443
+        username_env_var: Optional[str] = None
+        password_env_var: Optional[str] = None
+        token_env_var: Optional[str] = None
+        use_ssl: bool = True
+        verify_ssl: bool = True
         # ── Connection — CLI fallback ─────────────────────────────────────
-        use_cli: bool = dg.Field(
-            default=False,
-            description="Force CLI mode (autorep/sendevent) even when REST is configured",
-        )
-        autosys_instance: Optional[str] = dg.Field(
-            default=None,
-            description="AutoSys instance name — sets the AUTOSERV env var for CLI calls",
-        )
-
+        use_cli: bool = False
+        autosys_instance: Optional[str] = None
         # ── Discovery filters ─────────────────────────────────────────────
-        job_filter: str = dg.Field(
-            default="%",
-            description="AutoSys wildcard job filter, e.g. 'ETL_*' or 'FINANCE_*'",
-        )
-        exclude_jobs: Optional[list[str]] = dg.Field(
-            default=None,
-            description="Job names to exclude from the asset graph",
-        )
-        include_job_types: list[str] = dg.Field(
-            default_factory=lambda: ["CMD", "BOX", "FW"],
-            description="AutoSys job types to include (CMD, BOX, FW)",
-        )
-        machine_filter: Optional[str] = dg.Field(
-            default=None,
-            description="Only include jobs that run on this machine",
-        )
-
+        job_filter: str = "%"
+        exclude_jobs: Optional[list[str]] = None
+        include_job_types: list[str] = field(default_factory=lambda: ["CMD", "BOX", "FW"])
+        machine_filter: Optional[str] = None
         # ── Box job behaviour ─────────────────────────────────────────────
-        expand_box_jobs: bool = dg.Field(
-            default=True,
-            description=(
-                "Create individual assets for each child job inside a Box, "
-                "forming a sub-DAG. When False the Box is a single opaque asset."
-            ),
-        )
-        box_completion_asset: bool = dg.Field(
-            default=True,
-            description=(
-                "Create an additional '{box}_complete' gate asset that depends on "
-                "all children — signals the full Box has succeeded."
-            ),
-        )
-        map_conditions: bool = dg.Field(
-            default=True,
-            description=(
-                "Parse the AutoSys condition field and map s()/d() predicates "
-                "to Dagster asset dependencies. f() predicates are stored as "
-                "metadata only."
-            ),
-        )
-
+        expand_box_jobs: bool = True
+        box_completion_asset: bool = True
+        map_conditions: bool = True
         # ── Execution ─────────────────────────────────────────────────────
-        group_name: str = dg.Field(default="autosys", description="Dagster asset group name")
-        key_prefix: Optional[str] = dg.Field(
-            default=None,
-            description="Optional asset key prefix for all generated assets",
-        )
-        force_start: bool = dg.Field(
-            default=False,
-            description=(
-                "Use FORCE_STARTJOB (ignores AutoSys conditions and calendar) "
-                "instead of STARTJOB"
-            ),
-        )
-        poll_interval_seconds: int = dg.Field(
-            default=30,
-            description="Seconds between status polls while a job is running",
-        )
-        job_timeout_seconds: int = dg.Field(
-            default=7200,
-            description="Maximum seconds to wait for a job to complete before raising",
-        )
-
+        group_name: str = "autosys"
+        key_prefix: Optional[str] = None
+        force_start: bool = False
+        poll_interval_seconds: int = 30
+        job_timeout_seconds: int = 7200
         # ── Per-job overrides ──────────────────────────────────────────────
-        assets_by_job_name: Optional[dict] = dg.Field(
-            default=None,
-            description=(
-                "Override AssetSpec for specific AutoSys job names. Keys are AutoSys job "
-                "names; values are dicts (or lists of dicts for one-job→multiple-assets) "
-                "with optional fields: key, description, group_name, metadata, tags, kinds, deps."
-            ),
-        )
-
+        assets_by_job_name: Optional[dict] = None
         defs_state: ResolvedDefsStateConfig = field(
             default_factory=DefsStateConfigArgs.local_filesystem
         )
@@ -1082,29 +1005,28 @@ else:
         Upgrade to dagster>=1.8 to get StateBackedComponent caching.
         """
 
-        host: str = dg.Field(description="AutoSys server hostname")
-        port: int = dg.Field(default=9443)
-        username_env_var: Optional[str] = dg.Field(default=None)
-        password_env_var: Optional[str] = dg.Field(default=None)
-        token_env_var: Optional[str] = dg.Field(default=None)
-        use_ssl: bool = dg.Field(default=True)
-        verify_ssl: bool = dg.Field(default=True)
-        use_cli: bool = dg.Field(default=False)
-        autosys_instance: Optional[str] = dg.Field(default=None)
-        job_filter: str = dg.Field(default="%")
-        exclude_jobs: Optional[list[str]] = dg.Field(default=None)
-        include_job_types: list[str] = dg.Field(default_factory=lambda: ["CMD", "BOX", "FW"])
-        machine_filter: Optional[str] = dg.Field(default=None)
-        expand_box_jobs: bool = dg.Field(default=True)
-        box_completion_asset: bool = dg.Field(default=True)
-        map_conditions: bool = dg.Field(default=True)
-        group_name: str = dg.Field(default="autosys")
-        key_prefix: Optional[str] = dg.Field(default=None)
-        force_start: bool = dg.Field(default=False)
-        poll_interval_seconds: int = dg.Field(default=30)
-        job_timeout_seconds: int = dg.Field(default=7200)
-        assets_by_job_name: Optional[dict] = dg.Field(default=None)
-
+        host: str
+        port: int = 9443
+        username_env_var: Optional[str] = None
+        password_env_var: Optional[str] = None
+        token_env_var: Optional[str] = None
+        use_ssl: bool = True
+        verify_ssl: bool = True
+        use_cli: bool = False
+        autosys_instance: Optional[str] = None
+        job_filter: str = "%"
+        exclude_jobs: Optional[list[str]] = None
+        include_job_types: list[str] = field(default_factory=lambda: ["CMD", "BOX", "FW"])
+        machine_filter: Optional[str] = None
+        expand_box_jobs: bool = True
+        box_completion_asset: bool = True
+        map_conditions: bool = True
+        group_name: str = "autosys"
+        key_prefix: Optional[str] = None
+        force_start: bool = False
+        poll_interval_seconds: int = 30
+        job_timeout_seconds: int = 7200
+        assets_by_job_name: Optional[dict] = None
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             import tempfile
             from pathlib import Path as _Path

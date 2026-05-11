@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import dagster as dg
+from pydantic import Field
 
 # Constants used by dagster-dbt to store internal metadata on AssetSpecs.
 # These are stable keys — dagster-dbt uses them to round-trip unique_id back
@@ -308,14 +309,30 @@ try:
             return base_defs.map_resolved_asset_specs(enrich)
 
 except ImportError:
-    # dagster-dbt not installed — provide a helpful stub
+    # dagster-dbt not installed — provide a stub that accepts the same field
+    # shape so YAML validates; build_defs raises a helpful error.
     class DbtDocsEnrichedProjectComponent(dg.Component, dg.Model, dg.Resolvable):  # type: ignore[no-redef]
         """Stub: requires dagster-dbt to be installed.
 
         Install with: pip install dagster-dbt
         """
 
-        dbt_docs_url: Optional[str] = dg.Field(default=None)
+        # Mirror the DbtProjectComponent surface so example.yaml validates.
+        project: Optional[str] = Field(default=None)
+        cli_args: Optional[Any] = Field(default=None)
+        translation: Optional[Any] = Field(default=None)
+        select: Optional[str] = Field(default=None)
+        exclude: Optional[str] = Field(default=None)
+
+        # DbtDocsEnrichedProjectComponent's own enrichment flags
+        dbt_docs_url: Optional[str] = Field(default=None)
+        include_exposures: bool = Field(default=False)
+        include_metrics: bool = Field(default=False)
+        include_semantic_models: bool = Field(default=False)
+        include_contracts: bool = Field(default=False)
+        include_meta: bool = Field(default=False)
+        include_source_freshness: bool = Field(default=False)
+        include_doc_blocks: bool = Field(default=False)
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             raise ImportError(

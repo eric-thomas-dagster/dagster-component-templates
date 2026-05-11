@@ -25,7 +25,7 @@ preserved for ad-hoc analysis.
 Auto-detects the SOH delimiter (0x01 or pipe `|`).
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -42,7 +42,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field, field_validator
+from pydantic import Field
 
 
 # Common FIX tag → human name mapping (subset of the full ~1500-tag spec)
@@ -176,20 +176,13 @@ class FixMessageParserComponent(Component, Model, Resolvable):
         description="Column holding the raw FIX message (tag=value pairs separated by SOH or `|`).",
     )
 
-    msg_type_filter: Optional[List[str]] = Field(
+    msg_type_filter: Optional[List[Union[str, int]]] = Field(
         default=None,
         description=(
-            "Optional list of MsgType codes to emit. E.g. ['D', '8'] for orders + executions only. "
-            "Default: all. Numeric codes like 8 may be passed as ints in YAML — they're coerced to str."
+            "Optional list of MsgType codes to emit. E.g. [D, 8] for orders + executions only. "
+            "Default: all. Numeric codes like 8 may be passed as ints in YAML — they're coerced to str at runtime."
         ),
     )
-
-    @field_validator("msg_type_filter", mode="before")
-    @classmethod
-    def _coerce_msg_types(cls, v):
-        if v is None:
-            return v
-        return [str(x) for x in v]
 
     description: Optional[str] = Field(default=None)
     group_name: Optional[str] = Field(default=None)
@@ -200,7 +193,7 @@ class FixMessageParserComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
         upstream_key = AssetKey.from_user_string(self.upstream_asset_key)
         message_column = self.message_column
-        msg_type_filter = set(self.msg_type_filter) if self.msg_type_filter else None
+        msg_type_filter = {str(x) for x in self.msg_type_filter} if self.msg_type_filter else None
 
         @asset(
             name=asset_name,

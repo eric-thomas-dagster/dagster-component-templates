@@ -12,7 +12,12 @@ This component creates realistic fake data based on pre-defined schemas. Perfect
 
 ## Features
 
-- **13 Pre-defined Schemas**: Customers, Orders, Products, Transactions, Events, Sensors, Users, Subscriptions, Sparse Sensors, Customer Churn Metrics, Stripe Charges, Stripe Subscriptions, A/B Experiment
+- **24 Pre-defined Schemas** across business + industry-data + media domains:
+  - **Business / e-commerce**: Customers, Orders, Products, Transactions, Events, Sensors, Users, Subscriptions, Sparse Sensors, Customer Churn Metrics, Stripe Charges, Stripe Subscriptions, A/B Experiment, Support Tickets, Product Reviews, Employees
+  - **Healthcare / clinical**: FHIR Patients (R4/R5), HL7 v2 Messages
+  - **Fintech / trading**: ISO 20022 Payments (pacs.008/002), FIX 4.4 Messages, X12 EDI (270/271/835/837/850)
+  - **Insurance**: ACORD XML (PolicyAddRq / ChangeRq / ClaimsNotificationRq / QuoteInqRq)
+  - **Media**: Audio Samples (sine-tone WAVs), Image Prompts
 - **Configurable Size**: Generate 1 to 100,000 rows
 - **Reproducible**: Optional random seed for consistent data generation
 - **No External Dependencies**: Pure Python, no external APIs or services needed
@@ -150,13 +155,82 @@ Per-user exposure rows for stat-test demos (z-test, t-test, chi-squared):
   ```
   Set `lift: 0.0` to simulate a null result.
 
+### Support Tickets
+Multilingual customer-support tickets — useful for NLP/codec/email demos:
+- ticket_id, customer_id, channel, priority, created_at
+- `ticket_text` includes embedded German (Müller), Spanish (é/í), and other non-ASCII for codec_convert / language_detector / pii_detector demos
+- `expected_language` tag (en/de/fr/es/ja)
+
+### Product Reviews
+Customer review text with sentiment labels — for sentiment_analyzer / text_classifier:
+- review_id, product_id, customer_id, rating (1-5)
+- `review_text` with vocabulary aligned to rating (positive/negative/neutral)
+- `expected_sentiment` ground-truth tag
+
+### Employees
+HRIS-style employee records — for hris_normalizer demos:
+- employee_number, work_email, first_name, last_name
+- department, location, employment_status, employment_type, hire_dt
+- Vendor-style messy values (e.g. `Full-Time` / `FT` / `FULL_TIME`) to exercise `value_maps`
+
+### Audio Samples
+Sine-tone WAVs written to disk — for audio_transform / speech_to_text demos:
+- `output_dir` written with files; returns DataFrame of (path, sample_rate, channels, duration_seconds)
+- Configurable sample rate / channels / duration / frequencies
+
+### Image Prompts
+Text prompts for image-gen demos (nano_banana / gemini_image_generation):
+- prompt_id, prompt_text, style, aspect_ratio
+- Mix of nouns, adjectives, scene types
+
+### FHIR Patients (R4/R5)
+Full FHIR resource mix — for fhir_resource_normalizer demos:
+- One DataFrame row per resource, `resource` column is the parsed JSON dict
+- Each "patient" cycle emits: Patient + 2 Observations + Practitioner + Organization + Coverage + Claim
+- Covers 10 resource types end-to-end (Patient, Observation, Encounter, Condition, MedicationRequest, Claim, Coverage, Practitioner, Organization, Bundle)
+
+### HL7 v2 Messages
+Pipe-delimited HL7 v2.x messages — for hl7_v2_parser demos:
+- Rotates ADT^A01 (admit), ORU^R01 (lab result), ORM^O01 (order)
+- Each message includes the full segment chain (MSH + EVN + PID + PV1 + DG1 + AL1 / ORC + OBR + OBX)
+- Standard pipe / SOH encoding; auto-decodes RFC-2047
+
+### ISO 20022 Payments
+ISO 20022 pacs.008 (credit transfer) + pacs.002 (status report) XML — for iso20022_payment_parser:
+- One row per message; alternates between the two transaction shapes
+- Realistic IBANs, BICs, currencies (USD/EUR/GBP)
+- Status codes follow standard (ACCP / ACSC / RJCT / PDNG)
+
+### X12 EDI Messages
+ASC X12 EDI envelopes — for x12_edi_parser demos:
+- Rotates 5 transaction sets: 270 (eligibility inquiry), 271 (response), 835 (remittance), 837 (claim), 850 (purchase order)
+- Each wrapped in full ISA/GS/ST envelope
+- Configurable delimiter (`~` segment / `*` element default)
+
+### FIX Messages (4.4)
+Trading-protocol messages — for fix_message_parser demos:
+- Mix of NewOrderSingle (D) + ExecutionReport (8)
+- Proper FIX 4.4 wire format with `8=FIX.4.4`, `9=<body_length>`, `10=<checksum>`
+- Pipe-rendered by default for legible pandas output; canonical SOH (`\x01`) also supported
+
+### ACORD Messages (Insurance)
+ACORD insurance XML envelopes — for acord_xml_parser demos:
+- Rotates 4 envelopes: InsurancePolicyAddRq, InsurancePolicyChangeRq, ClaimsNotificationRq, InsurancePolicyQuoteInqRq
+- Realistic insureds (P&C carrier + Life), policies, claims, quotes
+- Full ACORD namespace + SignonRq boilerplate
+
 ## Configuration
 
 ### Required Fields
 
 - **asset_name** (string): Name of the asset to create
 - **schema_type** (enum): Type of data to generate
-  - Options: `customers`, `orders`, `products`, `transactions`, `events`, `sensors`, `users`, `subscriptions`, `sparse_sensors`, `customer_churn_metrics`, `stripe_charges`, `stripe_subscriptions`, `ab_experiment`
+  - Options:
+    - Business: `customers`, `orders`, `products`, `transactions`, `events`, `sensors`, `users`, `subscriptions`, `sparse_sensors`, `customer_churn_metrics`, `stripe_charges`, `stripe_subscriptions`, `ab_experiment`, `support_tickets`, `product_reviews`, `employees`
+    - Healthcare: `fhir_patients`, `hl7_messages`
+    - Fintech: `iso20022_payments`, `fix_messages`, `x12_messages`
+    - Insurance: `acord_messages`
+    - Media: `audio_samples`, `image_prompts`
 - **row_count** (integer): Number of rows to generate (1-100,000)
 
 ### Optional Fields

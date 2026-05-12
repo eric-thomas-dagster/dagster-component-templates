@@ -119,7 +119,10 @@ def _build_partitions_def(
 
     if not partition_type:
         return None
-    _values = [v.strip() for v in (partition_values or "").split(",") if v.strip()]
+    if isinstance(partition_values, (list, tuple)):
+        _values = [str(v).strip() for v in partition_values if str(v).strip()]
+    else:
+        _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
     if partition_type in ("daily", "weekly", "monthly", "hourly") and not partition_start:
         raise ValueError(
             f"partition_type={partition_type!r} requires partition_start (ISO date, e.g. '2024-01-01')."

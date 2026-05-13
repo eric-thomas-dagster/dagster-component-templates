@@ -12,6 +12,14 @@
       "default": true,
       "ui:widget": "checkbox"
     },
+    "precedence": {
+      "type": "string",
+      "label": "Rule Precedence",
+      "description": "How overlapping rule selections resolve. 'first_match' (default): narrow rules first, broad catch-alls last; first match wins. 'last_match': defaults first, overrides later; last match wins (CSS-cascade style).",
+      "required": false,
+      "default": "first_match",
+      "enum": ["first_match", "last_match"]
+    },
     "rules": {
       "type": "array",
       "items": {

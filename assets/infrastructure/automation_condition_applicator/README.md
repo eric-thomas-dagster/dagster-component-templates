@@ -372,22 +372,47 @@ Selections that match **zero assets** just no-op for that rule — no error, eva
 
 ## Fall-through priority
 
-Rules are evaluated **top to bottom**. The first rule whose `selection` matches an asset wins — narrow rules listed first, broad catch-alls last:
+Rules are evaluated top to bottom. The `precedence` flag decides which match wins when selections overlap. **Pick whichever mental model fits your team — both are supported.**
+
+### `precedence: "first_match"` (default) — iptables / firewall style
+
+The FIRST matching rule wins. List **narrow rules first, broad catch-alls last**:
 
 ```yaml
+precedence: first_match  # default
 rules:
-  # 1. Narrowest first — specific tag wins for matching assets
-  - selection: "tag:cadence=hourly"
+  - selection: "tag:cadence=hourly"   # narrow first → wins for matching assets
     cron: "0 * * * *"
 
-  # 2. Group-scoped — wins for silver assets not matched above
-  - selection: "group:silver"
+  - selection: "group:silver"          # narrower than '*' → wins for silver
     derive_from_upstreams: true
 
-  # 3. Catchall last — wins only if nothing above matched
-  - selection: "*"
+  - selection: "*"                      # broad LAST → catches everything else
     preset: eager
 ```
+
+⚠ **Pitfall**: putting `"*"` first shadows everything below. The first rule matches all assets, and no rule below ever fires.
+
+### `precedence: "last_match"` — CSS cascade / dbt config style
+
+The LAST matching rule wins. List **defaults first, overrides later**:
+
+```yaml
+precedence: last_match
+rules:
+  - selection: "*"                      # default first → applies to everything
+    preset: eager
+
+  - selection: "group:silver"          # override → wins for silver
+    derive_from_upstreams: true
+
+  - selection: "tag:cadence=hourly"   # final override → wins for hourly
+    cron: "0 * * * *"
+```
+
+This is the more "natural" mental model for users who think *"set the default, then override the special cases"* — like CSS, dbt config layering, or YAML inheritance.
+
+Same final result as `first_match`, just inverted rule ordering. Pick whichever feels natural.
 
 ### `preserve_existing: true` (default)
 
@@ -631,7 +656,8 @@ If a rule isn't applying:
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
 | `preserve_existing` | `bool` | no | `true` | Per-asset `automation_condition` always wins |
-| `rules` | `list[dict]` | yes | — | Ordered; first selection-match wins per asset |
+| `precedence` | `str` | no | `"first_match"` | `"first_match"` (narrow first, broad last) or `"last_match"` (defaults first, overrides later) |
+| `rules` | `list[dict]` | yes | — | Ordered; precedence determines which match wins per asset |
 
 ### Each rule
 

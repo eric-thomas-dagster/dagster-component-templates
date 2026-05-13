@@ -16312,6 +16312,41 @@
       }
     },
     {
+      "id": "archive_fetcher",
+      "name": "Archive Fetcher",
+      "category": "ingestion",
+      "description": "Download a remote archive (zip / tar.gz / tar.bz2 / tar.xz / gz / bz2), extract it, and emit a {filename: absolute_path} dict for downstream consumption. Pairs with rest_api_fetcher for binary/compressed data sources (MovieLens, IMDb, GTFS, Kaggle, USGS).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/archive_fetcher",
+      "tags": [
+        "ingestion",
+        "archive",
+        "zip",
+        "tar",
+        "gzip",
+        "download",
+        "fetcher"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/archive_fetcher/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/archive_fetcher/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/archive_fetcher/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/archive_fetcher/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/archive_fetcher/requirements.txt",
+      "icon": "Archive",
+      "validation": {
+        "level": "live",
+        "evidence": "Downloaded + extracted MovieLens ml-latest-small.zip (978KB, 5 files) end-to-end via dg launch",
+        "last_validated": "2026-05-12"
+      }
+    },
+    {
       "id": "rest_api_fetcher",
       "name": "REST API Fetcher",
       "category": "ingestion",
@@ -21060,5 +21095,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 688
+  "total": 689
 }

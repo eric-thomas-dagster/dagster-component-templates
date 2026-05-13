@@ -1,0 +1,9 @@
+type: dagster_component_templates.ArchiveFetcherComponent
+attributes:
+  asset_name: movielens_raw
+  url: https://files.grouplens.org/datasets/movielens/ml-latest-small.zip
+  extract_to: /tmp/movielens
+  flatten: true            # strip the top-level "ml-latest-small/" dir
+  include_glob: ["*.csv"]  # only emit the CSVs in the output dict
+  description: MovieLens (latest-small) — 100k ratings on 9k movies by 600 users
+  group_name: ingest

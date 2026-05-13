@@ -1,0 +1,28 @@
+type: dagster_component_templates.SapRFCIngestionComponent
+attributes:
+  asset_name: material_master
+  sap_rfc_resource_key: sap_ecc      # registered via sap_rfc_resource
+
+  mode: read_table         # 'read_table' or 'bapi'
+
+  # --- read_table mode ---
+  table_name: MARA
+  fields: [MATNR, MTART, MATKL, MEINS, ERSDA]
+  where_clause: "MTART = 'FERT' AND ERSDA >= '{partition_key}'"
+  delimiter: "|"
+  rowcount: 5000
+
+  # --- bapi mode (alternative) ---
+  # mode: bapi
+  # rfc_name: BAPI_MATERIAL_GET_LIST
+  # import_params:
+  #   MAXROWS: 1000
+  #   MATNRSELECTION:
+  #     - {SIGN: I, OPTION: EQ, MATNR_LOW: '000000000000012345'}
+  # result_table: MATNRLIST
+
+  partition_type: daily
+  partition_start: '2024-01-01'
+
+  group_name: sap_rfc
+  kinds: [sap, rfc, ecc]

@@ -1,0 +1,27 @@
+{
+  "component_type": "dagster_component_templates.SapRFCResourceComponent",
+  "description": "Register a connection to an SAP system over RFC (Remote Function Call) — for on-prem R/3 / ECC / S/4HANA installs without OData. Uses pyrfc + SAP NW RFC SDK.",
+  "category": "resource",
+  "icon": "si:sap",
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "sap_rfc"},
+    "ashost": {"type": "string", "label": "App Server Host", "required": false},
+    "sysnr": {"type": "string", "label": "System Number", "required": false},
+    "mshost": {"type": "string", "label": "Message Server Host", "required": false},
+    "msserv": {"type": "string", "label": "Message Server Service", "required": false},
+    "sysid": {"type": "string", "label": "System ID", "required": false},
+    "group": {"type": "string", "label": "Logon Group", "required": false},
+    "client": {"type": "string", "label": "Client", "required": true},
+    "user": {"type": "string", "label": "User", "required": true},
+    "passwd_env_var": {"type": "string", "label": "Password Env Var", "required": true},
+    "lang": {"type": "string", "label": "Language", "required": false, "default": "EN"},
+    "snc_qop": {"type": "string", "label": "SNC QoP", "required": false},
+    "snc_myname": {"type": "string", "label": "SNC My Name", "required": false},
+    "snc_partnername": {"type": "string", "label": "SNC Partner Name", "required": false},
+    "snc_lib": {"type": "string", "label": "SNC Library Path", "required": false},
+    "trace": {"type": "integer", "label": "Trace Level", "required": false, "default": 0},
+    "connect_timeout_seconds": {"type": "integer", "label": "Connect Timeout (s)", "required": false, "default": 30}
+  },
+  "tags": ["resource", "sap", "rfc", "bapi", "idoc", "ecc", "r3", "s4hana"],
+  "name": "SAP RFC Resource"
+}

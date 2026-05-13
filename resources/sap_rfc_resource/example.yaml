@@ -1,0 +1,23 @@
+type: dagster_component_templates.SapRFCResourceComponent
+attributes:
+  resource_key: sap_ecc
+
+  # --- Direct application-server connect ---
+  ashost: sapecc01.acme.com
+  sysnr: "00"
+
+  # --- Or message-server (load-balanced) connect ---
+  # mshost: sapms01.acme.com
+  # sysid: PRD
+  # group: PUBLIC
+
+  client: "100"
+  user: DAGSTER_RFC
+  passwd_env_var: SAP_RFC_PASSWORD
+  lang: EN
+
+  # Optional SNC (Secure Network Communication):
+  # snc_qop: "3"
+  # snc_myname: "CN=dagster-rfc,OU=IT,O=Acme"
+  # snc_partnername: "CN=sapecc01,OU=SAP,O=Acme"
+  # snc_lib: /usr/sap/sapcryptolib/libsapcrypto.so

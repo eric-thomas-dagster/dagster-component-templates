@@ -21506,6 +21506,112 @@
         "level": "code",
         "last_validated": "2026-05-13"
       }
+    },
+    {
+      "id": "sap_rfc_resource",
+      "name": "SAP RFC Resource",
+      "category": "resource",
+      "description": "Register a connection to an SAP system over RFC (Remote Function Call) \u2014 for on-prem R/3 / ECC / S/4HANA installs without OData. Uses pyrfc + SAP NW RFC SDK.",
+      "path": "resources/sap_rfc_resource",
+      "tags": [
+        "resource",
+        "sap",
+        "rfc",
+        "bapi",
+        "idoc",
+        "ecc",
+        "r3",
+        "s4hana"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sap_rfc_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sap_rfc_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sap_rfc_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sap_rfc_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sap_rfc_resource/requirements.txt",
+      "icon": "Server",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
+      "id": "sap_rfc_ingestion",
+      "name": "SAP RFC Ingestion",
+      "category": "ingestion",
+      "description": "Execute an SAP RFC / BAPI / RFC_READ_TABLE and materialize the result as a pandas DataFrame. Classic on-prem R/3 / ECC / S/4HANA integration path. Pairs with sap_rfc_resource.",
+      "path": "assets/ingestion/sap_rfc_ingestion",
+      "tags": [
+        "ingestion",
+        "sap",
+        "rfc",
+        "bapi",
+        "idoc",
+        "ecc",
+        "r3",
+        "s4hana"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sap_rfc_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sap_rfc_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sap_rfc_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sap_rfc_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sap_rfc_ingestion/requirements.txt",
+      "icon": "Database",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
+      "id": "sap_event_mesh_sensor",
+      "name": "SAP Event Mesh Sensor",
+      "category": "sensor",
+      "description": "Poll an SAP Event Mesh queue and trigger Dagster runs per event (job or dynamic-partition mode). REST polling against Event Mesh on BTP, OAuth client_credentials via XSUAA.",
+      "path": "sensors/sap_event_mesh_sensor",
+      "tags": [
+        "sensor",
+        "sap",
+        "event-mesh",
+        "event-driven",
+        "btp",
+        "amqp",
+        "s4hana"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sap_event_mesh_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sap_event_mesh_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sap_event_mesh_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sap_event_mesh_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sap_event_mesh_sensor/requirements.txt",
+      "icon": "Activity",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
+      "id": "sap_cpi_observation_sensor",
+      "name": "SAP CPI Observation Sensor",
+      "category": "observation",
+      "description": "Poll SAP Integration Suite (CPI) Message Processing Logs and emit AssetObservations per iFlow run. Cloud middleware observability without owning the iFlow in Dagster.",
+      "path": "sensors/sap_cpi_observation_sensor",
+      "tags": [
+        "observation",
+        "sensor",
+        "sap",
+        "cpi",
+        "integration-suite",
+        "btp",
+        "iflow"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sap_cpi_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sap_cpi_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sap_cpi_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sap_cpi_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/sap_cpi_observation_sensor/requirements.txt",
+      "icon": "Eye",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

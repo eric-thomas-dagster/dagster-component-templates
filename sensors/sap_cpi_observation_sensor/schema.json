@@ -1,0 +1,21 @@
+{
+  "component_type": "dagster_component_templates.SapCPIObservationSensorComponent",
+  "description": "Poll SAP Integration Suite (CPI) Message Processing Logs and emit AssetObservations per iFlow run. Cloud middleware observability without owning the iFlow in Dagster.",
+  "category": "observation",
+  "icon": "si:sap",
+  "attributes": {
+    "sensor_name": {"type": "string", "label": "Sensor Name", "required": true},
+    "tmn_host": {"type": "string", "label": "TMN Host", "required": true},
+    "iflow_id": {"type": "string", "label": "IntegrationFlow ID", "required": false},
+    "asset_key": {"type": "string", "label": "Asset Key", "required": true},
+    "oauth_token_resource_key": {"type": "string", "label": "OAuth Token Resource Key", "required": true},
+    "only_statuses": {"type": "array", "items": {"type": "string"}, "label": "Only Statuses", "required": false, "ui:widget": "list"},
+    "minimum_interval_seconds": {"type": "integer", "label": "Min Interval (s)", "required": false, "default": 60},
+    "request_timeout_seconds": {"type": "integer", "label": "Request Timeout (s)", "required": false, "default": 60},
+    "batch_size": {"type": "integer", "label": "Batch Size", "required": false, "default": 50},
+    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "ui:widget": "checkbox"},
+    "default_status": {"type": "string", "label": "Default Status", "required": false, "default": "stopped"}
+  },
+  "tags": ["observation", "sensor", "sap", "cpi", "integration-suite", "btp", "iflow"],
+  "name": "SAP CPI Observation Sensor"
+}

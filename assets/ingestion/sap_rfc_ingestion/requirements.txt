@@ -1,0 +1,3 @@
+pyrfc>=3.3
+pandas>=1.5.0
+# REQUIRES SAP NW RFC SDK — see sap_rfc_resource README.

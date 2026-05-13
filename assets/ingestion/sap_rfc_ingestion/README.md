@@ -1,0 +1,117 @@
+# SAP RFC Ingestion Component
+
+Execute SAP RFC (Remote Function Call) — BAPIs, custom Z-RFCs, or `RFC_READ_TABLE` — and materialize the result as a Dagster asset (pandas DataFrame). The classic integration path for on-prem **R/3 / ECC / S/4HANA** systems that don't expose OData.
+
+Pairs with [`sap_rfc_resource`](../../../resources/sap_rfc_resource/) which holds the connection. See its README for the SAP NetWeaver RFC SDK install steps.
+
+## Two modes
+
+### `read_table` — `RFC_READ_TABLE` wrapper
+
+The simplest path: dump any SAP table to a DataFrame.
+
+```yaml
+mode: read_table
+table_name: MARA          # Material master
+fields: [MATNR, MTART, MATKL, MEINS, ERSDA]
+where_clause: "MTART = 'FERT' AND ERSDA >= '{partition_key}'"
+```
+
+Returns a typed DataFrame parsed from the delimiter-separated SAP response.
+
+**Limits** (SAP server enforces):
+- Row width ≤ 512 chars after concatenation — split via `fields:`
+- Result size ~50K rows per call — paginate via `rowcount` + `rowskips`
+- `WHERE` clauses ≤ 75 chars each (component handles splitting automatically)
+
+### `bapi` — generic RFC/BAPI call
+
+For Business APIs (`BAPI_MATERIAL_GET_LIST`, `BAPI_USER_GETLIST`, custom Z-RFCs):
+
+```yaml
+mode: bapi
+rfc_name: BAPI_USER_GETLIST
+import_params:
+  MAX_ROWS: 1000
+result_table: USERLIST     # which return table to materialize as DataFrame
+```
+
+If the BAPI returns multiple tables/structures, pick one via `result_table:`. Otherwise the whole result is flattened to a 1-row DataFrame.
+
+## Common SAP tables for `read_table` mode
+
+| Table | What it holds | Domain |
+|---|---|---|
+| `MARA` | Material master | MM |
+| `MARC` | Material per plant | MM |
+| `MBEW` | Material valuation | MM |
+| `KNA1` | Customer master | SD |
+| `LFA1` | Vendor master | MM |
+| `BKPF` | Accounting doc headers | FI |
+| `BSEG` | Accounting doc line items | FI |
+| `VBAK` / `VBAP` | Sales order header / items | SD |
+| `EKKO` / `EKPO` | Purchase order header / items | MM |
+| `MKPF` / `MSEG` | Material doc header / items | MM |
+| `PA0001` / `PA0002` | HR employee org assignment + personal data | HCM |
+| `T001` / `T001W` | Company codes / plants | Foundation |
+
+## Common BAPIs
+
+| BAPI | Returns |
+|---|---|
+| `BAPI_MATERIAL_GET_LIST` | Material list with filter |
+| `BAPI_MATERIAL_GET_DETAIL` | Single material details |
+| `BAPI_CUSTOMER_GETLIST` | Customer list |
+| `BAPI_SALESORDER_GETLIST` | Sales orders |
+| `BAPI_PO_GETITEMS` | PO line items |
+| `BAPI_USER_GETLIST` | SAP users |
+| `BAPI_COMPANYCODE_GETLIST` | Company codes |
+| `BAPI_GL_ACC_GETLIST` | GL accounts |
+
+For comprehensive coverage: in SAP GUI, `SE37` → enter the BAPI name → see the import/export signature.
+
+## Fields
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `asset_name` | `str` | yes | |
+| `sap_rfc_resource_key` | `str` | yes | Key of a registered `sap_rfc_resource` |
+| `mode` | `str` | no | `read_table` (default) / `bapi` |
+| **read_table-only:** | | | |
+| `table_name` | `str` | conditional | |
+| `fields` | `list` | no | Column projection (recommended — tables are wide) |
+| `where_clause` | `str` | no | SAP-dialect SQL. Supports `{partition_key}` |
+| `delimiter` | `str` | no | Default `\|` |
+| `rowcount` / `rowskips` | `int` | no | Manual pagination |
+| **bapi-only:** | | | |
+| `rfc_name` | `str` | conditional | RFC/BAPI function name |
+| `import_params` | `dict` | no | RFC input parameters; values support `{partition_key}` |
+| `result_table` | `str` | no | Which result-table parameter to materialize |
+| Standard | | | partition / freshness / owners / tags / retry |
+
+## Partitioning by date column
+
+```yaml
+where_clause: "ERSDA >= '{partition_key}' AND ERSDA < '{partition_key_next}'"
+partition_type: daily
+partition_start: '2024-01-01'
+```
+
+`{partition_key}` is substituted at run time. Daily backfills become idempotent.
+
+## When to use RFC vs OData vs HANA SQL
+
+| Path | Use when |
+|---|---|
+| **This component** | On-prem R/3 / ECC / S/4HANA with no OData. BAPIs, IDocs, Z-RFCs. Fields available via tables (MARA / KNA1 / BSEG / …) |
+| [`odata_ingestion`](../odata_ingestion/) | S/4HANA Cloud or modern on-prem with Gateway OData services |
+| [`sap_hana_ingestion`](../sap_hana_ingestion/) | Direct HANA SQL access (HANA Cloud + HANA-backed on-prem) |
+
+For HANA-backed S/4HANA, HANA SQL is faster — but customer governance often disallows direct DB access, leaving RFC as the only path.
+
+## See also
+
+- [`sap_rfc_resource`](../../../resources/sap_rfc_resource/) — connection registration + SDK install instructions
+- [`odata_ingestion`](../odata_ingestion/) — modern S/4HANA Cloud alternative
+- [`sap_hana_ingestion`](../sap_hana_ingestion/) — HANA SQL alternative
+- Walkthrough: [`sap_rfc_pipeline.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/sap_rfc_pipeline.md)

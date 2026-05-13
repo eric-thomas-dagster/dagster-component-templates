@@ -1,0 +1,3 @@
+pyrfc>=3.3
+# REQUIRES SAP NetWeaver RFC SDK 7.50 (closed-source, download from SAP Support Portal).
+# Set SAPNWRFC_HOME + LD_LIBRARY_PATH (Linux) / DYLD_LIBRARY_PATH (macOS) before pip install pyrfc.

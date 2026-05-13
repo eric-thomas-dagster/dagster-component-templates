@@ -1,0 +1,16 @@
+type: dagster_component_templates.SapCPIObservationSensorComponent
+attributes:
+  sensor_name: cpi_orders_iflow_observer
+
+  tmn_host: https://my-tenant.it-cpi017.cfapps.us10-002.hana.ondemand.com
+  iflow_id: orders_to_s4hana       # leave blank to observe ALL iFlows
+
+  asset_key: sap_cpi/orders_to_s4hana   # asset that gets AssetObservations
+
+  oauth_token_resource_key: cpi_token
+
+  only_statuses: [COMPLETED, FAILED, RETRY]   # optional MPL status filter
+  minimum_interval_seconds: 60
+  batch_size: 50
+
+  default_status: stopped

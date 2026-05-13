@@ -1,0 +1,22 @@
+type: dagster_component_templates.SapEventMeshSensorComponent
+attributes:
+  sensor_name: sap_em_orders_sensor
+
+  messaging_host: https://my-tenant.messaging.eu10.hana.ondemand.com
+  queue_name: orders.received
+
+  oauth_token_resource_key: em_token      # registered separately via oauth_token_resource
+
+  batch_size: 10
+  minimum_interval_seconds: 30
+  peek: false           # 'true' = read-only (don't pop messages)
+
+  # --- Mode A: trigger a job per message ---
+  job_name: process_order_event_job
+
+  # --- Mode B: register a dynamic partition per message ---
+  # asset_selection: [process_invoice]
+  # dynamic_partition_name: invoice_events
+  # partition_key_template: "{message_id}"
+
+  default_status: stopped  # 'running' to start hot

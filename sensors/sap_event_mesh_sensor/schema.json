@@ -1,0 +1,25 @@
+{
+  "component_type": "dagster_component_templates.SapEventMeshSensorComponent",
+  "description": "Poll an SAP Event Mesh queue and trigger Dagster runs per event (job or dynamic-partition mode). REST polling against Event Mesh on BTP, OAuth client_credentials via XSUAA.",
+  "category": "sensor",
+  "icon": "si:sap",
+  "attributes": {
+    "sensor_name": {"type": "string", "label": "Sensor Name", "required": true},
+    "messaging_host": {"type": "string", "label": "Messaging Host", "required": true},
+    "queue_name": {"type": "string", "label": "Queue Name", "required": true},
+    "oauth_token_resource_key": {"type": "string", "label": "OAuth Token Resource Key", "required": true},
+    "peek": {"type": "boolean", "label": "Peek (don't pop)", "required": false, "default": false, "ui:widget": "checkbox"},
+    "batch_size": {"type": "integer", "label": "Batch Size", "required": false, "default": 10},
+    "minimum_interval_seconds": {"type": "integer", "label": "Min Interval (s)", "required": false, "default": 30},
+    "request_timeout_seconds": {"type": "integer", "label": "Request Timeout (s)", "required": false, "default": 60},
+    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "ui:widget": "checkbox"},
+    "job_name": {"type": "string", "label": "Job Name", "required": false},
+    "asset_selection": {"type": "array", "items": {"type": "string"}, "label": "Asset Selection", "required": false, "ui:widget": "list"},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false},
+    "partition_key_template": {"type": "string", "label": "Partition Key Template", "required": false, "default": "{message_id}"},
+    "tags_template": {"type": "object", "label": "Tags Template", "required": false, "ui:widget": "key-value"},
+    "default_status": {"type": "string", "label": "Default Status", "description": "'stopped' (default) or 'running'", "required": false, "default": "stopped"}
+  },
+  "tags": ["sensor", "sap", "event-mesh", "event-driven", "btp", "amqp", "s4hana"],
+  "name": "SAP Event Mesh Sensor"
+}

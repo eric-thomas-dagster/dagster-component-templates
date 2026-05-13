@@ -281,6 +281,26 @@ file_pattern: "data_\\d{8}\\.csv$"  # Matches data_20240115.csv
 2. **Frequent Uploads**: Increase `minimum_interval_seconds` for high-volume containers
 3. **Deep Hierarchies**: Avoid `recursive: true` on very deep directory trees unless necessary
 
+## Partition modes
+
+`partition_mode:` controls how detected ADLS files are surfaced to downstream assets:
+
+| Mode | Behavior | Pair with |
+|---|---|---|
+| `run_config` (default) | Embed full file metadata (storage_account/container/file_path/file_name/size/last_modified) in `RunRequest.run_config`. One ephemeral run per detected file. | `file_ingestion` with `from_run_config: {uri_template: "abfss://{container}@{storage_account}.dfs.core.windows.net/{file_path}"}` |
+| `dynamic_partition` | Register each new file path as a dynamic partition + yield `RunRequest(partition_key=<file_path>)`. Every processed file becomes a tracked, named partition you can reprocess from the UI. | `file_ingestion` with `partition_type: dynamic`, `dynamic_partition_name:` matching, and `from_run_config: {uri_template: "abfss://container@account.dfs.core.windows.net/{partition_key}"}` |
+| `both` | Does both. | Mixed flows |
+
+Required extras for `dynamic_partition` / `both`:
+
+```yaml
+partition_mode: dynamic_partition
+dynamic_partitions_name: "adls_files"
+partition_key_template: "{file_path}"   # default — ADLS file path inside the container
+```
+
+The canonical Azure URI scheme is `abfss://container@account.dfs.core.windows.net/path` (HTTPS over ADLS Gen2). `abfs://` is the HTTP variant; `az://` is the adlfs alias (requires `AZURE_STORAGE_ACCOUNT_NAME` env var).
+
 ## Requirements
 
 - Python 3.8+

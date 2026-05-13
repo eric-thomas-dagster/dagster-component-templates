@@ -267,6 +267,24 @@ export GOOGLE_APPLICATION_CREDENTIALS="/path/to/key.json"
 2. **Frequent Uploads**: Increase `minimum_interval_seconds` for high-volume buckets
 3. **Avoid Root Prefix**: Always specify a prefix when possible to reduce list overhead
 
+## Partition modes
+
+`partition_mode:` controls how detected GCS objects are surfaced to downstream assets:
+
+| Mode | Behavior | Pair with |
+|---|---|---|
+| `run_config` (default) | Embed full GCS metadata (bucket/name/etag/size/updated/content_type) in `RunRequest.run_config`. One ephemeral run per detected blob. | `file_ingestion` with `from_run_config: {uri_template: "gs://{bucket}/{name}"}` |
+| `dynamic_partition` | Register each new blob name as a dynamic partition + yield `RunRequest(partition_key=<name>)`. Every processed blob becomes a tracked, named partition you can reprocess from the UI. | `file_ingestion` with `partition_type: dynamic`, `dynamic_partition_name:` matching, and `from_run_config: {uri_template: "gs://my-bucket/{partition_key}"}` |
+| `both` | Does both. | Mixed flows |
+
+Required extras for `dynamic_partition` / `both`:
+
+```yaml
+partition_mode: dynamic_partition
+dynamic_partitions_name: "gcs_blobs"
+partition_key_template: "{name}"     # default — bare blob name (no scheme)
+```
+
 ## Requirements
 
 - Python 3.8+

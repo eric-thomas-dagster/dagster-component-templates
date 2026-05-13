@@ -1,0 +1,224 @@
+{
+  "component_type": "dagster_component_templates.FileIngestionComponent",
+  "description": "Unified tabular-file ingestion — reads CSV / TSV / JSON / JSONL / Parquet / Excel into a pandas DataFrame. Three mutually-exclusive input modes: file_path (fixed local or fsspec URI), from_upstream (resolve from upstream asset's dict), or from_run_config (sensor-injected RunConfig with optional {partition_key} interpolation for dynamic-partition flows).",
+  "category": "ingestion",
+  "icon": "ArrowUpFromLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "Loaded DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "required": true
+    },
+    "format": {
+      "type": "string",
+      "label": "Format",
+      "description": "File format: auto | csv | tsv | json | jsonl | parquet | excel. Default 'auto' inspects the URI extension.",
+      "required": false,
+      "default": "auto",
+      "enum": ["auto", "csv", "tsv", "json", "jsonl", "parquet", "excel"]
+    },
+    "file_path": {
+      "type": "string",
+      "label": "File Path",
+      "description": "Path or fsspec URI. Local (/tmp/x.csv) and remote (s3://, gs://, abfss://) both work. Mutually exclusive with from_upstream / from_run_config.",
+      "required": false,
+      "default": null
+    },
+    "from_upstream": {
+      "type": "object",
+      "label": "From Upstream",
+      "description": "Resolve path(s) from an upstream asset's dict value. Shape: {asset: <key>, dict_key: \"foo.csv\"} | {asset: <key>, dict_keys: [...]} | {asset: <key>, dict_key_pattern: \"*.csv\", combine: concat|concat_with_source}",
+      "required": false,
+      "default": null
+    },
+    "from_run_config": {
+      "type": "object",
+      "label": "From Run Config",
+      "description": "Resolve URI from sensor-injected RunConfig. Shape: {uri_template: \"s3://{bucket}/{key}\"}. The Config class is built from {field} placeholders. {partition_key} is sourced from context.partition_key (not RunConfig) — pair with partition_type: dynamic for dynamic-partition flows.",
+      "required": false,
+      "default": null
+    },
+    "delimiter": {
+      "type": "string",
+      "label": "Delimiter",
+      "description": "CSV delimiter character",
+      "required": false,
+      "default": ","
+    },
+    "encoding": {
+      "type": "string",
+      "label": "Encoding",
+      "description": "File encoding",
+      "required": false,
+      "default": "utf-8"
+    },
+    "skip_rows": {
+      "type": "integer",
+      "label": "Skip Rows",
+      "description": "Number of rows to skip at the start",
+      "required": false,
+      "default": 0
+    },
+    "header_row": {
+      "type": "integer",
+      "label": "Header Row",
+      "description": "Row number to use as column names (0-indexed, None for no header)",
+      "required": false,
+      "default": 0
+    },
+    "columns_to_read": {
+      "type": "string",
+      "label": "Columns To Read",
+      "description": "Comma-separated list of column names to read (empty = all)",
+      "required": false,
+      "default": ""
+    },
+    "dtype_mapping": {
+      "type": "string",
+      "label": "Dtype Mapping",
+      "description": "Column dtypes as JSON string",
+      "required": false,
+      "default": ""
+    },
+    "parse_dates": {
+      "type": "string",
+      "label": "Parse Dates",
+      "description": "Comma-separated list of columns to parse as dates",
+      "required": false,
+      "default": ""
+    },
+    "cache_to_parquet": {
+      "type": "boolean",
+      "label": "Cache To Parquet",
+      "description": "Cache the loaded data to a local parquet for faster re-reads",
+      "required": false,
+      "default": false
+    },
+    "parquet_path": {
+      "type": "string",
+      "label": "Parquet Path",
+      "description": "Path for the parquet cache (auto-generated if empty)",
+      "required": false,
+      "default": ""
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include a Markdown preview of the head of the DataFrame in materialization metadata",
+      "required": false,
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows in the preview metadata when include_preview_metadata is true",
+      "required": false,
+      "default": 25
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": ""
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group",
+      "required": false,
+      "default": ""
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Asset owners — list of team:name or email addresses",
+      "required": false,
+      "default": null
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Additional key-value tags",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Asset kinds for the Dagster catalog. Auto-inferred from asset_name if unset.",
+      "required": false,
+      "default": null
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "description": "Cron schedule for the freshness policy",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "description": "Upstream asset keys (lineage-only)",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "daily | weekly | monthly | hourly | static | multi | dynamic | None",
+      "required": false,
+      "default": null
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date (ISO) for time-based partitions",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for the DynamicPartitionsDefinition (when partition_type=dynamic). Must match the sensor's dynamic_partitions_name.",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Max retries on asset failure",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Backoff strategy: linear | exponential",
+      "required": false,
+      "default": "exponential"
+    }
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "component_type": "dagster_component_templates.ArchiveFetcherComponent",
+  "description": "Download a remote archive (zip / tar / tar.gz / tar.bz2 / tar.xz / gz / bz2), extract it, and emit a {filename: absolute_path_or_uri} dict for downstream consumption. Supports local paths and remote URIs (s3://, gs://, abfss://, az://) via fsspec.",
+  "category": "ingestion",
+  "icon": "Archive",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dict",
+      "description": "{filename: absolute_path_or_uri} mapping of extracted files"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset",
+      "required": true
+    },
+    "url": {
+      "type": "string",
+      "label": "URL",
+      "description": "URL of the archive to download (http / https / ftp)",
+      "required": true
+    },
+    "extract_to": {
+      "type": "string",
+      "label": "Extract To",
+      "description": "Destination directory. Local (/tmp/foo, file:///tmp/foo) or remote URI (s3://bucket/prefix/, gs://bucket/prefix/, abfss://container@account.dfs.core.windows.net/prefix/, abfs://..., az://container/prefix/). For remote, archive is extracted to a local temp dir then uploaded via fsspec. Default: /tmp/<asset_name>/",
+      "required": false,
+      "default": null
+    },
+    "archive_type": {
+      "type": "string",
+      "label": "Archive Type",
+      "description": "Override for archive format. Auto-detected from URL extension if omitted.",
+      "required": false,
+      "default": null,
+      "enum": ["zip", "tar", "tar.gz", "tar.bz2", "tar.xz", "gz", "bz2"]
+    },
+    "flatten": {
+      "type": "boolean",
+      "label": "Flatten",
+      "description": "If all entries share a single top-level directory, strip it (matches the common `unzip` mental model)",
+      "required": false,
+      "default": false
+    },
+    "include_glob": {
+      "type": "array",
+      "label": "Include Glob",
+      "description": "List of fnmatch patterns (e.g. [\"*.csv\", \"*.tsv\"]) restricting which files appear in the output dict. Everything still extracts to disk; only the dict + uploads (for remote destinations) are filtered.",
+      "required": false,
+      "default": null
+    },
+    "timeout": {
+      "type": "integer",
+      "label": "Timeout",
+      "description": "HTTP timeout in seconds for the download",
+      "required": false,
+      "default": 300
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify SSL",
+      "description": "Whether to verify SSL certificates on the download",
+      "required": false,
+      "default": true
+    },
+    "headers": {
+      "type": "object",
+      "label": "Headers",
+      "description": "Optional HTTP headers for the download — YAML dict or JSON string. Useful for Authorization, User-Agent, etc.",
+      "required": false,
+      "default": null
+    },
+    "cleanup_archive": {
+      "type": "boolean",
+      "label": "Cleanup Archive",
+      "description": "If true, delete the downloaded archive after extraction",
+      "required": false,
+      "default": true
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group",
+      "required": false,
+      "default": null
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Asset tags",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Asset owners",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Asset kinds",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "description": "Upstream asset keys (lineage-only)",
+      "required": false,
+      "default": null
+    }
+  }
+}

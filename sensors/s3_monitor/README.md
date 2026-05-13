@@ -300,6 +300,27 @@ aws sts get-caller-identity
 3. **Pagination**: The sensor automatically paginates through all matching objects — very large result sets increase evaluation time
 4. **Avoid Root Prefix**: Always specify a prefix when possible to reduce list overhead
 
+## Partition modes
+
+`partition_mode:` controls how detected S3 objects are surfaced to downstream assets:
+
+| Mode | Behavior | Pair with |
+|---|---|---|
+| `run_config` (default) | Embed full S3 metadata (bucket/key/etag/size/last_modified) in `RunRequest.run_config`. One ephemeral run per detected object. | `file_ingestion` with `from_run_config: {uri_template: "s3://{bucket}/{key}"}` |
+| `dynamic_partition` | Register each new key as a dynamic partition via `instance.add_dynamic_partitions(...)`, then yield `RunRequest(partition_key=<key>)`. **Every processed file becomes a tracked, named partition you can reprocess from the UI.** | `file_ingestion` with `partition_type: dynamic`, `dynamic_partition_name:` matching, and `from_run_config: {uri_template: "s3://my-bucket/{partition_key}"}` |
+| `both` | Does both — most info, but the downstream asset's Config class must accept the RunConfig fields. | Mixed flows |
+
+Required extras for `dynamic_partition` / `both`:
+
+```yaml
+partition_mode: dynamic_partition
+dynamic_partitions_name: "s3_keys"            # must match downstream asset's dynamic_partition_name
+partition_key_template: "{key}"               # default — bare S3 key as partition name
+# partition_key_template: "s3://{bucket}/{key}"  # full URI (but '://' breaks Dagster's filesystem IO manager — only safe with S3-backed IO managers)
+```
+
+See `examples/setup_s3_pipeline_demo.sh` + `examples/s3_pipeline.md` in `dagster-community-components-cli` for an end-to-end Minio-backed demo.
+
 ## Requirements
 
 - Python 3.8+

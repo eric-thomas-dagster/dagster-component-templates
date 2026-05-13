@@ -71,6 +71,14 @@
       "default": true,
       "ui:widget": "checkbox"
     },
+    "limit": {
+      "type": "integer",
+      "label": "Limit",
+      "description": "Keep only the first N rows after sorting (sort + head in one step). Use this to compute a Top-N: sort by score desc, set limit: 250. Applied after reset_index.",
+      "required": false,
+      "default": null,
+      "minimum": 1
+    },
     "group_name": {
       "type": "string",
       "label": "Group Name",

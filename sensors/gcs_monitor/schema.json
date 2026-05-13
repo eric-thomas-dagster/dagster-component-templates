@@ -70,6 +70,28 @@
       "description": "Default Status",
       "required": false,
       "default": "running"
+    },
+    "partition_mode": {
+      "type": "string",
+      "label": "Partition Mode",
+      "description": "How detected GCS objects are surfaced. 'run_config' (default), 'dynamic_partition' (registers each new blob name as a dynamic partition), or 'both'. Pair with file_ingestion's matching input mode.",
+      "required": false,
+      "default": "run_config",
+      "enum": ["run_config", "dynamic_partition", "both"]
+    },
+    "dynamic_partitions_name": {
+      "type": "string",
+      "label": "Dynamic Partitions Name",
+      "description": "Required when partition_mode is 'dynamic_partition' or 'both'.",
+      "required": false,
+      "default": null
+    },
+    "partition_key_template": {
+      "type": "string",
+      "label": "Partition Key Template",
+      "description": "Template for the partition key. Fields: {bucket}, {name}, {prefix}. Default {name} is the bare blob name.",
+      "required": false,
+      "default": "{name}"
     }
   },
   "tags": [

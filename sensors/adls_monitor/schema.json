@@ -84,6 +84,28 @@
       "description": "Default Status",
       "required": false,
       "default": "running"
+    },
+    "partition_mode": {
+      "type": "string",
+      "label": "Partition Mode",
+      "description": "How detected ADLS files are surfaced. 'run_config' (default), 'dynamic_partition' (registers each new file path as a dynamic partition), or 'both'. Pair with file_ingestion's matching input mode.",
+      "required": false,
+      "default": "run_config",
+      "enum": ["run_config", "dynamic_partition", "both"]
+    },
+    "dynamic_partitions_name": {
+      "type": "string",
+      "label": "Dynamic Partitions Name",
+      "description": "Required when partition_mode is 'dynamic_partition' or 'both'.",
+      "required": false,
+      "default": null
+    },
+    "partition_key_template": {
+      "type": "string",
+      "label": "Partition Key Template",
+      "description": "Template for the partition key. Fields: {storage_account}, {container}, {file_path}, {file_name}. Default {file_path} is the ADLS file path inside the container.",
+      "required": false,
+      "default": "{file_path}"
     }
   },
   "tags": [

@@ -144,6 +144,16 @@ class SortComponent(Component, Model, Resolvable):
         description="Where to place NaN values: 'first' or 'last'",
     )
     reset_index: bool = Field(default=True, description="Reset the index after sorting")
+    limit: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description=(
+            "Keep only the first N rows after sorting (i.e. sort + head in one "
+            "step). Use this to compute a Top-N: sort by score desc, set "
+            "limit: 250. Applied after reset_index, so the resulting index "
+            "is 0..N-1."
+        ),
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -284,6 +294,7 @@ class SortComponent(Component, Model, Resolvable):
         ascending_per_column = self.ascending_per_column
         na_position = self.na_position
         do_reset_index = self.reset_index
+        row_limit = self.limit
         group_name = self.group_name
 
         partitions_def = _build_partitions_def(
@@ -364,7 +375,11 @@ group_name=group_name,
             result = upstream.sort_values(by=by, ascending=asc, na_position=na_position)
             if do_reset_index:
                 result = result.reset_index(drop=True)
-            context.log.info(f"Sorted {len(result)} rows by {by}")
+            if row_limit is not None and len(result) > row_limit:
+                result = result.head(row_limit)
+                context.log.info(f"Sorted then limited to top {row_limit} rows by {by}")
+            else:
+                context.log.info(f"Sorted {len(result)} rows by {by}")
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[

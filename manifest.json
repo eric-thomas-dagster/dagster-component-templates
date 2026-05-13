@@ -5211,6 +5211,31 @@
       }
     },
     {
+      "id": "dataframe_to_avro",
+      "name": "DataFrame to Avro",
+      "category": "sink",
+      "description": "Write a pandas DataFrame as Avro to a local path or fsspec URI (s3://, gs://, abfss://, gs://). Schema is inferred from pandas dtypes (nullable unions); pass explicit avro_schema to override. Companion to dataframe_to_parquet, but for Kafka/EH-ecosystem consumers expecting Avro.",
+      "path": "assets/sinks/dataframe_to_avro",
+      "tags": [
+        "sink",
+        "dataframe",
+        "avro",
+        "fastavro",
+        "fsspec",
+        "streaming"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_avro/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_avro/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_avro/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_avro/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_avro/requirements.txt",
+      "icon": "ArrowDownToLine",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
       "id": "dataframe_to_parquet",
       "name": "DataFrame to Parquet",
       "category": "sink",
@@ -21105,5 +21130,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 689
+  "total": 690
 }

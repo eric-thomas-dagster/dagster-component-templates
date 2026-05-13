@@ -195,11 +195,11 @@ def _build_partitions_def(
     raise ValueError(f"unknown partition_type: {partition_type!r}")
 
 
-_SUPPORTED_FORMATS = ("auto", "csv", "tsv", "json", "jsonl", "parquet", "excel")
+_SUPPORTED_FORMATS = ("auto", "csv", "tsv", "json", "jsonl", "parquet", "excel", "avro", "orc", "feather", "fixed_width")
 
 
 def _detect_format_from_uri(uri: str) -> str:
-    """Pick a pandas reader from a URI's extension. Strips compound `.gz`/`.bz2`."""
+    """Pick a reader from a URI's extension. Strips compound `.gz`/`.bz2`."""
     lower = uri.lower()
     if lower.endswith((".gz", ".bz2", ".xz", ".zip")):
         lower = lower.rsplit(".", 1)[0]
@@ -213,6 +213,12 @@ def _detect_format_from_uri(uri: str) -> str:
         (".pq", "parquet"),
         (".xlsx", "excel"),
         (".xls", "excel"),
+        (".avro", "avro"),
+        (".orc", "orc"),
+        (".feather", "feather"),
+        (".arrow", "feather"),
+        (".ipc", "feather"),
+        # Fixed-width can't be auto-detected by extension; users must set explicitly.
     ):
         if lower.endswith(ext):
             return fmt
@@ -222,9 +228,33 @@ def _detect_format_from_uri(uri: str) -> str:
     )
 
 
+def _read_avro(uri: str, columns_to_read) -> pd.DataFrame:
+    """Read an Avro file (local path or fsspec URI) into a pandas DataFrame.
+
+    Requires `fastavro` (and the matching fsspec driver for remote URIs:
+    s3fs / gcsfs / adlfs). The file's writer-side schema is whatever the
+    producer (e.g., Event Hubs Capture) wrote — we just decode records.
+    """
+    import fastavro
+    import fsspec
+
+    with fsspec.open(uri, "rb") as f:
+        reader = fastavro.reader(f)
+        rows = list(reader)
+    df = pd.DataFrame(rows)
+    if columns_to_read:
+        # Match pandas behavior: keep only requested columns, error if missing.
+        missing = set(columns_to_read) - set(df.columns)
+        if missing:
+            raise KeyError(f"columns_to_read missing from Avro file: {sorted(missing)}")
+        df = df[list(columns_to_read)]
+    return df
+
+
 def _read_file(uri: str, fmt: str, *, delimiter: str, encoding: str,
                skip_rows: int, header_row: Optional[int],
-               columns_to_read, dtype_mapping, parse_dates) -> pd.DataFrame:
+               columns_to_read, dtype_mapping, parse_dates,
+               fixed_width_colspecs=None, fixed_width_names=None) -> pd.DataFrame:
     """Dispatch to the right pandas reader based on `fmt`."""
     if fmt == "auto":
         fmt = _detect_format_from_uri(uri)
@@ -249,7 +279,47 @@ def _read_file(uri: str, fmt: str, *, delimiter: str, encoding: str,
         return pd.read_excel(uri, skiprows=skip_rows, header=header_row,
                              usecols=columns_to_read, dtype=dtype_mapping,
                              parse_dates=parse_dates)
+    if fmt == "avro":
+        return _read_avro(uri, columns_to_read)
+    if fmt == "orc":
+        # ORC = the Hadoop/Hive columnar format. pyarrow.orc is the reader;
+        # pandas has had read_orc since 1.5. Use pandas directly so we
+        # consistently return a DataFrame.
+        return pd.read_orc(uri, columns=columns_to_read)
+    if fmt == "feather":
+        # Apache Arrow IPC / Feather v2. Fastest format for pandas↔pyarrow
+        # round-trips. pandas.read_feather supports remote URIs via pyarrow.
+        return pd.read_feather(uri, columns=columns_to_read)
+    if fmt == "fixed_width":
+        # Mainframe-style fixed-width text. Pass colspecs/names via the
+        # component's `fixed_width_colspecs` and `fixed_width_names` fields.
+        return _read_fixed_width(uri, encoding=encoding, skip_rows=skip_rows,
+                                 columns_to_read=columns_to_read,
+                                 colspecs=fixed_width_colspecs,
+                                 names=fixed_width_names,
+                                 header_row=header_row)
     raise ValueError(f"Unsupported format: {fmt!r} (supported: {_SUPPORTED_FORMATS})")
+
+
+def _read_fixed_width(uri: str, *, encoding: str, skip_rows: int, columns_to_read,
+                      colspecs, names, header_row: Optional[int]) -> pd.DataFrame:
+    """Read a fixed-width text file (mainframe-style).
+
+    `colspecs` is a list of `(start, end)` tuples (0-indexed, exclusive `end`)
+    or the special string `"infer"`. `names` is the column-name list when
+    there's no header row. Configured via the component's
+    `fixed_width_colspecs` and `fixed_width_names` fields — passed through
+    here from the build_defs closure.
+    """
+    return pd.read_fwf(
+        uri,
+        colspecs=colspecs if colspecs is not None else "infer",
+        names=names,
+        header=header_row,
+        skiprows=skip_rows,
+        encoding=encoding,
+        usecols=columns_to_read,
+    )
 
 
 class FileIngestionComponent(Component, Model, Resolvable):
@@ -410,6 +480,31 @@ class FileIngestionComponent(Component, Model, Resolvable):
         ),
     )
 
+    fixed_width_colspecs: Optional[List[List[int]]] = Field(
+        default=None,
+        description=(
+            "For `format: fixed_width` only — list of [start, end] character "
+            "positions (0-indexed, exclusive end) per column. Example for a "
+            "mainframe COBOL layout:\n"
+            "  fixed_width_colspecs:\n"
+            "    - [0, 10]      # 10-char customer ID\n"
+            "    - [10, 40]     # 30-char name\n"
+            "    - [40, 48]     # 8-char date (YYYYMMDD)\n"
+            "    - [48, 58]     # 10-char amount with decimals\n"
+            "If omitted, pandas attempts to auto-infer column boundaries from "
+            "whitespace in the first row (usually unreliable for tight EBCDIC "
+            "layouts — set this explicitly)."
+        ),
+    )
+
+    fixed_width_names: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "For `format: fixed_width` only — column names list. Required "
+            "unless the file has a header row (then set `header_row: 0`)."
+        ),
+    )
+
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
 
     partition_type: Optional[str] = Field(
@@ -514,6 +609,13 @@ class FileIngestionComponent(Component, Model, Resolvable):
                 f"{asset_name}: format must be one of {_SUPPORTED_FORMATS}, "
                 f"got {file_format!r}"
             )
+
+        # Fixed-width passthrough config (only used when format=fixed_width)
+        fw_colspecs = (
+            [tuple(c) for c in self.fixed_width_colspecs]
+            if self.fixed_width_colspecs else None
+        )
+        fw_names = list(self.fixed_width_names) if self.fixed_width_names else None
 
         # Validate exactly one of: file_path | from_upstream | from_run_config
         from_upstream_cfg = self.from_upstream or {}
@@ -730,6 +832,7 @@ class FileIngestionComponent(Component, Model, Resolvable):
                     skip_rows=skip_rows, header_row=header_row,
                     columns_to_read=columns_to_read, dtype_mapping=dtype_mapping,
                     parse_dates=parse_dates,
+                    fixed_width_colspecs=fw_colspecs, fixed_width_names=fw_names,
                 )
                 meta = {
                     "row_count": int(len(df)),
@@ -882,6 +985,7 @@ group_name=group_name,
                     skip_rows=skip_rows, header_row=header_row,
                     columns_to_read=columns_to_read, dtype_mapping=dtype_mapping,
                     parse_dates=parse_dates,
+                    fixed_width_colspecs=fw_colspecs, fixed_width_names=fw_names,
                 )
 
                 context.log.info(f"Loaded {len(df)} rows, {len(df.columns)} columns")

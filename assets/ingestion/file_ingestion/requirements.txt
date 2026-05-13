@@ -1,2 +1,12 @@
 pandas>=2.0.0
 pyarrow>=10.0.0
+fsspec>=2024.0.0
+
+# Optional — install only the format(s) you actually read:
+#   pip install fastavro          # for format: avro
+#   pip install openpyxl          # for format: excel (.xlsx)
+#   pip install xlrd              # for format: excel (.xls legacy)
+#   pip install s3fs              # for s3:// URIs
+#   pip install gcsfs             # for gs:// URIs
+#   pip install adlfs             # for abfss:// / abfs:// / az:// URIs
+fastavro>=1.9.0

@@ -1,0 +1,18 @@
+type: dagster_component_templates.DataframeToAvroComponent
+attributes:
+  asset_name: events_avro
+  upstream_asset_key: events_summary
+  file_path: "s3://my-bucket/events/{partition_key}.avro"
+  codec: snappy             # null | snappy | deflate | bzip2 | xz | zstandard
+  record_name: Event
+  group_name: sinks
+
+  # Optional: explicit schema (overrides inference)
+  # avro_schema:
+  #   type: record
+  #   name: Event
+  #   namespace: com.acme.events
+  #   fields:
+  #     - {name: event_id, type: string}
+  #     - {name: event_type, type: string}
+  #     - {name: timestamp, type: ["null", string], default: null}

@@ -1,0 +1,8 @@
+pandas>=2.0.0
+fastavro>=1.9.0
+fsspec>=2024.0.0
+
+# Optional, per remote URI scheme:
+#   pip install s3fs              # for s3://
+#   pip install gcsfs             # for gs://
+#   pip install adlfs             # for abfss:// / abfs:// / az://

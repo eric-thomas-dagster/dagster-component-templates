@@ -1,0 +1,51 @@
+{
+  "component_type": "dagster_component_templates.DataframeToAvroComponent",
+  "description": "Write a pandas DataFrame as Avro to a local path or fsspec URI. Schema is inferred from pandas dtypes by default; explicit schema can be supplied via avro_schema. Companion to dataframe_to_parquet — useful when downstream consumers expect Avro (Event Hubs Capture default, Kafka Schema Registry ecosystems, etc.).",
+  "category": "sink",
+  "icon": "Download",
+  "x-dagster-io": {
+    "inputs": {"type": "dataframe", "required": true, "description": "Upstream DataFrame"},
+    "outputs": {"type": "None", "description": "Side-effecting sink"}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true},
+    "file_path": {
+      "type": "string",
+      "label": "File Path",
+      "description": "Destination path or fsspec URI. Supports {partition_key} and ${ENV_VAR} substitution.",
+      "required": true
+    },
+    "codec": {
+      "type": "string",
+      "label": "Codec",
+      "description": "Avro compression codec",
+      "required": false,
+      "default": "null",
+      "enum": ["null", "snappy", "deflate", "bzip2", "xz", "zstandard"]
+    },
+    "record_name": {
+      "type": "string",
+      "label": "Record Name",
+      "description": "Name in the inferred Avro schema (ignored if avro_schema is set)",
+      "required": false,
+      "default": "Record"
+    },
+    "avro_schema": {
+      "type": "object",
+      "label": "Avro Schema",
+      "description": "Optional explicit Avro schema dict (overrides inference)",
+      "required": false,
+      "default": null
+    },
+    "description": {"type": "string", "label": "Description", "required": false},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "deps": {"type": "array", "label": "Deps", "required": false},
+    "partition_type": {"type": "string", "label": "Partition Type", "required": false},
+    "partition_start": {"type": "string", "label": "Partition Start", "required": false},
+    "partition_values": {"type": "string", "label": "Partition Values", "required": false},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false}
+  },
+  "tags": ["sink", "avro", "fastavro", "fsspec", "s3", "gcs", "adls"],
+  "name": "Dataframe to Avro"
+}

@@ -83,8 +83,17 @@ def _parse_selection(selection: Any):
     raise ValueError(f"selection must be str or AssetSelection, got {type(selection).__name__}")
 
 
-def _build_condition_for_rule(rule: dict, spec: dg.AssetSpec, defs: dg.Definitions) -> Optional[dg.AutomationCondition]:
+def _build_condition_for_rule(
+    rule: dict,
+    spec: Any,  # AssetSpec or _SpecView — duck-typed (.key / .deps / .metadata / ...)
+    defs: dg.Definitions,
+    effective_crons: Optional[Dict[dg.AssetKey, str]] = None,
+) -> Optional[dg.AutomationCondition]:
     """Build the AutomationCondition for a rule + a specific asset spec.
+
+    `effective_crons` (asset key → cron string) carries the result of earlier
+    rule passes in topological order so derive_from_upstreams sees each
+    upstream's *post-rule* cadence, not its raw metadata.
 
     Returns None if the rule's `derive_from_upstreams` is true but the asset
     has no upstream cron schedules to derive from.
@@ -120,7 +129,10 @@ def _build_condition_for_rule(rule: dict, spec: dg.AssetSpec, defs: dg.Definitio
     # ---- Derive from upstreams ------------------------------------------
     if rule.get("derive_from_upstreams"):
         return _derive_condition_from_upstreams(
-            spec, defs, strategy=rule.get("strategy", "most_frequent")
+            spec,
+            defs,
+            strategy=rule.get("strategy", "most_frequent"),
+            effective_crons=effective_crons or {},
         )
 
     raise ValueError(
@@ -130,15 +142,23 @@ def _build_condition_for_rule(rule: dict, spec: dg.AssetSpec, defs: dg.Definitio
 
 
 def _derive_condition_from_upstreams(
-    spec: dg.AssetSpec, defs: dg.Definitions, strategy: str
+    spec: dg.AssetSpec,
+    defs: dg.Definitions,
+    strategy: str,
+    effective_crons: Dict[dg.AssetKey, str],
 ) -> Optional[dg.AutomationCondition]:
     """Build an AutomationCondition by inspecting the cron schedules of upstream assets.
 
+    `effective_crons` (asset_key → cron) lets us see each upstream's POST-RULE
+    effective cadence rather than its raw metadata. This is what makes
+    propagation work for chains of depth ≥ 2: e.g., C (rule: least_frequent
+    of daily+monthly) becomes monthly, and D (rule: derive from C) then
+    inherits monthly through this map.
+
     strategy:
-      - 'most_frequent': fire on the most frequent upstream's cron; ignore slower upstreams.
-      - 'least_frequent': fire on the least frequent upstream's cron; require all deps fresh.
+      - 'most_frequent': fire on the fastest upstream's cron; ignore slower deps
+      - 'least_frequent': fire on the slowest upstream's cron; require all deps
     """
-    # Collect upstream cron schedules
     asset_graph = defs.resolve_asset_graph()
     upstream_deps = list(spec.deps) if spec.deps else []
     upstream_crons: List[tuple] = []  # (cron_str, asset_key)
@@ -152,11 +172,15 @@ def _derive_condition_from_upstreams(
             if not isinstance(ak, dg.AssetKey):
                 continue
             dep_key = ak
-        try:
-            up_node = asset_graph.get(dep_key)
-        except Exception:
-            continue
-        cron = _extract_cron_from_spec(up_node)
+        # Prefer the post-rule effective cron (propagation through chains);
+        # fall back to the upstream's raw metadata/condition.
+        cron = effective_crons.get(dep_key)
+        if not cron:
+            try:
+                up_node = asset_graph.get(dep_key)
+            except Exception:
+                continue
+            cron = _extract_cron_from_spec(up_node)
         if cron:
             upstream_crons.append((cron, dep_key))
 
@@ -238,6 +262,13 @@ def apply_rules(
     Rules are evaluated top-to-bottom; first selection-match wins. Assets that
     already have `automation_condition` set are preserved when
     `preserve_existing=True` (default).
+
+    Cadence propagation: assets are processed in **topological order** so
+    `derive_from_upstreams` sees each upstream's POST-RULE effective cadence,
+    not its raw metadata. This means chains of depth ≥ 2 work correctly —
+    if asset C's rule resolves it to monthly (e.g. least_frequent of
+    daily+monthly upstreams), then downstream D's derive_from_upstreams
+    sees C as monthly.
     """
     # Resolve selections to concrete asset-key sets up front (one pass).
     resolved_rules = []
@@ -247,23 +278,112 @@ def apply_rules(
         try:
             matched = sel.resolve(asset_graph)
         except Exception:
-            # Fall back: empty match if selection can't resolve
             matched = set()
         resolved_rules.append((rule, matched))
 
-    def transform(spec: dg.AssetSpec) -> dg.AssetSpec:
-        if preserve_existing and getattr(spec, "automation_condition", None) is not None:
-            return spec
+    # Topological order: roots first, leaves last. Cadence propagates downstream.
+    sorted_keys = asset_graph.toposorted_asset_keys
+
+    # Effective-cron map: asset_key → cron string. Built incrementally as we
+    # process each asset in topological order, so when we process a downstream,
+    # its upstreams' effective crons are already populated.
+    effective_crons: Dict[dg.AssetKey, str] = {}
+
+    # Pre-populate effective_crons for unchanged roots (their existing crons propagate).
+    for key in sorted_keys:
+        try:
+            node = asset_graph.get(key)
+        except Exception:
+            continue
+        cron = _extract_cron_from_spec(node)
+        if cron:
+            effective_crons[key] = cron
+
+    # Compute the AutomationCondition each asset will get, in topological order.
+    asset_conditions: Dict[dg.AssetKey, dg.AutomationCondition] = {}
+    for key in sorted_keys:
+        try:
+            node = asset_graph.get(key)
+        except Exception:
+            continue
+        # preserve_existing → asset's own explicit condition wins; don't touch.
+        if preserve_existing and getattr(node, "automation_condition", None) is not None:
+            continue
+        # Build a synthetic spec to pass to the rule (we want spec-shape access
+        # but using the AssetGraphNode's view of deps + metadata).
+        spec_view = _SpecView(node)
         for rule, matched_keys in resolved_rules:
-            if spec.key not in matched_keys:
+            if key not in matched_keys:
                 continue
-            condition = _build_condition_for_rule(rule, spec, defs)
+            condition = _build_condition_for_rule(rule, spec_view, defs, effective_crons)
             if condition is None:
-                continue  # rule didn't yield a condition (e.g. derive with no upstreams) — fall through
-            return spec.replace_attributes(automation_condition=condition)
-        return spec
+                continue  # rule didn't yield (e.g. derive with no upstream crons) — fall through
+            asset_conditions[key] = condition
+            # Update effective_crons so DOWNSTREAM assets see this asset's new cadence.
+            new_cron = _extract_cron_from_condition(condition)
+            if new_cron:
+                effective_crons[key] = new_cron
+            break
+
+    # Single map pass — apply the pre-computed conditions.
+    def transform(spec: dg.AssetSpec) -> dg.AssetSpec:
+        cond = asset_conditions.get(spec.key)
+        if cond is None:
+            return spec
+        return spec.replace_attributes(automation_condition=cond)
 
     return defs.map_asset_specs(func=transform)
+
+
+class _SpecView:
+    """Thin adapter so _build_condition_for_rule can read .deps / .key / .metadata
+    from an AssetGraphNode the same way it does from an AssetSpec."""
+
+    def __init__(self, node):
+        self._node = node
+        self.key = node.key
+        # parent_keys is a set of AssetKey — wrap as fake AssetDep-like objects
+        self.deps = [_Dep(k) for k in node.parent_keys]
+        self.metadata = getattr(node, "metadata", {}) or {}
+        self.automation_condition = getattr(node, "automation_condition", None)
+        self.freshness_policy = getattr(node, "freshness_policy", None)
+
+
+class _Dep:
+    def __init__(self, key):
+        self.asset_key = key
+
+
+def _extract_cron_from_condition(condition) -> Optional[str]:
+    """Pull a cron string out of an AutomationCondition (recursing through wrappers).
+
+    AutomationConditions nest in several shapes:
+      - AndAutomationCondition / OrAutomationCondition → `.operands` list
+      - SinceCondition → `.trigger_condition` + `.reset_condition`
+      - AllDepsCondition / AnyDepsCondition / NotAutomationCondition → `.operand`
+      - CronTickPassedCondition → has `.cron_schedule` directly
+    We check the named attributes (cron-bearing leaf) first, then descend through
+    every known wrapper relation.
+    """
+    if condition is None:
+        return None
+    cs = getattr(condition, "cron_schedule", None)
+    if isinstance(cs, str):
+        return cs
+
+    # Descend through all known child-relation attributes
+    for attr in ("trigger_condition", "reset_condition", "operand"):
+        child = getattr(condition, attr, None)
+        if child is not None:
+            sub = _extract_cron_from_condition(child)
+            if sub:
+                return sub
+    operands = getattr(condition, "operands", None) or []
+    for op in operands:
+        sub = _extract_cron_from_condition(op)
+        if sub:
+            return sub
+    return None
 
 
 # --------------------------------------------------------------------------

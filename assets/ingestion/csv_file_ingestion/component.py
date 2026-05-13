@@ -19,6 +19,28 @@ from dagster import (
 from pydantic import Field
 
 
+_TEMPLATE_FIELD_RE = None  # built lazily inside helper to avoid module-import cost
+
+
+def _parse_template_fields(template: str) -> List[str]:
+    """Pull `{field}` placeholders out of a Python format-string template.
+
+    `"s3://{bucket}/{key}"` → `["bucket", "key"]`. Used by `from_run_config`
+    to construct a Pydantic Config class whose fields match the template.
+    """
+    import re
+    global _TEMPLATE_FIELD_RE
+    if _TEMPLATE_FIELD_RE is None:
+        _TEMPLATE_FIELD_RE = re.compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*)(?::[^}]*)?\}")
+    seen, ordered = set(), []
+    for m in _TEMPLATE_FIELD_RE.finditer(template):
+        name = m.group(1)
+        if name not in seen:
+            seen.add(name)
+            ordered.append(name)
+    return ordered
+
+
 def _resolve_paths_from_upstream(
     upstream_value: Any,
     dict_key: Optional[str],
@@ -209,6 +231,25 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
             "naming the originating dict key)."
         ),
     )
+    from_run_config: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Read the file path from RunConfig injected by a sensor or "
+            "schedule, rather than hardcoding `file_path`. The sensor "
+            "passes a `config` dict whose fields get interpolated into "
+            "a URI template.\n\n"
+            "Shape:\n"
+            "  {uri_template: \"s3://{bucket}/{key}\"}\n"
+            "      — `{bucket}` and `{key}` become required RunConfig fields. "
+            "      The sensor sets them per RunRequest; the asset reads "
+            "      `pd.read_csv(s3://<bucket>/<key>)` at runtime.\n\n"
+            "  {uri_template: \"{path}\"}\n"
+            "      — single-field shape; sensor passes one `path` string.\n\n"
+            "Works with any URI fsspec supports (s3://, gs://, az://, "
+            "file://, plus bare local paths). Auth uses fsspec's ambient "
+            "credential discovery."
+        ),
+    )
     description: Optional[str] = Field(
         default="",
         description="Description of the asset"
@@ -396,27 +437,24 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
         file_path = self.file_path
 
-        # Validate file_path XOR from_upstream
+        # Validate exactly one of: file_path | from_upstream | from_run_config
         from_upstream_cfg = self.from_upstream or {}
+        from_run_config_cfg = self.from_run_config or {}
         upstream_asset_key = from_upstream_cfg.get("asset") if from_upstream_cfg else None
         dict_key = from_upstream_cfg.get("dict_key") if from_upstream_cfg else None
         dict_keys = from_upstream_cfg.get("dict_keys") if from_upstream_cfg else None
         dict_key_pattern = from_upstream_cfg.get("dict_key_pattern") if from_upstream_cfg else None
         combine_mode = (from_upstream_cfg.get("combine") or "concat") if from_upstream_cfg else "concat"
+        run_config_uri_template = from_run_config_cfg.get("uri_template") if from_run_config_cfg else None
 
-        if upstream_asset_key and file_path:
+        _modes_set = sum(bool(x) for x in (file_path, upstream_asset_key, run_config_uri_template))
+        if _modes_set != 1:
             raise ValueError(
-                f"{asset_name}: cannot set both `file_path` and `from_upstream`. "
-                "Use `file_path` for a fixed path, or `from_upstream` to look "
-                "up the path(s) from an upstream asset's dict value."
-            )
-        if not upstream_asset_key and not file_path:
-            raise ValueError(
-                f"{asset_name}: must set either `file_path` or `from_upstream`."
+                f"{asset_name}: must set exactly one of "
+                "`file_path` / `from_upstream` / `from_run_config` "
+                f"(got {_modes_set} set)."
             )
         if upstream_asset_key:
-            if not from_upstream_cfg.get("asset"):
-                raise ValueError("from_upstream requires `asset:` (upstream asset key)")
             _selectors_set = sum(x is not None for x in (dict_key, dict_keys, dict_key_pattern))
             if _selectors_set != 1:
                 raise ValueError(
@@ -427,6 +465,13 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
                 raise ValueError(
                     f"from_upstream.combine must be 'concat' or 'concat_with_source', "
                     f"got {combine_mode!r}"
+                )
+        if run_config_uri_template:
+            _tpl_fields = _parse_template_fields(run_config_uri_template)
+            if not _tpl_fields:
+                raise ValueError(
+                    f"from_run_config.uri_template must contain at least one "
+                    f"`{{field}}` placeholder, got {run_config_uri_template!r}."
                 )
 
         description = self.description
@@ -547,6 +592,65 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
 
 
 
+
+        # --- Branch A0: from_run_config — read URI from sensor-injected RunConfig ---
+        if run_config_uri_template:
+            from dagster import Config
+            from pydantic import create_model
+
+            _tpl_fields = _parse_template_fields(run_config_uri_template)
+            _IngestRunConfig = create_model(
+                f"{asset_name.title().replace('_', '')}RunConfig",
+                __base__=Config,
+                **{f: (str, ...) for f in _tpl_fields},
+            )
+
+            @asset(
+                retry_policy=_retry_policy,
+                partitions_def=partitions_def,
+                name=asset_name,
+                description=description or f"CSV data from runtime URI (template: {run_config_uri_template})",
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+                group_name=group_name,
+                metadata={
+                    "uri_template": run_config_uri_template,
+                    "config_fields": MetadataValue.json(_tpl_fields),
+                    "delimiter": delimiter,
+                    "encoding": encoding,
+                },
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            )
+            def csv_ingestion_asset(context: AssetExecutionContext, config: _IngestRunConfig):
+                """Asset that reads a CSV from a runtime-injected URI."""
+                uri = run_config_uri_template.format(**config.model_dump())
+                context.log.info(
+                    f"Reading CSV from sensor-injected URI: {uri} "
+                    f"(template: {run_config_uri_template!r}, "
+                    f"config: {config.model_dump()})"
+                )
+                df = pd.read_csv(
+                    uri,
+                    delimiter=delimiter,
+                    encoding=encoding,
+                    skiprows=skip_rows,
+                    header=header_row,
+                    usecols=columns_to_read,
+                    dtype=dtype_mapping,
+                    parse_dates=parse_dates,
+                )
+                meta = {
+                    "row_count": int(len(df)),
+                    "column_count": int(len(df.columns)),
+                    "resolved_uri": uri,
+                    "columns": df.columns.tolist(),
+                }
+                if include_preview and len(df) > 0:
+                    meta["preview"] = MetadataValue.md(df.head().to_markdown())
+                return Output(value=df, metadata=meta)
+
+            return Definitions(assets=[csv_ingestion_asset])
 
         # --- Branch A: from_upstream — read paths from an upstream asset's dict ---
         if upstream_asset_key:

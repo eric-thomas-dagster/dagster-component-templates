@@ -86,6 +86,27 @@ url: https://datasets.imdbws.com/title.basics.tsv.gz
 # → extracts to <extract_to>/title.basics.tsv
 ```
 
+## Storage-agnostic destinations
+
+`extract_to:` accepts either a local path or a remote URI:
+
+```yaml
+extract_to: /tmp/movielens               # local
+extract_to: file:///tmp/movielens        # local (explicit scheme)
+extract_to: s3://my-bucket/movielens/    # S3 — needs `pip install s3fs`
+extract_to: gs://my-bucket/movielens/    # GCS — needs `pip install gcsfs`
+extract_to: az://container/movielens/    # Azure — needs `pip install adlfs`
+```
+
+For remote URIs the archive is always downloaded to a local temp dir, extracted there, then uploaded file-by-file via `fsspec`; the temp dir is deleted after. The emitted dict contains remote URIs (e.g. `{"movies.csv": "s3://my-bucket/movielens/movies.csv"}`), which `pd.read_csv` consumes directly via fsspec — so downstream ingest components like `csv_file_ingestion` with `from_upstream` continue to work unchanged.
+
+**Auth:** fsspec uses ambient credentials from the underlying cloud SDK:
+- **S3**: env vars (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_REGION`), `~/.aws/credentials`, EC2 instance profile, ECS task role, EKS IRSA.
+- **GCS**: `GOOGLE_APPLICATION_CREDENTIALS`, `gcloud auth application-default login`, GCE/GKE workload identity.
+- **Azure**: `AZURE_STORAGE_CONNECTION_STRING`, `DefaultAzureCredential` chain.
+
+No explicit resource wiring required — production deployments typically just have the right env / instance role set.
+
 ## Security
 
 - Path-traversal protection: any archive entry resolving outside `extract_to` is rejected (defends against "zip-slip" attacks).

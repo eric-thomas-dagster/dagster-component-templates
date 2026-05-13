@@ -205,6 +205,61 @@ def _matches_any(name: str, patterns: List[str]) -> bool:
     return any(fnmatch(name, p) for p in patterns)
 
 
+# ---- Destination resolution (local path vs remote URI) ------------------------
+
+_REMOTE_SCHEMES = ("s3", "gs", "gcs", "az", "abfs", "abfss", "adl", "ftp", "http", "https")
+
+
+def _is_remote_uri(s: str) -> bool:
+    """True if `s` looks like a remote URI fsspec should handle.
+
+    Local paths like /tmp/foo and file:///tmp/foo return False — those are
+    handled directly by pathlib. Remote schemes (s3, gs, az, ...) return True.
+    """
+    if "://" not in s:
+        return False
+    scheme = s.split("://", 1)[0].lower()
+    return scheme in _REMOTE_SCHEMES
+
+
+def _local_path_from_extract_to(extract_to: str) -> Path:
+    """Strip a `file://` prefix if present and return a pathlib.Path."""
+    if extract_to.startswith("file://"):
+        return Path(extract_to[len("file://"):])
+    return Path(extract_to)
+
+
+def _upload_to_fsspec(
+    local_files: List[Path], local_root: Path, destination_uri: str
+) -> Dict[str, str]:
+    """Upload each local file to a remote location via fsspec.
+
+    Returns a {relative_path: full_remote_uri} mapping. Auth is whatever
+    fsspec's underlying filesystem driver discovers (env vars, ~/.aws/credentials,
+    instance roles, etc.) — see the README.
+    """
+    try:
+        import fsspec
+    except ImportError as e:
+        raise ImportError(
+            "Remote destinations (s3://, gs://, etc.) require fsspec. "
+            "Install with `pip install fsspec s3fs` (for S3), `gcsfs` (for GCS), "
+            "or `adlfs` (for Azure)."
+        ) from e
+
+    fs, base_path = fsspec.core.url_to_fs(destination_uri)
+    base_path = base_path.rstrip("/")
+    scheme = destination_uri.split("://", 1)[0]
+    uri_map: Dict[str, str] = {}
+    for p in local_files:
+        rel = str(p.relative_to(local_root))
+        remote_path = f"{base_path}/{rel}" if base_path else rel
+        with open(p, "rb") as src, fs.open(remote_path, "wb") as dst:
+            shutil.copyfileobj(src, dst)
+        uri_map[rel] = f"{scheme}://{remote_path}"
+    return uri_map
+
+
 # ---- Component ----------------------------------------------------------------
 
 class ArchiveFetcherComponent(Component, Model, Resolvable):
@@ -219,9 +274,14 @@ class ArchiveFetcherComponent(Component, Model, Resolvable):
     extract_to: Optional[str] = Field(
         default=None,
         description=(
-            "Directory to extract into. Default: `/tmp/<asset_name>/`. "
-            "The directory is created if missing; existing files with the "
-            "same name are overwritten."
+            "Destination for extracted files. Either a local directory path "
+            "(`/tmp/foo`, `file:///tmp/foo`) or a remote URI (`s3://bucket/prefix/`, "
+            "`gs://bucket/prefix/`, `az://container/prefix/`). For remote URIs "
+            "the archive is extracted to a local temp dir, uploaded via fsspec, "
+            "then the temp dir is cleaned up. Auth uses fsspec's ambient "
+            "credential discovery (env vars, ~/.aws/credentials, IRSA, "
+            "instance role, etc.). Install s3fs / gcsfs / adlfs for the "
+            "scheme you need. Default: `/tmp/<asset_name>/`."
         ),
     )
 
@@ -326,9 +386,20 @@ class ArchiveFetcherComponent(Component, Model, Resolvable):
                 else:
                     req_headers = dict(headers_raw)
 
+            # Resolve destination — local path (pathlib) vs remote URI (fsspec).
+            is_remote = _is_remote_uri(extract_to)
+            if is_remote:
+                # Always extract locally first; upload after.
+                local_extract_dir = Path(tempfile.mkdtemp(prefix="archive_fetcher_extract_"))
+                context.log.info(
+                    f"Destination is remote ({extract_to}) — extracting to "
+                    f"local temp {local_extract_dir}, will upload via fsspec."
+                )
+            else:
+                local_extract_dir = _local_path_from_extract_to(extract_to)
+                local_extract_dir.mkdir(parents=True, exist_ok=True)
+
             # Download to a temp file (stream — archives can be large).
-            dest_dir = Path(extract_to)
-            dest_dir.mkdir(parents=True, exist_ok=True)
             with tempfile.NamedTemporaryFile(delete=False, suffix=f".{kind.replace('.', '_')}") as tmp:
                 archive_path = Path(tmp.name)
             try:
@@ -343,24 +414,40 @@ class ArchiveFetcherComponent(Component, Model, Resolvable):
                 context.log.info(f"Downloaded {bytes_downloaded:,} bytes to {archive_path}")
 
                 # Extract.
-                extracted = _extract(archive_path, dest_dir, kind, url)
-                context.log.info(f"Extracted {len(extracted)} files to {dest_dir}")
+                extracted = _extract(archive_path, local_extract_dir, kind, url)
+                context.log.info(f"Extracted {len(extracted)} files to {local_extract_dir}")
 
                 if flatten:
-                    extracted = _flatten_single_root(dest_dir, extracted)
+                    extracted = _flatten_single_root(local_extract_dir, extracted)
 
-                # Build the {filename: path} dict. The key is the relative path
-                # within extract_to — keeps nested layouts (subdir/file.csv)
-                # distinguishable from a top-level collision.
-                file_map: Dict[str, str] = {}
-                file_sizes: Dict[str, int] = {}
-                for p in extracted:
-                    rel = str(p.relative_to(dest_dir))
-                    if include_glob and not _matches_any(rel, include_glob):
-                        continue
-                    file_map[rel] = str(p.resolve())
-                    file_sizes[rel] = p.stat().st_size
+                # Build the {filename: path-or-uri} dict, and optionally upload.
+                file_sizes: Dict[str, int] = {
+                    str(p.relative_to(local_extract_dir)): p.stat().st_size
+                    for p in extracted
+                }
 
+                if is_remote:
+                    # Upload everything (or only matching), then dict values are remote URIs.
+                    to_upload = [
+                        p for p in extracted
+                        if not include_glob or _matches_any(
+                            str(p.relative_to(local_extract_dir)), include_glob
+                        )
+                    ]
+                    context.log.info(
+                        f"Uploading {len(to_upload)} file(s) to {extract_to} via fsspec"
+                    )
+                    file_map = _upload_to_fsspec(to_upload, local_extract_dir, extract_to)
+                else:
+                    file_map: Dict[str, str] = {}
+                    for p in extracted:
+                        rel = str(p.relative_to(local_extract_dir))
+                        if include_glob and not _matches_any(rel, include_glob):
+                            continue
+                        file_map[rel] = str(p.resolve())
+
+                # Trim file_sizes to match the keys we actually emit.
+                file_sizes = {k: file_sizes[k] for k in file_map if k in file_sizes}
                 total_size = sum(file_sizes.values())
 
                 # Build a readable preview table.
@@ -382,7 +469,8 @@ class ArchiveFetcherComponent(Component, Model, Resolvable):
                     metadata={
                         "url":         MetadataValue.url(url),
                         "archive_type": MetadataValue.text(kind),
-                        "extract_to":  MetadataValue.path(str(dest_dir)),
+                        "extract_to":  MetadataValue.text(extract_to),
+                        "destination": MetadataValue.text("remote (fsspec)" if is_remote else "local"),
                         "file_count":  MetadataValue.int(len(file_map)),
                         "total_files_extracted": MetadataValue.int(len(extracted)),
                         "total_size_bytes": MetadataValue.int(total_size),
@@ -396,5 +484,8 @@ class ArchiveFetcherComponent(Component, Model, Resolvable):
                         archive_path.unlink()
                     except OSError:
                         pass
+                if is_remote:
+                    # We used a temp dir; clean it up.
+                    shutil.rmtree(local_extract_dir, ignore_errors=True)
 
         return Definitions(assets=[_asset])

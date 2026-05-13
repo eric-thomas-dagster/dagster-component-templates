@@ -1,3 +1,10 @@
 # Required
 dagster
 requests
+
+# Optional — only needed when `extract_to:` is a remote URI:
+#   s3fs    for s3://...
+#   gcsfs   for gs:// / gcs://...
+#   adlfs   for az:// / abfs:// / abfss://...
+# Install the ones you actually use, e.g. `pip install s3fs`.
+fsspec

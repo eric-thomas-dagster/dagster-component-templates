@@ -582,20 +582,36 @@ def apply_rules(
     defs: dg.Definitions,
     rules: List[dict],
     preserve_existing: bool = True,
+    precedence: str = "first_match",
 ) -> dg.Definitions:
     """Apply automation-condition rules to a Definitions. Returns a new Definitions.
 
-    Rules are evaluated top-to-bottom; first selection-match wins. Assets that
-    already have `automation_condition` set are preserved when
-    `preserve_existing=True` (default).
+    Rules are evaluated top-to-bottom. The `precedence` flag controls which
+    match wins when multiple rules' selections overlap on an asset:
+
+      - 'first_match' (default): the FIRST matching rule wins.
+        Convention: list narrow rules first, broad catch-alls last.
+        Example: `[{selection: "tag:critical", ...}, {selection: "*", ...}]`
+        — critical-tag wins for those; "*" catches the rest.
+
+      - 'last_match': the LAST matching rule wins.
+        Convention: list defaults first, overrides later. Like CSS cascade
+        or dbt's config layering.
+        Example: `[{selection: "*", preset: eager}, {selection: "tag:critical", ...}]`
+        — eager applies to everything, then critical-tag override wins.
+
+    `preserve_existing=True` (default): assets with their own explicit
+    automation_condition are skipped regardless of `precedence` — per-asset
+    settings always win, like CSS !important.
 
     Cadence propagation: assets are processed in **topological order** so
     `derive_from_upstreams` sees each upstream's POST-RULE effective cadence,
-    not its raw metadata. This means chains of depth ≥ 2 work correctly —
-    if asset C's rule resolves it to monthly (e.g. least_frequent of
-    daily+monthly upstreams), then downstream D's derive_from_upstreams
-    sees C as monthly.
+    not its raw metadata. Chains of depth ≥ 2 work correctly.
     """
+    if precedence not in ("first_match", "last_match"):
+        raise ValueError(
+            f"precedence must be 'first_match' or 'last_match', got {precedence!r}"
+        )
     # Resolve selections to concrete asset-key sets up front (one pass).
     resolved_rules = []
     asset_graph = defs.resolve_asset_graph()
@@ -638,6 +654,7 @@ def apply_rules(
         # Build a synthetic spec to pass to the rule (we want spec-shape access
         # but using the AssetGraphNode's view of deps + metadata).
         spec_view = _SpecView(node)
+        # Iterate forward; with last_match we keep updating, with first_match we break.
         for rule, matched_keys in resolved_rules:
             if key not in matched_keys:
                 continue
@@ -649,7 +666,9 @@ def apply_rules(
             new_cron = _extract_cron_from_condition(condition)
             if new_cron:
                 effective_crons[key] = new_cron
-            break
+            if precedence == "first_match":
+                break
+            # else last_match: continue — let a later rule override
 
     # Single map pass — apply the pre-computed conditions.
     def transform(spec: dg.AssetSpec) -> dg.AssetSpec:
@@ -789,6 +808,15 @@ class AutomationConditionApplicatorComponent(dg.Component, dg.Model, dg.Resolvab
         ),
     )
 
+    precedence: str = Field(
+        default="first_match",
+        description=(
+            "How overlapping rule selections resolve. "
+            "'first_match' (default): list narrow rules first, broad catch-alls last — first match wins. "
+            "'last_match': list defaults first, overrides later — like CSS cascade / dbt config layering, last match wins."
+        ),
+    )
+
     rules: List[Dict[str, Any]] = Field(
         description=(
             "Ordered list of rules. First selection-match wins (fall-through). "
@@ -812,4 +840,9 @@ class AutomationConditionApplicatorComponent(dg.Component, dg.Model, dg.Resolvab
 
     def apply(self, base_defs: dg.Definitions) -> dg.Definitions:
         """Convenience method: apply this component's rules to a Definitions."""
-        return apply_rules(base_defs, self.rules, preserve_existing=self.preserve_existing)
+        return apply_rules(
+            base_defs,
+            self.rules,
+            preserve_existing=self.preserve_existing,
+            precedence=self.precedence,
+        )

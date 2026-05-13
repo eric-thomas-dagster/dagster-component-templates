@@ -142,7 +142,7 @@ def _build_condition_for_rule(
 
 
 def _derive_condition_from_upstreams(
-    spec: dg.AssetSpec,
+    spec,  # AssetSpec or _SpecView — duck-typed
     defs: dg.Definitions,
     strategy: str,
     effective_crons: Dict[dg.AssetKey, str],
@@ -156,8 +156,14 @@ def _derive_condition_from_upstreams(
     inherits monthly through this map.
 
     strategy:
-      - 'most_frequent': fire on the fastest upstream's cron; ignore slower deps
-      - 'least_frequent': fire on the slowest upstream's cron; require all deps
+      - 'most_frequent': fire on the fastest upstream's cron; ignore slower deps.
+        Use when slower deps are nice-to-have but shouldn't block.
+      - 'least_frequent': fire on the slowest upstream's cron; require all deps.
+        Use when downstream MUST see every dep's update before firing.
+      - 'tiered': fire on the fastest upstream's cron, BUT on each slower tier's
+        boundary, also wait for that tier. Per-tier `allow()` gating. Use for
+        the "daily-with-monthly-boundary" pattern: fire every day at 9am with
+        the daily deps; on the 1st, also wait for the monthly dep.
     """
     asset_graph = defs.resolve_asset_graph()
     upstream_deps = list(spec.deps) if spec.deps else []
@@ -201,6 +207,44 @@ def _derive_condition_from_upstreams(
         sorted_crons = sorted(upstream_crons, key=lambda x: -_cron_period_seconds(x[0]))
         slowest_cron = sorted_crons[0][0]
         return dg.AutomationCondition.on_cron(slowest_cron)
+
+    if strategy == "tiered":
+        # Group upstreams by cron expression — each distinct cron is a "tier".
+        # The fastest tier drives the firing cadence (cron_tick_passed).
+        # Slower tiers add `allow`-gated all_deps_updated_since_cron checks —
+        # they're checked on their own cron boundaries (e.g. on the 1st for
+        # a monthly tier).
+        from collections import defaultdict
+
+        buckets: dict = defaultdict(list)
+        for cron, key in upstream_crons:
+            buckets[cron].append(key)
+
+        # Single-tier degenerate case → fall back to plain on_cron.
+        if len(buckets) == 1:
+            only_cron = next(iter(buckets))
+            return dg.AutomationCondition.on_cron(only_cron)
+
+        sorted_tiers = sorted(buckets.items(), key=lambda kv: _cron_period_seconds(kv[0]))
+        fastest_cron = sorted_tiers[0][0]
+        slower_tiers = sorted_tiers[1:]
+        slower_keys_union = [k for _, keys in slower_tiers for k in keys]
+
+        # Build the ANDed condition matching the customer pattern:
+        # in_latest_time_window
+        # & cron_tick_passed(FAST).since_last_handled()
+        # & all_deps_updated_since_cron(FAST).ignore(SLOW_UNION)
+        # & all_deps_updated_since_cron(<each slower cron>).allow(<its keys>)
+        slow_sel_union = dg.AssetSelection.assets(*slower_keys_union)
+        cond = (
+            dg.AutomationCondition.in_latest_time_window()
+            & dg.AutomationCondition.cron_tick_passed(fastest_cron).since_last_handled()
+            & dg.AutomationCondition.all_deps_updated_since_cron(fastest_cron).ignore(slow_sel_union)
+        )
+        for tier_cron, tier_keys in slower_tiers:
+            tier_sel = dg.AssetSelection.assets(*tier_keys)
+            cond = cond & dg.AutomationCondition.all_deps_updated_since_cron(tier_cron).allow(tier_sel)
+        return cond.with_label(f"tiered_on_cron({fastest_cron})")
 
     raise ValueError(f"unknown strategy: {strategy!r}")
 

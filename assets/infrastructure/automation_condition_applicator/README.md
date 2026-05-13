@@ -33,29 +33,18 @@ Apply Dagster `AutomationCondition`s **broadly** to many assets at once via decl
 
 ## Quick start
 
-```yaml
-# defs/automation_rules/defs.yaml
-type: dagster_community_components.AutomationConditionApplicatorComponent
-attributes:
-  preserve_existing: true   # per-asset settings always win
-  rules:
-    # Narrow first, broad last (fall-through priority)
-    - name: critical_hourly
-      selection: "tag:cadence=hourly"
-      cron: "0 * * * *"
+> ⚠ **Important — this component requires TWO pieces, not one**:
+> 1. Your rules (defined in YAML or Python — your choice)
+> 2. **A call to `apply_rules(...)` in your `definitions.py`** — this is mandatory regardless of where rules live, because Dagster components can't post-process other components' output. The applicator mutates the merged Definitions AFTER all components have built; that can only happen at the project level.
+>
+> Without the `definitions.py` wiring, your rules sit dormant and no automation_condition ever gets applied.
 
-    - name: derive_silver_from_upstreams
-      selection: "group:silver"
-      derive_from_upstreams: true
-      strategy: most_frequent
+### Easiest path — rules in Python, single file
 
-    - name: catchall_eager
-      selection: "*"
-      preset: eager
-```
+If you don't need YAML config, write rules inline in `definitions.py` — one file, done:
 
 ```python
-# definitions.py — required wiring
+# definitions.py
 from pathlib import Path
 from dagster import definitions, load_from_defs_folder
 from dagster_community_components import apply_rules
@@ -69,6 +58,45 @@ def defs():
         {"selection": "*", "preset": "eager"},
     ])
 ```
+
+### Alternative — rules in YAML, applied from Python
+
+If you want customer-editable YAML config separate from `definitions.py`:
+
+```yaml
+# defs/automation_rules/defs.yaml
+type: dagster_community_components.AutomationConditionApplicatorComponent
+attributes:
+  preserve_existing: true
+  rules:
+    - name: critical_hourly
+      selection: "tag:cadence=hourly"
+      cron: "0 * * * *"
+    - name: derive_silver_from_upstreams
+      selection: "group:silver"
+      derive_from_upstreams: true
+      strategy: most_frequent
+    - name: catchall_eager
+      selection: "*"
+      preset: eager
+```
+
+```python
+# definitions.py — STILL required, even with YAML rules
+import yaml
+from pathlib import Path
+from dagster import definitions, load_from_defs_folder
+from dagster_community_components import apply_rules
+
+@definitions
+def defs():
+    base = load_from_defs_folder(path_within_project=Path(__file__).parent)
+    with open(Path(__file__).parent / "defs/automation_rules/defs.yaml") as f:
+        config = yaml.safe_load(f)
+    return apply_rules(base, rules=config["attributes"]["rules"])
+```
+
+Either approach produces the same result. **The `apply_rules` call in `definitions.py` is non-negotiable** — without it, the rules don't take effect.
 
 ---
 

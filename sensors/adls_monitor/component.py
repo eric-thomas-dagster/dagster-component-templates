@@ -114,6 +114,33 @@ class ADLSMonitorSensorComponent(Component, Model, Resolvable):
         description="Default status of the sensor (running or stopped)"
     )
 
+    partition_mode: str = Field(
+        default="run_config",
+        description=(
+            "How the sensor surfaces detected ADLS files: 'run_config' "
+            "(default, embeds metadata in run_config), 'dynamic_partition' "
+            "(registers each new file path as a dynamic partition + yields "
+            "RunRequest(partition_key=...)), or 'both'. Pair with "
+            "`file_ingestion`'s matching input mode."
+        ),
+    )
+    dynamic_partitions_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "Required when partition_mode is 'dynamic_partition' or 'both'. "
+            "Must match the asset's `dynamic_partition_name:` field."
+        ),
+    )
+    partition_key_template: str = Field(
+        default="{file_path}",
+        description=(
+            "Template for the partition key per detected file. Fields: "
+            "{storage_account}, {container}, {file_path}, {file_name}. "
+            "Default `{file_path}` makes the partition key equal to the "
+            "ADLS file path inside the container."
+        ),
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         sensor_name = self.sensor_name
         storage_account_name = self.storage_account_name
@@ -127,6 +154,18 @@ class ADLSMonitorSensorComponent(Component, Model, Resolvable):
         default_status_str = self.default_status
         resource_key = self.resource_key
         target_op_name = self.target_op_name
+        partition_mode = (self.partition_mode or "run_config").lower()
+        dynamic_partitions_name = self.dynamic_partitions_name
+        partition_key_template = self.partition_key_template or "{file_path}"
+        if partition_mode not in ("run_config", "dynamic_partition", "both"):
+            raise ValueError(
+                f"partition_mode must be 'run_config' | 'dynamic_partition' | "
+                f"'both', got {partition_mode!r}"
+            )
+        if partition_mode in ("dynamic_partition", "both") and not dynamic_partitions_name:
+            raise ValueError(
+                f"partition_mode={partition_mode!r} requires dynamic_partitions_name."
+            )
 
         default_status = (
             DefaultSensorStatus.RUNNING
@@ -190,7 +229,9 @@ class ADLSMonitorSensorComponent(Component, Model, Resolvable):
 
             # List files
             run_requests = []
+            new_partition_keys: list = []
             latest_time = last_processed_time
+            from dagster import AddDynamicPartitionsRequest  # local import
 
             try:
                 fs_client = service_client.get_file_system_client(container_name)
@@ -248,12 +289,28 @@ class ADLSMonitorSensorComponent(Component, Model, Resolvable):
                                 }
                             }
                         }
-                    run_requests.append(
-                        RunRequest(
-                            run_key=f"{storage_account_name}/{container_name}/{file_path}-{last_modified.isoformat()}",
-                            run_config=rc,
+                    if partition_mode in ("dynamic_partition", "both"):
+                        partition_key = partition_key_template.format(
+                            storage_account=storage_account_name,
+                            container=container_name,
+                            file_path=file_path,
+                            file_name=file_name,
                         )
-                    )
+                        new_partition_keys.append(partition_key)
+                        run_requests.append(
+                            RunRequest(
+                                run_key=f"{storage_account_name}/{container_name}/{file_path}-{last_modified.isoformat()}",
+                                partition_key=partition_key,
+                                run_config=rc if partition_mode == "both" else None,
+                            )
+                        )
+                    else:
+                        run_requests.append(
+                            RunRequest(
+                                run_key=f"{storage_account_name}/{container_name}/{file_path}-{last_modified.isoformat()}",
+                                run_config=rc,
+                            )
+                        )
 
                     latest_time = max(latest_time, last_modified)
 
@@ -266,10 +323,19 @@ class ADLSMonitorSensorComponent(Component, Model, Resolvable):
             if run_requests:
                 context.log.info(
                     f"Found {len(run_requests)} new file(s) in "
-                    f"{storage_account_name}/{container_name}/{directory_path}"
+                    f"{storage_account_name}/{container_name}/{directory_path} "
+                    f"(partition_mode={partition_mode})"
+                )
+                dynamic_partitions_requests = (
+                    [AddDynamicPartitionsRequest(
+                        partitions_def_name=dynamic_partitions_name or "",
+                        partition_keys=new_partition_keys,
+                    )]
+                    if new_partition_keys and dynamic_partitions_name else []
                 )
                 return SensorResult(
                     run_requests=run_requests,
+                    dynamic_partitions_requests=dynamic_partitions_requests,
                     cursor=latest_time.isoformat(),
                 )
 

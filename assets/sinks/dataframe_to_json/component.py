@@ -130,7 +130,12 @@ class DataframeToJsonComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     file_path: str = Field(
-        description="Destination file path. Supports env var substitution e.g. ${OUTPUT_DIR}/results.json"
+        description=(
+            "Destination path or fsspec URI. Local (`/tmp/out.json`) and "
+            "remote URIs (`s3://...`, `gs://...`, `az://...`) both work via "
+            "pandas' `to_json()` + fsspec — install `s3fs` / `gcsfs` / `adlfs` "
+            "for the scheme you need. Supports env-var substitution."
+        )
     )
     orient: str = Field(
         default="records",

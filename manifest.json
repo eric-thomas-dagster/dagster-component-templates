@@ -3967,8 +3967,49 @@
       }
     },
     {
+      "id": "file_ingestion",
+      "name": "File Ingestion",
+      "category": "ingestion",
+      "description": "Unified tabular-file ingestion — reads CSV / TSV / JSON / JSONL / Parquet / Excel into a pandas DataFrame. Three input modes: file_path (fixed local or fsspec URI s3://, gs://, az://), from_upstream (resolve from upstream asset's dict), or from_run_config (sensor-injected RunConfig with optional {partition_key} interpolation for dynamic-partition flows).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/file_ingestion",
+      "tags": [
+        "ingestion",
+        "file",
+        "csv",
+        "tsv",
+        "json",
+        "parquet",
+        "excel",
+        "fsspec",
+        "s3",
+        "gcs",
+        "adls",
+        "dynamic-partitions"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "fsspec"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/file_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/file_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/file_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/file_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/file_ingestion/requirements.txt",
+      "icon": "ArrowUpFromLine",
+      "validation": {
+        "level": "live",
+        "evidence": "Validated end-to-end: format auto-detection (csv/tsv/json/jsonl/parquet/excel), from_upstream pattern reads movies.csv from archive_fetcher dict, from_run_config + dynamic_partition reads /tmp/fi_demo/movies.csv via partition key",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
       "id": "csv_file_ingestion",
-      "name": "CSV File Ingestion",
+      "name": "CSV File Ingestion (legacy — prefer file_ingestion)",
       "category": "ingestion",
       "description": "Component for ingesting CSV files into Dagster assets.",
       "version": "1.0.0",
@@ -21095,5 +21136,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 689
+  "total": 690
 }

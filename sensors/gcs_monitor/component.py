@@ -91,6 +91,33 @@ class GCSMonitorSensorComponent(Component, Model, Resolvable):
         description="Default status of the sensor (running or stopped)"
     )
 
+    partition_mode: str = Field(
+        default="run_config",
+        description=(
+            "How the sensor surfaces detected GCS objects: 'run_config' "
+            "(default, embeds metadata in run_config), 'dynamic_partition' "
+            "(registers each new blob name as a dynamic partition + yields "
+            "RunRequest(partition_key=...)), or 'both'. Pair with "
+            "`file_ingestion`'s matching input mode."
+        ),
+    )
+    dynamic_partitions_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "Required when partition_mode is 'dynamic_partition' or 'both'. "
+            "Must match the asset's `dynamic_partition_name:` field."
+        ),
+    )
+    partition_key_template: str = Field(
+        default="{name}",
+        description=(
+            "Template for the partition key per detected object. Fields: "
+            "{bucket}, {name}, {prefix}. Default `{name}` makes the partition "
+            "key equal to the blob name. Use `gs://{bucket}/{name}` for the "
+            "full URI as the partition key."
+        ),
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         sensor_name = self.sensor_name
         bucket_name = self.bucket_name
@@ -101,6 +128,18 @@ class GCSMonitorSensorComponent(Component, Model, Resolvable):
         project = self.project
         default_status_str = self.default_status
         resource_key = self.resource_key
+        partition_mode = (self.partition_mode or "run_config").lower()
+        dynamic_partitions_name = self.dynamic_partitions_name
+        partition_key_template = self.partition_key_template or "{name}"
+        if partition_mode not in ("run_config", "dynamic_partition", "both"):
+            raise ValueError(
+                f"partition_mode must be 'run_config' | 'dynamic_partition' | "
+                f"'both', got {partition_mode!r}"
+            )
+        if partition_mode in ("dynamic_partition", "both") and not dynamic_partitions_name:
+            raise ValueError(
+                f"partition_mode={partition_mode!r} requires dynamic_partitions_name."
+            )
 
         default_status = (
             DefaultSensorStatus.RUNNING
@@ -149,7 +188,9 @@ class GCSMonitorSensorComponent(Component, Model, Resolvable):
 
             # List and process objects
             run_requests = []
+            new_partition_keys: list = []
             latest_time = last_processed_time
+            from dagster import AddDynamicPartitionsRequest  # local import
 
             try:
                 blobs = client.list_blobs(bucket_name, prefix=prefix)
@@ -177,26 +218,38 @@ class GCSMonitorSensorComponent(Component, Model, Resolvable):
                     if not pattern.search(relative_name):
                         continue
 
-                    run_requests.append(
-                        RunRequest(
-                            run_key=f"{bucket_name}/{blob.name}-{blob.etag}",
-                            run_config={
-                                "ops": {
-                                    "config": {
-                                        "bucket": bucket_name,
-                                        "name": blob.name,
-                                        "size": blob.size or 0,
-                                        "etag": blob.etag or "",
-                                        "updated": updated.isoformat(),
-                                        "content_type": blob.content_type or "",
-                                        "prefix": prefix,
-                                        "project": project or "",
-                                    }
-                                }
-                            },
+                    config_block = {
+                        "bucket": bucket_name,
+                        "name": blob.name,
+                        "size": blob.size or 0,
+                        "etag": blob.etag or "",
+                        "updated": updated.isoformat(),
+                        "content_type": blob.content_type or "",
+                        "prefix": prefix,
+                        "project": project or "",
+                    }
+                    if partition_mode in ("dynamic_partition", "both"):
+                        partition_key = partition_key_template.format(
+                            bucket=bucket_name, name=blob.name, prefix=prefix
                         )
-                    )
-
+                        new_partition_keys.append(partition_key)
+                        run_requests.append(
+                            RunRequest(
+                                run_key=f"{bucket_name}/{blob.name}-{blob.etag}",
+                                partition_key=partition_key,
+                                run_config=(
+                                    {"ops": {"config": config_block}}
+                                    if partition_mode == "both" else None
+                                ),
+                            )
+                        )
+                    else:
+                        run_requests.append(
+                            RunRequest(
+                                run_key=f"{bucket_name}/{blob.name}-{blob.etag}",
+                                run_config={"ops": {"config": config_block}},
+                            )
+                        )
                     latest_time = max(latest_time, updated)
 
             except Exception as e:
@@ -204,9 +257,20 @@ class GCSMonitorSensorComponent(Component, Model, Resolvable):
                 return SensorResult(skip_reason=f"Error listing GCS objects: {e}")
 
             if run_requests:
-                context.log.info(f"Found {len(run_requests)} new GCS object(s) in {bucket_name}/{prefix}")
+                context.log.info(
+                    f"Found {len(run_requests)} new GCS object(s) in {bucket_name}/{prefix} "
+                    f"(partition_mode={partition_mode})"
+                )
+                dynamic_partitions_requests = (
+                    [AddDynamicPartitionsRequest(
+                        partitions_def_name=dynamic_partitions_name or "",
+                        partition_keys=new_partition_keys,
+                    )]
+                    if new_partition_keys and dynamic_partitions_name else []
+                )
                 return SensorResult(
                     run_requests=run_requests,
+                    dynamic_partitions_requests=dynamic_partitions_requests,
                     cursor=latest_time.isoformat(),
                 )
 

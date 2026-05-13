@@ -91,11 +91,13 @@ url: https://datasets.imdbws.com/title.basics.tsv.gz
 `extract_to:` accepts either a local path or a remote URI:
 
 ```yaml
-extract_to: /tmp/movielens               # local
-extract_to: file:///tmp/movielens        # local (explicit scheme)
-extract_to: s3://my-bucket/movielens/    # S3 — needs `pip install s3fs`
-extract_to: gs://my-bucket/movielens/    # GCS — needs `pip install gcsfs`
-extract_to: az://container/movielens/    # Azure — needs `pip install adlfs`
+extract_to: /tmp/movielens                                               # local
+extract_to: file:///tmp/movielens                                         # local (explicit scheme)
+extract_to: s3://my-bucket/movielens/                                     # S3 — needs `pip install s3fs`
+extract_to: gs://my-bucket/movielens/                                     # GCS — needs `pip install gcsfs`
+extract_to: abfss://container@account.dfs.core.windows.net/movielens/     # Azure Gen2 (canonical) — needs `pip install adlfs`
+extract_to: abfs://container@account.dfs.core.windows.net/movielens/      # Azure (HTTP) — adlfs
+extract_to: az://container/movielens/                                     # Azure (adlfs alias for abfss)
 ```
 
 For remote URIs the archive is always downloaded to a local temp dir, extracted there, then uploaded file-by-file via `fsspec`; the temp dir is deleted after. The emitted dict contains remote URIs (e.g. `{"movies.csv": "s3://my-bucket/movielens/movies.csv"}`), which `pd.read_csv` consumes directly via fsspec — so downstream ingest components like `csv_file_ingestion` with `from_upstream` continue to work unchanged.
@@ -103,7 +105,7 @@ For remote URIs the archive is always downloaded to a local temp dir, extracted 
 **Auth:** fsspec uses ambient credentials from the underlying cloud SDK:
 - **S3**: env vars (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_REGION`), `~/.aws/credentials`, EC2 instance profile, ECS task role, EKS IRSA.
 - **GCS**: `GOOGLE_APPLICATION_CREDENTIALS`, `gcloud auth application-default login`, GCE/GKE workload identity.
-- **Azure**: `AZURE_STORAGE_CONNECTION_STRING`, `DefaultAzureCredential` chain.
+- **Azure**: `AZURE_STORAGE_CONNECTION_STRING`, `DefaultAzureCredential` chain. For `abfss://` URIs the host portion (`container@account.dfs.core.windows.net`) identifies the storage account directly; for `az://` you need `AZURE_STORAGE_ACCOUNT_NAME` set so adlfs knows which account to target.
 
 No explicit resource wiring required — production deployments typically just have the right env / instance role set.
 

@@ -130,7 +130,14 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     file_path: str = Field(
-        description="Destination file path. Supports env var substitution e.g. ${OUTPUT_DIR}/results.csv"
+        description=(
+            "Destination file path or fsspec URI. Local paths "
+            "(`/tmp/out.csv`) and remote URIs (`s3://bucket/out.csv`, "
+            "`gs://bucket/out.csv`, `az://container/out.csv`) both work — "
+            "pandas' `to_csv()` accepts fsspec URIs natively when the "
+            "matching driver (`s3fs` / `gcsfs` / `adlfs`) is installed. "
+            "Supports env-var substitution, e.g. `${OUTPUT_DIR}/results.csv`."
+        )
     )
     delimiter: str = Field(default=",", description="Column delimiter")
     include_index: bool = Field(default=False, description="Include row index in output")

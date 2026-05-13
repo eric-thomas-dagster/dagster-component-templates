@@ -1,0 +1,17 @@
+type: dagster_component_templates.FileIngestionComponent
+attributes:
+  asset_name: my_data
+  format: auto                  # auto | csv | tsv | json | jsonl | parquet | excel
+  file_path: /data/customers.csv
+  description: Customer master data
+  group_name: raw_data
+  # — alternative inputs (mutually exclusive with file_path) —
+  # from_upstream:
+  #   asset: ml_archive
+  #   dict_key: "customers.csv"
+  # from_run_config:
+  #   uri_template: "s3://{bucket}/{key}"          # sensor-driven (RunConfig)
+  # from_run_config:                                # dynamic-partition flow:
+  #   uri_template: "s3://my-bucket/{partition_key}"
+  # partition_type: dynamic
+  # dynamic_partition_name: "s3_keys"

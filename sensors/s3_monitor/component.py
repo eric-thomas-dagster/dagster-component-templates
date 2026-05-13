@@ -87,6 +87,43 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
         description="Default status of the sensor (running or stopped)"
     )
 
+    partition_mode: str = Field(
+        default="run_config",
+        description=(
+            "How the sensor surfaces detected S3 objects to downstream assets:\n"
+            "  'run_config' (default) — yields RunRequest with full S3 metadata "
+            "in run_config (bucket, key, size, etag, last_modified, prefix, region). "
+            "Pair with `file_ingestion.from_run_config`.\n"
+            "  'dynamic_partition' — registers each new S3 key as a dynamic "
+            "partition via context.instance.add_dynamic_partitions(), then yields "
+            "RunRequest(partition_key=key). Pair with `file_ingestion` where "
+            "`partition_type: dynamic` and `from_run_config.uri_template` uses "
+            "`{partition_key}`. Lets you track every processed file and re-run "
+            "any specific one on demand from the UI.\n"
+            "  'both' — does both: registers a dynamic partition AND embeds the "
+            "S3 metadata in run_config. Most info but the asset's config class "
+            "must accept those fields."
+        ),
+    )
+    dynamic_partitions_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "Required when partition_mode is 'dynamic_partition' or 'both'. "
+            "Must match the asset's `dynamic_partition_name:` field."
+        ),
+    )
+    partition_key_template: str = Field(
+        default="{key}",
+        description=(
+            "Template for the partition key registered per detected S3 object. "
+            "Available fields: {bucket}, {key}, {prefix}. Default `{key}` makes "
+            "the partition key equal to the S3 object key. Use "
+            "`s3://{bucket}/{key}` if you want the full URI as the partition "
+            "key (so `file_ingestion`'s uri_template can just be "
+            "`{partition_key}` with no further interpolation)."
+        ),
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         sensor_name = self.sensor_name
         bucket_name = self.bucket_name
@@ -97,6 +134,20 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
         region_name = self.region_name
         resource_key = self.resource_key
         default_status_str = self.default_status
+        partition_mode = (self.partition_mode or "run_config").lower()
+        dynamic_partitions_name = self.dynamic_partitions_name
+        partition_key_template = self.partition_key_template or "{key}"
+
+        if partition_mode not in ("run_config", "dynamic_partition", "both"):
+            raise ValueError(
+                f"partition_mode must be 'run_config' | 'dynamic_partition' | "
+                f"'both', got {partition_mode!r}"
+            )
+        if partition_mode in ("dynamic_partition", "both") and not dynamic_partitions_name:
+            raise ValueError(
+                f"partition_mode={partition_mode!r} requires dynamic_partitions_name "
+                "to match the downstream asset's dynamic_partition_name field."
+            )
 
         default_status = (
             DefaultSensorStatus.RUNNING
@@ -145,7 +196,9 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
 
             # List and process objects
             run_requests = []
+            new_partition_keys: list = []
             latest_time = last_processed_time
+            from dagster import AddDynamicPartitionsRequest  # local import — only needed for non-default modes
 
             try:
                 paginator = s3_client.get_paginator("list_objects_v2")
@@ -167,24 +220,39 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
                         if not pattern.search(relative_key):
                             continue
 
-                        run_requests.append(
-                            RunRequest(
-                                run_key=f"{bucket_name}/{key}-{etag}",
-                                run_config={
-                                    "ops": {
-                                        "config": {
-                                            "bucket": bucket_name,
-                                            "key": key,
-                                            "size": size,
-                                            "etag": etag,
-                                            "last_modified": last_modified.isoformat(),
-                                            "prefix": prefix,
-                                            "region": region_name or "",
-                                        }
-                                    }
-                                },
+                        # Build the metadata block once — both modes use parts of it.
+                        config_block = {
+                            "bucket": bucket_name,
+                            "key": key,
+                            "size": size,
+                            "etag": etag,
+                            "last_modified": last_modified.isoformat(),
+                            "prefix": prefix,
+                            "region": region_name or "",
+                        }
+
+                        if partition_mode in ("dynamic_partition", "both"):
+                            partition_key = partition_key_template.format(
+                                bucket=bucket_name, key=key, prefix=prefix
                             )
-                        )
+                            new_partition_keys.append(partition_key)
+                            run_requests.append(
+                                RunRequest(
+                                    run_key=f"{bucket_name}/{key}-{etag}",
+                                    partition_key=partition_key,
+                                    run_config=(
+                                        {"ops": {"config": config_block}}
+                                        if partition_mode == "both" else None
+                                    ),
+                                )
+                            )
+                        else:  # run_config (default — existing behavior)
+                            run_requests.append(
+                                RunRequest(
+                                    run_key=f"{bucket_name}/{key}-{etag}",
+                                    run_config={"ops": {"config": config_block}},
+                                )
+                            )
 
                         latest_time = max(latest_time, last_modified)
 
@@ -193,9 +261,20 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
                 return SensorResult(skip_reason=f"Error listing S3 objects: {e}")
 
             if run_requests:
-                context.log.info(f"Found {len(run_requests)} new S3 object(s) in {bucket_name}/{prefix}")
+                context.log.info(
+                    f"Found {len(run_requests)} new S3 object(s) in {bucket_name}/{prefix} "
+                    f"(partition_mode={partition_mode})"
+                )
+                dynamic_partitions_requests = (
+                    [AddDynamicPartitionsRequest(
+                        partitions_def_name=dynamic_partitions_name or "",
+                        partition_keys=new_partition_keys,
+                    )]
+                    if new_partition_keys and dynamic_partitions_name else []
+                )
                 return SensorResult(
                     run_requests=run_requests,
+                    dynamic_partitions_requests=dynamic_partitions_requests,
                     cursor=latest_time.isoformat(),
                 )
 

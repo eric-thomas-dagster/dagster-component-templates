@@ -275,9 +275,11 @@ class ArchiveFetcherComponent(Component, Model, Resolvable):
         default=None,
         description=(
             "Destination for extracted files. Either a local directory path "
-            "(`/tmp/foo`, `file:///tmp/foo`) or a remote URI (`s3://bucket/prefix/`, "
-            "`gs://bucket/prefix/`, `az://container/prefix/`). For remote URIs "
-            "the archive is extracted to a local temp dir, uploaded via fsspec, "
+            "(`/tmp/foo`, `file:///tmp/foo`) or a remote URI: `s3://bucket/prefix/`, "
+            "`gs://bucket/prefix/`, `abfss://container@account.dfs.core.windows.net/prefix/` "
+            "(canonical ADLS Gen2), `abfs://...`, or `az://container/prefix/` "
+            "(adlfs alias). For remote URIs the archive is extracted to a "
+            "local temp dir, uploaded via fsspec, "
             "then the temp dir is cleaned up. Auth uses fsspec's ambient "
             "credential discovery (env vars, ~/.aws/credentials, IRSA, "
             "instance role, etc.). Install s3fs / gcsfs / adlfs for the "

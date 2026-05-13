@@ -130,7 +130,13 @@ class DataframeToExcelComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     file_path: str = Field(
-        description="Destination file path. Supports env var substitution e.g. ${OUTPUT_DIR}/report.xlsx"
+        description=(
+            "Destination path or fsspec URI. Local (`/tmp/out.xlsx`) and "
+            "remote URIs (`s3://...`, `gs://...`, `abfss://...`) both work — "
+            "pandas' `to_excel()` accepts fsspec URIs when the matching "
+            "driver (`s3fs` / `gcsfs` / `adlfs`) is installed. Supports "
+            "env-var substitution."
+        )
     )
     sheet_name: str = Field(default="Sheet1", description="Target worksheet name")
     include_index: bool = Field(default=False, description="Include row index in output")

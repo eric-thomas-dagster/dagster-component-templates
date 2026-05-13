@@ -19,6 +19,58 @@ from dagster import (
 from pydantic import Field
 
 
+def _resolve_paths_from_upstream(
+    upstream_value: Any,
+    dict_key: Optional[str],
+    dict_keys: Optional[List[str]],
+    dict_key_pattern: Optional[str],
+) -> List[tuple]:
+    """Resolve paths from an upstream asset value (a dict[filename, path]).
+
+    Returns a list of (source_key, file_path) tuples — source_key is the
+    dict key that produced this path (useful for the `_source_file` column
+    in `concat_with_source` mode).
+
+    Validation: upstream must be a dict; the selector must match at least
+    one entry; missing keys raise clearly so users find typos fast.
+    """
+    if not isinstance(upstream_value, dict):
+        raise TypeError(
+            f"from_upstream expects upstream asset value to be a dict, "
+            f"got {type(upstream_value).__name__}. "
+            f"Use an upstream like `archive_fetcher` that emits "
+            f"{{filename: absolute_path}}."
+        )
+    if dict_key is not None:
+        if dict_key not in upstream_value:
+            available = sorted(upstream_value.keys())
+            raise KeyError(
+                f"from_upstream.dict_key={dict_key!r} not found in upstream. "
+                f"Available keys: {available}"
+            )
+        return [(dict_key, upstream_value[dict_key])]
+    if dict_keys is not None:
+        missing = [k for k in dict_keys if k not in upstream_value]
+        if missing:
+            raise KeyError(
+                f"from_upstream.dict_keys missing from upstream: {missing}. "
+                f"Available keys: {sorted(upstream_value.keys())}"
+            )
+        return [(k, upstream_value[k]) for k in dict_keys]
+    if dict_key_pattern is not None:
+        from fnmatch import fnmatch
+        matched = [(k, v) for k, v in upstream_value.items() if fnmatch(k, dict_key_pattern)]
+        if not matched:
+            raise KeyError(
+                f"from_upstream.dict_key_pattern={dict_key_pattern!r} matched "
+                f"nothing in upstream. Available keys: {sorted(upstream_value.keys())}"
+            )
+        return matched
+    raise ValueError(
+        "from_upstream requires one of: dict_key, dict_keys, dict_key_pattern"
+    )
+
+
 def _build_partitions_def(
     partition_type,
     partition_start,
@@ -131,7 +183,32 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
     """
 
     asset_name: str = Field(description="Name of the asset")
-    file_path: str = Field(description="Path to the CSV file to ingest")
+    file_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "Path to the CSV file to ingest. Mutually exclusive with "
+            "`from_upstream` — set exactly one."
+        ),
+    )
+    from_upstream: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Read the file path(s) from an upstream asset's runtime value, "
+            "rather than hardcoding `file_path`. The upstream asset must "
+            "return a `dict[filename, absolute_path]` — e.g., what "
+            "`archive_fetcher` emits.\n\n"
+            "Shape:\n"
+            "  {asset: <upstream_asset_key>, dict_key: \"movies.csv\"}\n"
+            "      — pick one entry by its dict key → single file → one DataFrame.\n"
+            "  {asset: <upstream_asset_key>, dict_keys: [\"a.csv\", \"b.csv\"], combine: concat}\n"
+            "      — pick several entries → concatenate row-wise into one DataFrame.\n"
+            "  {asset: <upstream_asset_key>, dict_key_pattern: \"*.csv\", combine: concat}\n"
+            "      — glob (fnmatch) over dict keys → concatenate.\n\n"
+            "`combine` accepts: 'concat' (default — pd.concat rows) or "
+            "'concat_with_source' (concat + adds a `_source_file` column "
+            "naming the originating dict key)."
+        ),
+    )
     description: Optional[str] = Field(
         default="",
         description="Description of the asset"
@@ -318,6 +395,40 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
         # Capture fields for closure
         asset_name = self.asset_name
         file_path = self.file_path
+
+        # Validate file_path XOR from_upstream
+        from_upstream_cfg = self.from_upstream or {}
+        upstream_asset_key = from_upstream_cfg.get("asset") if from_upstream_cfg else None
+        dict_key = from_upstream_cfg.get("dict_key") if from_upstream_cfg else None
+        dict_keys = from_upstream_cfg.get("dict_keys") if from_upstream_cfg else None
+        dict_key_pattern = from_upstream_cfg.get("dict_key_pattern") if from_upstream_cfg else None
+        combine_mode = (from_upstream_cfg.get("combine") or "concat") if from_upstream_cfg else "concat"
+
+        if upstream_asset_key and file_path:
+            raise ValueError(
+                f"{asset_name}: cannot set both `file_path` and `from_upstream`. "
+                "Use `file_path` for a fixed path, or `from_upstream` to look "
+                "up the path(s) from an upstream asset's dict value."
+            )
+        if not upstream_asset_key and not file_path:
+            raise ValueError(
+                f"{asset_name}: must set either `file_path` or `from_upstream`."
+            )
+        if upstream_asset_key:
+            if not from_upstream_cfg.get("asset"):
+                raise ValueError("from_upstream requires `asset:` (upstream asset key)")
+            _selectors_set = sum(x is not None for x in (dict_key, dict_keys, dict_key_pattern))
+            if _selectors_set != 1:
+                raise ValueError(
+                    "from_upstream requires exactly one of: dict_key, dict_keys, "
+                    f"dict_key_pattern (got {_selectors_set} set)"
+                )
+            if combine_mode not in ("concat", "concat_with_source"):
+                raise ValueError(
+                    f"from_upstream.combine must be 'concat' or 'concat_with_source', "
+                    f"got {combine_mode!r}"
+                )
+
         description = self.description
         group_name = self.group_name or None
         delimiter = self.delimiter
@@ -437,7 +548,76 @@ class CSVFileIngestionComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, 
+        # --- Branch A: from_upstream — read paths from an upstream asset's dict ---
+        if upstream_asset_key:
+            from dagster import AssetIn
+
+            @asset(
+                retry_policy=_retry_policy,
+                partitions_def=partitions_def,
+                name=asset_name,
+                description=description or f"CSV data from upstream {upstream_asset_key}",
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+                group_name=group_name,
+                metadata={
+                    "upstream_asset": upstream_asset_key,
+                    "delimiter": delimiter,
+                    "encoding": encoding,
+                    "from_upstream_selector": (
+                        f"dict_key={dict_key!r}" if dict_key is not None
+                        else f"dict_keys={dict_keys!r}" if dict_keys is not None
+                        else f"dict_key_pattern={dict_key_pattern!r}"
+                    ),
+                },
+                ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            )
+            def csv_ingestion_asset(context: AssetExecutionContext, upstream):
+                """Asset that reads CSV file(s) from paths resolved against an upstream dict."""
+                resolved = _resolve_paths_from_upstream(
+                    upstream, dict_key, dict_keys, dict_key_pattern
+                )
+                context.log.info(
+                    f"Resolved {len(resolved)} file(s) from {upstream_asset_key}: "
+                    f"{[k for k, _ in resolved]}"
+                )
+                dfs: List[pd.DataFrame] = []
+                for source_key, p in resolved:
+                    context.log.info(f"  reading {source_key} → {p}")
+                    df_part = pd.read_csv(
+                        p,
+                        delimiter=delimiter,
+                        encoding=encoding,
+                        skiprows=skip_rows,
+                        header=header_row,
+                        usecols=columns_to_read,
+                        dtype=dtype_mapping,
+                        parse_dates=parse_dates,
+                    )
+                    if combine_mode == "concat_with_source":
+                        df_part = df_part.assign(_source_file=source_key)
+                    dfs.append(df_part)
+                df = pd.concat(dfs, ignore_index=True) if len(dfs) > 1 else dfs[0]
+                context.log.info(f"Loaded {len(df)} rows × {len(df.columns)} cols total")
+                meta = {
+                    "row_count": int(len(df)),
+                    "column_count": int(len(df.columns)),
+                    "source_files": MetadataValue.json(
+                        {k: str(p) for k, p in resolved}
+                    ),
+                    "columns": df.columns.tolist(),
+                }
+                if include_preview and len(df) > 0:
+                    meta["preview"] = MetadataValue.md(df.head().to_markdown())
+                return Output(value=df, metadata=meta)
+
+            return Definitions(assets=[csv_ingestion_asset])
+
+        # --- Branch B: file_path — fixed path on disk (existing behavior) ---
+        assert file_path is not None  # validated above
+        @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
             name=asset_name,
             description=description or f"CSV data from {file_path}",
                         owners=owners,

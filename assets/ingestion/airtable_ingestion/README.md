@@ -94,8 +94,33 @@ deps:
 Dependencies declared here draw lineage edges in the Dagster graph without loading data at runtime.
 
 
+## Multiple Airtable accounts (multi-tenant)
+
+To pull from multiple Airtable bases / customers, create one `defs/<name>/defs.yaml` per instance, each referencing its own env var:
+
+```yaml
+# defs/airtable_customer_a/defs.yaml
+attributes:
+  asset_name: customer_a_airtable
+  api_key: "{{ env('AIRTABLE_API_KEY_CUSTOMER_A') }}"
+  base_id: appAAAAAAAAAAAAAA
+  ...
+```
+
+```yaml
+# defs/airtable_customer_b/defs.yaml
+attributes:
+  asset_name: customer_b_airtable
+  api_key: "{{ env('AIRTABLE_API_KEY_CUSTOMER_B') }}"
+  base_id: appBBBBBBBBBBBBBB
+  ...
+```
+
+See [`../../MULTI_INSTANCE.md`](../../MULTI_INSTANCE.md) for the general pattern (works for any component with credentials), a Python scaffold script for many tenants, and notes on when partitioning a single asset by customer is the better choice.
+
 ## Learn more
 
 - [dlt Airtable source](https://dlthub.com/docs/dlt-ecosystem/verified-sources/airtable)
 - [dlt destinations overview](https://dlthub.com/docs/dlt-ecosystem/destinations)
-- [`../DESTINATIONS.md`](../DESTINATIONS.md) — configuration reference for this library
+- [`../DESTINATIONS.md`](../DESTINATIONS.md) — multi-destination writes
+- [`../../MULTI_INSTANCE.md`](../../MULTI_INSTANCE.md) — multi-tenant pattern

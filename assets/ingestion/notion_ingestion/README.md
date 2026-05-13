@@ -79,6 +79,32 @@ Set `DESTINATION__POSTGRES__CREDENTIALS__*` env vars before running. The asset e
 - **Schema evolution**: dlt accommodates new properties without migrations.
 - **Non-SQL destinations**: setting `destination=filesystem` (or any vector store / lake format) requires `persist_only=true`. The component logs a warning and returns a `MaterializeResult` if you forget.
 
+
+## Multiple accounts (multi-tenant)
+
+To pull from multiple accounts / customers, create one `defs/<name>/defs.yaml` per instance — each referencing its own env var for credentials:
+
+```yaml
+# defs/customer_a/defs.yaml
+type: ...
+attributes:
+  asset_name: customer_a_data
+  # Replace `<credential_field>` with this component's auth field name (see Configuration above):
+  <credential_field>: "{{ env('<VENDOR>_<CREDENTIAL>_CUSTOMER_A') }}"
+  # ... other source config (account-specific IDs, etc.) ...
+```
+
+```yaml
+# defs/customer_b/defs.yaml
+type: ...
+attributes:
+  asset_name: customer_b_data
+  <credential_field>: "{{ env('<VENDOR>_<CREDENTIAL>_CUSTOMER_B') }}"
+  # ...
+```
+
+Both assets show up independently in the Dagster catalog with their own credentials, schedules, freshness policies, etc. See [`../../MULTI_INSTANCE.md`](../../MULTI_INSTANCE.md) for the full pattern (works for any component with credentials), a Python scaffold script for many tenants, multi-destination combinations, and when partitioning a single asset by customer is the better choice.
+
 ## Asset dependencies
 
 ```yaml

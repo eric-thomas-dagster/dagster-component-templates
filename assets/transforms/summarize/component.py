@@ -131,9 +131,12 @@ class SummarizeComponent(Component, Model, Resolvable):
     group_by: List[str] = Field(description="Columns to group by")
     aggregations: Dict = Field(
         description=(
-            "Mapping of output column name to aggregation function "
-            "(sum, mean, count, min, max, std, first, last, nunique). "
-            "Values can also be dicts of {column: func}."
+            "Mapping of output column name to aggregation. Two forms:\n"
+            "  - Simple: `revenue: sum` — aggregate that column with that func.\n"
+            "  - Named:  `avg_rating: {col: rating, agg: mean}` — output a "
+            "named column from a chosen source column. Use this when you "
+            "need two aggregations on the same source column "
+            "(e.g. avg_rating=(rating, mean) AND num_ratings=(rating, count))."
         )
     )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
@@ -358,7 +361,27 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-            result = upstream.groupby(group_by).agg(aggregations).reset_index()
+            # Split aggregations into pandas' two supported forms:
+            #   simple: {out_col: func} → df.groupby(...).agg({out_col: func})
+            #   named:  {out_col: {col: c, agg: f}} → df.groupby(...).agg(out_col=(c, f))
+            # Named form lets you produce multiple aggregations from the same
+            # source column (avg_rating + num_ratings both off `rating`).
+            _named: Dict[str, Any] = {}
+            _simple: Dict[str, Any] = {}
+            for _out, _spec in aggregations.items():
+                if isinstance(_spec, dict) and "col" in _spec and "agg" in _spec:
+                    _named[_out] = (_spec["col"], _spec["agg"])
+                else:
+                    _simple[_out] = _spec
+            _grouped = upstream.groupby(group_by)
+            if _named and _simple:
+                _simple_df = _grouped.agg(_simple).reset_index()
+                _named_df = _grouped.agg(**_named).reset_index()
+                result = _simple_df.merge(_named_df, on=group_by)
+            elif _named:
+                result = _grouped.agg(**_named).reset_index()
+            else:
+                result = _grouped.agg(_simple).reset_index()
             context.log.info(
                 f"Summarized {len(upstream)} rows into {len(result)} groups "
                 f"on columns: {group_by}"

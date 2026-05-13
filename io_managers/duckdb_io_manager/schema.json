@@ -28,6 +28,34 @@
       "description": "Schema within the DuckDB database for asset tables",
       "required": false,
       "default": "main"
+    },
+    "quack_remote": {
+      "type": "string",
+      "label": "Quack Remote",
+      "description": "Optional Quack client mode. Format: 'quack:host' or 'quack:host:port'. When set, the IO manager routes all reads/writes through a remote Quack server (solves DuckDB's concurrent-write limitation).",
+      "required": false,
+      "default": null
+    },
+    "quack_token": {
+      "type": "string",
+      "label": "Quack Token",
+      "description": "Auth token for the remote Quack server. Use env-var reference: \"{{ env('QUACK_TOKEN') }}\".",
+      "required": false,
+      "default": null
+    },
+    "quack_attach_as": {
+      "type": "string",
+      "label": "Quack Attach As",
+      "description": "Name under which the remote Quack database is ATTACHed.",
+      "required": false,
+      "default": "remote"
+    },
+    "quack_extension_repo": {
+      "type": "string",
+      "label": "Quack Extension Repo",
+      "description": "Repo to install the 'quack' extension from. Use 'core_nightly' until the extension stabilizes.",
+      "required": false,
+      "default": "core_nightly"
     }
   },
   "tags": [

@@ -39,6 +39,41 @@
       "label": "Database",
       "required": false,
       "default": ":memory:"
+    },
+    "quack_remote": {
+      "type": "string",
+      "label": "Quack Remote",
+      "description": "Optional Quack client mode. Format: 'quack:host' or 'quack:host:port'. When set, the resource installs+loads the 'quack' extension, creates a SECRET with quack_token, and ATTACHes the remote as quack_attach_as on each connection. Solves DuckDB's concurrent-write limitation by routing writes through a remote server.",
+      "required": false,
+      "default": null
+    },
+    "quack_token": {
+      "type": "string",
+      "label": "Quack Token",
+      "description": "Auth token for the remote Quack server. Use env-var reference: \"{{ env('QUACK_TOKEN') }}\".",
+      "required": false,
+      "default": null
+    },
+    "quack_attach_as": {
+      "type": "string",
+      "label": "Quack Attach As",
+      "description": "Name under which the remote Quack database is ATTACHed.",
+      "required": false,
+      "default": "remote"
+    },
+    "quack_extension_repo": {
+      "type": "string",
+      "label": "Quack Extension Repo",
+      "description": "Repo to install the 'quack' extension from. Use 'core_nightly' until the extension stabilizes.",
+      "required": false,
+      "default": "core_nightly"
+    },
+    "quack_use_remote_by_default": {
+      "type": "boolean",
+      "label": "Quack Use Remote By Default",
+      "description": "If true, runs USE <attach_as> after attach so unqualified table names resolve to the remote.",
+      "required": false,
+      "default": false
     }
   }
 }

@@ -12,6 +12,7 @@ import snowflake.connector
 from snowflake.connector import SnowflakeConnection
 
 from dagster import (
+    AssetKey,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -216,6 +217,51 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
         finally:
             cursor.close()
 
+    def _apply_asset_overrides(self, entity_name: str, base_kwargs: dict) -> dict:
+        """Merge per-entity overrides from `assets_by_name` into @asset kwargs.
+
+        Mirrors the official DatabricksWorkspaceComponent.assets_by_task_key
+        pattern. Keyed by the Snowflake entity name (task / dynamic table /
+        stored procedure / etc.). Each override is itself a dict; supported
+        keys: key, group_name, description, deps, metadata, tags, kinds, owners.
+
+        - `key` replaces `name=<asset_key>` with `key=AssetKey(...)` (slash-separated
+          paths become AssetKey prefixes).
+        - `deps` is merged with any deps already set on the base.
+        - `metadata` and `tags` are dict-merged (override wins on conflicts).
+        - `group_name` / `description` / `kinds` / `owners` straight-replace.
+        """
+        if not self.assets_by_name:
+            return base_kwargs
+        override = self.assets_by_name.get(entity_name)
+        if not override:
+            return base_kwargs
+        result = dict(base_kwargs)
+        if "key" in override:
+            result.pop("name", None)
+            result["key"] = AssetKey.from_user_string(str(override["key"]))
+        if "group_name" in override:
+            result["group_name"] = override["group_name"]
+        if "description" in override:
+            result["description"] = override["description"]
+        if "deps" in override:
+            existing = list(result.get("deps") or [])
+            existing.extend(AssetKey.from_user_string(d) for d in override["deps"])
+            result["deps"] = existing
+        if "metadata" in override:
+            existing = dict(result.get("metadata") or {})
+            existing.update(override["metadata"])
+            result["metadata"] = existing
+        if "tags" in override:
+            existing = dict(result.get("tags") or {})
+            existing.update(override["tags"])
+            result["tags"] = existing
+        if "kinds" in override:
+            result["kinds"] = set(override["kinds"])
+        if "owners" in override:
+            result["owners"] = override["owners"]
+        return result
+
     retry_policy_max_retries: Optional[int] = Field(
 
         default=None,
@@ -230,6 +276,34 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
 
         description="Seconds between retries (default 1).",
 
+    )
+
+    assets_by_name: Optional[Dict[str, Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Override the AssetSpec for specific imported entities (Tasks, "
+            "Dynamic Tables, Stored Procedures, Streams, Snowpipes, etc.) "
+            "by their Snowflake name. Mirrors the official dagster-databricks "
+            "`DatabricksWorkspaceComponent.assets_by_task_key` shape.\n\n"
+            "Per-entity keys (all optional):\n"
+            "  key:          renames the Dagster asset key (slash-separated → AssetKey)\n"
+            "  group_name:   overrides the group\n"
+            "  description:  overrides the description\n"
+            "  deps:         list of upstream asset keys (slash-separated). "
+            "                Merged with whatever the component infers.\n"
+            "  metadata:     dict merged into the auto-emitted metadata\n"
+            "  tags:         dict merged into asset tags\n"
+            "  kinds:        list of kind strings (overrides inference)\n"
+            "  owners:       list of owners\n\n"
+            "Example — wire cross-engine lineage from the Snowflake side:\n"
+            "  assets_by_name:\n"
+            "    CUSTOMER_METRICS:\n"
+            "      key: silver/customer_metrics\n"
+            "      group_name: silver\n"
+            "      deps: [raw/orders, raw/customers]\n"
+            "      metadata:\n"
+            "        domain: analytics\n"
+        ),
     )
 
     retry_policy_backoff: str = Field(
@@ -304,7 +378,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 backoff=Backoff[self.retry_policy_backoff.upper()],
                             )
 
-                        @asset(retry_policy=_retry_policy, 
+                        _task_kwargs = self._apply_asset_overrides(task_name, dict(
+                            retry_policy=_retry_policy,
                             name=asset_key,
                             group_name=self.group_name,
                             description=f"Snowflake task: {task_name}",
@@ -315,8 +390,9 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "snowflake_state": task['STATE'],
                                 "snowflake_schedule": task.get('SCHEDULE'),
                                 "entity_type": "task",
-                            }
-                        )
+                            },
+                        ))
+                        @asset(**_task_kwargs)
                         def _task_asset(context: AssetExecutionContext, task_name=task_name, db=task['DATABASE_NAME'], schema=task['SCHEMA_NAME']):
                             """Materialize by executing Snowflake task."""
                             conn = self._create_connection()
@@ -401,7 +477,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         asset_key = f"proc_{re.sub(r'[^a-zA-Z0-9_]', '_', proc_name.lower())}"
 
                         # Stored procedures are materializable
-                        @asset(
+                        _proc_kwargs = self._apply_asset_overrides(proc_name, dict(
                             name=asset_key,
                             group_name=self.group_name,
                             description=f"Snowflake stored procedure: {proc_name}",
@@ -411,8 +487,9 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "snowflake_schema": proc['PROCEDURE_SCHEMA'],
                                 "snowflake_signature": proc.get('ARGUMENT_SIGNATURE'),
                                 "entity_type": "stored_procedure",
-                            }
-                        )
+                            },
+                        ))
+                        @asset(**_proc_kwargs)
                         def _procedure_asset(context: AssetExecutionContext, proc_name=proc_name, db=proc['PROCEDURE_CATALOG'], schema=proc['PROCEDURE_SCHEMA']):
                             """Materialize by calling stored procedure."""
                             conn = self._create_connection()
@@ -481,7 +558,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         }
 
                         # Dynamic tables can be manually refreshed
-                        @asset(
+                        _dt_kwargs = self._apply_asset_overrides(dt_name, dict(
                             name=asset_key,
                             group_name=self.group_name,
                             description=f"Snowflake dynamic table: {dt_name}",
@@ -492,8 +569,9 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "snowflake_target_lag": dt.get('TARGET_LAG'),
                                 "snowflake_refresh_mode": dt.get('REFRESH_MODE'),
                                 "entity_type": "dynamic_table",
-                            }
-                        )
+                            },
+                        ))
+                        @asset(**_dt_kwargs)
                         def _dynamic_table_asset(context: AssetExecutionContext, dt_name=dt_name, db=dt['DATABASE_NAME'], schema=dt['SCHEMA_NAME']):
                             """Materialize by triggering dynamic table refresh."""
                             conn = self._create_connection()
@@ -575,7 +653,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         asset_key = f"stream_{re.sub(r'[^a-zA-Z0-9_]', '_', stream_name.lower())}"
 
                         # Streams are observable (CDC)
-                        @observable_source_asset(
+                        _stream_kwargs = self._apply_asset_overrides(stream_name, dict(
                             name=asset_key,
                             group_name=self.group_name,
                             description=f"Snowflake stream: {stream_name}",
@@ -586,8 +664,9 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "snowflake_table": stream.get('TABLE_NAME'),
                                 "snowflake_type": stream.get('TYPE'),
                                 "entity_type": "stream",
-                            }
-                        )
+                            },
+                        ))
+                        @observable_source_asset(**_stream_kwargs)
                         def _stream_asset(context: AssetExecutionContext, stream_name=stream_name, db=stream['DATABASE_NAME'], schema=stream['SCHEMA_NAME']):
                             """Observable stream asset."""
                             conn = self._create_connection()
@@ -644,7 +723,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         }
 
                         # Snowpipes are materializable - can trigger refresh
-                        @asset(
+                        _pipe_kwargs = self._apply_asset_overrides(pipe_name, dict(
                             name=asset_key,
                             group_name=self.group_name,
                             description=f"Snowflake pipe: {pipe_name}",
@@ -654,8 +733,9 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "snowflake_schema": pipe['SCHEMA_NAME'],
                                 "snowflake_notification_channel": pipe.get('NOTIFICATION_CHANNEL'),
                                 "entity_type": "snowpipe",
-                            }
-                        )
+                            },
+                        ))
+                        @asset(**_pipe_kwargs)
                         def _snowpipe_asset(context: AssetExecutionContext, pipe_name=pipe_name, db=pipe['DATABASE_NAME'], schema=pipe['SCHEMA_NAME']):
                             """Materialize by refreshing Snowpipe (loading pending files)."""
                             conn = self._create_connection()
@@ -745,7 +825,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         asset_key = f"stage_{re.sub(r'[^a-zA-Z0-9_]', '_', stage_name.lower())}"
 
                         # Stages are observable (monitor files)
-                        @observable_source_asset(
+                        _stage_kwargs = self._apply_asset_overrides(stage_name, dict(
                             name=asset_key,
                             group_name=self.group_name,
                             description=f"Snowflake stage: {stage_name}",
@@ -756,8 +836,9 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "snowflake_url": stage.get('STAGE_URL'),
                                 "snowflake_type": stage.get('STAGE_TYPE'),
                                 "entity_type": "stage",
-                            }
-                        )
+                            },
+                        ))
+                        @observable_source_asset(**_stage_kwargs)
                         def _stage_asset(context: AssetExecutionContext, stage_name=stage_name, db=stage['STAGE_CATALOG'], schema=stage['STAGE_SCHEMA']):
                             """Observable stage asset - monitor files."""
                             conn = self._create_connection()
@@ -818,7 +899,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         asset_key = f"mv_{re.sub(r'[^a-zA-Z0-9_]', '_', mv_name.lower())}"
 
                         # Materialized views are materializable
-                        @asset(
+                        _mv_kwargs = self._apply_asset_overrides(mv_name, dict(
                             name=asset_key,
                             group_name=self.group_name,
                             description=f"Snowflake materialized view: {mv_name}",
@@ -828,8 +909,9 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "snowflake_schema": mv['SCHEMA_NAME'],
                                 "snowflake_cluster_by": mv.get('CLUSTER_BY'),
                                 "entity_type": "materialized_view",
-                            }
-                        )
+                            },
+                        ))
+                        @asset(**_mv_kwargs)
                         def _mv_asset(context: AssetExecutionContext, mv_name=mv_name, db=mv['DATABASE_NAME'], schema=mv['SCHEMA_NAME']):
                             """Materialize by refreshing materialized view."""
                             conn = self._create_connection()
@@ -911,7 +993,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         asset_key = f"external_table_{re.sub(r'[^a-zA-Z0-9_]', '_', table_name.lower())}"
 
                         # External tables can be refreshed
-                        @asset(
+                        _ext_kwargs = self._apply_asset_overrides(table_name, dict(
                             name=asset_key,
                             group_name=self.group_name,
                             description=f"Snowflake external table: {table_name}",
@@ -920,8 +1002,9 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "snowflake_database": ext_table['TABLE_CATALOG'],
                                 "snowflake_schema": ext_table['TABLE_SCHEMA'],
                                 "entity_type": "external_table",
-                            }
-                        )
+                            },
+                        ))
+                        @asset(**_ext_kwargs)
                         def _external_table_asset(context: AssetExecutionContext, table_name=table_name, db=ext_table['TABLE_CATALOG'], schema=ext_table['TABLE_SCHEMA']):
                             """Materialize by refreshing external table metadata."""
                             conn = self._create_connection()
@@ -1000,7 +1083,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         asset_key = f"alert_{re.sub(r'[^a-zA-Z0-9_]', '_', alert_name.lower())}"
 
                         # Alerts are observable
-                        @observable_source_asset(
+                        _alert_kwargs = self._apply_asset_overrides(alert_name, dict(
                             name=asset_key,
                             group_name=self.group_name,
                             description=f"Snowflake alert: {alert_name}",
@@ -1010,8 +1093,9 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "snowflake_schema": alert['SCHEMA_NAME'],
                                 "snowflake_condition": alert.get('CONDITION'),
                                 "entity_type": "alert",
-                            }
-                        )
+                            },
+                        ))
+                        @observable_source_asset(**_alert_kwargs)
                         def _alert_asset(context: AssetExecutionContext, alert_name=alert_name, db=alert['DATABASE_NAME'], schema=alert['SCHEMA_NAME']):
                             """Observable alert asset - monitor alert status."""
                             conn = self._create_connection()
@@ -1081,7 +1165,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         asset_key = f"openflow_{re.sub(r'[^a-zA-Z0-9_]', '_', flow_name.lower())}"
 
                         # OpenFlow flows are observable
-                        @observable_source_asset(
+                        _flow_kwargs = self._apply_asset_overrides(flow_name, dict(
                             name=asset_key,
                             group_name=self.group_name,
                             description=f"OpenFlow data integration flow: {flow_name}",
@@ -1089,8 +1173,9 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "openflow_flow_name": flow_name,
                                 "openflow_runtime_id": runtime_id,
                                 "entity_type": "openflow_flow",
-                            }
-                        )
+                            },
+                        ))
+                        @observable_source_asset(**_flow_kwargs)
                         def _openflow_asset(context: AssetExecutionContext, flow_name=flow_name, runtime_id=runtime_id):
                             """Observable OpenFlow flow - monitor via telemetry."""
                             conn = self._create_connection()

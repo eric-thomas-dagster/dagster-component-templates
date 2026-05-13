@@ -73,6 +73,45 @@ attributes:
   description: Production Snowflake workspace
 ```
 
+## Per-entity AssetSpec overrides (`assets_by_name`)
+
+Mirrors the shape of the official `dagster-databricks` `DatabricksWorkspaceComponent.assets_by_task_key`. Optional — filters above still apply; this only customizes entities you specifically name. Everything else gets the default key / group / metadata.
+
+```yaml
+assets_by_name:
+  CUSTOMER_METRICS:                       # Snowflake Dynamic Table name
+    key: silver/customer_metrics          # → AssetKey(["silver", "customer_metrics"])
+    group_name: silver
+    description: Per-customer lifetime metrics, refreshed hourly
+    deps:                                 # cross-engine / cross-component lineage
+      - raw/orders
+      - raw/customers
+    metadata:
+      domain: analytics
+      owner: data-platform
+    tags:
+      tier: gold
+  REFRESH_CUSTOMER_METRICS:                # a Snowflake Task name
+    key: snowflake/tasks/refresh_customer_metrics
+    deps:
+      - silver/customer_metrics
+```
+
+Supported override keys (all optional):
+
+| Key | Effect |
+|---|---|
+| `key` | Renames the Dagster asset key. Slash-separated paths → AssetKey prefix. |
+| `group_name` | Overrides the default group |
+| `description` | Overrides the default description |
+| `deps` | Adds upstream asset keys (merged with whatever the component infers) |
+| `metadata` | Dict-merged into the auto-emitted metadata (override wins on conflict) |
+| `tags` | Dict-merged into asset tags |
+| `kinds` | Replaces the inferred kinds set |
+| `owners` | Replaces the owners list |
+
+The mapping key is the **Snowflake entity name** as it appears in `INFORMATION_SCHEMA` (case-matters depending on your Snowflake configuration — typically uppercase). Works for any of the imported entity types: Tasks, Dynamic Tables, Stored Procedures, Streams, Snowpipes, Stages, Materialized Views, External Tables, Alerts, OpenFlow Flows.
+
 ## How It Works
 
 ### Tasks

@@ -57,3 +57,21 @@ attributes:
   # Organization
   group_name: snowflake_workspace
   description: Complete Snowflake workspace import with all entity types
+
+  # Optional per-entity AssetSpec overrides — mirrors the official
+  # DatabricksWorkspaceComponent.assets_by_task_key. Filters above still
+  # apply; assets_by_name only customizes entities you specifically name.
+  # Anything not listed here uses default key/group/metadata.
+  assets_by_name:
+    CUSTOMER_METRICS:                       # the Snowflake Dynamic Table name
+      key: silver/customer_metrics          # → AssetKey(["silver", "customer_metrics"])
+      group_name: silver
+      description: Per-customer lifetime metrics, refreshed hourly
+      deps:                                 # cross-engine / cross-component lineage
+        - raw/orders
+        - raw/customers
+      metadata:
+        domain: analytics
+        owner: data-platform
+      tags:
+        tier: gold

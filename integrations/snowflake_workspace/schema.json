@@ -201,6 +201,13 @@
       "label": "Retry Policy Backoff",
       "required": false,
       "default": "exponential"
+    },
+    "assets_by_name": {
+      "type": "object",
+      "label": "Assets by Name",
+      "description": "Override the AssetSpec for specific imported entities (Tasks, Dynamic Tables, Stored Procedures, Streams, Snowpipes, Stages, Materialized Views, External Tables, Alerts, OpenFlow Flows) by their Snowflake name. Mirrors the official dagster-databricks DatabricksWorkspaceComponent.assets_by_task_key shape. Per-entity dict supports: key (slash-separated AssetKey), group_name, description, deps (list of upstream asset keys, merged with auto-inferred), metadata (dict-merged), tags (dict-merged), kinds (set), owners (list).",
+      "required": false,
+      "default": null
     }
   },
   "tags": [

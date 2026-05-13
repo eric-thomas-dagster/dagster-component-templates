@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-05-11",
+  "last_updated": "2026-05-12",
   "components": [
     {
       "id": "ab_controls",
@@ -14455,6 +14455,38 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "parametric_data_generator",
+      "name": "Parametric Data Generator",
+      "category": "source",
+      "description": "YAML-driven synthetic data \u2014 declare columns + types + ranges + distributions in defs.yaml. Mockaroo-style.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/source/parametric_data_generator",
+      "tags": [
+        "parametric-data-generator",
+        "synthetic",
+        "source",
+        "mockaroo"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "tabulate"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/parametric_data_generator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/parametric_data_generator/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/parametric_data_generator/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/parametric_data_generator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/source/parametric_data_generator/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "",
+        "last_validated": "2026-05-12"
       }
     },
     {

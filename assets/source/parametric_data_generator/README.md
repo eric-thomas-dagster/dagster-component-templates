@@ -1,0 +1,105 @@
+# Parametric Data Generator
+
+YAML-driven synthetic data — declare the columns + types + ranges in your `defs.yaml`, no Python needed.
+
+The complementary `synthetic_data_generator` ships 24 *named* schemas (`customers`, `fhir_patients`, `x12_messages`, …). This component is the **freeform** alternative: when you need a one-off shape — say, "200 fake store rows with lat/lng in NYC bounds, annual revenue between $50k and $5M, store_type weighted urban/suburban/rural" — you just describe the columns inline.
+
+```yaml
+type: dagster_component_templates.ParametricDataGeneratorComponent
+attributes:
+  asset_name: stores
+  row_count: 200
+  random_state: 42
+  columns:
+    store_id:    { type: id, prefix: "S", width: 4 }
+    lat:         { type: float, min: 40.55, max: 40.90, precision: 4 }
+    lng:         { type: float, min: -74.20, max: -73.70, precision: 4 }
+    revenue:     { type: int, min: 50000, max: 5000000 }
+    store_type:  { type: choice, values: [urban, suburban, rural], weights: [0.5, 0.4, 0.1] }
+    opened_at:   { type: date, start: "2010-01-01", end: "2024-12-31" }
+    is_active:   { type: bool, probability_true: 0.9 }
+```
+
+## Supported column types
+
+**Core types (uniform / discrete sampling):**
+
+| `type` | Required | Optional | Output |
+|---|---|---|---|
+| `id` | — | `prefix`, `width` (default 4), `start` (default 1) | `S0001`, `S0002`, … |
+| `int` | `min`, `max` | — | uniform integer in [min, max] |
+| `float` | `min`, `max` | `precision` (decimal places) | uniform float; rounded if `precision` set |
+| `bool` | — | `probability_true` (default 0.5) | True / False |
+| `choice` | `values` (list) | `weights` (matching list) | random pick |
+| `datetime` | `start`, `end` (ISO strings) | `format` (default `%Y-%m-%d %H:%M:%S`) | string-formatted datetime |
+| `date` | `start`, `end` | — | ISO date string (e.g. `2024-07-12`) |
+| `string` | — | `length` OR `min_length`+`max_length` (defaults 4-12) | random a-z |
+| `uuid` | — | — | UUID v4 string |
+| `constant` | `value` | — | the literal value for every row |
+
+**Realistic / domain types** (Mockaroo-style — bundled value lists, no external faker dep):
+
+| `type` | Required | Optional | Output |
+|---|---|---|---|
+| `first_name` | — | — | "James", "Mary", … (50 common names) |
+| `last_name` | — | — | "Smith", "Johnson", … (50 common names) |
+| `full_name` | — | — | "Jane Smith" |
+| `email` | — | `domains` (list, default example.com / example.org / …) | `jane.smith@example.com` |
+| `city` | — | — | "New York", "Los Angeles", … (40 major US cities) |
+| `state` | — | — | "CA", "NY", … (50 US state codes) |
+| `country` | — | `values` (list, default 13 countries) | "USA", "Canada", … |
+| `zip` | — | — | 5-digit US ZIP code |
+| `phone` | — | — | `(415) 555-1234` (US format) |
+| `ip` | — | `version` (4 or 6, default 4) | `192.168.1.1` or `fe80::...` |
+| `color` | — | — | "red", "blue", … (named) |
+| `hex_color` | — | — | `#a3b1c2` |
+
+**Computed type** — values derived from other columns:
+
+| `type` | Required | Optional | Output |
+|---|---|---|---|
+| `formula` | `formula` (expression string) | — | result of evaluating the expression against the current row |
+
+Formula expressions can reference other column names + use a restricted math toolkit: `min`, `max`, `abs`, `round`, `int`, `float`, `str`, `len`, `sum`, plus basic arithmetic. No imports, no attribute access, no builtins.
+
+```yaml
+quantity:   { type: int, min: 1, max: 100 }
+unit_price: { type: float, min: 1.0, max: 99.99, precision: 2 }
+total:      { type: formula, formula: "round(quantity * unit_price, 2)" }
+discount:   { type: formula, formula: "max(0, total - 50.0)" }
+```
+
+> **⚠️ Column ordering matters for formulas.** The generator processes columns in YAML order — a formula can only reference columns that appear *above* it.
+
+## Modifier (any column)
+
+```yaml
+some_col:
+  type: int
+  min: 1
+  max: 100
+  null_ratio: 0.1     # 10% of rows get NULL for this column
+```
+
+## Top-level options
+
+| Field | Default | Purpose |
+|---|---|---|
+| `asset_name` | required | The Dagster asset key |
+| `row_count` | 100 | How many rows to emit |
+| `random_state` | None | Seed for reproducibility |
+| `columns` | required | The column-specs dict |
+| `group_name` / `tags` / `owners` / `kinds` / `description` | — | Standard Dagster asset metadata |
+
+## When to use which generator
+
+| Use… | When… |
+|---|---|
+| **`parametric_data_generator`** (this one) | You have a specific column shape in mind that doesn't match any built-in schema. Custom ID prefixes, custom value ranges, custom categorical weights. |
+| `synthetic_data_generator` | You want one of the 24 prebuilt schemas (customers / orders / fhir_patients / x12_messages / …). Faster to spec, but you can't customize columns. |
+
+## Pipes well into…
+
+- [`dataframe_to_csv`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/sinks/dataframe_to_csv) / `_parquet` / `_json` / `_excel` — write to disk
+- [`create_points`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/transforms) → [`spatial_join`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/transforms) — geospatial pipelines
+- Any downstream component that accepts a DataFrame upstream

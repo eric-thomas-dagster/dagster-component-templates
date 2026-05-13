@@ -1,0 +1,44 @@
+type: dagster_component_templates.ParametricDataGeneratorComponent
+attributes:
+  asset_name: stores
+  row_count: 200
+  random_state: 42
+  group_name: synthetic
+  columns:
+    store_id:
+      type: id
+      prefix: "S"
+      width: 4
+    name:
+      type: choice
+      values: [Acme Foods, Globex Market, Initech Grocers, Hooli Mart, Pied Piper Provisions]
+    lat:
+      type: float
+      min: 40.55
+      max: 40.90
+      precision: 4
+    lng:
+      type: float
+      min: -74.20
+      max: -73.70
+      precision: 4
+    store_type:
+      type: choice
+      values: [urban, suburban, rural]
+      weights: [0.5, 0.4, 0.1]
+    annual_revenue:
+      type: int
+      min: 50000
+      max: 5000000
+    opened_at:
+      type: date
+      start: "2010-01-01"
+      end: "2024-12-31"
+    is_active:
+      type: bool
+      probability_true: 0.9
+    notes:
+      type: string
+      min_length: 8
+      max_length: 24
+      null_ratio: 0.3

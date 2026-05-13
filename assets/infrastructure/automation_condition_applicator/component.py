@@ -95,12 +95,24 @@ def _build_condition_for_rule(
     rule passes in topological order so derive_from_upstreams sees each
     upstream's *post-rule* cadence, not its raw metadata.
 
-    Returns None if the rule's `derive_from_upstreams` is true but the asset
-    has no upstream cron schedules to derive from.
+    Returns None if the rule cannot yield a condition for this asset
+    (e.g., derive_from_upstreams when no upstream has a cron) — caller
+    falls through to the next rule.
+
+    Rule shape (one of `python`, `preset`, `cron`, `derive_from_upstreams`
+    is required, plus optional `label`, `business_hours_only`,
+    `min_interval_minutes` modifiers).
     """
+    condition: Optional[dg.AutomationCondition] = None
+
+    # ---- Python escape hatch (universal — for anything YAML can't express)
+    python_ref = rule.get("python")
+    if python_ref:
+        condition = _resolve_python_condition(python_ref, spec, defs)
+
     # ---- Preset shortcuts ------------------------------------------------
-    preset = rule.get("preset")
-    if preset:
+    elif rule.get("preset"):
+        preset = rule["preset"]
         method = getattr(dg.AutomationCondition, preset, None)
         if method is None or not callable(method):
             raise ValueError(
@@ -112,11 +124,11 @@ def _build_condition_for_rule(
             raise ValueError(
                 f"preset={preset!r} did not return an AutomationCondition (got {type(result).__name__})."
             )
-        return result
+        condition = result
 
     # ---- Explicit cron ---------------------------------------------------
-    cron = rule.get("cron")
-    if cron:
+    elif rule.get("cron"):
+        cron = rule["cron"]
         cond = dg.AutomationCondition.on_cron(cron)
         ignore_sel = rule.get("ignore_selection")
         allow_sel = rule.get("allow_selection")
@@ -124,21 +136,249 @@ def _build_condition_for_rule(
             cond = cond.ignore(_parse_selection(ignore_sel))
         if allow_sel:
             cond = cond.allow(_parse_selection(allow_sel))
-        return cond
+        condition = cond
 
     # ---- Derive from upstreams ------------------------------------------
-    if rule.get("derive_from_upstreams"):
-        return _derive_condition_from_upstreams(
+    elif rule.get("derive_from_upstreams"):
+        condition = _derive_condition_from_upstreams(
             spec,
             defs,
             strategy=rule.get("strategy", "most_frequent"),
             effective_crons=effective_crons or {},
+            offset_minutes=rule.get("offset_minutes", 0),
         )
 
-    raise ValueError(
-        f"rule {rule.get('name', '<unnamed>')!r}: must specify one of "
-        "'cron', 'preset', or 'derive_from_upstreams'."
+    else:
+        raise ValueError(
+            f"rule {rule.get('name', '<unnamed>')!r}: must specify one of "
+            "'python', 'preset', 'cron', or 'derive_from_upstreams'."
+        )
+
+    if condition is None:
+        return None  # rule didn't yield (e.g. derive with no upstream crons)
+
+    # ---- Modifiers (apply to whatever condition we just built) ---------
+    if rule.get("min_interval_minutes"):
+        condition = _apply_min_interval(condition, int(rule["min_interval_minutes"]), rule)
+
+    if rule.get("business_hours_only"):
+        condition = _apply_business_hours(
+            condition,
+            hours=rule.get("business_hours", "9-17"),
+            days=rule.get("business_days", "1-5"),
+            rule_name=rule.get("name", "<unnamed>"),
+        )
+
+    # ---- Label override (auto-labels are descriptive but verbose) ------
+    label = rule.get("label")
+    if label:
+        condition = condition.with_label(label)  # type: ignore[attr-defined]
+
+    return condition
+
+
+def _resolve_python_condition(ref: str, spec, defs):
+    """Load an AutomationCondition from a 'module.path:function_name' reference.
+
+    The referenced callable must return an `AutomationCondition`. It may take
+    zero args, or one arg (the asset spec — useful for per-asset customization).
+    """
+    if ":" not in ref:
+        raise ValueError(
+            f"python ref must be 'module.path:function_name', got {ref!r}"
+        )
+    module_path, func_name = ref.rsplit(":", 1)
+    module_path = module_path.strip()
+    func_name = func_name.strip()
+
+    import importlib
+    import inspect
+
+    try:
+        mod = importlib.import_module(module_path)
+    except ImportError as e:
+        raise ValueError(
+            f"python: cannot import module {module_path!r}: {e}"
+        ) from e
+    func = getattr(mod, func_name, None)
+    if func is None:
+        raise ValueError(
+            f"python: module {module_path!r} has no attribute {func_name!r}"
+        )
+    if not callable(func):
+        raise ValueError(f"python: {ref!r} is not callable")
+
+    try:
+        sig = inspect.signature(func)
+        positional_params = [
+            p
+            for p in sig.parameters.values()
+            if p.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.POSITIONAL_ONLY)
+            and p.default is inspect.Parameter.empty
+        ]
+        if len(positional_params) == 0:
+            result = func()
+        else:
+            result = func(spec)
+    except TypeError:
+        # Mismatched signature — try the other shape
+        try:
+            result = func()
+        except TypeError:
+            result = func(spec)
+
+    if not isinstance(result, dg.AutomationCondition):
+        raise ValueError(
+            f"python: {ref!r} returned {type(result).__name__}, expected AutomationCondition"
+        )
+    return result
+
+
+def _apply_min_interval(
+    condition: dg.AutomationCondition,
+    min_minutes: int,
+    rule: dict,
+) -> dg.AutomationCondition:
+    """Floor the condition's effective cron to a minimum interval.
+
+    Replaces the inner cron with a coarser one if the original is faster.
+    Requires the condition to have an extractable cron — non-cron strategies
+    (any_dep_updated, all_deps_updated) raise.
+    """
+    inner_cron = _extract_cron_from_condition(condition)
+    if inner_cron is None:
+        raise ValueError(
+            f"rule {rule.get('name', '<unnamed>')!r}: min_interval_minutes requires a "
+            "cron-producing strategy (cron / derive_from_upstreams with most_frequent / "
+            "least_frequent / tiered / staggered). Got non-cron condition."
+        )
+    current_seconds = _cron_period_seconds(inner_cron)
+    if current_seconds >= min_minutes * 60:
+        return condition  # already slower than floor
+    return dg.AutomationCondition.on_cron(_cron_for_interval_minutes(min_minutes)).with_label(
+        f"min_interval({min_minutes}min)"
     )
+
+
+def _cron_for_interval_minutes(minutes: int) -> str:
+    """Return a cron expression with period >= `minutes`. Uses sane round values.
+
+    Supports: 5/10/15/20/30 minutely; 1/2/3/4/6/8/12 hourly; daily; weekly.
+    """
+    if minutes <= 0:
+        raise ValueError(f"min_interval_minutes must be > 0, got {minutes}")
+    if minutes < 60:
+        # Pick the smallest divisor of 60 that's >= minutes
+        for n in (5, 10, 15, 20, 30, 60):
+            if n >= minutes:
+                if n == 60:
+                    return "0 * * * *"
+                return f"*/{n} * * * *"
+    hours, rem = divmod(minutes, 60)
+    if rem > 0:
+        hours += 1
+    if hours <= 12:
+        # Pick smallest divisor of 24 that's >= hours
+        for h in (1, 2, 3, 4, 6, 8, 12, 24):
+            if h >= hours:
+                if h == 24:
+                    return "0 0 * * *"
+                return f"0 */{h} * * *"
+    if hours <= 24:
+        return "0 0 * * *"
+    if hours <= 24 * 7:
+        return "0 0 * * 0"  # weekly
+    return "0 0 1 * *"  # monthly floor
+
+
+def _apply_business_hours(
+    condition: dg.AutomationCondition,
+    hours: str,
+    days: str,
+    rule_name: str,
+) -> dg.AutomationCondition:
+    """Constrain the condition's cron to business hours and days.
+
+    Supported: simple cron strategies whose cron has a single hour value.
+    For tiered conditions (multiple inner crons), this raises with a clear
+    error — use the python escape hatch instead.
+    """
+    inner_cron = _extract_cron_from_condition(condition)
+    if inner_cron is None:
+        raise ValueError(
+            f"rule {rule_name!r}: business_hours_only requires a cron-producing strategy."
+        )
+
+    # Refuse for tiered (multi-cron) conditions — replacing one cron breaks the
+    # tier composition. Users should compose business_hours_only at the cron
+    # level, or use the python escape hatch.
+    if _count_distinct_crons_in_condition(condition) > 1:
+        raise ValueError(
+            f"rule {rule_name!r}: business_hours_only doesn't compose with tiered "
+            "strategies (multiple inner crons). Use `cron:` + `business_hours_only` "
+            "directly, or write a custom condition via `python:`."
+        )
+
+    parts = inner_cron.split()
+    if len(parts) != 5:
+        raise ValueError(
+            f"rule {rule_name!r}: business_hours_only got malformed cron {inner_cron!r}."
+        )
+    minute, hour, dom, month, dow = parts
+    # Apply business-hour bounds: replace `*` hour with the range; replace `*` dow with weekdays.
+    new_hour = hours if hour == "*" else hour
+    new_dow = days if dow == "*" else dow
+    new_cron = f"{minute} {new_hour} {dom} {month} {new_dow}"
+    return dg.AutomationCondition.on_cron(new_cron).with_label(f"business_hours({new_cron})")
+
+
+def _shift_cron(cron: str, offset_minutes: int) -> str:
+    """Shift a fixed-time cron by offset_minutes. Rejects crosses-day-boundary
+    or non-fixed-time crons with clear errors."""
+    parts = cron.split()
+    if len(parts) != 5:
+        raise ValueError(f"staggered: cron must have 5 fields, got {cron!r}")
+    minute, hour, dom, month, dow = parts
+    if minute == "*" or hour == "*":
+        raise ValueError(
+            f"staggered: only fixed minute+hour crons (e.g. '0 6 * * *') can be shifted; "
+            f"got {cron!r}. For finer-grained shifts, write an explicit cron."
+        )
+    try:
+        m = int(minute)
+        h = int(hour)
+    except ValueError:
+        raise ValueError(
+            f"staggered: requires integer minute+hour, got {cron!r}"
+        ) from None
+    total = m + h * 60 + offset_minutes
+    if not (0 <= total < 24 * 60):
+        raise ValueError(
+            f"staggered: offset of {offset_minutes}min from {cron!r} would cross a day boundary "
+            "(total time would be < 0 or ≥ 24h). For cross-day offsets, write an explicit cron "
+            "or use the python escape hatch."
+        )
+    new_h, new_m = divmod(total, 60)
+    return f"{new_m} {new_h} {dom} {month} {dow}"
+
+
+def _count_distinct_crons_in_condition(condition) -> int:
+    """Count distinct cron_schedule strings across a condition's tree."""
+    seen: set = set()
+
+    def walk(c):
+        if c is None:
+            return
+        cs = getattr(c, "cron_schedule", None)
+        if isinstance(cs, str):
+            seen.add(cs)
+        for attr in ("trigger_condition", "reset_condition", "operand"):
+            walk(getattr(c, attr, None))
+        for op in getattr(c, "operands", None) or []:
+            walk(op)
+
+    walk(condition)
+    return len(seen)
 
 
 def _derive_condition_from_upstreams(
@@ -146,14 +386,17 @@ def _derive_condition_from_upstreams(
     defs: dg.Definitions,
     strategy: str,
     effective_crons: Dict[dg.AssetKey, str],
+    offset_minutes: int = 0,
 ) -> Optional[dg.AutomationCondition]:
     """Build an AutomationCondition by inspecting the cron schedules of upstream assets.
 
     `effective_crons` (asset_key → cron) lets us see each upstream's POST-RULE
-    effective cadence rather than its raw metadata. This is what makes
-    propagation work for chains of depth ≥ 2: e.g., C (rule: least_frequent
-    of daily+monthly) becomes monthly, and D (rule: derive from C) then
-    inherits monthly through this map.
+    effective cadence rather than its raw metadata. Makes propagation work
+    for chains of depth ≥ 2.
+
+    `offset_minutes` only applies to `strategy: staggered` — shifts the derived
+    cron by that many minutes (positive = later). Errors if it would cross
+    a day boundary.
 
     strategy:
       - 'most_frequent': fire on the fastest upstream's cron; ignore slower deps.
@@ -161,10 +404,33 @@ def _derive_condition_from_upstreams(
       - 'least_frequent': fire on the slowest upstream's cron; require all deps.
         Use when downstream MUST see every dep's update before firing.
       - 'tiered': fire on the fastest upstream's cron, BUT on each slower tier's
-        boundary, also wait for that tier. Per-tier `allow()` gating. Use for
-        the "daily-with-monthly-boundary" pattern: fire every day at 9am with
-        the daily deps; on the 1st, also wait for the monthly dep.
+        boundary, also wait for that tier. Per-tier `allow()` gating. The
+        "daily-with-monthly-boundary" pattern.
+      - 'staggered': like 'most_frequent', but shifts the derived cron by
+        `offset_minutes`. Use to add a buffer after upstream completion.
+      - 'any_dep_updated': no cron — fire whenever ANY upstream updates since
+        the last fire. Event-driven; ignores upstream cron metadata entirely.
+      - 'all_deps_updated': no cron — fire only when ALL upstreams have updated
+        since the last fire. Strict join semantics; ignores upstream cron metadata.
     """
+    # --- No-cron strategies: don't even walk upstream cron metadata --------
+    if strategy == "any_dep_updated":
+        cond = (
+            dg.AutomationCondition.in_latest_time_window()
+            & dg.AutomationCondition.any_deps_updated().since_last_handled()
+            & ~dg.AutomationCondition.any_deps_in_progress()
+        )
+        return cond.with_label("any_dep_updated")  # type: ignore[attr-defined]
+
+    if strategy == "all_deps_updated":
+        cond = (
+            dg.AutomationCondition.in_latest_time_window()
+            & dg.AutomationCondition.all_deps_match(
+                dg.AutomationCondition.newly_updated()
+            ).since_last_handled()
+            & ~dg.AutomationCondition.any_deps_in_progress()
+        )
+        return cond.with_label("all_deps_updated")  # type: ignore[attr-defined]
     asset_graph = defs.resolve_asset_graph()
     upstream_deps = list(spec.deps) if spec.deps else []
     upstream_crons: List[tuple] = []  # (cron_str, asset_key)
@@ -207,6 +473,22 @@ def _derive_condition_from_upstreams(
         sorted_crons = sorted(upstream_crons, key=lambda x: -_cron_period_seconds(x[0]))
         slowest_cron = sorted_crons[0][0]
         return dg.AutomationCondition.on_cron(slowest_cron)
+
+    if strategy == "staggered":
+        # Same as most_frequent but shifts the cron by offset_minutes.
+        # Useful for pipeline pacing: fire 1 hour AFTER the upstream's daily tick.
+        if offset_minutes == 0:
+            raise ValueError(
+                "strategy='staggered' requires offset_minutes > 0 (or use 'most_frequent')."
+            )
+        sorted_crons = sorted(upstream_crons, key=lambda x: _cron_period_seconds(x[0]))
+        fastest_cron = sorted_crons[0][0]
+        shifted_cron = _shift_cron(fastest_cron, offset_minutes)
+        slow_keys = [k for c, k in sorted_crons if c != fastest_cron]
+        cond = dg.AutomationCondition.on_cron(shifted_cron)
+        if slow_keys:
+            cond = cond.ignore(dg.AssetSelection.assets(*slow_keys))
+        return cond.with_label(f"staggered({shifted_cron})")  # type: ignore[attr-defined]
 
     if strategy == "tiered":
         # Group upstreams by cron expression — each distinct cron is a "tier".

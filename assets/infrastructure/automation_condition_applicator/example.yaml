@@ -1,0 +1,29 @@
+type: dagster_component_templates.AutomationConditionApplicatorComponent
+attributes:
+  preserve_existing: true   # asset-level automation_condition wins over rules
+
+  rules:
+    # Narrow first → broad last (fall-through: first match wins)
+
+    # Explicit cron — fires every hour, ignores 'daily' deps
+    - name: critical_hourly
+      selection: "tag:cadence=hourly"
+      cron: "0 * * * *"
+      ignore_selection: "tag:cadence=daily"
+
+    # Group-based with allow/ignore (the "3 daily + 1 monthly" pattern)
+    - name: daily_with_monthly_boundary
+      selection: "group:revenue_marts"
+      cron: "0 9 * * *"
+      ignore_selection: "tag:cadence=monthly"
+
+    # Auto-derive from upstream cron schedules — pick most frequent
+    - name: derive_for_silver
+      selection: "group:silver"
+      derive_from_upstreams: true
+      strategy: most_frequent     # or 'least_frequent'
+
+    # Preset for everything else
+    - name: catchall_eager
+      selection: "*"
+      preset: eager

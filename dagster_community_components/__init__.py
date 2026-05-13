@@ -87,6 +87,7 @@ _CLASS_PATHS: dict[str, str] = {
     "Auth0LogsIngestionComponent": "ingestion/auth0_logs_ingestion/component.py",
     "AutoFieldComponent": "assets/transforms/auto_field/component.py",
     "AutoSysAssetComponent": "assets/infrastructure/autosys_asset/component.py",
+    "AutomationConditionApplicatorComponent": "assets/infrastructure/automation_condition_applicator/component.py",
     "AwsCloudTrailIngestionComponent": "ingestion/aws_cloudtrail_ingestion/component.py",
     "AwsCloudwatchLogsInsightsQueryComponent": "assets/sources/aws_cloudwatch_logs_insights_query/component.py",
     "AwsCloudwatchMetricsQueryComponent": "assets/sources/aws_cloudwatch_metrics_query/component.py",

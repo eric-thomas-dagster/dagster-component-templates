@@ -21612,9 +21612,33 @@
         "level": "code",
         "last_validated": "2026-05-13"
       }
+    },
+    {
+      "id": "automation_condition_applicator",
+      "name": "Automation Condition Applicator",
+      "category": "infrastructure",
+      "description": "Apply Dagster AutomationConditions broadly via selection rules with fall-through priority. Per-asset settings preserved by default. Supports cron, presets, and derive-from-upstreams modes.",
+      "path": "assets/infrastructure/automation_condition_applicator",
+      "tags": [
+        "infrastructure",
+        "automation",
+        "automation-condition",
+        "declarative-automation",
+        "bulk-apply"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/automation_condition_applicator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/automation_condition_applicator/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/automation_condition_applicator/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/automation_condition_applicator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/automation_condition_applicator/requirements.txt",
+      "icon": "Workflow",
+      "validation": {
+        "level": "end-to-end",
+        "last_validated": "2026-05-13"
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 748
+  "total": 749
 }

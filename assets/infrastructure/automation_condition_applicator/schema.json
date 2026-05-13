@@ -1,0 +1,18 @@
+{
+  "component_type": "dagster_component_templates.AutomationConditionApplicatorComponent",
+  "description": "Apply Dagster AutomationConditions broadly via selection rules with fall-through priority. Per-asset settings preserved by default. Supports cron, presets, and derive-from-upstreams modes.",
+  "category": "infrastructure",
+  "icon": "Workflow",
+  "attributes": {
+    "preserve_existing": {"type": "boolean", "label": "Preserve Existing", "description": "If true, assets with their own automation_condition are NOT overwritten.", "required": false, "default": true, "ui:widget": "checkbox"},
+    "rules": {
+      "type": "array",
+      "items": {"type": "object"},
+      "label": "Rules",
+      "description": "Ordered list — first selection-match wins. Each rule needs `selection` + one of `cron` / `preset` / `derive_from_upstreams`.",
+      "required": true
+    }
+  },
+  "tags": ["infrastructure", "automation", "automation-condition", "declarative-automation", "bulk-apply"],
+  "name": "Automation Condition Applicator"
+}

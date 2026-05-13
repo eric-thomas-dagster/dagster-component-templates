@@ -1,6 +1,18 @@
 # SAP HANA Resource
 
-SAP HANA database resource — provides a SQLAlchemy URL helper. Works with HANA Cloud, on-prem, and Azure HANA (preview). Use with existing dataframe_to_table / dataframe_from_sql.
+SAP HANA database resource — provides a SQLAlchemy URL helper. Works with HANA Cloud, on-prem, and Azure HANA (preview). Use with existing dataframe_to_table / dataframe_from_sql, OR with [`sap_hana_ingestion`](../../assets/ingestion/sap_hana_ingestion/) for the asset-as-SQL-query pattern.
+
+## When to use which SAP component
+
+| Want | Use |
+|---|---|
+| Connect once, share the connection across many custom assets | **This resource** |
+| One SQL query → one DataFrame asset (no shared connection needed) | [`sap_hana_ingestion`](../../assets/ingestion/sap_hana_ingestion/) |
+| Pull SAP-curated entities (BusinessPartner, SalesOrder, …) over HTTPS | [`odata_ingestion`](../../assets/ingestion/odata_ingestion/) — against S/4HANA OData APIs |
+| Write a DataFrame BACK into HANA | [`dataframe_to_table`](https://dagster-community-components-cli.vercel.app/c/dataframe_to_table) with this resource's `url()` |
+| Write back to S/4HANA via SAP's OData write APIs | [`dataframe_to_odata`](../../assets/sinks/dataframe_to_odata/) |
+
+**HANA SQL vs OData**: HANA SQL gives raw table access (full SQL power, faster) but needs direct DB access — often blocked by customer security. OData talks to S/4HANA's HTTPS APIs — customer-governance-friendly but slower and limited to SAP-curated entities. See [`sap_hana_ingestion`'s README](../../assets/ingestion/sap_hana_ingestion/README.md) for the full comparison.
 
 ## Companion components
 

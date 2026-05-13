@@ -1,0 +1,40 @@
+type: dagster_component_templates.DeltaIngestionComponent
+attributes:
+  asset_name: events_delta
+
+  # --- S3 ---
+  table_uri: s3://my-bucket/lakehouse/events
+  storage_options:
+    AWS_REGION: us-east-1
+    # AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY from env or instance profile
+
+  # --- Or ADLS Gen2 ---
+  # table_uri: az://container@account.dfs.core.windows.net/lakehouse/events
+  # storage_options:
+  #   AZURE_STORAGE_ACCOUNT_NAME: my-account
+  #   AZURE_STORAGE_KEY: "${AZURE_STORAGE_KEY}"
+
+  # --- Or GCS ---
+  # table_uri: gs://my-bucket/lakehouse/events
+  # storage_options:
+  #   GOOGLE_SERVICE_ACCOUNT_KEY: "${GOOGLE_SERVICE_ACCOUNT_KEY}"
+
+  # --- Or Unity Catalog (Databricks) ---
+  # table_uri: uc://catalog.schema.events
+  # storage_options:
+  #   UC_TOKEN: "${DATABRICKS_TOKEN}"
+  #   UC_HOST: "https://my-workspace.cloud.databricks.com"
+
+  select_columns: [event_id, user_id, event_type, event_timestamp]
+  partition_filters:
+    - [event_date, "=", "{partition_key}"]
+
+  # Time travel — pick ONE:
+  # version: 42
+  # timestamp: '2024-01-15T00:00:00Z'
+
+  partition_type: daily
+  partition_start: '2024-01-01'
+
+  group_name: lakehouse
+  kinds: [delta, lakehouse]

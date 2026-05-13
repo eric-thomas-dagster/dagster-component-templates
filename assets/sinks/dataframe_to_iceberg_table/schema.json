@@ -1,0 +1,38 @@
+{
+  "component_type": "dagster_component_templates.DataframeToIcebergTableComponent",
+  "description": "Write a pandas DataFrame to an EXISTING Iceberg table (append or overwrite). For Iceberg tables shared with other engines — Snowflake, Trino, Spark, Flink, Databricks.",
+  "category": "sink",
+  "icon": "si:apacheiceberg",
+  "x-dagster-io": {
+    "inputs": {"upstream": {"type": "pandas.DataFrame", "required": true}},
+    "outputs": {"type": "Output[None]"}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true},
+    "catalog_type": {"type": "string", "label": "Catalog Type", "required": false, "default": "rest"},
+    "catalog_name": {"type": "string", "label": "Catalog Name", "required": false, "default": "default"},
+    "catalog_properties": {"type": "object", "label": "Catalog Properties", "required": false, "ui:widget": "key-value"},
+    "namespace": {"type": "string", "label": "Namespace", "required": true},
+    "table_name": {"type": "string", "label": "Table Name", "required": true},
+    "mode": {"type": "string", "label": "Mode", "description": "'append' (default) | 'overwrite'", "required": false, "default": "append"},
+    "overwrite_filter": {"type": "string", "label": "Overwrite Filter", "description": "Iceberg expression — supports {partition_key}", "required": false, "ui:widget": "code"},
+    "skip_columns": {"type": "array", "items": {"type": "string"}, "label": "Skip Columns", "required": false, "ui:widget": "list"},
+    "schema_evolution": {"type": "boolean", "label": "Schema Evolution", "required": false, "default": false, "ui:widget": "checkbox"},
+    "description": {"type": "string", "label": "Description", "required": false, "ui:widget": "code"},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "iceberg_sink"},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false, "ui:widget": "list"},
+    "partition_type": {"type": "string", "label": "Partition Type", "required": false},
+    "partition_start": {"type": "string", "label": "Partition Start", "required": false},
+    "partition_values": {"type": "string", "label": "Partition Values", "required": false},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false},
+    "retry_policy_max_retries": {"type": "integer", "label": "Retry Policy Max Retries", "required": false},
+    "retry_policy_delay_seconds": {"type": "integer", "label": "Retry Policy Delay Seconds", "required": false},
+    "retry_policy_backoff": {"type": "string", "label": "Retry Policy Backoff", "required": false, "default": "exponential"}
+  },
+  "tags": ["sink", "iceberg", "lakehouse", "pyiceberg", "external-table"],
+  "name": "Dataframe → Iceberg Table"
+}

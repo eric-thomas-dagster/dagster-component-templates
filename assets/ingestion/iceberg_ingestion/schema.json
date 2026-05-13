@@ -1,0 +1,44 @@
+{
+  "component_type": "dagster_component_templates.IcebergIngestionComponent",
+  "description": "Read from an EXISTING external Apache Iceberg table (Snowflake / Trino / Spark / Flink / Databricks / Polaris / Nessie / Glue / S3 Tables) into a Dagster asset as a pandas DataFrame. Uses pyiceberg. Supports snapshot/branch/time-travel.",
+  "category": "ingestion",
+  "icon": "si:apacheiceberg",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "Output[DataFrame]"
+    }
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "catalog_type": {"type": "string", "label": "Catalog Type", "description": "'rest' (default) | 'glue' | 'hive' | 'hadoop' | 'sql'", "required": false, "default": "rest"},
+    "catalog_name": {"type": "string", "label": "Catalog Name", "required": false, "default": "default"},
+    "catalog_properties": {"type": "object", "label": "Catalog Properties", "description": "Catalog-specific config (uri, credential, warehouse, scope, token, region). ${ENV_VAR} expansion supported.", "required": false, "ui:widget": "key-value"},
+    "namespace": {"type": "string", "label": "Namespace", "required": true},
+    "table_name": {"type": "string", "label": "Table Name", "required": true},
+    "select_columns": {"type": "array", "items": {"type": "string"}, "label": "Select Columns", "required": false, "ui:widget": "list"},
+    "row_filter": {"type": "string", "label": "Row Filter", "description": "Iceberg expression. Supports {partition_key}.", "required": false, "ui:widget": "code"},
+    "snapshot_id": {"type": "integer", "label": "Snapshot ID", "required": false},
+    "as_of_timestamp_ms": {"type": "integer", "label": "As-Of Timestamp (ms)", "required": false},
+    "branch": {"type": "string", "label": "Branch", "required": false},
+    "limit": {"type": "integer", "label": "Row Limit", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false, "ui:widget": "code"},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "iceberg"},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "freshness_max_lag_minutes": {"type": "integer", "label": "Freshness Max Lag (minutes)", "required": false},
+    "freshness_cron": {"type": "string", "label": "Freshness Cron", "required": false},
+    "include_preview_metadata": {"type": "boolean", "label": "Include Preview Metadata", "required": false, "default": true, "ui:widget": "checkbox"},
+    "preview_rows": {"type": "integer", "label": "Preview Rows", "required": false, "default": 25},
+    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false, "ui:widget": "list"},
+    "partition_type": {"type": "string", "label": "Partition Type", "required": false},
+    "partition_start": {"type": "string", "label": "Partition Start", "required": false},
+    "partition_values": {"type": "string", "label": "Partition Values", "required": false},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false},
+    "retry_policy_max_retries": {"type": "integer", "label": "Retry Policy Max Retries", "required": false},
+    "retry_policy_delay_seconds": {"type": "integer", "label": "Retry Policy Delay Seconds", "required": false},
+    "retry_policy_backoff": {"type": "string", "label": "Retry Policy Backoff", "required": false, "default": "exponential"}
+  },
+  "tags": ["ingestion", "iceberg", "lakehouse", "pyiceberg", "rest-catalog", "glue", "nessie", "polaris", "snowflake", "s3-tables"],
+  "name": "Iceberg Ingestion"
+}

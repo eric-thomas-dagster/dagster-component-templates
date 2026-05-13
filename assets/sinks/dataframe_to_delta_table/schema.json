@@ -1,0 +1,37 @@
+{
+  "component_type": "dagster_component_templates.DataframeToDeltaTableComponent",
+  "description": "Write a pandas DataFrame to an EXISTING Delta Lake table (append / overwrite / merge). Uses delta-rs — no Spark / JVM. For cross-engine Delta scenarios on S3 / ADLS / GCS / Unity Catalog.",
+  "category": "sink",
+  "icon": "si:databricks",
+  "x-dagster-io": {
+    "inputs": {"upstream": {"type": "pandas.DataFrame", "required": true}},
+    "outputs": {"type": "Output[None]"}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true},
+    "table_uri": {"type": "string", "label": "Table URI", "required": true},
+    "storage_options": {"type": "object", "label": "Storage Options", "required": false, "ui:widget": "key-value"},
+    "mode": {"type": "string", "label": "Mode", "description": "'append' (default) | 'overwrite' | 'merge' | 'error' | 'ignore'", "required": false, "default": "append"},
+    "partition_by": {"type": "array", "items": {"type": "string"}, "label": "Partition By", "required": false, "ui:widget": "list"},
+    "overwrite_partition_filter": {"type": "array", "items": {"type": "array"}, "label": "Overwrite Partition Filter", "required": false},
+    "merge_predicate": {"type": "string", "label": "Merge Predicate", "description": "Required for mode='merge'", "required": false},
+    "schema_mode": {"type": "string", "label": "Schema Mode", "description": "'merge' allows new columns", "required": false},
+    "skip_columns": {"type": "array", "items": {"type": "string"}, "label": "Skip Columns", "required": false, "ui:widget": "list"},
+    "description": {"type": "string", "label": "Description", "required": false, "ui:widget": "code"},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "delta_sink"},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false, "ui:widget": "list"},
+    "partition_type": {"type": "string", "label": "Partition Type", "required": false},
+    "partition_start": {"type": "string", "label": "Partition Start", "required": false},
+    "partition_values": {"type": "string", "label": "Partition Values", "required": false},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false},
+    "retry_policy_max_retries": {"type": "integer", "label": "Retry Policy Max Retries", "required": false},
+    "retry_policy_delay_seconds": {"type": "integer", "label": "Retry Policy Delay Seconds", "required": false},
+    "retry_policy_backoff": {"type": "string", "label": "Retry Policy Backoff", "required": false, "default": "exponential"}
+  },
+  "tags": ["sink", "delta", "delta-lake", "lakehouse", "delta-rs", "unity-catalog", "external-table"],
+  "name": "Dataframe → Delta Table"
+}

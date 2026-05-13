@@ -21331,6 +21331,181 @@
         "level": "code",
         "last_validated": "2026-05-13"
       }
+    },
+    {
+      "id": "iceberg_ingestion",
+      "name": "Iceberg Ingestion",
+      "category": "ingestion",
+      "description": "Read from an EXISTING external Apache Iceberg table (Snowflake / Trino / Spark / Flink / Databricks / Polaris / Nessie / Glue / S3 Tables) into a Dagster asset as a pandas DataFrame. Uses pyiceberg. Supports snapshot/branch/time-travel.",
+      "path": "assets/ingestion/iceberg_ingestion",
+      "tags": [
+        "ingestion",
+        "iceberg",
+        "lakehouse",
+        "pyiceberg",
+        "rest-catalog",
+        "glue",
+        "nessie",
+        "polaris",
+        "snowflake",
+        "s3-tables"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/iceberg_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/iceberg_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/iceberg_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/iceberg_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/iceberg_ingestion/requirements.txt",
+      "icon": "Database",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
+      "id": "delta_ingestion",
+      "name": "Delta Lake Ingestion",
+      "category": "ingestion",
+      "description": "Read from an EXISTING external Delta Lake table (S3 / ADLS / GCS / Unity Catalog) into a Dagster asset as a pandas DataFrame. Uses delta-rs (no Spark / JVM). Supports version + timestamp time-travel + partition-predicate pushdown.",
+      "path": "assets/ingestion/delta_ingestion",
+      "tags": [
+        "ingestion",
+        "delta",
+        "delta-lake",
+        "lakehouse",
+        "delta-rs",
+        "databricks",
+        "unity-catalog"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/delta_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/delta_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/delta_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/delta_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/delta_ingestion/requirements.txt",
+      "icon": "Database",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
+      "id": "dataframe_to_iceberg_table",
+      "name": "Dataframe \u2192 Iceberg Table",
+      "category": "sink",
+      "description": "Write a pandas DataFrame to an EXISTING Iceberg table (append or overwrite). For Iceberg tables shared with other engines \u2014 Snowflake, Trino, Spark, Flink, Databricks.",
+      "path": "assets/sinks/dataframe_to_iceberg_table",
+      "tags": [
+        "sink",
+        "iceberg",
+        "lakehouse",
+        "pyiceberg",
+        "external-table"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_iceberg_table/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_iceberg_table/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_iceberg_table/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_iceberg_table/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_iceberg_table/requirements.txt",
+      "icon": "ArrowUpRight",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
+      "id": "dataframe_to_delta_table",
+      "name": "Dataframe \u2192 Delta Table",
+      "category": "sink",
+      "description": "Write a pandas DataFrame to an EXISTING Delta Lake table (append / overwrite / merge). Uses delta-rs \u2014 no Spark / JVM. For cross-engine Delta scenarios on S3 / ADLS / GCS / Unity Catalog.",
+      "path": "assets/sinks/dataframe_to_delta_table",
+      "tags": [
+        "sink",
+        "delta",
+        "delta-lake",
+        "lakehouse",
+        "delta-rs",
+        "unity-catalog",
+        "external-table"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_delta_table/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_delta_table/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_delta_table/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_delta_table/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_delta_table/requirements.txt",
+      "icon": "ArrowUpRight",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
+      "id": "iceberg_catalog_resource",
+      "name": "Iceberg Catalog Resource",
+      "category": "resource",
+      "description": "Register a PyIceberg catalog (REST / Glue / Hive / Hadoop / SQL) once and reuse across many ingestion / sink / observation components.",
+      "path": "resources/iceberg_catalog_resource",
+      "tags": [
+        "resource",
+        "iceberg",
+        "lakehouse",
+        "pyiceberg"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/iceberg_catalog_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/iceberg_catalog_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/iceberg_catalog_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/iceberg_catalog_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/iceberg_catalog_resource/requirements.txt",
+      "icon": "Database",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
+      "id": "external_iceberg_table",
+      "name": "External Iceberg Table",
+      "category": "external",
+      "description": "Declare an external Apache Iceberg table (written by Snowflake / Trino / Spark / Flink / Databricks / etc.) as an observable Dagster external asset. Engine-agnostic.",
+      "path": "external_assets/external_iceberg_table",
+      "tags": [
+        "external",
+        "iceberg",
+        "lakehouse",
+        "observable"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_iceberg_table/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_iceberg_table/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_iceberg_table/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_iceberg_table/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_iceberg_table/requirements.txt",
+      "icon": "Eye",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
+      "id": "external_delta_table",
+      "name": "External Delta Lake Table",
+      "category": "external",
+      "description": "Declare an external Delta Lake table (written by Spark, Databricks, Trino, Flink, etc.) as an observable Dagster external asset. Engine-agnostic.",
+      "path": "external_assets/external_delta_table",
+      "tags": [
+        "external",
+        "delta",
+        "delta-lake",
+        "lakehouse",
+        "observable"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_delta_table/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_delta_table/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_delta_table/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_delta_table/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_delta_table/requirements.txt",
+      "icon": "Eye",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

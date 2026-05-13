@@ -1,0 +1,21 @@
+{
+  "component_type": "dagster_component_templates.ExternalDeltaTableAsset",
+  "description": "Declare an external Delta Lake table (written by Spark, Databricks, Trino, Flink, etc.) as an observable Dagster external asset. Engine-agnostic.",
+  "category": "external",
+  "icon": "si:databricks",
+  "attributes": {
+    "asset_key": {"type": "string", "label": "Asset Key", "required": true},
+    "table_uri": {"type": "string", "label": "Table URI", "required": true},
+    "owner_engine": {"type": "string", "label": "Owner Engine", "description": "databricks / spark / trino / flink / snowflake-uniform", "required": false},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false, "ui:widget": "code"},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "partition_type": {"type": "string", "label": "Partition Type", "required": false},
+    "partition_start": {"type": "string", "label": "Partition Start", "required": false},
+    "partition_values": {"type": "string", "label": "Partition Values", "required": false},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false}
+  },
+  "tags": ["external", "delta", "delta-lake", "lakehouse", "observable"],
+  "name": "External Delta Lake Table"
+}

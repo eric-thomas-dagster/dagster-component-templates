@@ -1,0 +1,22 @@
+type: dagster_component_templates.IcebergCatalogResourceComponent
+attributes:
+  resource_key: iceberg
+
+  catalog_type: rest
+  catalog_properties:
+    uri: https://catalog.example.com
+    credential: "${CATALOG_CREDENTIAL}"
+    warehouse: my_warehouse
+
+  # --- Or Glue ---
+  # catalog_type: glue
+  # catalog_properties:
+  #   warehouse: s3://my-bucket/iceberg/
+
+  # --- Or Snowflake-managed catalog ---
+  # catalog_type: rest
+  # catalog_properties:
+  #   uri: https://abc-xy12345.snowflakecomputing.com/api/v2/catalogs/MY_CAT/iceberg
+  #   credential: "${SNOWFLAKE_PAT}"
+  #   warehouse: MY_WAREHOUSE
+  #   scope: PRINCIPAL_ROLE:MY_ROLE

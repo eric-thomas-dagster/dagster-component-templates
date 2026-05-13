@@ -1,0 +1,10 @@
+pyiceberg>=0.6.0
+pyarrow>=10.0.0
+pandas>=1.5.0
+# Catalog-specific extras — install what you need:
+# pyiceberg[s3fs]    # S3 storage
+# pyiceberg[adlfs]   # ADLS storage
+# pyiceberg[gcs]     # GCS storage
+# pyiceberg[glue]    # AWS Glue catalog
+# pyiceberg[hive]    # Hive Metastore
+# pyiceberg[sql-postgres]  # SQL catalog (Postgres)

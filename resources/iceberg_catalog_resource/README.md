@@ -1,0 +1,47 @@
+# Iceberg Catalog Resource
+
+Register a PyIceberg catalog (REST / Glue / Hive / Hadoop / SQL) once as a Dagster resource. Custom assets can then load tables by `(namespace, name)` without re-wiring catalog config.
+
+## When to use
+
+| | This resource | Inline catalog config |
+|---|---|---|
+| Multiple components hitting the SAME catalog | ✅ | redundant |
+| One-off ingestion | inline is fine | ✅ |
+
+## Fields
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `resource_key` | `str` | no | Default `iceberg` |
+| `catalog_type` | `str` | no | `rest` (default) / `glue` / `hive` / `hadoop` / `sql` |
+| `catalog_name` | `str` | no | PyIceberg local identifier |
+| `catalog_properties` | `dict` | yes | Same shape as `iceberg_ingestion`. `${ENV_VAR}` expansion supported |
+
+## Usage from custom assets
+
+```python
+from dagster import asset
+
+@asset(required_resource_keys={"iceberg"})
+def orders_summary(context):
+    catalog = context.resources.iceberg.catalog()
+    table = catalog.load_table(("sales", "orders"))
+    df = table.scan(
+        row_filter="order_date >= '2024-01-01'",
+        selected_fields=("order_id", "amount"),
+    ).to_arrow().to_pandas()
+    return df
+
+# Or the convenience method:
+@asset(required_resource_keys={"iceberg"})
+def orders_v2(context):
+    table = context.resources.iceberg.load_table("sales", "orders")
+    return table.scan().to_arrow().to_pandas()
+```
+
+## See also
+
+- [`iceberg_ingestion`](../../assets/ingestion/iceberg_ingestion/) — declarative version (no resource needed)
+- [`dataframe_to_iceberg_table`](../../assets/sinks/dataframe_to_iceberg_table/) — sink side
+- [`external_iceberg_table`](../../external_assets/external_iceberg_table/) — observable external asset

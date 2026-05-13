@@ -1,0 +1,19 @@
+type: dagster_component_templates.ExternalDeltaTableAsset
+attributes:
+  asset_key: lakehouse/events
+  table_uri: s3://my-bucket/lakehouse/events
+  owner_engine: spark
+
+  group_name: lakehouse
+  description: "Events table written by Spark; downstream Dagster pipelines depend on it"
+  owners: [team:data-platform]
+  tags:
+    domain: telemetry
+    tier: bronze
+
+  partition_type: daily
+  partition_start: '2024-01-01'
+
+  # --- Or UC-managed Delta from Databricks ---
+  # table_uri: uc://main.sales.orders
+  # owner_engine: databricks

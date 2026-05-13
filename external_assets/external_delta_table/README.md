@@ -1,0 +1,32 @@
+# External Delta Lake Table
+
+Declare a Delta Lake table that exists OUTSIDE Dagster (written by Spark, Databricks, Trino, Flink, etc.) as an observable external Dagster asset.
+
+This is the **declaration** — the table shows up in Dagster's asset graph with proper kinds + metadata. Pair with [`delta_ingestion`](../../assets/ingestion/delta_ingestion/) if you also need to read it.
+
+## When to use this vs `external_databricks_table`
+
+| | This component | [`external_databricks_table`](https://dagster-community-components-cli.vercel.app/c/external_databricks_table) |
+|---|---|---|
+| Scope | Any Delta writer on any storage | Databricks workspace + UC/HMS catalog hierarchy |
+| Metadata model | `table_uri` + `owner_engine` (engine-agnostic) | Workspace URL + catalog + schema + table (Databricks-shaped) |
+| Use when | Delta on raw S3 / ADLS / GCS, mixed engines | The table is Databricks-managed end-to-end |
+
+Use either or both — they coexist.
+
+## Fields
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `asset_key` | `str` | yes | Slash-delimited |
+| `table_uri` | `str` | yes | `s3://`, `az://`, `gs://`, `/local`, or `uc://catalog.schema.table` |
+| `owner_engine` | `str` | no | databricks / spark / trino / flink / snowflake-uniform — adds to kinds + metadata |
+| Standard fields | | | group / description / owners / tags / partition |
+
+## See also
+
+- [`delta_ingestion`](../../assets/ingestion/delta_ingestion/) — read this table
+- [`dataframe_to_delta_table`](../../assets/sinks/dataframe_to_delta_table/) — write to it
+- [`external_iceberg_table`](../external_iceberg_table/) — sister component for Iceberg
+- [`external_databricks_table`](https://dagster-community-components-cli.vercel.app/c/external_databricks_table) — Databricks-specific equivalent
+- [`databricks_table_observation_sensor`](https://dagster-community-components-cli.vercel.app/c/databricks_table_observation_sensor) — Databricks-specific liveness sensor

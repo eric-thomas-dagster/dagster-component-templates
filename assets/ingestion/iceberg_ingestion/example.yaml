@@ -1,0 +1,39 @@
+type: dagster_component_templates.IcebergIngestionComponent
+attributes:
+  asset_name: orders_iceberg
+
+  # --- Catalog: REST (Nessie, Polaris, Lakekeeper, Snowflake, S3 Tables) ---
+  catalog_type: rest
+  catalog_properties:
+    uri: https://catalog.example.com
+    credential: "${CATALOG_CREDENTIAL}"   # client_id:client_secret for OAuth
+    warehouse: my_warehouse
+    # scope: PRINCIPAL_ROLE:MY_ROLE      # Snowflake-managed catalogs
+    # token: ${BEARER_TOKEN}              # Nessie / Lakekeeper bearer auth
+
+  # --- Or Glue (AWS) ---
+  # catalog_type: glue
+  # catalog_properties:
+  #   warehouse: s3://my-bucket/iceberg/
+
+  # --- Or Hadoop (filesystem) ---
+  # catalog_type: hadoop
+  # catalog_properties:
+  #   warehouse: s3://my-bucket/iceberg-warehouse/
+
+  namespace: sales
+  table_name: orders
+
+  select_columns: [order_id, customer_id, amount, order_date]
+  row_filter: order_date >= '{partition_key}'
+
+  # Time travel — pick ONE:
+  # snapshot_id: 12345                  # exact snapshot
+  # as_of_timestamp_ms: 1716200000000   # snapshot active at this time
+  # branch: dev                         # named branch
+
+  partition_type: daily
+  partition_start: '2024-01-01'
+
+  group_name: lakehouse
+  kinds: [iceberg, lakehouse]

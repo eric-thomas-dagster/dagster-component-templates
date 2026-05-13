@@ -1,0 +1,22 @@
+type: dagster_component_templates.DataframeToDeltaTableComponent
+attributes:
+  asset_name: events_delta_loaded
+  upstream_asset_key: curated_events
+
+  table_uri: s3://my-bucket/lakehouse/events
+  storage_options:
+    AWS_REGION: us-east-1
+
+  mode: append      # 'append' | 'overwrite' | 'merge' | 'error' | 'ignore'
+
+  # Partition columns (must match the table's existing partitioning):
+  partition_by: [event_date]
+
+  # For mode='overwrite' with partition-level scope:
+  # overwrite_partition_filter:
+  #   - [event_date, "=", "{partition_key}"]
+
+  # For mode='merge' (upsert by key):
+  # merge_predicate: "target.event_id = source.event_id"
+
+  # schema_mode: merge   # allow new columns (cautious)

@@ -1,0 +1,19 @@
+type: dagster_component_templates.DataframeToIcebergTableComponent
+attributes:
+  asset_name: orders_iceberg_loaded
+  upstream_asset_key: curated_orders
+
+  catalog_type: rest
+  catalog_properties:
+    uri: https://catalog.example.com
+    credential: "${CATALOG_CREDENTIAL}"
+    warehouse: my_warehouse
+
+  namespace: sales
+  table_name: orders
+
+  mode: append          # 'append' or 'overwrite'
+  # overwrite_filter: order_date = '{partition_key}'   # for partition-level overwrite
+
+  # skip_columns: [_internal_index]
+  # schema_evolution: false

@@ -4,6 +4,22 @@ Query SAP HANA (Cloud, on-premise, or HANA-on-Azure) and materialize the result 
 
 This is the **ingestion** companion to [`sap_hana_resource`](../../../resources/sap_hana_resource/) — that one only registers the connection; this one runs an actual query.
 
+## HANA SQL vs OData against S/4HANA — which to use?
+
+There are two ways to pull SAP data into Dagster. Pick based on what your customer's security team allows AND what you need to see:
+
+| | This component (HANA SQL) | [`odata_ingestion`](../odata_ingestion/) against S/4HANA |
+|---|---|---|
+| **How** | Direct HANA DB connection (port 443 / 30015) | HTTPS REST API (port 443) |
+| **What you see** | Raw ABAP tables (`SAPABAP1.*`), Calculation Views (`_SYS_BIC.*`) | SAP-curated entities (BusinessPartner, SalesOrder, …) |
+| **Authorization** | What the HANA user can read | SAP Communication Users — scoped per scenario |
+| **Performance** | Fast — HANA columnar engine, no HTTP/pagination overhead | Slower — REST + paginated responses |
+| **SQL power** | Full SQL: joins, windows, aggregations pushed to HANA | Limited: `$filter` / `$select` / `$expand` |
+| **Customer governance** | Often blocked — direct DB access is sensitive | Common — it's the SAP-blessed integration path |
+| **Best for** | On-prem HANA, raw analytics, Calculation Views | S/4HANA Cloud, customers with strict governance |
+
+**Most S/4HANA Cloud deployments will be OData.** Use HANA SQL when (a) you have direct DB access, (b) you need raw table-level data the OData layer doesn't expose, or (c) you're hitting a Calculation View that's already designed for analytics.
+
 ## Why HANA gets its own component instead of `sql_to_database_asset`
 
 `sql_to_database_asset` is source→destination DB-to-DB; this one is source→DataFrame so downstream Dagster components (`summarize`, `sort`, `dataframe_to_table`, `dataframe_to_parquet`, …) can take over. The HANA-specific URL format + TLS defaults are baked in.

@@ -1,0 +1,25 @@
+{
+  "component_type": "dagster_component_templates.ExternalIcebergTableAsset",
+  "description": "Declare an external Apache Iceberg table (written by Snowflake / Trino / Spark / Flink / Databricks / etc.) as an observable Dagster external asset. Engine-agnostic.",
+  "category": "external",
+  "icon": "si:apacheiceberg",
+  "attributes": {
+    "asset_key": {"type": "string", "label": "Asset Key", "required": true},
+    "catalog_name": {"type": "string", "label": "Catalog Name", "required": true},
+    "namespace": {"type": "string", "label": "Namespace", "required": true},
+    "table_name": {"type": "string", "label": "Table Name", "required": true},
+    "warehouse": {"type": "string", "label": "Warehouse Location", "required": false},
+    "catalog_type": {"type": "string", "label": "Catalog Type", "required": false},
+    "owner_engine": {"type": "string", "label": "Owner Engine", "description": "snowflake / trino / spark / flink / databricks / dremio", "required": false},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false, "ui:widget": "code"},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "tags": {"type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
+    "partition_type": {"type": "string", "label": "Partition Type", "required": false},
+    "partition_start": {"type": "string", "label": "Partition Start", "required": false},
+    "partition_values": {"type": "string", "label": "Partition Values", "required": false},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false}
+  },
+  "tags": ["external", "iceberg", "lakehouse", "observable"],
+  "name": "External Iceberg Table"
+}

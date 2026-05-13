@@ -1,0 +1,20 @@
+type: dagster_component_templates.ExternalIcebergTableAsset
+attributes:
+  asset_key: sales/orders
+  catalog_name: my_polaris_catalog
+  namespace: sales
+  table_name: orders
+  warehouse: s3://my-bucket/warehouse
+  catalog_type: rest
+  owner_engine: snowflake     # who writes this table
+
+  group_name: lakehouse
+  description: "Orders fact table maintained by Snowflake; read by Dagster via Iceberg"
+  owners: [team:data-platform]
+  tags:
+    domain: sales
+    tier: silver
+
+  # Partitioning (for downstream materializations against this asset):
+  partition_type: daily
+  partition_start: '2024-01-01'

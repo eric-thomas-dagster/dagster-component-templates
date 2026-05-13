@@ -1,18 +1,48 @@
 {
   "component_type": "dagster_component_templates.AutomationConditionApplicatorComponent",
-  "description": "Apply Dagster AutomationConditions broadly via selection rules with fall-through priority. Per-asset settings preserved by default. Supports cron, presets, and derive-from-upstreams modes.",
+  "description": "Apply Dagster AutomationConditions broadly via selection rules with fall-through priority. Six derive strategies (most_frequent / least_frequent / tiered / staggered / any_dep_updated / all_deps_updated), preset shortcuts, explicit cron, Python escape hatch. Three modifiers (label / business_hours_only / min_interval_minutes). Per-asset settings preserved by default; topological cadence propagation through chains.",
   "category": "infrastructure",
   "icon": "Workflow",
   "attributes": {
-    "preserve_existing": {"type": "boolean", "label": "Preserve Existing", "description": "If true, assets with their own automation_condition are NOT overwritten.", "required": false, "default": true, "ui:widget": "checkbox"},
+    "preserve_existing": {
+      "type": "boolean",
+      "label": "Preserve Existing",
+      "description": "If true (default), assets with their own automation_condition are NOT overwritten. Like CSS !important on per-asset settings.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
     "rules": {
       "type": "array",
-      "items": {"type": "object"},
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string", "description": "Human label (shown in apply logs)"},
+          "selection": {"type": "string", "description": "AssetSelection.from_string() syntax — '*', 'tag:k=v', 'group:g', 'key:k', '+key+', boolean ops"},
+          "cron": {"type": "string", "description": "Explicit cron — 'on_cron(cron)'. Optional with ignore_selection/allow_selection."},
+          "ignore_selection": {"type": "string", "description": "Passed to on_cron().ignore() — deps not included in the freshness check."},
+          "allow_selection": {"type": "string", "description": "Passed to on_cron().allow() — only these deps participate in freshness check."},
+          "preset": {"type": "string", "description": "Name of any zero-arg AutomationCondition factory: 'eager' / 'on_missing' / 'any_downstream_conditions' / etc."},
+          "derive_from_upstreams": {"type": "boolean", "description": "Auto-derive condition from each matching asset's upstream cron schedules."},
+          "strategy": {
+            "type": "string",
+            "description": "Derive strategy: 'most_frequent' (default) / 'least_frequent' / 'tiered' / 'staggered' / 'any_dep_updated' / 'all_deps_updated'",
+            "enum": ["most_frequent", "least_frequent", "tiered", "staggered", "any_dep_updated", "all_deps_updated"]
+          },
+          "offset_minutes": {"type": "integer", "description": "Required for strategy='staggered'. Positive only; cross-day-boundary rejected."},
+          "python": {"type": "string", "description": "Universal escape hatch — 'module.path:function_name' returning an AutomationCondition. The function takes zero args or one arg (asset spec)."},
+          "label": {"type": "string", "description": "Override the auto-generated condition label (for UI clarity)."},
+          "business_hours_only": {"type": "boolean", "description": "Constrain the resulting cron to business hours/days. Refuses for tiered and no-cron strategies."},
+          "business_hours": {"type": "string", "description": "Cron hour-field syntax, default '9-17'. e.g. '8-18', '0-23', '9,12,15'."},
+          "business_days": {"type": "string", "description": "Cron day-of-week syntax, default '1-5'. e.g. '1-6' (Mon-Sat), '*' (every day), '0,6' (weekends)."},
+          "min_interval_minutes": {"type": "integer", "description": "Floor the derived cron to a minimum period (debounce fast upstreams)."}
+        }
+      },
       "label": "Rules",
-      "description": "Ordered list — first selection-match wins. Each rule needs `selection` + one of `cron` / `preset` / `derive_from_upstreams`.",
+      "description": "Ordered list — first selection-match wins (fall-through). Each rule needs `selection` + one of `cron` / `preset` / `derive_from_upstreams` / `python`. Optional modifiers: `label`, `business_hours_only`, `min_interval_minutes`.",
       "required": true
     }
   },
-  "tags": ["infrastructure", "automation", "automation-condition", "declarative-automation", "bulk-apply"],
+  "tags": ["infrastructure", "automation", "automation-condition", "declarative-automation", "bulk-apply", "lineage", "cron"],
   "name": "Automation Condition Applicator"
 }

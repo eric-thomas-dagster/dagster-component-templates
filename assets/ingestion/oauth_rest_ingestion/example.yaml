@@ -1,0 +1,22 @@
+type: dagster_component_templates.OAuthRestIngestionComponent
+attributes:
+  asset_name: concur_expense_reports
+  api_url: https://us.api.concursolutions.com/expensereports/v4/reports
+
+  # OAuth via the token resource — handles headless rotation:
+  oauth_token_resource_key: concur_token
+
+  # Pagination — Concur uses next-page URLs:
+  pagination: next_url
+  next_url_path: NextPage
+  records_path: Items
+
+  query_params:
+    modifiedAfter: "{partition_key}T00:00:00Z"
+    limit: "100"
+
+  partition_type: daily
+  partition_start: '2024-01-01'
+
+  group_name: concur
+  kinds: [concur, rest]

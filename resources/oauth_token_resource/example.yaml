@@ -1,0 +1,25 @@
+type: dagster_component_templates.OAuthTokenResourceComponent
+attributes:
+  resource_key: my_oauth_token
+
+  # --- M2M / Ariba pattern (easiest headless) --------------------------
+  token_endpoint: https://api.ariba.com/v2/oauth/token
+  grant_type: client_credentials
+  client_id_env_var: ARIBA_CLIENT_ID
+  client_secret_env_var: ARIBA_CLIENT_SECRET
+  scope: "OperationalReporting"
+  auth_in: form   # 'form' (default) or 'basic'
+
+  # --- Refresh token pattern (Concur) — uncomment & swap above --------
+  # grant_type: refresh_token
+  # token_endpoint: https://us.api.concursolutions.com/oauth2/v0/token
+  # client_id_env_var: CONCUR_CLIENT_ID
+  # client_secret_env_var: CONCUR_CLIENT_SECRET
+  # refresh_token_env_var: CONCUR_REFRESH_TOKEN
+  # # Concur rotates refresh tokens — persist new one to a secret store:
+  # refresh_writeback_command_env_var: CONCUR_REFRESH_WRITEBACK_CMD
+  # # In your env, set the command:
+  # # export CONCUR_REFRESH_WRITEBACK_CMD='aws secretsmanager update-secret --secret-id concur/refresh_token --secret-string {token}'
+
+  timeout_seconds: 30
+  early_refresh_seconds: 60  # refresh proactively to avoid mid-request expiry

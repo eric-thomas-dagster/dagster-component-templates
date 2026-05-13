@@ -1,0 +1,24 @@
+type: dagster_component_templates.ODataIngestionComponent
+attributes:
+  asset_name: business_partners
+
+  # Service URL + entity set
+  service_url: https://my300000.s4hana.cloud.sap/sap/opu/odata/sap/API_BUSINESS_PARTNER
+  entity_set: A_BusinessPartner
+  odata_version: v2
+
+  # Auth — basic (SAP default)
+  auth_type: basic
+  auth_username_env_var: S4HANA_USER
+  auth_password_env_var: S4HANA_PASSWORD
+
+  # Query options
+  select: BusinessPartner,BusinessPartnerName,Country
+  filter: CreationDate ge datetime'{partition_key}T00:00:00'
+
+  # Partitioning
+  partition_type: daily
+  partition_start: '2024-01-01'
+
+  group_name: sap
+  kinds: [odata, sap]

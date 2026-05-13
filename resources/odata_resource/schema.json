@@ -1,0 +1,22 @@
+{
+  "component_type": "dagster_component_templates.ODataResourceComponent",
+  "description": "Register an OData service connection (base URL + auth) once and reuse it across components.",
+  "category": "resource",
+  "icon": "si:odata",
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "odata"},
+    "service_url": {"type": "string", "label": "Service URL", "required": true},
+    "odata_version": {"type": "string", "label": "OData Version", "required": false, "default": "v2"},
+    "auth_type": {"type": "string", "label": "Auth Type", "description": "'basic' | 'bearer' | 'oauth_resource' | 'none'", "required": false, "default": "basic"},
+    "auth_username_env_var": {"type": "string", "label": "Auth Username Env Var", "required": false},
+    "auth_password_env_var": {"type": "string", "label": "Auth Password Env Var", "required": false},
+    "auth_token_env_var": {"type": "string", "label": "Auth Token Env Var", "required": false},
+    "oauth_resource_key": {"type": "string", "label": "OAuth Resource Key", "required": false},
+    "sap_client": {"type": "string", "label": "sap-client header", "required": false},
+    "csrf_fetch_path": {"type": "string", "label": "CSRF Fetch Path", "required": false},
+    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "ui:widget": "checkbox"},
+    "timeout_seconds": {"type": "integer", "label": "Timeout (seconds)", "required": false, "default": 120}
+  },
+  "tags": ["resource", "odata", "sap", "s4hana", "successfactors", "dynamics365", "msgraph"],
+  "name": "OData Resource"
+}

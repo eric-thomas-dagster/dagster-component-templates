@@ -21126,6 +21126,211 @@
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_nlp.md",
         "last_validated": "2026-05-08"
       }
+    },
+    {
+      "id": "sap_hana_ingestion",
+      "name": "SAP HANA Ingestion",
+      "category": "ingestion",
+      "description": "Query SAP HANA (Cloud or on-premise) and return the result as a Dagster asset (pandas DataFrame).",
+      "path": "assets/ingestion/sap_hana_ingestion",
+      "tags": [
+        "ingestion",
+        "sap",
+        "hana",
+        "sql"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sap_hana_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sap_hana_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sap_hana_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sap_hana_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sap_hana_ingestion/requirements.txt",
+      "icon": "Database",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
+      "id": "odata_ingestion",
+      "name": "OData Ingestion",
+      "category": "ingestion",
+      "description": "Generic OData v2/v4 client. Covers SAP S/4HANA, SuccessFactors, Datasphere, Microsoft Dynamics 365 / Dataverse, MS Graph, SharePoint, Business Central, Oracle Fusion, Epicor, IFS, and any other OData-exposing system.",
+      "path": "assets/ingestion/odata_ingestion",
+      "tags": [
+        "ingestion",
+        "odata",
+        "sap",
+        "s4hana",
+        "successfactors",
+        "datasphere",
+        "dynamics365",
+        "dataverse",
+        "msgraph",
+        "sharepoint",
+        "oracle-fusion",
+        "epicor"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/odata_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/odata_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/odata_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/odata_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/odata_ingestion/requirements.txt",
+      "icon": "Network",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
+      "id": "dremio_ingestion",
+      "name": "Dremio Ingestion",
+      "category": "ingestion",
+      "description": "Run a SQL query against a Dremio cluster (REST or Apache Arrow Flight) and materialize the result as a Dagster asset.",
+      "path": "assets/ingestion/dremio_ingestion",
+      "tags": [
+        "ingestion",
+        "dremio",
+        "sap",
+        "sql",
+        "lakehouse"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dremio_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dremio_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dremio_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dremio_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dremio_ingestion/requirements.txt",
+      "icon": "Database",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
+      "id": "oauth_rest_ingestion",
+      "name": "OAuth REST Ingestion",
+      "category": "ingestion",
+      "description": "OAuth2-backed REST GET \u2192 DataFrame with built-in pagination. Covers Concur, Ariba, and any other Bearer-token JSON API.",
+      "path": "assets/ingestion/oauth_rest_ingestion",
+      "tags": [
+        "ingestion",
+        "oauth",
+        "rest",
+        "concur",
+        "ariba",
+        "sap"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/oauth_rest_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/oauth_rest_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/oauth_rest_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/oauth_rest_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/oauth_rest_ingestion/requirements.txt",
+      "icon": "Lock",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
+      "id": "odata_resource",
+      "name": "OData Resource",
+      "category": "resource",
+      "description": "Register an OData service connection (base URL + auth) once and reuse it across components.",
+      "path": "resources/odata_resource",
+      "tags": [
+        "resource",
+        "odata",
+        "sap",
+        "s4hana",
+        "successfactors",
+        "dynamics365",
+        "msgraph"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/odata_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/odata_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/odata_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/odata_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/odata_resource/requirements.txt",
+      "icon": "Network",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
+      "id": "oauth_token_resource",
+      "name": "OAuth Token Resource",
+      "category": "resource",
+      "description": "Headless OAuth 2.0 token resource. Supports client_credentials, refresh_token, and password grants. Handles refresh-token rotation via configurable writeback (file or command).",
+      "path": "resources/oauth_token_resource",
+      "tags": [
+        "resource",
+        "oauth",
+        "auth",
+        "concur",
+        "ariba",
+        "sap",
+        "msgraph",
+        "salesforce",
+        "headless"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/oauth_token_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/oauth_token_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/oauth_token_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/oauth_token_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/oauth_token_resource/requirements.txt",
+      "icon": "Lock",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
+      "id": "dataframe_to_odata",
+      "name": "Dataframe \u2192 OData",
+      "category": "sink",
+      "description": "Sink \u2014 write a pandas DataFrame to an OData v2/v4 entity set via POST / PATCH / DELETE.",
+      "path": "assets/sinks/dataframe_to_odata",
+      "tags": [
+        "sink",
+        "odata",
+        "sap",
+        "s4hana",
+        "dynamics365",
+        "msgraph"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_odata/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_odata/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_odata/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_odata/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_odata/requirements.txt",
+      "icon": "ArrowUpRight",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
+    },
+    {
+      "id": "odata_check",
+      "name": "OData Check",
+      "category": "check",
+      "description": "Asset check \u2014 smoke-test that an OData service URL + entity set is reachable, returns N rows, and contains expected columns.",
+      "path": "asset_checks/odata_check",
+      "tags": [
+        "check",
+        "odata",
+        "sap",
+        "data-quality"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/odata_check/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/odata_check/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/odata_check/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/odata_check/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/odata_check/requirements.txt",
+      "icon": "ShieldCheck",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-13"
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

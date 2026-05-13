@@ -1,0 +1,29 @@
+type: dagster_component_templates.SapHanaIngestionComponent
+attributes:
+  asset_name: hana_customer_metrics
+
+  # Connection — Option A: full URL via env var
+  # connection_url_env_var: HANA_URL
+
+  # Connection — Option B: individual fields (more common)
+  host: myhana.hanacloud.ondemand.com
+  port: 443
+  user: DAGSTER_RO
+  password_env_var: HANA_PASSWORD
+  encrypt: true
+
+  # Source — Option A: arbitrary SQL (recommended for joins / filters)
+  query: |
+    SELECT CUSTOMER_ID, REGION, REVENUE
+    FROM SAPABAP1.CUSTOMER_METRICS
+    WHERE BUSINESS_DATE = '{partition_key}'
+
+  # Source — Option B: simple table read
+  # table_name: CUSTOMER_METRICS
+  # schema_name: SAPABAP1
+
+  partition_type: daily
+  partition_start: '2024-01-01'
+
+  group_name: sap_hana
+  kinds: [hana, sql]

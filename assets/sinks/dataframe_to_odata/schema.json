@@ -1,0 +1,49 @@
+{
+  "component_type": "dagster_component_templates.DataframeToODataComponent",
+  "description": "Sink — write a pandas DataFrame to an OData v2/v4 entity set via POST / PATCH / DELETE.",
+  "category": "sink",
+  "icon": "si:odata",
+  "x-dagster-io": {
+    "inputs": {
+      "upstream": {"type": "pandas.DataFrame", "required": true}
+    },
+    "outputs": {"type": "Output[None]"}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true},
+    "service_url": {"type": "string", "label": "Service URL", "required": true},
+    "entity_set": {"type": "string", "label": "Entity Set", "required": true},
+    "odata_version": {"type": "string", "label": "OData Version", "required": false, "default": "v2"},
+    "mode": {"type": "string", "label": "Mode", "description": "'insert' | 'upsert' | 'delete'", "required": false, "default": "insert"},
+    "key_column": {"type": "string", "label": "Key Column", "description": "Required for upsert / delete", "required": false},
+    "auth_type": {"type": "string", "label": "Auth Type", "required": false, "default": "basic"},
+    "auth_username_env_var": {"type": "string", "label": "Auth Username Env Var", "required": false},
+    "auth_password_env_var": {"type": "string", "label": "Auth Password Env Var", "required": false},
+    "auth_token_env_var": {"type": "string", "label": "Auth Token Env Var", "required": false},
+    "extra_headers": {"type": "object", "label": "Extra Headers", "required": false, "ui:widget": "key-value"},
+    "csrf_fetch_path": {"type": "string", "label": "CSRF Fetch Path", "description": "Path to fetch x-csrf-token from before writes.", "required": false},
+    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "ui:widget": "checkbox"},
+    "skip_columns": {"type": "array", "items": {"type": "string"}, "label": "Skip Columns", "required": false, "ui:widget": "list"},
+    "batch_mode": {"type": "boolean", "label": "Batch Mode ($batch)", "required": false, "default": false, "ui:widget": "checkbox"},
+    "batch_size": {"type": "integer", "label": "Batch Size", "required": false, "default": 100},
+    "rate_limit_max_retries": {"type": "integer", "label": "Rate Limit Max Retries", "required": false, "default": 5},
+    "rate_limit_backoff_seconds": {"type": "number", "label": "Rate Limit Backoff (s)", "required": false, "default": 2.0},
+    "request_timeout_seconds": {"type": "integer", "label": "Request Timeout (s)", "required": false, "default": 120},
+    "description": {"type": "string", "label": "Description", "required": false, "ui:widget": "code"},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "odata_sink"},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false, "ui:widget": "list"},
+    "partition_type": {"type": "string", "label": "Partition Type", "required": false},
+    "partition_start": {"type": "string", "label": "Partition Start", "required": false},
+    "partition_values": {"type": "string", "label": "Partition Values", "required": false},
+    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false},
+    "retry_policy_max_retries": {"type": "integer", "label": "Retry Policy Max Retries", "required": false},
+    "retry_policy_delay_seconds": {"type": "integer", "label": "Retry Policy Delay Seconds", "required": false},
+    "retry_policy_backoff": {"type": "string", "label": "Retry Policy Backoff", "required": false, "default": "exponential"}
+  },
+  "tags": ["sink", "odata", "sap", "s4hana", "dynamics365", "msgraph"],
+  "name": "Dataframe → OData"
+}

@@ -1,0 +1,16 @@
+type: dagster_component_templates.ODataResourceComponent
+attributes:
+  resource_key: sap_s4_odata
+
+  service_url: https://my300000.s4hana.cloud.sap/sap/opu/odata/sap/API_BUSINESS_PARTNER
+  odata_version: v2
+
+  auth_type: basic
+  auth_username_env_var: S4HANA_USER
+  auth_password_env_var: S4HANA_PASSWORD
+
+  sap_client: "100"  # routes requests to client 100
+  # csrf_fetch_path: $metadata  # uncomment if you need CSRF for writes
+
+  verify_ssl: true
+  timeout_seconds: 120

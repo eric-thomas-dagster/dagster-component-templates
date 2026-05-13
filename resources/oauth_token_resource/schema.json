@@ -1,0 +1,26 @@
+{
+  "component_type": "dagster_component_templates.OAuthTokenResourceComponent",
+  "description": "Headless OAuth 2.0 token resource. Supports client_credentials, refresh_token, and password grants. Handles refresh-token rotation via configurable writeback (file or command).",
+  "category": "resource",
+  "icon": "si:oauth",
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "oauth_token"},
+    "token_endpoint": {"type": "string", "label": "Token Endpoint URL", "required": true},
+    "grant_type": {"type": "string", "label": "Grant Type", "description": "'client_credentials' | 'refresh_token' | 'password'", "required": false, "default": "client_credentials"},
+    "client_id_env_var": {"type": "string", "label": "Client ID Env Var", "required": false},
+    "client_secret_env_var": {"type": "string", "label": "Client Secret Env Var", "required": false},
+    "refresh_token_env_var": {"type": "string", "label": "Refresh Token Env Var", "required": false},
+    "username_env_var": {"type": "string", "label": "Username Env Var", "required": false},
+    "password_env_var": {"type": "string", "label": "Password Env Var", "required": false},
+    "refresh_writeback_command_env_var": {"type": "string", "label": "Refresh Writeback Command Env Var", "description": "Env var holding a shell command with {token} placeholder. Used to persist rotated refresh tokens.", "required": false},
+    "refresh_writeback_file": {"type": "string", "label": "Refresh Writeback File Path", "required": false},
+    "scope": {"type": "string", "label": "OAuth Scope", "required": false},
+    "audience": {"type": "string", "label": "OAuth Audience", "required": false},
+    "auth_in": {"type": "string", "label": "Auth Location", "description": "'form' (default) or 'basic' (HTTP Basic).", "required": false, "default": "form"},
+    "extra_form_params": {"type": "object", "label": "Extra Form Params", "required": false, "ui:widget": "key-value"},
+    "timeout_seconds": {"type": "integer", "label": "Timeout (s)", "required": false, "default": 30},
+    "early_refresh_seconds": {"type": "integer", "label": "Early Refresh (s)", "description": "Refresh this many seconds before token expiry.", "required": false, "default": 60}
+  },
+  "tags": ["resource", "oauth", "auth", "concur", "ariba", "sap", "msgraph", "salesforce", "headless"],
+  "name": "OAuth Token Resource"
+}

@@ -1,0 +1,24 @@
+type: dagster_component_templates.DataframeToODataComponent
+attributes:
+  asset_name: business_partners_posted
+  upstream_asset_key: new_business_partners
+
+  service_url: https://my300000.s4hana.cloud.sap/sap/opu/odata/sap/API_BUSINESS_PARTNER
+  entity_set: A_BusinessPartner
+  mode: insert    # insert | upsert | delete
+
+  # For upsert / delete, identify the key column on each row:
+  # key_column: BusinessPartner
+
+  # SAP CSRF — required for S/4HANA writes:
+  csrf_fetch_path: $metadata
+
+  auth_type: basic
+  auth_username_env_var: S4HANA_USER
+  auth_password_env_var: S4HANA_PASSWORD
+
+  extra_headers:
+    sap-client: "100"
+
+  rate_limit_max_retries: 5
+  request_timeout_seconds: 120

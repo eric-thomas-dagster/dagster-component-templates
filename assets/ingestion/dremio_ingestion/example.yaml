@@ -1,0 +1,27 @@
+type: dagster_component_templates.DremioIngestionComponent
+attributes:
+  asset_name: customer_revenue
+  host: http://localhost:9047
+
+  # Auth — PAT (Dremio 24.0+ recommended)
+  auth_type: pat
+  auth_token_env_var: DREMIO_PAT
+
+  # Legacy alternative:
+  # auth_type: password
+  # auth_username_env_var: DREMIO_USER
+  # auth_password_env_var: DREMIO_PASSWORD
+
+  query: |
+    SELECT customer_id, SUM(revenue) AS total
+    FROM "@my-space"."customers"
+    WHERE business_date = DATE '{partition_key}'
+    GROUP BY customer_id
+
+  partition_type: daily
+  partition_start: '2024-01-01'
+
+  # transport: rest    # default; switch to 'flight' for large result sets
+
+  group_name: dremio
+  kinds: [dremio, sql]

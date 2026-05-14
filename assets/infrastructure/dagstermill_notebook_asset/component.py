@@ -18,7 +18,7 @@ class DagstermillNotebookAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     deps: Optional[List[str]] = Field(default=None, description="Upstream Dagster asset keys.")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        from dagstermill import define_dagstermill_asset
+        from dagstermill import define_dagstermill_asset, local_output_notebook_io_manager
         asset_def = define_dagstermill_asset(
             name=self.asset_name,
             notebook_path=self.notebook_path,
@@ -26,5 +26,8 @@ class DagstermillNotebookAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             description=self.description,
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        return dg.Definitions(assets=[asset_def])
+        return dg.Definitions(
+            assets=[asset_def],
+            resources={"output_notebook_io_manager": local_output_notebook_io_manager},
+        )
 

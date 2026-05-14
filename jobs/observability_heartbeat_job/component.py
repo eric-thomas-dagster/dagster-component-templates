@@ -33,7 +33,7 @@ class ObservabilityHeartbeatJobComponent(dg.Component, dg.Model, dg.Resolvable):
         import requests, os
         _self = self
 
-        @dg.op
+        @dg.op(name=f"{self.job_name}_op")
         def _heartbeat(context):
             sent = []
             if _self.slack_webhook_url_env:

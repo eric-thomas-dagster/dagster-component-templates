@@ -56,7 +56,7 @@ class FabricCapacityAdminJobComponent(dg.Component, dg.Model, dg.Resolvable):
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
 
-        @dg.op
+        @dg.op(name=f"{self.job_name}_op")
         def _the_op(context: dg.OpExecutionContext):
             self = _self
             try:

@@ -288,7 +288,7 @@ class DagsterPlusToSiemJobComponent(dg.Component, dg.Model, dg.Resolvable):
             "s3": _ship_s3,
         }
 
-        @dg.op
+        @dg.op(name=f"{self.job_name}_op")
         def _fetch_op(context):
             return _fetch(context)
 

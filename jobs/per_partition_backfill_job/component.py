@@ -222,7 +222,7 @@ class PerPartitionBackfillJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 context.log.error(f"failed {info['asset_key']}/{partition_key}: {exc}")
                 raise
 
-        @dg.op
+        @dg.op(name=f"{self.job_name}_op")
         def _summary(context, results: list):
             success = sum(1 for r in results if r.get("success"))
             context.log.info(f"backfill summary: {success}/{len(results)} succeeded")

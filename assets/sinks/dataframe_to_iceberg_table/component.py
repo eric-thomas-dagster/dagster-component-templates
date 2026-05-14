@@ -252,7 +252,18 @@ class DataframeToIcebergTableComponent(Component, Model, Resolvable):
             arrow_table = pa.Table.from_pandas(df)
 
             catalog = component._load_catalog()
-            table = catalog.load_table((component.namespace, component.table_name))
+            from pyiceberg.exceptions import NoSuchTableError, NoSuchNamespaceError
+            try:
+                table = catalog.load_table((component.namespace, component.table_name))
+            except NoSuchTableError:
+                try:
+                    catalog.create_namespace(component.namespace)
+                except (NoSuchNamespaceError, Exception):
+                    pass
+                table = catalog.create_table(
+                    identifier=(component.namespace, component.table_name),
+                    schema=arrow_table.schema,
+                )
 
             partition_key = context.partition_key if context.has_partition_key else None
 

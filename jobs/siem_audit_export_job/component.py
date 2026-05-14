@@ -150,7 +150,7 @@ class SiemAuditExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
         # Build the ops + job
         _self = self
 
-        @dg.op
+        @dg.op(name=f"{self.job_name}_op")
         def _fetch(context):
             end = dt.datetime.utcnow()
             start = end - dt.timedelta(minutes=_self.lookback_minutes)

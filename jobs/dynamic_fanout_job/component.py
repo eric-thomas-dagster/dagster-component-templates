@@ -111,7 +111,7 @@ class DynamicFanoutJobComponent(dg.Component, dg.Model, dg.Resolvable):
             context.log.info(f"processed item -> {str(result)[:200]}")
             return result
 
-        @dg.op
+        @dg.op(name=f"{self.job_name}_op")
         def _collect(context, results: list):
             if _self.collect_callable_path:
                 fn = _resolve(_self.collect_callable_path)

@@ -32,6 +32,8 @@ class LocalParquetIOManager(dg.ConfigurableIOManager):
         return Path(self.base_dir) / Path(*sanitized).with_suffix(".parquet")
 
     def handle_output(self, context, obj: pd.DataFrame) -> None:
+        if obj is None:
+            return
         path = self._path_for(context)
         if self.create_dir:
             path.parent.mkdir(parents=True, exist_ok=True)

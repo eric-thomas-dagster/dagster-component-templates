@@ -31,7 +31,7 @@ class WarehouseMaintenanceJobComponent(dg.Component, dg.Model, dg.Resolvable):
         import os
         _self = self
 
-        @dg.op
+        @dg.op(name=f"{self.job_name}_op")
         def _maint(context):
             url = os.environ[_self.connection_string_env]
             engine = create_engine(url, isolation_level="AUTOCOMMIT" if _self.autocommit else None)

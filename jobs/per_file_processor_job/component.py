@@ -204,7 +204,7 @@ class PerFileProcessorJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 # gcs / adls archive/delete left as future work
             return {"key": file_info.get("key"), "result": str(result)[:1000]}
 
-        @dg.op
+        @dg.op(name=f"{self.job_name}_op")
         def _summary(context, results: list):
             context.log.info(f"completed {len(results)} file(s)")
             return {"processed": len(results)}

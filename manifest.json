@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-05-13",
+  "last_updated": "2026-05-14",
   "components": [
     {
       "id": "ab_controls",
@@ -5231,8 +5231,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_avro/requirements.txt",
       "icon": "ArrowDownToLine",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-13"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/local_transforms.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -9968,8 +9969,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/http_webhook_job/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/http_webhook_job/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/composition_primitives.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -10721,8 +10723,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/jupyter_notebook_asset/requirements.txt",
       "component_type": "dagster_component_templates.JupyterNotebookAssetComponent",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/notebooks.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -12081,9 +12084,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_parquet_io_manager/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_parquet_io_manager/requirements.txt",
       "validation": {
-        "level": "code",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_io.md",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/local_transforms.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -13872,8 +13875,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/observability_heartbeat_job/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/observability_heartbeat_job/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/composition_primitives.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -15798,8 +15802,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/python_callable_job/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/python_callable_job/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/composition_primitives.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -18545,8 +18550,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sql_command_job/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sql_command_job/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/composition_primitives.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -20764,8 +20770,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/warehouse_maintenance_job/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/warehouse_maintenance_job/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/composition_primitives.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -21358,8 +21365,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/iceberg_ingestion/requirements.txt",
       "icon": "Database",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-13"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -21384,8 +21392,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/delta_ingestion/requirements.txt",
       "icon": "Database",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-13"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -21408,8 +21417,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_iceberg_table/requirements.txt",
       "icon": "ArrowUpRight",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-13"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -21434,8 +21444,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_delta_table/requirements.txt",
       "icon": "ArrowUpRight",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-13"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -21457,8 +21468,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/iceberg_catalog_resource/requirements.txt",
       "icon": "Database",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-13"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -21480,8 +21492,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_iceberg_table/requirements.txt",
       "icon": "Eye",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-13"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -21504,8 +21517,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_delta_table/requirements.txt",
       "icon": "Eye",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-13"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
+        "last_validated": "2026-05-14"
       }
     },
     {

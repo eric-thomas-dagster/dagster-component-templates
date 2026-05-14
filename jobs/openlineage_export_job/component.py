@@ -225,7 +225,7 @@ class OpenLineageExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
 
-        @dg.op
+        @dg.op(name=f"{self.job_name}_op")
         def _walk_and_emit(context: dg.OpExecutionContext):
             endpoint_base = os.environ.get(_self.endpoint_env_var)
             if not endpoint_base:

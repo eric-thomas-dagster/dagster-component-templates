@@ -10838,8 +10838,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/kafka_monitor/requirements.txt",
       "icon": "si:apachekafka",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/kafka.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -10867,8 +10868,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/kafka_observation_sensor/requirements.txt",
       "icon": "si:apachekafka",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/kafka.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -10900,8 +10902,9 @@
         "kafka_resource"
       ],
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/kafka.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -10932,8 +10935,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/kafka_to_database_asset/requirements.txt",
       "icon": "si:apachekafka",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/kafka.md",
+        "last_validated": "2026-05-14"
       }
     },
     {

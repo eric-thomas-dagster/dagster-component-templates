@@ -72,7 +72,7 @@ class ClickHouseTableObservationSensorComponent(dg.Component, dg.Model, dg.Resol
             minimum_interval_seconds=_self.check_interval_seconds,
             default_status=default_status,
             required_resource_keys=required_resource_keys,
-            monitored_assets=dg.AssetSelection.keys(asset_key),
+            asset_selection=dg.AssetSelection.keys(asset_key),
         )
         def clickhouse_observation_sensor(context: SensorEvaluationContext):
             import os

@@ -22,7 +22,7 @@ class SqlObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             name=_self.sensor_name,
             minimum_interval_seconds=_self.check_interval_seconds,
             required_resource_keys=required_resource_keys,
-            monitored_assets=dg.AssetSelection.keys(
+            asset_selection=dg.AssetSelection.keys(
                 dg.AssetKey(_self.asset_key.split("/"))
             ),
         )

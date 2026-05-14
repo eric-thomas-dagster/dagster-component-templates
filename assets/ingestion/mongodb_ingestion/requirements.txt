@@ -1,3 +1,18 @@
-dlt[mongodb]>=0.4.0
+dlt>=0.4.0
 pandas>=1.5.0
 pymongo>=4.0.0
+
+# Default destination is in-memory DuckDB → DataFrame. For SQL destinations:
+#   dlt[duckdb]            # file-backed local destination
+#   dlt[snowflake]
+#   dlt[bigquery]
+#   dlt[postgres]
+#   dlt[redshift]
+#   dlt[databricks]
+#   dlt[athena]
+#   dlt[clickhouse]
+#   dlt[mssql]
+#   dlt[motherduck]
+# For non-SQL destinations:
+#   dlt[filesystem]
+#   dlt[weaviate] / dlt[qdrant] / dlt[lancedb]

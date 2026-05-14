@@ -475,7 +475,31 @@ class MongoDBIngestionComponent(Component, Model, Resolvable):
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def mongodb_ingestion_asset(context: AssetExecutionContext):
-            from dlt.sources.mongodb import mongodb
+            # dlt's `dlt.sources.mongodb` is a "verified source" that has to be
+            # code-generated via `dlt init mongodb <destination>` — not pip-
+            # installable. We ship an inline equivalent here so the component
+            # works out of the box with `pip install dlt[<destination>] pymongo`.
+            from pymongo import MongoClient
+
+            def _mongodb_source(conn_url: str, db: str, collections: list[str]):
+                @dlt.source(name="mongodb")
+                def _source():
+                    def _make_resource(coll_name: str):
+                        @dlt.resource(
+                            name=coll_name,
+                            write_disposition="replace",
+                        )
+                        def _resource():
+                            client = MongoClient(conn_url)
+                            try:
+                                for doc in client[db][coll_name].find():
+                                    doc["_id"] = str(doc["_id"])  # ObjectId → str
+                                    yield doc
+                            finally:
+                                client.close()
+                        return _resource
+                    return [_make_resource(c) for c in collections]
+                return _source()
 
             context.log.info(
                 f"Starting MongoDB ingestion: db={database}, collections={collection_names}, "
@@ -488,11 +512,7 @@ class MongoDBIngestionComponent(Component, Model, Resolvable):
                 dataset_name=dataset_name,
             )
 
-            source = mongodb(
-                connection_url=connection_url,
-                database=database,
-                collection_names=collection_names,
-            )
+            source = _mongodb_source(connection_url, database, collection_names)
 
             load_info = pipeline.run(source)
             context.log.info(f"MongoDB data loaded: {load_info}")

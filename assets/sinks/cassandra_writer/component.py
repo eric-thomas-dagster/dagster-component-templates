@@ -440,7 +440,8 @@ group_name=group_name,
                 )
 
             columns = list(upstream.columns)
-            placeholders = ", ".join(["%s"] * len(columns))
+            # Cassandra uses '?' positional placeholders, not psycopg-style '%s'
+            placeholders = ", ".join(["?"] * len(columns))
             col_list = ", ".join(columns)
 
             if if_exists == "update":

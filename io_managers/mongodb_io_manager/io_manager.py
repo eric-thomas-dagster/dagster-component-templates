@@ -29,6 +29,8 @@ class MongoDBIOManager(dg.ConfigurableIOManager):
         return "_".join(_sanitize(str(p)) for p in parts)
 
     def handle_output(self, context, obj) -> None:
+        if obj is None:
+            return
         if not isinstance(obj, pd.DataFrame):
             raise TypeError(f"MongoDBIOManager only handles DataFrames; got {type(obj)}")
         client = MongoClient(self.connection_uri)
@@ -41,7 +43,16 @@ class MongoDBIOManager(dg.ConfigurableIOManager):
             elif self.if_exists == "fail" and coll.estimated_document_count() > 0:
                 raise ValueError(f"Collection {coll_name} already exists.")
             if len(obj) > 0:
-                coll.insert_many(obj.to_dict(orient="records"))
+                # Coerce pandas NaT / NaN to None so pymongo (which uses BSON)
+                # doesn't choke on `NaTType does not support utcoffset` etc.
+                # `astype(object).where(notna, None)` survives mixed-tz columns.
+                clean = obj.astype(object).where(obj.notna(), None)
+                # Drop any inbound `_id` — let MongoDB auto-generate ObjectIds
+                # so upstream string-coerced ids don't collide with the
+                # destination collection's unique-id index.
+                if "_id" in clean.columns:
+                    clean = clean.drop(columns=["_id"])
+                coll.insert_many(clean.to_dict(orient="records"))
             context.add_output_metadata({"collection": dg.MetadataValue.text(f"{self.database}.{coll_name}"), "row_count": dg.MetadataValue.int(len(obj))})
         finally:
             client.close()

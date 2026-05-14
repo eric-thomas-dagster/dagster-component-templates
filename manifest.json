@@ -2740,8 +2740,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cassandra_writer/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/cassandra_writer/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/cassandra.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -12857,8 +12858,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/mongodb_ingestion/requirements.txt",
       "icon": "si:mongodb",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/mongodb.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -12887,8 +12889,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mongodb_io_manager/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/mongodb_io_manager/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/mongodb.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -15653,8 +15656,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/pulsar_monitor/requirements.txt",
       "icon": "Radar",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/pulsar.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -15682,8 +15686,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/pulsar_observation_sensor/requirements.txt",
       "icon": "Eye",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/pulsar.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -15707,8 +15712,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pulsar_to_database_asset/requirements.txt",
       "component_type": "dagster_component_templates.PulsarToDatabaseAssetComponent",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/pulsar.md",
+        "last_validated": "2026-05-14"
       }
     },
     {

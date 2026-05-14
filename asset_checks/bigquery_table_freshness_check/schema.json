@@ -1,0 +1,66 @@
+{
+  "component_type": "dagster_component_templates.BigqueryTableFreshnessCheckComponent",
+  "description": "BigqueryTableFreshnessCheckComponent \u2014 SLO check on max-age of a BQ table.",
+  "category": "check",
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "required": false,
+      "description": "Asset key the check validates."
+    },
+    "check_name": {
+      "type": "string",
+      "label": "Check Name",
+      "required": false,
+      "default": "bigquery_table_freshness_check"
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials",
+      "required": false
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false
+    },
+    "table_id": {
+      "type": "string",
+      "label": "Table Id",
+      "required": false,
+      "description": "Fully-qualified BQ table id: `project.dataset.table`."
+    },
+    "max_age_minutes": {
+      "type": "integer",
+      "label": "Max Age Minutes",
+      "required": false,
+      "description": "Max age of the table's last_modified_time. Check fails if exceeded."
+    },
+    "use_partition_freshness": {
+      "type": "boolean",
+      "label": "Use Partition Freshness",
+      "required": false,
+      "description": "If True and the table is partitioned, check the freshest partition's modification time instead of the table-level last_modified_time. Useful for ingest-time partitioned tables that grow daily.",
+      "default": false
+    },
+    "severity": {
+      "type": "string",
+      "label": "Severity",
+      "required": false,
+      "default": "ERROR"
+    },
+    "blocking": {
+      "type": "boolean",
+      "label": "Blocking",
+      "required": false,
+      "description": "Default False \u2014 SLO checks usually alert, not block.",
+      "default": false
+    }
+  },
+  "tags": [
+    "bigquery-table-freshness-check",
+    "asset_checks"
+  ],
+  "name": "Bigquery Table Freshness Check"
+}

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AbInitioResource",
+  "component_type": "dagster_component_templates.AbInitioJobSensorComponent",
   "description": "Resource for connecting to Ab Initio EME REST API.",
   "category": "sensor",
   "icon": "Radar",

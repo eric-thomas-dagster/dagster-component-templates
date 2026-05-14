@@ -1,0 +1,116 @@
+{
+  "component_type": "dagster_component_templates.SyntheticImageGeneratorComponent",
+  "description": "SyntheticImageGeneratorComponent \u2014 generate sample PNGs for Vision / OCR demos.",
+  "category": "source",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "output_dir": {
+      "type": "string",
+      "label": "Output Dir",
+      "required": false,
+      "description": "Filesystem directory to write PNGs into (created if missing).",
+      "default": "/tmp/synthetic_images"
+    },
+    "samples": {
+      "type": "string",
+      "label": "Samples",
+      "required": false,
+      "description": "`default` to use the built-in 3-image set, or `custom` to use `images` instead.",
+      "default": "default"
+    },
+    "images": {
+      "type": "array",
+      "label": "Images",
+      "required": false,
+      "description": "When samples='custom', list of {sku, name, kind} dicts. The built-in renderer recognizes the names 'apple', 'blue car', 'green plant'; other names render a solid gray placeholder. Use samples='default' for the Vision-friendly set.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "width": {
+      "type": "integer",
+      "label": "Width",
+      "required": false,
+      "default": 320
+    },
+    "height": {
+      "type": "integer",
+      "label": "Height",
+      "required": false,
+      "default": 320
+    },
+    "inject_exif": {
+      "type": "boolean",
+      "label": "Inject Exif",
+      "required": false,
+      "description": "If True, write a synthetic JPEG (not PNG) per image with realistic EXIF (Make, Model, DateTimeOriginal, ISO, GPS) \u2014 for demos of `image_exif_extractor`. Output extension flips to `.jpg` when this is on.",
+      "default": false
+    },
+    "exif_make": {
+      "type": "string",
+      "label": "Exif Make",
+      "required": false,
+      "default": "DagsterCam"
+    },
+    "exif_model": {
+      "type": "string",
+      "label": "Exif Model",
+      "required": false,
+      "default": "DG-1"
+    },
+    "exif_gps_lat": {
+      "type": "string",
+      "label": "Exif Gps Lat",
+      "required": false,
+      "description": "Decimal degrees; used as the demo GPS lat.",
+      "default": 37.7749
+    },
+    "exif_gps_lon": {
+      "type": "string",
+      "label": "Exif Gps Lon",
+      "required": false,
+      "description": "Decimal degrees; used as the demo GPS lon."
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "synthetic-image-generator",
+    "source"
+  ],
+  "name": "Synthetic Image Generator"
+}

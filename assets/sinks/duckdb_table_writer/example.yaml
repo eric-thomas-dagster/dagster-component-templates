@@ -1,4 +1,4 @@
-type: duckdb_table_writer.DuckDBTableWriterComponent
+type: dagster_component_templates.DuckDBTableWriterComponent
 
 attributes:
   asset_name: customers_to_duckdb

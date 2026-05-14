@@ -1,0 +1,143 @@
+{
+  "component_type": "dagster_component_templates.BigqueryVectorSearchAssetComponent",
+  "description": "BigqueryVectorSearchAssetComponent \u2014 k-NN similarity search against a BQ vector column.",
+  "category": "source",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials",
+      "required": false
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project Id",
+      "required": false
+    },
+    "location": {
+      "type": "string",
+      "label": "Location",
+      "required": false
+    },
+    "base_table": {
+      "type": "string",
+      "label": "Base Table",
+      "required": false,
+      "description": "Fully-qualified BQ table holding embeddings (`project.dataset.table`)."
+    },
+    "base_column": {
+      "type": "string",
+      "label": "Base Column",
+      "required": false,
+      "description": "Column in base_table containing the embedding (ARRAY<FLOAT64>)."
+    },
+    "select_columns": {
+      "type": "array",
+      "label": "Select Columns",
+      "required": false,
+      "description": "Columns to return alongside each match (id, text, metadata, etc.).",
+      "items": {
+        "type": "string"
+      }
+    },
+    "top_k": {
+      "type": "integer",
+      "label": "Top K",
+      "required": false,
+      "description": "Number of neighbors to return per query vector.",
+      "default": 5
+    },
+    "distance_type": {
+      "type": "string",
+      "label": "Distance Type",
+      "required": false,
+      "default": "COSINE"
+    },
+    "query_vectors": {
+      "type": "array",
+      "label": "Query Vectors",
+      "required": false,
+      "description": "Static mode: inline list of query vectors. One row of results per vector.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "From-upstream mode: asset key of an upstream DataFrame holding query vectors."
+    },
+    "query_vector_column": {
+      "type": "string",
+      "label": "Query Vector Column",
+      "required": false,
+      "description": "From-upstream mode: column in upstream containing the embedding vector."
+    },
+    "query_id_column": {
+      "type": "string",
+      "label": "Query Id Column",
+      "required": false,
+      "description": "Optional column in upstream to carry forward as `query_id` in results."
+    },
+    "use_brute_force": {
+      "type": "boolean",
+      "label": "Use Brute Force",
+      "required": false,
+      "description": "If True, force exhaustive scan (no index). Use only for small tables or correctness validation.",
+      "default": false
+    },
+    "fraction_lists_to_search": {
+      "type": "string",
+      "label": "Fraction Lists To Search",
+      "required": false,
+      "description": "IVF index tuning: 0\u20131, higher = more accurate / slower. Default uses BQ's choice."
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "bigquery-vector-search-asset",
+    "source"
+  ],
+  "name": "Bigquery Vector Search Asset"
+}

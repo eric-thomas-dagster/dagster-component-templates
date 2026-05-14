@@ -1,4 +1,4 @@
-component_type: dagster_component_templates.SchemaValidatorComponent
+type: dagster_component_templates.SchemaValidatorComponent
 
 asset_name: validated_orders
 upstream_asset_key: raw_orders

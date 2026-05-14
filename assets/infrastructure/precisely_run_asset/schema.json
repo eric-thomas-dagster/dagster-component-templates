@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PreciselyResource",
+  "component_type": "dagster_component_templates.PreciselyRunAssetComponent",
   "description": "Resource for connecting to the Precisely Connect REST API.",
   "category": "infrastructure",
   "icon": "Server",

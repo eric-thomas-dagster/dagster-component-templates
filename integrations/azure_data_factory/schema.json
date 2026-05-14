@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AzureDataFactoryResource",
+  "component_type": "dagster_component_templates.AzureDataFactoryComponent",
   "description": "Shared Azure Data Factory connection config.",
   "category": "integration",
   "icon": "si:microsoftazure",

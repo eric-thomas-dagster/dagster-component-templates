@@ -1,0 +1,101 @@
+{
+  "component_type": "dagster_component_templates.CloudLoggingQueryAssetComponent",
+  "description": "CloudLoggingQueryAssetComponent \u2014 pull log entries via Cloud Logging filter language.",
+  "category": "source",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials",
+      "required": false
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false,
+      "description": "Falls back to GOOGLE_APPLICATION_CREDENTIALS."
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project Id",
+      "required": false,
+      "description": "GCP project to query. Default: project from credentials."
+    },
+    "filter_": {
+      "type": "string",
+      "label": "Filter ",
+      "required": false,
+      "description": "Cloud Logging filter expression. e.g. 'severity>=ERROR' or 'resource.type=\"cloud_run_revision\" AND severity=ERROR'."
+    },
+    "lookback_minutes": {
+      "type": "integer",
+      "label": "Lookback Minutes",
+      "required": false,
+      "description": "If set, automatically anchor the filter to entries from the last N minutes (appends `timestamp>=\"<ISO>\"`). Use this OR put your own timestamp clause in `filter` \u2014 not both."
+    },
+    "order_by": {
+      "type": "string",
+      "label": "Order By",
+      "required": false,
+      "description": "Cloud Logging order_by clause.",
+      "default": "timestamp desc"
+    },
+    "max_entries": {
+      "type": "integer",
+      "label": "Max Entries",
+      "required": false,
+      "description": "Cap on total entries returned (uses page iteration).",
+      "default": 1000
+    },
+    "resource_names": {
+      "type": "array",
+      "label": "Resource Names",
+      "required": false,
+      "description": "Optional list of resource scopes (e.g. ['projects/foo', 'folders/123']). Default: ['projects/<project_id>'].",
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "cloud-logging-query-asset",
+    "source"
+  ],
+  "name": "Cloud Logging Query Asset"
+}

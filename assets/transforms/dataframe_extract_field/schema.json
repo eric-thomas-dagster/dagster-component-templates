@@ -1,0 +1,79 @@
+{
+  "component_type": "dagster_component_templates.DataframeExtractFieldComponent",
+  "description": "DataframeExtractFieldComponent \u2014 pull a field out of a column of dicts/lists.",
+  "category": "transformation",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream DataFrame asset key."
+    },
+    "source_column": {
+      "type": "string",
+      "label": "Source Column",
+      "required": false,
+      "description": "Column to read from (values are lists or dicts)."
+    },
+    "target_column": {
+      "type": "string",
+      "label": "Target Column",
+      "required": false,
+      "description": "New column to write the extracted scalar into."
+    },
+    "index": {
+      "type": "integer",
+      "label": "Index",
+      "required": false,
+      "description": "List index to pluck. Negative indices work (-1 = last). Ignored if source is a dict.",
+      "default": 0
+    },
+    "field": {
+      "type": "string",
+      "label": "Field",
+      "required": false,
+      "description": "If the indexed item is a dict, take this field. Omit when items are scalars."
+    },
+    "drop_source": {
+      "type": "boolean",
+      "label": "Drop Source",
+      "required": false,
+      "description": "If True, drop the source nested column from the output.",
+      "default": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "dataframe-extract-field",
+    "transforms"
+  ],
+  "name": "Dataframe Extract Field"
+}

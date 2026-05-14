@@ -1,4 +1,4 @@
-type: synthetic_data_generator.SyntheticDataGeneratorComponent
+type: dagster_component_templates.SyntheticDataGeneratorComponent
 
 attributes:
   asset_name: demo_customers

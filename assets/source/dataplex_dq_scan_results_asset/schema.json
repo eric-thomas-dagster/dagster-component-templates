@@ -1,0 +1,96 @@
+{
+  "component_type": "dagster_component_templates.DataplexDqScanResultsAssetComponent",
+  "description": "DataplexDqScanResultsAssetComponent \u2014 pull the latest Dataplex Data-Quality scan results.",
+  "category": "source",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials",
+      "required": false
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project Id",
+      "required": false
+    },
+    "location": {
+      "type": "string",
+      "label": "Location",
+      "required": false,
+      "description": "Dataplex region (e.g. 'us-central1')."
+    },
+    "scan_id": {
+      "type": "string",
+      "label": "Scan Id",
+      "required": false,
+      "description": "Dataplex Data-Quality scan id."
+    },
+    "mode": {
+      "type": "string",
+      "label": "Mode",
+      "required": false,
+      "description": "`latest`: most recent job only. `history`: all jobs since `since_iso`.",
+      "default": "latest"
+    },
+    "since_iso": {
+      "type": "string",
+      "label": "Since Iso",
+      "required": false,
+      "description": "History-mode only: ISO-8601 timestamp lower bound (e.g. '2026-01-01T00:00:00Z')."
+    },
+    "max_jobs": {
+      "type": "integer",
+      "label": "Max Jobs",
+      "required": false,
+      "description": "Cap on jobs returned in history mode.",
+      "default": 50
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "dataplex-dq-scan-results-asset",
+    "source"
+  ],
+  "name": "Dataplex Dq Scan Results Asset"
+}

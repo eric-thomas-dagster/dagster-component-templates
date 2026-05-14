@@ -1,0 +1,88 @@
+{
+  "component_type": "dagster_component_templates.BigqueryDryRunCheckComponent",
+  "description": "BigqueryDryRunCheckComponent \u2014 cost guardrail for a BigQuery query.",
+  "category": "check",
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "required": false,
+      "description": "Asset key the check validates."
+    },
+    "check_name": {
+      "type": "string",
+      "label": "Check Name",
+      "required": false,
+      "default": "bigquery_dry_run_cost_check"
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials",
+      "required": false
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project Id",
+      "required": false
+    },
+    "location": {
+      "type": "string",
+      "label": "Location",
+      "required": false,
+      "description": "BQ location (e.g. 'US', 'EU')."
+    },
+    "sql": {
+      "type": "string",
+      "label": "Sql",
+      "required": false,
+      "description": "The query to dry-run. Same SQL you'd run in production."
+    },
+    "max_bytes": {
+      "type": "integer",
+      "label": "Max Bytes",
+      "required": false,
+      "description": "Max estimated bytes scanned. Check fails if exceeded. E.g. 100_000_000_000 = 100 GB. Pick this OR max_cost_usd (or both \u2014 strictest wins)."
+    },
+    "max_cost_usd": {
+      "type": "string",
+      "label": "Max Cost Usd",
+      "required": false,
+      "description": "Max estimated USD cost. NOTE: BigQuery's dry-run does NOT return a cost \u2014 only bytes. This is computed locally as bytes_scanned / 1e12 * on_demand_price_per_tb_usd. The rate is YOUR responsibility to keep current. For flat-rate / capacity reservations, this number is meaningless \u2014 use max_slot_ms instead."
+    },
+    "on_demand_price_per_tb_usd": {
+      "type": "string",
+      "label": "On Demand Price Per Tb Usd",
+      "required": false,
+      "description": "On-demand $/TB rate used to compute `max_cost_usd`. Default $6.25/TB (US, on-demand, as of 2025). Verify against https://cloud.google.com/bigquery/pricing#analysis_pricing for your region + contract. If you're on capacity reservations, ignore this \u2014 use max_slot_ms.",
+      "default": 6.25
+    },
+    "max_slot_ms": {
+      "type": "integer",
+      "label": "Max Slot Ms",
+      "required": false,
+      "description": "Optional cap on estimated slot-ms. Useful for capacity-reservation projects where bytes/cost don't reflect actual spend."
+    },
+    "severity": {
+      "type": "string",
+      "label": "Severity",
+      "required": false,
+      "default": "ERROR"
+    },
+    "blocking": {
+      "type": "boolean",
+      "label": "Blocking",
+      "required": false,
+      "default": true
+    }
+  },
+  "tags": [
+    "bigquery-dry-run-check",
+    "asset_checks"
+  ],
+  "name": "Bigquery Dry Run Check"
+}

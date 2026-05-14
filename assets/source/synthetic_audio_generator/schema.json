@@ -1,0 +1,79 @@
+{
+  "component_type": "dagster_component_templates.SyntheticAudioGeneratorComponent",
+  "description": "SyntheticAudioGeneratorComponent \u2014 generate sample WAV files for audio demos.",
+  "category": "source",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "output_dir": {
+      "type": "string",
+      "label": "Output Dir",
+      "required": false,
+      "description": "Filesystem directory to write WAVs into (created if missing).",
+      "default": "/tmp/synthetic_audio"
+    },
+    "samples": {
+      "type": "string",
+      "label": "Samples",
+      "required": false,
+      "description": "`default` to use the built-in 3-tone set, or `custom` to use `clips` instead.",
+      "default": "default"
+    },
+    "clips": {
+      "type": "array",
+      "label": "Clips",
+      "required": false,
+      "description": "When samples='custom', list of {clip_id, frequency_hz, duration_seconds, kind?} dicts. Only `sine` is implemented by the built-in renderer; other `kind` values fall back to sine.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sample_rate": {
+      "type": "integer",
+      "label": "Sample Rate",
+      "required": false,
+      "description": "Output WAV sample rate (Hz).",
+      "default": 44100
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "synthetic-audio-generator",
+    "source"
+  ],
+  "name": "Synthetic Audio Generator"
+}

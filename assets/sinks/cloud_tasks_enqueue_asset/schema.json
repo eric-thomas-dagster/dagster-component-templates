@@ -1,0 +1,124 @@
+{
+  "component_type": "dagster_component_templates.CloudTasksEnqueueAssetComponent",
+  "description": "CloudTasksEnqueueAssetComponent \u2014 enqueue Cloud Tasks from DataFrame rows.",
+  "category": "sink",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream DataFrame asset key."
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials",
+      "required": false
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project Id",
+      "required": false
+    },
+    "location": {
+      "type": "string",
+      "label": "Location",
+      "required": false,
+      "description": "Queue region (e.g. 'us-central1')."
+    },
+    "queue_id": {
+      "type": "string",
+      "label": "Queue Id",
+      "required": false,
+      "description": "Cloud Tasks queue id."
+    },
+    "target_url": {
+      "type": "string",
+      "label": "Target Url",
+      "required": false,
+      "description": "HTTPS URL the worker hits (e.g. a Cloud Run service endpoint). Can include `{column}` placeholders to template per-row."
+    },
+    "http_method": {
+      "type": "string",
+      "label": "Http Method",
+      "required": false,
+      "default": "POST"
+    },
+    "body_columns": {
+      "type": "array",
+      "label": "Body Columns",
+      "required": false,
+      "description": "Columns to bundle into the request JSON body. Default: all columns.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "headers": {
+      "type": "object",
+      "label": "Headers",
+      "required": false
+    },
+    "schedule_time_column": {
+      "type": "string",
+      "label": "Schedule Time Column",
+      "required": false,
+      "description": "Optional column of datetimes \u2014 when each task should fire (defaults to now)."
+    },
+    "oidc_service_account_email": {
+      "type": "string",
+      "label": "Oidc Service Account Email",
+      "required": false,
+      "description": "Service account to mint an OIDC token for. Required for private invocation targets."
+    },
+    "oidc_audience": {
+      "type": "string",
+      "label": "Oidc Audience",
+      "required": false,
+      "description": "OIDC audience (default: target_url's origin)."
+    },
+    "dispatch_deadline_seconds": {
+      "type": "integer",
+      "label": "Dispatch Deadline Seconds",
+      "required": false,
+      "description": "Override Cloud Tasks dispatch_deadline."
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "cloud-tasks-enqueue-asset",
+    "sinks"
+  ],
+  "name": "Cloud Tasks Enqueue Asset"
+}

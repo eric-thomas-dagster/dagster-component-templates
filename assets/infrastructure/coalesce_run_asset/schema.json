@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CoalesceResource",
+  "component_type": "dagster_component_templates.CoalesceProjectComponent",
   "description": "Shared Coalesce connection config.",
   "category": "infrastructure",
   "icon": "Server",

@@ -1,0 +1,54 @@
+{
+  "component_type": "dagster_component_templates.ImageExifExtractorComponent",
+  "description": "ImageExifExtractorComponent \u2014 pull EXIF + IPTC + XMP-ish metadata from images.",
+  "category": "transformation",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream DataFrame asset key."
+    },
+    "image_path_column": {
+      "type": "string",
+      "label": "Image Path Column",
+      "required": false,
+      "description": "Column containing local image file paths.",
+      "default": "file_path"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "image-exif-extractor",
+    "transforms"
+  ],
+  "name": "Image Exif Extractor"
+}

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DatabricksWorkspaceResource",
+  "component_type": "dagster_component_templates.DatabricksAssetBundleComponent",
   "description": "Resource for interacting with Databricks workspace.",
   "category": "integration",
   "icon": "si:databricks",

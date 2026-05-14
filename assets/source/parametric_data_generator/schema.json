@@ -1,0 +1,70 @@
+{
+  "component_type": "dagster_component_templates.ParametricDataGeneratorComponent",
+  "description": "ParametricDataGeneratorComponent \u2014 YAML-driven synthetic data.",
+  "category": "source",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "row_count": {
+      "type": "integer",
+      "label": "Row Count",
+      "required": false,
+      "description": "Number of rows to generate.",
+      "default": 100
+    },
+    "random_state": {
+      "type": "integer",
+      "label": "Random State",
+      "required": false,
+      "description": "Seed for reproducibility. None = nondeterministic."
+    },
+    "columns": {
+      "type": "object",
+      "label": "Columns",
+      "required": false,
+      "description": "Dict of column-name \u2192 spec. Each spec has a `type` field (id / int / float / bool / choice / datetime / date / string / uuid / constant) and type-specific options. See the README for the full reference."
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "parametric-data-generator",
+    "synthetic",
+    "source",
+    "mockaroo"
+  ],
+  "name": "Parametric Data Generator"
+}

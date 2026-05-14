@@ -1,0 +1,65 @@
+{
+  "component_type": "dagster_component_templates.DataframeFlattenNestedColumnsComponent",
+  "description": "DataframeFlattenNestedColumnsComponent \u2014 JSON-stringify dict/list columns.",
+  "category": "transformation",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream DataFrame asset key."
+    },
+    "columns": {
+      "type": "array",
+      "label": "Columns",
+      "required": false,
+      "description": "Explicit columns to flatten. Default: every column with at least one dict/list value.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "exclude_columns": {
+      "type": "array",
+      "label": "Exclude Columns",
+      "required": false,
+      "description": "Skip these columns even if they contain dicts/lists.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "dataframe-flatten-nested-columns",
+    "transforms"
+  ],
+  "name": "Dataframe Flatten Nested Columns"
+}

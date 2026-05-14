@@ -1,0 +1,102 @@
+{
+  "component_type": "dagster_component_templates.VideoAudioExtractAssetComponent",
+  "description": "VideoAudioExtractAssetComponent \u2014 pull the audio track from a video as a file.",
+  "category": "transformation",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream DataFrame asset key (video paths)."
+    },
+    "video_path_column": {
+      "type": "string",
+      "label": "Video Path Column",
+      "required": false,
+      "default": "file_path"
+    },
+    "output_dir": {
+      "type": "string",
+      "label": "Output Dir",
+      "required": false,
+      "default": "/tmp/extracted_audio"
+    },
+    "output_filename_template": {
+      "type": "string",
+      "label": "Output Filename Template",
+      "required": false,
+      "description": "Filename template (no dir). Supports `{<column>}` + `{row_index}`. Default: <video_basename>.<target_format>."
+    },
+    "output_path_column": {
+      "type": "string",
+      "label": "Output Path Column",
+      "required": false,
+      "default": "audio_path"
+    },
+    "target_format": {
+      "type": "string",
+      "label": "Target Format",
+      "required": false,
+      "description": "Output codec / extension.",
+      "default": "wav"
+    },
+    "sample_rate": {
+      "type": "integer",
+      "label": "Sample Rate",
+      "required": false,
+      "description": "Resample on extraction. Common: 16000 (Whisper / Cloud Speech v1), 22050, 44100."
+    },
+    "channels": {
+      "type": "integer",
+      "label": "Channels",
+      "required": false,
+      "description": "1 = downmix to mono, 2 = stereo. Omit to preserve source."
+    },
+    "bitrate": {
+      "type": "string",
+      "label": "Bitrate",
+      "required": false,
+      "description": "For lossy formats: e.g. `128k`. Ignored for WAV/FLAC."
+    },
+    "ffmpeg_binary": {
+      "type": "string",
+      "label": "Ffmpeg Binary",
+      "required": false,
+      "default": "ffmpeg"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "video-audio-extract-asset",
+    "transforms"
+  ],
+  "name": "Video Audio Extract Asset"
+}

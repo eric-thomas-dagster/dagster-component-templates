@@ -1,0 +1,63 @@
+{
+  "component_type": "dagster_component_templates.Hl7V2ParserComponent",
+  "description": "Hl7V2ParserComponent \u2014 parse pipe-delimited HL7 v2 messages to a DataFrame.",
+  "category": "transformation",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream DataFrame asset key."
+    },
+    "message_column": {
+      "type": "string",
+      "label": "Message Column",
+      "required": false,
+      "description": "Column holding the raw HL7 v2 message (\\r-delimited segments).",
+      "default": "message"
+    },
+    "keep_segments": {
+      "type": "array",
+      "label": "Keep Segments",
+      "required": false,
+      "description": "Segments to emit. Full extractors: MSH, PID, OBX, ORC, OBR, PV1, EVN, DG1, AL1. Other segments are silently skipped.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "hl7-v2-parser",
+    "transforms"
+  ],
+  "name": "Hl7 V2 Parser"
+}

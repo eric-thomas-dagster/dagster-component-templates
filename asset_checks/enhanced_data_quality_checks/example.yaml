@@ -1,7 +1,7 @@
 # Example configuration for Enhanced Data Quality Checks Component
 # Demonstrates both per-asset checks AND selection-based checks
 
-type: dagster_component_templates.EnhancedDataQualityChecksComponent
+type: dagster_component_templates.EnhancedDataQualityChecks
 attributes:
 
   # ════════════════════════════════════════════════════════════════

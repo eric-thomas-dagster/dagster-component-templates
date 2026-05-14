@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ComparisonOperator",
+  "component_type": "dagster_component_templates.EnhancedDataQualityChecks",
   "description": "Comparison operators for validation checks.",
   "category": "check",
   "icon": "CheckCircle",

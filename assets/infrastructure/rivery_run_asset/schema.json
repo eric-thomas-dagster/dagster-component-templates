@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RiveryResource",
+  "component_type": "dagster_component_templates.RiveryRunAssetComponent",
   "description": "Resource for connecting to the Rivery REST API.",
   "category": "infrastructure",
   "icon": "Server",

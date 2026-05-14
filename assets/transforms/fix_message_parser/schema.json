@@ -1,0 +1,60 @@
+{
+  "component_type": "dagster_component_templates.FixMessageParserComponent",
+  "description": "FixMessageParserComponent \u2014 parse FIX (Financial Information eXchange) messages.",
+  "category": "transformation",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream DataFrame asset key."
+    },
+    "message_column": {
+      "type": "string",
+      "label": "Message Column",
+      "required": false,
+      "description": "Column holding the raw FIX message (tag=value pairs separated by SOH or `|`).",
+      "default": "message"
+    },
+    "msg_type_filter": {
+      "type": "integer",
+      "label": "Msg Type Filter",
+      "required": false,
+      "description": "Optional list of MsgType codes to emit. E.g. [D, 8] for orders + executions only. Default: all. Numeric codes like 8 may be passed as ints in YAML \u2014 they're coerced to str at runtime."
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "fix-message-parser",
+    "transforms"
+  ],
+  "name": "Fix Message Parser"
+}

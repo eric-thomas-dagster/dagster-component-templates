@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ClickHouseResource",
+  "component_type": "dagster_component_templates.ExternalClickHouseTableComponent",
   "description": "Resource for connecting to ClickHouse.",
   "category": "external",
   "icon": "Link",

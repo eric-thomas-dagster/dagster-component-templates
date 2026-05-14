@@ -1,0 +1,108 @@
+{
+  "component_type": "dagster_component_templates.BigtableWriterAssetComponent",
+  "description": "BigtableWriterAssetComponent \u2014 write DataFrame rows to a Cloud Bigtable table.",
+  "category": "sink",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream DataFrame asset key."
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials",
+      "required": false
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project Id",
+      "required": false
+    },
+    "instance_id": {
+      "type": "string",
+      "label": "Instance Id",
+      "required": false,
+      "description": "Bigtable instance id."
+    },
+    "table_id": {
+      "type": "string",
+      "label": "Table Id",
+      "required": false,
+      "description": "Bigtable table id."
+    },
+    "row_key_column": {
+      "type": "string",
+      "label": "Row Key Column",
+      "required": false,
+      "description": "DataFrame column to use as the Bigtable row key."
+    },
+    "column_family": {
+      "type": "string",
+      "label": "Column Family",
+      "required": false,
+      "description": "Default column family for all non-row-key columns (unless overridden in column_map)."
+    },
+    "column_map": {
+      "type": "object",
+      "label": "Column Map",
+      "required": false,
+      "description": "Optional per-column override: {<df_column>: {family: '...', qualifier: '...'}}. Default: family=column_family, qualifier=df_column."
+    },
+    "json_columns": {
+      "type": "array",
+      "label": "Json Columns",
+      "required": false,
+      "description": "Columns whose values should be json.dumps()'d before encoding.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "required": false,
+      "description": "Rows per Bigtable mutate batch.",
+      "default": 500
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "bigtable-writer-asset",
+    "sinks"
+  ],
+  "name": "Bigtable Writer Asset"
+}

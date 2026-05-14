@@ -1,0 +1,124 @@
+{
+  "component_type": "dagster_component_templates.LitellmTextToSpeechComponent",
+  "description": "LitellmTextToSpeechComponent \u2014 multi-provider TTS via LiteLLM.",
+  "category": "ai",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream DataFrame asset key."
+    },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "required": false,
+      "description": "LiteLLM model id. e.g. `openai/tts-1`, `openai/tts-1-hd`, `elevenlabs/eleven_multilingual_v2`, `azure/<deployment>`."
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "required": false,
+      "description": "Env var holding the API key for the selected provider."
+    },
+    "text_column": {
+      "type": "string",
+      "label": "Text Column",
+      "required": false,
+      "description": "Column containing text to speak."
+    },
+    "output_dir": {
+      "type": "string",
+      "label": "Output Dir",
+      "required": false,
+      "default": "/tmp/litellm_tts_audio"
+    },
+    "output_filename_template": {
+      "type": "string",
+      "label": "Output Filename Template",
+      "required": false,
+      "description": "Filename template; supports `{<column>}` and `{row_index}`. Extension determines format.",
+      "default": "{row_index}.mp3"
+    },
+    "output_path_column": {
+      "type": "string",
+      "label": "Output Path Column",
+      "required": false,
+      "default": "audio_path"
+    },
+    "voice": {
+      "type": "string",
+      "label": "Voice",
+      "required": false,
+      "description": "Voice id. Provider-specific: OpenAI = alloy/echo/fable/onyx/nova/shimmer. ElevenLabs = voice UUID. Required for most providers."
+    },
+    "response_format": {
+      "type": "string",
+      "label": "Response Format",
+      "required": false,
+      "description": "Audio format. Match the filename extension if you set it explicitly.",
+      "default": "mp3"
+    },
+    "speed": {
+      "type": "string",
+      "label": "Speed",
+      "required": false,
+      "description": "OpenAI: 0.25\u20134.0 speed multiplier. Other providers may ignore.",
+      "default": 1.0
+    },
+    "rate_limit_delay": {
+      "type": "string",
+      "label": "Rate Limit Delay",
+      "required": false,
+      "default": 0.0
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 3
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "litellm-text-to-speech",
+    "ai"
+  ],
+  "name": "Litellm Text To Speech"
+}

@@ -1,0 +1,82 @@
+{
+  "component_type": "dagster_component_templates.FhirResourceNormalizerComponent",
+  "description": "FhirResourceNormalizerComponent \u2014 flatten FHIR R4/R5 resources to a DataFrame.",
+  "category": "transformation",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream DataFrame asset key."
+    },
+    "resource_column": {
+      "type": "string",
+      "label": "Resource Column",
+      "required": false,
+      "description": "Column holding the FHIR resource. Values may be dicts OR JSON strings.",
+      "default": "resource"
+    },
+    "resource_types": {
+      "type": "array",
+      "label": "Resource Types",
+      "required": false,
+      "description": "Optional filter \u2014 only emit rows for these resource types. E.g. ['Patient', 'Observation']. Default: all.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "value_maps": {
+      "type": "object",
+      "label": "Value Maps",
+      "required": false,
+      "description": "Per-column value normalization, like `hris_normalizer`. E.g. `{gender: {M: male, F: female}}`. Case-insensitive by default."
+    },
+    "case_insensitive_map": {
+      "type": "boolean",
+      "label": "Case Insensitive Map",
+      "required": false,
+      "default": true
+    },
+    "drop_invalid": {
+      "type": "boolean",
+      "label": "Drop Invalid",
+      "required": false,
+      "description": "If True, silently drop rows whose resource is missing/un-parseable. If False, emit a row with `resource_type=null` and an `_error` column.",
+      "default": true
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "fhir-resource-normalizer",
+    "transforms"
+  ],
+  "name": "Fhir Resource Normalizer"
+}

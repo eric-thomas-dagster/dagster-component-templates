@@ -1,0 +1,66 @@
+{
+  "component_type": "dagster_component_templates.DataformRepositoryResourceComponent",
+  "description": "DataformRepositoryResourceComponent \u2014 YAML wrapper around dagster_dataform.DataformRepositoryResource.",
+  "category": "resource",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "description": "Key under which the resource is exposed in Definitions.resources.",
+      "default": "dataform_repo"
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials",
+      "required": false
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false,
+      "description": "Falls back to GOOGLE_APPLICATION_CREDENTIALS."
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project Id",
+      "required": false,
+      "description": "GCP project. Default: project from credentials."
+    },
+    "location": {
+      "type": "string",
+      "label": "Location",
+      "required": false,
+      "description": "Dataform location (e.g. 'us-central1', 'europe-west1')."
+    },
+    "repository_id": {
+      "type": "string",
+      "label": "Repository Id",
+      "required": false,
+      "description": "Dataform repository id within the project/location."
+    },
+    "environment": {
+      "type": "string",
+      "label": "Environment",
+      "required": false,
+      "description": "Dataform release environment (a Dataform concept \u2014 typically 'production', 'staging', etc.)."
+    },
+    "sensor_minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Sensor Minimum Interval Seconds",
+      "required": false,
+      "default": 120
+    },
+    "asset_fresh_policy_lag_minutes": {
+      "type": "string",
+      "label": "Asset Fresh Policy Lag Minutes",
+      "required": false,
+      "default": 1440
+    }
+  },
+  "tags": [
+    "dataform-repository-resource",
+    "resources"
+  ],
+  "name": "Dataform Repository Resource"
+}

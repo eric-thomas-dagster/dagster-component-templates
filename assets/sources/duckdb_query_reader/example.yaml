@@ -1,4 +1,4 @@
-type: duckdb_query_reader.DuckDBQueryReaderComponent
+type: dagster_component_templates.DuckDBQueryReaderComponent
 
 attributes:
   asset_name: active_customers

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.VaultResource",
+  "component_type": "dagster_component_templates.VaultAssetComponent",
   "description": "Dagster resource for reading secrets from a HashiCorp Vault cluster.",
   "category": "infrastructure",
   "icon": "Server",

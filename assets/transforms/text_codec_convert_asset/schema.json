@@ -1,0 +1,110 @@
+{
+  "component_type": "dagster_component_templates.TextCodecConvertAssetComponent",
+  "description": "TextCodecConvertAssetComponent \u2014 convert text between codecs (ASCII\u2194EBCDIC, etc.).",
+  "category": "transformation",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream DataFrame asset key."
+    },
+    "mode": {
+      "type": "string",
+      "label": "Mode",
+      "required": false,
+      "description": "`string`: convert a column of Python str values in place. `file`: read each file path's bytes, recode, write a new file."
+    },
+    "from_codec": {
+      "type": "string",
+      "label": "From Codec",
+      "required": false,
+      "description": "Source codec name (Python stdlib codec). Common EBCDIC: cp037, cp1140, cp273, cp500, cp1047."
+    },
+    "to_codec": {
+      "type": "string",
+      "label": "To Codec",
+      "required": false,
+      "description": "Target codec name. e.g. `utf-8`, `ascii`, `cp037`."
+    },
+    "errors": {
+      "type": "string",
+      "label": "Errors",
+      "required": false,
+      "description": "Behavior on un-encodable / un-decodable characters. `replace` substitutes `?` / `\\ufffd` \u2014 useful for non-strict ETL.",
+      "default": "strict"
+    },
+    "source_column": {
+      "type": "string",
+      "label": "Source Column",
+      "required": false,
+      "description": "mode='string': column of str values to convert. Required for string mode."
+    },
+    "target_column": {
+      "type": "string",
+      "label": "Target Column",
+      "required": false,
+      "description": "mode='string': new column to write the result into. If equal to `source_column`, overwrites in place. Default: source_column."
+    },
+    "source_path_column": {
+      "type": "string",
+      "label": "Source Path Column",
+      "required": false,
+      "description": "mode='file': column of input file paths. Required for file mode."
+    },
+    "output_dir": {
+      "type": "string",
+      "label": "Output Dir",
+      "required": false,
+      "description": "mode='file': directory to write output files into.",
+      "default": "/tmp/codec_converted"
+    },
+    "output_filename_template": {
+      "type": "string",
+      "label": "Output Filename Template",
+      "required": false,
+      "description": "mode='file': filename template (no dir). Supports `{<column>}` + `{row_index}`. Default: <basename>_<to_codec>.<orig_ext>."
+    },
+    "output_path_column": {
+      "type": "string",
+      "label": "Output Path Column",
+      "required": false,
+      "description": "mode='file': column to write the output file path into.",
+      "default": "converted_path"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "text-codec-convert-asset",
+    "transforms"
+  ],
+  "name": "Text Codec Convert Asset"
+}

@@ -1,0 +1,108 @@
+{
+  "component_type": "dagster_component_templates.CloudDlpInspectAssetComponent",
+  "description": "CloudDlpInspectAssetComponent \u2014 scan DataFrame text columns for PII via Cloud DLP.",
+  "category": "ai",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream DataFrame asset key."
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials",
+      "required": false
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project Id",
+      "required": false
+    },
+    "text_columns": {
+      "type": "array",
+      "label": "Text Columns",
+      "required": false,
+      "description": "Columns whose string values should be inspected. Each row's columns are joined with newlines before inspection.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "info_types": {
+      "type": "array",
+      "label": "Info Types",
+      "required": false,
+      "description": "List of Cloud DLP infoType names to detect. See https://cloud.google.com/dlp/docs/infotypes-reference",
+      "items": {
+        "type": "string"
+      }
+    },
+    "min_likelihood": {
+      "type": "string",
+      "label": "Min Likelihood",
+      "required": false,
+      "description": "Minimum likelihood to surface as a finding.",
+      "default": "POSSIBLE"
+    },
+    "max_findings_per_row": {
+      "type": "integer",
+      "label": "Max Findings Per Row",
+      "required": false,
+      "description": "Cap on how many individual findings are recorded per row.",
+      "default": 20
+    },
+    "include_quote": {
+      "type": "boolean",
+      "label": "Include Quote",
+      "required": false,
+      "description": "If True, include the matching substring in `dlp_findings`. Disabled by default \u2014 quotes can themselves be PII.",
+      "default": false
+    },
+    "output_prefix": {
+      "type": "string",
+      "label": "Output Prefix",
+      "required": false,
+      "description": "Column-name prefix for added analysis columns.",
+      "default": "dlp_"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "cloud-dlp-inspect-asset",
+    "ai"
+  ],
+  "name": "Cloud Dlp Inspect Asset"
+}

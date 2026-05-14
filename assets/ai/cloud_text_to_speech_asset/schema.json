@@ -1,0 +1,140 @@
+{
+  "component_type": "dagster_component_templates.CloudTextToSpeechAssetComponent",
+  "description": "CloudTextToSpeechAssetComponent \u2014 Cloud Text-to-Speech (WaveNet / Neural2 / Chirp).",
+  "category": "ai",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream DataFrame asset key."
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials",
+      "required": false
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false,
+      "description": "Falls back to GOOGLE_APPLICATION_CREDENTIALS."
+    },
+    "text_column": {
+      "type": "string",
+      "label": "Text Column",
+      "required": false,
+      "description": "Column containing text to speak."
+    },
+    "output_dir": {
+      "type": "string",
+      "label": "Output Dir",
+      "required": false,
+      "description": "Filesystem dir to write audio files into (created if missing).",
+      "default": "/tmp/tts_audio"
+    },
+    "output_filename_template": {
+      "type": "string",
+      "label": "Output Filename Template",
+      "required": false,
+      "description": "Filename template (without dir). Supports row column substitutions like `{<column>}_{row_index}.mp3`. Default appends row_index \u2192 `0.mp3`, `1.mp3`.",
+      "default": "{row_index}.mp3"
+    },
+    "output_path_column": {
+      "type": "string",
+      "label": "Output Path Column",
+      "required": false,
+      "description": "New column to write the file path into.",
+      "default": "audio_path"
+    },
+    "language_code": {
+      "type": "string",
+      "label": "Language Code",
+      "required": false,
+      "description": "BCP-47 language code (e.g. en-US, es-ES, ja-JP, fr-FR). Determines available voices.",
+      "default": "en-US"
+    },
+    "voice_name": {
+      "type": "string",
+      "label": "Voice Name",
+      "required": false,
+      "description": "Specific voice id (e.g. `en-US-Neural2-D`, `es-ES-Neural2-A`). Browse at https://cloud.google.com/text-to-speech/docs/voices. If omitted, Google picks a default for the language."
+    },
+    "audio_encoding": {
+      "type": "string",
+      "label": "Audio Encoding",
+      "required": false,
+      "description": "Output audio encoding. MP3 is the standard; LINEAR16 for uncompressed WAV.",
+      "default": "MP3"
+    },
+    "speaking_rate": {
+      "type": "string",
+      "label": "Speaking Rate",
+      "required": false,
+      "description": "Speed multiplier (0.25\u20134.0). 1.0 = normal.",
+      "default": 1.0
+    },
+    "pitch": {
+      "type": "string",
+      "label": "Pitch",
+      "required": false,
+      "description": "Pitch in semitones (-20.0 to 20.0). 0.0 = baseline.",
+      "default": 0.0
+    },
+    "rate_limit_delay": {
+      "type": "string",
+      "label": "Rate Limit Delay",
+      "required": false,
+      "description": "Sleep between rows.",
+      "default": 0.0
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 3
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "cloud-text-to-speech-asset",
+    "ai"
+  ],
+  "name": "Cloud Text To Speech Asset"
+}

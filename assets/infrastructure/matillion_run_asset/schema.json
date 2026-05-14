@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MatillionResource",
+  "component_type": "dagster_component_templates.MatillionRunAssetComponent",
   "description": "Resource for connecting to the Matillion ETL REST API.",
   "category": "infrastructure",
   "icon": "Server",

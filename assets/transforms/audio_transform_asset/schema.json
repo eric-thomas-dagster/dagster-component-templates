@@ -1,0 +1,123 @@
+{
+  "component_type": "dagster_component_templates.AudioTransformAssetComponent",
+  "description": "AudioTransformAssetComponent \u2014 ffmpeg-based audio resample / convert / trim.",
+  "category": "transformation",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream DataFrame asset key."
+    },
+    "audio_path_column": {
+      "type": "string",
+      "label": "Audio Path Column",
+      "required": false,
+      "description": "Column containing local audio file paths.",
+      "default": "file_path"
+    },
+    "output_dir": {
+      "type": "string",
+      "label": "Output Dir",
+      "required": false,
+      "description": "Filesystem dir to write transformed audio into.",
+      "default": "/tmp/transformed_audio"
+    },
+    "output_filename_template": {
+      "type": "string",
+      "label": "Output Filename Template",
+      "required": false,
+      "description": "Filename template (no dir). Supports `{<column>}` and `{row_index}`. Default: <input_basename>_t.<target_format>."
+    },
+    "output_path_column": {
+      "type": "string",
+      "label": "Output Path Column",
+      "required": false,
+      "default": "transformed_path"
+    },
+    "target_format": {
+      "type": "string",
+      "label": "Target Format",
+      "required": false,
+      "description": "Output codec / container. Extension is set from this.",
+      "default": "wav"
+    },
+    "sample_rate": {
+      "type": "integer",
+      "label": "Sample Rate",
+      "required": false,
+      "description": "Resample to this Hz. E.g. 16000 for Whisper, 44100 CD-quality. Omit to leave unchanged."
+    },
+    "channels": {
+      "type": "integer",
+      "label": "Channels",
+      "required": false,
+      "description": "Force channel count. 1 = mono, 2 = stereo. Omit to leave unchanged."
+    },
+    "bitrate": {
+      "type": "string",
+      "label": "Bitrate",
+      "required": false,
+      "description": "Output bitrate (e.g. `64k`, `128k`, `192k`). Lossy formats only."
+    },
+    "start_seconds": {
+      "type": "string",
+      "label": "Start Seconds",
+      "required": false,
+      "description": "Trim start offset in seconds."
+    },
+    "end_seconds": {
+      "type": "string",
+      "label": "End Seconds",
+      "required": false,
+      "description": "Trim end offset in seconds."
+    },
+    "normalize": {
+      "type": "boolean",
+      "label": "Normalize",
+      "required": false,
+      "description": "Apply `loudnorm` filter for EBU R128 loudness normalization.",
+      "default": false
+    },
+    "ffmpeg_binary": {
+      "type": "string",
+      "label": "Ffmpeg Binary",
+      "required": false,
+      "default": "ffmpeg"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "audio-transform-asset",
+    "transforms"
+  ],
+  "name": "Audio Transform Asset"
+}

@@ -1,0 +1,166 @@
+{
+  "component_type": "dagster_component_templates.SmtpSendAssetComponent",
+  "description": "SmtpSendAssetComponent \u2014 send emails via SMTP.",
+  "category": "sink",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name (summary row)."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream DataFrame asset key."
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "required": false,
+      "description": "SMTP server hostname."
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "required": false,
+      "description": "SMTP port (587 STARTTLS, 465 SSL, 25 plain).",
+      "default": 587
+    },
+    "use_ssl": {
+      "type": "boolean",
+      "label": "Use Ssl",
+      "required": false,
+      "description": "True for implicit SSL (port 465). For STARTTLS (587), leave False.",
+      "default": false
+    },
+    "use_starttls": {
+      "type": "boolean",
+      "label": "Use Starttls",
+      "required": false,
+      "description": "Issue STARTTLS upgrade on a plain connection (port 587).",
+      "default": true
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "required": false,
+      "description": "Env var with SMTP username."
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": false,
+      "description": "Env var with SMTP password (Gmail: app password)."
+    },
+    "sender": {
+      "type": "string",
+      "label": "Sender",
+      "required": false,
+      "description": "From address. Either bare 'alerts@me.com' or display form 'Pipeline Bot <alerts@me.com>'. Many providers reject mismatch with the auth user."
+    },
+    "mode": {
+      "type": "string",
+      "label": "Mode",
+      "required": false,
+      "description": "'per_row': one email per upstream row, using row fields in templates. 'summary': one email per run, with all rows rendered in the body via summary_template.",
+      "default": "per_row"
+    },
+    "to_template": {
+      "type": "string",
+      "label": "To Template",
+      "required": false,
+      "description": "Recipient template \u2014 `{column}` placeholders against upstream row. Example: '{user_email}' or 'alerts@me.com,team@me.com' (literal list)."
+    },
+    "cc_template": {
+      "type": "string",
+      "label": "Cc Template",
+      "required": false,
+      "description": "CC template (optional)."
+    },
+    "bcc_template": {
+      "type": "string",
+      "label": "Bcc Template",
+      "required": false,
+      "description": "BCC template (optional)."
+    },
+    "subject_template": {
+      "type": "string",
+      "label": "Subject Template",
+      "required": false,
+      "description": "Subject line, with `{column}` placeholders.",
+      "default": "Pipeline alert"
+    },
+    "body_template": {
+      "type": "string",
+      "label": "Body Template",
+      "required": false,
+      "description": "Plain-text body, with `{column}` placeholders.",
+      "default": ""
+    },
+    "html_body_template": {
+      "type": "string",
+      "label": "Html Body Template",
+      "required": false,
+      "description": "Optional HTML body. If both are set, recipient sees text/html alternative."
+    },
+    "summary_template": {
+      "type": "string",
+      "label": "Summary Template",
+      "required": false,
+      "description": "For mode='summary', a template rendered against the whole DataFrame's row summary (use Markdown \u2014 gets rendered into the body as text)."
+    },
+    "attachment_path_columns": {
+      "type": "array",
+      "label": "Attachment Path Columns",
+      "required": false,
+      "description": "Columns whose values are local file paths to attach. Per row in per_row mode; in summary mode, deduplicated across all rows.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "required": false,
+      "description": "If True, render and log every message but don't SMTP-send. Use for staging.",
+      "default": false
+    },
+    "max_send": {
+      "type": "integer",
+      "label": "Max Send",
+      "required": false,
+      "description": "Hard cap on emails sent per run. None = no limit."
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "smtp-send-asset",
+    "sink",
+    "email"
+  ],
+  "name": "Smtp Send Asset"
+}

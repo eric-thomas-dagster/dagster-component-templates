@@ -1,0 +1,116 @@
+{
+  "component_type": "dagster_component_templates.ImapInboxSourceComponent",
+  "description": "ImapInboxSourceComponent \u2014 fetch emails from an IMAP server.",
+  "category": "source",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "required": false,
+      "description": "IMAP server hostname (imap.gmail.com / outlook.office365.com / etc.)."
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "required": false,
+      "description": "IMAP SSL port (default 993).",
+      "default": 993
+    },
+    "use_ssl": {
+      "type": "boolean",
+      "label": "Use Ssl",
+      "required": false,
+      "description": "Use IMAPS (TLS).",
+      "default": true
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "required": false,
+      "description": "Env var containing the mailbox username (typically the email address)."
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": false,
+      "description": "Env var containing the password (for Gmail use an app password)."
+    },
+    "mailbox": {
+      "type": "string",
+      "label": "Mailbox",
+      "required": false,
+      "description": "IMAP folder to read from. Common: INBOX, '[Gmail]/All Mail', Archive.",
+      "default": "INBOX"
+    },
+    "search_criteria": {
+      "type": "string",
+      "label": "Search Criteria",
+      "required": false,
+      "description": "IMAP search expression. Examples: 'UNSEEN', 'ALL', '(FROM \"alerts@\")', 'SINCE 01-Jan-2025', 'SUBJECT \"invoice\"'.",
+      "default": "UNSEEN"
+    },
+    "max_messages": {
+      "type": "integer",
+      "label": "Max Messages",
+      "required": false,
+      "description": "Cap on how many messages to fetch in a single run.",
+      "default": 100
+    },
+    "mark_read": {
+      "type": "boolean",
+      "label": "Mark Read",
+      "required": false,
+      "description": "After fetching, set the \\Seen flag on each message so the next UNSEEN run skips them. Set False to leave unread (useful for testing).",
+      "default": false
+    },
+    "include_body_html": {
+      "type": "boolean",
+      "label": "Include Body Html",
+      "required": false,
+      "description": "Emit the raw HTML body too (in addition to text). Off by default \u2014 adds bulk.",
+      "default": false
+    },
+    "fallback_html_to_text": {
+      "type": "boolean",
+      "label": "Fallback Html To Text",
+      "required": false,
+      "description": "If a message has only HTML body, derive a text body by stripping tags.",
+      "default": true
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "imap-inbox-source",
+    "source",
+    "email"
+  ],
+  "name": "Imap Inbox Source"
+}

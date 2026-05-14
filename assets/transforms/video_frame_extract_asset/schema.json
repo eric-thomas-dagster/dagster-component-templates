@@ -1,0 +1,120 @@
+{
+  "component_type": "dagster_component_templates.VideoFrameExtractAssetComponent",
+  "description": "VideoFrameExtractAssetComponent \u2014 pull N frames per video as image files.",
+  "category": "transformation",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": false,
+      "description": "Output asset name."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream DataFrame asset key (video paths)."
+    },
+    "video_path_column": {
+      "type": "string",
+      "label": "Video Path Column",
+      "required": false,
+      "description": "Column of video file paths.",
+      "default": "file_path"
+    },
+    "video_id_column": {
+      "type": "string",
+      "label": "Video Id Column",
+      "required": false,
+      "description": "Optional column to carry forward as `video_id` on each frame row. Default: row index."
+    },
+    "output_dir": {
+      "type": "string",
+      "label": "Output Dir",
+      "required": false,
+      "default": "/tmp/extracted_frames"
+    },
+    "output_filename_template": {
+      "type": "string",
+      "label": "Output Filename Template",
+      "required": false,
+      "description": "Filename template. Supports `{video_basename}`, `{frame_index}`, and any source column.",
+      "default": "{video_basename}_f{frame_index:04d}.jpg"
+    },
+    "image_format": {
+      "type": "string",
+      "label": "Image Format",
+      "required": false,
+      "default": "jpg"
+    },
+    "image_quality": {
+      "type": "integer",
+      "label": "Image Quality",
+      "required": false,
+      "description": "JPEG quality 1\u2013100 (PNG ignores).",
+      "default": 85
+    },
+    "mode": {
+      "type": "string",
+      "label": "Mode",
+      "required": false,
+      "description": "How to choose frames.",
+      "default": "every_seconds"
+    },
+    "every_seconds": {
+      "type": "string",
+      "label": "Every Seconds",
+      "required": false,
+      "description": "`every_seconds`: 1 frame per N seconds.",
+      "default": 1.0
+    },
+    "every_n_frames": {
+      "type": "integer",
+      "label": "Every N Frames",
+      "required": false,
+      "description": "`every_n_frames`: 1 frame per N source frames.",
+      "default": 30
+    },
+    "fixed_count": {
+      "type": "integer",
+      "label": "Fixed Count",
+      "required": false,
+      "description": "`fixed_count`: total frames spread evenly.",
+      "default": 10
+    },
+    "ffmpeg_binary": {
+      "type": "string",
+      "label": "Ffmpeg Binary",
+      "required": false,
+      "default": "ffmpeg"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "tags": [
+    "video-frame-extract-asset",
+    "transforms"
+  ],
+  "name": "Video Frame Extract Asset"
+}

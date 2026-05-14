@@ -1,0 +1,92 @@
+{
+  "component_type": "dagster_component_templates.CloudDlpPiiCheckComponent",
+  "description": "CloudDlpPiiCheckComponent \u2014 pass/fail asset check for PII in a DataFrame.",
+  "category": "check",
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "required": false,
+      "description": "Asset key the check validates (the upstream DataFrame)."
+    },
+    "check_name": {
+      "type": "string",
+      "label": "Check Name",
+      "required": false,
+      "description": "Name of the check.",
+      "default": "cloud_dlp_pii_check"
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials",
+      "required": false
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project Id",
+      "required": false
+    },
+    "text_columns": {
+      "type": "array",
+      "label": "Text Columns",
+      "required": false,
+      "description": "Columns whose string values are inspected. Each row's columns are joined with newlines.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "forbidden_info_types": {
+      "type": "array",
+      "label": "Forbidden Info Types",
+      "required": false,
+      "description": "InfoTypes that, if detected, count as failures.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "min_likelihood": {
+      "type": "string",
+      "label": "Min Likelihood",
+      "required": false,
+      "description": "Minimum likelihood to count. Default LIKELY (cuts noise vs. inspect_asset's POSSIBLE).",
+      "default": "LIKELY"
+    },
+    "max_allowed_findings": {
+      "type": "integer",
+      "label": "Max Allowed Findings",
+      "required": false,
+      "description": "Maximum forbidden findings before the check fails. 0 = any forbidden finding fails.",
+      "default": 0
+    },
+    "sample_size": {
+      "type": "integer",
+      "label": "Sample Size",
+      "required": false,
+      "description": "Only scan the first N rows. Default 200 \u2014 full scans on large frames get expensive.",
+      "default": 200
+    },
+    "severity": {
+      "type": "string",
+      "label": "Severity",
+      "required": false,
+      "default": "ERROR"
+    },
+    "blocking": {
+      "type": "boolean",
+      "label": "Blocking",
+      "required": false,
+      "description": "If True, failure blocks downstream materializations.",
+      "default": true
+    }
+  },
+  "tags": [
+    "cloud-dlp-pii-check",
+    "asset_checks"
+  ],
+  "name": "Cloud Dlp Pii Check"
+}

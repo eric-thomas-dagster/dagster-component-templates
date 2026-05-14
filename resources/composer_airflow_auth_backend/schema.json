@@ -1,0 +1,36 @@
+{
+  "component_type": "dagster_component_templates.ComposerAirflowAuthBackendComponent",
+  "description": "ComposerAirflowAuthBackendComponent \u2014 dagster-airlift auth backend for Cloud Composer.",
+  "category": "resource",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "description": "Key under which the auth backend is exposed in Definitions.resources.",
+      "default": "composer_airflow_auth"
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials",
+      "required": false
+    },
+    "credentials_path": {
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false,
+      "description": "Falls back to GOOGLE_APPLICATION_CREDENTIALS."
+    },
+    "airflow_url": {
+      "type": "string",
+      "label": "Airflow Url",
+      "required": false,
+      "description": "Composer environment's Airflow URL \u2014 e.g. 'https://abc123-dot-us-central1.composer.googleusercontent.com'. Look up via `gcloud composer environments describe <env> --location=<region> --format='value(config.airflowUri)'`."
+    }
+  },
+  "tags": [
+    "composer-airflow-auth-backend",
+    "resources"
+  ],
+  "name": "Composer Airflow Auth Backend"
+}

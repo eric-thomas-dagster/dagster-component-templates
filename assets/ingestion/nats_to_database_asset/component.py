@@ -196,7 +196,7 @@ class NATSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 try:
                     if _self.use_jetstream:
                         js = nc.jetstream()
-                        consumer = await js.subscribe(
+                        consumer = await js.pull_subscribe(
                             _self.subject,
                             stream=_self.stream_name,
                             durable=_self.consumer_name,

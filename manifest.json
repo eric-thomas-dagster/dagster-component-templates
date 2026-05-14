@@ -13058,8 +13058,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/mqtt_monitor/requirements.txt",
       "icon": "Radar",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/mqtt.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -13087,8 +13088,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/mqtt_observation_sensor/requirements.txt",
       "icon": "Eye",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/mqtt.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -13112,8 +13114,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/mqtt_to_database_asset/requirements.txt",
       "component_type": "dagster_component_templates.MQTTToDatabaseAssetComponent",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/mqtt.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -13467,8 +13470,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/nats_monitor/requirements.txt",
       "icon": "Radar",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/nats.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -13496,8 +13500,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/nats_observation_sensor/requirements.txt",
       "icon": "Eye",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/nats.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -13521,8 +13526,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/nats_to_database_asset/requirements.txt",
       "component_type": "dagster_component_templates.NATSToDatabaseAssetComponent",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/nats.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -15874,8 +15880,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/rabbitmq_monitor/requirements.txt",
       "icon": "si:rabbitmq",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/rabbitmq.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -15903,8 +15910,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/rabbitmq_observation_sensor/requirements.txt",
       "icon": "si:rabbitmq",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/rabbitmq.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -15928,8 +15936,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rabbitmq_to_database_asset/requirements.txt",
       "component_type": "dagster_component_templates.RabbitMQToDatabaseAssetComponent",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/rabbitmq.md",
+        "last_validated": "2026-05-14"
       }
     },
     {

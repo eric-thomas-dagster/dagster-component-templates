@@ -163,7 +163,48 @@ class DataframeToAvroComponent(dg.Component, dg.Model, dg.Resolvable):
     partition_values: Optional[str] = Field(default=None)
     dynamic_partition_name: Optional[str] = Field(default=None)
 
+    retry_policy_max_retries: Optional[int] = Field(
+        default=None,
+        description="Max retries on asset failure. Useful for transient errors like network glitches or rate limits.",
+    )
+    retry_policy_delay_seconds: Optional[int] = Field(
+        default=None,
+        description="Seconds between retries (default 1).",
+    )
+    retry_policy_backoff: str = Field(
+        default="exponential",
+        description="Backoff strategy: 'linear' or 'exponential'.",
+    )
+
+    freshness_max_lag_minutes: Optional[int] = Field(
+        default=None,
+        description="Maximum acceptable lag in minutes before the asset is considered stale.",
+    )
+    freshness_cron: Optional[str] = Field(
+        default=None,
+        description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
+    )
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from dagster import FreshnessPolicy
+
+            freshness_policy = FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
+
+        retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+
+            retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
         file_path = self.file_path
@@ -186,6 +227,8 @@ class DataframeToAvroComponent(dg.Component, dg.Model, dg.Resolvable):
             partitions_def=partitions_def,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             deps=deps_keys,
+            retry_policy=retry_policy,
+            freshness_policy=freshness_policy,
         )
         def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> Output:
             import fastavro

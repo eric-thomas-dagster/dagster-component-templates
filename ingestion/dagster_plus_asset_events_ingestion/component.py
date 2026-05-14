@@ -71,7 +71,52 @@ class DagsterPlusAssetEventsIngestionComponent(dg.Component, dg.Model, dg.Resolv
     include_preview_metadata: bool = Field(default=True)
     preview_rows: int = Field(default=20)
 
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned.",
+    )
+    partition_start: Optional[str] = Field(
+        default=None,
+        description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+    )
+    partition_values: Optional[str] = Field(
+        default=None,
+        description="Comma-separated values for static partitioning, e.g. 'us,eu,asia'.",
+    )
+    dynamic_partition_name: Optional[str] = Field(
+        default=None,
+        description="Name for DynamicPartitionsDefinition when partition_type='dynamic'.",
+    )
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        partitions_def = None
+        if self.partition_type:
+            from dagster import (
+                DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+                MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+                StaticPartitionsDefinition, DynamicPartitionsDefinition,
+            )
+            _pt = self.partition_type
+            _values = [v.strip() for v in (self.partition_values or "").split(",") if v.strip()]
+            if _pt in ("daily", "weekly", "monthly", "hourly") and not self.partition_start:
+                raise ValueError(f"partition_type={_pt!r} requires partition_start (ISO date).")
+            if _pt == "daily":
+                partitions_def = DailyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "weekly":
+                partitions_def = WeeklyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "monthly":
+                partitions_def = MonthlyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "hourly":
+                partitions_def = HourlyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "static":
+                if not _values:
+                    raise ValueError("partition_type='static' requires partition_values.")
+                partitions_def = StaticPartitionsDefinition(_values)
+            elif _pt == "dynamic":
+                if not self.dynamic_partition_name:
+                    raise ValueError("partition_type='dynamic' requires dynamic_partition_name.")
+                partitions_def = DynamicPartitionsDefinition(name=self.dynamic_partition_name)
+
         _self = self
         retry = None
         if self.retry_policy_max_retries:
@@ -96,6 +141,7 @@ class DagsterPlusAssetEventsIngestionComponent(dg.Component, dg.Model, dg.Resolv
             tags=self.asset_tags or None,
             freshness_policy=freshness,
             retry_policy=retry,
+            partitions_def=partitions_def,
         )
         def _asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             import requests, datetime as dt

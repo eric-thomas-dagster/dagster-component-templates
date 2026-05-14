@@ -183,7 +183,25 @@ class DataframeToIcebergTableComponent(Component, Model, Resolvable):
         props["type"] = self.catalog_type
         return load_catalog(self.catalog_name, **props)
 
+    freshness_max_lag_minutes: Optional[int] = Field(
+        default=None,
+        description="Maximum acceptable lag in minutes before the asset is considered stale.",
+    )
+    freshness_cron: Optional[str] = Field(
+        default=None,
+        description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from dagster import FreshnessPolicy
+
+            freshness_policy = FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
+
         component = self
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
@@ -218,6 +236,7 @@ class DataframeToIcebergTableComponent(Component, Model, Resolvable):
             partitions_def=partitions_def,
             retry_policy=retry_policy,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+            freshness_policy=freshness_policy,
         )
         def dataframe_to_iceberg_table_asset(context: AssetExecutionContext, upstream):
             import pyarrow as pa

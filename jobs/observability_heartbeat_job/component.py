@@ -9,7 +9,6 @@ import os
 from typing import Optional
 
 import dagster as dg
-import pandas as pd
 from pydantic import Field
 
 

@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
+    AssetKey,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -353,12 +354,13 @@ class DataframeFromCsvComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        @asset(retry_policy=_retry_policy,
             name=asset_name,
             partitions_def=partitions_def,
                         owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
 group_name=group_name,
             description=DataframeFromCsvComponent.get_description(),
         )

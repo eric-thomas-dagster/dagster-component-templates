@@ -422,6 +422,7 @@ class TextChunkerComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
 group_name=group_name,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def text_chunker_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
             """Asset that chunks text from upstream DataFrame into smaller pieces."""

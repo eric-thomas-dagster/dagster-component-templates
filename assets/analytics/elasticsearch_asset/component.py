@@ -398,6 +398,7 @@ class ElasticsearchAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             freshness_policy=_freshness_policy,
             owners=self.owners or [],
             tags=_all_tags,
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def _elasticsearch_asset(
             context: dg.AssetExecutionContext,

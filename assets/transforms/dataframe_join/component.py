@@ -343,7 +343,7 @@ class DataframeJoin(Component, Model, Resolvable):
 
         extra_slots = list(_extra_slots)
 
-        @asset(partitions_def=partitions_def, name=asset_name, ins=ins, group_name=group_name, retry_policy=_retry_policy, freshness_policy=_freshness_policy, owners=self.owners or [], tags=_all_tags)
+        @asset(partitions_def=partitions_def, name=asset_name, ins=ins, group_name=group_name, retry_policy=_retry_policy, freshness_policy=_freshness_policy, owners=self.owners or [], tags=_all_tags, deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])])
         def _asset(context: AssetExecutionContext, left: pd.DataFrame, right: pd.DataFrame, **extras) -> pd.DataFrame:
             # Filter to current partition if partitioned
             if context.has_partition_key:

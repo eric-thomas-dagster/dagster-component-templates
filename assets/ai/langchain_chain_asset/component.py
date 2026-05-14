@@ -311,6 +311,7 @@ class LangChainChainAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             group_name=_self.group_name,
             kinds={"ai", "langchain"},
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(_self.upstream_asset_key))},
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def langchain_chain_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
             import os, json

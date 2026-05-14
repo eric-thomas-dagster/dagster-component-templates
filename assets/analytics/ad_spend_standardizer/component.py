@@ -445,6 +445,7 @@ class AdSpendStandardizerComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
 group_name=group_name,
             ins=_ins or None,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def ad_spend_standardizer_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
             """Standardize ad spend data from multiple platforms."""

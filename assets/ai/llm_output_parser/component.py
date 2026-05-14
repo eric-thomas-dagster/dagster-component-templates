@@ -367,6 +367,7 @@ class LLMOutputParserComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
 group_name=group_name,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def llm_output_parser_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
             # Filter to current partition if partitioned

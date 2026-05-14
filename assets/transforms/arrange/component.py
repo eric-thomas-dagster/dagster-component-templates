@@ -344,6 +344,7 @@ class ArrangeComponent(Component, Model, Resolvable):
 group_name=group_name,
             description=ArrangeComponent.get_description(),
             retry_policy=_retry_policy,
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
             # Filter to current partition if partitioned

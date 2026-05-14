@@ -435,12 +435,14 @@ group_name=group_name,
 
             context.log.info(f"Querying Elasticsearch index '{index_name}' for up to {n_results} results")
 
-            resp = es.search(
-                index=index_name,
-                body=q,
-                size=n_results,
-                source=source_fields,
-            )
+            search_kwargs: Dict[str, Any] = {
+                "index": index_name,
+                "body": q,
+                "size": n_results,
+            }
+            if source_fields:
+                search_kwargs["source"] = source_fields
+            resp = es.search(**search_kwargs)
 
             rows = [
                 {"_id": hit["_id"], "_score": hit.get("_score"), **hit["_source"]}

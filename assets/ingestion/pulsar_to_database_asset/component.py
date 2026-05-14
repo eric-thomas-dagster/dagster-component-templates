@@ -194,10 +194,14 @@ class PulsarToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             }
 
             client = pulsar.Client(service_url, **client_kwargs)
+            # Default to InitialPosition.Earliest so first-time subscriptions
+            # see the existing backlog instead of skipping straight to Latest
+            # (Pulsar's library default that surprises most callers).
             consumer = client.subscribe(
                 _self.topic,
                 subscription_name=_self.subscription_name,
                 consumer_type=subscription_type_map.get(_self.subscription_type, ConsumerType.Shared),
+                initial_position=pulsar.InitialPosition.Earliest,
             )
 
             context.log.info(f"Consuming up to {max_msgs} messages from {_self.topic}")

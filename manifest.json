@@ -6634,8 +6634,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/elasticsearch_reader/requirements.txt",
       "icon": "si:elasticsearch",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/elasticsearch.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -6667,8 +6668,9 @@
         "elasticsearch_resource"
       ],
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/elasticsearch.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -13573,8 +13575,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/neo4j_reader/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/neo4j_reader/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/neo4j.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -13606,8 +13609,9 @@
         "neo4j_resource"
       ],
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/neo4j.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -13635,8 +13639,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/neo4j_writer/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/neo4j_writer/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/neo4j.md",
+        "last_validated": "2026-05-14"
       }
     },
     {

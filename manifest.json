@@ -3501,34 +3501,6 @@
       }
     },
     {
-      "id": "content_ingestion",
-      "name": "Content Ingestion",
-      "category": "ingestion",
-      "description": "Component for ingesting user-generated content for moderation.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/ingestion/content_ingestion",
-      "tags": [
-        "ingestion",
-        "content"
-      ],
-      "dependencies": {
-        "pip": [
-          "pandas>=1.5.0"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/content_ingestion/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/content_ingestion/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/content_ingestion/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/content_ingestion/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/content_ingestion/requirements.txt",
-      "icon": "ArrowUpFromLine",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
-      }
-    },
-    {
       "id": "contract_extractor",
       "name": "Contract Extractor",
       "category": "ai",
@@ -21761,5 +21733,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 751
+  "total": 750
 }

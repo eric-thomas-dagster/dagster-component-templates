@@ -154,7 +154,6 @@ _CLASS_PATHS: dict[str, str] = {
     "CohortAnalysisComponent": "assets/analytics/cohort_analysis/component.py",
     "CommunityComponentInstallerComponent": "assets/infrastructure/community_component_installer/component.py",
     "ComposerAirflowAuthBackendComponent": "resources/composer_airflow_auth_backend/component.py",
-    "ContentIngestionComponent": "assets/ingestion/content_ingestion/component.py",
     "ContractExtractorComponent": "assets/ai/contract_extractor/component.py",
     "ConversationMemoryComponent": "assets/ai/conversation_memory/component.py",
     "CoordinateTransformerComponent": "assets/analytics/coordinate_transformer/component.py",

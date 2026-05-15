@@ -1089,12 +1089,13 @@
       "estimated_savings": null,
       "components": [
         {
-          "component_id": "content_ingestion",
+          "component_id": "synthetic_data_generator",
           "instance_name": "raw_content",
           "config_mapping": {
             "asset_name": "raw_content",
-            "source_type": "${content_source}",
-            "description": "Raw user-generated content ingestion",
+            "schema_type": "moderation_content",
+            "row_count": 50,
+            "description": "Synthetic user-generated content for moderation demos",
             "group_name": "content_moderation"
           },
           "depends_on": []

@@ -166,6 +166,7 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         "x12_messages",
         "fix_messages",
         "acord_messages",
+        "moderation_content",
     ] = Field(
         default="customers",
         description="Type of data schema to generate"
@@ -482,6 +483,8 @@ group_name=group_name,
                 df = _generate_fix_messages(row_count, self.schema_options or {})
             elif schema_type == "acord_messages":
                 df = _generate_acord_messages(row_count, self.schema_options or {})
+            elif schema_type == "moderation_content":
+                df = _generate_moderation_content(row_count, target_date)
             else:
                 raise ValueError(f"Unknown schema type: {schema_type}")
 
@@ -1977,4 +1980,45 @@ def _generate_acord_messages(n: int, opts: Dict[str, Any]) -> pd.DataFrame:
 
         rows.append({"transaction_id": txid, "message_type": env_type, "xml": xml})
 
+    return pd.DataFrame(rows)
+
+
+
+def _generate_moderation_content(n: int, target_date: Optional[datetime] = None) -> pd.DataFrame:
+    """Generate user-generated content for moderation pipelines.
+
+    Designed for content-moderation demos (PII / toxicity / classification).
+    Mirrors the schema of typical UGC pipelines: content_id, user_id, type,
+    text, created_at, status, language, platform.
+    """
+    import random
+
+    content_types = ['text_post', 'comment', 'review', 'message']
+    statuses = ['pending_review', 'pending_review', 'pending_review', 'approved']
+    sample_texts = [
+        "Great product! Really enjoying it.",
+        "This is an amazing service, highly recommend!",
+        "Not sure about this, seems okay.",
+        "Terrible experience, very disappointed.",
+        "Check out this awesome deal!",
+        "Can someone help me with this issue?",
+        "Love it! Best purchase ever.",
+        "Quality is not what I expected.",
+        "Fast shipping, great packaging.",
+        "Would buy again, very satisfied.",
+    ]
+
+    now = target_date or datetime.now()
+    rows = []
+    for i in range(n):
+        rows.append({
+            "content_id": i + 1,
+            "user_id": f"user_{random.randint(1, 20)}",
+            "content_type": random.choice(content_types),
+            "content_text": random.choice(sample_texts),
+            "created_at": now - timedelta(hours=random.randint(0, 72)),
+            "status": random.choice(statuses),
+            "language": "en",
+            "platform": "web",
+        })
     return pd.DataFrame(rows)

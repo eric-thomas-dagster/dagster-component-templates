@@ -151,13 +151,17 @@ pipeline:
 
   # Components that make up the pipeline
   components:
-    # Step 1: Ingest user-generated content
-    - id: content_ingestion
+    # Step 1: Generate / ingest user-generated content via synthetic_data_generator's
+    # moderation_content schema (folded in from the deprecated content_ingestion).
+    # Swap for a real ingestion component (rest_api_fetcher / kafka_to_database_asset /
+    # file_ingestion / etc.) when you have a real source.
+    - id: synthetic_data_generator
       instance_name: raw_content
       config:
         asset_name: "raw_content"
-        source_type: "${content_source}"
-        description: "Raw user-generated content ingestion"
+        schema_type: "moderation_content"
+        row_count: 50
+        description: "Synthetic user-generated content for moderation demos"
         group_name: "content_moderation"
 
     # Step 2: Extract entities from text content (mentions, URLs, hashtags)

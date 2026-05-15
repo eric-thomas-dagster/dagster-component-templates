@@ -5696,7 +5696,9 @@
         ]
       },
       "validation": {
-        "level": "code"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/db2.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -6533,8 +6535,9 @@
         "duckdb_resource"
       ],
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/duckdb_warehouse.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -14776,7 +14779,9 @@
         ]
       },
       "validation": {
-        "level": "code"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/oracle.md",
+        "last_validated": "2026-05-14"
       }
     },
     {
@@ -15972,8 +15977,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/prometheus_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/prometheus_resource/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/prometheus_demo.md",
+        "last_validated": "2026-05-14"
       }
     },
     {

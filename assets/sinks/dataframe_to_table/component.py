@@ -375,6 +375,18 @@ group_name=group_name,
 
             engine = sqlalchemy.create_engine(os.environ[database_url_env_var])
 
+            # Oracle's FLOAT type requires explicit binary_precision; SQLAlchemy
+            # refuses to auto-create FLOAT columns against an Oracle dialect.
+            # Map pandas float columns to Oracle NUMBER explicitly.
+            _to_sql_dtype = None
+            if engine.dialect.name == "oracle":
+                from sqlalchemy.types import Numeric
+                _to_sql_dtype = {
+                    c: Numeric(precision=38, scale=10)
+                    for c in upstream.columns
+                    if str(upstream[c].dtype).startswith("float")
+                }
+
             # Strip tz from datetime columns when target backend doesn't support it.
             if drop_timezone:
                 _tz_cols = [
@@ -393,14 +405,15 @@ group_name=group_name,
                 f"Writing {row_count} rows to {table_name} (if_exists={if_exists})"
             )
 
-            upstream.to_sql(
-                table_name,
-                engine,
-                if_exists=if_exists,
-                index=False,
-                schema=schema,
-                chunksize=chunksize,
-            )
+            _to_sql_kwargs: Dict[str, Any] = {
+                "if_exists": if_exists,
+                "index": False,
+                "schema": schema,
+                "chunksize": chunksize,
+            }
+            if _to_sql_dtype:
+                _to_sql_kwargs["dtype"] = _to_sql_dtype
+            upstream.to_sql(table_name, engine, **_to_sql_kwargs)
 
             context.log.info(f"Successfully wrote {row_count} rows to {table_name}")
             return MaterializeResult(metadata={

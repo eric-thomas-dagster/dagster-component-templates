@@ -6,6 +6,9 @@ attributes:
   sql: |
     SELECT *
     FROM {{ upstream }}
+    {% if partition_key %}
+    WHERE order_date = '{{ partition_key }}'
+    {% endif %}
     QUALIFY ROW_NUMBER() OVER (
       PARTITION BY order_id ORDER BY updated_at DESC
     ) = 1
@@ -15,3 +18,16 @@ attributes:
   upstream_asset_keys:
     - orders_raw
   group_name: warehouse_transforms
+
+  # --- Inline read mode (no CTAS) — returns DataFrame for downstream pandas:
+  # return_dataframe: true
+  # (destination_table optional in this mode; the result becomes the asset value)
+
+  # --- Auto-injected template vars (no need to declare):
+  #   {{ partition_key }}                    set when context.has_partition_key
+  #   {{ partition_key_range_start }}        for partition-range runs
+  #   {{ partition_key_range_end }}
+  #   {{ partition_time_window_start }}      time-window partitions only
+  #   {{ partition_time_window_end }}
+  #   {{ asset_key }}                        slash-joined asset key
+  #   {{ run_id }}                           the current Dagster run id

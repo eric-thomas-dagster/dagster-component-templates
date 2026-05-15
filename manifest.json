@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-05-14",
+  "last_updated": "2026-05-15",
   "components": [
     {
       "id": "ab_controls",
@@ -4595,6 +4595,30 @@
         "level": "code",
         "evidence": "",
         "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "dataframe_describe",
+      "name": "DataFrame Describe",
+      "component_type": "dagster_component_templates.DataframeDescribeComponent",
+      "path": "assets/transforms/dataframe_describe",
+      "category": "transformation",
+      "icon": "Activity",
+      "description": "Profile every column in a DataFrame \u2014 pandas describe() exposed as an asset. Numeric columns get count/mean/std/min/quartiles/max; non-numeric get count/unique/top/freq.",
+      "tags": [
+        "transformation",
+        "describe",
+        "profile",
+        "statistics",
+        "data-quality"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dataframe_describe/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dataframe_describe/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dataframe_describe/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dataframe_describe/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dataframe_describe/schema.json",
+      "validation": {
+        "level": "code"
       }
     },
     {
@@ -15068,6 +15092,31 @@
       }
     },
     {
+      "id": "pct_change",
+      "name": "Pct Change",
+      "component_type": "dagster_component_templates.PctChangeComponent",
+      "path": "assets/transforms/pct_change",
+      "category": "transformation",
+      "icon": "TrendingUp",
+      "description": "Compute period-over-period diff and percent change on a value column, optionally grouped (per region/customer) and ordered (by a time column). Right for week-over-week / month-over-month growth metrics.",
+      "tags": [
+        "transformation",
+        "pct_change",
+        "growth",
+        "wow",
+        "mom",
+        "time-series"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pct_change/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pct_change/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pct_change/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pct_change/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pct_change/schema.json",
+      "validation": {
+        "level": "code"
+      }
+    },
+    {
       "id": "pdf_text_extractor",
       "name": "Pdf Text Extractor",
       "category": "transformation",
@@ -20436,6 +20485,30 @@
       }
     },
     {
+      "id": "top_n_per_group",
+      "name": "Top N Per Group",
+      "component_type": "dagster_component_templates.TopNPerGroupComponent",
+      "path": "assets/transforms/top_n_per_group",
+      "category": "transformation",
+      "icon": "Trophy",
+      "description": "Keep the top N rows per group, sorted by a value column. Equivalent to SQL ROW_NUMBER() OVER (PARTITION BY ... ORDER BY ... DESC) <= N. Right for 'top 3 products per category', '5 most recent orders per customer'.",
+      "tags": [
+        "transformation",
+        "top-n",
+        "rank",
+        "window",
+        "row-number"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/top_n_per_group/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/top_n_per_group/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/top_n_per_group/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/top_n_per_group/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/top_n_per_group/schema.json",
+      "validation": {
+        "level": "code"
+      }
+    },
+    {
       "id": "topic_modeler",
       "name": "Topic Modeler",
       "category": "ai",
@@ -21733,5 +21806,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 750
+  "total": 753
 }

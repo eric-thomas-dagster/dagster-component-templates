@@ -1,0 +1,20 @@
+type: dagster_component_templates.DataframeDescribeComponent
+attributes:
+  asset_name: orders_profile
+  upstream_asset_key: orders
+
+  # Which columns to profile:
+  #   'all'      — every column (default)
+  #   'number'   — numeric only
+  #   'object'   — string / categorical only
+  #   'datetime' — datetime columns
+  include: number
+
+  # Percentiles to compute. Default: 25 / 50 / 75. Set to [0.1, 0.5, 0.9] for deciles.
+  percentiles: [0.25, 0.5, 0.75, 0.95, 0.99]
+
+  # Optional enrichments — both default true:
+  include_dtypes_column: true
+  include_null_pct: true
+
+  group_name: profiling

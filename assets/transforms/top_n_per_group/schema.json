@@ -1,0 +1,35 @@
+{
+  "component_type": "dagster_component_templates.TopNPerGroupComponent",
+  "description": "Keep the top N rows per group, sorted by a value column. Equivalent to SQL ROW_NUMBER() OVER (PARTITION BY ... ORDER BY ... DESC) <= N.",
+  "category": "transformation",
+  "icon": "Trophy",
+  "x-dagster-io": {
+    "inputs": {"type": "dataframe", "required": true, "description": "Input DataFrame"},
+    "outputs": {"type": "dataframe", "description": "Top-N rows per group"}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true, "description": "Output Dagster asset name"},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true, "description": "Upstream asset providing a DataFrame"},
+    "group_by": {"type": "array", "items": {"type": "string"}, "label": "Group By", "required": true, "description": "Columns to group by", "ui:widget": "list"},
+    "sort_by": {"type": "string", "label": "Sort By", "required": true, "description": "Column used to rank within each group"},
+    "n": {"type": "integer", "label": "N", "required": false, "default": 3, "description": "How many rows to keep per group"},
+    "ascending": {"type": "boolean", "label": "Ascending", "required": false, "default": false, "description": "false = top N (default), true = bottom N", "ui:widget": "checkbox"},
+    "rank_column": {"type": "string", "label": "Rank Column", "required": false, "description": "If set, adds a rank column 1..N with this name"},
+    "sort_method": {"type": "string", "label": "Sort Method", "required": false, "default": "first", "description": "Tie-break rule for the rank column.", "enum": ["first", "dense", "min", "max", "average"]},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "description": "Dagster asset group name"},
+    "description": {"type": "string", "label": "Description", "required": false, "description": "Asset description shown in the catalog"},
+    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false, "description": "Lineage-only upstream asset keys"},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "description": "Asset owners"},
+    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "description": "Key-value tags"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "description": "Asset kinds"},
+    "freshness_max_lag_minutes": {"type": "integer", "label": "Freshness Max Lag (minutes)", "required": false},
+    "freshness_cron": {"type": "string", "label": "Freshness Cron", "required": false},
+    "retry_policy_max_retries": {"type": "integer", "label": "Retry Max Retries", "required": false},
+    "retry_policy_delay_seconds": {"type": "integer", "label": "Retry Delay (seconds)", "required": false},
+    "retry_policy_backoff": {"type": "string", "label": "Retry Backoff", "required": false, "default": "exponential"},
+    "include_preview_metadata": {"type": "boolean", "label": "Include Preview", "required": false, "default": false},
+    "preview_rows": {"type": "integer", "label": "Preview Rows", "required": false, "default": 25}
+  },
+  "tags": ["transformation", "top-n", "rank", "window", "row-number"],
+  "name": "Top N Per Group"
+}

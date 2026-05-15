@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.SqlTransformComponent",
-  "description": "Run a SELECT on the warehouse and materialize the result as a table (CTAS pushdown).",
+  "description": "Run a SELECT and either materialize the result as a table (CTAS / INSERT pushdown) or return a DataFrame inline. Template body is rendered with Jinja2 (supports {% if %} / {% for %} / filters), with Dagster context auto-injected ({{ partition_key }}, {{ partition_key_range_start }}, {{ partition_key_range_end }}, {{ asset_key }}, {{ run_id }}).",
   "category": "transformation",
   "icon": "Database",
   "x-dagster-io": {
@@ -26,8 +26,16 @@
     "destination_table": {
       "type": "string",
       "label": "Destination Table",
-      "description": "Fully-qualified destination table (DB.SCHEMA.TABLE / project.dataset.table / schema.table).",
-      "required": true
+      "description": "Fully-qualified destination table (DB.SCHEMA.TABLE / project.dataset.table / schema.table). Required when return_dataframe=false.",
+      "required": false
+    },
+    "return_dataframe": {
+      "type": "boolean",
+      "label": "Return DataFrame",
+      "description": "If true, execute the SQL as a SELECT and return its result as a DataFrame asset (no CTAS / INSERT). Useful for inline reads downstream of pandas transforms.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
     },
     "sql": {
       "type": "string",
@@ -39,7 +47,7 @@
     "template_vars": {
       "type": "object",
       "label": "Template Vars",
-      "description": "Simple {{ name }} substitution map applied before execution. No Jinja.",
+      "description": "Variables to interpolate into the SQL template. Rendered via Jinja2 (supports {% if %} / {% for %} / filters), with str.replace fallback when Jinja2 isn't installed. User vars override the auto-injected Dagster context vars on name conflict.",
       "required": false,
       "additionalProperties": {
         "type": "string"
@@ -49,7 +57,7 @@
     "if_exists": {
       "type": "string",
       "label": "If Exists",
-      "description": "'replace' = DROP TABLE IF EXISTS + CREATE TABLE AS. 'append' = INSERT INTO.",
+      "description": "'replace' = DROP TABLE IF EXISTS + CREATE TABLE AS. 'append' = INSERT INTO. Ignored when return_dataframe=true.",
       "required": false,
       "default": "replace",
       "enum": [

@@ -1,0 +1,11 @@
+type: dagster_component_templates.PctChangeComponent
+attributes:
+  asset_name: revenue_growth
+  upstream_asset_key: daily_revenue
+  value_column: revenue
+  order_by: date              # sort by this before computing the lag-1 diff
+  group_by: [region]          # compute growth within each region
+  periods: 1                  # vs. previous period (set 7 for "vs 7 days ago")
+  as_percent: true            # 5.0 = 5%, not 0.05
+  fill_first: false           # leave first-row NaN (no prior period)
+  group_name: analytics

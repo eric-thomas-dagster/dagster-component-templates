@@ -1,0 +1,260 @@
+{
+  "component_type": "dagster_component_templates.PctChangeComponent",
+  "description": "Compute period-over-period diff and percent change on a value column, optionally grouped (per region/customer) and ordered (by a time column). Right for week-over-week / month-over-month growth metrics.",
+  "category": "transformation",
+  "icon": "TrendingUp",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Transformed DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
+    "value_column": {
+      "type": "string",
+      "label": "Value Column",
+      "description": "Column to compute period-over-period change on.",
+      "required": true
+    },
+    "order_by": {
+      "type": "string",
+      "label": "Order By",
+      "description": "Column used to order rows before computing change. Usually a date/time column. If unset, uses existing row order.",
+      "required": false
+    },
+    "group_by": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Group By",
+      "description": "Group columns. Change is computed *within* each group (e.g. growth per customer).",
+      "required": false,
+      "default": null,
+      "ui:widget": "list"
+    },
+    "periods": {
+      "type": "integer",
+      "label": "Periods",
+      "description": "Lag periods. 1 = vs previous row (default). 7 = vs 7 rows back. Negative = vs future row.",
+      "required": false,
+      "default": 1
+    },
+    "diff_column": {
+      "type": "string",
+      "label": "Diff Column",
+      "description": "Override the output column name for absolute diff. Default: '<value_column>_diff'.",
+      "required": false
+    },
+    "pct_column": {
+      "type": "string",
+      "label": "Pct Column",
+      "description": "Override the output column name for percent change. Default: '<value_column>_pct'.",
+      "required": false
+    },
+    "as_percent": {
+      "type": "boolean",
+      "label": "As Percent",
+      "description": "If true, multiply pct by 100 (so 5.0 = 5%). Default false (ratio form, 0.05 = 5%).",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "fill_first": {
+      "type": "boolean",
+      "label": "Fill First",
+      "description": "If true, fill first-row NaN values with 0. Default false (leave as NaN).",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron Schedule",
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "required": false,
+      "default": null
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 25
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential"
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "transformation",
+    "pct_change",
+    "growth",
+    "wow",
+    "mom",
+    "time-series"
+  ],
+  "name": "Pct Change"
+}

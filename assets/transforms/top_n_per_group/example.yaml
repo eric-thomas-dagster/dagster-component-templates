@@ -1,0 +1,10 @@
+type: dagster_component_templates.TopNPerGroupComponent
+attributes:
+  asset_name: top_products_per_category
+  upstream_asset_key: product_sales
+  group_by: [category]
+  sort_by: revenue
+  n: 3
+  ascending: false       # false = top N (default); true = bottom N
+  rank_column: rank      # optional 1..N column; omit if not needed
+  group_name: analytics

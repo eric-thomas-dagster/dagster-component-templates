@@ -1,0 +1,235 @@
+{
+  "component_type": "dagster_component_templates.DataframeDescribeComponent",
+  "description": "Profile every column in a DataFrame — pandas describe() exposed as an asset. Numeric columns get count/mean/std/min/quartiles/max; non-numeric get count/unique/top/freq.",
+  "category": "transformation",
+  "icon": "Activity",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Transformed DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
+    "include": {
+      "type": "string",
+      "label": "Include",
+      "description": "Which columns to profile: 'all', 'number', 'object', or 'datetime'. Mirrors pandas describe(include=...).",
+      "required": false,
+      "default": "all",
+      "enum": ["all", "number", "object", "datetime"]
+    },
+    "percentiles": {
+      "type": "array",
+      "items": {"type": "number"},
+      "label": "Percentiles",
+      "description": "Percentiles to compute (values between 0 and 1). Default [.25, .5, .75].",
+      "required": false,
+      "default": null
+    },
+    "include_dtypes_column": {
+      "type": "boolean",
+      "label": "Include Dtype Column",
+      "description": "Add a 'dtype' column to the output showing each source column's pandas dtype.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "include_null_pct": {
+      "type": "boolean",
+      "label": "Include Null %",
+      "description": "Add a 'null_pct' column showing the percentage of null values per source column.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null
+    },
+    "partition_static_column": {
+      "type": "string",
+      "label": "Static Partition Column",
+      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron Schedule",
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "required": false,
+      "default": null
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "description": "Column-level lineage: output column \u2192 list of upstream input columns it derives from, e.g. {\"revenue\": [\"price\", \"quantity\"]}.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 25
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential"
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "transformation",
+    "describe",
+    "profile",
+    "statistics",
+    "data-quality"
+  ],
+  "name": "DataFrame Describe"
+}

@@ -62,11 +62,13 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
             "BIGQUERY_URL, REDSHIFT_URL, POSTGRES_URL."
         ),
     )
-    destination_table: str = Field(
+    destination_table: Optional[str] = Field(
+        default=None,
         description=(
             "Fully-qualified destination table. Format depends on the "
             "warehouse: 'DB.SCHEMA.TABLE' for Snowflake, 'project.dataset.table' "
-            "(or backticked) for BigQuery, 'schema.table' for Redshift."
+            "(or backticked) for BigQuery, 'schema.table' for Redshift. "
+            "Required when return_dataframe=false."
         ),
     )
     sql: str = Field(
@@ -78,15 +80,25 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
     template_vars: Optional[Dict[str, str]] = Field(
         default=None,
         description=(
-            "Optional simple `{{ name }}` substitution map. Applied via "
-            "str.replace before execution — no Jinja."
+            "Variables to interpolate into the SQL template. Rendered via Jinja2 "
+            "when installed (so `{% if ... %}` / `{% for ... %}` work), otherwise "
+            "a simple `{{ name }}` str.replace fallback."
+        ),
+    )
+    return_dataframe: bool = Field(
+        default=False,
+        description=(
+            "When true, execute the SQL as a SELECT and return its result as "
+            "a DataFrame asset (no CTAS / INSERT). Useful for inline reads "
+            "downstream of pandas transforms. When false (default), the SQL "
+            "is wrapped in CREATE TABLE / INSERT INTO `destination_table`."
         ),
     )
     if_exists: Literal["replace", "append"] = Field(
         default="replace",
         description=(
             "'replace' issues DROP TABLE IF EXISTS + CREATE TABLE AS. "
-            "'append' issues INSERT INTO."
+            "'append' issues INSERT INTO. Ignored when return_dataframe=true."
         ),
     )
     upstream_asset_keys: Optional[List[str]] = Field(
@@ -197,6 +209,7 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
         destination_table = self.destination_table
         sql_template = self.sql
         template_vars = self.template_vars or {}
+        return_dataframe = self.return_dataframe
         if_exists = self.if_exists
         upstream_keys = [
             dg.AssetKey.from_user_string(k) for k in (self.upstream_asset_keys or [])
@@ -235,7 +248,7 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
             owners=self.owners or [],
             retry_policy=_retry_policy,
         )
-        def _sql_transform_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+        def _sql_transform_asset(context: dg.AssetExecutionContext):
             try:
                 import sqlalchemy
             except ImportError as e:
@@ -252,29 +265,86 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
                     "connection URL."
                 )
 
-            # Apply template substitution
-            rendered_sql = sql_template
-            for k, v in template_vars.items():
-                rendered_sql = rendered_sql.replace("{{ " + k + " }}", str(v))
-                rendered_sql = rendered_sql.replace("{{" + k + "}}", str(v))
+            # Auto-inject Dagster context vars into the template environment.
+            # Mirrors the Snowflake TemplatedSQLComponent convention so the
+            # same partition_key / asset_key bindings work across backends.
+            auto_vars: Dict[str, Any] = {
+                "asset_key": "/".join(context.asset_key.path),
+                "run_id": context.run_id,
+            }
+            if context.has_partition_key:
+                pk = context.partition_key
+                auto_vars["partition_key"] = pk
+                # Time-window partitions also expose start/end
+                try:
+                    pk_range = context.partition_key_range
+                    auto_vars["partition_key_range_start"] = pk_range.start
+                    auto_vars["partition_key_range_end"] = pk_range.end
+                except Exception:
+                    pass
+                try:
+                    tw = context.partition_time_window
+                    auto_vars["partition_time_window_start"] = tw.start.isoformat()
+                    auto_vars["partition_time_window_end"] = tw.end.isoformat()
+                except Exception:
+                    pass
+            # User-supplied vars win on conflict
+            merged_vars = {**auto_vars, **template_vars}
 
-            # Build the DDL
-            if if_exists == "replace":
-                drop_dml = f"DROP TABLE IF EXISTS {destination_table}"
-                ctas_dml = f"CREATE TABLE {destination_table} AS\n{rendered_sql}"
-                statements = [drop_dml, ctas_dml]
-                op = "CREATE TABLE AS (replace)"
-            else:
-                statements = [f"INSERT INTO {destination_table}\n{rendered_sql}"]
-                op = "INSERT INTO (append)"
+            # Render the template. Prefer Jinja2 (supports `{% if %}` / `{% for %}`
+            # / filters). Fall back to plain str.replace if Jinja2 isn't installed
+            # — backward compatible with the existing simple `{{ name }}` shape.
+            try:
+                import jinja2
+                rendered_sql = jinja2.Template(
+                    sql_template, undefined=jinja2.StrictUndefined
+                ).render(**merged_vars)
+            except ImportError:
+                rendered_sql = sql_template
+                for k, v in merged_vars.items():
+                    rendered_sql = rendered_sql.replace("{{ " + k + " }}", str(v))
+                    rendered_sql = rendered_sql.replace("{{" + k + "}}", str(v))
 
             engine = sqlalchemy.create_engine(url)
             try:
+                # Mode 1: return DataFrame (no CTAS / INSERT). Useful for
+                # inline reads downstream of pandas transforms.
+                if return_dataframe:
+                    import pandas as pd
+                    context.log.info(
+                        f"Executing SELECT (return_dataframe=true):\n{rendered_sql}\n"
+                    )
+                    with engine.begin() as conn:
+                        df = pd.read_sql(sqlalchemy.text(rendered_sql), conn)
+                    context.log.info(
+                        f"SQL transform complete — returned DataFrame with "
+                        f"{len(df)} rows × {len(df.columns)} columns"
+                    )
+                    context.add_output_metadata({
+                        "dagster/row_count": dg.MetadataValue.int(len(df)),
+                        "sql": dg.MetadataValue.md(f"```sql\n{rendered_sql}\n```"),
+                        "mode": dg.MetadataValue.text("return_dataframe"),
+                    })
+                    return df
+
+                # Mode 2: CTAS / INSERT INTO <destination_table>
+                if not destination_table:
+                    raise ValueError(
+                        "destination_table is required unless return_dataframe=true."
+                    )
+                if if_exists == "replace":
+                    drop_dml = f"DROP TABLE IF EXISTS {destination_table}"
+                    ctas_dml = f"CREATE TABLE {destination_table} AS\n{rendered_sql}"
+                    statements = [drop_dml, ctas_dml]
+                    op = "CREATE TABLE AS (replace)"
+                else:
+                    statements = [f"INSERT INTO {destination_table}\n{rendered_sql}"]
+                    op = "INSERT INTO (append)"
+
                 with engine.begin() as conn:
                     for stmt in statements:
                         context.log.info(f"Executing:\n{stmt}\n")
                         conn.execute(sqlalchemy.text(stmt))
-                    # Best-effort row count
                     try:
                         result = conn.execute(
                             sqlalchemy.text(f"SELECT COUNT(*) FROM {destination_table}")

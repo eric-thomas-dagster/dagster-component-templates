@@ -1,0 +1,16 @@
+type: dagster_component_templates.Db2ResourceComponent
+attributes:
+  resource_key: db2_resource
+  host: localhost
+  port: 50000
+  database: testdb
+  username: db2inst1
+  password_env_var: DB2_PASSWORD
+
+  # --- Db2 on Cloud (IBM Cloud DBaaS) ---
+  # host: '<id>.databases.appdomain.cloud'
+  # port: 31198
+  # database: bludb
+  # username: bluadmin
+  # password_env_var: DB2_CLOUD_PASSWORD
+  # ssl: true

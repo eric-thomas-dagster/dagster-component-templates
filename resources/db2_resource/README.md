@@ -1,0 +1,70 @@
+# Db2ResourceComponent
+
+IBM Db2 Dagster resource. Mirrors `postgres_resource` / `mssql_resource` / `oracle_resource` — provides a SQLAlchemy connection string + factory other components can share.
+
+Targets the full Db2 family unchanged — only `host` / `port` / `ssl` change:
+
+- **Db2 Community Edition** (`icr.io/db2_community/db2`) — free, local dev
+- **Db2 LUW** — on-prem (Linux/UNIX/Windows)
+- **Db2 on Cloud** (IBM Cloud DBaaS) — port 31xxx, SSL required
+- **Db2 Warehouse** — IBM's cloud data warehouse
+
+## Dependencies
+
+- `sqlalchemy>=2.0.0`
+- `ibm_db>=3.2.0` — IBM's native driver (clidriver libraries bundled in the wheel)
+- `ibm_db_sa>=0.4.0` — SQLAlchemy dialect for Db2
+
+The `ibm_db` wheel bundles the necessary clidriver libraries (`libdb2`) for Linux + macOS + Windows. No external Db2 client install required.
+
+## Configuration
+
+| Field | Type | Description |
+|---|---|---|
+| `resource_key` | str | Resource registration key (default `db2_resource`) |
+| `host` | str | Db2 hostname |
+| `port` | int | Default 50000 on-prem; 31xxx for Db2 on Cloud |
+| `database` | str | Database name (e.g. `testdb`, `bludb`) |
+| `username` | str | Login username |
+| `password_env_var` | str | Env var holding the password |
+| `ssl` | bool | Enable SSL — **required for Db2 on Cloud** |
+| `security_mechanism` | str | Optional `SecurityMechanism` override (e.g. `PLAIN`) |
+
+## What it provides
+
+```python
+ctx.resources.db2_resource.connection_string   # SQLAlchemy URL
+ctx.resources.db2_resource.get_engine()        # SQLAlchemy Engine
+ctx.resources.db2_resource.get_connection()    # Raw ibm_db connection
+```
+
+## When to use this vs `dataframe_to_table`
+
+- **`dataframe_to_table`** — DataFrame in, SQL row-set out. One asset per
+  destination table. Fine for the simple "land my DataFrame in Db2" case.
+  Works by setting `connection_string_env_var` to the Db2 URL.
+- **`Db2ResourceComponent`** — Multiple assets share one connection;
+  Python ops can run arbitrary SQL (DDL, stored procs, multi-statement
+  reports). Use when you need to read+write across several assets.
+
+## Production retargeting
+
+```yaml
+# Db2 on Cloud
+attributes:
+  host: '<id>.databases.appdomain.cloud'
+  port: 31198
+  database: bludb
+  username: bluadmin
+  password_env_var: DB2_CLOUD_PASSWORD
+  ssl: true
+```
+
+For Db2 Warehouse, the connection shape is identical — same `ibm_db_sa` driver, just a different host.
+
+## See also
+
+- `postgres_resource`, `mssql_resource`, `mysql_resource`, `oracle_resource` — same shape, different backend
+- `dataframe_to_table` — write DataFrames via SQLAlchemy URLs
+- `sql_command_job`, `warehouse_maintenance_job` — schedulable SQL ops
+- [Schema](schema.json) · [Example](example.yaml)

@@ -1,0 +1,16 @@
+{
+  "component_type": "dagster_component_templates.Db2ResourceComponent",
+  "description": "Register an IBM Db2 resource for use by other components. Works against Db2 LUW, Db2 Community Edition, Db2 on Cloud, and Db2 Warehouse.",
+  "category": "resource",
+  "icon": "Database",
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "description": "Resource registration key. Other components reference it via this name.", "required": false, "default": "db2_resource"},
+    "host": {"type": "string", "label": "Host", "description": "Db2 hostname", "required": true},
+    "port": {"type": "integer", "label": "Port", "description": "Db2 port (default 50000 on-prem; 31xxx for Db2 on Cloud)", "required": false, "default": 50000},
+    "database": {"type": "string", "label": "Database", "description": "Database name (e.g. 'testdb', 'bludb')", "required": true},
+    "username": {"type": "string", "label": "Username", "description": "Login username", "required": true},
+    "password_env_var": {"type": "string", "label": "Password Env Var", "description": "Env var holding the password", "required": true},
+    "ssl": {"type": "boolean", "label": "SSL", "description": "Enable SSL. Required for Db2 on Cloud.", "required": false, "default": false},
+    "security_mechanism": {"type": "string", "label": "Security Mechanism", "description": "Optional SecurityMechanism override (e.g. 'PLAIN'). Leave unset for default.", "required": false}
+  }
+}

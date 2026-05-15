@@ -1,0 +1,67 @@
+# OracleResourceComponent
+
+Oracle Database Dagster resource. Mirrors `postgres_resource` / `mssql_resource` — provides a SQLAlchemy connection string + factory other components can share.
+
+Targets the full Oracle family unchanged — only `host` / `port` / `service_name` change:
+
+- **Oracle Database Free** (`container-registry.oracle.com/database/free`) — local dev
+- **Oracle XE / Enterprise** — on-prem
+- **Oracle Autonomous Database** (Shared / Dedicated) — OCI
+- **OCI Base DB Service** — managed VMs
+
+## Dependencies
+
+- `sqlalchemy>=2.0.0`
+- `oracledb>=2.0.0` — pure-Python thin mode by default; no Oracle Instant Client install needed
+
+## Configuration
+
+| Field | Type | Description |
+|---|---|---|
+| `resource_key` | str | Resource registration key (default `oracle_resource`) |
+| `host` | str | DB host (e.g. `localhost`, `adb.us-ashburn-1.oraclecloud.com`) |
+| `port` | int | Listener port (default 1521 on-prem; 1522 for Autonomous DB) |
+| `service_name` | str | Oracle service name (e.g. `FREEPDB1`, `ORCLCDB`). Either this OR `sid`. |
+| `sid` | str | Oracle SID (legacy; prefer `service_name`) |
+| `username` | str | Database username |
+| `password_env_var` | str | Env var holding the password |
+| `thick_mode` | bool | Use python-oracledb thick mode (requires Oracle Instant Client). Default false (thin-mode). |
+
+## What it provides
+
+```python
+ctx.resources.oracle_resource.connection_string   # SQLAlchemy URL
+ctx.resources.oracle_resource.get_engine()        # SQLAlchemy Engine
+ctx.resources.oracle_resource.get_connection()    # Raw oracledb connection
+```
+
+## When to use this vs `dataframe_to_table`
+
+- **`dataframe_to_table`** — DataFrame in, SQL row-set out. One asset per
+  destination table. Fine for the simple "land my DataFrame in SQL" case.
+  Works with Oracle by setting `connection_string_env_var` to the Oracle URL.
+- **`OracleResourceComponent`** — Multiple assets share one connection;
+  Python ops can run arbitrary SQL (DDL, PL/SQL procs, multi-statement
+  reports). Use when you need to read+write across several assets and
+  centralize the connection config.
+
+## Production retargeting
+
+```yaml
+# Oracle Autonomous Database (Shared) with wallet-less mTLS-free connection
+attributes:
+  host: adb.us-ashburn-1.oraclecloud.com
+  port: 1522
+  service_name: g1234abcd_my_adb_medium.adb.oraclecloud.com
+  username: ADMIN
+  password_env_var: ADW_PASSWORD
+```
+
+For Autonomous DB connections that require a wallet, set `thick_mode: true` and configure `TNS_ADMIN` to point at the wallet directory.
+
+## See also
+
+- `postgres_resource`, `mssql_resource`, `mysql_resource`, `db2_resource` — same shape, different backend
+- `dataframe_to_table` — write DataFrames via SQLAlchemy URLs
+- `sql_command_job`, `warehouse_maintenance_job` — schedulable SQL ops
+- [Schema](schema.json) · [Example](example.yaml)

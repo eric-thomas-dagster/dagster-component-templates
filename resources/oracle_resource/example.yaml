@@ -1,0 +1,21 @@
+type: dagster_component_templates.OracleResourceComponent
+attributes:
+  resource_key: oracle_resource
+  host: localhost
+  port: 1521
+  service_name: FREEPDB1
+  username: system
+  password_env_var: ORACLE_PASSWORD
+
+  # --- Oracle Autonomous Database ---
+  # host: adb.us-ashburn-1.oraclecloud.com
+  # port: 1522
+  # service_name: g1234abcd_my_adb_medium.adb.oraclecloud.com
+  # username: ADMIN
+  # password_env_var: ADW_PASSWORD
+
+  # --- Legacy SID-based connection (use service_name when possible) ---
+  # sid: ORCL
+
+  # --- Thick mode (requires Oracle Instant Client installed) ---
+  # thick_mode: true

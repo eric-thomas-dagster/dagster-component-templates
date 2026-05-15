@@ -1,0 +1,16 @@
+{
+  "component_type": "dagster_component_templates.OracleResourceComponent",
+  "description": "Register an Oracle Database resource for use by other components. Works against XE/Free/Enterprise, Autonomous Database, and OCI DBaaS.",
+  "category": "resource",
+  "icon": "Database",
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "description": "Resource registration key. Other components reference it via this name.", "required": false, "default": "oracle_resource"},
+    "host": {"type": "string", "label": "Host", "description": "Oracle DB host (e.g. 'localhost' or 'adb.us-ashburn-1.oraclecloud.com')", "required": true},
+    "port": {"type": "integer", "label": "Port", "description": "Listener port (default 1521 on-prem; 1522 for Autonomous DB)", "required": false, "default": 1521},
+    "service_name": {"type": "string", "label": "Service Name", "description": "Oracle service name (e.g. 'FREEPDB1', 'ORCLCDB'). Either this OR sid is required.", "required": false},
+    "sid": {"type": "string", "label": "SID", "description": "Oracle SID (legacy; prefer service_name).", "required": false},
+    "username": {"type": "string", "label": "Username", "description": "Database username", "required": true},
+    "password_env_var": {"type": "string", "label": "Password Env Var", "description": "Env var holding the password", "required": true},
+    "thick_mode": {"type": "boolean", "label": "Thick Mode", "description": "Use python-oracledb thick mode (requires Oracle Instant Client). Leave false for default thin-mode (pure Python).", "required": false, "default": false}
+  }
+}

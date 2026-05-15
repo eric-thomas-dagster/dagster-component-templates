@@ -17973,6 +17973,67 @@
       }
     },
     {
+      "id": "servicenow_ingestion",
+      "name": "ServiceNow Ingestion",
+      "component_type": "dagster_component_templates.ServiceNowIngestionComponent",
+      "path": "assets/ingestion/servicenow_ingestion",
+      "category": "ingestion",
+      "icon": "Server",
+      "description": "Read records from any ServiceNow table (incident / change_request / sc_request / sys_user / cmdb_ci / custom tables) into a DataFrame asset. ServiceNow Table API with pagination, encoded-query filtering, field selection, and basic-auth or bearer-token (OAuth) auth.",
+      "tags": [
+        "ingestion",
+        "servicenow",
+        "itsm",
+        "incidents",
+        "change-management",
+        "rest-api"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/servicenow_ingestion/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/servicenow_ingestion/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/servicenow_ingestion/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/servicenow_ingestion/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/servicenow_ingestion/schema.json",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas>=1.5.0",
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "code"
+      }
+    },
+    {
+      "id": "servicenow_resource",
+      "name": "ServiceNow Resource",
+      "component_type": "dagster_component_templates.ServiceNowResourceComponent",
+      "path": "resources/servicenow_resource",
+      "category": "resource",
+      "icon": "Server",
+      "description": "Shared ServiceNow Table API connection (instance subdomain + auth). Supports basic auth for dev instances and bearer-token OAuth for production. Pairs with servicenow_ingestion (read) and servicenow_sensor (event-driven trigger).",
+      "tags": [
+        "resource",
+        "servicenow",
+        "itsm",
+        "rest-api",
+        "oauth"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/servicenow_resource/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/servicenow_resource/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/servicenow_resource/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/servicenow_resource/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/servicenow_resource/schema.json",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "validation": {
+        "level": "code"
+      }
+    },
+    {
       "id": "servicenow_sensor",
       "name": "ServiceNow Sensor",
       "category": "sensor",
@@ -21812,5 +21873,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 753
+  "total": 755
 }

@@ -1,0 +1,14 @@
+{
+  "component_type": "dagster_component_templates.ServiceNowResourceComponent",
+  "description": "Shared ServiceNow Table API connection (instance subdomain + auth). Supports basic auth for dev instances and bearer-token OAuth for production. Pairs with servicenow_ingestion (read) and servicenow_sensor (event-driven trigger).",
+  "category": "resource",
+  "icon": "Server",
+  "attributes": {
+    "resource_key": {"type": "string", "label": "Resource Key", "required": false, "default": "servicenow_resource", "description": "Resource registration key. Other components reference it via this name."},
+    "instance_env_var": {"type": "string", "label": "Instance Env Var", "required": true, "description": "Env var with the ServiceNow instance subdomain (e.g. 'mycompany' or 'dev123456'). Just the subdomain — no https:// or .service-now.com."},
+    "username_env_var": {"type": "string", "label": "Username Env Var", "required": false, "description": "Env var with ServiceNow username (basic auth). Required unless bearer_token_env_var is set."},
+    "password_env_var": {"type": "string", "label": "Password Env Var", "required": false, "description": "Env var with ServiceNow password (basic auth). Required unless bearer_token_env_var is set."},
+    "bearer_token_env_var": {"type": "string", "label": "Bearer Token Env Var", "required": false, "description": "Env var holding a ServiceNow OAuth bearer token. When set, basic auth fields are ignored. Pair with oauth_token_resource for token acquisition + rotation."},
+    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "required": false, "default": true, "description": "Enable TLS verification. Set false only for self-signed dev instances.", "ui:widget": "checkbox"}
+  }
+}

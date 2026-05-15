@@ -1,0 +1,25 @@
+type: dagster_component_templates.ServiceNowIngestionComponent
+attributes:
+  asset_name: incidents_last_30d
+  instance_env_var: SNOW_INSTANCE        # subdomain only — e.g. 'mycompany'
+  username_env_var: SNOW_USERNAME
+  password_env_var: SNOW_PASSWORD
+
+  table: incident
+  sysparm_query: "sys_created_on>=javascript:gs.daysAgoStart(30)"
+  sysparm_fields: number,short_description,priority,state,assigned_to,sys_created_on,sys_updated_on
+  sysparm_display_value: "false"          # 'false' = sys_id; 'true' = display; 'all' = both
+  page_size: 1000
+  max_records: 50000
+  group_name: servicenow
+
+  # --- Production OAuth (bearer token) — pair with oauth_token_resource ---
+  # bearer_token_env_var: SNOW_ACCESS_TOKEN
+  # (omit username/password when using bearer_token_env_var)
+
+  # --- Other common tables ---
+  # table: change_request
+  # table: sc_request          # Service Catalog requests
+  # table: sys_user            # users
+  # table: cmdb_ci             # configuration items (CMDB)
+  # table: <custom_table_name>

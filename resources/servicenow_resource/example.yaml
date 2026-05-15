@@ -1,0 +1,13 @@
+type: dagster_component_templates.ServiceNowResourceComponent
+attributes:
+  resource_key: servicenow_resource
+  instance_env_var: SNOW_INSTANCE         # subdomain only — e.g. 'mycompany' or 'dev123456'
+  username_env_var: SNOW_USERNAME
+  password_env_var: SNOW_PASSWORD
+
+  # --- Production OAuth (bearer token) — pair with oauth_token_resource ---
+  # bearer_token_env_var: SNOW_ACCESS_TOKEN
+  # (omit username/password when using bearer_token_env_var)
+
+  # --- Self-signed dev instance only ---
+  # verify_ssl: false

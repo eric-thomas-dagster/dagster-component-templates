@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-05-15",
+  "last_updated": "2026-05-16",
   "components": [
     {
       "id": "ab_controls",
@@ -4356,6 +4356,80 @@
       }
     },
     {
+      "id": "database_constraints_migration",
+      "name": "Database Constraints Migration",
+      "component_type": "dagster_component_templates.DatabaseConstraintsMigrationComponent",
+      "path": "assets/ingestion/database_constraints_migration",
+      "category": "ingestion",
+      "icon": "Key",
+      "description": "Apply PKs, FKs, NOT NULL, DEFAULTs, CHECKs, and UNIQUEs to target tables that already exist (data-first companion to database_tables_migration). Generates ALTER TABLEs from source INFORMATION_SCHEMA. Pre-flight warnings for non-enforcing targets. Status DataFrame per constraint.",
+      "tags": [
+        "ingestion",
+        "migration",
+        "constraints",
+        "primary-key",
+        "foreign-key",
+        "alter-table",
+        "warehouse",
+        "status-report"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_constraints_migration/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_constraints_migration/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_constraints_migration/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_constraints_migration/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_constraints_migration/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas>=1.5.0",
+          "sqlalchemy>=2.0.0",
+          "tabulate>=0.10.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_migration.md",
+        "last_validated": "2026-05-15"
+      }
+    },
+    {
+      "id": "database_migration_assessment",
+      "name": "Database Migration Assessment",
+      "component_type": "dagster_component_templates.DatabaseMigrationAssessmentComponent",
+      "path": "assets/sources/database_migration_assessment",
+      "category": "source",
+      "icon": "ClipboardCheck",
+      "description": "Pre-flight migration assessment: dry-run every table + view migration against the target inside a transaction that ROLLS BACK. Returns consolidated DataFrame with status (auto_convertible/needs_review/will_fail), complexity (simple/medium/complex), dialect markers, proposed target DDL. The 'what would happen if I ran this tomorrow?' view \u2014 inspired by AWS SCT Assessment Report + Microsoft SSMA test mode.",
+      "tags": [
+        "source",
+        "assessment",
+        "migration",
+        "dry-run",
+        "warehouse",
+        "planning",
+        "oracle",
+        "db2"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/database_migration_assessment/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/database_migration_assessment/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/database_migration_assessment/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/database_migration_assessment/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/database_migration_assessment/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas>=1.5.0",
+          "sqlalchemy>=2.0.0",
+          "tabulate>=0.10.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_migration.md",
+        "last_validated": "2026-05-16"
+      }
+    },
+    {
       "id": "database_query",
       "name": "Database Query",
       "category": "source",
@@ -4384,6 +4458,184 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "database_replication",
+      "name": "Database Replication",
+      "component_type": "dagster_component_templates.DatabaseReplicationComponent",
+      "path": "assets/ingestion/database_replication",
+      "category": "ingestion",
+      "icon": "ArrowRightLeft",
+      "description": "Replicate a table between two SQL databases (Oracle/Db2/Postgres/MySQL/MSSQL \u2192 Snowflake/BigQuery/Redshift/Databricks/etc.) without landing rows in Python memory. Wraps Sling under the hood via the official dagster-sling integration. Supports full_refresh / incremental / snapshot / truncate modes with upsert via primary_key.",
+      "tags": [
+        "ingestion",
+        "replication",
+        "sling",
+        "elt",
+        "migration",
+        "warehouse",
+        "oracle",
+        "db2",
+        "snowflake",
+        "postgres"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_replication/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_replication/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_replication/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_replication/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_replication/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-sling>=0.24.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_migration.md",
+        "last_validated": "2026-05-15"
+      }
+    },
+    {
+      "id": "database_schema_inventory",
+      "name": "Database Schema Inventory",
+      "component_type": "dagster_component_templates.DatabaseSchemaInventoryComponent",
+      "path": "assets/sources/database_schema_inventory",
+      "category": "source",
+      "icon": "ListTree",
+      "description": "List every database object (tables/views/procedures/functions/sequences/triggers/scheduled jobs) in a source SQL DB as a DataFrame. Companion to database_replication for warehouse-migration planning. Supports postgres/mysql/mssql/oracle/db2/snowflake/redshift.",
+      "tags": [
+        "source",
+        "metadata",
+        "inventory",
+        "migration",
+        "warehouse",
+        "schema",
+        "oracle",
+        "db2"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/database_schema_inventory/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/database_schema_inventory/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/database_schema_inventory/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/database_schema_inventory/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/database_schema_inventory/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas>=1.5.0",
+          "sqlalchemy>=2.0.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_migration.md",
+        "last_validated": "2026-05-15"
+      }
+    },
+    {
+      "id": "database_tables_migration",
+      "name": "Database Tables Migration",
+      "component_type": "dagster_component_templates.DatabaseTablesMigrationComponent",
+      "path": "assets/ingestion/database_tables_migration",
+      "category": "ingestion",
+      "icon": "Table2",
+      "description": "DDL-first warehouse migration: build portable CREATE TABLE statements from source INFORMATION_SCHEMA (types + PKs + FKs + NOT NULL + DEFAULT + CHECK + UNIQUE) and execute on target. Pre-flight warnings for non-enforcing targets (Snowflake/BigQuery/Redshift). Status DataFrame per table.",
+      "tags": [
+        "ingestion",
+        "migration",
+        "ddl",
+        "schema",
+        "primary-key",
+        "foreign-key",
+        "warehouse",
+        "status-report"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_tables_migration/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_tables_migration/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_tables_migration/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_tables_migration/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_tables_migration/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas>=1.5.0",
+          "sqlalchemy>=2.0.0",
+          "tabulate>=0.10.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_migration.md",
+        "last_validated": "2026-05-15"
+      }
+    },
+    {
+      "id": "database_view_migration",
+      "name": "Database View Migration",
+      "component_type": "dagster_component_templates.DatabaseViewMigrationComponent",
+      "path": "assets/ingestion/database_view_migration",
+      "category": "ingestion",
+      "icon": "Eye",
+      "description": "Migrate a single SQL view from source to target with table-ref + function-name substitutions. Reads source DDL, rewrites refs, executes CREATE OR REPLACE VIEW on target. Composable \u2014 one YAML per view.",
+      "tags": [
+        "ingestion",
+        "migration",
+        "views",
+        "ddl",
+        "warehouse"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_view_migration/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_view_migration/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_view_migration/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_view_migration/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_view_migration/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sqlalchemy>=2.0.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_migration.md",
+        "last_validated": "2026-05-15"
+      }
+    },
+    {
+      "id": "database_views_migration",
+      "name": "Database Views Migration",
+      "component_type": "dagster_component_templates.DatabaseViewsMigrationComponent",
+      "path": "assets/ingestion/database_views_migration",
+      "category": "ingestion",
+      "icon": "Layers",
+      "description": "Bulk-migrate every view in a source schema to a target with shared substitutions. Emits a per-view status DataFrame (schema_name, view_name, status, error_message) for the migration completion report.",
+      "tags": [
+        "ingestion",
+        "migration",
+        "views",
+        "ddl",
+        "bulk",
+        "warehouse",
+        "status-report"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_views_migration/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_views_migration/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_views_migration/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_views_migration/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/database_views_migration/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas>=1.5.0",
+          "sqlalchemy>=2.0.0",
+          "tabulate>=0.10.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_migration.md",
+        "last_validated": "2026-05-15"
       }
     },
     {
@@ -5508,6 +5760,40 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "dataframe_to_snowflake_bulk",
+      "name": "DataFrame to Snowflake (Bulk)",
+      "component_type": "dagster_component_templates.DataframeToSnowflakeBulkComponent",
+      "path": "assets/sinks/dataframe_to_snowflake_bulk",
+      "category": "sink",
+      "icon": "si:snowflake",
+      "description": "Memory-efficient bulk load of a pandas DataFrame to Snowflake via chunked parquet \u2192 PUT to internal stage \u2192 COPY INTO. For medium-large DataFrames (1M\u201350M rows) where write_pandas's internal .copy() would double memory. Supports replace / append / merge (upsert by primary_key).",
+      "tags": [
+        "sink",
+        "dataframe",
+        "snowflake",
+        "bulk",
+        "stage",
+        "copy-into",
+        "warehouse"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_snowflake_bulk/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_snowflake_bulk/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_snowflake_bulk/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_snowflake_bulk/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_snowflake_bulk/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas>=1.5.0",
+          "pyarrow>=11.0.0",
+          "snowflake-connector-python[pandas]>=3.0.0"
+        ]
+      },
+      "validation": {
+        "level": "code"
       }
     },
     {
@@ -21873,5 +22159,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 755
+  "total": 763
 }

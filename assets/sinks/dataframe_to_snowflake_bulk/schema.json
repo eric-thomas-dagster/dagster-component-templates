@@ -1,0 +1,171 @@
+{
+  "component_type": "dagster_component_templates.DataframeToSnowflakeBulkComponent",
+  "description": "Bulk-load a DataFrame to Snowflake via internal stage + COPY INTO (memory-efficient, chunked parquet).",
+  "category": "sink",
+  "icon": "si:snowflake",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame to bulk-load"
+    },
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Load confirmation with timing + row-count metadata"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
+    "table": {
+      "type": "string",
+      "label": "Table",
+      "description": "Destination Snowflake table name",
+      "required": true
+    },
+    "database": {
+      "type": "string",
+      "label": "Database",
+      "required": false,
+      "default": null
+    },
+    "schema": {
+      "type": "string",
+      "label": "Schema",
+      "required": false,
+      "default": null
+    },
+    "warehouse": {
+      "type": "string",
+      "label": "Warehouse",
+      "required": false,
+      "default": null
+    },
+    "role": {
+      "type": "string",
+      "label": "Role",
+      "required": false,
+      "default": null
+    },
+    "account_env_var": {
+      "type": "string",
+      "label": "Account Env Var",
+      "required": false,
+      "default": "SNOWFLAKE_ACCOUNT"
+    },
+    "user_env_var": {
+      "type": "string",
+      "label": "User Env Var",
+      "required": false,
+      "default": "SNOWFLAKE_USER"
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "required": false,
+      "default": "SNOWFLAKE_PASSWORD",
+      "ui:widget": "env_var"
+    },
+    "mode": {
+      "type": "string",
+      "label": "Load Mode",
+      "description": "How to handle the target table",
+      "required": false,
+      "default": "replace",
+      "enum": ["replace", "append", "merge"],
+      "ui:widget": "select"
+    },
+    "primary_key": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Primary Key",
+      "description": "Column(s) for upsert when mode='merge'",
+      "required": false
+    },
+    "chunk_rows": {
+      "type": "integer",
+      "label": "Chunk Rows",
+      "description": "Rows per parquet chunk staged. Default 500k.",
+      "required": false,
+      "default": 500000
+    },
+    "on_error": {
+      "type": "string",
+      "label": "COPY On Error",
+      "description": "ABORT_STATEMENT | CONTINUE | SKIP_FILE",
+      "required": false,
+      "default": "ABORT_STATEMENT"
+    },
+    "purge_stage": {
+      "type": "boolean",
+      "label": "Purge Stage After Load",
+      "required": false,
+      "default": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Deps",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential"
+    }
+  },
+  "tags": ["sink", "dataframe", "snowflake", "bulk", "stage", "copy-into"],
+  "name": "DataFrame to Snowflake (Bulk)"
+}

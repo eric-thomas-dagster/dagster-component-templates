@@ -1,18 +1,70 @@
-# SlingReplicationAsset
+# Sling Replication Asset
 
-Wraps `dagster-sling` to run Sling replication YAMLs as Dagster assets — one asset per stream in the replication. Each materialization runs the configured stream from source to target.
+The **native Sling wrapper** — you bring a Sling replication YAML, this component runs it as Dagster assets. One asset per stream in the replication file. Each materialization invokes Sling against source → target.
 
-Wraps the official `dagster-sling` package.
+For users already familiar with [Sling](https://slingdata.io) who want full access to Sling's YAML surface (`defaults`, `streams: {...}`, source/target overrides, hooks, partitioning, etc.).
+
+## When to use this vs. `database_replication`
+
+| Question | Use |
+|---|---|
+| "I have a Sling `replication.yaml` already / I want all of Sling's config surface" | **`sling_replication_asset`** (this component) |
+| "I want to migrate one or more SQL tables, don't want to learn Sling" | [`database_replication`](https://dagster-component-ui.vercel.app/c/database_replication) |
+| "I want each table to be its own Dagster asset in YAML" | [`database_replication`](https://dagster-component-ui.vercel.app/c/database_replication) (one component instance per table) |
+| "I have 30+ streams in one Sling YAML and want them as a single asset group" | **`sling_replication_asset`** |
+| "Recurring scheduled data sync at scale" | Either — pick by team familiarity with Sling |
+
+Both wrap the official `dagster-sling` `@sling_assets` decorator internally. Same engine; different abstraction levels.
+
+## Fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `replication_config_path` | `str` | required | Path to a Sling replication YAML file (relative to the project root or absolute) |
+| `name` | `str` | `sling_replication` | Asset name prefix; Sling generates per-stream asset names from this + the stream name |
+| `group_name` | `str` | `sling` | Dagster asset group |
 
 ## Example
 
 ```yaml
 type: dagster_component_templates.SlingReplicationAssetComponent
 attributes:
-  replication_config_path: <fill in>
-  group_name: <fill in>
-  name: <fill in>
+  replication_config_path: ./sling/replication.yaml
+  name: warehouse_sync
+  group_name: warehouse_ingest
 ```
+
+Companion `sling/replication.yaml` (this is Sling's native syntax — see [slingdata.io docs](https://docs.slingdata.io)):
+
+```yaml
+source: PG_PROD
+target: SNOWFLAKE_DW
+
+defaults:
+  mode: incremental
+  object: 'raw.{stream_table}'
+
+streams:
+  public.customers:
+    primary_key: [customer_id]
+    update_key: updated_at
+  public.orders:
+    primary_key: [order_id]
+    update_key: updated_at
+  public.line_items:
+    primary_key: [line_item_id]
+    update_key: updated_at
+    select: [line_item_id, order_id, sku, quantity, price]
+```
+
+You also need a SlingResource set up at the project level (with `SlingConnectionResource`s for `PG_PROD` and `SNOWFLAKE_DW`) — see the [official `dagster-sling` docs](https://docs.dagster.io/integrations/libraries/sling) for connection setup.
+
+## Companion components
+
+- [`database_replication`](https://dagster-component-ui.vercel.app/c/database_replication) — the dedicated/opinionated version. 7-field surface, no Sling YAML, automatic resource setup. Use when one-table-one-asset is what you want.
+- [`database_tables_migration`](https://dagster-component-ui.vercel.app/c/database_tables_migration) — DDL-first warehouse migration step that pairs with either Sling component for the data move.
+- [`database_views_migration`](https://dagster-component-ui.vercel.app/c/database_views_migration) — recreate source views on target post-migration.
+- [`database_schema_inventory`](https://dagster-component-ui.vercel.app/c/database_schema_inventory) — discover what needs to move before either Sling component runs.
 
 ## Requirements
 
@@ -21,3 +73,9 @@ dagster
 dagster-sling
 pyyaml
 ```
+
+## Notes
+
+- **Connection setup is on you.** This component just runs the replication; the `SlingResource` (with all `SlingConnectionResource` instances named in your `replication.yaml`) needs to exist at the project level. `database_replication` handles this for you.
+- **All Sling features available.** Hooks, partitioning, multi-stream, custom SQL per stream, `select` / `where` filters — anything Sling supports works because you're writing Sling YAML directly.
+- **One asset per stream.** Sling's `@sling_assets` produces one Dagster asset per stream in the replication. Asset keys come from Sling's translator (usually the target table name).

@@ -1,0 +1,26 @@
+type: dagster_component_templates.DataframeToSnowflakeBulkComponent
+attributes:
+  asset_name: snowflake_orders_bulk
+  upstream_asset_key: large_orders_dataframe
+  table: orders
+  database: ANALYTICS
+  schema: PUBLIC
+  warehouse: COMPUTE_WH
+  role: TRANSFORMER
+
+  account_env_var: SNOWFLAKE_ACCOUNT
+  user_env_var: SNOWFLAKE_USER
+  password_env_var: SNOWFLAKE_PASSWORD
+
+  # --- Load behavior ---
+  mode: replace                # 'replace' | 'append' | 'merge'
+  chunk_rows: 500000           # rows per parquet chunk staged
+  on_error: ABORT_STATEMENT    # COPY ON_ERROR option
+  purge_stage: true            # delete staged files after successful COPY
+
+  # --- Upsert (when mode=merge) ---
+  # mode: merge
+  # primary_key: [order_id]
+
+  group_name: warehouse_sinks
+  kinds: [snowflake, python]

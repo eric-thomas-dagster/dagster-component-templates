@@ -1,0 +1,33 @@
+type: dagster_component_templates.DatabaseReplicationComponent
+attributes:
+  asset_name: customers_replicated
+  # Source connection (Sling URL — supports postgres / mysql / mssql / oracle / db2 / snowflake / bigquery / redshift / databricks / etc.)
+  source_connection_env_var: ORACLE_DB_URL
+  source_type: oracle
+  source_table: HR.EMPLOYEES
+
+  # Target connection
+  target_connection_env_var: SNOWFLAKE_DB_URL
+  target_type: snowflake
+  target_table: RAW.EMPLOYEES
+
+  # --- Full refresh (default) ---
+  mode: full_refresh
+
+  # --- Incremental upserts ---
+  # mode: incremental
+  # incremental_column: updated_at
+  # primary_key: [employee_id]
+
+  # --- Optional filtering / column selection ---
+  # select_columns: [employee_id, first_name, last_name, email, hire_date]
+  # where_clause: "hire_date >= DATE '2020-01-01'"
+
+  group_name: warehouse_migration
+  kinds: [sling, oracle, snowflake]
+
+# Example connection URLs (set as env vars):
+#   ORACLE_DB_URL='oracle://app_user:app_pass@oracledb:1521/?service_name=FREEPDB1'
+#   DB2_DB_URL='db2://db2inst1:password@db2:50000/SAMPLE'
+#   POSTGRES_DB_URL='postgres://user:pass@host:5432/db'
+#   SNOWFLAKE_DB_URL='snowflake://user:pass@account.snowflakecomputing.com/DB/SCHEMA?warehouse=COMPUTE_WH&role=TRANSFORMER'

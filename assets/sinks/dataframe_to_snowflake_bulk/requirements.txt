@@ -1,0 +1,4 @@
+dagster
+pandas>=1.5.0
+pyarrow>=11.0.0
+snowflake-connector-python[pandas]>=3.0.0

@@ -1,0 +1,2 @@
+dagster
+dagster-sling>=0.24.0

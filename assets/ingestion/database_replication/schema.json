@@ -1,0 +1,149 @@
+{
+  "component_type": "dagster_component_templates.DatabaseReplicationComponent",
+  "description": "Replicate a table between two SQL databases using Sling under the hood. No data lands in Python memory; suitable for any size table.",
+  "category": "ingestion",
+  "icon": "ArrowRightLeft",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "external",
+      "description": "Reads from a source SQL database"
+    },
+    "outputs": {
+      "type": "asset",
+      "description": "Asset representing the replicated target table"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "source_connection_env_var": {
+      "type": "string",
+      "label": "Source Connection Env Var",
+      "description": "Env var with Sling-compatible source connection URL",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "target_connection_env_var": {
+      "type": "string",
+      "label": "Target Connection Env Var",
+      "description": "Env var with Sling-compatible target connection URL",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "source_type": {
+      "type": "string",
+      "label": "Source Type",
+      "description": "Source database type",
+      "required": true,
+      "enum": [
+        "postgres", "mysql", "mssql", "oracle", "db2",
+        "snowflake", "bigquery", "redshift", "databricks",
+        "duckdb", "clickhouse", "mariadb", "sqlite"
+      ],
+      "ui:widget": "select"
+    },
+    "target_type": {
+      "type": "string",
+      "label": "Target Type",
+      "description": "Target database type",
+      "required": true,
+      "enum": [
+        "postgres", "mysql", "mssql", "oracle", "db2",
+        "snowflake", "bigquery", "redshift", "databricks",
+        "duckdb", "clickhouse", "mariadb", "sqlite"
+      ],
+      "ui:widget": "select"
+    },
+    "source_table": {
+      "type": "string",
+      "label": "Source Table",
+      "description": "Source table — 'table' or 'schema.table'",
+      "required": true
+    },
+    "target_table": {
+      "type": "string",
+      "label": "Target Table",
+      "description": "Target table — 'table' or 'schema.table'",
+      "required": true
+    },
+    "mode": {
+      "type": "string",
+      "label": "Replication Mode",
+      "description": "full_refresh / incremental / snapshot / truncate",
+      "required": false,
+      "default": "full_refresh",
+      "enum": ["full_refresh", "incremental", "snapshot", "truncate"],
+      "ui:widget": "select"
+    },
+    "incremental_column": {
+      "type": "string",
+      "label": "Incremental Column",
+      "description": "Watermark column (required when mode='incremental')",
+      "required": false,
+      "default": null
+    },
+    "primary_key": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Primary Key",
+      "description": "Primary key for upserts in incremental mode",
+      "required": false
+    },
+    "select_columns": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Select Columns",
+      "description": "Subset of columns to replicate (default: all)",
+      "required": false
+    },
+    "where_clause": {
+      "type": "string",
+      "label": "WHERE Clause",
+      "description": "Optional WHERE filter on the source",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "deps": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Deps",
+      "required": false
+    }
+  },
+  "tags": ["ingestion", "replication", "sling", "elt", "migration", "warehouse"],
+  "name": "Database Replication"
+}

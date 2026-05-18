@@ -1,0 +1,34 @@
+type: dagster_component_templates.DatabaseConstraintsMigrationComponent
+attributes:
+  asset_name: constraints_applied
+  source_connection_env_var: SOURCE_DB_URL
+  target_connection_env_var: TARGET_DB_URL
+  source_type: postgres
+  target_type: snowflake          # for DuckDB targets, use database_tables_migration (DDL-first) instead — CHECK/UNIQUE auto-skip with clear guidance
+
+  schemas: [app]                  # source schemas to scan
+  target_schema: raw              # ALTER target tables in raw.<name>
+
+  # Optional glob-style include/exclude (case-insensitive against schema.name)
+  # include_patterns: ["app.*"]
+  # exclude_patterns: ["app.audit_*", "*_temp"]
+
+  table_replacements:
+    app.orders: raw.orders
+    app.customers: raw.customers
+
+  # All 6 constraint types applied by default. Pass a subset to apply only some.
+  # constraint_types: [primary_key, foreign_key, not_null, default, check, unique]
+
+  # Function-name substitutions for CHECK expressions (case-insensitive whole-word).
+  # Useful when source CHECKs use dialect-specific functions.
+  # function_replacements:
+  #   NVL: COALESCE
+  #   REGEXP_LIKE: REGEXP_MATCHES
+
+  # Pre-flight dry-run: attempt every ALTER inside a transaction and ROLLBACK —
+  # no state changes on target. Status rows use 'would_succeed' / 'would_fail'.
+  # dry_run: true
+
+  deps: [orders_in_warehouse, customers_in_warehouse]   # run AFTER data lands
+  group_name: migration_constraints

@@ -1,0 +1,42 @@
+{
+  "component_type": "dagster_component_templates.DatabaseMigrationAssessmentComponent",
+  "description": "Pre-flight migration assessment. Dry-runs every table + view migration inside a transaction that rolls back. Returns a consolidated DataFrame with status (auto_convertible/needs_review/will_fail), complexity heuristic (simple/medium/complex), specific dialect-quirk markers, and proposed target DDL. The 'what would happen if I ran this tomorrow?' view.",
+  "category": "source",
+  "icon": "ClipboardCheck",
+  "x-dagster-io": {
+    "inputs": {"type": "external", "description": "Reads source DDL + attempts dry-run on target"},
+    "outputs": {"type": "dataframe", "description": "Per-object assessment: object_type, schema_name, name, target_name, status, complexity, dialect_markers, reason, proposed_target_ddl"}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "source_connection_env_var": {"type": "string", "label": "Source Connection Env Var", "required": true, "ui:widget": "env_var"},
+    "target_connection_env_var": {"type": "string", "label": "Target Connection Env Var", "required": true, "ui:widget": "env_var"},
+    "source_type": {
+      "type": "string", "label": "Source Type", "required": true,
+      "enum": ["postgres", "mysql", "mssql", "oracle", "db2", "snowflake", "redshift", "duckdb"],
+      "ui:widget": "select"
+    },
+    "target_type": {
+      "type": "string", "label": "Target Type", "required": true,
+      "enum": ["postgres", "mysql", "mssql", "oracle", "db2", "snowflake", "redshift", "duckdb"],
+      "ui:widget": "select"
+    },
+    "schemas": {"type": "array", "items": {"type": "string"}, "label": "Source Schemas", "required": false},
+    "include_patterns": {"type": "array", "items": {"type": "string"}, "label": "Include Patterns", "required": false},
+    "exclude_patterns": {"type": "array", "items": {"type": "string"}, "label": "Exclude Patterns", "required": false},
+    "target_schema": {"type": "string", "label": "Target Schema Override", "required": false},
+    "table_replacements": {"type": "object", "label": "Table/FK Replacements", "required": false, "ui:widget": "key-value"},
+    "function_replacements": {"type": "object", "label": "Function Replacements", "required": false, "ui:widget": "key-value"},
+    "assess_tables": {"type": "boolean", "label": "Assess Tables", "required": false, "default": true},
+    "assess_views": {"type": "boolean", "label": "Assess Views", "required": false, "default": true},
+    "assess_constraints": {"type": "boolean", "label": "Assess Constraints (Data-First)", "required": false, "default": false},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false}
+  },
+  "tags": ["source", "assessment", "migration", "dry-run", "warehouse", "planning"],
+  "name": "Database Migration Assessment"
+}

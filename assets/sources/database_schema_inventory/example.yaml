@@ -1,0 +1,15 @@
+type: dagster_component_templates.DatabaseSchemaInventoryComponent
+attributes:
+  asset_name: oracle_migration_inventory
+  connection_env_var: ORACLE_DB_URL
+  database_type: oracle           # postgres | mysql | mssql | oracle | db2 | snowflake | redshift
+
+  # --- Optional ---
+  # schemas: [HR, FINANCE]                                    # restrict to specific schemas
+  # object_types: [table, view, procedure, function, trigger] # restrict to a subset
+  group_name: migration_planning
+  kinds: [oracle, inventory]
+  description: |
+    Inventory of every object in the legacy Oracle DB — used to drive the
+    migration plan. Tables flow to database_replication; everything else
+    (PL/SQL procs, scheduler jobs, views, triggers) gets rebuilt by hand.

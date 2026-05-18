@@ -1,0 +1,49 @@
+type: dagster_component_templates.DatabaseTablesMigrationComponent
+attributes:
+  asset_name: warehouse_ddl_ready
+  source_connection_env_var: SOURCE_DB_URL
+  target_connection_env_var: TARGET_DB_URL
+  source_type: postgres
+  target_type: duckdb
+
+  schemas: [app]                # source schemas to scan
+  target_schema: raw            # → raw.<table_name> on target
+
+  # Optional glob-style include/exclude (case-insensitive against schema.name).
+  # Default: include everything in `schemas`, exclude nothing.
+  # include_patterns: ["app.*"]
+  # exclude_patterns: ["app.stg_*", "app.*_temp", "app.audit_*"]
+
+  # FK references rewritten to point at the new (renamed/moved) tables
+  table_replacements:
+    app.customers: raw.customers
+    app.orders: raw.orders
+
+  # Optional: hand-written CREATE TABLE for tables the auto-generator can't handle
+  # (Oracle XMLTYPE, OBJECT, custom CHECK constraints, etc.).
+  # Status reports as 'override_success' / 'override_failed'.
+  # table_ddl_overrides:
+  #   app.weird_table: |
+  #     CREATE TABLE raw.weird_table (
+  #       id INT PRIMARY KEY,
+  #       xml_payload VARCHAR,
+  #       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  #     )
+
+  drop_if_exists: true          # for repeatable demo re-runs
+  include_primary_keys: true
+  include_foreign_keys: true
+  include_check_constraints: true
+  include_unique_constraints: true
+
+  # Function-name substitutions for CHECK expressions (Oracle/MSSQL idioms)
+  # function_replacements:
+  #   NVL: COALESCE
+  #   REGEXP_LIKE: REGEXP_MATCHES
+
+  # Pre-flight: try every CREATE TABLE in a transaction then ROLLBACK — no state change.
+  # Status rows: 'would_succeed' / 'would_fail'. Use before the real run.
+  # dry_run: true
+
+  fail_on_any_error: false      # report failures, don't fail the asset
+  group_name: migration_ddl

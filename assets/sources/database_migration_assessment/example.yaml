@@ -1,0 +1,28 @@
+type: dagster_component_templates.DatabaseMigrationAssessmentComponent
+attributes:
+  asset_name: oracle_migration_assessment
+  source_connection_env_var: ORACLE_DB_URL
+  target_connection_env_var: SNOWFLAKE_DB_URL
+  source_type: oracle
+  target_type: snowflake
+
+  schemas: [HR, FINANCE, BILLING]
+
+  # Same patterns + replacements you'll use in the real migration
+  table_replacements:
+    HR.EMPLOYEES: RAW.EMPLOYEES
+    HR.DEPARTMENTS: RAW.DEPARTMENTS
+  function_replacements:
+    NVL: COALESCE
+    SYSDATE: CURRENT_TIMESTAMP
+
+  # Optional glob filters
+  # include_patterns: ["HR.*", "FINANCE.STG_*"]
+  # exclude_patterns: ["*_TEMP", "HR.AUDIT_*"]
+
+  target_schema: RAW
+
+  assess_tables: true
+  assess_views: true
+
+  group_name: migration_planning

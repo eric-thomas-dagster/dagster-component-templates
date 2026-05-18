@@ -1,0 +1,42 @@
+type: dagster_component_templates.DatabaseViewsMigrationComponent
+attributes:
+  asset_name: all_views_migrated
+  source_connection_env_var: SOURCE_DB_URL
+  target_connection_env_var: TARGET_DB_URL
+  source_type: postgres
+  target_type: duckdb
+
+  schemas: [app]               # migrate every view in app.*
+  target_schema: raw           # → raw.<view_name> on target
+
+  # Shared substitutions applied to every view
+  table_replacements:
+    app.orders: raw.orders
+    app.customers: raw.customers
+
+  # Optional: glob-style include/exclude (case-insensitive against schema.name)
+  # include_patterns: ["app.v_*"]
+  # exclude_patterns: ["app.v_legacy_*", "*_temp"]
+
+  # Optional: hand-written override body for views the auto-rewrite can't handle
+  # (Oracle CONNECT BY, MSSQL CROSS APPLY, etc.). Status reports as 'override_success'.
+  # view_ddl_overrides:
+  #   app.v_legacy_oracle_specific: |
+  #     SELECT customer_id, name FROM raw.customers WHERE customer_id IN (
+  #       SELECT customer_id FROM raw.orders WHERE status = 'paid'
+  #     )
+
+  fail_on_any_error: false     # report failures, don't fail the asset
+
+  # Pre-flight: try every CREATE VIEW in a transaction then ROLLBACK — no state change.
+  # Status rows: 'would_succeed' / 'would_fail'. Use before the real run.
+  # dry_run: true
+
+  # Function-name substitutions for view bodies (Oracle/MSSQL idioms)
+  # function_replacements:
+  #   NVL: COALESCE
+  #   SYSDATE: CURRENT_TIMESTAMP
+  #   DECODE: IFF                # rough — review on target
+
+  deps: [orders_in_warehouse, customers_in_warehouse]
+  group_name: migration_views

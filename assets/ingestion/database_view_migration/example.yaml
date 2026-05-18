@@ -1,0 +1,22 @@
+type: dagster_component_templates.DatabaseViewMigrationComponent
+attributes:
+  asset_name: v_orders_summary_in_warehouse
+  source_connection_env_var: SOURCE_DB_URL
+  target_connection_env_var: TARGET_DB_URL
+  source_type: postgres
+  target_type: snowflake
+  source_view: app.v_orders_summary
+  target_view: ANALYTICS.V_ORDERS_SUMMARY
+
+  # Rewrite table references that moved during migration
+  table_replacements:
+    app.orders: RAW.ORDERS
+    app.customers: RAW.CUSTOMERS
+
+  # Optional dialect function-name substitutions
+  function_replacements:
+    NVL: COALESCE          # Oracle → standard SQL
+    SYSDATE: CURRENT_TIMESTAMP
+
+  deps: [orders_in_warehouse, customers_in_warehouse]
+  group_name: migration_views

@@ -1,0 +1,45 @@
+{
+  "component_type": "dagster_component_templates.DatabaseConstraintsMigrationComponent",
+  "description": "Apply primary keys, foreign keys, NOT NULL, and DEFAULTs to target tables (typically post-data-load). Reads constraints from source INFORMATION_SCHEMA, executes ALTER TABLEs on target. Emits per-constraint status DataFrame.",
+  "category": "ingestion",
+  "icon": "Key",
+  "x-dagster-io": {
+    "inputs": {"type": "external", "description": "Reads source INFORMATION_SCHEMA for constraint metadata"},
+    "outputs": {"type": "dataframe", "description": "Per-constraint status: schema_name, table_name, target_table, constraint_type, constraint_name, columns, status, error_message, ddl"}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "source_connection_env_var": {"type": "string", "label": "Source Connection Env Var", "required": true, "ui:widget": "env_var"},
+    "target_connection_env_var": {"type": "string", "label": "Target Connection Env Var", "required": true, "ui:widget": "env_var"},
+    "source_type": {
+      "type": "string", "label": "Source Type", "required": true,
+      "enum": ["postgres", "mysql", "mssql", "oracle", "db2", "snowflake", "redshift", "duckdb"],
+      "ui:widget": "select"
+    },
+    "target_type": {
+      "type": "string", "label": "Target Type", "required": true,
+      "enum": ["postgres", "mysql", "mssql", "oracle", "db2", "snowflake", "redshift", "duckdb"],
+      "ui:widget": "select"
+    },
+    "schemas": {"type": "array", "items": {"type": "string"}, "label": "Source Schemas", "required": false},
+    "include_patterns": {"type": "array", "items": {"type": "string"}, "label": "Include Patterns", "required": false},
+    "exclude_patterns": {"type": "array", "items": {"type": "string"}, "label": "Exclude Patterns", "required": false},
+    "target_schema": {"type": "string", "label": "Target Schema Override", "required": false},
+    "table_replacements": {"type": "object", "label": "FK Table Replacements", "required": false, "ui:widget": "key-value"},
+    "constraint_types": {
+      "type": "array", "items": {"type": "string"}, "label": "Constraint Types", "required": false,
+      "description": "Subset of: primary_key, foreign_key, not_null, default, check, unique"
+    },
+    "function_replacements": {"type": "object", "label": "CHECK Function Replacements", "description": "Substitutions applied to CHECK expressions (e.g. {'NVL': 'COALESCE'})", "required": false, "ui:widget": "key-value"},
+    "dry_run": {"type": "boolean", "label": "Dry Run", "description": "Try every ALTER in a transaction then ROLLBACK — no state change.", "required": false, "default": false},
+    "fail_on_any_error": {"type": "boolean", "label": "Fail On Any Error", "required": false, "default": false},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false}
+  },
+  "tags": ["ingestion", "migration", "constraints", "primary-key", "foreign-key", "alter-table", "warehouse"],
+  "name": "Database Constraints Migration"
+}

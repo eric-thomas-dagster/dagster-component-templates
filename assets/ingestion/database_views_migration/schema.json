@@ -1,0 +1,42 @@
+{
+  "component_type": "dagster_component_templates.DatabaseViewsMigrationComponent",
+  "description": "Bulk-migrate every view in a source schema to a target with optional substitutions. Emits a per-view status DataFrame for the migration completion report.",
+  "category": "ingestion",
+  "icon": "Layers",
+  "x-dagster-io": {
+    "inputs": {"type": "external", "description": "Reads every view's DDL from source"},
+    "outputs": {"type": "dataframe", "description": "Status DataFrame: schema_name, view_name, target_view, status, error_message, ddl_chars"}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "source_connection_env_var": {"type": "string", "label": "Source Connection Env Var", "required": true, "ui:widget": "env_var"},
+    "target_connection_env_var": {"type": "string", "label": "Target Connection Env Var", "required": true, "ui:widget": "env_var"},
+    "source_type": {
+      "type": "string", "label": "Source Type", "required": true,
+      "enum": ["postgres", "mysql", "mssql", "oracle", "db2", "snowflake", "redshift", "duckdb"],
+      "ui:widget": "select"
+    },
+    "target_type": {
+      "type": "string", "label": "Target Type", "required": true,
+      "enum": ["postgres", "mysql", "mssql", "oracle", "db2", "snowflake", "redshift", "duckdb"],
+      "ui:widget": "select"
+    },
+    "schemas": {"type": "array", "items": {"type": "string"}, "label": "Source Schemas", "required": false},
+    "include_patterns": {"type": "array", "items": {"type": "string"}, "label": "Include Patterns", "required": false},
+    "exclude_patterns": {"type": "array", "items": {"type": "string"}, "label": "Exclude Patterns", "required": false},
+    "target_schema": {"type": "string", "label": "Target Schema Override", "required": false},
+    "table_replacements": {"type": "object", "label": "Table Replacements", "required": false, "ui:widget": "key-value"},
+    "function_replacements": {"type": "object", "label": "Function Replacements", "required": false, "ui:widget": "key-value"},
+    "view_ddl_overrides": {"type": "object", "label": "Per-View Body Overrides", "description": "Source qualified name → SELECT body (no CREATE VIEW). For views the auto-rewrite can't handle (Oracle CONNECT BY, MSSQL CROSS APPLY, etc.)", "required": false, "ui:widget": "key-value"},
+    "dry_run": {"type": "boolean", "label": "Dry Run", "description": "Try every CREATE VIEW in a transaction then ROLLBACK — no state change.", "required": false, "default": false},
+    "fail_on_any_error": {"type": "boolean", "label": "Fail On Any Error", "required": false, "default": false},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false}
+  },
+  "tags": ["ingestion", "migration", "views", "bulk", "warehouse", "status-report"],
+  "name": "Database Views Migration"
+}

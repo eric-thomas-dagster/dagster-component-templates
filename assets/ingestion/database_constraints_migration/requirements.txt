@@ -1,0 +1,4 @@
+dagster
+pandas>=1.5.0
+sqlalchemy>=2.0.0
+tabulate>=0.10.0

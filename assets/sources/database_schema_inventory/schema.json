@@ -1,0 +1,59 @@
+{
+  "component_type": "dagster_component_templates.DatabaseSchemaInventoryComponent",
+  "description": "List every database object (tables / views / procedures / functions / sequences / triggers / scheduled jobs) in a source SQL database — companion to database_replication for warehouse migration planning.",
+  "category": "source",
+  "icon": "ListTree",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "external",
+      "description": "Reads database metadata via INFORMATION_SCHEMA / ALL_* / SYSCAT views"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "DataFrame with columns: object_type, schema_name, object_name, definition, row_count"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "connection_env_var": {
+      "type": "string",
+      "label": "Connection Env Var",
+      "description": "Env var with SQLAlchemy URL",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "database_type": {
+      "type": "string",
+      "label": "Source Database Type",
+      "required": true,
+      "enum": ["postgres", "mysql", "mssql", "oracle", "db2", "snowflake", "redshift"],
+      "ui:widget": "select"
+    },
+    "schemas": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Schemas",
+      "description": "Restrict inventory to these schemas (default: all non-system)",
+      "required": false
+    },
+    "object_types": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Object Types",
+      "description": "Restrict to these object types (default: every type the dialect supports)",
+      "required": false
+    },
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false}
+  },
+  "tags": ["source", "metadata", "inventory", "migration", "warehouse", "schema"],
+  "name": "Database Schema Inventory"
+}

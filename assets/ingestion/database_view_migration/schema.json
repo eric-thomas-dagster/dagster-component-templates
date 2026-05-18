@@ -1,0 +1,37 @@
+{
+  "component_type": "dagster_component_templates.DatabaseViewMigrationComponent",
+  "description": "Replicate a SQL view from source to target with optional table-ref + function-name substitutions. Reads source view DDL, rewrites refs, executes CREATE OR REPLACE VIEW on target.",
+  "category": "ingestion",
+  "icon": "Eye",
+  "x-dagster-io": {
+    "inputs": {"type": "external", "description": "Reads view DDL from source DB"},
+    "outputs": {"type": "external", "description": "Recreates the view on the target DB"}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "source_connection_env_var": {"type": "string", "label": "Source Connection Env Var", "required": true, "ui:widget": "env_var"},
+    "target_connection_env_var": {"type": "string", "label": "Target Connection Env Var", "required": true, "ui:widget": "env_var"},
+    "source_type": {
+      "type": "string", "label": "Source Type", "required": true,
+      "enum": ["postgres", "mysql", "mssql", "oracle", "db2", "snowflake", "redshift", "duckdb"],
+      "ui:widget": "select"
+    },
+    "target_type": {
+      "type": "string", "label": "Target Type", "required": true,
+      "enum": ["postgres", "mysql", "mssql", "oracle", "db2", "snowflake", "redshift", "duckdb"],
+      "ui:widget": "select"
+    },
+    "source_view": {"type": "string", "label": "Source View", "description": "schema.name or just name", "required": true},
+    "target_view": {"type": "string", "label": "Target View", "description": "schema.name or just name", "required": true},
+    "table_replacements": {"type": "object", "label": "Table Replacements", "description": "old qualified name → new", "required": false, "ui:widget": "key-value"},
+    "function_replacements": {"type": "object", "label": "Function Replacements", "description": "old name → new (case-insensitive whole-word)", "required": false, "ui:widget": "key-value"},
+    "group_name": {"type": "string", "label": "Group Name", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
+    "asset_tags": {"type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
+    "kinds": {"type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
+    "deps": {"type": "array", "items": {"type": "string"}, "label": "Deps", "required": false}
+  },
+  "tags": ["ingestion", "migration", "views", "warehouse", "schema-rebuild"],
+  "name": "Database View Migration"
+}

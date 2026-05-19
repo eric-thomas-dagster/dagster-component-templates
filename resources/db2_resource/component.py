@@ -104,7 +104,8 @@ class Db2ResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     port: int = Field(default=50000, description="Db2 port (default 50000; 31xxx for Db2 on Cloud)")
     database: str = Field(description="Database name")
     username: str = Field(description="Login username")
-    password_env_var: str = Field(description="Env var holding the password")
+    password: Optional[str] = Field(default=None, description="Db2 password (literal). Set this OR password_env_var.")
+    password_env_var: Optional[str] = Field(default=None, description="Env var holding the password. Set this OR password.")
     ssl: bool = Field(
         default=False,
         description="Enable SSL connection. Required for Db2 on Cloud.",
@@ -120,7 +121,7 @@ class Db2ResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             port=self.port,
             database=self.database,
             username=self.username,
-            password=dg.EnvVar(self.password_env_var),
+            password=self.password if self.password else dg.EnvVar(self.password_env_var or ""),
             ssl=self.ssl,
             security_mechanism=self.security_mechanism,
         )

@@ -112,7 +112,8 @@ class OracleResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Oracle SID (legacy; use service_name when possible).",
     )
     username: str = Field(description="Database username")
-    password_env_var: str = Field(description="Env var holding the password")
+    password: Optional[str] = Field(default=None, description="Oracle password (literal). Set this OR password_env_var.")
+    password_env_var: Optional[str] = Field(default=None, description="Env var holding the password. Set this OR password.")
     thick_mode: bool = Field(
         default=False,
         description=(
@@ -128,7 +129,7 @@ class OracleResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             service_name=self.service_name,
             sid=self.sid,
             username=self.username,
-            password=dg.EnvVar(self.password_env_var),
+            password=self.password if self.password else dg.EnvVar(self.password_env_var or ""),
             thick_mode=self.thick_mode,
         )
         return dg.Definitions(resources={self.resource_key: resource})

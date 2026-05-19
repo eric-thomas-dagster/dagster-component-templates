@@ -31,14 +31,26 @@ class ElasticsearchResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     resource_key: str = Field(default="elasticsearch_resource", description="Key used to register this resource. Other components reference it via resource_key.")
     hosts: str = Field(description="Elasticsearch URL, e.g. 'https://localhost:9200'")
-    api_key_env_var: Optional[str] = Field(default=None, description="Environment variable holding the Elasticsearch API key (preferred). Mutually exclusive with username/password.")
+    api_key: Optional[str] = Field(default=None, description="Elasticsearch API key (literal). Set this OR api_key_env_var. Mutually exclusive with username/password.")
+    api_key_env_var: Optional[str] = Field(default=None, description="Env var holding the Elasticsearch API key. Set this OR api_key.")
     username: Optional[str] = Field(default="", description="Elasticsearch username for basic auth")
-    password_env_var: Optional[str] = Field(default=None, description="Environment variable holding the Elasticsearch password for basic auth")
+    password: Optional[str] = Field(default=None, description="Elasticsearch password (literal). Set this OR password_env_var.")
+    password_env_var: Optional[str] = Field(default=None, description="Env var holding the Elasticsearch password. Set this OR password.")
     verify_certs: bool = Field(default=True, description="Verify TLS certificates. Set to False for self-signed dev clusters only.")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        api_key = dg.EnvVar(self.api_key_env_var) if self.api_key_env_var else ""
-        password = dg.EnvVar(self.password_env_var) if self.password_env_var else ""
+        if self.api_key:
+            api_key = self.api_key
+        elif self.api_key_env_var:
+            api_key = dg.EnvVar(self.api_key_env_var)
+        else:
+            api_key = ""
+        if self.password:
+            password = self.password
+        elif self.password_env_var:
+            password = dg.EnvVar(self.password_env_var)
+        else:
+            password = ""
         resource = ElasticsearchResource(
             hosts=self.hosts,
             api_key=api_key,

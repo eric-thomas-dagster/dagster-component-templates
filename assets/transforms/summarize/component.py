@@ -128,6 +128,16 @@ class SummarizeComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
+    backend: str = Field(
+        default="pandas",
+        description=(
+            "Execution backend: 'pandas' (default) or 'polars'. Polars gives "
+            "substantially better performance + lower memory on large frames "
+            "and supports the same aggregations API. Either way the component "
+            "accepts pandas OR polars input; when backend='polars' the output "
+            "is a polars DataFrame, otherwise pandas."
+        ),
+    )
     group_by: List[str] = Field(description="Columns to group by")
     aggregations: Dict = Field(
         description=(
@@ -277,6 +287,9 @@ class SummarizeComponent(Component, Model, Resolvable):
         group_by = self.group_by
         aggregations = self.aggregations
         group_name = self.group_name
+        backend = (self.backend or "pandas").lower()
+        if backend not in ("pandas", "polars"):
+            raise ValueError(f"backend must be 'pandas' or 'polars', got {self.backend!r}")
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -349,8 +362,22 @@ group_name=group_name,
             retry_policy=_retry_policy,
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
-            # Filter to current partition if partitioned
+        def _asset(context: AssetExecutionContext, upstream: Any) -> Any:
+            # Detect input frame type. Component accepts pandas OR polars at
+            # runtime regardless of the configured `backend` — backend chooses
+            # the EXECUTION + OUTPUT type, not the input type.
+            _is_polars_in = False
+            try:
+                import polars as pl
+                _is_polars_in = isinstance(upstream, pl.DataFrame)
+            except Exception:
+                pl = None  # type: ignore
+
+            # Filter to current partition if partitioned (pandas path only —
+            # we convert to pandas first to keep the partition filter code
+            # one-shape, then hand off to the configured backend).
+            if _is_polars_in:
+                upstream = upstream.to_pandas()
             if context.has_partition_key:
                 _pk = context.partition_key
                 _is_multi = hasattr(_pk, "keys_by_dimension")
@@ -362,9 +389,9 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-            # Split aggregations into pandas' two supported forms:
-            #   simple: {out_col: func} → df.groupby(...).agg({out_col: func})
-            #   named:  {out_col: {col: c, agg: f}} → df.groupby(...).agg(out_col=(c, f))
+            # Split aggregations into the two supported forms:
+            #   simple: {out_col: func} → that column with that func, same name out
+            #   named:  {out_col: {col: c, agg: f}} → produce named out_col from (c, f)
             # Named form lets you produce multiple aggregations from the same
             # source column (avg_rating + num_ratings both off `rating`).
             _named: Dict[str, Any] = {}
@@ -374,27 +401,62 @@ group_name=group_name,
                     _named[_out] = (_spec["col"], _spec["agg"])
                 else:
                     _simple[_out] = _spec
-            _grouped = upstream.groupby(group_by)
-            if _named and _simple:
-                _simple_df = _grouped.agg(_simple).reset_index()
-                _named_df = _grouped.agg(**_named).reset_index()
-                result = _simple_df.merge(_named_df, on=group_by)
-            elif _named:
-                result = _grouped.agg(**_named).reset_index()
+
+            if backend == "polars":
+                if pl is None:
+                    raise ImportError("polars backend requested but `polars` is not installed. Add it to the project.")
+                def _pl_agg(src_col: str, out_col: str, func: str):
+                    """Map pandas agg-func name → polars expression."""
+                    col = pl.col(src_col)
+                    f = func.lower()
+                    if f == "sum":      expr = col.sum()
+                    elif f == "mean":   expr = col.mean()
+                    elif f in ("min",): expr = col.min()
+                    elif f in ("max",): expr = col.max()
+                    elif f == "count":  expr = col.count()
+                    elif f == "median": expr = col.median()
+                    elif f == "std":    expr = col.std()
+                    elif f == "var":    expr = col.var()
+                    elif f == "first":  expr = col.first()
+                    elif f == "last":   expr = col.last()
+                    elif f in ("nunique", "n_unique"): expr = col.n_unique()
+                    else:
+                        raise ValueError(f"polars backend doesn't support agg func {func!r}. Use sum/mean/min/max/count/median/std/var/first/last/nunique.")
+                    return expr.alias(out_col)
+                pl_df = pl.from_pandas(upstream)
+                _aggs = []
+                for _out, _func in _simple.items():
+                    _aggs.append(_pl_agg(_out, _out, _func))   # simple form: source col == out col
+                for _out, (_src, _func) in _named.items():
+                    _aggs.append(_pl_agg(_src, _out, _func))
+                result = pl_df.group_by(group_by).agg(_aggs).sort(group_by)
+                _result_for_metadata = result.to_pandas()
             else:
-                result = _grouped.agg(_simple).reset_index()
+                _grouped = upstream.groupby(group_by)
+                if _named and _simple:
+                    _simple_df = _grouped.agg(_simple).reset_index()
+                    _named_df = _grouped.agg(**_named).reset_index()
+                    result = _simple_df.merge(_named_df, on=group_by)
+                elif _named:
+                    result = _grouped.agg(**_named).reset_index()
+                else:
+                    result = _grouped.agg(_simple).reset_index()
+                _row_count = len(result)
+                _result_for_metadata = result
             context.log.info(
                 f"Summarized {len(upstream)} rows into {len(result)} groups "
                 f"on columns: {group_by}"
             )
-            # Build column schema metadata
+            # Build column schema metadata — use pandas view of result so
+            # the dtypes lookup works identically for both backends.
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
+            _meta_df = _result_for_metadata
             _col_schema = TableSchema(columns=[
-                TableColumn(name=str(col), type=str(result.dtypes[col]))
-                for col in result.columns
+                TableColumn(name=str(col), type=str(_meta_df.dtypes[col]))
+                for col in _meta_df.columns
             ])
             _metadata = {
-                "dagster/row_count": MetadataValue.int(len(result)),
+                "dagster/row_count": MetadataValue.int(len(_meta_df)),
                 "dagster/column_schema": MetadataValue.table_schema(_col_schema),
             }
             # Use explicit lineage, or auto-infer passthrough columns at runtime
@@ -420,9 +482,9 @@ group_name=group_name,
                     _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
                         TableColumnLineage(_lineage_deps)
                     )
-            if include_preview and len(result) > 0:
+            if include_preview and len(_meta_df) > 0:
                 try:
-                    _prev = result.sample(min(preview_rows, len(result))) if len(result) > preview_rows * 10 else result.head(preview_rows)
+                    _prev = _meta_df.sample(min(preview_rows, len(_meta_df))) if len(_meta_df) > preview_rows * 10 else _meta_df.head(preview_rows)
                     _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
                 except Exception as _e:
                     context.log.warning(f"preview emission failed: {_e}")

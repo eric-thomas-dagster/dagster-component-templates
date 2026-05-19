@@ -32,13 +32,15 @@ class MQTTToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     asset_name: str = Field(description="Dagster asset name")
-    broker_host_env_var: str = Field(description="Env var with MQTT broker hostname")
+    broker_host: Optional[str] = Field(default=None, description="MQTT broker hostname. Set this OR broker_host_env_var.")
+    broker_host_env_var: Optional[str] = Field(default=None, description="Env var with MQTT broker hostname. Set this OR broker_host.")
     broker_port: int = Field(default=1883, description="MQTT broker port (1883 or 8883 for TLS)")
     topic: str = Field(description="MQTT topic to subscribe to (supports wildcards # and +)")
     username_env_var: Optional[str] = Field(default=None, description="Env var with MQTT username")
     password_env_var: Optional[str] = Field(default=None, description="Env var with MQTT password")
     use_tls: bool = Field(default=False, description="Enable TLS/SSL connection")
-    database_url_env_var: str = Field(description="Env var with SQLAlchemy database URL")
+    database_url: Optional[str] = Field(default=None, description="SQLAlchemy database URL. Set this OR database_url_env_var.")
+    database_url_env_var: Optional[str] = Field(default=None, description="Env var with SQLAlchemy database URL. Set this OR database_url.")
     table_name: str = Field(description="Destination table name")
     schema_name: Optional[str] = Field(default=None, description="Destination schema name")
     if_exists: str = Field(default="append", description="fail, replace, or append")
@@ -181,8 +183,16 @@ class MQTTToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             import pandas as pd
             from sqlalchemy import create_engine
 
-            broker_host = os.environ[_self.broker_host_env_var]
-            db_url = os.environ[_self.database_url_env_var]
+            def _resolve(literal, env_var, name):
+                if literal:
+                    return literal
+                if env_var:
+                    if env_var not in os.environ:
+                        raise KeyError(f"Env var '{env_var}' (for {name}) is not set")
+                    return os.environ[env_var]
+                raise ValueError(f"Set either '{name}' or '{name}_env_var'")
+            broker_host = _resolve(_self.broker_host, _self.broker_host_env_var, "broker_host")
+            db_url = _resolve(_self.database_url, _self.database_url_env_var, "database_url")
             collect_secs = config.collect_seconds or _self.collect_seconds
             max_msgs = config.max_messages or _self.max_messages
 

@@ -34,13 +34,15 @@ class NATSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     asset_name: str = Field(description="Dagster asset name")
-    nats_url_env_var: str = Field(description="Env var with NATS server URL (nats://host:4222)")
+    nats_url: Optional[str] = Field(default=None, description="NATS server URL (nats://host:4222). Set this OR nats_url_env_var.")
+    nats_url_env_var: Optional[str] = Field(default=None, description="Env var with NATS server URL. Set this OR nats_url.")
     subject: str = Field(description="NATS subject to subscribe to (supports wildcards)")
     use_jetstream: bool = Field(default=False, description="Use JetStream for durable consumption")
     stream_name: Optional[str] = Field(default=None, description="JetStream stream name (required if use_jetstream=true)")
     consumer_name: Optional[str] = Field(default="dagster-ingest", description="JetStream durable consumer name")
     credentials_env_var: Optional[str] = Field(default=None, description="Env var with path to NATS credentials file")
-    database_url_env_var: str = Field(description="Env var with SQLAlchemy database URL")
+    database_url: Optional[str] = Field(default=None, description="SQLAlchemy database URL. Set this OR database_url_env_var.")
+    database_url_env_var: Optional[str] = Field(default=None, description="Env var with SQLAlchemy database URL. Set this OR database_url.")
     table_name: str = Field(description="Destination table name")
     schema_name: Optional[str] = Field(default=None, description="Destination schema name")
     if_exists: str = Field(default="append", description="fail, replace, or append")
@@ -181,8 +183,16 @@ class NATSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             import pandas as pd
             from sqlalchemy import create_engine
 
-            nats_url = os.environ[_self.nats_url_env_var]
-            db_url = os.environ[_self.database_url_env_var]
+            def _resolve(literal, env_var, name):
+                if literal:
+                    return literal
+                if env_var:
+                    if env_var not in os.environ:
+                        raise KeyError(f"Env var '{env_var}' (for {name}) is not set")
+                    return os.environ[env_var]
+                raise ValueError(f"Set either '{name}' or '{name}_env_var'")
+            nats_url = _resolve(_self.nats_url, _self.nats_url_env_var, "nats_url")
+            db_url = _resolve(_self.database_url, _self.database_url_env_var, "database_url")
             max_msgs = config.max_messages or _self.max_messages
 
             async def fetch_messages():

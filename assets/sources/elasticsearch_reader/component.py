@@ -147,9 +147,13 @@ class ElasticsearchReaderComponent(Component, Model, Resolvable):
 
     index_name: str = Field(description="Elasticsearch index to query")
 
-    host_env_var: str = Field(
+    host: Optional[str] = Field(
+        default=None,
+        description="Elasticsearch URL (e.g., http://localhost:9200). Set this OR host_env_var.",
+    )
+    host_env_var: Optional[str] = Field(
         default="ELASTICSEARCH_URL",
-        description="Environment variable with Elasticsearch URL (e.g., http://localhost:9200)"
+        description="Env var with Elasticsearch URL. Defaults to ELASTICSEARCH_URL. Set this OR host.",
     )
 
     api_key_env_var: Optional[str] = Field(
@@ -307,6 +311,7 @@ class ElasticsearchReaderComponent(Component, Model, Resolvable):
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
         index_name = self.index_name
+        host = self.host
         host_env_var = self.host_env_var
         api_key_env_var = self.api_key_env_var
         query = self.query
@@ -415,7 +420,13 @@ group_name=group_name,
             except ImportError:
                 raise ImportError("elasticsearch is required: pip install elasticsearch")
 
-            es_kwargs: Dict[str, Any] = {"hosts": [os.environ[host_env_var]]}
+            if host:
+                resolved_host = host
+            elif host_env_var and host_env_var in os.environ:
+                resolved_host = os.environ[host_env_var]
+            else:
+                raise EnvironmentError(f"Set either 'host' or env var '{host_env_var}'")
+            es_kwargs: Dict[str, Any] = {"hosts": [resolved_host]}
             if api_key_env_var:
                 es_kwargs["api_key"] = os.environ[api_key_env_var]
 

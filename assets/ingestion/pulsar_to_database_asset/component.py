@@ -31,12 +31,14 @@ class PulsarToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     asset_name: str = Field(description="Dagster asset name")
-    service_url_env_var: str = Field(description="Env var with Pulsar service URL (pulsar://host:6650)")
+    service_url: Optional[str] = Field(default=None, description="Pulsar service URL (pulsar://host:6650). Set this OR service_url_env_var.")
+    service_url_env_var: Optional[str] = Field(default=None, description="Env var with Pulsar service URL. Set this OR service_url.")
     topic: str = Field(description="Pulsar topic (e.g. persistent://public/default/events)")
     subscription_name: str = Field(default="dagster-ingest", description="Pulsar subscription name")
     subscription_type: str = Field(default="Shared", description="Exclusive, Shared, Failover, or KeyShared")
     token_env_var: Optional[str] = Field(default=None, description="Env var with Pulsar JWT auth token")
-    database_url_env_var: str = Field(description="Env var with SQLAlchemy database URL")
+    database_url: Optional[str] = Field(default=None, description="SQLAlchemy database URL. Set this OR database_url_env_var.")
+    database_url_env_var: Optional[str] = Field(default=None, description="Env var with SQLAlchemy database URL. Set this OR database_url.")
     table_name: str = Field(description="Destination table name")
     schema_name: Optional[str] = Field(default=None, description="Destination schema name")
     if_exists: str = Field(default="append", description="fail, replace, or append")
@@ -178,8 +180,16 @@ class PulsarToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             import pandas as pd
             from sqlalchemy import create_engine
 
-            service_url = os.environ[_self.service_url_env_var]
-            db_url = os.environ[_self.database_url_env_var]
+            def _resolve(literal, env_var, name):
+                if literal:
+                    return literal
+                if env_var:
+                    if env_var not in os.environ:
+                        raise KeyError(f"Env var '{env_var}' (for {name}) is not set")
+                    return os.environ[env_var]
+                raise ValueError(f"Set either '{name}' or '{name}_env_var'")
+            service_url = _resolve(_self.service_url, _self.service_url_env_var, "service_url")
+            db_url = _resolve(_self.database_url, _self.database_url_env_var, "database_url")
             max_msgs = config.max_messages or _self.max_messages
 
             client_kwargs: dict = {}

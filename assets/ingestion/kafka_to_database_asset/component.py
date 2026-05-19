@@ -31,8 +31,22 @@ class KafkaToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     asset_name: str = Field(description="Dagster asset name")
-    bootstrap_servers_env_var: str = Field(description="Env var with Kafka bootstrap servers (comma-separated)")
-    database_url_env_var: str = Field(description="Env var with SQLAlchemy database URL")
+    bootstrap_servers: Optional[str] = Field(
+        default=None,
+        description="Kafka bootstrap servers (comma-separated). Set this OR bootstrap_servers_env_var.",
+    )
+    bootstrap_servers_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var holding the Kafka bootstrap servers. Set this OR bootstrap_servers.",
+    )
+    database_url: Optional[str] = Field(
+        default=None,
+        description="SQLAlchemy database URL. Set this OR database_url_env_var.",
+    )
+    database_url_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var holding the SQLAlchemy database URL. Set this OR database_url.",
+    )
     topic: str = Field(description="Kafka topic to consume from")
     consumer_group: str = Field(default="dagster-ingestion", description="Kafka consumer group ID")
     table_name: str = Field(description="Destination table name")
@@ -182,8 +196,16 @@ class KafkaToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             from confluent_kafka import Consumer, KafkaError, TopicPartition
             from sqlalchemy import create_engine
 
-            bootstrap = os.environ[_self.bootstrap_servers_env_var]
-            db_url = os.environ[_self.database_url_env_var]
+            def _resolve(literal, env_var, name):
+                if literal:
+                    return literal
+                if env_var:
+                    if env_var not in os.environ:
+                        raise KeyError(f"Env var '{env_var}' (for {name}) is not set")
+                    return os.environ[env_var]
+                raise ValueError(f"Set either '{name}' or '{name}_env_var'")
+            bootstrap = _resolve(_self.bootstrap_servers, _self.bootstrap_servers_env_var, "bootstrap_servers")
+            db_url = _resolve(_self.database_url, _self.database_url_env_var, "database_url")
             topic = config.topic or _self.topic
             max_msgs = config.max_messages or _self.max_messages
 

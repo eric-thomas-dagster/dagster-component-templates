@@ -38,14 +38,24 @@ class DatabaseReplicationComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     asset_name: str = Field(description="Output Dagster asset name")
-    source_connection_env_var: str = Field(
-        description="Env var with full Sling-compatible source connection URL "
-                    "(e.g. 'postgres://user:pass@host:5432/db' or "
-                    "'oracle://user:pass@host:1521/?service_name=ORCL')"
+    source_connection: Optional[str] = Field(
+        default=None,
+        description="Full Sling-compatible source connection URL (e.g. "
+                    "'postgres://user:pass@host:5432/db'). Set this OR source_connection_env_var.",
     )
-    target_connection_env_var: str = Field(
-        description="Env var with full Sling-compatible target connection URL "
-                    "(e.g. 'snowflake://user:pass@account.snowflakecomputing.com/db/schema?warehouse=COMPUTE_WH')"
+    source_connection_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var with the source connection URL. Set this OR source_connection.",
+    )
+    target_connection: Optional[str] = Field(
+        default=None,
+        description="Full Sling-compatible target connection URL (e.g. "
+                    "'snowflake://user:pass@account.snowflakecomputing.com/db/schema?warehouse=W'). "
+                    "Set this OR target_connection_env_var.",
+    )
+    target_connection_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var with the target connection URL. Set this OR target_connection.",
     )
     source_type: str = Field(
         description="Source database type: postgres, mysql, mssql, oracle, db2, snowflake, bigquery, redshift, databricks, duckdb, clickhouse, mariadb, sqlite"
@@ -132,16 +142,17 @@ class DatabaseReplicationComponent(dg.Component, dg.Model, dg.Resolvable):
                 "dagster-sling required: pip install dagster-sling"
             ) from e
 
-        source_url = os.environ.get(self.source_connection_env_var)
-        target_url = os.environ.get(self.target_connection_env_var)
-        if not source_url:
-            raise EnvironmentError(
-                f"Source connection env var '{self.source_connection_env_var}' is not set"
-            )
-        if not target_url:
-            raise EnvironmentError(
-                f"Target connection env var '{self.target_connection_env_var}' is not set"
-            )
+        def _resolve(literal, env_var, name):
+            if literal:
+                return literal
+            if env_var:
+                v = os.environ.get(env_var)
+                if not v:
+                    raise EnvironmentError(f"Env var '{env_var}' (for {name}) is not set")
+                return v
+            raise ValueError(f"Set either '{name}' or '{name}_env_var'")
+        source_url = _resolve(self.source_connection, self.source_connection_env_var, "source_connection")
+        target_url = _resolve(self.target_connection, self.target_connection_env_var, "target_connection")
 
         source_conn_name = f"SRC_{self.asset_name.upper()}"
         target_conn_name = f"TGT_{self.asset_name.upper()}"

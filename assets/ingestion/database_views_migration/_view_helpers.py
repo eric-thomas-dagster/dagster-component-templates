@@ -34,18 +34,30 @@ def validate_dialect(dialect: str, role: str = "source") -> None:
         )
 
 
-def engine_for(env_var: str, dialect: str):
-    """Build a SQLAlchemy engine from a URL stored in env_var."""
-    from sqlalchemy import create_engine
+def resolve_connection(literal, env_var, name: str) -> str:
+    if literal:
+        return literal
+    if env_var:
+        v = os.environ.get(env_var)
+        if not v:
+            raise EnvironmentError(f"Env var {env_var!r} (for {name}) is not set")
+        return v
+    raise ValueError(f"Set either {name!r} or {name + '_env_var'!r}")
 
-    url = os.environ.get(env_var)
-    if not url:
-        raise EnvironmentError(f"Connection env var {env_var!r} is not set")
+
+def engine_for_url(url: str, dialect: str):
+    """Build a SQLAlchemy engine from a connection URL."""
+    from sqlalchemy import create_engine
     for prefix, sa_prefix in _SCHEME_ALIASES.items():
         if url.startswith(prefix) and not url.startswith(sa_prefix):
             url = sa_prefix + url[len(prefix):]
             break
     return create_engine(url)
+
+
+def engine_for(env_var: str, dialect: str):
+    """Backwards-compatible wrapper."""
+    return engine_for_url(resolve_connection(None, env_var, "connection"), dialect)
 
 
 def split_qualified(qualified: str) -> Tuple[Optional[str], str]:

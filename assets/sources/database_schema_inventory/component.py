@@ -118,10 +118,14 @@ class DatabaseSchemaInventoryComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     asset_name: str = Field(description="Output Dagster asset name")
-    connection_env_var: str = Field(
-        description="Env var with the source database SQLAlchemy URL "
-                    "(e.g. 'postgresql://user:pass@host:5432/db', "
-                    "'oracle+oracledb://user:pass@host:1521/?service_name=ORCL')"
+    connection: Optional[str] = Field(
+        default=None,
+        description="SQLAlchemy URL for the source DB (e.g. 'postgresql://user:pass@host:5432/db'). "
+                    "Set this OR connection_env_var.",
+    )
+    connection_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var with the source database SQLAlchemy URL. Set this OR connection.",
     )
     database_type: str = Field(
         description="Source database dialect: postgres / mysql / mssql / oracle / db2 / snowflake / redshift"
@@ -169,6 +173,7 @@ class DatabaseSchemaInventoryComponent(dg.Component, dg.Model, dg.Resolvable):
                 )
             queries = {t: q for t, q in queries.items() if t in wanted}
 
+        connection_literal = self.connection
         connection_env_var = self.connection_env_var
         asset_name = self.asset_name
         schemas_filter = [s.lower() for s in (self.schemas or [])]
@@ -192,10 +197,13 @@ class DatabaseSchemaInventoryComponent(dg.Component, dg.Model, dg.Resolvable):
             import pandas as pd
             from sqlalchemy import create_engine, text
 
-            url = os.environ.get(connection_env_var)
-            if not url:
+            if connection_literal:
+                url = connection_literal
+            elif connection_env_var and connection_env_var in os.environ:
+                url = os.environ[connection_env_var]
+            else:
                 raise EnvironmentError(
-                    f"Connection env var '{connection_env_var}' is not set"
+                    f"Set either 'connection' or env var '{connection_env_var}'"
                 )
             # Normalize URL scheme so the same env var works with Sling-style
             # URLs (postgres://, mssql://) and SQLAlchemy-style ones (postgresql://, mssql+pyodbc://).

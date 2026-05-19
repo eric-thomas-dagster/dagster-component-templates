@@ -31,9 +31,11 @@ class RabbitMQToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     asset_name: str = Field(description="Dagster asset name")
-    amqp_url_env_var: str = Field(description="Env var with AMQP URL (amqp://user:pass@host/vhost)")
+    amqp_url: Optional[str] = Field(default=None, description="AMQP URL (amqp://user:pass@host/vhost). Set this OR amqp_url_env_var.")
+    amqp_url_env_var: Optional[str] = Field(default=None, description="Env var with AMQP URL. Set this OR amqp_url.")
     queue_name: str = Field(description="RabbitMQ queue name")
-    database_url_env_var: str = Field(description="Env var with SQLAlchemy database URL")
+    database_url: Optional[str] = Field(default=None, description="SQLAlchemy database URL. Set this OR database_url_env_var.")
+    database_url_env_var: Optional[str] = Field(default=None, description="Env var with SQLAlchemy database URL. Set this OR database_url.")
     table_name: str = Field(description="Destination table name")
     schema_name: Optional[str] = Field(default=None, description="Destination schema name")
     if_exists: str = Field(default="append", description="fail, replace, or append")
@@ -174,8 +176,16 @@ class RabbitMQToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             import pandas as pd
             from sqlalchemy import create_engine
 
-            amqp_url = os.environ[_self.amqp_url_env_var]
-            db_url = os.environ[_self.database_url_env_var]
+            def _resolve(literal, env_var, name):
+                if literal:
+                    return literal
+                if env_var:
+                    if env_var not in os.environ:
+                        raise KeyError(f"Env var '{env_var}' (for {name}) is not set")
+                    return os.environ[env_var]
+                raise ValueError(f"Set either '{name}' or '{name}_env_var'")
+            amqp_url = _resolve(_self.amqp_url, _self.amqp_url_env_var, "amqp_url")
+            db_url = _resolve(_self.database_url, _self.database_url_env_var, "database_url")
             max_msgs = config.max_messages or _self.max_messages
 
             params = pika.URLParameters(amqp_url)

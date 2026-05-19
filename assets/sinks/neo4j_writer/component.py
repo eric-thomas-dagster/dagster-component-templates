@@ -148,18 +148,12 @@ class Neo4jWriterComponent(Component, Model, Resolvable):
     upstream_asset_key: str = Field(
         description="Asset key of the upstream DataFrame asset"
     )
-    uri_env_var: str = Field(
-        default="NEO4J_URI",
-        description="Environment variable containing the Neo4j connection URI",
-    )
-    username_env_var: str = Field(
-        default="NEO4J_USERNAME",
-        description="Environment variable containing the Neo4j username",
-    )
-    password_env_var: str = Field(
-        default="NEO4J_PASSWORD",
-        description="Environment variable containing the Neo4j password",
-    )
+    uri: Optional[str] = Field(default=None, description="Neo4j connection URI. Set this OR uri_env_var.")
+    uri_env_var: Optional[str] = Field(default="NEO4J_URI", description="Env var with Neo4j URI. Set this OR uri.")
+    username: Optional[str] = Field(default=None, description="Neo4j username. Set this OR username_env_var.")
+    username_env_var: Optional[str] = Field(default="NEO4J_USERNAME", description="Env var with Neo4j username. Set this OR username.")
+    password: Optional[str] = Field(default=None, description="Neo4j password. Set this OR password_env_var.")
+    password_env_var: Optional[str] = Field(default="NEO4J_PASSWORD", description="Env var with Neo4j password. Set this OR password.")
     node_label: str = Field(description="Neo4j node label to assign to created nodes")
     id_column: str = Field(
         description="DataFrame column to use as the node identity property for MERGE"
@@ -296,8 +290,11 @@ class Neo4jWriterComponent(Component, Model, Resolvable):
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
+        uri_literal = self.uri
         uri_env_var = self.uri_env_var
+        username_literal = self.username
         username_env_var = self.username_env_var
+        password_literal = self.password
         password_env_var = self.password_env_var
         node_label = self.node_label
         id_column = self.id_column
@@ -415,11 +412,16 @@ group_name=group_name,
             except ImportError:
                 raise ImportError("neo4j required: pip install neo4j")
 
-            uri = os.environ[uri_env_var]
-            driver = GraphDatabase.driver(
-                uri,
-                auth=(os.environ[username_env_var], os.environ[password_env_var]),
-            )
+            def _resolve(literal, env_var, name):
+                if literal:
+                    return literal
+                if env_var and env_var in os.environ:
+                    return os.environ[env_var]
+                raise EnvironmentError(f"Set either '{name}' or env var '{env_var}'")
+            uri = _resolve(uri_literal, uri_env_var, "uri")
+            username = _resolve(username_literal, username_env_var, "username")
+            password = _resolve(password_literal, password_env_var, "password")
+            driver = GraphDatabase.driver(uri, auth=(username, password))
 
             records = upstream.to_dict(orient="records")
             context.log.info(

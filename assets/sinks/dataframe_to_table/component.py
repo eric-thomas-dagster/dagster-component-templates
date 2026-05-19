@@ -131,9 +131,15 @@ class DataframeToTableComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     table_name: str = Field(description="Destination database table name")
-    database_url_env_var: str = Field(
+    database_url: Optional[str] = Field(
+        default=None,
+        description="SQLAlchemy database URL (e.g. 'postgres://user:pass@host/db'). "
+                    "Set this OR database_url_env_var.",
+    )
+    database_url_env_var: Optional[str] = Field(
         default="DATABASE_URL",
-        description="Environment variable containing the database connection URL",
+        description="Env var containing the SQLAlchemy database URL. "
+                    "Defaults to DATABASE_URL. Set this OR database_url.",
     )
     if_exists: str = Field(
         default="replace",
@@ -257,6 +263,7 @@ class DataframeToTableComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
         table_name = self.table_name
+        database_url = self.database_url
         database_url_env_var = self.database_url_env_var
         if_exists = self.if_exists
         schema = self.schema
@@ -373,7 +380,15 @@ group_name=group_name,
             except ImportError:
                 raise ImportError("sqlalchemy required: pip install sqlalchemy")
 
-            engine = sqlalchemy.create_engine(os.environ[database_url_env_var])
+            if database_url:
+                resolved_url = database_url
+            elif database_url_env_var and database_url_env_var in os.environ:
+                resolved_url = os.environ[database_url_env_var]
+            else:
+                raise EnvironmentError(
+                    f"Set either 'database_url' or env var '{database_url_env_var}'"
+                )
+            engine = sqlalchemy.create_engine(resolved_url)
 
             # Oracle's FLOAT type requires explicit binary_precision; SQLAlchemy
             # refuses to auto-create FLOAT columns against an Oracle dialect.

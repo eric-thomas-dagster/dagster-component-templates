@@ -1,0 +1,17 @@
+type: dagster_component_templates.WarehouseSummarizeComponent
+attributes:
+  asset_name: revenue_by_region
+  database_url: duckdb:///./warehouse.duckdb
+  dialect: duckdb
+  upstream_table: raw.orders
+  output_table: analytics.revenue_by_region
+  group_by:
+    - region
+    - product_category
+  aggregations:
+    revenue:        {col: total, agg: sum}
+    order_count:    {col: order_id, agg: count}
+    avg_order:      {col: total, agg: mean}
+  mode: replace
+  group_name: warehouse_native
+  deps: [raw_orders_in_warehouse]

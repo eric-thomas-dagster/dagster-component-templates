@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-05-16",
+  "last_updated": "2026-05-19",
   "components": [
     {
       "id": "ab_controls",
@@ -22158,6 +22158,37 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_nlp.md",
         "last_validated": "2026-05-08"
+      }
+    },
+    {
+      "id": "warehouse_summarize",
+      "name": "WarehouseSummarize",
+      "category": "transformation",
+      "description": "Group + aggregate inside the warehouse (CTAS pushdown). No data into Python.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/warehouse_summarize",
+      "tags": [
+        "transformation",
+        "warehouse",
+        "pushdown",
+        "sql",
+        "ctas"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sqlalchemy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_summarize/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_summarize/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_summarize/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_summarize/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_summarize/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-19"
       }
     }
   ],

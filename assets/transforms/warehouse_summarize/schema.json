@@ -1,0 +1,117 @@
+{
+  "component_type": "dagster_component_templates.WarehouseSummarizeComponent",
+  "description": "Group + aggregate inside the warehouse (CTAS pushdown). No data into Python.",
+  "category": "transformation",
+  "icon": "Database",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "table",
+      "required": true,
+      "description": "Source table in the warehouse (named by upstream_table)"
+    },
+    "outputs": {
+      "type": "table",
+      "description": "CTAS-produced table in the same warehouse"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name (the table this asset produces)",
+      "required": true
+    },
+    "database_url": {
+      "type": "string",
+      "label": "Database URL (literal)",
+      "description": "SQLAlchemy URL for the warehouse. Set this OR database_url_env_var."
+    },
+    "database_url_env_var": {
+      "type": "string",
+      "label": "Database URL Env Var",
+      "description": "Env var with the warehouse SQLAlchemy URL. Set this OR database_url."
+    },
+    "dialect": {
+      "type": "string",
+      "label": "SQL Dialect",
+      "description": "duckdb / postgres / snowflake / bigquery / redshift / databricks / mssql / mysql",
+      "enum": ["duckdb", "postgres", "postgresql", "snowflake", "bigquery", "redshift", "databricks", "mssql", "mysql"],
+      "required": true
+    },
+    "upstream_table": {
+      "type": "string",
+      "label": "Upstream Table",
+      "description": "Source table name (e.g. 'raw.orders')",
+      "required": true
+    },
+    "output_table": {
+      "type": "string",
+      "label": "Output Table",
+      "description": "Destination table name (e.g. 'analytics.revenue_by_region')",
+      "required": true
+    },
+    "group_by": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Group By",
+      "description": "Columns to group by",
+      "required": true
+    },
+    "aggregations": {
+      "type": "object",
+      "label": "Aggregations",
+      "description": "{out_col: agg_func} or {out_col: {col: <src>, agg: <func>}}. Supported aggs: sum, mean/avg, min, max, count, nunique.",
+      "required": true
+    },
+    "mode": {
+      "type": "string",
+      "label": "Mode",
+      "description": "replace (CREATE OR REPLACE) or create_if_not_exists",
+      "enum": ["replace", "create_if_not_exists"],
+      "default": "replace"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Asset Group",
+      "description": "Dagster asset group name"
+    },
+    "deps": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Dependencies",
+      "description": "Upstream Dagster asset keys (lineage only — no data passed at runtime)"
+    },
+    "owners": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Owners"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Kinds"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Emit a SELECT … LIMIT N preview as asset metadata after CTAS",
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows to include in the preview when include_preview_metadata is true",
+      "default": 25,
+      "minimum": 1,
+      "maximum": 200
+    }
+  }
+}

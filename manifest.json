@@ -9200,8 +9200,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/gcs_monitor/requirements.txt",
       "icon": "si:googlecloud",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "last_validated": "2026-05-19",
+        "evidence": "s3_pipeline.md"
       }
     },
     {
@@ -10953,9 +10954,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/imap_inbox_source/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/imap_inbox_source/requirements.txt",
       "validation": {
-        "level": "code",
-        "evidence": "",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "last_validated": "2026-05-19",
+        "evidence": "email_roundtrip.md"
       }
     },
     {
@@ -17571,8 +17572,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/s3_monitor/requirements.txt",
       "icon": "Radar",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "last_validated": "2026-05-19",
+        "evidence": "s3_pipeline.md"
       }
     },
     {
@@ -19075,9 +19077,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/smtp_send_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/smtp_send_asset/requirements.txt",
       "validation": {
-        "level": "code",
-        "evidence": "",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "last_validated": "2026-05-19",
+        "evidence": "email_roundtrip.md"
       }
     },
     {

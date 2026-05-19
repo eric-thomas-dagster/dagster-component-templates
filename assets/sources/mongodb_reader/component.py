@@ -144,9 +144,13 @@ class MongodbReaderComponent(Component, Model, Resolvable):
     """
 
     asset_name: str = Field(description="Name of the asset to create")
-    connection_string_env_var: str = Field(
+    connection_string: Optional[str] = Field(
+        default=None,
+        description="MongoDB connection string (literal). Set this OR connection_string_env_var.",
+    )
+    connection_string_env_var: Optional[str] = Field(
         default="MONGODB_URI",
-        description="Environment variable containing the MongoDB connection string",
+        description="Env var with the MongoDB connection string. Set this OR connection_string.",
     )
     database: str = Field(description="MongoDB database name")
     collection: str = Field(description="MongoDB collection name")
@@ -293,6 +297,7 @@ class MongodbReaderComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
+        connection_string_literal = self.connection_string
         connection_string_env_var = self.connection_string_env_var
         database = self.database
         collection = self.collection
@@ -402,7 +407,13 @@ group_name=group_name,
             except ImportError:
                 raise ImportError("pymongo required: pip install pymongo")
 
-            client = MongoClient(os.environ[connection_string_env_var])
+            if connection_string_literal:
+                conn = connection_string_literal
+            elif connection_string_env_var and connection_string_env_var in os.environ:
+                conn = os.environ[connection_string_env_var]
+            else:
+                raise EnvironmentError(f"Set either 'connection_string' or env var '{connection_string_env_var}'")
+            client = MongoClient(conn)
             db = client[database]
             coll = db[collection]
 

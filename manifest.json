@@ -4271,8 +4271,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dagstermill_notebook_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/dagstermill_notebook_asset/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "last_validated": "2026-05-19",
+        "evidence": "setup_notebooks_demo.sh"
       }
     },
     {
@@ -6182,9 +6183,9 @@
         "io_manager"
       ],
       "validation": {
-        "level": "code",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_io.md",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "last_validated": "2026-05-19",
+        "evidence": "setup_local_io_demo.sh"
       }
     },
     {
@@ -6721,9 +6722,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/duckdb_polars_io_manager/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/duckdb_polars_io_manager/requirements.txt",
       "validation": {
-        "level": "code",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_io.md",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "last_validated": "2026-05-19",
+        "evidence": "setup_local_io_demo.sh"
       }
     },
     {
@@ -11373,8 +11374,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/k8s_job_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/k8s_job_asset/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "last_validated": "2026-05-19",
+        "evidence": "setup_docker_container_demo.sh"
       }
     },
     {
@@ -11816,9 +11818,9 @@
         "io_manager"
       ],
       "validation": {
-        "level": "code",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_io.md",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "last_validated": "2026-05-19",
+        "evidence": "setup_local_io_demo.sh"
       }
     },
     {
@@ -12645,9 +12647,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_csv_io_manager/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_csv_io_manager/requirements.txt",
       "validation": {
-        "level": "code",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_io.md",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "last_validated": "2026-05-19",
+        "evidence": "setup_local_io_demo.sh"
       }
     },
     {
@@ -12675,9 +12677,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_json_io_manager/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/local_json_io_manager/requirements.txt",
       "validation": {
-        "level": "code",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_io.md",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "last_validated": "2026-05-19",
+        "evidence": "setup_local_io_demo.sh"
       }
     },
     {
@@ -15929,9 +15931,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/polars_io_manager/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/io_managers/polars_io_manager/requirements.txt",
       "validation": {
-        "level": "code",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_io.md",
-        "last_validated": "2026-05-11"
+        "level": "live",
+        "last_validated": "2026-05-19",
+        "evidence": "setup_local_io_demo.sh"
       }
     },
     {

@@ -21,7 +21,7 @@
     "mode":                 {"type": "string", "enum": ["replace","create_if_not_exists"], "default": "replace"},
 
     "steps":                {"type": "array", "items": {"type": "object"},
-                             "description": "Multi-step form. Each step: {id, source: {kind: table|ref|sql, ...}, operations: [...]}. Use 'ref' to consume an earlier step. Use 'op: sql' for raw-SQL escape (supports {{ self }} and {{ <step_id> }} placeholders)."},
+                             "description": "Multi-step form. Each step: {id, source: {kind: table|ref|sql, ...}, operations: [...]}. Use 'ref' to consume an earlier step. Use 'op: sql' for raw-SQL escape (supports <<self>> and <<step_id>> placeholders)."},
     "sinks":                {"type": "array", "items": {"type": "object"},
                              "description": "Multi-step form. Each sink: {from: <step_id>, table: 'schema.table', mode: replace|create_if_not_exists}."},
 

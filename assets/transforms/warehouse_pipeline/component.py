@@ -34,7 +34,7 @@ Two YAML shapes are supported, both compile to the same CTE-CTAS engine:
           source: {kind: ref, ref: paid_orders}
           operations:
             - {op: join, right: {ref: gold_customers}, on_columns: [customer_id]}
-            - {op: sql, sql: "SELECT *, amount * 0.15 AS commission FROM {{ self }}"}
+            - {op: sql, sql: "SELECT *, amount * 0.15 AS commission FROM <<self>>"}
             - {op: group_by, group_by: [region],
                aggregations: {revenue: {col: amount, agg: sum}}}
 
@@ -96,13 +96,18 @@ def _agg_expr(func: str, col: str, dialect: str) -> str:
 
 
 def _resolve_sql_template(sql: str, prev_ref: str, step_refs: Dict[str, str], dialect: str) -> str:
-    """Replace {{ self }} and {{ <step_id> }} placeholders with quoted CTE names."""
+    """Replace <<self>> and <<step_id>> placeholders with quoted CTE names.
+
+    Placeholder syntax is `<<name>>` (angle-bracket chevrons) — chosen so it
+    doesn't collide with Jinja `{{ ... }}`, which Dagster's component YAML
+    loader pre-renders before this component sees the value.
+    """
     out = sql
-    out = out.replace("{{ self }}", _quote(prev_ref, dialect))
-    out = out.replace("{{self}}", _quote(prev_ref, dialect))
+    out = out.replace("<<self>>", _quote(prev_ref, dialect))
+    out = out.replace("<< self >>", _quote(prev_ref, dialect))
     for sid, ref in step_refs.items():
-        out = out.replace(f"{{{{ {sid} }}}}", _quote(ref, dialect))
-        out = out.replace(f"{{{{{sid}}}}}", _quote(ref, dialect))
+        out = out.replace(f"<<{sid}>>", _quote(ref, dialect))
+        out = out.replace(f"<< {sid} >>", _quote(ref, dialect))
     return out
 
 
@@ -113,8 +118,10 @@ def _build_op_sql(prev_ref: str, op: Dict[str, Any], dialect: str,
     prev = _quote(prev_ref, dialect)
 
     if kind == "sql":
-        # Escape hatch. The user provides a raw SQL fragment using {{ self }}
-        # (this step's previous CTE) and/or {{ <step_id> }} (other step refs).
+        # Escape hatch. The user provides a raw SQL fragment using <<self>>
+        # (this step's previous CTE) and/or <<step_id>> (other step refs).
+        # Chevron syntax is used (not `{{ }}`) because Dagster pre-renders YAML
+        # through Jinja and would consume `{{ ... }}` before this code runs.
         # The SQL must be a single SELECT — it becomes the body of a CTE.
         sql = op.get("sql")
         if not sql or not isinstance(sql, str):
@@ -400,8 +407,8 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
     group_by / sort / limit / top_n / top_n_per_group / dedup / distinct /
     union / join / sql.
 
-    The `op: sql` body may reference `{{ self }}` (previous CTE in this
-    step) or `{{ <step_id> }}` (any earlier step's output).
+    The `op: sql` body may reference `<<self>>` (previous CTE in this
+    step) or `<<step_id>>` (any earlier step's output).
     """
 
     asset_name: str = Field(description="Output Dagster asset name")

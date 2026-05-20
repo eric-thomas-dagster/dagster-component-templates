@@ -58,7 +58,7 @@ attributes:
 #         - op: sql                      # ← escape hatch — anything the DSL can't model
 #           sql: |
 #             SELECT *, amount * 0.15 AS commission
-#             FROM {{ self }}            -- self = previous op's output in this step
+#             FROM <<self>>            -- self = previous op's output in this step
 #         - op: group_by
 #           group_by: [region]
 #           aggregations:

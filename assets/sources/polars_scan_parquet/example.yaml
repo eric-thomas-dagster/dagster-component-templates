@@ -1,0 +1,12 @@
+type: dagster_component_templates.PolarsScanParquetComponent
+attributes:
+  asset_name: paid_orders_recent
+  path: s3://bucket/orders/year=2026/*.parquet
+  columns: [order_id, customer_id, amount, status, created_at]
+  predicate: "status = 'paid' AND created_at >= '2026-01-01'"
+  storage_options:
+    aws_access_key_id: AKIA...
+    aws_secret_access_key: ...
+    region: us-east-1
+  output_type: polars
+  group_name: ingestion

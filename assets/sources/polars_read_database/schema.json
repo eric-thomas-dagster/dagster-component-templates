@@ -1,0 +1,31 @@
+{
+  "component_type": "dagster_component_templates.PolarsReadDatabaseComponent",
+  "description": "Execute SQL against a database, return polars (compute pushed down via the SQL query itself).",
+  "category": "source",
+  "icon": "Database",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "Polars or pandas DataFrame from the query result set"
+    }
+  },
+  "attributes": {
+    "asset_name":            {"type": "string", "required": true, "label": "Asset Name"},
+    "query":                 {"type": "string", "required": true, "label": "SQL Query",
+                              "description": "Database-side SQL — write WHERE / joins / aggregations IN the query for pushdown."},
+    "connection_uri":        {"type": "string", "label": "Connection URI (literal)",
+                              "description": "Set this OR connection_uri_env_var."},
+    "connection_uri_env_var": {"type": "string", "label": "Connection URI Env Var",
+                               "description": "Set this OR connection_uri."},
+    "output_type":           {"type": "string", "label": "Output Type", "enum": ["polars", "pandas"], "default": "polars"},
+    "engine":                {"type": "string", "label": "Read Engine", "enum": ["connectorx", "adbc"], "default": "connectorx"},
+    "group_name":            {"type": "string", "label": "Asset Group"},
+    "description":           {"type": "string"},
+    "asset_tags":            {"type": "object"},
+    "kinds":                 {"type": "array", "items": {"type": "string"}},
+    "owners":                {"type": "array", "items": {"type": "string"}},
+    "deps":                  {"type": "array", "items": {"type": "string"}},
+    "include_preview_metadata": {"type": "boolean", "default": false},
+    "preview_rows":          {"type": "integer", "default": 25, "minimum": 1, "maximum": 500}
+  }
+}

@@ -22190,6 +22190,100 @@
         "level": "code",
         "last_validated": "2026-05-19"
       }
+    },
+    {
+      "id": "polars_pipeline",
+      "name": "PolarsPipeline",
+      "category": "transformation",
+      "description": "Multi-step polars LazyFrame chain in a single Dagster asset (query-plan fusion + parallelism).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/polars_pipeline",
+      "tags": [
+        "transformation",
+        "polars",
+        "lazy",
+        "pushdown",
+        "pipeline"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "polars"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/polars_pipeline/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/polars_pipeline/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/polars_pipeline/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/polars_pipeline/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/polars_pipeline/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-19"
+      }
+    },
+    {
+      "id": "polars_scan_parquet",
+      "name": "PolarsScanParquet",
+      "category": "source",
+      "description": "Read parquet via polars's lazy scanner with predicate + column pushdown.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sources/polars_scan_parquet",
+      "tags": [
+        "source",
+        "polars",
+        "parquet",
+        "pushdown",
+        "lazy"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "polars"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/polars_scan_parquet/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/polars_scan_parquet/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/polars_scan_parquet/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/polars_scan_parquet/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/polars_scan_parquet/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-19"
+      }
+    },
+    {
+      "id": "polars_read_database",
+      "name": "PolarsReadDatabase",
+      "category": "source",
+      "description": "Execute SQL against a database, return polars (compute pushed down via the SQL query itself).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sources/polars_read_database",
+      "tags": [
+        "source",
+        "polars",
+        "sql",
+        "pushdown",
+        "database"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "polars",
+          "connectorx"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/polars_read_database/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/polars_read_database/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/polars_read_database/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/polars_read_database/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/polars_read_database/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-19"
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

@@ -1,0 +1,23 @@
+type: dagster_component_templates.PolarsPipelineComponent
+attributes:
+  asset_name: top_customers_by_region
+  upstream_asset_key: raw_orders
+  operations:
+    - op: filter
+      predicate: "status = 'paid'"
+    - op: with_columns
+      expressions:
+        net_amount: "amount - tax"
+    - op: group_by
+      group_by: [region, customer_id]
+      aggregations:
+        total:       {col: net_amount, agg: sum}
+        order_count: {col: order_id,   agg: count}
+    - op: sort
+      by: [region, total]
+      descending: [false, true]
+    - op: head_per_group
+      group_by: [region]
+      n: 5
+  output_type: polars
+  group_name: analytics

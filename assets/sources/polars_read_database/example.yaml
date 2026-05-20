@@ -1,0 +1,10 @@
+type: dagster_component_templates.PolarsReadDatabaseComponent
+attributes:
+  asset_name: paid_orders_q1
+  connection_uri: postgresql://user:pass@localhost:5432/orders
+  query: |
+    SELECT order_id, customer_id, amount, status, created_at
+    FROM raw.orders
+    WHERE status = 'paid' AND created_at >= '2026-01-01'
+  output_type: polars
+  group_name: ingestion

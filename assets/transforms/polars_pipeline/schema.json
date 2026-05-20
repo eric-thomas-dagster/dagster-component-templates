@@ -1,0 +1,32 @@
+{
+  "component_type": "dagster_component_templates.PolarsPipelineComponent",
+  "description": "Multi-step polars LazyFrame chain in a single Dagster asset (query-plan fusion + parallelism).",
+  "category": "transformation",
+  "icon": "Workflow",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Upstream DataFrame (pandas or polars)"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Polars or pandas DataFrame after the chain"
+    }
+  },
+  "attributes": {
+    "asset_name":          {"type": "string", "required": true, "label": "Asset Name"},
+    "upstream_asset_key":  {"type": "string", "required": true, "label": "Upstream Asset Key"},
+    "operations":          {"type": "array",  "required": true, "label": "Operations", "items": {"type": "object"}, "description": "Ordered list of polars ops applied as one lazy chain."},
+    "output_type":         {"type": "string", "label": "Output Type", "enum": ["polars", "pandas"], "default": "polars"},
+    "streaming":           {"type": "boolean", "label": "Streaming", "default": false},
+    "group_name":          {"type": "string", "label": "Asset Group"},
+    "description":         {"type": "string"},
+    "asset_tags":          {"type": "object"},
+    "kinds":               {"type": "array", "items": {"type": "string"}},
+    "owners":              {"type": "array", "items": {"type": "string"}},
+    "deps":                {"type": "array", "items": {"type": "string"}},
+    "include_preview_metadata": {"type": "boolean", "default": false},
+    "preview_rows":        {"type": "integer", "default": 25, "minimum": 1, "maximum": 500}
+  }
+}

@@ -1,0 +1,19 @@
+type: dagster_component_templates.SnowflakeSnowpipeComponent
+attributes:
+  asset_name: orders_pipe
+  pipe_name: ORDERS_PIPE
+  account: "{{ env('SNOWFLAKE_ACCOUNT') }}"
+  user:    "{{ env('SNOWFLAKE_USER') }}"
+  authenticator: SNOWFLAKE_JWT
+  private_key_file: "{{ env('SNOWFLAKE_PRIVATE_KEY_FILE') }}"
+  warehouse: COMPUTE_WH
+  database: DAGSTER_DEMO
+  schema_name: STAGING
+  auto_ingest: false
+  copy_statement: |
+    COPY INTO DAGSTER_DEMO.STAGING.ORDERS_INGESTED
+    FROM @DAGSTER_DEMO.STAGING.INTERNAL_STAGE
+    FILE_FORMAT = (TYPE = CSV SKIP_HEADER = 1)
+    ON_ERROR = 'CONTINUE'
+  on_materialize: refresh
+  group_name: snowflake_ops

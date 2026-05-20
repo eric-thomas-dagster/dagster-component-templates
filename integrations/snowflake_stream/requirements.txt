@@ -1,0 +1,2 @@
+snowflake-connector-python>=3.7.0
+dagster>=1.7.0

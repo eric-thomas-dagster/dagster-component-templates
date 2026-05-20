@@ -1,0 +1,16 @@
+type: dagster_component_templates.SnowflakeDynamicTableComponent
+attributes:
+  asset_name: paid_orders_dt
+  dt_name: PAID_ORDERS_DT
+  account: "{{ env('SNOWFLAKE_ACCOUNT') }}"
+  user:    "{{ env('SNOWFLAKE_USER') }}"
+  authenticator: SNOWFLAKE_JWT
+  private_key_file: "{{ env('SNOWFLAKE_PRIVATE_KEY_FILE') }}"
+  warehouse: COMPUTE_WH
+  database: DAGSTER_DEMO
+  schema_name: STAGING
+  target_lag: "5 minutes"
+  initialize: ON_SCHEDULE
+  sql: |
+    SELECT * FROM DAGSTER_DEMO.RAW.ORDERS WHERE STATUS IN ('paid', 'delivered')
+  group_name: snowflake_ops

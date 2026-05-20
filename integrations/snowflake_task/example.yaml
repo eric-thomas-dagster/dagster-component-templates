@@ -1,0 +1,20 @@
+type: dagster_component_templates.SnowflakeTaskComponent
+attributes:
+  asset_name: daily_orders_rollup
+  task_name: DAILY_ORDERS_ROLLUP
+  account: "{{ env('SNOWFLAKE_ACCOUNT') }}"
+  user:    "{{ env('SNOWFLAKE_USER') }}"
+  authenticator: SNOWFLAKE_JWT
+  private_key_file: "{{ env('SNOWFLAKE_PRIVATE_KEY_FILE') }}"
+  warehouse: COMPUTE_WH
+  database: DAGSTER_DEMO
+  schema_name: STAGING
+  schedule: "USING CRON 0 2 * * * UTC"
+  sql: |
+    INSERT INTO DAGSTER_DEMO.ANALYTICS.DAILY_REVENUE
+    SELECT DATE(ORDER_DATE), REGION, COUNT(*), SUM(TOTAL)
+    FROM DAGSTER_DEMO.RAW.ORDERS
+    WHERE DATE(ORDER_DATE) = DATEADD('day', -1, CURRENT_DATE())
+    GROUP BY 1, 2
+  on_materialize: execute
+  group_name: snowflake_ops

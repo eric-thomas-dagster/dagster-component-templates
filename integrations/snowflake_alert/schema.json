@@ -1,0 +1,26 @@
+{
+  "component_type": "dagster_component_templates.SnowflakeAlertComponent",
+  "description": "Define a Snowflake ALERT (scheduled conditional action). Materialization runs CREATE OR REPLACE ALERT and resumes it.",
+  "category": "integration",
+  "icon": "Snowflake",
+  "attributes": {
+    "asset_name": {"type": "string", "required": true},
+    "account":    {"type": "string", "required": true},
+    "user":       {"type": "string", "required": true},
+    "database":   {"type": "string", "required": true},
+    "schema_name":{"type": "string", "required": true},
+    "warehouse":  {"type": "string"},
+    "role":       {"type": "string"},
+    "password":   {"type": "string"},
+    "authenticator": {"type": "string", "description": "SNOWFLAKE_JWT | externalbrowser | PROGRAMMATIC_ACCESS_TOKEN | oauth"},
+    "private_key_file": {"type": "string"},
+    "private_key_file_pwd": {"type": "string"},
+    "token":      {"type": "string"},
+    "group_name": {"type": "string"},
+    "description":{"type": "string"},
+    "asset_tags": {"type": "object"},
+    "kinds":      {"type": "array", "items": {"type": "string"}},
+    "owners":     {"type": "array", "items": {"type": "string"}},
+    "deps":       {"type": "array", "items": {"type": "string"}}
+  }
+}

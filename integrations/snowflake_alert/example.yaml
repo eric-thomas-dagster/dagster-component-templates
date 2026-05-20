@@ -1,0 +1,20 @@
+type: dagster_component_templates.SnowflakeAlertComponent
+attributes:
+  asset_name: high_revenue_alert
+  alert_name: HIGH_REVENUE_DAY_ALERT
+  account: "{{ env('SNOWFLAKE_ACCOUNT') }}"
+  user:    "{{ env('SNOWFLAKE_USER') }}"
+  authenticator: SNOWFLAKE_JWT
+  private_key_file: "{{ env('SNOWFLAKE_PRIVATE_KEY_FILE') }}"
+  warehouse: COMPUTE_WH
+  database: DAGSTER_DEMO
+  schema_name: STAGING
+  schedule: "60 minute"
+  condition_sql: |
+    SELECT 1 FROM DAGSTER_DEMO.ANALYTICS.DAILY_REVENUE
+    WHERE REVENUE_DATE = DATEADD('day', -1, CURRENT_DATE()) AND REVENUE > 50000
+  action_sql: |
+    INSERT INTO DAGSTER_DEMO.ANALYTICS.ALERT_LOG
+    VALUES (CURRENT_TIMESTAMP(), 'high_revenue_day', 'Yesterday exceeded $50k')
+  on_materialize: resume
+  group_name: snowflake_ops

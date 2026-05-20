@@ -1,0 +1,17 @@
+type: dagster_component_templates.SnowflakeMaterializedViewComponent
+attributes:
+  asset_name: customer_ltv_mv
+  mv_name: CUSTOMER_LIFETIME_VALUE_MV
+  account: "{{ env('SNOWFLAKE_ACCOUNT') }}"
+  user:    "{{ env('SNOWFLAKE_USER') }}"
+  authenticator: SNOWFLAKE_JWT
+  private_key_file: "{{ env('SNOWFLAKE_PRIVATE_KEY_FILE') }}"
+  warehouse: COMPUTE_WH
+  database: DAGSTER_DEMO
+  schema_name: STAGING
+  sql: |
+    SELECT CUSTOMER_ID, SUM(TOTAL) AS LIFETIME_REVENUE
+    FROM DAGSTER_DEMO.RAW.ORDERS
+    WHERE STATUS IN ('paid', 'delivered')
+    GROUP BY CUSTOMER_ID
+  group_name: snowflake_ops

@@ -1,0 +1,27 @@
+type: dagster_component_templates.SnowflakeStoredProcedureComponent
+attributes:
+  asset_name: sp_recompute_tiers
+  procedure_name: SP_RECOMPUTE_TIERS
+  account: "{{ env('SNOWFLAKE_ACCOUNT') }}"
+  user:    "{{ env('SNOWFLAKE_USER') }}"
+  authenticator: SNOWFLAKE_JWT
+  private_key_file: "{{ env('SNOWFLAKE_PRIVATE_KEY_FILE') }}"
+  warehouse: COMPUTE_WH
+  database: DAGSTER_DEMO
+  schema_name: STAGING
+  language: SQL
+  returns: VARCHAR
+  body: |
+    $$
+    BEGIN
+      UPDATE DAGSTER_DEMO.RAW.CUSTOMERS
+      SET TIER = CASE
+        WHEN LIFETIME_VALUE > 5000 THEN 'platinum'
+        WHEN LIFETIME_VALUE > 2000 THEN 'gold'
+        ELSE 'bronze'
+      END;
+      RETURN 'Tiers recomputed';
+    END;
+    $$
+  on_materialize: call
+  group_name: snowflake_ops

@@ -92,7 +92,7 @@ class WarehouseJoinComponent(Component, Model, Resolvable):
           right_table: raw.customers
           output_table: analytics.orders_with_customers
           how: left
-          on: [customer_id]
+          on_columns: [customer_id]
           select_cols:
             - _l.order_id
             - _l.amount
@@ -111,7 +111,14 @@ class WarehouseJoinComponent(Component, Model, Resolvable):
     right_table: str = Field(description="Right-side table name (aliased as _r in select_cols)")
     output_table: str = Field(description="Destination table name")
     how: str = Field(default="inner", description=f"Join type: one of {sorted(_VALID_HOWS)}")
-    on: Optional[List[str]] = Field(default=None, description="Join columns (same name on both sides)")
+    on_columns: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Join columns (same name on both sides). NB: this is named "
+            "`on_columns` rather than `on` because YAML 1.1 parses `on:` as "
+            "a boolean (True), breaking schema validation."
+        ),
+    )
     left_on: Optional[List[str]] = Field(default=None, description="Left join columns (when names differ)")
     right_on: Optional[List[str]] = Field(default=None, description="Right join columns (when names differ)")
     select_cols: Optional[List[str]] = Field(
@@ -155,7 +162,7 @@ class WarehouseJoinComponent(Component, Model, Resolvable):
         right_table = self.right_table
         output_table = self.output_table
         how = self.how.lower()
-        on = list(self.on) if self.on else None
+        on_columns = list(self.on_columns) if self.on_columns else None
         left_on = list(self.left_on) if self.left_on else None
         right_on = list(self.right_on) if self.right_on else None
         select_cols = list(self.select_cols) if self.select_cols else None
@@ -180,12 +187,12 @@ class WarehouseJoinComponent(Component, Model, Resolvable):
         def _warehouse_join_asset(context: AssetExecutionContext):
             import sqlalchemy
             engine = sqlalchemy.create_engine(resolve_url())
-            sql = _ctas_join(output_table, left_table, right_table, how, on, left_on, right_on,
+            sql = _ctas_join(output_table, left_table, right_table, how, on_columns, left_on, right_on,
                              select_cols, mode, dialect)
             with engine.begin() as conn:
                 if sql is None:
                     conn.exec_driver_sql(f"DROP TABLE IF EXISTS {_quote(output_table, dialect)}")
-                    sql = _ctas_join(output_table, left_table, right_table, how, on, left_on, right_on,
+                    sql = _ctas_join(output_table, left_table, right_table, how, on_columns, left_on, right_on,
                                      select_cols, "create_if_not_exists", dialect)
                 context.log.info(f"CTAS: {sql}")
                 conn.exec_driver_sql(sql)

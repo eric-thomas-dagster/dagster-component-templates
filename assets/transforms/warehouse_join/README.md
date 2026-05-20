@@ -16,7 +16,7 @@ attributes:
   right_table: raw.customers
   output_table: analytics.orders_with_customers
   how: left                    # inner | left | right | outer/full | cross
-  on: [customer_id]            # OR use left_on + right_on
+  on_columns: [customer_id]    # OR use left_on + right_on. NB: not `on:` — YAML 1.1 parses bare `on` as boolean
   select_cols:                 # optional projection — use _l. / _r. to disambiguate
     - _l.order_id
     - _l.amount

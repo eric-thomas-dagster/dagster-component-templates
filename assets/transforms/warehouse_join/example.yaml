@@ -7,7 +7,7 @@ attributes:
   right_table: raw.customers
   output_table: analytics.orders_with_customers
   how: left
-  on: [customer_id]
+  on_columns: [customer_id]      # NB: not `on:` — YAML 1.1 parses bare `on` as boolean
   select_cols:
     - _l.order_id
     - _l.amount

@@ -196,24 +196,25 @@ class SnowparkPipelineComponent(Component, Model, Resolvable):
         return "Multi-step Snowpark DataFrame chain — full compute pushdown to Snowflake."
 
     def _resolve_connection(self) -> Dict[str, Any]:
+        """Resolve any `<key>_env_var: NAME` to `<key>: <env-value>` so all
+        connection fields (account/user/password/role/warehouse/private_key/
+        authenticator/token/...) can be sourced from env vars uniformly.
+        Literal values pass through unchanged."""
         import os
         params = dict(self.connection)
-        # Resolve password_env_var → password
-        if "password_env_var" in params and "password" not in params:
-            env_var = params.pop("password_env_var")
-            pw = os.environ.get(env_var)
-            if not pw:
-                raise EnvironmentError(f"Env var {env_var!r} (password) is not set")
-            params["password"] = pw
-        # Similarly for private_key, authenticator, etc. if env-var-named.
-        for kv in ("private_key_env_var", "private_key_passphrase_env_var", "authenticator_env_var"):
-            if kv in params:
-                base = kv.replace("_env_var", "")
-                env_var = params.pop(kv)
-                val = os.environ.get(env_var)
-                if not val:
-                    raise EnvironmentError(f"Env var {env_var!r} ({base}) is not set")
-                params[base] = val
+        for kv in list(params.keys()):
+            if not kv.endswith("_env_var"):
+                continue
+            base = kv[: -len("_env_var")]
+            if base in params:
+                # Both `<base>` and `<base>_env_var` set — literal wins, drop the env-var key.
+                params.pop(kv)
+                continue
+            env_var = params.pop(kv)
+            val = os.environ.get(env_var)
+            if not val:
+                raise EnvironmentError(f"Env var {env_var!r} (for {base}) is not set")
+            params[base] = val
         return params
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:

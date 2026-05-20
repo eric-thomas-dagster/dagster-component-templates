@@ -191,9 +191,12 @@ class PySparkPipelineComponent(Component, Model, Resolvable):
     """
 
     asset_name: str = Field(description="Output Dagster asset name")
-    spark_config: Optional[Dict[str, str]] = Field(
+    spark_config: Optional[Dict[str, Any]] = Field(
         default=None,
-        description="SparkConf options. Set `spark.master` to 'local[*]' for local execution.",
+        description=(
+            "SparkConf options (values stringified before passing to .config(...)). "
+            "Set `spark.master` to 'local[*]' for local execution."
+        ),
     )
     spark_app_name: str = Field(default="dagster-pyspark-pipeline", description="Spark application name")
     source: Dict[str, Any] = Field(description="Source spec: {kind: parquet|csv|json|orc|delta|table|jdbc|upstream, ...}")
@@ -263,7 +266,7 @@ def _execute(context, spark_config, spark_app_name, source, operations, sink, up
 
     builder = SparkSession.builder.appName(spark_app_name)
     for k, v in (spark_config or {}).items():
-        builder = builder.config(k, v)
+        builder = builder.config(k, str(v))  # Spark's .config accepts str, stringify whatever YAML gave us
     spark = builder.getOrCreate()
 
     try:

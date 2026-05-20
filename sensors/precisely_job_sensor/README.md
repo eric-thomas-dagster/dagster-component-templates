@@ -1,49 +1,154 @@
 # Precisely Job Sensor
 
-Polls Precisely Job and triggers a Dagster job when a sync or job completes successfully.
+Fires a Dagster `RunRequest` when a [Precisely Connect ETL](https://www.precisely.com/product/precisely-connect/connect) job run reaches a terminal SUCCESS status. Precisely owns the schedule; Dagster reacts.
 
 ## What this does
 
 On each tick, the sensor:
-1. Calls the Precisely Job API to check the latest job or sync status
-2. Compares against its stored cursor to detect new completions
-3. Fires a `RunRequest` for the configured `job_name` on success
-4. Updates the cursor so the same completion never triggers twice
 
-## Fields
+1. Resolves which Connect ETL run to watch (a fixed `job_run_id`, or the latest run of a `job_id`)
+2. Calls the documented Job Status endpoint (`GET /projects/{jobRunId}/status`)
+3. If status is `COMPLETED` / `COMPLETED_WITH_WARNINGS`, fires a `RunRequest` for the configured `job_name`
+4. Updates the sensor cursor so the same completion never triggers twice
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `sensor_name` | `str` | `**required**` | Unique sensor name |
-| `job_id` | `str` | `**required**` | Precisely Connect job ID to monitor |
-| `job_name` | `str` | `**required**` | Dagster job to trigger when Precisely run completes |
-| `host_env_var` | `Optional[str]` | `None` | Env var with Precisely Connect host URL |
-| `api_token_env_var` | `Optional[str]` | `None` | Env var with Precisely API token |
-| `resource_key` | `Optional[str]` | `None` | Key of a PreciselyResource |
-| `minimum_interval_seconds` | `int` | `60` | Seconds between polls |
-| `default_status` | `str` | `"running"` | running or stopped |
+## Two operating modes
 
-## Example
+### Mode A — watch a fixed run-id (verified API)
+
+Pass `job_run_id` for a known Precisely run-id (typically captured from `precisely_run_asset`'s materialization metadata or from an upstream system that submitted the job). The sensor only hits the **documented and verified** Job Status endpoint:
 
 ```yaml
 type: dagster_component_templates.PreciselyJobSensorComponent
 attributes:
-  sensor_name: my_sensor_name
-  job_id: my_job_id
-  job_name: my_job_name
-  # host_env_var: None  # optional
-  # api_token_env_var: None  # optional
-  # resource_key: None  # optional
-  # minimum_interval_seconds: 60  # optional
-  # default_status: "running"  # optional
+  sensor_name: precisely_etl_done
+  job_run_id: "abc-123-def-456"
+  host_env_var: PRECISELY_HOST
+  api_token_env_var: PRECISELY_API_TOKEN
+  job_name: downstream_processing_job
 ```
+
+**This is the safe default for production.**
+
+### Mode B — watch the latest run of a job (unverified list-runs path)
+
+Pass `job_id` to make the sensor list recent runs of that job and watch whichever one is most recent. The list-runs endpoint is **not** in Precisely's public REST docs — the component falls back to a best-guess RESTful shape (`GET /api/v1/jobs/{job_id}/runs?limit=1&sort=-startTime`). Override `list_runs_path_template` if your install uses a different path:
+
+```yaml
+type: dagster_component_templates.PreciselyJobSensorComponent
+attributes:
+  sensor_name: precisely_etl_done
+  job_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  list_runs_path_template: "/api/v1/jobs/{job_id}/runs"   # validate vs your install
+  host_env_var: PRECISELY_HOST
+  api_token_env_var: PRECISELY_API_TOKEN
+  job_name: downstream_processing_job
+```
+
+Once Mode B finds the latest run-id, it polls the same **verified** Job Status endpoint as Mode A. Only the list-runs step is unverified.
+
+## Connection: env vars OR resource
+
+| Field | Type | Description |
+|---|---|---|
+| `host_env_var` | `str` | Env var with the Connect ETL host URL |
+| `api_token_env_var` | `str` | Env var with the Precisely API token (sent as `Authorization: Bearer …`) |
+| `resource_key` | `str` | Alternative: key of a shared `PreciselyResource` defined elsewhere |
+
+## Fields
+
+### Required
+
+| Field | Type | Description |
+|---|---|---|
+| `sensor_name` | `str` | Unique sensor name |
+| `job_name` | `str` | Dagster job to trigger when the Precisely run reaches terminal SUCCESS |
+
+### Mode (pick one of these)
+
+| Field | Type | Description |
+|---|---|---|
+| `job_run_id` | `str` | (Mode A) Specific Connect ETL run-id to watch. Uses only the verified Job Status endpoint. |
+| `job_id` | `str` | (Mode B) Precisely Connect job ID to watch. Sensor lists recent runs and picks the newest. |
+
+If both are set, `job_run_id` wins and `job_id` is ignored.
+
+### Connection (pick env-var pair OR resource_key)
+
+| Field | Type | Description |
+|---|---|---|
+| `host_env_var` | `str` | Env var with the Connect ETL host URL |
+| `api_token_env_var` | `str` | Env var with the Precisely API token |
+| `resource_key` | `str` | Key of a `PreciselyResource` (alternative to env vars) |
+
+### Tuning
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `minimum_interval_seconds` | `int` | `60` | Seconds between polls |
+| `default_status` | `str` | `"running"` | `running` (start on deploy) or `stopped` (require manual toggle) |
+| `list_runs_path_template` | `str` | `/api/v1/jobs/{job_id}/runs` | Mode B only — override if your install's list-runs path differs. `{job_id}` is replaced at request time. |
+
+## Status enum (returned as plain text)
+
+Per the [public REST docs](https://help.precisely.com/r/Connect-ETL/pub/Latest/en-US/Connect-ETL-Rest-API-Reference/Job-Status):
+
+| Category | Statuses |
+|---|---|
+| **Terminal SUCCESS** (fires `RunRequest`) | `COMPLETED`, `COMPLETED_WITH_WARNINGS` |
+| **Terminal FAIL** (skips with reason) | `COMPLETED_WITH_ERRORS`, `CANCELLED`, `ERRORED`, `LOST_CONTACT` |
+| **In-progress** (skips with status) | `WAITING`, `RUNNING` |
 
 ## Cursor and deduplication
 
-The sensor uses a cursor to track which completions have already been processed. Each `RunRequest` is issued with a unique `run_key`, preventing duplicate pipeline runs if the sensor ticks multiple times while a job is still running.
+The sensor uses the **run-id** as its cursor. Each `RunRequest` is issued with `run_key=run_id`, so:
+
+- The same successful run never fires the downstream job twice, even if the sensor ticks while the run is still on Precisely's history
+- Dagster's per-`run_key` dedup is the safety net even if the cursor logic ever drifts
+
+In Mode B (latest-run watch), when Precisely starts a new run-id, that new id replaces the old cursor on success — so the sensor stays one-step-per-Precisely-run.
+
+## Run config passed to the triggered job
+
+The downstream job receives this `run_config` under `ops.config`:
+
+```yaml
+ops:
+  config:
+    precisely_job_id: <job id or "" in Mode A>
+    precisely_job_run_id: <the run id that just completed>
+    precisely_status: <COMPLETED or COMPLETED_WITH_WARNINGS>
+```
+
+Read in your op:
+
+```python
+@op
+def downstream_op(context):
+    run_id = context.op_config["precisely_job_run_id"]
+    status = context.op_config["precisely_status"]
+    ...
+```
+
+## Pairing with `precisely_run_asset`
+
+The two components compose cleanly when Dagster owns the schedule:
+
+```
+precisely_run_asset (Dagster triggers + waits)
+        ↓ run_id appears in materialization metadata
+        ↓
+downstream Dagster assets (auto-triggered via AutomationCondition)
+```
+
+You only need `precisely_job_sensor` when **Precisely owns the schedule** (Dagster has to discover that a run already happened, rather than starting it).
 
 ## Requirements
 
 ```
 requests>=2.28.0
 ```
+
+## See also
+
+- [`precisely_run_asset`](../../assets/infrastructure/precisely_run_asset/) — Dagster-driven Precisely job execution (opposite direction — Dagster triggers, Precisely runs)
+- [`precisely_validation.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/precisely_validation.md) — what's verified against Precisely's public REST docs and what's best-guess

@@ -127,7 +127,11 @@ class DataframeUnion(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_keys: List[str] = Field(description="List of asset keys to union")
-    ignore_index: bool = Field(default=True, description="Reset row index after concat")
+    backend: str = Field(
+        default="pandas",
+        description="'pandas' (default) or 'polars'. Polars uses pl.concat(how='diagonal_relaxed'/'vertical') and returns a polars DataFrame.",
+    )
+    ignore_index: bool = Field(default=True, description="Reset row index after concat (pandas only — polars has no index)")
     join: str = Field(default="outer", description="'outer' (keep all columns) or 'inner' (only common columns)")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
@@ -321,11 +325,23 @@ class DataframeUnion(Component, Model, Resolvable):
 
         owners = self.owners or []
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
+        backend = (self.backend or "pandas").lower()
+        if backend not in ("pandas", "polars"):
+            raise ValueError(f"backend must be 'pandas' or 'polars', got {self.backend!r}")
 
 
         @asset(partitions_def=partitions_def, name=asset_name, ins=ins, group_name=group_name, retry_policy=_retry_policy, freshness_policy=_freshness_policy, owners=self.owners or [], tags=_all_tags, deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])])
-        def _asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, **kwargs) -> Any:
+            try:
+                import polars as pl
+            except Exception:
+                pl = None  # type: ignore
             dfs = list(kwargs.values())
+            # Normalize all inputs to pandas first (covers mixed inputs)
+            if pl is not None:
+                dfs = [d.to_pandas() if isinstance(d, pl.DataFrame) else d for d in dfs]
+            # Union runs in pandas regardless of backend (cheap op + uniform metadata path).
+            # If backend=polars, convert at the end to preserve type for downstream chains.
             result = pd.concat(dfs, ignore_index=ignore_index, join=join)
 
             # Per-partition row filter (rare for a union, but supported for symmetry)
@@ -378,6 +394,11 @@ class DataframeUnion(Component, Model, Resolvable):
                 except Exception as _e:
                     context.log.warning(f"preview emission failed: {_e}")
             context.add_output_metadata(_metadata)
+            # If polars output requested, convert the union result.
+            if backend == "polars":
+                if pl is None:
+                    raise ImportError("polars backend requested but `polars` is not installed.")
+                return pl.from_pandas(result)
             return result
 
         from dagster import build_column_schema_change_checks

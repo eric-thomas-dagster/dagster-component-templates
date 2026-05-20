@@ -1,0 +1,11 @@
+type: dagster_component_templates.WarehouseFilterComponent
+attributes:
+  asset_name: paid_orders
+  database_url: snowflake://user:pass@account/db/schema?warehouse=COMPUTE_WH
+  dialect: snowflake
+  upstream_table: raw.orders
+  output_table: analytics.paid_orders
+  predicate: "status = 'paid' AND amount > 100"
+  mode: replace
+  group_name: warehouse_native
+  deps: [raw_orders_in_warehouse]

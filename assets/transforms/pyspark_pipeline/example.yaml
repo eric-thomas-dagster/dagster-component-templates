@@ -1,0 +1,28 @@
+type: dagster_component_templates.PySparkPipelineComponent
+attributes:
+  asset_name: paid_orders_summary
+  spark_config:
+    spark.master: "local[*]"
+    spark.sql.shuffle.partitions: "4"
+  spark_app_name: dagster-orders-summary
+  source:
+    kind: parquet
+    path: data/orders.parquet
+  operations:
+    - op: filter
+      predicate: "status = 'paid' AND amount > 100"
+    - op: group_by
+      group_by: [region, customer_id]
+      aggregations:
+        total:       {col: amount,   agg: sum}
+        order_count: {col: order_id, agg: count}
+    - op: sort
+      by: [total]
+      descending: true
+    - op: limit
+      n: 100
+  sink:
+    kind: parquet
+    path: data/paid_orders_summary
+    mode: overwrite
+  group_name: pyspark_pipeline_demo

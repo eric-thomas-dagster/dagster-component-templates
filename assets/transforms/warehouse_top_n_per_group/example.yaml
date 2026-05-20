@@ -1,0 +1,15 @@
+type: dagster_component_templates.WarehouseTopNPerGroupComponent
+attributes:
+  asset_name: top_3_products_per_category
+  database_url: snowflake://user:pass@account/db/schema?warehouse=COMPUTE_WH
+  dialect: snowflake
+  upstream_table: raw.products
+  output_table: analytics.top_3_products_per_category
+  group_by: [category]
+  sort_by: revenue
+  n: 3
+  ascending: false
+  rank_column: rank
+  mode: replace
+  group_name: warehouse_native
+  deps: [raw_products_in_warehouse]

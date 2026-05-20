@@ -1,0 +1,73 @@
+# PySpark Pipeline
+
+Single-asset multi-step PySpark DataFrame chain. The whole chain becomes ONE Catalyst logical plan that runs when the sink is written — predicate pushdown to source readers (parquet column stats, JDBC `WHERE`), filter fusion, projection pruning, parallel execution across the Spark cluster.
+
+## When to use
+
+- The job is big enough to benefit from Spark's distributed execution
+- You want Catalyst's optimizer to plan the whole sequence
+- Source/sink is anything Spark can read/write (parquet, csv, json, delta, hive table, JDBC, …)
+- You're running on a Spark cluster (or `local[*]` for development/CI)
+
+For small frames or single-machine work, `polars_pipeline` is lighter weight. For warehouse-side compute on Snowflake/BigQuery, use `snowpark_pipeline` or the `warehouse_*` CTAS family.
+
+## YAML
+
+```yaml
+type: dagster_component_templates.PySparkPipelineComponent
+attributes:
+  asset_name: paid_orders_summary
+  spark_config:
+    spark.master: "local[*]"         # cluster URL — set for remote: spark://host:7077, k8s://..., yarn
+    spark.sql.shuffle.partitions: "4"
+  spark_app_name: dagster-orders-summary
+  source:
+    kind: parquet                   # parquet | csv | json | orc | delta | table | jdbc | upstream
+    path: s3a://bucket/orders/*.parquet
+  operations:
+    - op: filter
+      predicate: "status = 'paid' AND amount > 100"
+    - op: group_by
+      group_by: [region, customer_id]
+      aggregations:
+        total:       {col: amount,   agg: sum}
+        order_count: {col: order_id, agg: count}
+    - op: sort
+      by: [total]
+      descending: true
+    - op: limit
+      n: 100
+  sink:
+    kind: parquet                   # parquet | csv | json | delta | table | jdbc | none
+    path: s3a://bucket/analytics/paid_orders_summary/
+    mode: overwrite
+```
+
+## Source kinds
+
+| Kind | Fields | Notes |
+|---|---|---|
+| `parquet` / `csv` / `json` / `orc` | `path` | Glob patterns work; cloud URIs via Hadoop FS (s3a:// / gs:// / abfs://) need the right Hadoop bundles. |
+| `delta` | `path` | Requires `delta-spark` package + Delta Lake's Spark config. |
+| `table` | `table` | Reads from Spark catalog (Hive metastore / Iceberg / Delta-as-table). |
+| `jdbc` | `url`, `dbtable` OR `query`, `options:` | Predicate is pushed to the source DB. |
+| `upstream` | (also set top-level `upstream_asset_key`) | Accepts an upstream pandas/polars DataFrame; converts via `spark.createDataFrame`. |
+
+## Sink kinds
+
+| Kind | Fields | Behavior |
+|---|---|---|
+| `parquet` / `csv` / `json` / `delta` | `path`, `mode` | Writes to a path. |
+| `table` | `table`, `mode` | Writes to Spark catalog. |
+| `jdbc` | `url`, `dbtable`, `mode`, `options:` | Writes to a JDBC target. |
+| `none` | — | Collects to pandas; the pandas DataFrame becomes the asset's return value (for downstream Dagster I/O). |
+
+## Supported ops
+
+`filter` / `select` / `drop` / `rename` / `with_columns` (SQL expressions) / `group_by` / `sort` / `limit` / `distinct` / `drop_nulls`.
+
+Aggregations in `group_by`: `sum / mean / avg / min / max / count / countDistinct / first / last / stddev / variance`.
+
+## Local vs cluster
+
+For local development, set `spark.master: "local[*]"`. For a real cluster, point `spark.master` at the cluster URL (`spark://`, `yarn`, `k8s://...`) and add cluster-specific configs to `spark_config:`.

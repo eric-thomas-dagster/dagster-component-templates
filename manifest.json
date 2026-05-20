@@ -22285,6 +22285,229 @@
         "level": "code",
         "last_validated": "2026-05-19"
       }
+    },
+    {
+      "id": "warehouse_filter",
+      "name": "WarehouseFilter",
+      "category": "transformation",
+      "description": "Filter rows in the warehouse via CTAS (predicate pushdown). No Python materialization.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/warehouse_filter",
+      "tags": [
+        "transformation",
+        "warehouse",
+        "pushdown",
+        "sql",
+        "ctas",
+        "filter"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sqlalchemy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_filter/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_filter/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_filter/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_filter/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_filter/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-19"
+      }
+    },
+    {
+      "id": "warehouse_top_n_per_group",
+      "name": "WarehouseTopNPerGroup",
+      "category": "transformation",
+      "description": "Top-N-per-group in the warehouse (ROW_NUMBER pushdown). No Python materialization.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/warehouse_top_n_per_group",
+      "tags": [
+        "transformation",
+        "warehouse",
+        "pushdown",
+        "sql",
+        "ctas",
+        "window-function"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sqlalchemy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_top_n_per_group/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_top_n_per_group/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_top_n_per_group/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_top_n_per_group/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_top_n_per_group/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-19"
+      }
+    },
+    {
+      "id": "warehouse_dedup",
+      "name": "WarehouseDedup",
+      "category": "transformation",
+      "description": "Deduplicate rows in the warehouse via CTAS (ROW_NUMBER or DISTINCT). No Python materialization.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/warehouse_dedup",
+      "tags": [
+        "transformation",
+        "warehouse",
+        "pushdown",
+        "sql",
+        "ctas",
+        "dedup"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sqlalchemy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_dedup/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_dedup/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_dedup/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_dedup/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_dedup/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-19"
+      }
+    },
+    {
+      "id": "warehouse_join",
+      "name": "WarehouseJoin",
+      "category": "transformation",
+      "description": "Join two tables in the warehouse via CTAS. No Python materialization.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/warehouse_join",
+      "tags": [
+        "transformation",
+        "warehouse",
+        "pushdown",
+        "sql",
+        "ctas",
+        "join"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sqlalchemy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_join/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_join/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_join/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_join/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_join/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-19"
+      }
+    },
+    {
+      "id": "warehouse_union",
+      "name": "WarehouseUnion",
+      "category": "transformation",
+      "description": "Stack N tables vertically in the warehouse via UNION [ALL]. No Python materialization.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/warehouse_union",
+      "tags": [
+        "transformation",
+        "warehouse",
+        "pushdown",
+        "sql",
+        "ctas",
+        "union"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sqlalchemy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_union/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_union/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_union/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_union/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_union/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-19"
+      }
+    },
+    {
+      "id": "pyspark_pipeline",
+      "name": "PySparkPipeline",
+      "category": "transformation",
+      "description": "Multi-step PySpark DataFrame chain in a single Dagster asset (Catalyst-optimized).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/pyspark_pipeline",
+      "tags": [
+        "transformation",
+        "pyspark",
+        "spark",
+        "lazy",
+        "pushdown",
+        "pipeline"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pyspark"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pyspark_pipeline/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pyspark_pipeline/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pyspark_pipeline/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pyspark_pipeline/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/pyspark_pipeline/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-19"
+      }
+    },
+    {
+      "id": "snowpark_pipeline",
+      "name": "SnowparkPipeline",
+      "category": "transformation",
+      "description": "Multi-step Snowpark DataFrame chain \u2014 full compute pushdown to Snowflake.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/snowpark_pipeline",
+      "tags": [
+        "transformation",
+        "snowflake",
+        "snowpark",
+        "pushdown",
+        "pipeline"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "snowflake-snowpark-python"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/snowpark_pipeline/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/snowpark_pipeline/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/snowpark_pipeline/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/snowpark_pipeline/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/snowpark_pipeline/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-19"
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

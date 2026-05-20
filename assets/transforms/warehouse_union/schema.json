@@ -1,0 +1,33 @@
+{
+  "component_type": "dagster_component_templates.WarehouseUnionComponent",
+  "description": "Stack N tables vertically in the warehouse via UNION [ALL]. No Python materialization.",
+  "category": "transformation",
+  "icon": "Layers",
+  "x-dagster-io": {
+    "inputs":  {"type": "table", "required": true},
+    "outputs": {"type": "table"}
+  },
+  "attributes": {
+    "asset_name":           {"type": "string", "required": true},
+    "database_url":         {"type": "string"},
+    "database_url_env_var": {"type": "string"},
+    "dialect":              {"type": "string", "required": true,
+                             "enum": ["duckdb","postgres","postgresql","snowflake","bigquery","redshift","databricks","mssql","mysql"]},
+    "upstream_tables":      {"type": "array", "items": {"type": "string"}, "required": true,
+                             "description": "Tables to union — at least 2."},
+    "output_table":         {"type": "string", "required": true},
+    "distinct":             {"type": "boolean", "default": false,
+                             "description": "True → UNION (drop duplicates); false → UNION ALL"},
+    "select_cols":          {"type": "array", "items": {"type": "string"},
+                             "description": "Optional common projection across input schemas."},
+    "mode":                 {"type": "string", "enum": ["replace","create_if_not_exists"], "default": "replace"},
+    "group_name":           {"type": "string"},
+    "deps":                 {"type": "array", "items": {"type": "string"}},
+    "owners":               {"type": "array", "items": {"type": "string"}},
+    "description":          {"type": "string"},
+    "asset_tags":           {"type": "object"},
+    "kinds":                {"type": "array", "items": {"type": "string"}},
+    "include_preview_metadata": {"type": "boolean", "default": false},
+    "preview_rows":         {"type": "integer", "default": 25, "minimum": 1, "maximum": 200}
+  }
+}

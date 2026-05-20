@@ -1,0 +1,78 @@
+# Snowpark Pipeline
+
+Single-asset multi-step Snowpark DataFrame chain. The chain is fully lazy — every op builds a query plan, and at the sink the plan compiles to a single Snowflake SQL statement that runs **entirely in Snowflake's compute warehouse**. No data ever flows through Python.
+
+## When to use
+
+- Source + sink both live in Snowflake
+- You want Snowflake's optimizer (not Python) to plan the work
+- The pipeline is complex (multi-step filter / join / aggregate / window) — too complex for the simple `warehouse_summarize` DSL but pure-SQL
+
+The simpler, single-step counterpart is `warehouse_summarize` (or the rest of the `warehouse_*` family). This component shines when you'd otherwise write a long CTE chain by hand.
+
+## YAML
+
+```yaml
+type: dagster_component_templates.SnowparkPipelineComponent
+attributes:
+  asset_name: top_customers_by_region
+  connection:
+    account: my_account.us-east-1
+    user: ETL_USER
+    password_env_var: SNOWFLAKE_PASSWORD     # OR password: <literal>
+    role: TRANSFORMER
+    warehouse: COMPUTE_WH
+    database: ANALYTICS
+    schema: STAGING
+  source:
+    kind: table                              # table | sql
+    table: RAW.ORDERS
+  operations:
+    - op: filter
+      predicate: "STATUS = 'paid' AND AMOUNT > 100"
+    - op: group_by
+      group_by: [REGION, CUSTOMER_ID]
+      aggregations:
+        TOTAL:       {col: AMOUNT,   agg: sum}
+        ORDER_COUNT: {col: ORDER_ID, agg: count}
+    - op: sort
+      by: [REGION, TOTAL]
+      descending: [false, true]
+    - op: limit
+      n: 100
+  sink:
+    kind: table                              # table | none
+    table: ANALYTICS.TOP_CUSTOMERS_BY_REGION
+    mode: overwrite                          # overwrite | append
+```
+
+## Connection
+
+The `connection:` dict is passed to `Session.builder.configs(...)`. Supports the standard Snowpark fields:
+
+| Field | Notes |
+|---|---|
+| `account` | Required. `<org>-<account>.<region>` or full URL |
+| `user` | Required |
+| `password` OR `password_env_var` | One of these (or use `authenticator` / `private_key`) |
+| `private_key` OR `private_key_env_var` | For key-pair auth |
+| `private_key_passphrase` OR `private_key_passphrase_env_var` | For encrypted keys |
+| `authenticator` OR `authenticator_env_var` | `externalbrowser`, `oauth`, etc. |
+| `role`, `warehouse`, `database`, `schema` | Session context |
+
+Anything else (e.g. `client_session_keep_alive`) passes through to Snowpark.
+
+## Supported ops
+
+`filter` / `select` / `drop` / `rename` / `with_columns` (SQL expressions) / `group_by` / `sort` / `limit` / `distinct` / `drop_nulls` / `join`.
+
+Aggregations: `sum / mean (avg) / min / max / count / count_distinct / stddev / variance`.
+
+`join` reads the right side from a Snowflake table: `{op: join, right_table: RAW.CUSTOMERS, on: [CUSTOMER_ID], how: left}`.
+
+## Sink kinds
+
+| Kind | Behavior |
+|---|---|
+| `table` | Snowpark writes via `save_as_table(...)`. The result lives in Snowflake — no Python materialization. |
+| `none` | Collects to pandas via `.to_pandas()`. The pandas DataFrame becomes the asset's output (use only for small results). |

@@ -1,0 +1,32 @@
+type: dagster_component_templates.SnowparkPipelineComponent
+attributes:
+  asset_name: top_customers_by_region
+  connection:
+    account: my_account.us-east-1
+    user: ETL_USER
+    password_env_var: SNOWFLAKE_PASSWORD
+    role: TRANSFORMER
+    warehouse: COMPUTE_WH
+    database: ANALYTICS
+    schema: STAGING
+  source:
+    kind: table
+    table: RAW.ORDERS
+  operations:
+    - op: filter
+      predicate: "STATUS = 'paid' AND AMOUNT > 100"
+    - op: group_by
+      group_by: [REGION, CUSTOMER_ID]
+      aggregations:
+        TOTAL:       {col: AMOUNT,   agg: sum}
+        ORDER_COUNT: {col: ORDER_ID, agg: count}
+    - op: sort
+      by: [REGION, TOTAL]
+      descending: [false, true]
+    - op: limit
+      n: 100
+  sink:
+    kind: table
+    table: ANALYTICS.TOP_CUSTOMERS_BY_REGION
+    mode: overwrite
+  group_name: snowpark_pipeline_demo

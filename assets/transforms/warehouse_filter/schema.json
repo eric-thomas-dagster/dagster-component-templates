@@ -1,0 +1,30 @@
+{
+  "component_type": "dagster_component_templates.WarehouseFilterComponent",
+  "description": "Filter rows in the warehouse via CTAS (predicate pushdown). No Python materialization.",
+  "category": "transformation",
+  "icon": "Filter",
+  "x-dagster-io": {
+    "inputs":  {"type": "table", "required": true, "description": "Source table"},
+    "outputs": {"type": "table", "description": "CTAS-produced table"}
+  },
+  "attributes": {
+    "asset_name":           {"type": "string", "required": true, "label": "Asset Name"},
+    "database_url":         {"type": "string", "label": "Database URL (literal)"},
+    "database_url_env_var": {"type": "string", "label": "Database URL Env Var"},
+    "dialect":              {"type": "string", "required": true, "label": "Dialect",
+                             "enum": ["duckdb","postgres","postgresql","snowflake","bigquery","redshift","databricks","mssql","mysql"]},
+    "upstream_table":       {"type": "string", "required": true, "label": "Upstream Table"},
+    "output_table":         {"type": "string", "required": true, "label": "Output Table"},
+    "predicate":            {"type": "string", "required": true, "label": "SQL Predicate"},
+    "negate":               {"type": "boolean", "default": false},
+    "mode":                 {"type": "string", "enum": ["replace","create_if_not_exists"], "default": "replace"},
+    "group_name":           {"type": "string"},
+    "deps":                 {"type": "array", "items": {"type": "string"}},
+    "owners":               {"type": "array", "items": {"type": "string"}},
+    "description":          {"type": "string"},
+    "asset_tags":           {"type": "object"},
+    "kinds":                {"type": "array", "items": {"type": "string"}},
+    "include_preview_metadata": {"type": "boolean", "default": false},
+    "preview_rows":         {"type": "integer", "default": 25, "minimum": 1, "maximum": 200}
+  }
+}

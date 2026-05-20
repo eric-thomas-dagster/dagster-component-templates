@@ -1,0 +1,19 @@
+type: dagster_component_templates.WarehouseJoinComponent
+attributes:
+  asset_name: orders_with_customers
+  database_url: snowflake://user:pass@account/db/schema?warehouse=COMPUTE_WH
+  dialect: snowflake
+  left_table: raw.orders
+  right_table: raw.customers
+  output_table: analytics.orders_with_customers
+  how: left
+  on: [customer_id]
+  select_cols:
+    - _l.order_id
+    - _l.amount
+    - _l.status
+    - _r.customer_name
+    - _r.region
+  mode: replace
+  group_name: warehouse_native
+  deps: [raw_orders_in_warehouse, raw_customers_in_warehouse]

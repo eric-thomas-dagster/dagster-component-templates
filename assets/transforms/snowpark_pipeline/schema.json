@@ -1,0 +1,26 @@
+{
+  "component_type": "dagster_component_templates.SnowparkPipelineComponent",
+  "description": "Multi-step Snowpark DataFrame chain — full compute pushdown to Snowflake.",
+  "category": "transformation",
+  "icon": "Snowflake",
+  "x-dagster-io": {
+    "outputs": {"type": "table_or_dataframe", "description": "Materialized to a Snowflake table (sink.kind=table) or returned as pandas (sink.kind=none)"}
+  },
+  "attributes": {
+    "asset_name":   {"type": "string", "required": true},
+    "connection":   {"type": "object", "required": true,
+                     "description": "Snowpark connection params (account/user/password/role/warehouse/database/schema)."},
+    "source":       {"type": "object", "required": true,
+                     "description": "{kind: table|sql, table|query: ...}"},
+    "operations":   {"type": "array", "required": true, "items": {"type": "object"},
+                     "description": "Ordered list of Snowpark DataFrame ops."},
+    "sink":         {"type": "object", "required": true,
+                     "description": "{kind: table|none, table: ..., mode: overwrite|append}"},
+    "group_name":   {"type": "string"},
+    "description":  {"type": "string"},
+    "asset_tags":   {"type": "object"},
+    "kinds":        {"type": "array", "items": {"type": "string"}},
+    "owners":       {"type": "array", "items": {"type": "string"}},
+    "deps":         {"type": "array", "items": {"type": "string"}}
+  }
+}

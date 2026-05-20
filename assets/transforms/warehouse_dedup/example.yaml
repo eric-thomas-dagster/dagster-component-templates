@@ -1,0 +1,13 @@
+type: dagster_component_templates.WarehouseDedupComponent
+attributes:
+  asset_name: customers_unique
+  database_url: snowflake://user:pass@account/db/schema?warehouse=COMPUTE_WH
+  dialect: snowflake
+  upstream_table: raw.customers
+  output_table: analytics.customers_unique
+  subset: [customer_id]
+  order_by: [updated_at]
+  descending: true
+  mode: replace
+  group_name: warehouse_native
+  deps: [raw_customers_in_warehouse]

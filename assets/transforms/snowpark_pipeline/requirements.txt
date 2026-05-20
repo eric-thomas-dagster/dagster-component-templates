@@ -1,0 +1,2 @@
+dagster
+snowflake-snowpark-python>=1.10.0

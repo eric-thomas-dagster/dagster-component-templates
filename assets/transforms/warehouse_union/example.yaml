@@ -1,0 +1,19 @@
+type: dagster_component_templates.WarehouseUnionComponent
+attributes:
+  asset_name: orders_all_regions
+  database_url: snowflake://user:pass@account/db/schema?warehouse=COMPUTE_WH
+  dialect: snowflake
+  upstream_tables:
+    - raw.orders_us
+    - raw.orders_eu
+    - raw.orders_apac
+  output_table: analytics.orders_all_regions
+  distinct: false
+  select_cols:
+    - order_id
+    - customer_id
+    - amount
+    - region
+  mode: replace
+  group_name: warehouse_native
+  deps: [orders_us_in_warehouse, orders_eu_in_warehouse, orders_apac_in_warehouse]

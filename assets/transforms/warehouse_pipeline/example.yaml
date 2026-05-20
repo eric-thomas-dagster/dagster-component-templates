@@ -1,3 +1,8 @@
+# Two YAML shapes are supported, both compile to ONE CTE-CTAS plan per sink.
+# ────────────────────────────────────────────────────────────────────────────
+
+# ── Shape (a): flat shape — one source, one ops chain, one sink — one source, one ops chain, one sink.
+
 type: dagster_component_templates.WarehousePipelineComponent
 attributes:
   asset_name: top_5_categories_by_revenue
@@ -21,3 +26,51 @@ attributes:
   mode: replace
   group_name: warehouse_native
   deps: [raw_orders_in_warehouse]
+
+# ── Shape (b): multi-step pipeline — multiple sources, inter-step refs,
+#               raw-SQL escape hatch, multi-sink. (Pick ONE shape per asset —
+#               can't mix top-level source/operations with steps/sinks.)
+# ────────────────────────────────────────────────────────────────────────────
+#
+# type: dagster_component_templates.WarehousePipelineComponent
+# attributes:
+#   asset_name: regional_top_paid
+#   database_url_env_var: WAREHOUSE_URL
+#   dialect: duckdb
+#   steps:
+#     - id: paid_orders
+#       source: {kind: table, table: raw.orders}
+#       operations:
+#         - {op: filter, predicate: "status = 'paid' AND amount > 50"}
+#
+#     - id: gold_customers
+#       source: {kind: table, table: raw.customers}
+#       operations:
+#         - {op: filter, predicate: "tier = 'gold'"}
+#
+#     - id: enriched
+#       source: {kind: ref, ref: paid_orders}
+#       operations:
+#         - op: join
+#           right: {ref: gold_customers}
+#           on_columns: [customer_id]
+#           how: inner
+#         - op: sql                      # ← escape hatch — anything the DSL can't model
+#           sql: |
+#             SELECT *, amount * 0.15 AS commission
+#             FROM {{ self }}            -- self = previous op's output in this step
+#         - op: group_by
+#           group_by: [region]
+#           aggregations:
+#             revenue:          {col: amount,     agg: sum}
+#             total_commission: {col: commission, agg: sum}
+#
+#     - id: top_regions
+#       source: {kind: ref, ref: enriched}
+#       operations:
+#         - {op: top_n, sort_by: revenue, n: 3, ascending: false}
+#
+#   sinks:
+#     - {from: enriched,    table: analytics.regional_enriched, mode: overwrite}
+#     - {from: top_regions, table: analytics.top_3_regions,     mode: overwrite}
+#   group_name: warehouse_native_multi

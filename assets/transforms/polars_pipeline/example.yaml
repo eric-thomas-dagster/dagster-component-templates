@@ -1,3 +1,7 @@
+# Two YAML shapes — both run inside one polars LazyFrame query plan.
+
+# ── Shape (a): flat shape — one source, one ops chain, one sink.
+
 type: dagster_component_templates.PolarsPipelineComponent
 attributes:
   asset_name: top_customers_by_region
@@ -21,3 +25,42 @@ attributes:
       n: 5
   output_type: polars
   group_name: analytics
+
+# ── Shape (b): multi-step — multiple upstreams, ref between steps,
+#               op:sql escape hatch (polars SQLContext), optional side sinks.
+# ────────────────────────────────────────────────────────────────────────────
+#
+# type: dagster_component_templates.PolarsPipelineComponent
+# attributes:
+#   asset_name: regional_top_paid
+#   steps:
+#     - id: paid_orders
+#       source: {kind: upstream, upstream_asset_key: raw_orders}
+#       operations:
+#         - {op: filter, predicate: "status = 'paid'"}
+#
+#     - id: gold_customers
+#       source: {kind: upstream, upstream_asset_key: raw_customers}
+#       operations:
+#         - {op: filter, predicate: "tier = 'gold'"}
+#
+#     - id: enriched
+#       source: {kind: ref, ref: paid_orders}
+#       operations:
+#         - op: join
+#           right: {ref: gold_customers}
+#           on_columns: [customer_id]
+#           how: inner
+#         - op: sql                      # ← polars SQLContext escape hatch
+#           sql: "SELECT *, amount * 0.15 AS commission FROM self"
+#         - op: group_by
+#           group_by: [region]
+#           aggregations:
+#             revenue:          {col: amount,     agg: sum}
+#             total_commission: {col: commission, agg: sum}
+#
+#   sinks:
+#     - {from: enriched, kind: parquet, path: "./out/enriched.parquet"}
+#   primary_step: enriched          # the asset's return value (default: last step)
+#   output_type: polars
+#   group_name: analytics_multi

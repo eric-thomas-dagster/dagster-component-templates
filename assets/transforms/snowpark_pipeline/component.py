@@ -1,53 +1,46 @@
-"""SnowparkPipelineComponent — single-asset Snowpark DataFrame chain.
+"""SnowparkPipelineComponent — single-asset multi-step Snowpark pipeline.
 
-Snowpark's DataFrame API is fully lazy: every `.filter() / .group_by() /
-.join() / .agg()` builds a query plan, and the plan is compiled to a
-single Snowflake SQL statement at the terminal action (write / collect /
-count). All compute runs in Snowflake — no data through Python.
+Snowpark's DataFrame API is fully lazy: every op against a DataFrame builds
+a logical query plan, and the plan is compiled to Snowflake SQL at a
+terminal action. This component builds the WHOLE pipeline as ONE plan —
+across every step, every op, every sink — so the Snowflake optimizer can
+fuse predicates, prune projections, reorder joins, and execute everything
+server-side. No data ever flows through Python.
 
-This is the more expressive sibling of `warehouse_summarize`. Where
-`warehouse_summarize` exposes a simple GROUP BY DSL via CTAS, this
-exposes the full Snowpark DataFrame API for complex chains
-(filter → join → group_by → window → sort → write).
+Two YAML shapes — both run inside a single Dagster asset / single
+Snowpark Session:
 
-Composes by writing to a Snowflake table at the end of the chain;
-downstream `warehouse_*` or `snowpark_pipeline` components consume by
-table name.
+  (a) Flat shape (one source, one ops chain, one sink) — top-level `source` + `operations` + `sink`:
 
-Example:
-    type: dagster_component_templates.SnowparkPipelineComponent
-    attributes:
-      asset_name: top_customers_by_region
-      connection:
-        account: my_account.us-east-1
-        user: ETL_USER
-        password_env_var: SNOWFLAKE_PASSWORD
-        role: TRANSFORMER
-        warehouse: COMPUTE_WH
-        database: ANALYTICS
-        schema: STAGING
-      source:
-        kind: table
-        table: RAW.ORDERS
-      operations:
-        - op: filter
-          predicate: "STATUS = 'paid' AND AMOUNT > 100"
-        - op: group_by
-          group_by: [REGION, CUSTOMER_ID]
-          aggregations:
-            TOTAL:       {col: AMOUNT,   agg: sum}
-            ORDER_COUNT: {col: ORDER_ID, agg: count}
-        - op: sort
-          by: [REGION, TOTAL]
-          descending: [false, true]
-        - op: limit
-          n: 100
-      sink:
-        kind: table
-        table: ANALYTICS.TOP_CUSTOMERS_BY_REGION
-        mode: overwrite
+      source: {kind: table, table: RAW.ORDERS}
+      operations: [...]
+      sink:   {kind: table, table: ANALYTICS.OUT, mode: overwrite}
+
+  (b) Multi-step `steps:` form with `sinks:` (plural):
+
+      steps:
+        - id: paid_orders
+          source: {kind: table, table: RAW.ORDERS}
+          operations:
+            - {op: filter, predicate: "STATUS = 'paid'"}
+        - id: gold_customers
+          source: {kind: table, table: RAW.CUSTOMERS}
+          operations:
+            - {op: filter, predicate: "TIER = 'gold'"}
+        - id: enriched
+          source: {kind: ref, ref: paid_orders}
+          operations:
+            - {op: join, right: {ref: gold_customers}, on_columns: [CUSTOMER_ID], how: inner}
+            - {op: sql, sql: "SELECT *, AMOUNT * 0.15 AS COMMISSION FROM self"}
+            - {op: group_by, group_by: [REGION],
+               aggregations: {REVENUE: {col: AMOUNT, agg: sum}}}
+      sinks:
+        - {from: enriched, kind: table, table: ANALYTICS.ENRICHED, mode: overwrite}
+
+Source kinds: table, sql, ref.
+Sink kinds:   table, none (collect to pandas).
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import dagster as dg
 from dagster import (
@@ -64,18 +57,16 @@ from pydantic import Field
 
 
 _VALID_OPS = {"filter", "select", "drop", "rename", "with_columns",
-              "group_by", "sort", "limit", "distinct", "drop_nulls", "join"}
+              "group_by", "sort", "limit", "distinct", "drop_nulls",
+              "join", "union", "sql"}
 _SUPPORTED_AGGS = {"sum", "mean", "avg", "min", "max", "count",
                     "count_distinct", "stddev", "variance"}
 
 
-def _apply_op(df, op: Dict[str, Any], spark=None):
-    """Apply one op to a Snowpark DataFrame. `spark` is the Snowpark session (kept for symmetry)."""
+def _apply_op(session, df, op: Dict[str, Any], step_outputs: Dict[str, Any]):
     from snowflake.snowpark import functions as F
-    kind = op["op"]
+    kind = op["op"].lower()
     if kind == "filter":
-        # Snowpark's filter takes an expression string OR a Column.
-        # Using sql_expr() lets users write SQL predicates directly.
         return df.filter(F.sql_expr(op["predicate"]))
     if kind == "select":
         return df.select(*op["columns"])
@@ -106,10 +97,8 @@ def _apply_op(df, op: Dict[str, Any], spark=None):
                     f"snowpark_pipeline: agg func {func!r} not supported. "
                     f"Use one of {sorted(_SUPPORTED_AGGS)}"
                 )
-            # Snowpark function naming
-            _fn_map = {"mean": "avg", "count_distinct": "count_distinct"}
-            fn_name = _fn_map.get(f, f)
-            agg_fn = getattr(F, fn_name)
+            _fn_map = {"mean": "avg"}
+            agg_fn = getattr(F, _fn_map.get(f, f))
             agg_exprs.append(agg_fn(F.col(src_col)).alias(out_col))
         return df.group_by(*group_by).agg(*agg_exprs)
     if kind == "sort":
@@ -124,66 +113,114 @@ def _apply_op(df, op: Dict[str, Any], spark=None):
         return df.distinct()
     if kind == "drop_nulls":
         subset = op.get("subset")
-        if subset:
-            return df.na.drop(subset=subset)
-        return df.na.drop()
+        return df.na.drop(subset=subset) if subset else df.na.drop()
     if kind == "join":
-        # Requires a second Snowpark DataFrame loaded from another source.
-        # For simplicity, this expects op["right_table"] as a Snowflake table name.
-        right = spark.table(op["right_table"])
-        how = op.get("how", "inner")
-        if "on" in op:
-            return df.join(right, on=op["on"], how=how)
-        if "left_on" in op and "right_on" in op:
-            return df.join(right,
-                           on=[F.col(lo) == right[ro] for lo, ro in zip(op["left_on"], op["right_on"])],
-                           how=how)
-        raise ValueError("join: provide either 'on' or both 'left_on' and 'right_on'")
+        right_spec = op["right"]
+        if isinstance(right_spec, dict) and "ref" in right_spec:
+            right_id = right_spec["ref"]
+            if right_id not in step_outputs:
+                raise ValueError(f"join.right.ref={right_id!r} doesn't match any earlier step id")
+            right_df = step_outputs[right_id]
+        elif isinstance(right_spec, dict) and "table" in right_spec:
+            right_df = session.table(right_spec["table"])
+        elif isinstance(right_spec, str):
+            # older `right_table: T` form is read in build_defs; keep this for safety
+            right_df = session.table(right_spec)
+        else:
+            raise ValueError("join.right must be {ref: <step_id>} or {table: <name>}")
+        how = op.get("how", "inner").lower()
+        on_cols = op.get("on_columns") or op.get("on")
+        if on_cols:
+            return df.join(right_df, on=on_cols, how=how)
+        left_on, right_on = op.get("left_on"), op.get("right_on")
+        if left_on and right_on:
+            return df.join(
+                right_df,
+                on=[F.col(lo) == right_df[ro] for lo, ro in zip(left_on, right_on)],
+                how=how,
+            )
+        raise ValueError("join op: provide 'on_columns' OR 'left_on' + 'right_on'")
+    if kind == "union":
+        other = op["other"]
+        if not isinstance(other, dict) or "ref" not in other:
+            raise ValueError("snowpark_pipeline union.other must be {ref: <step_id>}")
+        other_id = other["ref"]
+        if other_id not in step_outputs:
+            raise ValueError(f"union.other.ref={other_id!r} doesn't match any earlier step id")
+        other_df = step_outputs[other_id]
+        if op.get("distinct", False):
+            return df.union(other_df)  # Snowpark's .union dedups; .union_all keeps dupes
+        return df.union_all(other_df)
+    if kind == "sql":
+        sql = op.get("sql")
+        if not sql or not isinstance(sql, str):
+            raise ValueError("op='sql' requires a non-empty 'sql' string")
+        # Snowpark: register the current chain as 'self' + every prior step
+        # as its step id, then run session.sql(...).
+        df.create_or_replace_temp_view("self")
+        for sid, other_df in step_outputs.items():
+            other_df.create_or_replace_temp_view(sid)
+        return session.sql(sql)
     raise ValueError(f"snowpark_pipeline: unsupported op {kind!r}. Valid: {sorted(_VALID_OPS)}")
 
 
-def _read_source(spark, source: Dict[str, Any]):
-    kind = source["kind"].lower()
+def _read_source(session, source: Dict[str, Any]):
+    kind = (source.get("kind") or "table").lower()
     if kind == "table":
-        return spark.table(source["table"])
+        return session.table(source["table"])
     if kind == "sql":
-        return spark.sql(source["query"])
-    raise ValueError(f"Unknown source kind {kind!r} (snowpark: 'table' or 'sql')")
+        return session.sql(source["query"])
+    raise ValueError(f"snowpark_pipeline source.kind={kind!r} not supported. Use 'table', 'sql', or 'ref'.")
 
 
 def _write_sink(df, sink: Dict[str, Any]):
-    kind = sink["kind"].lower()
+    kind = (sink.get("kind") or "table").lower()
     if kind == "table":
         mode = sink.get("mode", "overwrite")
-        # Snowpark .write.save_as_table(...) handles append/overwrite
         df.write.save_as_table(sink["table"], mode=mode)
         return None
     if kind == "none":
         return df.to_pandas()
-    raise ValueError(f"Unknown sink kind {kind!r} (snowpark: 'table' or 'none')")
+    raise ValueError(f"snowpark_pipeline sink.kind={kind!r} not supported. Use 'table' or 'none'.")
 
 
 class SnowparkPipelineComponent(Component, Model, Resolvable):
-    """Single-asset Snowpark DataFrame chain — compute runs entirely in Snowflake.
+    """Multi-step Snowpark pipeline — all compute pushed to Snowflake.
 
-    Supported source kinds: table, sql.
-    Supported sink kinds:   table, none (collect to pandas for the asset return).
+    Two shapes:
+      * Flat shape: top-level `source` + `operations` + `sink`.
+      * Multi-step: `steps:` (each with `source`/`operations`) + `sinks:`.
+
     Supported ops: filter, select, drop, rename, with_columns, group_by,
-                   sort, limit, distinct, drop_nulls, join.
+    sort, limit, distinct, drop_nulls, join, union, sql.
+
+    `op: sql` registers the current chain as `self` and every prior step
+    output by its id (as temp views), then runs `session.sql(...)`.
     """
 
     asset_name: str = Field(description="Output Dagster asset name")
     connection: Dict[str, Any] = Field(
         description=(
-            "Snowflake connection params: {account, user, password OR password_env_var, "
-            "role, warehouse, database, schema}. Authenticator/private_key/etc. also accepted."
+            "Snowflake connection params. Any field may end with `_env_var` to source it "
+            "from an environment variable (account_env_var, password_env_var, etc.)."
         ),
     )
-    source: Dict[str, Any] = Field(description="Source spec: {kind: table|sql, table|query: ...}")
-    operations: List[Dict[str, Any]] = Field(
-        description="Ordered list of Snowpark ops. Whole chain compiles to one SQL statement at the sink.",
+
+    # Flat-shape shape ---------------------------------------------------------
+    source: Optional[Dict[str, Any]] = Field(default=None, description="Flat shape: {kind: table|sql, ...}")
+    operations: Optional[List[Dict[str, Any]]] = Field(default=None)
+    sink: Optional[Dict[str, Any]] = Field(default=None, description="Flat shape: {kind: table|none, ...}")
+
+    # Multi-step shape -----------------------------------------------------
+    steps: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Named steps. Each: {id, source: {kind: table|sql|ref, ...}, operations: [...]}.",
     )
-    sink: Dict[str, Any] = Field(description="Sink spec: {kind: table|none, table: ..., mode: overwrite|append}")
+    sinks: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Sinks. Each: {from: <step_id>, kind: table|none, table: 'DB.SCH.T', mode}.",
+    )
+
     group_name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
     asset_tags: Optional[Dict[str, str]] = Field(default=None)
@@ -193,13 +230,9 @@ class SnowparkPipelineComponent(Component, Model, Resolvable):
 
     @classmethod
     def get_description(cls) -> str:
-        return "Multi-step Snowpark DataFrame chain — full compute pushdown to Snowflake."
+        return "Multi-step Snowpark pipeline — all compute pushed to Snowflake (one query plan per asset)."
 
     def _resolve_connection(self) -> Dict[str, Any]:
-        """Resolve any `<key>_env_var: NAME` to `<key>: <env-value>` so all
-        connection fields (account/user/password/role/warehouse/private_key/
-        authenticator/token/...) can be sourced from env vars uniformly.
-        Literal values pass through unchanged."""
         import os
         params = dict(self.connection)
         for kv in list(params.keys()):
@@ -207,7 +240,6 @@ class SnowparkPipelineComponent(Component, Model, Resolvable):
                 continue
             base = kv[: -len("_env_var")]
             if base in params:
-                # Both `<base>` and `<base>_env_var` set — literal wins, drop the env-var key.
                 params.pop(kv)
                 continue
             env_var = params.pop(kv)
@@ -217,12 +249,47 @@ class SnowparkPipelineComponent(Component, Model, Resolvable):
             params[base] = val
         return params
 
+    def _normalize(self) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        flat_present = bool(self.source or self.operations or self.sink)
+        multi_present = bool(self.steps or self.sinks)
+        if multi_present and flat_present:
+            raise ValueError(
+                "snowpark_pipeline: choose ONE shape — either top-level "
+                "source/operations/sink OR steps/sinks, not both."
+            )
+        if multi_present:
+            if not self.steps:
+                raise ValueError("snowpark_pipeline: 'sinks' provided without 'steps'.")
+            if not self.sinks:
+                raise ValueError("snowpark_pipeline: 'steps' provided without 'sinks'.")
+            return list(self.steps), list(self.sinks)
+        if not (self.source and self.operations is not None and self.sink):
+            raise ValueError(
+                "snowpark_pipeline: provide either 'steps' + 'sinks' OR "
+                "top-level 'source' + 'operations' + 'sink'."
+            )
+        flat_step = {
+            "id": "_default",
+            "source": dict(self.source),
+            "operations": list(self.operations),
+        }
+        flat_sink = dict(self.sink, **{"from": "_default"})
+        return [flat_step], [flat_sink]
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
-        source = dict(self.source)
-        operations = list(self.operations)
-        sink = dict(self.sink)
+        steps, sinks = self._normalize()
         asset_name = self.asset_name
         resolve_connection = self._resolve_connection
+
+        # Validate ops up front
+        for s in steps:
+            for i, op in enumerate(s.get("operations") or []):
+                if not isinstance(op, dict) or "op" not in op:
+                    raise ValueError(f"step {s.get('id')!r} op #{i + 1}: each op must be a dict with 'op' key")
+                if op["op"].lower() not in _VALID_OPS:
+                    raise ValueError(
+                        f"step {s.get('id')!r} op #{i + 1}: op={op['op']!r} not supported. Valid: {sorted(_VALID_OPS)}"
+                    )
 
         kinds = list(self.kinds or []) or ["snowflake", "snowpark"]
         all_tags = dict(self.asset_tags or {})
@@ -243,34 +310,60 @@ class SnowparkPipelineComponent(Component, Model, Resolvable):
 
             session = Session.builder.configs(resolve_connection()).create()
             try:
-                df = _read_source(session, source)
-                context.log.info(f"snowpark_pipeline: read source {source['kind']}")
+                step_outputs: Dict[str, Any] = {}
 
-                for i, op in enumerate(operations):
-                    df = _apply_op(df, op, spark=session)
-                    context.log.info(f"  step {i + 1}/{len(operations)}: {op['op']}")
+                for s_idx, step in enumerate(steps):
+                    sid = step["id"]
+                    src = step.get("source") or {}
+                    src_kind = (src.get("kind") or "table").lower()
+                    if src_kind == "ref":
+                        ref = src.get("ref")
+                        if ref not in step_outputs:
+                            raise ValueError(f"step {sid!r}: source ref={ref!r} not yet defined")
+                        df = step_outputs[ref]
+                        context.log.info(f"step {sid}: ref → {ref}")
+                    else:
+                        df = _read_source(session, src)
+                        context.log.info(f"step {sid}: read source {src_kind}")
 
-                # Snowpark's lazy plan compiles to ONE Snowflake SQL statement here.
-                result = _write_sink(df, sink)
-                context.log.info(f"snowpark_pipeline: wrote sink {sink['kind']}")
+                    for op in step.get("operations") or []:
+                        df = _apply_op(session, df, op, step_outputs)
+                    step_outputs[sid] = df
+                    context.log.info(f"step {sid}: {len(step.get('operations') or [])} op(s) staged ({s_idx + 1}/{len(steps)})")
 
-                metadata = {
-                    "snowpark/source_kind": MetadataValue.text(source["kind"]),
-                    "snowpark/sink_kind": MetadataValue.text(sink["kind"]),
-                    "snowpark/operation_count": MetadataValue.int(len(operations)),
+                # Write sinks — Snowpark compiles each to ONE Snowflake SQL stmt.
+                sink_metadata: Dict[str, Any] = {}
+                collected_pandas = None
+                for sink in sinks:
+                    from_id = sink.get("from") or ""
+                    if from_id not in step_outputs:
+                        raise ValueError(f"sink.from={from_id!r} doesn't match any step id")
+                    df = step_outputs[from_id]
+                    kind = (sink.get("kind") or "table").lower()
+                    result = _write_sink(df, sink)
+                    if kind == "none" and result is not None:
+                        collected_pandas = result
+                        sink_metadata[f"snowpark/sink/{from_id}/row_count"] = MetadataValue.int(len(result))
+                    else:
+                        sink_metadata[f"snowpark/sink/{from_id}/kind"] = MetadataValue.text(kind)
+                        if sink.get("table"):
+                            sink_metadata[f"snowpark/sink/{from_id}/table"] = MetadataValue.text(str(sink["table"]))
+                            try:
+                                rc = session.table(sink["table"]).count()
+                                sink_metadata[f"snowpark/sink/{from_id}/row_count"] = MetadataValue.int(int(rc))
+                            except Exception:
+                                pass
+
+                metadata: Dict[str, Any] = {
+                    "snowpark/step_count": MetadataValue.int(len(steps)),
+                    "snowpark/sink_count": MetadataValue.int(len(sinks)),
                 }
-                if result is None:
-                    # Materialized to a Snowflake table — return MaterializeResult.
-                    try:
-                        row_count = session.table(sink["table"]).count()
-                        metadata["dagster/row_count"] = MetadataValue.int(int(row_count))
-                    except Exception:
-                        pass
-                    return dg.MaterializeResult(metadata=metadata)
-                # sink.kind = 'none' → pandas DataFrame returned to Dagster IO.
-                metadata["dagster/row_count"] = MetadataValue.int(len(result))
-                context.add_output_metadata(metadata)
-                return result
+                metadata.update(sink_metadata)
+                if collected_pandas is not None:
+                    metadata["dagster/row_count"] = MetadataValue.int(len(collected_pandas))
+                    context.add_output_metadata(metadata)
+                    return collected_pandas
+                return dg.MaterializeResult(metadata=metadata)
             finally:
                 session.close()
 

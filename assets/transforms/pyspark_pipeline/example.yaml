@@ -1,3 +1,7 @@
+# Two YAML shapes — both run as ONE Spark Catalyst plan.
+
+# ── Shape (a): flat shape — one source, one ops chain, one sink.
+
 type: dagster_component_templates.PySparkPipelineComponent
 attributes:
   asset_name: paid_orders_summary
@@ -26,3 +30,42 @@ attributes:
     path: data/paid_orders_summary
     mode: overwrite
   group_name: pyspark_pipeline_demo
+
+# ── Shape (b): multi-step — multiple sources, ref between steps,
+#               op:sql escape hatch (spark.sql), multi-sink.
+# ────────────────────────────────────────────────────────────────────────────
+#
+# type: dagster_component_templates.PySparkPipelineComponent
+# attributes:
+#   asset_name: regional_top_paid
+#   spark_config: {spark.master: "local[*]"}
+#   steps:
+#     - id: paid_orders
+#       source: {kind: parquet, path: data/orders.parquet}
+#       operations:
+#         - {op: filter, predicate: "status = 'paid'"}
+#
+#     - id: gold_customers
+#       source: {kind: parquet, path: data/customers.parquet}
+#       operations:
+#         - {op: filter, predicate: "tier = 'gold'"}
+#
+#     - id: enriched
+#       source: {kind: ref, ref: paid_orders}
+#       operations:
+#         - op: join
+#           right: {ref: gold_customers}
+#           on_columns: [customer_id]
+#           how: inner
+#         - op: sql                      # ← spark.sql escape hatch
+#           sql: "SELECT *, amount * 0.15 AS commission FROM self"
+#         - op: group_by
+#           group_by: [region]
+#           aggregations:
+#             revenue:          {col: amount,     agg: sum}
+#             total_commission: {col: commission, agg: sum}
+#
+#   sinks:
+#     - {from: enriched, kind: parquet, path: data/enriched/,   mode: overwrite}
+#     - {from: enriched, kind: csv,     path: data/enriched.csv, mode: overwrite}
+#   group_name: pyspark_pipeline_multi

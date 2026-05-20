@@ -1,21 +1,28 @@
 {
   "component_type": "dagster_component_templates.SnowparkPipelineComponent",
-  "description": "Multi-step Snowpark DataFrame chain — full compute pushdown to Snowflake.",
+  "description": "Multi-step Snowpark pipeline — all compute pushed to Snowflake (one query plan per asset).",
   "category": "transformation",
   "icon": "Snowflake",
   "x-dagster-io": {
-    "outputs": {"type": "table_or_dataframe", "description": "Materialized to a Snowflake table (sink.kind=table) or returned as pandas (sink.kind=none)"}
+    "outputs": {"type": "table_or_dataframe", "description": "Materialized to one or more Snowflake tables, or returned as pandas (sink kind=none)"}
   },
   "attributes": {
     "asset_name":   {"type": "string", "required": true},
     "connection":   {"type": "object", "required": true,
-                     "description": "Snowpark connection params (account/user/password/role/warehouse/database/schema)."},
-    "source":       {"type": "object", "required": true,
-                     "description": "{kind: table|sql, table|query: ...}"},
-    "operations":   {"type": "array", "required": true, "items": {"type": "object"},
-                     "description": "Ordered list of Snowpark DataFrame ops."},
-    "sink":         {"type": "object", "required": true,
-                     "description": "{kind: table|none, table: ..., mode: overwrite|append}"},
+                     "description": "Snowpark connection params (account/user/password/role/warehouse/database/schema). Any field may end with '_env_var' to read from an env var."},
+
+    "source":       {"type": "object",
+                     "description": "Top-level single-source shape: {kind: table|sql, table|query: ...}"},
+    "operations":   {"type": "array", "items": {"type": "object"},
+                     "description": "Flat shape: Snowpark DataFrame ops. Supported: filter, select, drop, rename, with_columns, group_by, sort, limit, distinct, drop_nulls, join, union, sql."},
+    "sink":         {"type": "object",
+                     "description": "Top-level single-sink shape: {kind: table|none, table, mode: overwrite|append}"},
+
+    "steps":        {"type": "array", "items": {"type": "object"},
+                     "description": "Multi-step form. Each step: {id, source: {kind: table|sql|ref, ...}, operations: [...]}. 'op: sql' uses create_or_replace_temp_view('self' + step ids) + session.sql(...)."},
+    "sinks":        {"type": "array", "items": {"type": "object"},
+                     "description": "Multi-step form. Each sink: {from: <step_id>, kind: table|none, table, mode}."},
+
     "group_name":   {"type": "string"},
     "description":  {"type": "string"},
     "asset_tags":   {"type": "object"},

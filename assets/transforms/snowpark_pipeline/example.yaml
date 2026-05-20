@@ -1,14 +1,18 @@
+# Two YAML shapes — both compile to ONE Snowflake SQL plan per sink.
+
+# ── Shape (a): flat shape — one source, one ops chain, one sink.
+
 type: dagster_component_templates.SnowparkPipelineComponent
 attributes:
   asset_name: top_customers_by_region
   connection:
-    account: my_account.us-east-1
-    user: ETL_USER
+    account_env_var:  SNOWFLAKE_ACCOUNT
+    user_env_var:     SNOWFLAKE_USER
     password_env_var: SNOWFLAKE_PASSWORD
-    role: TRANSFORMER
+    role:      TRANSFORMER
     warehouse: COMPUTE_WH
-    database: ANALYTICS
-    schema: STAGING
+    database:  ANALYTICS
+    schema:    STAGING
   source:
     kind: table
     table: RAW.ORDERS
@@ -30,3 +34,56 @@ attributes:
     table: ANALYTICS.TOP_CUSTOMERS_BY_REGION
     mode: overwrite
   group_name: snowpark_pipeline_demo
+
+# ── Shape (b): multi-step — multiple Snowflake tables, ref between steps,
+#               op:sql escape hatch (session.sql), multi-sink. All compute
+#               runs server-side; nothing flows through Python.
+# ────────────────────────────────────────────────────────────────────────────
+#
+# type: dagster_component_templates.SnowparkPipelineComponent
+# attributes:
+#   asset_name: regional_top_paid
+#   connection:
+#     account_env_var:  SNOWFLAKE_ACCOUNT
+#     user_env_var:     SNOWFLAKE_USER
+#     password_env_var: SNOWFLAKE_PASSWORD
+#     role:      TRANSFORMER
+#     warehouse: COMPUTE_WH
+#     database:  ANALYTICS
+#     schema:    STAGING
+#   steps:
+#     - id: paid_orders
+#       source: {kind: table, table: RAW.ORDERS}
+#       operations:
+#         - {op: filter, predicate: "STATUS = 'paid'"}
+#
+#     - id: gold_customers
+#       source: {kind: table, table: RAW.CUSTOMERS}
+#       operations:
+#         - {op: filter, predicate: "TIER = 'gold'"}
+#
+#     - id: enriched
+#       source: {kind: ref, ref: paid_orders}
+#       operations:
+#         - op: join
+#           right: {ref: gold_customers}
+#           on_columns: [CUSTOMER_ID]
+#           how: inner
+#         - op: sql                      # ← session.sql escape hatch
+#           sql: "SELECT *, AMOUNT * 0.15 AS COMMISSION FROM self"
+#         - op: group_by
+#           group_by: [REGION]
+#           aggregations:
+#             REVENUE:          {col: AMOUNT,     agg: sum}
+#             TOTAL_COMMISSION: {col: COMMISSION, agg: sum}
+#
+#     - id: top_regions
+#       source: {kind: ref, ref: enriched}
+#       operations:
+#         - {op: sort, by: [REVENUE], descending: true}
+#         - {op: limit, n: 3}
+#
+#   sinks:
+#     - {from: enriched,    kind: table, table: ANALYTICS.ENRICHED_REGIONS, mode: overwrite}
+#     - {from: top_regions, kind: table, table: ANALYTICS.TOP_3_REGIONS,    mode: overwrite}
+#   group_name: snowpark_pipeline_multi

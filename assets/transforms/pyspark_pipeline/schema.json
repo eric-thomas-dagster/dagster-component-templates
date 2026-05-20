@@ -1,22 +1,29 @@
 {
   "component_type": "dagster_component_templates.PySparkPipelineComponent",
-  "description": "Multi-step PySpark DataFrame chain in a single Dagster asset (Catalyst-optimized).",
+  "description": "Multi-step PySpark DataFrame pipeline in a single Dagster asset (Catalyst-optimized across all steps).",
   "category": "transformation",
   "icon": "Zap",
   "x-dagster-io": {
-    "outputs": {"type": "table_or_dataframe", "description": "Either materialized to a sink (parquet/table/jdbc) or returned as pandas (sink.kind=none)"}
+    "outputs": {"type": "table_or_dataframe", "description": "Either materialized to one or more sinks (parquet/table/jdbc) or returned as pandas (sink kind=none)"}
   },
   "attributes": {
     "asset_name":         {"type": "string", "required": true},
     "spark_config":       {"type": "object", "description": "SparkConf options (e.g. spark.master, spark.sql.shuffle.partitions)"},
     "spark_app_name":     {"type": "string", "default": "dagster-pyspark-pipeline"},
-    "source":             {"type": "object", "required": true,
-                           "description": "{kind: parquet|csv|json|orc|delta|table|jdbc|upstream, ...kind-specific}"},
-    "operations":         {"type": "array", "required": true, "items": {"type": "object"},
-                           "description": "Ordered list of PySpark DataFrame ops."},
-    "sink":               {"type": "object", "required": true,
-                           "description": "{kind: parquet|csv|json|delta|table|jdbc|none, ...kind-specific}"},
-    "upstream_asset_key": {"type": "string", "description": "Required when source.kind='upstream'"},
+
+    "source":             {"type": "object",
+                           "description": "Top-level single-source shape: {kind: parquet|csv|json|orc|delta|table|jdbc|upstream, ...}"},
+    "operations":         {"type": "array", "items": {"type": "object"},
+                           "description": "Flat shape: PySpark DataFrame ops. Supported: filter, select, drop, rename, with_columns, group_by, sort, limit, distinct, drop_nulls, join, union, sql."},
+    "sink":               {"type": "object",
+                           "description": "Top-level single-sink shape: {kind: parquet|csv|json|delta|table|jdbc|none, ...}"},
+    "upstream_asset_key": {"type": "string", "description": "Flat shape: when source.kind='upstream'"},
+
+    "steps":              {"type": "array", "items": {"type": "object"},
+                           "description": "Multi-step form. Each step: {id, source: {kind: parquet|table|jdbc|upstream|ref|..., ...}, operations: [...]}. 'op: sql' uses createOrReplaceTempView('self' + step ids) + spark.sql(...)."},
+    "sinks":              {"type": "array", "items": {"type": "object"},
+                           "description": "Multi-step form. Each sink: {from: <step_id>, kind: parquet|csv|json|delta|table|jdbc|none, path/table/url, mode}."},
+
     "group_name":         {"type": "string"},
     "description":        {"type": "string"},
     "asset_tags":         {"type": "object"},

@@ -1,0 +1,5 @@
+name: Snowflake Task
+description: Define a Snowflake TASK as Dagster YAML. Materialization runs CREATE OR REPLACE TASK and optionally RESUMEs + EXECUTEs it.
+category: integration
+version: 1.0.0
+author: Dagster Community

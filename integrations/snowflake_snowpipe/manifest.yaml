@@ -1,0 +1,5 @@
+name: Snowflake Snowpipe
+description: Define a Snowflake PIPE (Snowpipe) as Dagster YAML. Materialization runs CREATE OR REPLACE PIPE and (optionally) ALTER PIPE … REFRESH.
+category: integration
+version: 1.0.0
+author: Dagster Community

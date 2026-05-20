@@ -1,0 +1,5 @@
+name: Snowflake Alert
+description: Define a Snowflake ALERT (scheduled conditional action) as Dagster YAML. Materialization runs CREATE OR REPLACE ALERT and RESUMEs it.
+category: integration
+version: 1.0.0
+author: Dagster Community

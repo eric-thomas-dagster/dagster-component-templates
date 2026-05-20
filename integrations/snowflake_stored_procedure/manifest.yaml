@@ -1,0 +1,5 @@
+name: Snowflake Stored Procedure
+description: Define a Snowflake STORED PROCEDURE (SQL / Python / JavaScript / Scala) as Dagster YAML. Optional CALL on materialize.
+category: integration
+version: 1.0.0
+author: Dagster Community

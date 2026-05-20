@@ -1,0 +1,5 @@
+name: Snowflake Dynamic Table
+description: Define a Snowflake DYNAMIC TABLE as Dagster YAML. Materialization runs CREATE OR REPLACE DYNAMIC TABLE.
+category: integration
+version: 1.0.0
+author: Dagster Community

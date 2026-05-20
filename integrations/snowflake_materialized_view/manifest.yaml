@@ -1,0 +1,5 @@
+name: Snowflake Materialized View
+description: Define a Snowflake MATERIALIZED VIEW as Dagster YAML. Materialization runs CREATE OR REPLACE MATERIALIZED VIEW.
+category: integration
+version: 1.0.0
+author: Dagster Community

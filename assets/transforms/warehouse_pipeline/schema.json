@@ -31,6 +31,8 @@
     "description":          {"type": "string"},
     "asset_tags":           {"type": "object"},
     "kinds":                {"type": "array", "items": {"type": "string"}},
+    "automation_condition": {"type": "string",
+                             "description": "Jinja-templated AutomationCondition factory, e.g. \"{{ dg.AutomationCondition.eager() }}\". Dagster's component YAML loader resolves it to the actual AutomationCondition object at load time."},
     "include_preview_metadata": {"type": "boolean", "default": false},
     "preview_rows":         {"type": "integer", "default": 25, "minimum": 1, "maximum": 200}
   }

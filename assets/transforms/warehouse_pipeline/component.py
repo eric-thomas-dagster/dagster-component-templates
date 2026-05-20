@@ -451,6 +451,15 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
     description: Optional[str] = Field(default=None)
     asset_tags: Optional[Dict[str, str]] = Field(default=None)
     kinds: Optional[List[str]] = Field(default=None)
+    automation_condition: Optional[Any] = Field(
+        default=None,
+        description=(
+            "AutomationCondition for this asset. In YAML, write as a Jinja "
+            "template against the dg namespace, e.g. "
+            "'{{ dg.AutomationCondition.eager() }}' — Dagster's component "
+            "loader resolves it to the actual AutomationCondition object."
+        ),
+    )
     include_preview_metadata: bool = Field(default=False)
     preview_rows: int = Field(default=25, ge=1, le=200)
 
@@ -515,7 +524,7 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
             all_tags[f"dagster/kind/{k}"] = ""
         resolve_url = self._resolve_url
 
-        @asset(
+        asset_kwargs: Dict[str, Any] = dict(
             name=asset_name,
             description=self.description or self.get_description(),
             owners=self.owners or [],
@@ -524,6 +533,10 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             kinds=set(kinds),
         )
+        if self.automation_condition is not None:
+            asset_kwargs["automation_condition"] = self.automation_condition
+
+        @asset(**asset_kwargs)
         def _warehouse_pipeline_asset(context: AssetExecutionContext):
             import sqlalchemy
             engine = sqlalchemy.create_engine(resolve_url())

@@ -22508,6 +22508,133 @@
         "level": "code",
         "last_validated": "2026-05-19"
       }
+    },
+    {
+      "id": "warehouse_formula",
+      "name": "WarehouseFormula",
+      "category": "transformation",
+      "description": "Add/replace columns via inline SQL expressions (CTAS pushdown). Alteryx Formula In-DB equivalent.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/warehouse_formula",
+      "tags": [
+        "transformation",
+        "warehouse",
+        "pushdown",
+        "sql",
+        "formula",
+        "ctas"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sqlalchemy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_formula/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_formula/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_formula/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_formula/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_formula/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-19"
+      }
+    },
+    {
+      "id": "warehouse_multi_field_formula",
+      "name": "WarehouseMultiFieldFormula",
+      "category": "transformation",
+      "description": "Apply one formula template to N columns via CTAS. Alteryx Multi-Field Formula equivalent.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/warehouse_multi_field_formula",
+      "tags": [
+        "transformation",
+        "warehouse",
+        "pushdown",
+        "sql",
+        "formula"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sqlalchemy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_multi_field_formula/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_multi_field_formula/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_multi_field_formula/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_multi_field_formula/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_multi_field_formula/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-19"
+      }
+    },
+    {
+      "id": "warehouse_multi_row_formula",
+      "name": "WarehouseMultiRowFormula",
+      "category": "transformation",
+      "description": "Row-relative formulas (running totals / LAG/LEAD / ranks) via SQL window functions. Alteryx Multi-Row Formula equivalent.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/warehouse_multi_row_formula",
+      "tags": [
+        "transformation",
+        "warehouse",
+        "pushdown",
+        "sql",
+        "window-function",
+        "formula"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sqlalchemy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_multi_row_formula/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_multi_row_formula/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_multi_row_formula/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_multi_row_formula/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_multi_row_formula/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-19"
+      }
+    },
+    {
+      "id": "warehouse_pipeline",
+      "name": "WarehousePipeline",
+      "category": "transformation",
+      "description": "Multi-step warehouse-native pipeline compiled to one CTAS via CTE chain.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/transforms/warehouse_pipeline",
+      "tags": [
+        "transformation",
+        "warehouse",
+        "pushdown",
+        "sql",
+        "pipeline",
+        "cte"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sqlalchemy"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_pipeline/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_pipeline/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_pipeline/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_pipeline/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/warehouse_pipeline/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-19"
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

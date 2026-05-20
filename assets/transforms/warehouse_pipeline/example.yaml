@@ -1,0 +1,23 @@
+type: dagster_component_templates.WarehousePipelineComponent
+attributes:
+  asset_name: top_5_categories_by_revenue
+  database_url: snowflake://user:pass@account/db/schema?warehouse=COMPUTE_WH
+  dialect: snowflake
+  source:
+    upstream_table: raw.orders
+  operations:
+    - op: filter
+      predicate: "status = 'paid'"
+    - op: group_by
+      group_by: [category]
+      aggregations:
+        revenue:     {col: amount,   agg: sum}
+        order_count: {col: order_id, agg: count}
+    - op: top_n
+      sort_by: revenue
+      n: 5
+      ascending: false
+  output_table: analytics.top_5_categories_by_revenue
+  mode: replace
+  group_name: warehouse_native
+  deps: [raw_orders_in_warehouse]

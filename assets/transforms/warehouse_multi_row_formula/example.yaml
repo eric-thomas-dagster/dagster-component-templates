@@ -1,0 +1,17 @@
+type: dagster_component_templates.WarehouseMultiRowFormulaComponent
+attributes:
+  asset_name: orders_with_running
+  database_url: snowflake://user:pass@account/db/schema?warehouse=COMPUTE_WH
+  dialect: snowflake
+  upstream_table: raw.orders
+  output_table: analytics.orders_with_running
+  partition_by: [customer_id]
+  order_by: [order_date]
+  expressions:
+    running_total:   {kind: running_total, col: amount}
+    running_avg:     {kind: running_avg,   col: amount}
+    prev_amount:     {kind: lag, col: amount, offset: 1, default: 0}
+    order_rank:      {kind: row_number}
+  mode: replace
+  group_name: warehouse_native
+  deps: [raw_orders_in_warehouse]

@@ -1,0 +1,13 @@
+type: dagster_component_templates.WarehouseMultiFieldFormulaComponent
+attributes:
+  asset_name: customers_normalized
+  database_url: snowflake://user:pass@account/db/schema?warehouse=COMPUTE_WH
+  dialect: snowflake
+  upstream_table: raw.customers
+  output_table: analytics.customers_normalized
+  expression: "UPPER(TRIM({col}))"
+  columns: [name, email, address]
+  output_mode: replace        # replace | add_suffix | add_prefix
+  mode: replace
+  group_name: warehouse_native
+  deps: [raw_customers_in_warehouse]

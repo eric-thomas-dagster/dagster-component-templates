@@ -1,0 +1,16 @@
+type: dagster_component_templates.WarehouseFormulaComponent
+attributes:
+  asset_name: orders_enriched
+  database_url: snowflake://user:pass@account/db/schema?warehouse=COMPUTE_WH
+  dialect: snowflake
+  upstream_table: raw.orders
+  output_table: analytics.orders_enriched
+  expressions:
+    net_amount:     "amount - tax"
+    is_high_value:  "CASE WHEN amount > 1000 THEN TRUE ELSE FALSE END"
+    order_year:     "EXTRACT(YEAR FROM created_at)"
+    running_total:  "SUM(amount) OVER (PARTITION BY customer_id ORDER BY created_at)"
+  keep_existing: true
+  mode: replace
+  group_name: warehouse_native
+  deps: [raw_orders_in_warehouse]

@@ -1,0 +1,30 @@
+{
+  "component_type": "dagster_component_templates.WarehousePipelineComponent",
+  "description": "Multi-step warehouse-native pipeline compiled to one CTAS via CTE chain. YAML-defined stored-procedure shape.",
+  "category": "transformation",
+  "icon": "Workflow",
+  "x-dagster-io": {
+    "outputs": {"type": "table", "description": "Final materialized table after the CTE chain"}
+  },
+  "attributes": {
+    "asset_name":           {"type": "string", "required": true},
+    "database_url":         {"type": "string"},
+    "database_url_env_var": {"type": "string"},
+    "dialect":              {"type": "string", "required": true,
+                             "enum": ["duckdb","postgres","postgresql","snowflake","bigquery","redshift","databricks","mssql","mysql"]},
+    "source":               {"type": "object", "required": true,
+                             "description": "{upstream_table: 'schema.table'}"},
+    "operations":           {"type": "array", "items": {"type": "object"}, "required": true,
+                             "description": "Ordered ops compiled into one CTE chain."},
+    "output_table":         {"type": "string", "required": true},
+    "mode":                 {"type": "string", "enum": ["replace","create_if_not_exists"], "default": "replace"},
+    "group_name":           {"type": "string"},
+    "deps":                 {"type": "array", "items": {"type": "string"}},
+    "owners":               {"type": "array", "items": {"type": "string"}},
+    "description":          {"type": "string"},
+    "asset_tags":           {"type": "object"},
+    "kinds":                {"type": "array", "items": {"type": "string"}},
+    "include_preview_metadata": {"type": "boolean", "default": false},
+    "preview_rows":         {"type": "integer", "default": 25, "minimum": 1, "maximum": 200}
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "component_type": "dagster_component_templates.WarehouseMultiRowFormulaComponent",
+  "description": "Row-relative formulas (running totals / LAG/LEAD / ranks) via SQL window functions. Alteryx Multi-Row Formula equivalent.",
+  "category": "transformation",
+  "icon": "TrendingUp",
+  "x-dagster-io": {
+    "inputs":  {"type": "table", "required": true},
+    "outputs": {"type": "table"}
+  },
+  "attributes": {
+    "asset_name":           {"type": "string", "required": true},
+    "database_url":         {"type": "string"},
+    "database_url_env_var": {"type": "string"},
+    "dialect":              {"type": "string", "required": true,
+                             "enum": ["duckdb","postgres","postgresql","snowflake","bigquery","redshift","databricks","mssql","mysql"]},
+    "upstream_table":       {"type": "string", "required": true},
+    "output_table":         {"type": "string", "required": true},
+    "expressions":          {"type": "object", "required": true,
+                             "description": "Map of output_col → {kind: running_total|running_avg|lag|lead|row_number|rank|dense_rank|percent_rank|first_value|last_value|expression, col: <src>, offset: <int>, default: <SQL>, expression: <raw SQL with {col} placeholder>}."},
+    "partition_by":         {"type": "array", "items": {"type": "string"}},
+    "order_by":             {"type": "array", "items": {"type": "string"}},
+    "order_descending":     {"type": "array", "items": {"type": "boolean"}},
+    "mode":                 {"type": "string", "enum": ["replace","create_if_not_exists"], "default": "replace"},
+    "group_name":           {"type": "string"},
+    "deps":                 {"type": "array", "items": {"type": "string"}},
+    "owners":               {"type": "array", "items": {"type": "string"}},
+    "description":          {"type": "string"},
+    "asset_tags":           {"type": "object"},
+    "kinds":                {"type": "array", "items": {"type": "string"}},
+    "include_preview_metadata": {"type": "boolean", "default": false},
+    "preview_rows":         {"type": "integer", "default": 25, "minimum": 1, "maximum": 200}
+  }
+}

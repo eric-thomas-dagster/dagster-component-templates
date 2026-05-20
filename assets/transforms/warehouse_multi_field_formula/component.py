@@ -64,10 +64,12 @@ def _ctas_multi_field(output_table: str, upstream_table: str, expression: str,
         # Easier: list the new ones, then * EXCEPT for duckdb/bigquery;
         # else inline the original column list. We'll use * EXCEPT where supported.
         if dialect in ("duckdb", "bigquery", "snowflake", "databricks"):
-            # SELECT * EXCEPT (col1, col2) takes barewords, not quoted idents
-            # — at least on DuckDB and BigQuery. Snowflake/Databricks tolerate both.
+            # Bareword column list; dialect-specific exclusion keyword:
+            #   DuckDB / Snowflake: SELECT * EXCLUDE (a, b)
+            #   BigQuery / Databricks: SELECT * EXCEPT (a, b)
             except_list = ", ".join(columns)
-            select_clause = f"* EXCEPT ({except_list}), " + ", ".join(new_col_select)
+            kw = "EXCLUDE" if dialect in ("duckdb", "snowflake") else "EXCEPT"
+            select_clause = f"* {kw} ({except_list}), " + ", ".join(new_col_select)
         else:
             # Postgres/Redshift/MSSQL/MySQL: must enumerate. The caller can
             # pass keep_columns to project; otherwise this raises.

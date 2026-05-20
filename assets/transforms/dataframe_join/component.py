@@ -126,6 +126,10 @@ class DataframeJoin(Component, Model, Resolvable):
     """Join two DataFrame assets on common or specified columns."""
 
     asset_name: str = Field(description="Output Dagster asset name")
+    backend: str = Field(
+        default="pandas",
+        description="'pandas' (default) or 'polars'. Polars uses .join() with the same how/on/left_on/right_on semantics and returns a polars DataFrame.",
+    )
     left_asset_key: str = Field(description="Left DataFrame asset key")
     right_asset_key: str = Field(description="Right DataFrame asset key")
     additional_asset_keys: Optional[List[str]] = Field(
@@ -339,12 +343,29 @@ class DataframeJoin(Component, Model, Resolvable):
 
         owners = self.owners or []
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
+        backend = (self.backend or "pandas").lower()
+        if backend not in ("pandas", "polars"):
+            raise ValueError(f"backend must be 'pandas' or 'polars', got {self.backend!r}")
 
 
         extra_slots = list(_extra_slots)
 
         @asset(partitions_def=partitions_def, name=asset_name, ins=ins, group_name=group_name, retry_policy=_retry_policy, freshness_policy=_freshness_policy, owners=self.owners or [], tags=_all_tags, deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])])
-        def _asset(context: AssetExecutionContext, left: pd.DataFrame, right: pd.DataFrame, **extras) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, left: Any, right: Any, **extras) -> Any:
+            try:
+                import polars as pl
+                _is_polars_in = isinstance(left, pl.DataFrame) or isinstance(right, pl.DataFrame)
+            except Exception:
+                pl = None  # type: ignore
+                _is_polars_in = False
+            # Normalize inputs to pandas first (covers mixed input types)
+            if pl is not None and isinstance(left, pl.DataFrame):
+                left = left.to_pandas()
+            if pl is not None and isinstance(right, pl.DataFrame):
+                right = right.to_pandas()
+            for slot in list(extras):
+                if pl is not None and isinstance(extras.get(slot), pl.DataFrame):
+                    extras[slot] = extras[slot].to_pandas()
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -391,25 +412,49 @@ class DataframeJoin(Component, Model, Resolvable):
                         TableColumnLineage(_lineage_deps)
                     )
             context.add_output_metadata(_metadata)
-            merged = left.merge(
-                right,
-                how=how,
-                on=on,
-                left_on=left_on,
-                right_on=right_on,
-                suffixes=tuple(suffixes),
-            )
-            for slot in extra_slots:
-                nxt = extras.get(slot)
-                if nxt is None:
-                    continue
-                merged = merged.merge(
-                    nxt,
+            if backend == "polars":
+                if pl is None:
+                    raise ImportError("polars backend requested but `polars` is not installed.")
+                # polars naming: how='inner'|'left'|'right'|'outer'|'cross'|'semi'|'anti'
+                # outer in pandas == 'full' in polars
+                _how_map = {"outer": "full"}
+                pl_how = _how_map.get(how, how)
+                left_pl = pl.from_pandas(left)
+                right_pl = pl.from_pandas(right)
+                join_kwargs = {"how": pl_how, "suffix": suffixes[1] if len(suffixes) > 1 else "_right"}
+                if on:
+                    join_kwargs["on"] = on
+                elif left_on and right_on:
+                    join_kwargs["left_on"] = left_on
+                    join_kwargs["right_on"] = right_on
+                merged_pl = left_pl.join(right_pl, **join_kwargs)
+                for slot in extra_slots:
+                    nxt = extras.get(slot)
+                    if nxt is None:
+                        continue
+                    nxt_pl = pl.from_pandas(nxt)
+                    merged_pl = merged_pl.join(nxt_pl, **({"how": pl_how, "suffix": suffixes[1] if len(suffixes) > 1 else "_right"} | ({"on": on} if on else {})))
+                return merged_pl
+            else:
+                merged = left.merge(
+                    right,
                     how=how,
                     on=on,
+                    left_on=left_on,
+                    right_on=right_on,
                     suffixes=tuple(suffixes),
                 )
-            return merged
+                for slot in extra_slots:
+                    nxt = extras.get(slot)
+                    if nxt is None:
+                        continue
+                    merged = merged.merge(
+                        nxt,
+                        how=how,
+                        on=on,
+                        suffixes=tuple(suffixes),
+                    )
+                return merged
 
         from dagster import build_column_schema_change_checks
 

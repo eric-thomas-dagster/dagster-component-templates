@@ -141,6 +141,10 @@ class PctChangeComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
+    backend: str = Field(
+        default="pandas",
+        description="'pandas' (default) or 'polars'. Polars uses pl.col.pct_change() per group via .over(group_by) and returns a polars DataFrame.",
+    )
     value_column: str = Field(description="Column to compute period-over-period change on")
     order_by: Optional[str] = Field(
         default=None,
@@ -306,6 +310,9 @@ class PctChangeComponent(Component, Model, Resolvable):
         order_by = self.order_by
         group_by = self.group_by
         periods = self.periods
+        backend = (self.backend or "pandas").lower()
+        if backend not in ("pandas", "polars"):
+            raise ValueError(f"backend must be 'pandas' or 'polars', got {self.backend!r}")
         diff_column = self.diff_column or f"{value_column}_diff"
         pct_column = self.pct_column or f"{value_column}_pct"
         as_percent = self.as_percent
@@ -374,7 +381,15 @@ group_name=group_name,
             retry_policy=_retry_policy,
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, upstream: Any) -> Any:
+            try:
+                import polars as pl
+                _is_polars_in = isinstance(upstream, pl.DataFrame)
+            except Exception:
+                pl = None  # type: ignore
+                _is_polars_in = False
+            if _is_polars_in:
+                upstream = upstream.to_pandas()
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -406,39 +421,76 @@ group_name=group_name,
                 df = df.sort_values(sort_cols).reset_index(drop=True)
 
             # Compute diff + pct_change
-            if group_by:
-                grp = df.groupby(group_by, sort=False)[value_column]
-                df[diff_column] = grp.diff(periods=periods)
-                df[pct_column] = grp.pct_change(periods=periods)
-                context.log.info(
-                    f"Computed period-over-period change on '{value_column}' "
-                    f"grouped by {group_by} (periods={periods})"
-                )
+            if backend == "polars":
+                if pl is None:
+                    raise ImportError("polars backend requested but `polars` is not installed.")
+                pl_df = pl.from_pandas(df)
+                if group_by:
+                    pl_df = pl_df.with_columns([
+                        pl.col(value_column).diff(n=periods).over(group_by).alias(diff_column),
+                        pl.col(value_column).pct_change(n=periods).over(group_by).alias(pct_column),
+                    ])
+                    context.log.info(
+                        f"Computed period-over-period change on '{value_column}' "
+                        f"grouped by {group_by} (periods={periods}, backend=polars)"
+                    )
+                else:
+                    pl_df = pl_df.with_columns([
+                        pl.col(value_column).diff(n=periods).alias(diff_column),
+                        pl.col(value_column).pct_change(n=periods).alias(pct_column),
+                    ])
+                    context.log.info(
+                        f"Computed period-over-period change on '{value_column}' "
+                        f"(periods={periods}, backend=polars)"
+                    )
+                df = pl_df  # df is now a polars frame downstream
             else:
-                df[diff_column] = df[value_column].diff(periods=periods)
-                df[pct_column] = df[value_column].pct_change(periods=periods)
-                context.log.info(
-                    f"Computed period-over-period change on '{value_column}' "
-                    f"(periods={periods})"
-                )
+                if group_by:
+                    grp = df.groupby(group_by, sort=False)[value_column]
+                    df[diff_column] = grp.diff(periods=periods)
+                    df[pct_column] = grp.pct_change(periods=periods)
+                    context.log.info(
+                        f"Computed period-over-period change on '{value_column}' "
+                        f"grouped by {group_by} (periods={periods})"
+                    )
+                else:
+                    df[diff_column] = df[value_column].diff(periods=periods)
+                    df[pct_column] = df[value_column].pct_change(periods=periods)
+                    context.log.info(
+                        f"Computed period-over-period change on '{value_column}' "
+                        f"(periods={periods})"
+                    )
 
-            if as_percent:
-                df[pct_column] = df[pct_column] * 100
-
-            if fill_first:
-                df[diff_column] = df[diff_column].fillna(0)
-                df[pct_column] = df[pct_column].fillna(0)
-
-            result = df
+            if backend == "polars":
+                _adjustments = []
+                if as_percent:
+                    _adjustments.append(pl.col(pct_column) * 100)
+                if fill_first:
+                    _adjustments.append(pl.col(diff_column).fill_null(0).alias(diff_column))
+                    _adjustments.append(pl.col(pct_column).fill_null(0).alias(pct_column))
+                if _adjustments:
+                    df = df.with_columns(_adjustments)
+                result = df
+                _meta_df = df.to_pandas()
+                _row_count = df.height
+            else:
+                if as_percent:
+                    df[pct_column] = df[pct_column] * 100
+                if fill_first:
+                    df[diff_column] = df[diff_column].fillna(0)
+                    df[pct_column] = df[pct_column].fillna(0)
+                result = df
+                _meta_df = df
+                _row_count = len(df)
 
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[
-                TableColumn(name=str(col), type=str(result.dtypes[col]))
-                for col in result.columns
+                TableColumn(name=str(col), type=str(_meta_df.dtypes[col]))
+                for col in _meta_df.columns
             ])
             _metadata = {
-                "dagster/row_count": MetadataValue.int(len(result)),
+                "dagster/row_count": MetadataValue.int(_row_count),
                 "dagster/column_schema": MetadataValue.table_schema(_col_schema),
             }
             # Use explicit lineage, or auto-infer passthrough columns at runtime
@@ -464,9 +516,9 @@ group_name=group_name,
                     _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
                         TableColumnLineage(_lineage_deps)
                     )
-            if include_preview and len(result) > 0:
+            if include_preview and _row_count > 0:
                 try:
-                    _prev = result.sample(min(preview_rows, len(result))) if len(result) > preview_rows * 10 else result.head(preview_rows)
+                    _prev = _meta_df.sample(min(preview_rows, _row_count)) if _row_count > preview_rows * 10 else _meta_df.head(preview_rows)
                     _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
                 except Exception as _e:
                     context.log.warning(f"preview emission failed: {_e}")

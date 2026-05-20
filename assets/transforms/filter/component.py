@@ -127,6 +127,16 @@ class FilterComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
+    backend: str = Field(
+        default="pandas",
+        description=(
+            "Execution backend: 'pandas' (default) or 'polars'. Polars runs the "
+            "filter via its SQL engine over the same condition string and returns "
+            "a polars DataFrame; pandas uses .query() and returns a pandas "
+            "DataFrame. The condition syntax is identical across backends for "
+            "common predicates (col op value, AND/OR, IN, IS NULL, etc.)."
+        ),
+    )
     condition: str = Field(
         description="Pandas query expression e.g. 'age > 18 and country == \"US\"'"
     )
@@ -259,6 +269,9 @@ class FilterComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
         condition = self.condition
+        backend = (self.backend or "pandas").lower()
+        if backend not in ("pandas", "polars"):
+            raise ValueError(f"backend must be 'pandas' or 'polars', got {self.backend!r}")
         negate = self.negate
         group_name = self.group_name
 
@@ -324,7 +337,15 @@ group_name=group_name,
             retry_policy=_retry_policy,
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, upstream: Any) -> Any:
+            try:
+                import polars as pl
+                _is_polars_in = isinstance(upstream, pl.DataFrame)
+            except Exception:
+                pl = None  # type: ignore
+                _is_polars_in = False
+            if _is_polars_in:
+                upstream = upstream.to_pandas()
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -337,17 +358,28 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-            query_expr = f"not ({condition})" if negate else condition
-            result = upstream.query(query_expr)
-            kept = len(result)
             total = len(upstream)
+            if backend == "polars":
+                if pl is None:
+                    raise ImportError("polars backend requested but `polars` is not installed.")
+                pl_df = pl.from_pandas(upstream)
+                where = f"NOT ({condition})" if negate else condition
+                ctx = pl.SQLContext({"_frame": pl_df})
+                result = ctx.execute(f"SELECT * FROM _frame WHERE {where}").collect()
+                kept = result.height
+                _meta_df = result.to_pandas()
+            else:
+                query_expr = f"not ({condition})" if negate else condition
+                result = upstream.query(query_expr)
+                kept = len(result)
+                _meta_df = result
             pct = (kept / total * 100) if total > 0 else 0.0
             context.log.info(f"Kept {kept}/{total} rows ({pct:.1f}%)")
-            # Build column schema metadata
+            # Build column schema metadata (use pandas view for both backends)
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[
-                TableColumn(name=str(col), type=str(result.dtypes[col]))
-                for col in result.columns
+                TableColumn(name=str(col), type=str(_meta_df.dtypes[col]))
+                for col in _meta_df.columns
             ])
             _metadata = {
                 "dagster/row_count": MetadataValue.int(len(result)),
@@ -377,7 +409,9 @@ group_name=group_name,
                         TableColumnLineage(_lineage_deps)
                     )
             context.add_output_metadata(_metadata)
-            return result.reset_index(drop=True)
+            # pandas needs an index reset after .query() to renumber rows;
+            # polars has no index, return as-is.
+            return result if backend == "polars" else result.reset_index(drop=True)
 
         from dagster import build_column_schema_change_checks
 

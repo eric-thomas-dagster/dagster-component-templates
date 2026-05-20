@@ -133,6 +133,10 @@ class UniqueDedupComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
+    backend: str = Field(
+        default="pandas",
+        description="'pandas' (default) or 'polars'. Polars runs `df.unique(...)`; pandas runs `df.drop_duplicates(...)`. Returns the same backend's DataFrame.",
+    )
     subset: Optional[List[str]] = Field(
         default=None,
         description="Columns to consider for duplication (None = all columns)",
@@ -291,6 +295,9 @@ class UniqueDedupComponent(Component, Model, Resolvable):
         subset = self.subset
         keep = self.keep
         output_mode = self.output_mode
+        backend = (self.backend or "pandas").lower()
+        if backend not in ("pandas", "polars"):
+            raise ValueError(f"backend must be 'pandas' or 'polars', got {self.backend!r}")
         flag_column = self.flag_column
         group_name = self.group_name
 
@@ -356,7 +363,7 @@ group_name=group_name,
             retry_policy=_retry_policy,
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, upstream: Any) -> Any:
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -369,24 +376,59 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+            try:
+                import polars as pl
+                _is_polars_in = isinstance(upstream, pl.DataFrame)
+            except Exception:
+                pl = None  # type: ignore
+                _is_polars_in = False
+            if _is_polars_in:
+                upstream = upstream.to_pandas()
             df = upstream.copy()
             keep_val = False if keep == "none" else keep
 
             rows_before = len(df)
 
-            if output_mode == "unique":
-                result = df.drop_duplicates(subset=subset, keep=keep_val)
-            elif output_mode == "duplicates":
-                result = df[df.duplicated(subset=subset, keep=keep_val)]
-            elif output_mode == "all":
-                result = df.copy()
-                result[flag_column] = df.duplicated(subset=subset, keep=keep_val)
+            if backend == "polars":
+                if pl is None:
+                    raise ImportError("polars backend requested but `polars` is not installed.")
+                pl_df = pl.from_pandas(df)
+                # polars unique() takes keep in {'first','last','any','none'}; pandas 'none' maps to polars 'none'.
+                pl_keep = "none" if keep == "none" else keep
+                if output_mode == "unique":
+                    result_pl = pl_df.unique(subset=subset, keep=pl_keep, maintain_order=True)
+                elif output_mode == "duplicates":
+                    # polars has is_duplicated() — combine with filter()
+                    uniq = pl_df.unique(subset=subset, keep=pl_keep, maintain_order=True)
+                    # Anti-join uniq back against pl_df to get the dropped (duplicate) rows
+                    if subset:
+                        result_pl = pl_df.join(uniq, on=subset, how="anti")
+                    else:
+                        result_pl = pl_df.join(uniq, on=pl_df.columns, how="anti")
+                elif output_mode == "all":
+                    # is_duplicated() flags ALL rows that are part of a duplicate set
+                    result_pl = pl_df.with_columns(pl_df.is_duplicated().alias(flag_column))
+                else:
+                    raise ValueError(
+                        f"Unknown output_mode '{output_mode}'. Use 'unique', 'duplicates', or 'all'."
+                    )
+                result = result_pl
+                _meta_df = result_pl.to_pandas()
             else:
-                raise ValueError(
-                    f"Unknown output_mode '{output_mode}'. Use 'unique', 'duplicates', or 'all'."
-                )
+                if output_mode == "unique":
+                    result = df.drop_duplicates(subset=subset, keep=keep_val)
+                elif output_mode == "duplicates":
+                    result = df[df.duplicated(subset=subset, keep=keep_val)]
+                elif output_mode == "all":
+                    result = df.copy()
+                    result[flag_column] = df.duplicated(subset=subset, keep=keep_val)
+                else:
+                    raise ValueError(
+                        f"Unknown output_mode '{output_mode}'. Use 'unique', 'duplicates', or 'all'."
+                    )
+                _meta_df = result
 
-            rows_after = len(result)
+            rows_after = len(_meta_df)
             context.log.info(
                 f"Dedup complete. Rows before: {rows_before}, after: {rows_after}, "
                 f"mode='{output_mode}', keep='{keep}'"
@@ -394,11 +436,11 @@ group_name=group_name,
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[
-                TableColumn(name=str(col), type=str(result.dtypes[col]))
-                for col in result.columns
+                TableColumn(name=str(col), type=str(_meta_df.dtypes[col]))
+                for col in _meta_df.columns
             ])
             _metadata = {
-                "dagster/row_count": MetadataValue.int(len(result)),
+                "dagster/row_count": MetadataValue.int(rows_after),
                 "dagster/column_schema": MetadataValue.table_schema(_col_schema),
             }
             # Use explicit lineage, or auto-infer passthrough columns at runtime
@@ -424,9 +466,9 @@ group_name=group_name,
                     _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
                         TableColumnLineage(_lineage_deps)
                     )
-            if include_preview and len(result) > 0:
+            if include_preview and rows_after > 0:
                 try:
-                    _prev = result.sample(min(preview_rows, len(result))) if len(result) > preview_rows * 10 else result.head(preview_rows)
+                    _prev = _meta_df.sample(min(preview_rows, rows_after)) if rows_after > preview_rows * 10 else _meta_df.head(preview_rows)
                     _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
                 except Exception as _e:
                     context.log.warning(f"preview emission failed: {_e}")

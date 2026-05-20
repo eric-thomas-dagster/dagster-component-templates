@@ -137,6 +137,15 @@ class DataframeDescribeComponent(Component, Model, Resolvable):
     """
 
     asset_name: str = Field(description="Output Dagster asset name")
+    backend: str = Field(
+        default="pandas",
+        description=(
+            "Accept polars input via auto-conversion. The describe() computation "
+            "itself runs in pandas — the profiling output shape (transposed table "
+            "of stats per column) is pandas-shaped. Setting backend='polars' "
+            "accepts polars input but does NOT change the output type."
+        ),
+    )
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     include: str = Field(
         default="all",
@@ -354,7 +363,13 @@ group_name=group_name,
             retry_policy=_retry_policy,
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+            try:
+                import polars as pl
+                if isinstance(upstream, pl.DataFrame):
+                    upstream = upstream.to_pandas()
+            except Exception:
+                pass
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key

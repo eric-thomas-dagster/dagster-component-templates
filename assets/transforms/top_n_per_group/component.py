@@ -135,6 +135,11 @@ class TopNPerGroupComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
+    backend: str = Field(
+        default="pandas",
+        description="'pandas' (default) or 'polars'. Polars runs sort+head per group "
+                    "with the polars engine and returns a polars DataFrame.",
+    )
     group_by: List[str] = Field(description="Columns to group by (e.g. ['category']).")
     sort_by: str = Field(description="Column to sort by within each group (the 'top' criterion).")
     n: int = Field(default=3, description="Number of rows to keep per group.", ge=1)
@@ -285,6 +290,9 @@ class TopNPerGroupComponent(Component, Model, Resolvable):
         group_by = self.group_by
         sort_by = self.sort_by
         n = self.n
+        backend = (self.backend or "pandas").lower()
+        if backend not in ("pandas", "polars"):
+            raise ValueError(f"backend must be 'pandas' or 'polars', got {self.backend!r}")
         ascending = self.ascending
         rank_column = self.rank_column
         sort_method = self.sort_method
@@ -352,7 +360,15 @@ group_name=group_name,
             retry_policy=_retry_policy,
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, upstream: Any) -> Any:
+            try:
+                import polars as pl
+                _is_polars_in = isinstance(upstream, pl.DataFrame)
+            except Exception:
+                pl = None  # type: ignore
+                _is_polars_in = False
+            if _is_polars_in:
+                upstream = upstream.to_pandas()
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key
@@ -379,33 +395,54 @@ group_name=group_name,
                     f"sort_by='{sort_by}' not in upstream (available: {list(df.columns)})"
                 )
 
-            # If rank_column requested, compute the dense rank within each group
-            if rank_column:
-                df[rank_column] = (
-                    df.groupby(group_by, sort=False)[sort_by]
-                      .rank(ascending=ascending, method=sort_method)
-                      .astype(int)
+            if backend == "polars":
+                if pl is None:
+                    raise ImportError("polars backend requested but `polars` is not installed.")
+                pl_df = pl.from_pandas(df)
+                if rank_column:
+                    # Polars rank methods: 'min'|'max'|'dense'|'ordinal'|'random'|'average'.
+                    # pandas 'first' (input order tiebreak) ≈ polars 'ordinal'.
+                    _rank_method = {"first": "ordinal"}.get(sort_method, sort_method)
+                    pl_df = pl_df.with_columns(
+                        pl.col(sort_by).rank(method=_rank_method, descending=not ascending)
+                          .over(group_by).cast(pl.Int64).alias(rank_column)
+                    )
+                # Sort within each group then take head(n)
+                result = (
+                    pl_df.sort(by=group_by + [sort_by], descending=[False] * len(group_by) + [not ascending])
+                         .group_by(group_by, maintain_order=True).head(n)
                 )
-
-            # Sort within group then take head(n)
-            sort_cols = group_by + [sort_by]
-            ascending_list = [True] * len(group_by) + [ascending]
-            sorted_df = df.sort_values(sort_cols, ascending=ascending_list).reset_index(drop=True)
-            result = sorted_df.groupby(group_by, sort=False, group_keys=False).head(n).reset_index(drop=True)
+                _meta_df = result.to_pandas()
+                _row_count = result.height
+            else:
+                # If rank_column requested, compute the dense rank within each group
+                if rank_column:
+                    df[rank_column] = (
+                        df.groupby(group_by, sort=False)[sort_by]
+                          .rank(ascending=ascending, method=sort_method)
+                          .astype(int)
+                    )
+                # Sort within group then take head(n)
+                sort_cols = group_by + [sort_by]
+                ascending_list = [True] * len(group_by) + [ascending]
+                sorted_df = df.sort_values(sort_cols, ascending=ascending_list).reset_index(drop=True)
+                result = sorted_df.groupby(group_by, sort=False, group_keys=False).head(n).reset_index(drop=True)
+                _meta_df = result
+                _row_count = len(result)
 
             context.log.info(
                 f"Kept top {n} per group ({group_by}) sorted by '{sort_by}' "
-                f"{'asc' if ascending else 'desc'} → {len(result)} rows from {len(df)} input"
+                f"{'asc' if ascending else 'desc'} → {_row_count} rows from {len(df)} input"
             )
 
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[
-                TableColumn(name=str(col), type=str(result.dtypes[col]))
-                for col in result.columns
+                TableColumn(name=str(col), type=str(_meta_df.dtypes[col]))
+                for col in _meta_df.columns
             ])
             _metadata = {
-                "dagster/row_count": MetadataValue.int(len(result)),
+                "dagster/row_count": MetadataValue.int(_row_count),
                 "dagster/column_schema": MetadataValue.table_schema(_col_schema),
             }
             # Use explicit lineage, or auto-infer passthrough columns at runtime
@@ -431,9 +468,9 @@ group_name=group_name,
                     _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
                         TableColumnLineage(_lineage_deps)
                     )
-            if include_preview and len(result) > 0:
+            if include_preview and _row_count > 0:
                 try:
-                    _prev = result.sample(min(preview_rows, len(result))) if len(result) > preview_rows * 10 else result.head(preview_rows)
+                    _prev = _meta_df.sample(min(preview_rows, _row_count)) if _row_count > preview_rows * 10 else _meta_df.head(preview_rows)
                     _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
                 except Exception as _e:
                     context.log.warning(f"preview emission failed: {_e}")

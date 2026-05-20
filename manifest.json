@@ -22272,7 +22272,8 @@
         "pip": [
           "dagster",
           "polars",
-          "connectorx"
+          "connectorx",
+          "pyarrow"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/polars_read_database/README.md",

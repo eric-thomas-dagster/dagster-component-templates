@@ -51,9 +51,27 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default="SNOWFLAKE_USER",
         description="Env var name holding the Snowflake username.",
     )
-    snowflake_password_env_var: str = Field(
+    snowflake_password_env_var: Optional[str] = Field(
         default="SNOWFLAKE_PASSWORD",
-        description="Env var name holding the Snowflake password.",
+        description="Env var name holding the Snowflake password. Leave None / empty when using SSO or keypair.",
+    )
+    # SSO / keypair / PAT alternatives — for accounts where password auth
+    # is disabled. Leave snowflake_password_env_var unset and use one of these.
+    snowflake_authenticator: Optional[str] = Field(
+        default=None,
+        description="Snowflake authenticator: 'SNOWFLAKE_JWT' (keypair), 'externalbrowser' (SSO), 'oauth', etc.",
+    )
+    snowflake_private_key_file_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var holding the path to a PEM RSA private key file (for snowflake_authenticator='SNOWFLAKE_JWT').",
+    )
+    snowflake_private_key_file_pwd_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var holding the passphrase for an encrypted private key file (optional).",
+    )
+    snowflake_token_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var holding an OAuth / PAT token (with snowflake_authenticator='oauth' or PAT).",
     )
     snowflake_database: str = Field(description="Snowflake database name.")
     snowflake_schema: str = Field(
@@ -307,19 +325,43 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         def _cortex_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             import snowflake.connector
 
+            import os
             account = dg.EnvVar(self.snowflake_account_env_var).get_value()
             user = dg.EnvVar(self.snowflake_user_env_var).get_value()
-            password = dg.EnvVar(self.snowflake_password_env_var).get_value()
 
             connect_kwargs: dict = dict(
                 account=account,
                 user=user,
-                password=password,
                 database=self.snowflake_database,
                 schema=self.snowflake_schema,
             )
             if self.snowflake_warehouse:
                 connect_kwargs["warehouse"] = self.snowflake_warehouse
+
+            # Auth: keypair / SSO / token takes precedence over password if BOTH
+            # are set. Password path preserved for accounts that still allow it.
+            if self.snowflake_authenticator:
+                connect_kwargs["authenticator"] = self.snowflake_authenticator
+                if self.snowflake_private_key_file_env_var:
+                    pk_path = os.environ.get(self.snowflake_private_key_file_env_var)
+                    if pk_path:
+                        connect_kwargs["private_key_file"] = pk_path
+                    if self.snowflake_private_key_file_pwd_env_var:
+                        pk_pwd = os.environ.get(self.snowflake_private_key_file_pwd_env_var)
+                        if pk_pwd:
+                            connect_kwargs["private_key_file_pwd"] = pk_pwd
+                elif self.snowflake_token_env_var:
+                    tok = os.environ.get(self.snowflake_token_env_var)
+                    if tok:
+                        connect_kwargs["token"] = tok
+            elif self.snowflake_password_env_var and os.environ.get(self.snowflake_password_env_var):
+                connect_kwargs["password"] = os.environ[self.snowflake_password_env_var]
+            else:
+                raise EnvironmentError(
+                    "snowflake_cortex_asset: no auth configured. Set either "
+                    "snowflake_password_env_var (with password in env) OR "
+                    "snowflake_authenticator + private_key_file/token env var."
+                )
 
             cortex_expr = self._build_cortex_expr()
             output_col = self.output_column

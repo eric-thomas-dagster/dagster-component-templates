@@ -136,7 +136,25 @@ class DataframeToSnowflakeComponent(Component, Model, Resolvable):
     role: Optional[str] = Field(default=None, description="Snowflake role")
     account_env_var: str = Field(default="SNOWFLAKE_ACCOUNT", description="Env var containing Snowflake account identifier")
     user_env_var: str = Field(default="SNOWFLAKE_USER", description="Env var containing Snowflake user")
-    password_env_var: str = Field(default="SNOWFLAKE_PASSWORD", description="Env var containing Snowflake password")
+    password_env_var: Optional[str] = Field(default="SNOWFLAKE_PASSWORD", description="Env var containing Snowflake password. Leave None / empty when using SSO or keypair.")
+    # SSO / keypair / PAT alternatives — for accounts where password auth
+    # is disabled. Leave password_env_var unset and use one of these.
+    authenticator: Optional[str] = Field(
+        default=None,
+        description="Snowflake authenticator: 'SNOWFLAKE_JWT' (keypair), 'externalbrowser' (SSO), 'oauth', etc.",
+    )
+    private_key_file_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var holding the path to a PEM RSA private key file (for authenticator='SNOWFLAKE_JWT').",
+    )
+    private_key_file_pwd_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var holding the passphrase for an encrypted private key file (optional).",
+    )
+    token_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var holding an OAuth / PAT token (with authenticator='oauth' or PAT).",
+    )
     if_exists: str = Field(default="replace", description="Behavior if table exists: 'replace', 'append', 'fail'")
     chunksize: Optional[int] = Field(default=None, description="Number of rows per write chunk")
     include_preview_metadata: bool = Field(
@@ -272,6 +290,10 @@ class DataframeToSnowflakeComponent(Component, Model, Resolvable):
         account_env_var = self.account_env_var
         user_env_var = self.user_env_var
         password_env_var = self.password_env_var
+        authenticator = self.authenticator
+        private_key_file_env_var = self.private_key_file_env_var
+        private_key_file_pwd_env_var = self.private_key_file_pwd_env_var
+        token_env_var = self.token_env_var
         if_exists = self.if_exists
         chunksize = self.chunksize
         group_name = self.group_name
@@ -389,8 +411,31 @@ group_name=group_name,
             conn_kwargs = {
                 "account": os.environ[account_env_var],
                 "user": os.environ[user_env_var],
-                "password": os.environ[password_env_var],
             }
+            # Auth: keypair / SSO / token (preferred for accounts where password
+            # auth is disabled) takes precedence over password if BOTH are set.
+            if authenticator:
+                conn_kwargs["authenticator"] = authenticator
+                if private_key_file_env_var:
+                    pk_path = os.environ.get(private_key_file_env_var)
+                    if pk_path:
+                        conn_kwargs["private_key_file"] = pk_path
+                    if private_key_file_pwd_env_var:
+                        pk_pwd = os.environ.get(private_key_file_pwd_env_var)
+                        if pk_pwd:
+                            conn_kwargs["private_key_file_pwd"] = pk_pwd
+                elif token_env_var:
+                    tok = os.environ.get(token_env_var)
+                    if tok:
+                        conn_kwargs["token"] = tok
+            elif password_env_var and os.environ.get(password_env_var):
+                conn_kwargs["password"] = os.environ[password_env_var]
+            else:
+                raise EnvironmentError(
+                    "dataframe_to_snowflake: no auth configured. Set either "
+                    "password_env_var (with password in env) OR authenticator + "
+                    "private_key_file_env_var (keypair) / token_env_var (PAT)."
+                )
             if database:
                 conn_kwargs["database"] = database
             if schema:

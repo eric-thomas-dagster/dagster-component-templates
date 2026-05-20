@@ -67,8 +67,42 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
         description="Snowflake username"
     )
 
-    password: str = Field(
-        description="Snowflake password"
+    # ── Auth: pick ONE of password / authenticator(+keypair) / token ──
+    # Pure-Snowflake shops with password auth disabled (most enterprise
+    # accounts in 2025+) must use SSO (`authenticator: externalbrowser`)
+    # or keypair (`authenticator: SNOWFLAKE_JWT` + `private_key_file`).
+    password: Optional[str] = Field(
+        default=None,
+        description="Snowflake password. Leave unset if using SSO or keypair."
+    )
+
+    authenticator: Optional[str] = Field(
+        default=None,
+        description=(
+            "Snowflake authenticator. Common values: 'SNOWFLAKE_JWT' (keypair, "
+            "recommended for headless / production), 'externalbrowser' (SSO, "
+            "good for local dev — pops a browser to auth), 'oauth', "
+            "'PROGRAMMATIC_ACCESS_TOKEN'. Leave unset if using password."
+        ),
+    )
+
+    private_key_file: Optional[str] = Field(
+        default=None,
+        description=(
+            "Path to a PEM-formatted RSA private key file. Used when "
+            "`authenticator: SNOWFLAKE_JWT`. Pair with `private_key_file_pwd` "
+            "if the key is encrypted."
+        ),
+    )
+
+    private_key_file_pwd: Optional[str] = Field(
+        default=None,
+        description="Passphrase for the encrypted private_key_file (omit if unencrypted).",
+    )
+
+    token: Optional[str] = Field(
+        default=None,
+        description="Auth token (PAT / OAuth). Used with `authenticator: oauth` or PAT.",
     )
 
     warehouse: str = Field(
@@ -175,11 +209,17 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
     )
 
     def _create_connection(self) -> SnowflakeConnection:
-        """Create and return a Snowflake connection."""
+        """Create and return a Snowflake connection.
+
+        Auth methods (in priority order — first matching wins):
+          1. authenticator='SNOWFLAKE_JWT' + private_key_file (keypair)
+          2. authenticator='externalbrowser' (SSO — pops a browser)
+          3. authenticator + token (PAT / OAuth)
+          4. password (only if account allows it)
+        """
         conn_params = {
             'account': self.account,
             'user': self.user,
-            'password': self.password,
             'warehouse': self.warehouse,
             'database': self.database,
             'schema': self.schema,
@@ -187,6 +227,24 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
 
         if self.role:
             conn_params['role'] = self.role
+
+        if self.authenticator:
+            conn_params['authenticator'] = self.authenticator
+            if self.private_key_file:
+                conn_params['private_key_file'] = self.private_key_file
+                if self.private_key_file_pwd:
+                    conn_params['private_key_file_pwd'] = self.private_key_file_pwd
+            elif self.token:
+                conn_params['token'] = self.token
+            # externalbrowser needs neither — connector pops a browser
+        elif self.password:
+            conn_params['password'] = self.password
+        else:
+            raise ValueError(
+                "snowflake_workspace: must set either `password`, OR "
+                "`authenticator` (+ `private_key_file` for SNOWFLAKE_JWT, or "
+                "+ `token` for oauth/PAT, or none for externalbrowser SSO)."
+            )
 
         return snowflake.connector.connect(**conn_params)
 

@@ -14,6 +14,24 @@ class SnowflakeTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolv
     table_name: str = Field(description="Snowflake table")
     username_env_var: str = Field(description="Env var with Snowflake username")
     password_env_var: Optional[str] = Field(default=None, description="Env var with password")
+    # SSO / keypair / PAT alternatives — for accounts where password auth is
+    # disabled. Leave password_env_var unset and use one of these.
+    authenticator: Optional[str] = Field(
+        default=None,
+        description="Snowflake authenticator: 'SNOWFLAKE_JWT' (keypair), 'externalbrowser' (SSO), 'oauth', etc.",
+    )
+    private_key_file_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var holding the path to a PEM RSA private key file (for authenticator='SNOWFLAKE_JWT').",
+    )
+    private_key_file_pwd_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var holding the passphrase for an encrypted private key file (optional).",
+    )
+    token_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var holding an OAuth / PAT token (with authenticator='oauth' or PAT).",
+    )
     warehouse: Optional[str] = Field(default=None, description="Snowflake warehouse to use")
     check_interval_seconds: int = Field(default=300, description="Seconds between health checks")
     resource_key: Optional[str] = Field(default=None, description="Optional Dagster resource key.")
@@ -63,10 +81,24 @@ class SnowflakeTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolv
                         "database": _self.database,
                         "schema": _self.schema_name,
                     }
-                    if password:
-                        conn_kwargs["password"] = password
                     if _self.warehouse:
                         conn_kwargs["warehouse"] = _self.warehouse
+                    if _self.authenticator:
+                        conn_kwargs["authenticator"] = _self.authenticator
+                        if _self.private_key_file_env_var:
+                            pk_path = os.environ.get(_self.private_key_file_env_var)
+                            if pk_path:
+                                conn_kwargs["private_key_file"] = pk_path
+                            if _self.private_key_file_pwd_env_var:
+                                pk_pwd = os.environ.get(_self.private_key_file_pwd_env_var)
+                                if pk_pwd:
+                                    conn_kwargs["private_key_file_pwd"] = pk_pwd
+                        elif _self.token_env_var:
+                            tok = os.environ.get(_self.token_env_var)
+                            if tok:
+                                conn_kwargs["token"] = tok
+                    elif password:
+                        conn_kwargs["password"] = password
                     conn = snowflake.connector.connect(**conn_kwargs)
                 cursor = conn.cursor()
             except Exception as e:

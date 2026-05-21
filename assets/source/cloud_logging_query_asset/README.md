@@ -35,7 +35,7 @@ attributes:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
-| `filter_` | `str` | Cloud Logging filter expression. e.g. 'severity>=ERROR' or 'resource.type="cloud_run_revision" AND severity=ERROR'. |
+| `filter` | `str` | Cloud Logging filter expression. e.g. 'severity>=ERROR' or 'resource.type="cloud_run_revision" AND severity=ERROR'. |
 
 ### Catalog metadata
 

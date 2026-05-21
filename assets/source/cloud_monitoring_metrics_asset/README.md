@@ -34,7 +34,7 @@ Browse all at <https://cloud.google.com/monitoring/api/metrics_gcp>.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
-| `filter_` | `str` | Cloud Monitoring filter. Must include a `metric.type=...` clause. Example: 'metric.type="compute.googleapis.com/instance/cpu/utilization"'. |
+| `filter` | `str` | Cloud Monitoring filter. Must include a `metric.type=...` clause. Example: 'metric.type="compute.googleapis.com/instance/cpu/utilization"'. |
 
 ### Catalog metadata
 

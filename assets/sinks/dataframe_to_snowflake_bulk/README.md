@@ -36,6 +36,7 @@ Memory-efficient bulk load of a pandas DataFrame into a Snowflake table via chun
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `database` | `str` | — | Snowflake database (overrides connection default) |
+| `schema` | `str` | — | Snowflake schema |
 | `warehouse` | `str` | — | Snowflake warehouse to use |
 | `role` | `str` | — | Snowflake role |
 | `account_env_var` | `str` | `"SNOWFLAKE_ACCOUNT"` | Env var containing Snowflake account identifier |
@@ -71,7 +72,6 @@ Memory-efficient bulk load of a pandas DataFrame into a Snowflake table via chun
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `schema_` | `str` | — | Snowflake schema |
 | `primary_key` | `List[str]` | — | Column(s) used for upsert when mode='merge'. Required for merge mode. |
 | `chunk_rows` | `int` | `500000` | Rows per parquet chunk streamed to stage. Larger = fewer files but more memory per chunk. |
 | `on_error` | `str` | `"ABORT_STATEMENT"` | Snowflake COPY ON_ERROR option: ABORT_STATEMENT, CONTINUE, SKIP_FILE, SKIP_FILE_<num>, SKIP_FILE_<num>% |

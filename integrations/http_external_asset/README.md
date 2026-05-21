@@ -206,8 +206,8 @@ For HMAC signing, OAuth refresh, etc., subclass `HttpAuthResource` and override 
 |---|---|---|---|
 | `source` | `ConditionSource` | `"status_response"` | Where to pull the value from. |
 | `group` | `int` | — | Capture group for regex extractor. |
-| `in_` | `List[Any]` | — | — |
-| `not_` | `Any` | — | — |
+| `in` | `List[Any]` | — | — |
+| `not` | `Any` | — | — |
 
 <!-- FIELDS:END -->
 

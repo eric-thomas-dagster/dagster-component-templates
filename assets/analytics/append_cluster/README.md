@@ -70,8 +70,7 @@ Trains a k-means model in-place on the input DataFrame and appends a `cluster` c
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.AppendClusterComponent
 attributes:

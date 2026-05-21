@@ -4,7 +4,7 @@
 Ingest [HubSpot](https://hubspot.com) CRM data using [dlt](https://dlthub.com)'s verified `hubspot` source.
 
 
-## Overview
+## Purpose
 
 dlt handles API authentication, pagination, rate limiting, and incremental loading. This component wraps it as a Dagster asset that returns a pandas DataFrame by default, or persists directly to a destination if you set one.
 

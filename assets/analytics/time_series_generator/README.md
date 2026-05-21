@@ -2,7 +2,7 @@
 
 Generate synthetic time-series data with configurable patterns, frequencies, and noise levels.
 
-## Overview
+## Purpose
 
 This component creates realistic time-series data perfect for demonstrating analytics, forecasting, anomaly detection, and time-series transformations. No external data sources or APIs needed.
 

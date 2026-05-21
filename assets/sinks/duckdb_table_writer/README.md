@@ -2,7 +2,7 @@
 
 Write pandas DataFrames to DuckDB tables with automatic schema creation and flexible write modes.
 
-## Overview
+## Purpose
 
 This component reads data from an upstream asset (as a DataFrame) and writes it to a DuckDB database table. Perfect for persisting data locally without needing a database server.
 

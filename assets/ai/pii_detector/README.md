@@ -80,8 +80,7 @@ Each row in `output_column` contains a list of dicts:
 [{"type": "PERSON", "text": "John", "start": 0, "end": 4, "score": 0.85}]
 ```
 
-## Example
-
+## Example YAML
 ```yaml
 component_type: dagster_component_templates.PiiDetectorComponent
 asset_name: pii_detected_text

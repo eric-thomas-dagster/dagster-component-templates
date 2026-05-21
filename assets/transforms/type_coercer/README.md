@@ -65,8 +65,7 @@ Cast DataFrame columns to specified types. Handles mixed types common in documen
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 component_type: dagster_component_templates.TypeCoercerComponent
 asset_name: typed_records

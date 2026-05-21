@@ -77,8 +77,7 @@ adls_monitor  →  [Dagster job]  →  adls_to_database_asset
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ADLSToDatabaseAssetComponent
 attributes:

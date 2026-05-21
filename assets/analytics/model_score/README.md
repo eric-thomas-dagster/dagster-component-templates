@@ -69,8 +69,7 @@ Loads a pickled scikit-learn estimator from disk and runs `predict` (and `predic
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ModelScoreComponent
 attributes:

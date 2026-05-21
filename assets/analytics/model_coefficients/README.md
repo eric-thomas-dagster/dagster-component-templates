@@ -68,8 +68,7 @@ Fits an sklearn linear or logistic regression and emits a tidy DataFrame of coef
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ModelCoefficientsComponent
 attributes:

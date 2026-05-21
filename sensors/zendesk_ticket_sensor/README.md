@@ -36,8 +36,7 @@ Uses Zendesk's Incremental Tickets export API to find tickets created or updated
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ZendeskTicketSensorComponent
 attributes:

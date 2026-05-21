@@ -47,8 +47,7 @@ This component does not read from or write to Kafka. It is a **lineage declarati
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ExternalKafkaAsset
 attributes:

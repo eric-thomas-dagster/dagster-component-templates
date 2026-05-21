@@ -47,8 +47,7 @@ This component does not read from or write to Sftp Path. It is a **lineage decla
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ExternalSftpPathAsset
 attributes:

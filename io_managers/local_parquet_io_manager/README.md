@@ -21,8 +21,7 @@ A no-frills IO manager that writes pandas DataFrames as Parquet files in a local
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.LocalParquetIOManagerComponent
 attributes:

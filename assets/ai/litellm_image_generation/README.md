@@ -4,7 +4,7 @@
 
 Generate images from text prompts in a DataFrame column using LiteLLM. Supports DALL-E, Stable Diffusion, and other image generation models.
 
-## Overview
+## Purpose
 
 `LitellmImageGenerationComponent` reads an upstream Dagster asset as a DataFrame, generates images for each row's prompt using `litellm.image_generation()`, and writes image URLs or base64-encoded data to a new column.
 
@@ -85,8 +85,7 @@ Generate images from text prompts in a DataFrame column using LiteLLM. Supports 
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.LitellmImageGenerationComponent
 attributes:

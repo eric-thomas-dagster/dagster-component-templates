@@ -21,8 +21,7 @@ Stores pandas DataFrames as newline-delimited JSON (`.jsonl`), one record per li
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.LocalJsonIOManagerComponent
 attributes:

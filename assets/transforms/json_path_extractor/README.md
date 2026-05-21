@@ -70,8 +70,7 @@ Extract values from dict/JSON columns using JSONPath expressions. Uses the `json
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 component_type: dagster_component_templates.JsonPathExtractorComponent
 asset_name: extracted_user_fields

@@ -65,8 +65,7 @@ Group rows into baskets (e.g. by transaction_id), one-hot encode item presence p
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.MarketBasketRulesComponent
 attributes:

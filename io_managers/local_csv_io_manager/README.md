@@ -21,8 +21,7 @@ Stores pandas DataFrames as CSV files in a local directory — the most human-in
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.LocalCsvIOManagerComponent
 attributes:

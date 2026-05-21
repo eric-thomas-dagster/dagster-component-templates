@@ -127,8 +127,7 @@ If a row fails (404 model not found, 429 quota exhausted, 5xx after retries, saf
 
 The asset still materializes — one bad row doesn't fail the whole job.
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.GeminiLLMComponent
 attributes:

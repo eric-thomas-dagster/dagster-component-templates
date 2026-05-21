@@ -2,7 +2,7 @@
 
 Ingest support ticket data from help desk platforms using [dlt](https://dlthub.com). Currently uses dlt's verified `zendesk_support` source for Zendesk; other platforms emit sample data for prototyping.
 
-## Overview
+## Purpose
 
 dlt handles authentication, pagination, rate limiting, and incremental loading. This component wraps it as a Dagster asset that returns a pandas DataFrame by default, or persists directly to a destination if you set one.
 

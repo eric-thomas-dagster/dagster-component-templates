@@ -2,7 +2,7 @@
 
 Unifies advertising spend data from multiple platforms (Google Ads, Facebook Ads) into a standardized schema for cross-platform analysis and marketing attribution.
 
-## Overview
+## Purpose
 
 Essential component for CDP marketing analytics. Transforms platform-specific ad data into a unified format, enabling cross-platform campaign comparison and accurate revenue attribution.
 

@@ -80,8 +80,7 @@ Compute semantic or lexical similarity between two text columns, or between each
 - `sequence_matcher`: Python difflib SequenceMatcher ratio
 - `semantic`: Sentence embeddings + cosine similarity (sentence-transformers)
 
-## Example
-
+## Example YAML
 ```yaml
 component_type: dagster_component_templates.TextSimilarityComponent
 asset_name: text_similarity_scores

@@ -80,8 +80,7 @@ Detect and redact PII from text columns using Microsoft Presidio, replacing enti
 - `hash`: Replaces with SHA256 hash prefix
 - `synthetic`: Falls back to `<ENTITY_TYPE>` placeholder
 
-## Example
-
+## Example YAML
 ```yaml
 component_type: dagster_component_templates.PiiRedactorComponent
 asset_name: redacted_messages

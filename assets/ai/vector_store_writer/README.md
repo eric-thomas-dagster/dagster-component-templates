@@ -4,7 +4,7 @@
 
 Write embeddings to vector databases (Pinecone, ChromaDB, Qdrant, FAISS) with metadata and batch operations. Works seamlessly with Dagster's IO manager pattern - connect embedding assets and automatically store vectors!
 
-## Overview
+## Purpose
 
 Store vector embeddings for semantic search and RAG systems. Supports ChromaDB (local), Pinecone (cloud), Qdrant, and FAISS.
 

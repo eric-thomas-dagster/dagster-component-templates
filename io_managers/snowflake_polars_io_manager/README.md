@@ -33,8 +33,7 @@ Wraps the official `dagster-snowflake-polars` package.
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.SnowflakePolarsIOManagerComponent
 attributes:

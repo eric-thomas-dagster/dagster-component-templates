@@ -64,8 +64,7 @@ Reads a WKT `geometry` column and replaces each geometry with its buffer at the 
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.BufferComponent
 attributes:

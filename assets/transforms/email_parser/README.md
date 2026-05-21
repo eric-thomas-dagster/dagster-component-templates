@@ -71,8 +71,7 @@ Parse raw email content (RFC 2822 format) from a column into structured fields. 
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 component_type: dagster_component_templates.EmailParserComponent
 asset_name: parsed_emails

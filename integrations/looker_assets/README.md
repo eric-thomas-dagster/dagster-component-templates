@@ -27,8 +27,7 @@ Wraps `dagster-looker`'s LookerResource to surface Looker explores, dashboards, 
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.LookerAssetsComponent
 attributes:

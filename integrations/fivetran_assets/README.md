@@ -33,8 +33,7 @@ Wraps `dagster-fivetran`'s `FivetranWorkspace` to materialize one Dagster asset 
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.FivetranAssetsComponent
 attributes:

@@ -69,8 +69,7 @@ Takes A/B exposure rows and bucks them by date. Outputs one row per (date_bucket
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ABTrendComponent
 attributes:

@@ -2,7 +2,7 @@
 
 Connect marketing spend to actual revenue by attributing conversions and revenue to marketing campaigns. Calculate ROI, ROAS, and CAC with multiple attribution models.
 
-## Overview
+## Purpose
 
 The Revenue Attribution component bridges the gap between marketing spend and revenue generation. It answers critical questions like "Which campaigns drive the most revenue?" and "What's my return on ad spend?" by implementing industry-standard attribution models.
 

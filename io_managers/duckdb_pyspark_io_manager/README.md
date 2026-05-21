@@ -23,8 +23,7 @@ Wraps the official `dagster-duckdb-pyspark` package.
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.DuckDBPySparkIOManagerComponent
 attributes:

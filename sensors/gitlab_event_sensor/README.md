@@ -36,8 +36,7 @@ Polls the GitLab Events API for a project. Triggers a RunRequest for each new ev
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.GitlabEventSensorComponent
 attributes:

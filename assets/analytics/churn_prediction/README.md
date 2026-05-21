@@ -2,7 +2,7 @@
 
 Predict customer churn risk using heuristic scoring. Identify at-risk customers before they leave and take proactive retention actions.
 
-## Overview
+## Purpose
 
 This component analyzes customer behavior to predict churn risk using a weighted scoring system. Unlike ML-based approaches, it uses interpretable heuristics based on:
 

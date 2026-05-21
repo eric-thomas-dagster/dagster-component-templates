@@ -2,7 +2,7 @@
 
 Split text into chunks using multiple strategies (fixed tokens, sentences, paragraphs, semantic) for embedding generation, LLM processing, or batch operations.
 
-## Overview
+## Purpose
 
 This component chunks text automatically passed from upstream assets via IO managers. Simply draw connections in the visual editor - no configuration needed for dependencies!
 

@@ -64,8 +64,7 @@ Fits ordinary least squares using sklearn's SplineTransformer to allow smooth no
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.SplineModelComponent
 attributes:

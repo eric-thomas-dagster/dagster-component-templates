@@ -4,7 +4,7 @@
 
 Extract structured JSON data from text using LiteLLM's JSON mode. Expands extracted fields as new DataFrame columns.
 
-## Overview
+## Purpose
 
 `LitellmStructuredOutputComponent` reads an upstream Dagster asset as a DataFrame, extracts structured fields from a text column using LiteLLM with JSON mode (`response_format={"type": "json_object"}`), and expands each extracted key as a new column in the output DataFrame.
 
@@ -85,8 +85,7 @@ Extract structured JSON data from text using LiteLLM's JSON mode. Expands extrac
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.LitellmStructuredOutputComponent
 attributes:

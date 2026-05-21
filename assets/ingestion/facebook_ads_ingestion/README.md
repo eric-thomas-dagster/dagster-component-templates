@@ -4,7 +4,7 @@
 Ingest [Facebook Ads](https://www.facebook.com/business/ads) campaign data and insights using [dlt](https://dlthub.com)'s verified `facebook_ads` source.
 
 
-## Overview
+## Purpose
 
 dlt handles API authentication, pagination, rate limiting, and incremental loading. This component wraps it as a Dagster asset that returns a pandas DataFrame by default, or persists directly to a destination if you set one.
 

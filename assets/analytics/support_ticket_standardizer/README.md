@@ -2,7 +2,7 @@
 
 Standardize support ticket data across platforms (Zendesk, Freshdesk, Intercom) into a unified schema.
 
-## Overview
+## Purpose
 
 Different support platforms organize ticket data differently. This component normalizes ticket data into a consistent format for unified reporting and analysis.
 

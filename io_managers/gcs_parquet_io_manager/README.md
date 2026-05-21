@@ -53,8 +53,7 @@ Implemented as a [`ConfigurableIOManager`](https://docs.dagster.io/_apidocs/io-m
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.GCSParquetIOManagerComponent
 attributes:

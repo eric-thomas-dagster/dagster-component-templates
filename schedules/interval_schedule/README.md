@@ -35,8 +35,7 @@ Friendlier than cron when you just want 'every 30 minutes'. Generates a cron exp
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.IntervalScheduleComponent
 attributes:

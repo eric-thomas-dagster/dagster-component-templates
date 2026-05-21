@@ -65,8 +65,7 @@ Given a baseline conversion rate, minimum detectable effect (MDE), significance 
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ABControlsComponent
 attributes:

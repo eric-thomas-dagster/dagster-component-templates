@@ -83,8 +83,7 @@ Pick the one that matches your tolerance for re-running. Both produce status Dat
 
 The "failed" row is informative — it tells you exactly which orphan rows are blocking the FK so you can clean them up and re-run.
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.DatabaseConstraintsMigrationComponent
 attributes:

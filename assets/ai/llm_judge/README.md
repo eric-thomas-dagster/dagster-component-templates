@@ -4,7 +4,7 @@
 
 Evaluate and score LLM outputs against a rubric using another LLM as a judge. Useful for automated quality assessment and regression testing of AI pipelines.
 
-## Overview
+## Purpose
 
 `LlmJudgeComponent` uses a strong LLM (e.g. GPT-4o) to evaluate responses in a DataFrame column against configurable criteria. It builds a structured evaluation prompt, asks the judge to score each criterion from 0-10, and writes the average score and reasoning to new columns. Supports optional reference/ground truth comparison.
 
@@ -86,8 +86,7 @@ Evaluate and score LLM outputs against a rubric using another LLM as a judge. Us
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.LlmJudgeComponent
 attributes:

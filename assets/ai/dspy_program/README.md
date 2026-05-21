@@ -4,7 +4,7 @@
 
 Run a compiled DSPy program against a DataFrame column. DSPy optimizes prompts automatically through signature-based programming.
 
-## Overview
+## Purpose
 
 `DspyProgramComponent` configures a DSPy LM, instantiates the chosen program type (Predict, ChainOfThought, ReAct, etc.) with the provided signature, and runs `.forward()` on each row. All output fields declared in the signature are written as new DataFrame columns.
 
@@ -84,8 +84,7 @@ Run a compiled DSPy program against a DataFrame column. DSPy optimizes prompts a
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.DspyProgramComponent
 attributes:

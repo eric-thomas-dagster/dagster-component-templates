@@ -2,7 +2,7 @@
 
 Write a pandas DataFrame to Azure Data Lake Storage Gen2 as Parquet, CSV, or JSON using adlfs.
 
-## Overview
+## Purpose
 
 This component receives a DataFrame from an upstream Dagster asset and writes it to an ADLS Gen2 container. It supports account key, connection string, and Azure AD / managed identity authentication. Files are written using the `abfs://` URI scheme with pandas filesystem abstraction.
 

@@ -4,7 +4,7 @@
 
 Execute prompts against LLM APIs (OpenAI, Anthropic, Cohere, Hugging Face) using Dagster's IO manager pattern. Accepts prompt text from upstream assets and materializes LLM responses - just connect prompt-generating assets!
 
-## Overview
+## Purpose
 
 This component executes prompts automatically passed from upstream assets via IO managers. Simply draw connections in the visual editor - no configuration needed for dependencies!
 

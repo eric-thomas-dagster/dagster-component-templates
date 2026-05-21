@@ -4,7 +4,7 @@
 
 Process text data using Anthropic's Claude models (Claude 3.5 Sonnet, Claude 3 Opus, Claude 3 Haiku) with support for batch processing, prompt caching, tool use, and extended context windows.
 
-## Overview
+## Purpose
 
 The Anthropic LLM Component enables you to leverage Claude's advanced capabilities within your data pipelines. Claude excels at complex reasoning, long document analysis, code generation, and nuanced understanding of instructions.
 

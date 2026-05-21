@@ -76,8 +76,7 @@ Assign topic labels to rows using LDA (Latent Dirichlet Allocation) or NMF (Non-
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 component_type: dagster_component_templates.TopicModelerComponent
 asset_name: topic_modeled_documents

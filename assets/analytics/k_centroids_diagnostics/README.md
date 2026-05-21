@@ -65,8 +65,7 @@ Sweeps k from k_min to k_max, fits k-means at each k, and emits a row per k with
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.KCentroidsDiagnosticsComponent
 attributes:

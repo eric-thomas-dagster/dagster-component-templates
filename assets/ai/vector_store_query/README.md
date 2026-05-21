@@ -4,7 +4,7 @@
 
 Query vector databases for semantic search using embeddings. Returns most relevant documents based on similarity. Works seamlessly with Dagster's IO manager pattern - connect query embedding assets and automatically search!
 
-## Overview
+## Purpose
 
 Perform semantic search across your vector database. Perfect for RAG systems, document search, and similarity finding.
 

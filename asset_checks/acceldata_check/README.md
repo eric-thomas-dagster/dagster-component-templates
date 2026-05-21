@@ -54,8 +54,7 @@ In the Acceldata UI: **Rules → Select Rule → Rule Details → ID**
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.AcceldataCheckComponent
 attributes:

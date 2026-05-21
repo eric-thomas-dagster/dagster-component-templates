@@ -4,7 +4,7 @@
 
 Analyze sentiment using LLMs (GPT/Claude) or transformer models (DistilBERT, RoBERTa). Supports aspect-based sentiment, emotion detection, and custom sentiment categories.
 
-## Overview
+## Purpose
 
 The Sentiment Analyzer Component analyzes the emotional tone and sentiment of text. It supports both local transformer models (no API required) and LLM-based analysis for more nuanced, customizable sentiment detection.
 

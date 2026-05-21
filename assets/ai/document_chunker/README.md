@@ -2,7 +2,7 @@
 
 Split documents into chunks for RAG (Retrieval Augmented Generation) and embeddings. Supports multiple strategies: fixed-size, semantic, recursive, sentence-based, and token-aware chunking.
 
-## Overview
+## Purpose
 
 The Document Chunker Component prepares long documents for vector embeddings and retrieval by splitting them into appropriately-sized chunks. It preserves metadata and provides multiple chunking strategies optimized for different use cases.
 

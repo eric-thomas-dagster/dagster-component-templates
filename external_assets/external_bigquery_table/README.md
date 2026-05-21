@@ -48,8 +48,7 @@ This component does not read from or write to Bigquery Table. It is a **lineage 
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ExternalBigQueryTableAsset
 attributes:

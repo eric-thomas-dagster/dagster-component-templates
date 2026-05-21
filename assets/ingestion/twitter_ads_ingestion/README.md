@@ -2,7 +2,7 @@
 
 Ingest Twitter/X Ads data (campaigns, line items, promoted tweets, analytics) using [dlt](https://dlthub.com)'s REST API source against the Twitter Ads API.
 
-## Overview
+## Purpose
 
 dlt handles authentication (OAuth 1.0a), pagination, rate limiting, and incremental loading. This component wraps it as a Dagster asset that returns a pandas DataFrame by default, or persists directly to a destination if you set one.
 

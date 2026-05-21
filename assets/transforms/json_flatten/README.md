@@ -66,8 +66,7 @@ Recursively flatten nested dict columns into dot-notation columns (e.g. `address
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 component_type: dagster_component_templates.JsonFlattenComponent
 asset_name: flattened_users

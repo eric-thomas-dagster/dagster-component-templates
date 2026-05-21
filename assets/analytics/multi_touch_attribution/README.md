@@ -2,7 +2,7 @@
 
 Attribute revenue and conversions across multiple marketing touchpoints using industry-standard attribution models. Understand which channels truly drive conversions and optimize marketing spend accordingly.
 
-## Overview
+## Purpose
 
 Multi-touch attribution solves the problem of credit assignment in complex customer journeys. Instead of giving 100% credit to a single touchpoint (first or last click), this component distributes credit across all interactions based on proven attribution models:
 

@@ -54,8 +54,7 @@ This component does not read from or write to Databricks Table. It is a **lineag
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ExternalDatabricksTableAsset
 attributes:

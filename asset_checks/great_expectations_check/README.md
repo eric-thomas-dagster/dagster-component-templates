@@ -31,8 +31,7 @@ If the suite JSON can't be pre-parsed (missing path, GE v2 layout, malformed JSO
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.GreatExpectationsCheckComponent
 attributes:

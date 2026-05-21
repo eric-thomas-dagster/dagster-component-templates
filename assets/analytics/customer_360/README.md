@@ -2,7 +2,7 @@
 
 Create unified customer profiles by combining data from multiple sources (CRM, payments, marketing, analytics) into a single comprehensive view.
 
-## Overview
+## Purpose
 
 The Customer 360 component is the foundation of any Customer Data Platform (CDP). It unifies customer data from disparate sources into a single, comprehensive customer profile, providing a complete view of each customer's interactions, transactions, and behavior across all touchpoints.
 

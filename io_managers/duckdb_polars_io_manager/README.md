@@ -23,8 +23,7 @@ Wraps the official `dagster-duckdb-polars` package.
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.DuckDBPolarsIOManagerComponent
 attributes:

@@ -61,8 +61,7 @@ Variance Inflation Factor for each feature in a design matrix. VIF > 5 typically
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.VifComponent
 attributes:

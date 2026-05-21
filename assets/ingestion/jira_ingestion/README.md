@@ -4,7 +4,7 @@
 Ingest [Jira](https://www.atlassian.com/software/jira) project tracking data using [dlt](https://dlthub.com)'s verified `jira` source.
 
 
-## Overview
+## Purpose
 
 dlt handles API authentication, pagination, rate limiting, and incremental loading. This component wraps it as a Dagster asset that returns a pandas DataFrame by default, or persists directly to a destination if you set one.
 

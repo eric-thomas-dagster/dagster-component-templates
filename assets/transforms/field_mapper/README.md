@@ -65,8 +65,7 @@ Rename or remap column names according to a mapping dictionary. More powerful th
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 component_type: dagster_component_templates.FieldMapperComponent
 asset_name: normalized_events

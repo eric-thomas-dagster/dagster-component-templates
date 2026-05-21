@@ -4,7 +4,7 @@
 
 Use LiteLLM function/tool calling to invoke structured tool definitions against each DataFrame row.
 
-## Overview
+## Purpose
 
 `LitellmFunctionCallingComponent` processes each row of an upstream DataFrame through an LLM with tool/function definitions. The model decides which tool(s) to call and with what arguments. Results are serialized as JSON and written to the output column.
 
@@ -84,8 +84,7 @@ Use LiteLLM function/tool calling to invoke structured tool definitions against 
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.LitellmFunctionCallingComponent
 attributes:

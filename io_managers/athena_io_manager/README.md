@@ -66,8 +66,7 @@ Every materialization does **two** things:
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.AthenaIOManagerComponent
 attributes:

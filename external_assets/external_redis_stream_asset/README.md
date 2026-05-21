@@ -53,8 +53,7 @@ This component does not read from or write to Redis Stream. It is a **lineage de
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ExternalRedisStreamAsset
 attributes:

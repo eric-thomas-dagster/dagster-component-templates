@@ -71,8 +71,7 @@ Pull out fields from nested dict columns using dot-path notation. Simpler than J
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 component_type: dagster_component_templates.NestedFieldExtractorComponent
 asset_name: extracted_address_fields

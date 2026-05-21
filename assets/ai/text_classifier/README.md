@@ -4,7 +4,7 @@
 
 Classify text using LLMs with custom categories, confidence scores, and reasoning explanations.
 
-## Overview
+## Purpose
 
 This component classifies text automatically passed from upstream assets via IO managers. Simply draw connections in the visual editor - no configuration needed for dependencies!
 

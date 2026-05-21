@@ -30,8 +30,7 @@ Wraps `dagster-shell`'s `execute_shell_command` so a shell command (or script) i
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ShellCommandAssetComponent
 attributes:

@@ -66,8 +66,7 @@ Validate each row against a JSON Schema. Rows that fail validation are either dr
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 component_type: dagster_component_templates.SchemaValidatorComponent
 asset_name: validated_orders

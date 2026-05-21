@@ -37,8 +37,7 @@ Polls Jira's search API with a JQL query (auto-augmented with `updated >= cursor
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.JiraIssueSensorComponent
 attributes:

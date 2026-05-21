@@ -35,8 +35,7 @@ ConfigurableIOManager that writes pandas DataFrames as CSV to S3. Slower / lossi
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.S3CsvIOManagerComponent
 attributes:

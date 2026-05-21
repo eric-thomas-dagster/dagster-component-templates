@@ -30,8 +30,7 @@ This component **wraps the official `dagster-iceberg` package** rather than reim
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.IcebergIOManagerComponent
 attributes:

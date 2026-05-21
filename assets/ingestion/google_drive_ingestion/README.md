@@ -143,8 +143,7 @@ When `download=true` and the file's MIME type is `application/vnd.google-apps.*`
 - Docs → `google_docs_extractor`
 - Sheets → `google_sheets_ingestion`
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.GoogleDriveIngestionComponent
 attributes:

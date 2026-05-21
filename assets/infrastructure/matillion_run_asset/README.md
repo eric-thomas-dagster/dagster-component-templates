@@ -84,8 +84,7 @@ When the asset is materialized:
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.MatillionRunAssetComponent
 attributes:

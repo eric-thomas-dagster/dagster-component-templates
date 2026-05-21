@@ -23,8 +23,7 @@ Wraps `dagster-tableau`'s workspace clients to materialize Tableau workbooks, da
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.TableauAssetsComponent
 attributes:

@@ -44,8 +44,7 @@ On each tick, the sensor:
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.RiveryJobSensorComponent
 attributes:

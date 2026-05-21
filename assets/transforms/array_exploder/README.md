@@ -65,8 +65,7 @@ Expand an array-valued column so each element becomes its own row. Wraps `pandas
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 component_type: dagster_component_templates.ArrayExploderComponent
 asset_name: exploded_tags

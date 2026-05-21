@@ -4,7 +4,7 @@
 
 Manage conversation history and context for multi-turn LLM interactions using Dagster's IO manager pattern. Accepts messages from upstream assets and maintains conversation state - just connect message-producing assets!
 
-## Overview
+## Purpose
 
 This component manages conversation history automatically passed from upstream assets via IO managers. Simply draw connections in the visual editor - no configuration needed for dependencies!
 

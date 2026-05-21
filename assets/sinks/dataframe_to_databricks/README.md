@@ -2,7 +2,7 @@
 
 Write a pandas DataFrame to a Databricks Delta Lake table using the Databricks SQL Connector.
 
-## Overview
+## Purpose
 
 This component receives a DataFrame from an upstream Dagster asset and writes it to a Databricks Unity Catalog table. It connects via the Databricks SQL Connector and inserts rows in batches. When `mode` is `overwrite`, the table is recreated using a `CREATE OR REPLACE TABLE` statement before insertion.
 

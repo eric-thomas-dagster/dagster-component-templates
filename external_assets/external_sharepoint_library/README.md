@@ -47,8 +47,7 @@ This component does not read from or write to Sharepoint Library. It is a **line
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ExternalSharePointLibraryAsset
 attributes:

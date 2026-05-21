@@ -2,7 +2,7 @@
 
 Segment customers by **Recency**, **Frequency**, and **Monetary** value to identify high-value customers, at-risk customers, and opportunities for re-engagement.
 
-## Overview
+## Purpose
 
 RFM analysis is a proven marketing technique that segments customers based on three key metrics:
 

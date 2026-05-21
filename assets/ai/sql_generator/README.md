@@ -81,8 +81,7 @@ Generate SQL queries from natural language questions using an LLM. Optionally pr
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 component_type: dagster_component_templates.SqlGeneratorComponent
 asset_name: generated_sql_queries

@@ -4,7 +4,7 @@
 
 Extract structured Pydantic models from text using the Instructor library. Works with any OpenAI-compatible LLM.
 
-## Overview
+## Purpose
 
 `InstructorExtractorComponent` uses the Instructor library to reliably extract structured typed data from text. It dynamically creates a Pydantic model from the `extraction_schema` definition, uses `instructor.from_openai()` for guaranteed structured output with automatic retry, and expands extracted fields as new DataFrame columns.
 
@@ -89,8 +89,7 @@ Extract structured Pydantic models from text using the Instructor library. Works
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.InstructorExtractorComponent
 attributes:

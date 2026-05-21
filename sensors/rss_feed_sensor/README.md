@@ -29,8 +29,7 @@ Polls a public RSS or Atom feed and triggers a RunRequest for each new entry see
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.RssFeedSensorComponent
 attributes:

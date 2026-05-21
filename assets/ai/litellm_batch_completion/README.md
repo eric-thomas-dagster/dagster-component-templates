@@ -4,7 +4,7 @@
 
 Process a DataFrame column row-by-row through any LLM using LiteLLM. Supports routing, fallbacks, cost tracking, and parallel thread execution.
 
-## Overview
+## Purpose
 
 `LitellmBatchCompletionComponent` reads an upstream Dagster asset as a DataFrame, sends each row through a configured LLM via LiteLLM, and returns the enriched DataFrame with responses appended as a new column.
 
@@ -95,8 +95,7 @@ LiteLLM supports 100+ providers: OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, G
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.LitellmBatchCompletionComponent
 attributes:

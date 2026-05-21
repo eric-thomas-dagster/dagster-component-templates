@@ -70,8 +70,7 @@ Takes a DataFrame with lat/lng columns and returns a GeoDataFrame with a `geomet
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.CreatePointsComponent
 attributes:

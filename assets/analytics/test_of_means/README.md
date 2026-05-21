@@ -67,8 +67,7 @@ Two-sample t-test (independent or paired) using scipy.stats. Returns a single-ro
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.TestOfMeansComponent
 attributes:

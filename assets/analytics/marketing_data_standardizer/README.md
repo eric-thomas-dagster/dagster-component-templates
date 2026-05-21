@@ -2,7 +2,7 @@
 
 Transform platform-specific marketing data into a unified, standardized schema for cross-platform analysis. This component mimics the data model standardization capabilities of Supermetrics, Funnel.io, and Adverity.
 
-## Overview
+## Purpose
 
 Different marketing platforms use different field names and data structures. This component normalizes data from multiple platforms into a common schema, enabling:
 - Cross-platform campaign performance comparison

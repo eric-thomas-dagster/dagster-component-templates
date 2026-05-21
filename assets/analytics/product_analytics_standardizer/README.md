@@ -2,7 +2,7 @@
 
 Standardize product analytics data across platforms (GA4, Matomo, Mixpanel, Amplitude) into a unified schema.
 
-## Overview
+## Purpose
 
 Different product analytics platforms track and report engagement metrics differently. This component normalizes web and mobile analytics data into a consistent format for cross-platform analysis.
 

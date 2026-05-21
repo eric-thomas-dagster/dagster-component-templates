@@ -25,8 +25,7 @@ Wraps the official `dagster-dlt` package.
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.DltPipelineAssetsComponent
 attributes:

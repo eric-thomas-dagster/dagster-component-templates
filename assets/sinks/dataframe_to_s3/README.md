@@ -2,7 +2,7 @@
 
 Write a pandas DataFrame to Amazon S3 as Parquet, CSV, or JSON using s3fs.
 
-## Overview
+## Purpose
 
 This component receives a DataFrame from an upstream Dagster asset and writes it to an S3 object. It supports Parquet (with optional partitioning), CSV, and newline-delimited JSON. Authentication is handled via explicit AWS key env vars or the standard AWS credential chain (IAM roles, instance profiles, `~/.aws/credentials`).
 

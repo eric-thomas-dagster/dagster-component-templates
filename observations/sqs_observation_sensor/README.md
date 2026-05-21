@@ -38,8 +38,7 @@ Observations appear in the **Asset Activity** timeline, giving you a health hist
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.SqsObservationSensorComponent
 attributes:

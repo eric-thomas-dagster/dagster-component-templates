@@ -2,7 +2,7 @@
 
 Track customer retention by acquisition cohort over time. Understand how well you're retaining customers and identify trends in customer lifecycle behavior.
 
-## Overview
+## Purpose
 
 Cohort analysis groups customers by their acquisition date and tracks their behavior over time. This helps answer questions like:
 

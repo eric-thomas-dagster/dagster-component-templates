@@ -49,8 +49,7 @@ This component does not read from or write to Snowflake Table. It is a **lineage
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ExternalSnowflakeTableAsset
 attributes:

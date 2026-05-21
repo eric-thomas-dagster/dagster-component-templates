@@ -2,7 +2,7 @@
 
 Segment customers using RFM (Recency, Frequency, Monetary) analysis to identify Champions, Loyal Customers, At-Risk customers, and other actionable segments for targeted marketing and retention strategies.
 
-## Overview
+## Purpose
 
 RFM analysis is a proven method for customer segmentation used by major retailers and online businesses. It analyzes three key dimensions:
 

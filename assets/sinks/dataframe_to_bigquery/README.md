@@ -2,7 +2,7 @@
 
 Write a pandas DataFrame to a Google BigQuery table using the official BigQuery Python client.
 
-## Overview
+## Purpose
 
 This component receives a DataFrame from an upstream Dagster asset and loads it into a BigQuery table. It supports all three BigQuery write dispositions and both service account and application default credential authentication.
 

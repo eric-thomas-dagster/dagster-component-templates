@@ -2,7 +2,7 @@
 
 Write a pandas DataFrame to a Snowflake table using the native Snowflake Connector for Python.
 
-## Overview
+## Purpose
 
 This component receives a DataFrame from an upstream Dagster asset and writes it to a Snowflake table. The table can be created automatically if it does not exist. Column names are automatically uppercased to comply with Snowflake conventions.
 

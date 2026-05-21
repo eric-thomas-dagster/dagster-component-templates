@@ -35,8 +35,7 @@ Polls a Notion database via the official API. Triggers a RunRequest for each row
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.NotionDatabaseSensorComponent
 attributes:

@@ -2,7 +2,7 @@
 
 Write a pandas DataFrame to an Amazon Redshift table using SQLAlchemy and psycopg2.
 
-## Overview
+## Purpose
 
 This component receives a DataFrame from an upstream Dagster asset and writes it to a Redshift table. It uses the standard PostgreSQL-compatible SQLAlchemy dialect (`postgresql+psycopg2`) which is fully supported by Redshift.
 

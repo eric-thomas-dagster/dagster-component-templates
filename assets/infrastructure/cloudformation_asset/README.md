@@ -8,8 +8,7 @@ Deploy or update an AWS CloudFormation stack as a Dagster asset. Use this as the
 - **Stack outputs as Dagster metadata.** After every materialization, all CloudFormation stack outputs (e.g. bucket ARNs, database endpoints, queue URLs) are captured and surfaced as asset metadata visible in the Dagster UI asset catalog.
 - **Pipeline first-step pattern.** Declare downstream data assets as `deps` so Dagster's scheduler and the asset graph enforce that infrastructure is ready before any downstream computation runs.
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.CloudFormationAssetComponent
 attributes:

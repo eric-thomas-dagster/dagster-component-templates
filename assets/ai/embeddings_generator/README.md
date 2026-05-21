@@ -4,7 +4,7 @@
 
 Generate vector embeddings for text using OpenAI, Cohere, Sentence Transformers, or Hugging Face. Supports batch processing, dimension reduction, similarity computation, and cost tracking.
 
-## Overview
+## Purpose
 
 The Embeddings Generator Component creates dense vector representations of text that capture semantic meaning. These embeddings are essential for RAG systems, semantic search, clustering, and recommendation engines.
 

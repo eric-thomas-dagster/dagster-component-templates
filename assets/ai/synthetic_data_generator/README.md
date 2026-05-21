@@ -2,7 +2,7 @@
 
 Generate realistic synthetic/mock data for demos, testing, and prototyping without needing external data sources.
 
-## Overview
+## Purpose
 
 This component creates realistic fake data based on pre-defined schemas. Perfect for:
 - **Demonstrations**: Show off your pipeline without setting up real data sources

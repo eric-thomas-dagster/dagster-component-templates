@@ -4,7 +4,7 @@
 
 Complete Retrieval-Augmented Generation pipeline combining query embedding, vector search, and LLM generation to answer questions using your document knowledge base. Works seamlessly with Dagster's IO manager pattern - connect query assets and automatically generate answers!
 
-## Overview
+## Purpose
 
 This asset component implements a full RAG (Retrieval-Augmented Generation) pipeline that:
 1. Generates embeddings for user queries

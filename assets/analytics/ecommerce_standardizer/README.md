@@ -2,7 +2,7 @@
 
 Standardize e-commerce data across platforms (Shopify, Stripe, WooCommerce) into a unified schema.
 
-## Overview
+## Purpose
 
 Different e-commerce platforms structure transaction, product, and customer data differently. This component normalizes e-commerce data into a consistent format for unified analytics.
 

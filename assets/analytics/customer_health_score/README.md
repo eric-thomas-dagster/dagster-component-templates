@@ -2,7 +2,7 @@
 
 Predict customer churn risk and identify expansion opportunities by calculating health scores from engagement, product usage, subscription, and support data.
 
-## Overview
+## Purpose
 
 The Customer Health Score component is essential for proactive customer success management. It analyzes multiple data sources to create a composite health score (0-100) that indicates customer satisfaction, engagement level, and likelihood to churn or expand.
 

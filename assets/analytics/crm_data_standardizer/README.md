@@ -2,7 +2,7 @@
 
 Standardize CRM data across platforms (HubSpot, Salesforce, Pipedrive) into a unified schema.
 
-## Overview
+## Purpose
 
 Different CRM platforms organize customer data differently. This component normalizes contacts, companies, deals, and activities into a consistent format for unified analysis.
 

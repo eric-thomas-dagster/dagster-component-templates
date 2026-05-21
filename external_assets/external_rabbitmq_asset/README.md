@@ -48,8 +48,7 @@ This component does not read from or write to Rabbitmq. It is a **lineage declar
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ExternalRabbitmqAsset
 attributes:

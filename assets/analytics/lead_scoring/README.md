@@ -2,7 +2,7 @@
 
 Intelligently score and qualify leads based on firmographic fit and behavioral intent to prioritize sales efforts and optimize the marketing-to-sales handoff.
 
-## Overview
+## Purpose
 
 The Lead Scoring component automates lead qualification by combining two critical dimensions: **fit** (who they are) and **intent** (what they're doing). This dual-axis scoring ensures sales teams focus on leads that are both a good match for your product and actively showing buying signals.
 

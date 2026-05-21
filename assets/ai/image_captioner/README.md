@@ -80,8 +80,7 @@
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 component_type: dagster_component_templates.ImageCaptionerComponent
 asset_name: captioned_images

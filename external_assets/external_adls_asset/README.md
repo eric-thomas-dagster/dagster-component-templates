@@ -48,8 +48,7 @@ This component does not read from or write to Adls. It is a **lineage declaratio
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ExternalAdlsAsset
 attributes:

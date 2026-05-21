@@ -54,8 +54,7 @@ Supports two auth modes — env vars (simpler) or a shared `AbInitioResource` (r
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.AbInitioJobSensorComponent
 attributes:

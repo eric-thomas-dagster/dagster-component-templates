@@ -43,8 +43,7 @@ This component subclasses `StateBackedComponent`, so:
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.CommunityComponentInstallerComponent
 attributes:

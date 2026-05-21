@@ -32,8 +32,7 @@ Wraps the official `dagster-clickhouse-polars` package.
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ClickhousePolarsIOManagerComponent
 attributes:

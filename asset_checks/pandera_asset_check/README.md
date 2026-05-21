@@ -30,8 +30,7 @@ Wraps the official `dagster-pandera` package.
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.PanderaAssetCheckComponent
 attributes:

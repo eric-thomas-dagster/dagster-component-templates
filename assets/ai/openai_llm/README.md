@@ -4,7 +4,7 @@
 
 Process text data using OpenAI's GPT models (GPT-4, GPT-3.5-turbo, GPT-4-turbo) with support for batch processing, streaming, function calling, and cost tracking.
 
-## Overview
+## Purpose
 
 The OpenAI LLM Component enables you to leverage OpenAI's powerful language models within your data pipelines. It supports both single-prompt execution and batch processing of DataFrame columns, making it ideal for data enrichment, classification, summarization, and other text processing tasks.
 

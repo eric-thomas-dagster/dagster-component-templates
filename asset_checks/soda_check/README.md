@@ -34,8 +34,7 @@ If the SodaCL YAML can't be pre-parsed, the component falls back to a single agg
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.SodaCheckComponent
 attributes:

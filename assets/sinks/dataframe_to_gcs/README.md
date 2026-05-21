@@ -2,7 +2,7 @@
 
 Write a pandas DataFrame to Google Cloud Storage as Parquet, CSV, or JSON using gcsfs.
 
-## Overview
+## Purpose
 
 This component receives a DataFrame from an upstream Dagster asset and writes it to a GCS object. It supports Parquet, CSV, and newline-delimited JSON. Authentication is handled via a service account JSON file path or application default credentials.
 

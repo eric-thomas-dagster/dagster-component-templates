@@ -95,8 +95,7 @@ kafka_monitor  →  [Dagster job]  →  kafka_to_database_asset
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.KafkaToDatabaseAssetComponent
 attributes:

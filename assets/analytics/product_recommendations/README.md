@@ -2,7 +2,7 @@
 
 Generate product recommendations using collaborative filtering, popularity rankings, and bundle analysis. Power product pages, shopping carts, and email campaigns with data-driven recommendations.
 
-## Overview
+## Purpose
 
 Product recommendations drive cross-sell and upsell opportunities by suggesting relevant items to customers. This component supports three proven approaches:
 

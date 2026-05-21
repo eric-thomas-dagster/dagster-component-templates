@@ -47,8 +47,7 @@ This component does not read from or write to Pubsub. It is a **lineage declarat
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ExternalPubsubAsset
 attributes:

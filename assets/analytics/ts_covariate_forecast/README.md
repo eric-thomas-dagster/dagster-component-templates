@@ -66,8 +66,7 @@ Fits a SARIMAX model (statsmodels) with optional exogenous covariates. Forecasts
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.TSCovariateForecastComponent
 attributes:

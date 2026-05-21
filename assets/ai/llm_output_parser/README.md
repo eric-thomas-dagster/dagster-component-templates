@@ -2,7 +2,7 @@
 
 Parse and validate LLM outputs into structured formats using Dagster's IO manager pattern. Accepts LLM responses from upstream assets and converts them to structured data - just connect LLM components!
 
-## Overview
+## Purpose
 
 This component parses LLM responses automatically passed from upstream assets via IO managers. Simply draw connections in the visual editor - no configuration needed for dependencies!
 

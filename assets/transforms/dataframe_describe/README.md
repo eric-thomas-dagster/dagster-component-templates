@@ -86,8 +86,7 @@ Plus optional enrichments:
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.DataframeDescribeComponent
 attributes:

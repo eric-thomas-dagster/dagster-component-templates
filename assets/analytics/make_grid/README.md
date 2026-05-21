@@ -65,8 +65,7 @@ Tile the bounding box of the input geometries (or an explicit bbox) into a regul
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.MakeGridComponent
 attributes:

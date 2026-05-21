@@ -40,8 +40,7 @@ Both wrap the official `dagster-sling` `@sling_assets` decorator internally. Sam
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.SlingReplicationAssetComponent
 attributes:

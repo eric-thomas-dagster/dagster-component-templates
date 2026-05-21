@@ -2,7 +2,7 @@
 
 Analyze user progression through defined funnel stages to identify conversion rates, drop-off points, and optimization opportunities across the customer journey.
 
-## Overview
+## Purpose
 
 The Funnel Analysis component helps you understand how users move through your conversion funnel—from initial awareness to final conversion and beyond. By tracking user progression through defined stages, you can identify where users drop off, which channels perform best, and how to optimize your funnel for better conversion rates.
 

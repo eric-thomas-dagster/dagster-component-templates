@@ -65,8 +65,7 @@ Apply the same binning logic to many columns in one shot. Each column gets a sib
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.MultiFieldBinningComponent
 attributes:

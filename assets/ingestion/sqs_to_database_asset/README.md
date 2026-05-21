@@ -86,8 +86,7 @@ sqs_monitor  →  [Dagster job]  →  sqs_to_database_asset
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.SQSToDatabaseAssetComponent
 attributes:

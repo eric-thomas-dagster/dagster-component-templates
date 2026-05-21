@@ -22,8 +22,7 @@ Creates a job over the configured asset selection so it shows up as a discrete u
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.AssetJobComponent
 attributes:

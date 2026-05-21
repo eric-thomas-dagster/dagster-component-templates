@@ -22,8 +22,7 @@ This component **wraps the official `dagster-polars` package** rather than reimp
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.PolarsIOManagerComponent
 attributes:

@@ -4,7 +4,7 @@
 
 Transcribe audio files using Whisper via LiteLLM. Processes a column of audio file paths and writes transcribed text to a new column.
 
-## Overview
+## Purpose
 
 `LitellmAudioTranscriptionComponent` reads an upstream Dagster asset as a DataFrame, opens each audio file referenced in the path column, calls `litellm.transcription()` with the Whisper model, and writes the resulting text to a new column.
 
@@ -83,8 +83,7 @@ Transcribe audio files using Whisper via LiteLLM. Processes a column of audio fi
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.LitellmAudioTranscriptionComponent
 attributes:

@@ -4,7 +4,7 @@
 
 Summarize documents using LLMs with map-reduce support for long documents and multiple summary styles.
 
-## Overview
+## Purpose
 
 This component summarizes text automatically passed from upstream assets via IO managers. Simply draw connections in the visual editor - no configuration needed for dependencies!
 

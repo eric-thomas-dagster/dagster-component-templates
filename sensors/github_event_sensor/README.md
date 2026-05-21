@@ -35,8 +35,7 @@ Polls the GitHub Events API for a repo and triggers a RunRequest for each new ev
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.GithubEventSensorComponent
 attributes:

@@ -27,8 +27,7 @@ Wraps `dagster-census` to expose a Census sync as a Dagster asset. Materializing
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.CensusSyncAssetComponent
 attributes:

@@ -4,7 +4,7 @@
 
 Generate embeddings for a text column using LiteLLM with automatic model routing and fallback.
 
-## Overview
+## Purpose
 
 `LitellmEmbeddingBatchComponent` reads an upstream Dagster asset as a DataFrame, generates embedding vectors using `litellm.embedding()` in configurable batches, and writes the resulting vectors (lists of floats) to a new column.
 
@@ -90,8 +90,7 @@ Generate embeddings for a text column using LiteLLM with automatic model routing
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.LitellmEmbeddingBatchComponent
 attributes:

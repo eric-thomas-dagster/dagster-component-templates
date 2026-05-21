@@ -2,7 +2,7 @@
 
 Standardize event tracking data across platforms (Segment, Rudderstack, Snowplow, Custom) into a unified schema.
 
-## Overview
+## Purpose
 
 Different event tracking platforms use different schemas and field names. This component normalizes event data from various sources into a consistent format, making cross-platform analysis possible.
 

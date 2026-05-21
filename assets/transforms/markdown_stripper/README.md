@@ -70,8 +70,7 @@ Strip markdown formatting from text columns, converting to plain text or HTML. U
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 component_type: dagster_component_templates.MarkdownStripperComponent
 asset_name: stripped_markdown_docs

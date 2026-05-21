@@ -21,8 +21,7 @@ Wraps `dagster-sigma`'s `SigmaOrganization` to surface Sigma workbooks and datas
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.SigmaAssetsComponent
 attributes:

@@ -77,8 +77,7 @@ gcs_monitor  →  [Dagster job]  →  gcs_to_database_asset
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.GCSToDatabaseAssetComponent
 attributes:

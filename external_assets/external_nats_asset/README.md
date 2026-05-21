@@ -47,8 +47,7 @@ This component does not read from or write to Nats. It is a **lineage declaratio
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ExternalNatsAsset
 attributes:

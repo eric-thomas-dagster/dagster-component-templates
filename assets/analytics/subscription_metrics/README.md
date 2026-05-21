@@ -2,7 +2,7 @@
 
 Calculate essential SaaS metrics from Stripe subscription data including MRR, ARR, churn rate, and customer lifetime value (LTV).
 
-## Overview
+## Purpose
 
 The Subscription Metrics component is purpose-built for SaaS businesses using Stripe. It automatically calculates the key performance indicators that every subscription business needs to track, from monthly recurring revenue to churn rates and customer lifetime value.
 

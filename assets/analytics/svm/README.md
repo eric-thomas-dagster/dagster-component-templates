@@ -68,8 +68,7 @@ Fits a Support Vector Classifier or Regressor (sklearn). Configurable kernel, re
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.SVMComponent
 attributes:

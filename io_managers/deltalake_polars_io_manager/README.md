@@ -34,8 +34,7 @@ Wraps the official `dagster-deltalake-polars` package.
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.DeltaLakePolarsIOManagerComponent
 attributes:

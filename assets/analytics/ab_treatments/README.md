@@ -70,8 +70,7 @@ Takes a DataFrame of users and assigns each to a variant using a stable hash of 
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ABTreatmentsComponent
 attributes:

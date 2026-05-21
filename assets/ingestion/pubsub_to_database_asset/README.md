@@ -86,8 +86,7 @@ sqlalchemy>=2.0.0
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.PubSubToDatabaseAssetComponent
 attributes:

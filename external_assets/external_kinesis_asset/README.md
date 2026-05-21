@@ -47,8 +47,7 @@ This component does not read from or write to Kinesis. It is a **lineage declara
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ExternalKinesisAsset
 attributes:

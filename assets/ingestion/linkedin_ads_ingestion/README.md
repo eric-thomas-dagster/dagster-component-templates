@@ -2,7 +2,7 @@
 
 Ingest LinkedIn Ads data (campaigns, creatives, campaign groups, analytics, conversions) using [dlt](https://dlthub.com)'s REST API source against the LinkedIn Marketing API.
 
-## Overview
+## Purpose
 
 dlt handles authentication, pagination, rate limiting, and incremental loading. This component wraps it as a Dagster asset that returns a pandas DataFrame by default, or persists directly to a destination if you set one.
 

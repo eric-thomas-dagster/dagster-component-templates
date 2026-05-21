@@ -23,8 +23,7 @@ Wraps the official `dagster-papertrail` package.
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.PapertrailResourceComponent
 attributes:

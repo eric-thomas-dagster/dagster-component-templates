@@ -28,8 +28,7 @@ ConfigurableIOManager that writes pandas DataFrames as Parquet to an Azure Blob 
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.AzureBlobParquetIOManagerComponent
 attributes:

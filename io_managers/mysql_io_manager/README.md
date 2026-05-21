@@ -27,8 +27,7 @@ ConfigurableIOManager that writes pandas DataFrames to MySQL via SQLAlchemy. Eac
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.MySQLIOManagerComponent
 attributes:

@@ -2,7 +2,7 @@
 
 Predict customer lifetime value using historical purchase patterns. Calculate both historical LTV and projected future value to identify your most valuable customers and optimize acquisition spend.
 
-## Overview
+## Purpose
 
 Lifetime Value (LTV) prediction calculates the total revenue a customer is expected to generate over their entire relationship with your business. This component analyzes historical transaction data to predict future value using proven formulas:
 

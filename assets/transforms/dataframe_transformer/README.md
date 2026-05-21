@@ -2,7 +2,7 @@
 
 Transform DataFrames from upstream assets using Dagster's IO manager pattern. Works seamlessly with visual dependency drawing - just connect DataFrame-producing assets!
 
-## Overview
+## Purpose
 
 This component transforms DataFrames automatically passed from upstream assets via IO managers. Simply draw connections in the visual editor - no configuration needed for dependencies!
 

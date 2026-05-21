@@ -2,7 +2,7 @@
 
 Detect anomalies and outliers in customer behavior, transactions, and business metrics using statistical methods.
 
-## Overview
+## Purpose
 
 Identify unusual patterns using proven statistical techniques:
 - **Z-Score**: Detects values far from mean (standard deviations)

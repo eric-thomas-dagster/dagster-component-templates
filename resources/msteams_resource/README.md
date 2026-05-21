@@ -26,8 +26,7 @@ Wraps `dagster-msteams`'s `MSTeamsResource` so any asset / op can post messages 
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.MSTeamsResourceComponent
 attributes:

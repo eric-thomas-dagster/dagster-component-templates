@@ -2,7 +2,7 @@
 
 Read and transform data from DuckDB tables using SQL queries, creating new assets from query results.
 
-## Overview
+## Purpose
 
 This component executes SQL queries against a DuckDB database and returns the results as pandas DataFrames. Perfect for creating filtered, aggregated, or joined views of data stored in DuckDB.
 

@@ -28,8 +28,7 @@ Wraps the official `dagster-prometheus` package.
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.PrometheusResourceComponent
 attributes:

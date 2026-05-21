@@ -71,8 +71,7 @@ Strip HTML tags from text columns or extract specific elements. Uses `beautifuls
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 component_type: dagster_component_templates.HtmlParserComponent
 asset_name: parsed_html_content

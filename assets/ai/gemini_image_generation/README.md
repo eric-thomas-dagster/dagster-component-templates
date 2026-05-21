@@ -132,8 +132,7 @@ If a row fails (rate limit exhausted, no inline image returned, transient error 
 - Adds an `<output_path_column>_error` column with the error message.
 - Logs the failure but **continues processing** — one bad row doesn't fail the whole asset.
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.GeminiImageGenerationComponent
 attributes:

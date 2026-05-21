@@ -68,8 +68,7 @@ For each unique combination of `key_columns`, assigns a sequential integer group
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.MakeGroupComponent
 attributes:

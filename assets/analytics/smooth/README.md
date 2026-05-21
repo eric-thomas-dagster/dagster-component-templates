@@ -65,8 +65,7 @@ Apply shapely's `simplify` (Douglas-Peucker) to each geometry, dropping points t
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.SmoothComponent
 attributes:

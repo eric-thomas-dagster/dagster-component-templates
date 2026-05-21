@@ -35,8 +35,7 @@ Defines a `ScheduleDefinition` + an underlying asset job that materializes the c
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.CronScheduleComponent
 attributes:

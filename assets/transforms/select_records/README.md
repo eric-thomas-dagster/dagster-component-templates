@@ -71,8 +71,7 @@ Pick a contiguous range of rows from a DataFrame: by absolute index, by head/tai
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.SelectRecordsComponent
 attributes:

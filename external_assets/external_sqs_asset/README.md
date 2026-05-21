@@ -47,8 +47,7 @@ This component does not read from or write to Sqs. It is a **lineage declaration
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.ExternalSqsAsset
 attributes:

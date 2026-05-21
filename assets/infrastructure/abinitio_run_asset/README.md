@@ -98,8 +98,7 @@ Dagster owns the schedule. When the asset is materialized, Dagster triggers the 
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.AbInitioRunAssetComponent
 attributes:

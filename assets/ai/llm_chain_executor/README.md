@@ -4,7 +4,7 @@
 
 Execute chains of LLM calls with context passing using Dagster's IO manager pattern. Accepts context data from upstream assets and runs multi-step reasoning workflows - just connect data-producing assets!
 
-## Overview
+## Purpose
 
 This component executes sequential LLM operations where each step's output becomes context for the next. Context is automatically passed from upstream assets via IO managers. Simply draw connections in the visual editor!
 

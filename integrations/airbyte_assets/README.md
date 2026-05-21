@@ -33,8 +33,7 @@ Wraps `dagster-airbyte`'s `load_assets_from_airbyte_instance` (or `AirbyteCloudW
 
 <!-- FIELDS:END -->
 
-## Example
-
+## Example YAML
 ```yaml
 type: dagster_component_templates.AirbyteAssetsComponent
 attributes:

@@ -19,7 +19,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -127,11 +127,15 @@ def _build_partitions_def(
 class DataframeToSnowflakeComponent(Component, Model, Resolvable):
     """Write a DataFrame to a Snowflake table."""
 
+    # Internal field is `schema_name` (avoids shadowing BaseModel.schema()).
+    # YAML still accepts the Snowflake-native `schema:` key via the alias.
+    model_config = ConfigDict(populate_by_name=True)
+
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     table: str = Field(description="Destination Snowflake table name")
     database: Optional[str] = Field(default=None, description="Snowflake database (overrides connection default)")
-    schema: Optional[str] = Field(default=None, description="Snowflake schema")
+    schema_name: Optional[str] = Field(default=None, alias="schema", description="Snowflake schema")
     warehouse: Optional[str] = Field(default=None, description="Snowflake warehouse to use")
     role: Optional[str] = Field(default=None, description="Snowflake role")
     account_env_var: str = Field(default="SNOWFLAKE_ACCOUNT", description="Env var containing Snowflake account identifier")
@@ -284,7 +288,7 @@ class DataframeToSnowflakeComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         table = self.table
         database = self.database
-        schema = self.schema
+        schema = self.schema_name
         warehouse = self.warehouse
         role = self.role
         account_env_var = self.account_env_var

@@ -115,11 +115,18 @@ def parse_fields(py_path: Path) -> list[dict]:
             # Look for `= Field(...)` calls
             if not (isinstance(item.value, ast.Call) and _is_field_call(item.value)):
                 continue
-            name = item.target.id
-            if name.startswith("_"):
+            internal_name = item.target.id
+            if internal_name.startswith("_"):
                 continue
             type_str = ast.unparse(item.annotation)
             field_kwargs = {kw.arg: kw.value for kw in item.value.keywords if kw.arg}
+            # If Field(..., alias="something") is present, the alias is the
+            # public-facing YAML key — prefer it over the Python attribute name.
+            alias_node = field_kwargs.get("alias")
+            if alias_node is not None and isinstance(alias_node, ast.Constant) and isinstance(alias_node.value, str):
+                name = alias_node.value
+            else:
+                name = internal_name
             # Default
             default_node = field_kwargs.get("default")
             default_factory = field_kwargs.get("default_factory")

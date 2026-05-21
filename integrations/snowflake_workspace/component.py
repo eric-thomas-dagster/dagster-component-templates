@@ -26,7 +26,7 @@ from dagster import (
     Model,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
@@ -58,6 +58,11 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
           import_dynamic_tables: true
         ```
     """
+
+    # Internal field is `schema_name` (avoids shadowing BaseModel.schema()).
+    # YAML still accepts the Snowflake-native `schema:` key via the alias +
+    # populate_by_name. Both names work; emit either in defs.yaml.
+    model_config = ConfigDict(populate_by_name=True)
 
     account: str = Field(
         description="Snowflake account identifier (e.g., xy12345.us-east-1)"
@@ -113,8 +118,9 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
         description="Snowflake database to connect to"
     )
 
-    schema: str = Field(
+    schema_name: str = Field(
         default="PUBLIC",
+        alias="schema",
         description="Snowflake schema to use"
     )
 
@@ -222,7 +228,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             'user': self.user,
             'warehouse': self.warehouse,
             'database': self.database,
-            'schema': self.schema,
+            'schema': self.schema_name,
         }
 
         if self.role:
@@ -400,7 +406,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         schedule,
                         created_on
                     FROM {self.database}.INFORMATION_SCHEMA.TASKS
-                    WHERE schema_name = '{self.schema}'
+                    WHERE schema_name = '{self.schema_name}'
                     """
 
                     if self.task_filter_by_state:
@@ -520,7 +526,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         argument_signature,
                         created
                     FROM {self.database}.INFORMATION_SCHEMA.PROCEDURES
-                    WHERE procedure_schema = '{self.schema}'
+                    WHERE procedure_schema = '{self.schema_name}'
                     """
 
                     procedures = self._execute_query(conn, query)
@@ -594,7 +600,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         refresh_mode,
                         created_on
                     FROM {self.database}.INFORMATION_SCHEMA.DYNAMIC_TABLES
-                    WHERE schema_name = '{self.schema}'
+                    WHERE schema_name = '{self.schema_name}'
                     """
 
                     dynamic_tables = self._execute_query(conn, query)
@@ -696,7 +702,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         type,
                         created_on
                     FROM {self.database}.INFORMATION_SCHEMA.STREAMS
-                    WHERE schema_name = '{self.schema}'
+                    WHERE schema_name = '{self.schema_name}'
                     """
 
                     streams = self._execute_query(conn, query)
@@ -759,7 +765,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         notification_channel,
                         created_on
                     FROM {self.database}.INFORMATION_SCHEMA.PIPES
-                    WHERE schema_name = '{self.schema}'
+                    WHERE schema_name = '{self.schema_name}'
                     """
 
                     pipes = self._execute_query(conn, query)
@@ -868,7 +874,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         stage_owner,
                         created
                     FROM {self.database}.INFORMATION_SCHEMA.STAGES
-                    WHERE stage_schema = '{self.schema}'
+                    WHERE stage_schema = '{self.schema_name}'
                     """
 
                     stages = self._execute_query(conn, query)
@@ -941,7 +947,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         cluster_by,
                         is_secure
                     FROM {self.database}.INFORMATION_SCHEMA.VIEWS
-                    WHERE schema_name = '{self.schema}'
+                    WHERE schema_name = '{self.schema_name}'
                     AND table_type = 'MATERIALIZED VIEW'
                     """
 
@@ -1035,7 +1041,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         created,
                         last_altered
                     FROM {self.database}.INFORMATION_SCHEMA.TABLES
-                    WHERE table_schema = '{self.schema}'
+                    WHERE table_schema = '{self.schema_name}'
                     AND table_type = 'EXTERNAL TABLE'
                     """
 
@@ -1126,7 +1132,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         action,
                         created_on
                     FROM {self.database}.INFORMATION_SCHEMA.ALERTS
-                    WHERE schema_name = '{self.schema}'
+                    WHERE schema_name = '{self.schema_name}'
                     """
 
                     alerts = self._execute_query(conn, query)

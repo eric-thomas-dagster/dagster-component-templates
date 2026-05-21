@@ -16,7 +16,7 @@ Supported Cortex functions
 from typing import Dict, List, Optional
 
 import dagster as dg
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -42,6 +42,11 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             - raw/support_tickets
         ```
     """
+
+    # Internal field is `llm_model` (avoids shadowing the `model` attribute
+    # on dg.Resolvable + pydantic's model_* protected namespace). YAML still
+    # accepts the Cortex-native `model:` key via the alias + populate_by_name.
+    model_config = ConfigDict(populate_by_name=True, protected_namespaces=())
 
     snowflake_account_env_var: str = Field(
         default="SNOWFLAKE_ACCOUNT",
@@ -95,8 +100,9 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             "TRANSLATE, or EXTRACT_ANSWER."
         ),
     )
-    model: str = Field(
+    llm_model: str = Field(
         default="claude-3-5-sonnet",
+        alias="model",
         description=(
             "LLM model name for COMPLETE. Examples: claude-3-5-sonnet, mistral-large, llama3-70b."
         ),
@@ -155,10 +161,10 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 # Embed prompt prefix as a literal; {text} is replaced by the column value
                 prefix = self.prompt_template.replace("{text}", "").replace("'", "''")
                 return (
-                    f"SNOWFLAKE.CORTEX.COMPLETE('{self.model}', "
+                    f"SNOWFLAKE.CORTEX.COMPLETE('{self.llm_model}', "
                     f"CONCAT('{prefix}', {col}))"
                 )
-            return f"SNOWFLAKE.CORTEX.COMPLETE('{self.model}', {col})"
+            return f"SNOWFLAKE.CORTEX.COMPLETE('{self.llm_model}', {col})"
 
         if fn == "SENTIMENT":
             return f"SNOWFLAKE.CORTEX.SENTIMENT({col})"
@@ -402,7 +408,7 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     "rows_processed": dg.MetadataValue.int(rows_processed),
                     "cortex_function": dg.MetadataValue.text(self.cortex_function),
                     "model": dg.MetadataValue.text(
-                        self.model if self.cortex_function.upper() == "COMPLETE" else "n/a"
+                        self.llm_model if self.cortex_function.upper() == "COMPLETE" else "n/a"
                     ),
                     "source_table": dg.MetadataValue.text(self.source_table),
                     "target_table": dg.MetadataValue.text(self.target_table),

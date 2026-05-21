@@ -62,6 +62,22 @@ Use whichever side matches the source of truth for each entity. Mix freely — b
 | `owners` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'dynamic', 'multi'. Partition key is substituted into call_args + the procedure body via `<<partition_key>>` placeholders. |
+| `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
+| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_policy_max_retries` | `int` | — | Max retries on materialization failure. Defines a RetryPolicy. Useful for transient network failures, Snowflake rate-limits, etc. |
+| `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
+| `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
+
 ### Other
 
 | Field | Type | Default | Description |
@@ -73,6 +89,7 @@ Use whichever side matches the source of truth for each entity. Mix freely — b
 | `handler` | `str` | — | For PYTHON: handler function name, e.g. 'main' |
 | `on_materialize` | `str` | `"create_only"` | 'call' = CREATE + CALL the proc; 'create_only' = just CREATE. |
 | `call_args` | `List[str]` | — | If on_materialize='call', literal args to pass: ['90'] for SP_PURGE(90). |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 
 <!-- FIELDS:END -->
 

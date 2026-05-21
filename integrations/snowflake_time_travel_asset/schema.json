@@ -1,0 +1,134 @@
+{
+  "component_type": "dagster_component_templates.SnowflakeTimeTravelAssetComponent",
+  "description": "Query a Snowflake table AT a past point in time (Time Travel) and materialize the result as a Dagster asset.",
+  "category": "integration",
+  "icon": "Snowflake",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "description": "Output Dagster asset name"
+    },
+    "account": {
+      "type": "string",
+      "required": true,
+      "description": "Snowflake account, e.g. xy12345-abc."
+    },
+    "user": {
+      "type": "string",
+      "required": true,
+      "description": "Snowflake user (NAME for keypair, LOGIN_NAME for password/SSO/PAT)."
+    },
+    "warehouse": {
+      "type": "string",
+      "required": false
+    },
+    "database": {
+      "type": "string",
+      "required": true,
+      "description": "Database containing the source table."
+    },
+    "schema_name": {
+      "type": "string",
+      "required": true,
+      "description": "Schema containing the source table."
+    },
+    "role": {
+      "type": "string",
+      "required": false
+    },
+    "password": {
+      "type": "string",
+      "required": false
+    },
+    "authenticator": {
+      "type": "string",
+      "required": false,
+      "description": "Snowflake authenticator: 'SNOWFLAKE_JWT', 'externalbrowser', 'PROGRAMMATIC_ACCESS_TOKEN', 'oauth'."
+    },
+    "private_key_file": {
+      "type": "string",
+      "required": false
+    },
+    "private_key_file_pwd": {
+      "type": "string",
+      "required": false
+    },
+    "token": {
+      "type": "string",
+      "required": false
+    },
+    "source_table": {
+      "type": "string",
+      "required": true,
+      "description": "Table to time-travel against (unqualified; resolved against database.schema_name)."
+    },
+    "columns": {
+      "type": "array",
+      "required": false,
+      "description": "Columns to SELECT (defaults to *). E.g. ['ID', 'NAME', 'AMOUNT']."
+    },
+    "where_clause": {
+      "type": "string",
+      "required": false,
+      "description": "Optional WHERE predicate (without the WHERE keyword). E.g. 'AMOUNT > 100'."
+    },
+    "row_limit": {
+      "type": "integer",
+      "required": false,
+      "description": "Optional LIMIT N on the result."
+    },
+    "time_travel_offset_seconds": {
+      "type": "integer",
+      "required": false,
+      "description": "Seconds back from now (NEGATIVE int, e.g. -3600 = 1 hour ago). Maps to `AT(OFFSET => <n>)`."
+    },
+    "time_travel_timestamp": {
+      "type": "string",
+      "required": false,
+      "description": "Specific timestamp to time-travel to, e.g. '2025-05-19 10:00:00'. Maps to `AT(TIMESTAMP => '...'::TIMESTAMP)`."
+    },
+    "time_travel_statement_id": {
+      "type": "string",
+      "required": false,
+      "description": "Query ID to time-travel BEFORE. Maps to `BEFORE(STATEMENT => '<query_id>')`."
+    },
+    "group_name": {
+      "type": "string",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "required": false,
+      "description": "Max retries on query failure."
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "required": false
+    }
+  }
+}

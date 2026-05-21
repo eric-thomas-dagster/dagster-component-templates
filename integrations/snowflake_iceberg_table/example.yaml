@@ -1,0 +1,31 @@
+type: dagster_component_templates.SnowflakeIcebergTableComponent
+attributes:
+  asset_name: iceberg_demo
+
+  account:     "{{ env('SNOWFLAKE_ACCOUNT') }}"
+  user:        "{{ env('SNOWFLAKE_USER') }}"
+  warehouse:   COMPUTE_WH
+  database:    DAGSTER_DEMO
+  schema_name: ANALYTICS
+
+  # Pick ONE auth method:
+  authenticator: SNOWFLAKE_JWT
+  private_key_file: "{{ env('SNOWFLAKE_PRIVATE_KEY_FILE') }}"
+
+  # Iceberg config
+  table_name:      orders_iceberg
+  external_volume: MY_S3_VOLUME           # pre-create via CREATE EXTERNAL VOLUME
+  catalog:         SNOWFLAKE               # 'SNOWFLAKE' = Snowflake-managed
+  base_location:   iceberg/orders/         # prefix under external_volume
+
+  sql: |
+    SELECT
+      ORDER_ID, CUSTOMER_ID, AMOUNT,
+      DATE_TRUNC('day', CREATED_AT) AS ORDER_DATE
+    FROM DAGSTER_DEMO.RAW.ORDERS
+    WHERE STATUS = 'completed'
+
+  cluster_by: [ORDER_DATE]
+
+  group_name: snowflake_iceberg
+  kinds: [snowflake, iceberg]

@@ -1,0 +1,5 @@
+name: Snowflake Cortex Search
+description: Query a Snowflake Cortex Search Service (RAG / vector search) and materialize the results as a Dagster asset.
+category: integration
+version: 1.0.0
+author: Dagster Community

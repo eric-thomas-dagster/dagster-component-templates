@@ -32,6 +32,22 @@ The simpler, single-step counterpart is `warehouse_summarize` (or the rest of th
 | `owners` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'dynamic', 'multi', or None for unpartitioned. |
+| `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
+| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'us,eu,apac'. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_policy_max_retries` | `int` | — | Max retries on materialization failure. Defines a RetryPolicy. Useful for transient Snowpark session failures or warehouse rate-limits. |
+| `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
+| `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
+
 ### Other
 
 | Field | Type | Default | Description |
@@ -41,6 +57,7 @@ The simpler, single-step counterpart is `warehouse_summarize` (or the rest of th
 | `sink` | `Dict[str, Any]` | — | Flat shape: {kind: table\|none, ...} |
 | `steps` | `List[Dict[str, Any]]` | — | Named steps. Each: {id, source: {kind: table\|sql\|ref, ...}, operations: [...]}. |
 | `sinks` | `List[Dict[str, Any]]` | — | Sinks. Each: {from: <step_id>, kind: table\|none, table: 'DB.SCH.T', mode}. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 
 <!-- FIELDS:END -->
 

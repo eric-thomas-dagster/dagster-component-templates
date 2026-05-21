@@ -56,6 +56,14 @@ Use whichever side matches the source of truth for each entity. Mix freely — b
 | `owners` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
 
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_policy_max_retries` | `int` | — | Max retries on materialization failure. Defines a RetryPolicy. Useful for transient network failures, Snowflake rate-limits, etc. |
+| `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
+| `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
+
 ### Other
 
 | Field | Type | Default | Description |

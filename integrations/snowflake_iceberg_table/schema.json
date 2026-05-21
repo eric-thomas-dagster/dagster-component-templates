@@ -1,0 +1,140 @@
+{
+  "component_type": "dagster_component_templates.SnowflakeIcebergTableComponent",
+  "description": "Define a Snowflake ICEBERG TABLE as Dagster YAML. Materialization runs CREATE OR REPLACE ICEBERG TABLE.",
+  "category": "integration",
+  "icon": "Snowflake",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "required": true,
+      "description": "Output Dagster asset name"
+    },
+    "account": {
+      "type": "string",
+      "required": true,
+      "description": "Snowflake account, e.g. xy12345-abc."
+    },
+    "user": {
+      "type": "string",
+      "required": true,
+      "description": "Snowflake user (NAME for keypair, LOGIN_NAME for password/SSO/PAT)."
+    },
+    "warehouse": {
+      "type": "string",
+      "required": false
+    },
+    "database": {
+      "type": "string",
+      "required": true,
+      "description": "Database containing the entity (or where it will be created)."
+    },
+    "schema_name": {
+      "type": "string",
+      "required": true,
+      "description": "Schema for the entity."
+    },
+    "role": {
+      "type": "string",
+      "required": false
+    },
+    "password": {
+      "type": "string",
+      "required": false,
+      "description": "Snowflake password. Leave unset for SSO/keypair/PAT."
+    },
+    "authenticator": {
+      "type": "string",
+      "required": false,
+      "description": "Snowflake authenticator: 'SNOWFLAKE_JWT' (keypair), 'externalbrowser' (SSO), 'PROGRAMMATIC_ACCESS_TOKEN' (PAT), 'oauth'."
+    },
+    "private_key_file": {
+      "type": "string",
+      "required": false,
+      "description": "PEM private key file path (for SNOWFLAKE_JWT)."
+    },
+    "private_key_file_pwd": {
+      "type": "string",
+      "required": false,
+      "description": "Passphrase for encrypted private_key_file."
+    },
+    "token": {
+      "type": "string",
+      "required": false,
+      "description": "OAuth/PAT token."
+    },
+    "table_name": {
+      "type": "string",
+      "required": true,
+      "description": "Iceberg table name (unquoted identifier)."
+    },
+    "external_volume": {
+      "type": "string",
+      "required": true,
+      "description": "Name of the EXTERNAL VOLUME object that points at the cloud-storage location (S3 / GCS / Azure)."
+    },
+    "catalog": {
+      "type": "string",
+      "required": false,
+      "description": "'SNOWFLAKE' for Snowflake-managed Iceberg (default), or the name of a registered external Iceberg catalog (Glue / Polaris / Unity / Tabular)."
+    },
+    "base_location": {
+      "type": "string",
+      "required": true,
+      "description": "Object-storage prefix under the external_volume's root, e.g. 'iceberg/my_table/'."
+    },
+    "sql": {
+      "type": "string",
+      "required": false,
+      "description": "Optional SELECT body that defines the table data. If unset, the table is created empty (you populate it via INSERT INTO / external writes / Spark)."
+    },
+    "columns": {
+      "type": "array",
+      "required": false,
+      "description": "Optional explicit column declarations when sql is None, e.g. ['id INT', 'name STRING', 'created_at TIMESTAMP']."
+    },
+    "cluster_by": {
+      "type": "array",
+      "required": false,
+      "description": "Columns to CLUSTER BY for performance."
+    },
+    "group_name": {
+      "type": "string",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "required": false
+    },
+    "asset_tags": {
+      "type": "object",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "required": false
+    },
+    "deps": {
+      "type": "array",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "required": false,
+      "description": "Max retries on materialization failure. Defines a RetryPolicy. Useful for transient network failures or Snowflake rate-limits."
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "required": false,
+      "description": "Seconds between retries (default 1)."
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "required": false,
+      "description": "Backoff strategy: 'linear' or 'exponential'."
+    }
+  }
+}

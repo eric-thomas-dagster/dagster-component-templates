@@ -1,0 +1,26 @@
+type: dagster_component_templates.SnowflakeTimeTravelAssetComponent
+attributes:
+  asset_name: orders_one_hour_ago
+
+  account:     "{{ env('SNOWFLAKE_ACCOUNT') }}"
+  user:        "{{ env('SNOWFLAKE_USER') }}"
+  warehouse:   COMPUTE_WH
+  database:    DAGSTER_DEMO
+  schema_name: RAW
+
+  authenticator: SNOWFLAKE_JWT
+  private_key_file: "{{ env('SNOWFLAKE_PRIVATE_KEY_FILE') }}"
+
+  source_table: ORDERS
+  columns: [ORDER_ID, CUSTOMER_ID, AMOUNT, STATUS, CREATED_AT]
+
+  # Pick ONE time-travel mode:
+  time_travel_offset_seconds: -3600    # 1 hour ago
+  # time_travel_timestamp: "2025-05-19 10:00:00"
+  # time_travel_statement_id: "01abc234-0000-..."
+
+  where_clause: "STATUS = 'completed'"
+  row_limit: 1000
+
+  group_name: snowflake_time_travel
+  kinds: [snowflake, time_travel]

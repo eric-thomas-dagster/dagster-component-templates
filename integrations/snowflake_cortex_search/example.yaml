@@ -1,0 +1,26 @@
+type: dagster_component_templates.SnowflakeCortexSearchComponent
+attributes:
+  asset_name: cortex_search_demo
+
+  account:     "{{ env('SNOWFLAKE_ACCOUNT') }}"
+  user:        "{{ env('SNOWFLAKE_USER') }}"
+  warehouse:   COMPUTE_WH
+  database:    DAGSTER_DEMO
+  schema_name: AI
+
+  authenticator: SNOWFLAKE_JWT
+  private_key_file: "{{ env('SNOWFLAKE_PRIVATE_KEY_FILE') }}"
+
+  # Pre-create the search service first:
+  #   CREATE CORTEX SEARCH SERVICE my_docs_search
+  #     ON content TARGET_LAG = '1 hour' WAREHOUSE = COMPUTE_WH
+  #     AS SELECT id, title, content FROM DAGSTER_DEMO.AI.DOCS;
+  service_name: my_docs_search
+  query: "how do I configure Snowpipe auto-ingest from S3?"
+  result_limit: 10
+  result_columns: [ID, TITLE, CONTENT]
+  # Optional filter — JSON, see Cortex Search filter syntax docs:
+  # result_filter: '{"@eq": {"category": "ingestion"}}'
+
+  group_name: snowflake_ai
+  kinds: [snowflake, cortex, rag]

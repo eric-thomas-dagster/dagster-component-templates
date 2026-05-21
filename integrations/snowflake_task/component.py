@@ -10,10 +10,43 @@ from typing import Any, Dict, List, Optional
 
 import dagster as dg
 from dagster import (
-    AssetExecutionContext, Component, ComponentLoadContext, Definitions,
-    MetadataValue, Model, Resolvable, asset,
+    AssetExecutionContext, Component, ComponentLoadContext,
+    DailyPartitionsDefinition, Definitions, DynamicPartitionsDefinition,
+    HourlyPartitionsDefinition, MetadataValue, Model, MonthlyPartitionsDefinition,
+    MultiPartitionsDefinition, Resolvable, StaticPartitionsDefinition,
+    WeeklyPartitionsDefinition, asset,
 )
 from pydantic import Field
+
+
+def _build_partitions_def(partition_type, partition_start, partition_values, dynamic_partition_name):
+    """Shared partitions-def factory matching dataframe_to_snowflake's shape."""
+    if isinstance(partition_values, (list, tuple)):
+        _values = [str(v).strip() for v in partition_values if str(v).strip()]
+    else:
+        _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
+    if not partition_type: return None
+    if partition_type in ("daily","weekly","monthly","hourly") and not partition_start:
+        raise ValueError(f"partition_type={partition_type!r} requires partition_start.")
+    if partition_type == "daily":   return DailyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "weekly":  return WeeklyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "monthly": return MonthlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "hourly":  return HourlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "static":
+        if not _values: raise ValueError("partition_type='static' requires partition_values.")
+        return StaticPartitionsDefinition(_values)
+    if partition_type == "dynamic":
+        if not dynamic_partition_name:
+            raise ValueError("partition_type='dynamic' requires dynamic_partition_name.")
+        return DynamicPartitionsDefinition(name=dynamic_partition_name)
+    if partition_type == "multi":
+        if not _values or not partition_start:
+            raise ValueError("partition_type='multi' requires partition_values + partition_start.")
+        return MultiPartitionsDefinition({
+            "date": DailyPartitionsDefinition(start_date=partition_start),
+            "static_dim": StaticPartitionsDefinition(_values),
+        })
+    raise ValueError(f"unknown partition_type: {partition_type!r}")
 
 
 class SnowflakeTaskComponent(Component, Model, Resolvable):
@@ -51,6 +84,38 @@ class SnowflakeTaskComponent(Component, Model, Resolvable):
     owners: Optional[List[str]] = Field(default=None)
     deps: Optional[List[str]] = Field(default=None)
 
+    # ── Partitions ──
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'dynamic', 'multi', or None. Partition key is substituted into the task SQL via `<<partition_key>>` placeholders.",
+    )
+    partition_start: Optional[str] = Field(
+        default=None,
+        description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
+    )
+    partition_values: Optional[str] = Field(
+        default=None,
+        description="Comma-separated values for static or multi partitioning.",
+    )
+    dynamic_partition_name: Optional[str] = Field(
+        default=None,
+        description="Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
+    )
+
+    # ── Retry policy ──
+    retry_policy_max_retries: Optional[int] = Field(
+        default=None,
+        description="Max retries on materialization failure. Defines a RetryPolicy. Useful for transient network failures, Snowflake rate-limits, etc.",
+    )
+    retry_policy_delay_seconds: Optional[int] = Field(
+        default=None,
+        description="Seconds between retries (default 1).",
+    )
+    retry_policy_backoff: str = Field(
+        default="exponential",
+        description="Backoff strategy: 'linear' or 'exponential'.",
+    )
+
     def _connect(self):
         import snowflake.connector
         ck = dict(
@@ -85,12 +150,27 @@ class SnowflakeTaskComponent(Component, Model, Resolvable):
         return body
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        # Build retry policy (opt-in via retry_policy_max_retries).
+        _retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+        partitions_def = _build_partitions_def(
+            self.partition_type, self.partition_start,
+            self.partition_values, self.dynamic_partition_name,
+        )
         kinds = list(self.kinds or []) or ["snowflake"]
         tags = dict(self.asset_tags or {})
         for k in kinds:
             tags[f"dagster/kind/{k}"] = ""
 
         @asset(
+            retry_policy=_retry_policy,
+            partitions_def=partitions_def,
             name=self.asset_name,
             description=self.description or self.get_description(),
             owners=self.owners or [],
@@ -100,7 +180,17 @@ class SnowflakeTaskComponent(Component, Model, Resolvable):
             kinds=set(kinds),
         )
         def _entity_asset(context: AssetExecutionContext) -> dg.MaterializeResult:
-            ddl = self._build_ddl()
+            # Substitute <<partition_key>> in the task SQL body when partitioned.
+            partition_key = context.partition_key if context.has_partition_key else None
+            if partition_key:
+                original_sql = self.sql
+                object.__setattr__(self, "sql", original_sql.replace("<<partition_key>>", str(partition_key)))
+                try:
+                    ddl = self._build_ddl()
+                finally:
+                    object.__setattr__(self, "sql", original_sql)
+            else:
+                ddl = self._build_ddl()
             context.log.info(f"Executing DDL:\n{ddl}")
             conn = self._connect()
             try:

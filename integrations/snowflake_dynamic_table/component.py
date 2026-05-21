@@ -51,6 +51,20 @@ class SnowflakeDynamicTableComponent(Component, Model, Resolvable):
     owners: Optional[List[str]] = Field(default=None)
     deps: Optional[List[str]] = Field(default=None)
 
+    # ── Retry policy ──
+    retry_policy_max_retries: Optional[int] = Field(
+        default=None,
+        description="Max retries on materialization failure. Defines a RetryPolicy. Useful for transient network failures, Snowflake rate-limits, etc.",
+    )
+    retry_policy_delay_seconds: Optional[int] = Field(
+        default=None,
+        description="Seconds between retries (default 1).",
+    )
+    retry_policy_backoff: str = Field(
+        default="exponential",
+        description="Backoff strategy: 'linear' or 'exponential'.",
+    )
+
     def _connect(self):
         import snowflake.connector
         ck = dict(
@@ -84,12 +98,22 @@ class SnowflakeDynamicTableComponent(Component, Model, Resolvable):
         return body
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        # Build retry policy (opt-in via retry_policy_max_retries).
+        _retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
         kinds = list(self.kinds or []) or ["snowflake"]
         tags = dict(self.asset_tags or {})
         for k in kinds:
             tags[f"dagster/kind/{k}"] = ""
 
         @asset(
+            retry_policy=_retry_policy,
             name=self.asset_name,
             description=self.description or self.get_description(),
             owners=self.owners or [],

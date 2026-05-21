@@ -47,13 +47,60 @@ from dagster import (
     AssetExecutionContext,
     Component,
     ComponentLoadContext,
+    DailyPartitionsDefinition,
     Definitions,
+    DynamicPartitionsDefinition,
+    HourlyPartitionsDefinition,
     MetadataValue,
     Model,
+    MonthlyPartitionsDefinition,
+    MultiPartitionsDefinition,
     Resolvable,
+    StaticPartitionsDefinition,
+    WeeklyPartitionsDefinition,
     asset,
 )
 from pydantic import Field
+
+
+def _build_partitions_def(partition_type, partition_start, partition_values, dynamic_partition_name):
+    if isinstance(partition_values, (list, tuple)):
+        _values = [str(v).strip() for v in partition_values if str(v).strip()]
+    else:
+        _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
+    if not partition_type:
+        return None
+    if partition_type in ("daily", "weekly", "monthly", "hourly") and not partition_start:
+        raise ValueError(f"partition_type={partition_type!r} requires partition_start.")
+    if partition_type == "daily":   return DailyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "weekly":  return WeeklyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "monthly": return MonthlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "hourly":  return HourlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "static":
+        if not _values: raise ValueError("partition_type='static' requires partition_values.")
+        return StaticPartitionsDefinition(_values)
+    if partition_type == "dynamic":
+        if not dynamic_partition_name: raise ValueError("partition_type='dynamic' requires dynamic_partition_name.")
+        return DynamicPartitionsDefinition(name=dynamic_partition_name)
+    if partition_type == "multi":
+        if not _values or not partition_start:
+            raise ValueError("partition_type='multi' requires partition_values + partition_start.")
+        return MultiPartitionsDefinition({
+            "date": DailyPartitionsDefinition(start_date=partition_start),
+            "static_dim": StaticPartitionsDefinition(_values),
+        })
+    raise ValueError(f"unknown partition_type: {partition_type!r}")
+
+
+def _substitute_partition_key(obj, partition_key):
+    """Walk a nested dict/list/str and replace `<<partition_key>>` with the
+    runtime partition key. Lets users reference the partition in op:filter
+    predicates / op:sql / sink table names."""
+    if partition_key is None: return obj
+    if isinstance(obj, str): return obj.replace("<<partition_key>>", str(partition_key))
+    if isinstance(obj, list): return [_substitute_partition_key(x, partition_key) for x in obj]
+    if isinstance(obj, dict): return {k: _substitute_partition_key(v, partition_key) for k, v in obj.items()}
+    return obj
 
 
 _VALID_OPS = {"filter", "select", "drop", "rename", "with_columns",
@@ -228,6 +275,38 @@ class SnowparkPipelineComponent(Component, Model, Resolvable):
     owners: Optional[List[str]] = Field(default=None)
     deps: Optional[List[str]] = Field(default=None)
 
+    # ── Partitions ──
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'dynamic', 'multi', or None for unpartitioned.",
+    )
+    partition_start: Optional[str] = Field(
+        default=None,
+        description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
+    )
+    partition_values: Optional[str] = Field(
+        default=None,
+        description="Comma-separated values for static or multi partitioning, e.g. 'us,eu,apac'.",
+    )
+    dynamic_partition_name: Optional[str] = Field(
+        default=None,
+        description="Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
+    )
+
+    # ── Retry policy ──
+    retry_policy_max_retries: Optional[int] = Field(
+        default=None,
+        description="Max retries on materialization failure. Defines a RetryPolicy. Useful for transient Snowpark session failures or warehouse rate-limits.",
+    )
+    retry_policy_delay_seconds: Optional[int] = Field(
+        default=None,
+        description="Seconds between retries (default 1).",
+    )
+    retry_policy_backoff: str = Field(
+        default="exponential",
+        description="Backoff strategy: 'linear' or 'exponential'.",
+    )
+
     @classmethod
     def get_description(cls) -> str:
         return "Multi-step Snowpark pipeline — all compute pushed to Snowflake (one query plan per asset)."
@@ -296,7 +375,24 @@ class SnowparkPipelineComponent(Component, Model, Resolvable):
         for k in kinds:
             all_tags[f"dagster/kind/{k}"] = ""
 
+        partitions_def = _build_partitions_def(
+            self.partition_type, self.partition_start,
+            self.partition_values, self.dynamic_partition_name,
+        )
+
+        # Retry policy (opt-in via retry_policy_max_retries).
+        _retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+
         @asset(
+            retry_policy=_retry_policy,
+            partitions_def=partitions_def,
             name=asset_name,
             description=self.description or self.get_description(),
             owners=self.owners or [],
@@ -308,11 +404,24 @@ class SnowparkPipelineComponent(Component, Model, Resolvable):
         def _snowpark_pipeline_asset(context: AssetExecutionContext) -> Any:
             from snowflake.snowpark import Session
 
+            # Substitute <<partition_key>> in step + sink strings so users can
+            # reference the current partition in op:filter predicates / op:sql /
+            # sink table names.
+            partition_key = context.partition_key if context.has_partition_key else None
+            local_steps: List[Dict[str, Any]] = (
+                _substitute_partition_key(steps, partition_key) if partition_key else steps  # type: ignore[assignment]
+            )
+            local_sinks: List[Dict[str, Any]] = (
+                _substitute_partition_key(sinks, partition_key) if partition_key else sinks  # type: ignore[assignment]
+            )
+            if partition_key:
+                context.log.info(f"snowpark_pipeline: partition_key={partition_key!r}")
+
             session = Session.builder.configs(resolve_connection()).create()
             try:
                 step_outputs: Dict[str, Any] = {}
 
-                for s_idx, step in enumerate(steps):
+                for s_idx, step in enumerate(local_steps):
                     sid = step["id"]
                     src = step.get("source") or {}
                     src_kind = (src.get("kind") or "table").lower()
@@ -334,7 +443,7 @@ class SnowparkPipelineComponent(Component, Model, Resolvable):
                 # Write sinks — Snowpark compiles each to ONE Snowflake SQL stmt.
                 sink_metadata: Dict[str, Any] = {}
                 collected_pandas = None
-                for sink in sinks:
+                for sink in local_sinks:
                     from_id = sink.get("from") or ""
                     if from_id not in step_outputs:
                         raise ValueError(f"sink.from={from_id!r} doesn't match any step id")

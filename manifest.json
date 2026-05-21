@@ -22825,6 +22825,88 @@
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_nlp.md",
         "last_validated": "2026-05-08"
       }
+    },
+    {
+      "id": "snowflake_iceberg_table",
+      "name": "Snowflake Iceberg Table",
+      "category": "integration",
+      "description": "Define a Snowflake ICEBERG TABLE as Dagster YAML. Materialization runs CREATE OR REPLACE ICEBERG TABLE against Snowflake-managed or external catalog.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/snowflake_iceberg_table",
+      "tags": [
+        "snowflake",
+        "iceberg",
+        "lakehouse",
+        "open-table-format",
+        "ddl"
+      ],
+      "dependencies": [],
+      "icon": "si:snowflake",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-20"
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_iceberg_table/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_iceberg_table/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_iceberg_table/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_iceberg_table/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_iceberg_table/requirements.txt"
+    },
+    {
+      "id": "snowflake_cortex_search",
+      "name": "Snowflake Cortex Search",
+      "category": "ai",
+      "description": "Query a Snowflake Cortex Search Service (managed RAG / vector search) and materialize the results as a Dagster asset.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/snowflake_cortex_search",
+      "tags": [
+        "snowflake",
+        "cortex",
+        "ai",
+        "rag",
+        "vector-search",
+        "llm"
+      ],
+      "dependencies": [],
+      "icon": "si:snowflake",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-20"
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_cortex_search/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_cortex_search/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_cortex_search/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_cortex_search/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_cortex_search/requirements.txt"
+    },
+    {
+      "id": "snowflake_time_travel_asset",
+      "name": "Snowflake Time Travel Asset",
+      "category": "integration",
+      "description": "Query a Snowflake table AT a past point in time (Time Travel via OFFSET / TIMESTAMP / BEFORE STATEMENT) and materialize the result as a Dagster asset.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "integrations/snowflake_time_travel_asset",
+      "tags": [
+        "snowflake",
+        "time-travel",
+        "audit",
+        "rollback",
+        "historical-query"
+      ],
+      "dependencies": [],
+      "icon": "si:snowflake",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-20"
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_time_travel_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_time_travel_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_time_travel_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_time_travel_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_time_travel_asset/requirements.txt"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

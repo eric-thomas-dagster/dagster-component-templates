@@ -290,11 +290,13 @@ def splice(readme_text: str, block: str) -> str:
       4. Else, append to the end
     """
     wrapped = f"{START_MARKER}\n\n{block}\n{END_MARKER}"
-    # Case 1: existing markers
+    # Case 1: existing markers — use a lambda replacement so any backslashes
+    # in `wrapped` (e.g. \N inside Cortex Search filter examples) aren't
+    # interpreted by re.sub as regex backreferences.
     if START_MARKER in readme_text and END_MARKER in readme_text:
         return re.sub(
             re.escape(START_MARKER) + r"[\s\S]*?" + re.escape(END_MARKER),
-            wrapped,
+            lambda _: wrapped,
             readme_text,
         )
     # Case 2: existing `## Fields` heading — replace through next H2 or EOF

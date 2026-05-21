@@ -1,0 +1,5 @@
+name: Snowflake Time Travel Asset
+description: Query a Snowflake table AT a past point in time (Time Travel via OFFSET / TIMESTAMP / BEFORE STATEMENT) and materialize the result as a Dagster asset.
+category: integration
+version: 1.0.0
+author: Dagster Community

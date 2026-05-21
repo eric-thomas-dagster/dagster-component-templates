@@ -41,6 +41,22 @@ Think of it as a YAML-defined view-building or stored-procedure-shape — analog
 | `kinds` | `List[str]` | — | — |
 | `automation_condition` | `Any` | — | AutomationCondition for this asset. In YAML, write as a Jinja template against the dg namespace, e.g. '{{ dg.AutomationCondition.eager() }}' — Dagster's component loader resolves it to the actual AutomationCondition object. |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'dynamic', 'multi', or None for unpartitioned. |
+| `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
+| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'us,eu,apac'. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_policy_max_retries` | `int` | — | Max retries on materialization failure. Defines a RetryPolicy. Useful for transient warehouse failures, query timeouts, etc. |
+| `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
+| `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
+
 ### Source / target
 
 | Field | Type | Default | Description |
@@ -57,6 +73,7 @@ Think of it as a YAML-defined view-building or stored-procedure-shape — analog
 | `operations` | `List[Dict[str, Any]]` | — | Flat shape: ordered list of ops applied to 'source'. Compiles to one anonymous step. |
 | `steps` | `List[Dict[str, Any]]` | — | Named steps. Each: {id, source: {kind: table\|ref\|sql, ...}, operations: [...]}. Required when using the multi-step form. |
 | `sinks` | `List[Dict[str, Any]]` | — | Output sinks. Each: {from: <step_id>, table: 'schema.table', mode: replace\|create_if_not_exists}. Required when using the multi-step form. Multiple sinks emit multiple CTAS statements. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 | `include_preview_metadata` | `bool` | `false` | — |
 | `preview_rows` | `int` | `25` | — |
 

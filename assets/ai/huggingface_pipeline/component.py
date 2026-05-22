@@ -32,10 +32,15 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 class HuggingfacePipelineComponent(Component, Model, Resolvable):
+    # `model` is a Pydantic / Dagster Resolvable-reserved name. We expose
+    # it in YAML via Field(alias="model") + populate_by_name so users keep
+    # writing `model: facebook/detr-resnet-50` and the attribute is
+    # `model_id` internally — no parent-attribute shadow warning.
+    model_config = ConfigDict(populate_by_name=True)
     """Run a HuggingFace pipeline task on a list of inputs.
 
     Example (local mode — text classification):
@@ -75,11 +80,12 @@ class HuggingfacePipelineComponent(Component, Model, Resolvable):
             "translation, audio-classification, fill-mask, etc."
         ),
     )
-    model: str = Field(
+    model_id: str = Field(
+        alias="model",
         description=(
             "HuggingFace Hub model id (e.g. 'facebook/detr-resnet-50', "
             "'cardiffnlp/twitter-roberta-base-sentiment-latest'). Any public "
-            "or gated model on the Hub."
+            "or gated model on the Hub. Aliased to `model:` in YAML."
         ),
     )
     inputs: List[str] = Field(
@@ -133,7 +139,7 @@ class HuggingfacePipelineComponent(Component, Model, Resolvable):
 
         @asset(
             key=dg.AssetKey(self.asset_key.split("/")),
-            description=self.description or f"HuggingFace {self.task} via {self.model}",
+            description=self.description or f"HuggingFace {self.task} via {self.model_id}",
             group_name=self.group_name,
             kinds=kinds,
             owners=self.owners,
@@ -161,8 +167,8 @@ class HuggingfacePipelineComponent(Component, Model, Resolvable):
                     )
                 if token and "token" not in pkw:
                     pkw["token"] = token
-                context.log.info(f"Loading {_self.task} pipeline with model={_self.model}")
-                pipe = hf_pipeline(task=_self.task, model=_self.model, **pkw)
+                context.log.info(f"Loading {_self.task} pipeline with model={_self.model_id}")
+                pipe = hf_pipeline(task=_self.task, model=_self.model_id, **pkw)
                 for i, item in enumerate(inputs):
                     try:
                         out = pipe(item, **ckw)
@@ -180,7 +186,7 @@ class HuggingfacePipelineComponent(Component, Model, Resolvable):
                         "huggingface_pipeline 'inference_api' mode requires the "
                         "'huggingface_hub' package. Install with: pip install huggingface-hub"
                     )
-                client = InferenceClient(model=_self.model, token=token)
+                client = InferenceClient(model=_self.model_id, token=token)
                 _method_map = {
                     "text-classification": client.text_classification,
                     "token-classification": client.token_classification,
@@ -223,7 +229,7 @@ class HuggingfacePipelineComponent(Component, Model, Resolvable):
             return MaterializeResult(
                 metadata={
                     "task": _self.task,
-                    "model": _self.model,
+                    "model": _self.model_id,
                     "mode": _self.mode,
                     "input_count": len(inputs),
                     "success_count": success_count,

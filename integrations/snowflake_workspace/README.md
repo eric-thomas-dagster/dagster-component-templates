@@ -2,6 +2,36 @@
 
 Import Snowflake workspace entities as Dagster assets with comprehensive orchestration and observation capabilities.
 
+## Quickstart — booth demo
+
+Two scripts. Five minutes. A fully-orchestrated Dagster project against Snowflake.
+
+```bash
+# 1. Seed Snowflake with realistic stuff to orchestrate
+#    (DAGSTER_DEMO database — ~30 entities: tasks, dynamic tables, stored procs,
+#    streams, snowpipes, Cortex Search service, Hybrid table, views, UDFs, tags...)
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_snowflake_environment.sh -o setup_snowflake_environment.sh
+chmod +x setup_snowflake_environment.sh
+./setup_snowflake_environment.sh
+
+# 2. Scaffold the Dagster project (auto-detects capabilities, only scaffolds
+#    what your account can actually materialize)
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_snowflake_workspace_demo.sh -o setup_snowflake_workspace_demo.sh
+chmod +x setup_snowflake_workspace_demo.sh
+export WANT_EVERYTHING=true
+./setup_snowflake_workspace_demo.sh
+
+# 3. Run it
+cd snowflake-dagster
+source .env.demo
+uv run dg dev
+# Opens UI at http://localhost:3000
+```
+
+**Prerequisites**: a Snowflake account (any tier — Standard works) and a role that can `CREATE DATABASE` (e.g. `ACCOUNTADMIN` / `SYSADMIN`). Auth via keypair, PAT, SSO, password, or password+MFA.
+
+**Full walkthrough** (auth options, what gets generated, troubleshooting, deploy-to-prod): [snowflake_workspace.md](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/snowflake_workspace.md)
+
 ## Features
 
 - **Tasks**: Execute Snowflake tasks on demand from Dagster

@@ -20,12 +20,54 @@ Job Status enum (returned as plain text):
 
 Docs: https://help.precisely.com/r/Connect-ETL/pub/Latest/en-US/Connect-ETL-Rest-API-Reference/Job-Status
 """
-from typing import Optional
+from typing import Dict, Optional
 
 import dagster as dg
-from dagster import RunRequest, SensorEvaluationContext, SensorResult, sensor
+from dagster import ConfigurableResource, RunRequest, SensorEvaluationContext, SensorResult, sensor
 from dagster._core.definitions.sensor_definition import DefaultSensorStatus
 from pydantic import Field
+
+
+class PreciselyResource(ConfigurableResource):
+    """Resource for reading status from the Precisely Connect ETL REST API.
+
+    Only the documented ``GET /projects/{jobRunId}/status`` endpoint is
+    exercised — Precisely does not publish a submit endpoint, so this
+    resource only observes.
+
+    Example:
+        ```python
+        PreciselyResource(
+            host=EnvVar("PRECISELY_HOST"),
+            api_token=EnvVar("PRECISELY_API_TOKEN"),
+        )
+        ```
+    """
+
+    host: str = Field(description="Precisely Connect ETL host URL (e.g. https://precisely.mycompany.com)")
+    api_token: str = Field(description="Precisely API token (Bearer)")
+
+    def _base(self) -> str:
+        return self.host.rstrip("/")
+
+    def _headers(self) -> Dict[str, str]:
+        return {"Authorization": f"Bearer {self.api_token}", "Accept": "application/json"}
+
+    def get_run_status(self, job_run_id: str) -> str:
+        """Fetch the current status of a Connect ETL job run.
+
+        Returns one of: WAITING | RUNNING | COMPLETED | COMPLETED_WITH_WARNINGS |
+        COMPLETED_WITH_ERRORS | CANCELLED | ERRORED | LOST_CONTACT.
+        Endpoint returns plain text, not JSON.
+        """
+        import requests
+        resp = requests.get(
+            f"{self._base()}/projects/{job_run_id}/status",
+            headers=self._headers(),
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.text.strip().upper()
 
 
 PRECISELY_TERMINAL_SUCCESS = {"COMPLETED", "COMPLETED_WITH_WARNINGS"}

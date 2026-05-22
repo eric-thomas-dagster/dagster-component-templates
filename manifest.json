@@ -16185,36 +16185,6 @@
       }
     },
     {
-      "id": "precisely_run_asset",
-      "name": "Precisely Run Asset",
-      "category": "infrastructure",
-      "description": "Resource for connecting to the Precisely Connect REST API.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/infrastructure/precisely_run_asset",
-      "tags": [
-        "infrastructure",
-        "precisely",
-        "run",
-        "asset"
-      ],
-      "dependencies": {
-        "pip": [
-          "requests>=2.28.0"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/precisely_run_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/precisely_run_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/precisely_run_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/precisely_run_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/precisely_run_asset/requirements.txt",
-      "icon": "Server",
-      "validation": {
-        "level": "live",
-        "last_validated": "2026-05-11"
-      }
-    },
-    {
       "id": "precision_match",
       "name": "Precision Match",
       "category": "ai",

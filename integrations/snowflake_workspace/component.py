@@ -4,6 +4,7 @@ Import Snowflake tasks, stored procedures, dynamic tables, and streams
 as Dagster assets with automatic observation and orchestration.
 """
 
+import logging
 import re
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -27,6 +28,8 @@ from dagster import (
     MetadataValue,
 )
 from pydantic import ConfigDict, Field
+
+_logger = logging.getLogger(__name__)
 
 
 class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
@@ -513,7 +516,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         assets_list.append(_task_asset)
 
                 except Exception as e:
-                    context.log.error(f"Error importing Snowflake tasks: {e}")
+                    _logger.error(f"Error importing Snowflake tasks: {e}")
 
             # Import Stored Procedures
             if self.import_stored_procedures:
@@ -584,7 +587,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         assets_list.append(_procedure_asset)
 
                 except Exception as e:
-                    context.log.error(f"Error importing Snowflake stored procedures: {e}")
+                    _logger.error(f"Error importing Snowflake stored procedures: {e}")
 
             # Import Dynamic Tables
             if self.import_dynamic_tables:
@@ -687,7 +690,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         assets_list.append(_dynamic_table_asset)
 
                 except Exception as e:
-                    context.log.error(f"Error importing Snowflake dynamic tables: {e}")
+                    _logger.error(f"Error importing Snowflake dynamic tables: {e}")
 
             # Import Streams
             if self.import_streams:
@@ -751,7 +754,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         assets_list.append(_stream_asset)
 
                 except Exception as e:
-                    context.log.error(f"Error importing Snowflake streams: {e}")
+                    _logger.error(f"Error importing Snowflake streams: {e}")
 
             # Import Snowpipes
             if self.import_snowpipes:
@@ -859,7 +862,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         assets_list.append(_snowpipe_asset)
 
                 except Exception as e:
-                    context.log.error(f"Error importing Snowflake pipes: {e}")
+                    _logger.error(f"Error importing Snowflake pipes: {e}")
 
             # Import Stages
             if self.import_stages:
@@ -932,7 +935,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         assets_list.append(_stage_asset)
 
                 except Exception as e:
-                    context.log.error(f"Error importing Snowflake stages: {e}")
+                    _logger.error(f"Error importing Snowflake stages: {e}")
 
             # Import Materialized Views
             if self.import_materialized_views:
@@ -1027,7 +1030,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         assets_list.append(_mv_asset)
 
                 except Exception as e:
-                    context.log.error(f"Error importing Snowflake materialized views: {e}")
+                    _logger.error(f"Error importing Snowflake materialized views: {e}")
 
             # Import External Tables
             if self.import_external_tables:
@@ -1117,7 +1120,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         assets_list.append(_external_table_asset)
 
                 except Exception as e:
-                    context.log.error(f"Error importing Snowflake external tables: {e}")
+                    _logger.error(f"Error importing Snowflake external tables: {e}")
 
             # Import Alerts
             if self.import_alerts:
@@ -1198,7 +1201,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         assets_list.append(_alert_asset)
 
                 except Exception as e:
-                    context.log.error(f"Error importing Snowflake alerts: {e}")
+                    _logger.error(f"Error importing Snowflake alerts: {e}")
 
             # Import OpenFlow Flows
             if self.import_openflow_flows:
@@ -1276,7 +1279,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         assets_list.append(_openflow_asset)
 
                 except Exception as e:
-                    context.log.error(f"Error importing OpenFlow flows: {e}")
+                    _logger.error(f"Error importing OpenFlow flows: {e}")
 
         finally:
             conn.close()
@@ -1335,7 +1338,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                     }
                                 )
                         except Exception as e:
-                            context.log.error(f"Error checking runs for task {task_name}: {e}")
+                            _logger.error(f"Error checking runs for task {task_name}: {e}")
 
                     # Check for dynamic table refreshes
                     for asset_key, metadata in dynamic_table_metadata.items():
@@ -1376,7 +1379,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         }
                                     )
                         except Exception as e:
-                            context.log.error(f"Error checking refreshes for dynamic table {table_name}: {e}")
+                            _logger.error(f"Error checking refreshes for dynamic table {table_name}: {e}")
 
                     # Check for Snowpipe loads
                     for asset_key, metadata in snowpipe_metadata.items():
@@ -1424,7 +1427,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                     }
                                 )
                         except Exception as e:
-                            context.log.error(f"Error checking loads for Snowpipe {pipe_name}: {e}")
+                            _logger.error(f"Error checking loads for Snowpipe {pipe_name}: {e}")
 
                 finally:
                     cursor.close()

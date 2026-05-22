@@ -1,23 +1,23 @@
-# Precisely Run Asset
+# Precisely Run Asset (observation-only)
 
-Triggers a [Precisely Connect ETL](https://www.precisely.com/product/precisely-connect/connect) (formerly Syncsort DMX / DMExpress) job on demand and surfaces the result as a Dagster asset. Dagster owns the schedule and orchestration; Precisely executes the integration.
+Observes a [Precisely Connect ETL](https://www.precisely.com/product/precisely-connect/connect) (formerly Syncsort DMX / DMExpress) job run as a Dagster `observable_source_asset`. Precisely owns the schedule; Dagster surfaces the latest status in its catalog.
 
 ## What this does
 
-When the asset is materialized:
+When the asset is observed (manually, on a schedule, or by Dagster's automation):
 
-1. POSTs to the Precisely Connect job-submit endpoint
-2. Polls the documented Job Status endpoint until the job reaches a terminal status
-3. Returns a `MaterializeResult` with run metadata on success, or raises on failure / timeout
+1. Calls the documented Precisely Job Status endpoint (`GET /projects/{jobRunId}/status`)
+2. Emits an `ObserveResult` with the run's current status, plus boolean flags for terminal / success / in-progress states
+
+That's it. There is **no submit / trigger** — Precisely doesn't publish a job-submit REST endpoint, so this component never pretends to start runs. Use Precisely's own scheduler to launch the job; use this component to surface its state in the Dagster graph.
+
+For event-driven downstream Dagster work that fires when a Precisely run completes, pair with the [`precisely_job_sensor`](../../sensors/precisely_job_sensor/).
 
 ## API verification status
 
-| Endpoint | Verification | Override field |
-|---|---|---|
-| **Job Status** — `GET /projects/{jobRunId}/status` (plain-text response) | **Verified** against Precisely's [public REST API docs](https://help.precisely.com/r/Connect-ETL/pub/Latest/en-US/Connect-ETL-Rest-API-Reference/Job-Status) | (path is fixed) |
-| **Submit** — `POST /projects/{job_id}/run` with JSON `{parameters: {...}}` | **Best-guess** RESTful shape — Precisely's submit endpoint isn't in the public REST docs | `submit_path_template` |
-
-If your Connect ETL install uses a different submit path, override `submit_path_template`. The status-poll path is fixed because it's the documented one.
+| Endpoint | Verification |
+|---|---|
+| **Job Status** — `GET /projects/{jobRunId}/status` (plain-text response) | **Verified** against Precisely's [public REST API docs](https://help.precisely.com/r/Connect-ETL/pub/Latest/en-US/Connect-ETL-Rest-API-Reference/Job-Status) |
 
 ## Connection: env vars OR resource
 
@@ -47,7 +47,7 @@ resource_key: precisely
 | Field | Type | Description |
 |---|---|---|
 | `asset_key` | `str` | Dagster asset key (e.g. 'precisely/etl/load_customers') |
-| `job_id` | `str` | Precisely Connect job ID. Find in Precisely UI: Jobs → Job Details → ID. |
+| `job_run_id` | `str` | Precisely Connect ETL job-run ID to observe. Use the run-id from your Precisely-side scheduler / UI. |
 
 ### Connection
 
@@ -57,52 +57,16 @@ resource_key: precisely
 | `api_token_env_var` | `str` | — | Env var with Precisely API token |
 | `resource_key` | `str` | — | Key of a PreciselyResource |
 
-### Execution
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `parameters` | `dict` | — | Job parameters passed at runtime |
-| `poll_interval_seconds` | `float` | `10.0` | Seconds between status polls |
-| `timeout_seconds` | `int` | `3600` | Max seconds to wait for job completion |
-| `submit_path_template` | `str` | `"/projects/{job_id}/run"` | Template for the job-submit endpoint when not using a resource. Default is a best-guess RESTful shape; replace if your Connect ETL install uses a different path. Available placeholder: {job_id}. The status-poll path is fixed at /projects/{jobRunId}/status per Precisely's documented Connect ETL Job Status endpoint. |
-
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | `"precisely"` | Dagster asset group name |
-| `deps` | `list[str]` | — | Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset']) |
+| `deps` | `List[str]` | — | Upstream asset keys this asset depends on |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
 | `owners` | `List[str]` | — | Asset owners — team names ('team:analytics') or email addresses. |
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
-| `kinds` | `List[str]` | — | Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset. |
-| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
-
-### Freshness
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `freshness_max_lag_minutes` | `int` | — | Maximum acceptable lag in minutes before the asset is considered stale. Builds a FreshnessPolicy when set. |
-| `freshness_cron` | `str` | — | Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am). |
-
-### Partitions
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
-| `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
-| `partition_date_column` | `str` | — | Column used to filter the upstream DataFrame to the current date partition key. |
-| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
-| `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `str` | — | Column used to filter the upstream DataFrame to the current static partition value. |
-
-### Retry policy
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `retry_policy_max_retries` | `int` | — | Max retries on failure. Defines a RetryPolicy when set. |
-| `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
-| `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
+| `kinds` | `List[str]` | — | Asset kinds for the catalog (e.g. ['precisely']). Auto-inferred when unset. |
 
 <!-- FIELDS:END -->
 
@@ -114,87 +78,43 @@ resource_key: precisely
 type: dagster_component_templates.PreciselyRunAssetComponent
 attributes:
   asset_key: precisely/etl/load_customers
-  job_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  job_run_id: "abc-123-def-456"
   host_env_var: PRECISELY_HOST
   api_token_env_var: PRECISELY_API_TOKEN
 ```
 
-### With job parameters + retry policy + deps
+### Wired into downstream Dagster work
 
 ```yaml
 type: dagster_component_templates.PreciselyRunAssetComponent
 attributes:
   asset_key: precisely/etl/load_orders
-  job_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  job_run_id: "abc-123-def-456"
   host_env_var: PRECISELY_HOST
   api_token_env_var: PRECISELY_API_TOKEN
-  parameters:
-    inputPath: /data/inbound/orders
-    outputSchema: analytics
-  poll_interval_seconds: 15
-  timeout_seconds: 7200
-  retry_policy_max_retries: 3
-  retry_policy_backoff: exponential
-  deps:
-    - raw_orders
-    - staging/customers
-```
-
-### Daily-partitioned ETL with freshness policy
-
-```yaml
-type: dagster_component_templates.PreciselyRunAssetComponent
-attributes:
-  asset_key: precisely/etl/daily_orders
-  job_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-  host_env_var: PRECISELY_HOST
-  api_token_env_var: PRECISELY_API_TOKEN
-  partition_type: daily
-  partition_start: "2024-01-01"
-  partition_date_column: ORDER_DATE
-  parameters:
-    runDate: "{{ partition_key }}"
-  freshness_max_lag_minutes: 90
-  freshness_cron: "0 9 * * 1-5"        # weekday 9am, must be fresh-within-90m
   owners:
     - team:integration-eng
     - data-eng@company.com
+  deps:
+    - raw/upstream_signal
 ```
 
-### Custom submit endpoint
+Downstream assets then declare `deps: [precisely/etl/load_orders]` to surface lineage through the Precisely step.
 
-```yaml
-type: dagster_component_templates.PreciselyRunAssetComponent
-attributes:
-  asset_key: precisely/etl/load_legacy
-  job_id: "legacy-job-42"
-  host_env_var: PRECISELY_HOST
-  api_token_env_var: PRECISELY_API_TOKEN
-  submit_path_template: "/api/v2/jobs/{job_id}/execute"   # validate vs your install
-```
+## Observation metadata
 
-## Materialization metadata
-
-On success, the asset records the following in the Dagster catalog:
+Each observation records:
 
 | Key | Description |
 |---|---|
-| `job_id` | Precisely Connect job ID |
-| `run_id` | Precisely run ID returned by the submit endpoint |
-| `status` | Final terminal status (`COMPLETED` / `COMPLETED_WITH_WARNINGS`) |
+| `job_run_id` | The Precisely run-id polled |
+| `status` | Current status (`WAITING` / `RUNNING` / `COMPLETED` / `COMPLETED_WITH_WARNINGS` / `COMPLETED_WITH_ERRORS` / `CANCELLED` / `ERRORED` / `LOST_CONTACT`) |
+| `is_terminal` | `True` if status is one of the terminal states |
+| `is_success` | `True` if status is `COMPLETED` or `COMPLETED_WITH_WARNINGS` |
+| `is_in_progress` | `True` if status is `WAITING` or `RUNNING` |
+| `precisely_host` | The Precisely host the status was polled from |
 
-## Failure semantics
-
-The asset raises (failing the materialization) if Precisely returns any of these terminal statuses:
-
-| Status | Meaning |
-|---|---|
-| `COMPLETED_WITH_ERRORS` | Job ran but produced errors |
-| `CANCELLED` | Run was cancelled |
-| `ERRORED` | Run failed |
-| `LOST_CONTACT` | Connect ETL lost contact with the runtime |
-
-A timeout (`timeout_seconds` elapsed without reaching a terminal status) also raises. Combine with `retry_policy_max_retries` for fault tolerance.
+The component does **not** raise on `COMPLETED_WITH_ERRORS` / `ERRORED` / `CANCELLED` / `LOST_CONTACT` — observation is reporting, not gating. If you want a failed Precisely run to fail a downstream Dagster job, use the [`precisely_job_sensor`](../../sensors/precisely_job_sensor/) (which only fires `RunRequest` on terminal SUCCESS) and watch the Dagster job for skips.
 
 ## Lineage
 
@@ -204,16 +124,6 @@ A timeout (`timeout_seconds` elapsed without reaching a terminal status) also ra
 deps:
   - raw_orders                # simple asset key
   - staging/customers         # path-prefixed asset key
-```
-
-For column-level lineage in the catalog, set `column_lineage`:
-
-```yaml
-column_lineage:
-  customer_revenue:
-    - orders.total
-    - orders.discount
-    - customers.id
 ```
 
 Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py`.
@@ -227,4 +137,4 @@ requests>=2.28.0
 ## See also
 
 - [`precisely_job_sensor`](../../sensors/precisely_job_sensor/) — fire a Dagster job when a Precisely run reaches terminal success
-- [`precisely_validation.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/precisely_validation.md) — what's verified against Precisely's public REST docs and what's best-guess
+- [`precisely_validation.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/precisely_validation.md) — what's verified against Precisely's public REST docs

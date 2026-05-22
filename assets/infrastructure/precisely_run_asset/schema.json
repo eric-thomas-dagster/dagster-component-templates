@@ -1,38 +1,25 @@
 {
   "component_type": "dagster_component_templates.PreciselyRunAssetComponent",
-  "description": "Resource for connecting to the Precisely Connect REST API.",
+  "description": "Observe a Precisely Connect ETL job run as a Dagster source asset. Status-only — Precisely owns the run; Dagster surfaces its state.",
   "category": "infrastructure",
   "icon": "Server",
   "x-dagster-io": {
     "outputs": {
-      "type": "MaterializeResult",
-      "description": "Provisioning result"
+      "type": "ObserveResult",
+      "description": "Observation result with run status + flags"
     }
   },
   "attributes": {
-    "host": {
-      "type": "string",
-      "label": "Host",
-      "description": "Host",
-      "required": true
-    },
-    "api_token": {
-      "type": "string",
-      "label": "Api Token",
-      "description": "Api Token",
-      "required": true,
-      "ui:widget": "password"
-    },
     "asset_key": {
       "type": "string",
       "label": "Asset Key",
-      "description": "Dagster asset key (e.g. ",
+      "description": "Dagster asset key (e.g. 'precisely/etl/load_customers')",
       "required": true
     },
-    "job_id": {
+    "job_run_id": {
       "type": "string",
-      "label": "Job Id",
-      "description": "Precisely Connect job ID. Find in Precisely UI: Jobs \u2192 Job Details \u2192 ID.",
+      "label": "Job Run ID",
+      "description": "Precisely Connect ETL job-run ID to observe.",
       "required": true
     },
     "host_env_var": {
@@ -58,28 +45,6 @@
       "default": null,
       "ui:widget": "resource-picker"
     },
-    "parameters": {
-      "type": "object",
-      "label": "Parameters",
-      "description": "Job parameters passed at runtime",
-      "required": false,
-      "default": null,
-      "ui:widget": "key-value"
-    },
-    "poll_interval_seconds": {
-      "type": "number",
-      "label": "Poll Interval Seconds",
-      "description": "Seconds between status polls",
-      "required": false,
-      "default": 10.0
-    },
-    "timeout_seconds": {
-      "type": "integer",
-      "label": "Timeout Seconds",
-      "description": "Max seconds to wait for job completion",
-      "required": false,
-      "default": 3600
-    },
     "group_name": {
       "type": "string",
       "label": "Group Name",
@@ -87,20 +52,37 @@
       "required": false,
       "default": "precisely"
     },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on",
+      "required": false,
+      "default": null,
+      "ui:widget": "list"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description shown in the Dagster catalog.",
+      "required": false
+    },
     "owners": {
       "type": "array",
       "items": {
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
     "asset_tags": {
       "type": "object",
       "label": "Asset Tags",
-      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "description": "Key-value tags applied to the asset in the Dagster catalog.",
       "required": false,
       "ui:widget": "key-value"
     },
@@ -110,120 +92,16 @@
         "type": "string"
       },
       "label": "Kinds",
-      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "description": "Asset kinds shown in the Dagster catalog.",
       "required": false,
       "ui:widget": "list"
-    },
-    "freshness_max_lag_minutes": {
-      "type": "integer",
-      "label": "Freshness Max Lag (minutes)",
-      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
-      "required": false,
-      "default": null
-    },
-    "freshness_cron": {
-      "type": "string",
-      "label": "Freshness Cron Schedule",
-      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
-      "required": false,
-      "default": null
-    },
-    "deps": {
-      "type": "string",
-      "label": "Deps",
-      "description": "Upstream asset keys this asset depends on (e.g. [",
-      "required": false,
-      "default": null
-    },
-    "description": {
-      "type": "string",
-      "label": "Description",
-      "required": false
-    },
-    "column_lineage": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "label": "Column Lineage",
-      "required": false
-    },
-    "partition_type": {
-      "type": "string",
-      "label": "Partition Type",
-      "required": false
-    },
-    "partition_start": {
-      "type": "string",
-      "label": "Partition Start",
-      "required": false
-    },
-    "partition_date_column": {
-      "type": "string",
-      "label": "Partition Date Column",
-      "required": false
-    },
-    "partition_values": {
-      "type": "string",
-      "label": "Partition Values",
-      "required": false
-    },
-    "partition_static_dim": {
-      "type": "string",
-      "label": "Partition Static Dim",
-      "required": false
-    },
-    "partition_static_column": {
-      "type": "string",
-      "label": "Partition Static Column",
-      "required": false
-    },
-    "retry_policy_max_retries": {
-      "type": "integer",
-      "label": "Retry Policy Max Retries",
-      "required": false
-    },
-    "retry_policy_delay_seconds": {
-      "type": "integer",
-      "label": "Retry Policy Delay Seconds",
-      "required": false
-    },
-    "retry_policy_backoff": {
-      "type": "string",
-      "label": "Retry Policy Backoff",
-      "required": false,
-      "default": "exponential"
-    },
-    "dynamic_partition_name": {
-      "type": "string",
-      "label": "Dynamic Partition Name",
-      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
-      "required": false,
-      "default": null
-    },
-    "partition_dimensions": {
-      "type": "array",
-      "items": {
-        "type": "object"
-      },
-      "label": "Partition Dimensions",
-      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
-      "required": false,
-      "default": null
-    },
-    "submit_path_template": {
-      "type": "string",
-      "label": "Submit Path Template",
-      "description": "Template for the job-submit endpoint when not using a resource. Default is a best-guess RESTful shape; replace if your install uses a different path.",
-      "required": false,
-      "default": "/projects/{job_id}/run"
     }
   },
   "tags": [
     "infrastructure",
     "precisely",
-    "run",
+    "observation",
     "asset"
   ],
-  "name": "Precisely Run Asset"
+  "name": "Precisely Run Observation Asset"
 }

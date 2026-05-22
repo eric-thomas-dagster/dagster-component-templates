@@ -276,7 +276,9 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
         cursor = conn.cursor()
         try:
             cursor.execute(query)
-            columns = [col[0] for col in cursor.description] if cursor.description else []
+            # Uppercase column names — lets the rest of the code use dict['NAME']
+            # whether the source is INFORMATION_SCHEMA (uppercase) or SHOW (lowercase).
+            columns = [col[0].upper() for col in cursor.description] if cursor.description else []
             results = []
             for row in cursor:
                 results.append(dict(zip(columns, row)))
@@ -398,24 +400,14 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # Import Tasks
             if self.import_tasks:
                 try:
-                    # Query to get tasks from information schema
-                    query = f"""
-                    SELECT
-                        name,
-                        database_name,
-                        schema_name,
-                        owner,
-                        state,
-                        schedule,
-                        created_on
-                    FROM {self.database}.INFORMATION_SCHEMA.TASKS
-                    WHERE schema_name = '{self.schema_name}'
-                    """
-
-                    if self.task_filter_by_state:
-                        query += f" AND state = '{self.task_filter_by_state}'"
-
+                    # INFORMATION_SCHEMA.TASKS doesn't exist as a view in Snowflake;
+                    # SHOW TASKS works universally. _execute_query uppercases
+                    # column names so downstream task['NAME'] / ['STATE'] / etc.
+                    # continue to work.
+                    query = f"SHOW TASKS IN SCHEMA {self.database}.{self.schema_name}"
                     tasks = self._execute_query(conn, query)
+                    if self.task_filter_by_state:
+                        tasks = [t for t in tasks if t.get('STATE') == self.task_filter_by_state]
 
                     for task in tasks:
                         task_name = task['NAME']
@@ -556,35 +548,37 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "stored_procedure",
                             },
                         ))
-                        @asset(**_proc_kwargs)
-                        def _procedure_asset(context: AssetExecutionContext, proc_name=proc_name, db=proc['PROCEDURE_CATALOG'], schema=proc['PROCEDURE_SCHEMA']):
-                            """Materialize by calling stored procedure."""
-                            conn = self._create_connection()
-                            cursor = conn.cursor()
+                        # Factory pattern: capture loop variables in a closure
+                        # WITHOUT using default args. Dagster's @asset decorator
+                        # treats non-context function parameters as upstream
+                        # asset inputs; default args here caused
+                        # DagsterInvalidDefinitionError: Input asset "['proc_name']"
+                        def _make_proc_asset(proc_name_v, db_v, schema_v, proc_kwargs_v, self_v):
+                            @asset(**proc_kwargs_v)
+                            def _procedure_asset(context: AssetExecutionContext):
+                                """Materialize by calling stored procedure."""
+                                conn = self_v._create_connection()
+                                cursor = conn.cursor()
+                                try:
+                                    call_query = f"CALL {db_v}.{schema_v}.{proc_name_v}()"
+                                    cursor.execute(call_query)
+                                    result = cursor.fetchone()
+                                    context.log.info(f"Called Snowflake stored procedure: {proc_name_v}")
+                                    return {
+                                        "procedure_name": proc_name_v,
+                                        "database": db_v,
+                                        "schema": schema_v,
+                                        "result": str(result) if result else None,
+                                    }
+                                finally:
+                                    cursor.close()
+                                    conn.close()
+                            return _procedure_asset
 
-                            try:
-                                # Call the stored procedure
-                                call_query = f"CALL {db}.{schema}.{proc_name}()"
-                                cursor.execute(call_query)
-
-                                result = cursor.fetchone()
-
-                                context.log.info(f"Called Snowflake stored procedure: {proc_name}")
-
-                                metadata = {
-                                    "procedure_name": proc_name,
-                                    "database": db,
-                                    "schema": schema,
-                                    "result": str(result) if result else None,
-                                }
-
-                                return metadata
-
-                            finally:
-                                cursor.close()
-                                conn.close()
-
-                        assets_list.append(_procedure_asset)
+                        assets_list.append(_make_proc_asset(
+                            proc_name, proc['PROCEDURE_CATALOG'],
+                            proc['PROCEDURE_SCHEMA'], _proc_kwargs, self,
+                        ))
 
                 except Exception as e:
                     _logger.error(f"Error importing Snowflake stored procedures: {e}")
@@ -592,20 +586,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # Import Dynamic Tables
             if self.import_dynamic_tables:
                 try:
-                    # Query to get dynamic tables
-                    query = f"""
-                    SELECT
-                        name,
-                        database_name,
-                        schema_name,
-                        owner,
-                        target_lag,
-                        refresh_mode,
-                        created_on
-                    FROM {self.database}.INFORMATION_SCHEMA.DYNAMIC_TABLES
-                    WHERE schema_name = '{self.schema_name}'
-                    """
-
+                    # INFORMATION_SCHEMA.DYNAMIC_TABLES isn't a queryable view.
+                    query = f"SHOW DYNAMIC TABLES IN SCHEMA {self.database}.{self.schema_name}"
                     dynamic_tables = self._execute_query(conn, query)
 
                     for dt in dynamic_tables:
@@ -695,18 +677,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # Import Streams
             if self.import_streams:
                 try:
-                    query = f"""
-                    SELECT
-                        name,
-                        database_name,
-                        schema_name,
-                        owner,
-                        table_name,
-                        type,
-                        created_on
-                    FROM {self.database}.INFORMATION_SCHEMA.STREAMS
-                    WHERE schema_name = '{self.schema_name}'
-                    """
+                    # INFORMATION_SCHEMA.STREAMS isn't a queryable view.
+                    query = f"SHOW STREAMS IN SCHEMA {self.database}.{self.schema_name}"
 
                     streams = self._execute_query(conn, query)
 
@@ -759,18 +731,9 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # Import Snowpipes
             if self.import_snowpipes:
                 try:
-                    query = f"""
-                    SELECT
-                        name,
-                        database_name,
-                        schema_name,
-                        owner,
-                        notification_channel,
-                        created_on
-                    FROM {self.database}.INFORMATION_SCHEMA.PIPES
-                    WHERE schema_name = '{self.schema_name}'
-                    """
-
+                    # INFORMATION_SCHEMA.PIPES uses pipe_name (not name) and is
+                    # restrictive about visibility. SHOW PIPES is universal.
+                    query = f"SHOW PIPES IN SCHEMA {self.database}.{self.schema_name}"
                     pipes = self._execute_query(conn, query)
 
                     for pipe in pipes:
@@ -940,19 +903,12 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # Import Materialized Views
             if self.import_materialized_views:
                 try:
-                    query = f"""
-                    SELECT
-                        name,
-                        database_name,
-                        schema_name,
-                        owner,
-                        created_on,
-                        cluster_by,
-                        is_secure
-                    FROM {self.database}.INFORMATION_SCHEMA.VIEWS
-                    WHERE schema_name = '{self.schema_name}'
-                    AND table_type = 'MATERIALIZED VIEW'
-                    """
+                    # The original SELECT FROM INFORMATION_SCHEMA.VIEWS WHERE
+                    # table_type='MATERIALIZED VIEW' didn't work (VIEWS uses
+                    # `name`/`table_name` not `table_type`). SHOW MATERIALIZED
+                    # VIEWS is the canonical query (Enterprise+ only —
+                    # fails non-fatal on Standard edition).
+                    query = f"SHOW MATERIALIZED VIEWS IN SCHEMA {self.database}.{self.schema_name}"
 
                     mv_list = self._execute_query(conn, query)
 
@@ -1125,19 +1081,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # Import Alerts
             if self.import_alerts:
                 try:
-                    query = f"""
-                    SELECT
-                        name,
-                        database_name,
-                        schema_name,
-                        owner,
-                        condition,
-                        action,
-                        created_on
-                    FROM {self.database}.INFORMATION_SCHEMA.ALERTS
-                    WHERE schema_name = '{self.schema_name}'
-                    """
-
+                    # INFORMATION_SCHEMA.ALERTS isn't a queryable view.
+                    query = f"SHOW ALERTS IN SCHEMA {self.database}.{self.schema_name}"
                     alerts = self._execute_query(conn, query)
 
                     for alert in alerts:

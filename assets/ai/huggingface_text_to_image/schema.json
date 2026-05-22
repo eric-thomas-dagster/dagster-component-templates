@@ -1,0 +1,77 @@
+{
+  "component_type": "dagster_community_components.HuggingfaceTextToImageComponent",
+  "description": "Generate images from text prompts via HuggingFace InferenceClient. Multi-provider routing (wavespeed/falai/replicate/etc.) for cheap/fast inference.",
+  "category": "ai",
+  "icon": "si:huggingface",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "List of generated image paths in metadata"
+    }
+  },
+  "attributes": {
+    "asset_key": { "type": "string", "label": "Asset Key", "required": true },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "description": "Text-to-image HF Hub model id (e.g. 'black-forest-labs/FLUX.1-dev')",
+      "required": true
+    },
+    "prompts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Prompts",
+      "description": "List of text prompts; one PNG per prompt.",
+      "required": true,
+      "ui:widget": "list"
+    },
+    "provider": {
+      "type": "string",
+      "label": "Provider",
+      "description": "Inference provider (wavespeed / falai / replicate / together / etc.). Leave unset for HF default routing.",
+      "required": false,
+      "default": null
+    },
+    "output_dir": {
+      "type": "string",
+      "label": "Output Dir",
+      "description": "Directory to write generated PNGs.",
+      "required": false,
+      "default": "./generated_images"
+    },
+    "filename_template": {
+      "type": "string",
+      "label": "Filename Template",
+      "description": "Filename template: placeholders {asset}, {index}, {slug}.",
+      "required": false,
+      "default": "{asset}_{index}_{slug}.png"
+    },
+    "hf_token_env_var": {
+      "type": "string",
+      "label": "HF Token Env Var",
+      "required": false,
+      "default": "HF_TOKEN",
+      "ui:widget": "env_var"
+    },
+    "generation_kwargs": {
+      "type": "object",
+      "label": "Generation Kwargs",
+      "description": "Extra kwargs for text_to_image() (guidance_scale, num_inference_steps, width, height, ...).",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "group_name": { "type": "string", "label": "Group Name", "required": false, "default": "huggingface" },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
+    "asset_tags": { "type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value" },
+    "kinds": { "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" },
+    "deps": { "type": "array", "items": { "type": "string" }, "label": "Deps", "required": false, "ui:widget": "list" }
+  },
+  "tags": [
+    "ai",
+    "huggingface",
+    "image-generation",
+    "text-to-image"
+  ],
+  "name": "HuggingFace Text-to-Image"
+}

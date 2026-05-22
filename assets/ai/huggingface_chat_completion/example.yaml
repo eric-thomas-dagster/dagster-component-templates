@@ -1,0 +1,7 @@
+type: dagster_community_components.HuggingfaceChatCompletionComponent
+attributes:
+  asset_key: hf/chat/photosynthesis
+  model: moonshotai/Kimi-K2-Instruct-0905
+  prompt: "Describe the process of photosynthesis."
+  hf_token_env_var: HF_TOKEN
+  group_name: huggingface

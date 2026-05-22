@@ -10603,6 +10603,36 @@
       }
     },
     {
+      "id": "huggingface_chat_completion",
+      "name": "HuggingFace Chat Completion",
+      "category": "ai",
+      "description": "Call a chat-completion model via the HuggingFace router (OpenAI-compatible) \u2014 Kimi, Llama, Mistral, Qwen, DeepSeek via one SDK.",
+      "path": "assets/ai/huggingface_chat_completion",
+      "tags": [
+        "ai",
+        "huggingface",
+        "chat",
+        "llm",
+        "router"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_chat_completion/schema.json",
+      "component_type": "dagster_community_components.HuggingfaceChatCompletionComponent",
+      "icon": "si:huggingface",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_chat_completion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_chat_completion/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_chat_completion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_chat_completion/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "openai>=1.0.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-22"
+      }
+    },
+    {
       "id": "huggingface_dataset_asset",
       "name": "HuggingFace Dataset (observed)",
       "category": "ai",
@@ -10740,6 +10770,36 @@
       "dependencies": {
         "pip": [
           "huggingface-hub>=0.20.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-22"
+      }
+    },
+    {
+      "id": "huggingface_text_to_image",
+      "name": "HuggingFace Text-to-Image",
+      "category": "ai",
+      "description": "Generate images from text prompts via HuggingFace InferenceClient. Multi-provider routing (wavespeed/falai/replicate/together).",
+      "path": "assets/ai/huggingface_text_to_image",
+      "tags": [
+        "ai",
+        "huggingface",
+        "image-generation",
+        "text-to-image"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_text_to_image/schema.json",
+      "component_type": "dagster_community_components.HuggingfaceTextToImageComponent",
+      "icon": "si:huggingface",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_text_to_image/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_text_to_image/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_text_to_image/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_text_to_image/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "huggingface-hub>=0.20.0",
+          "Pillow>=10.0.0"
         ]
       },
       "validation": {
@@ -16304,14 +16364,15 @@
       "id": "precisely_job_sensor",
       "name": "Precisely Job Sensor",
       "category": "sensor",
-      "description": "Trigger a Dagster job when a Precisely Connect job run completes.",
+      "description": "Sensor-only \u2014 fire a Dagster RunRequest when a Precisely Connect ETL job-run reaches terminal SUCCESS. Uses the documented Job Status endpoint; Precisely owns the run.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "sensors/precisely_job_sensor",
       "tags": [
         "sensor",
         "precisely",
-        "job"
+        "job",
+        "etl"
       ],
       "dependencies": {
         "pip": [
@@ -16325,8 +16386,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/precisely_job_sensor/requirements.txt",
       "icon": "Radar",
       "validation": {
-        "level": "live",
-        "last_validated": "2026-05-11"
+        "level": "code",
+        "last_validated": "2026-05-22",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/precisely_validation.md \u2014 API surface matches Precisely's public REST docs; no live Precisely cluster available to validate end-to-end."
       }
     },
     {

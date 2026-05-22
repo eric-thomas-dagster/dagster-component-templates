@@ -1,0 +1,67 @@
+{
+  "component_type": "dagster_community_components.HuggingfaceChatCompletionComponent",
+  "description": "Call a chat-completion model via the HuggingFace router (OpenAI-compatible) — any hosted chat model on the Hub with one SDK.",
+  "category": "ai",
+  "icon": "si:huggingface",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Assistant message + token usage in metadata"
+    }
+  },
+  "attributes": {
+    "asset_key": { "type": "string", "label": "Asset Key", "required": true },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "description": "HF Hub model id available on the router (e.g. 'moonshotai/Kimi-K2-Instruct-0905').",
+      "required": true
+    },
+    "prompt": {
+      "type": "string",
+      "label": "Prompt",
+      "description": "Simple user-message prompt. Mutually exclusive with messages.",
+      "required": false
+    },
+    "messages": {
+      "type": "array",
+      "items": { "type": "object" },
+      "label": "Messages",
+      "description": "OpenAI chat messages [{role, content}, ...]. Mutually exclusive with prompt.",
+      "required": false
+    },
+    "hf_token_env_var": {
+      "type": "string",
+      "label": "HF Token Env Var",
+      "description": "Env var with HF token",
+      "required": false,
+      "default": "HF_TOKEN",
+      "ui:widget": "env_var"
+    },
+    "temperature": { "type": "number", "label": "Temperature", "required": false, "default": null },
+    "max_tokens": { "type": "integer", "label": "Max Tokens", "required": false, "default": null },
+    "top_p": { "type": "number", "label": "Top P", "required": false, "default": null },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "description": "OpenAI-compatible base URL. Default is the HF router.",
+      "required": false,
+      "default": "https://router.huggingface.co/v1"
+    },
+    "extra_kwargs": { "type": "object", "label": "Extra Kwargs", "required": false, "ui:widget": "key-value" },
+    "group_name": { "type": "string", "label": "Group Name", "required": false, "default": "huggingface" },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
+    "asset_tags": { "type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value" },
+    "kinds": { "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" },
+    "deps": { "type": "array", "items": { "type": "string" }, "label": "Deps", "required": false, "ui:widget": "list" }
+  },
+  "tags": [
+    "ai",
+    "huggingface",
+    "chat",
+    "llm",
+    "router"
+  ],
+  "name": "HuggingFace Chat Completion"
+}

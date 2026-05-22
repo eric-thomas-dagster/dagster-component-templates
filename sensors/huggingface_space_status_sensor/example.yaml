@@ -1,0 +1,9 @@
+type: dagster_community_components.HuggingfaceSpaceStatusSensorComponent
+attributes:
+  sensor_name: space_rebuilt
+  space_id: my-org/my-app
+  target_stages: ["RUNNING"]
+  job_name: downstream_eval_job
+  hf_token_env_var: HF_TOKEN
+  minimum_interval_seconds: 60
+  default_status: stopped

@@ -1,0 +1,10 @@
+type: dagster_community_components.HuggingfaceInferenceEndpointComponent
+attributes:
+  asset_key: hf/endpoint/sentiment
+  endpoint_name: my-sentiment-endpoint
+  task: text-classification
+  inputs:
+    - "I love this product!"
+    - "Terrible experience, would not recommend."
+  hf_token_env_var: HF_TOKEN
+  group_name: huggingface

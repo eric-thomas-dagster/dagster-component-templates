@@ -1,0 +1,116 @@
+{
+  "component_type": "dagster_community_components.HuggingfacePipelineComponent",
+  "description": "Run any HuggingFace transformers.pipeline task on a list of inputs — no DataFrame needed. Local or Inference API.",
+  "category": "ai",
+  "icon": "si:huggingface",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Per-input pipeline results in metadata"
+    }
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Dagster asset key (e.g. 'hf/sentiment').",
+      "required": true
+    },
+    "task": {
+      "type": "string",
+      "label": "Task",
+      "description": "HuggingFace pipeline task — text-classification, object-detection, image-classification, zero-shot-classification, summarization, translation, automatic-speech-recognition, etc.",
+      "required": true
+    },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "description": "HuggingFace Hub model id (e.g. 'facebook/detr-resnet-50').",
+      "required": true
+    },
+    "inputs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Inputs",
+      "description": "List of inputs (strings for NLP, URLs/paths for image/audio).",
+      "required": true,
+      "ui:widget": "list"
+    },
+    "mode": {
+      "type": "string",
+      "label": "Mode",
+      "description": "'local' (transformers.pipeline) or 'inference_api' (huggingface_hub.InferenceClient)",
+      "required": false,
+      "default": "local",
+      "enum": ["local", "inference_api"]
+    },
+    "hf_token_env_var": {
+      "type": "string",
+      "label": "HF Token Env Var",
+      "description": "Env var with HuggingFace token (required for inference_api mode + gated models).",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "pipeline_kwargs": {
+      "type": "object",
+      "label": "Pipeline Kwargs",
+      "description": "Extra kwargs for transformers.pipeline() — e.g. {'device': 0}.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "call_kwargs": {
+      "type": "object",
+      "label": "Call Kwargs",
+      "description": "Extra kwargs for each pipeline call — e.g. {'top_k': 5}.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": "huggingface"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "deps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Deps",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "ai",
+    "huggingface",
+    "transformers",
+    "inference"
+  ],
+  "name": "HuggingFace Pipeline"
+}

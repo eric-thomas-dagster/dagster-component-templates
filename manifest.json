@@ -10603,6 +10603,151 @@
       }
     },
     {
+      "id": "huggingface_dataset_asset",
+      "name": "HuggingFace Dataset (observed)",
+      "category": "ai",
+      "description": "Observe a HuggingFace Hub dataset's metadata as a Dagster source asset \u2014 downloads, likes, configs, license.",
+      "path": "assets/ai/huggingface_dataset_asset",
+      "tags": [
+        "ai",
+        "huggingface",
+        "dataset",
+        "observation"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_dataset_asset/schema.json",
+      "component_type": "dagster_community_components.HuggingfaceDatasetAssetComponent",
+      "icon": "si:huggingface",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_dataset_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_dataset_asset/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_dataset_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_dataset_asset/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "huggingface-hub>=0.20.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-22"
+      }
+    },
+    {
+      "id": "huggingface_inference_endpoint",
+      "name": "HuggingFace Inference Endpoint",
+      "category": "ai",
+      "description": "Call a dedicated HuggingFace Inference Endpoint (paid, scaled, per-model deployment) \u2014 different from the shared public API.",
+      "path": "assets/ai/huggingface_inference_endpoint",
+      "tags": [
+        "ai",
+        "huggingface",
+        "inference-endpoints",
+        "dedicated"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_inference_endpoint/schema.json",
+      "component_type": "dagster_community_components.HuggingfaceInferenceEndpointComponent",
+      "icon": "si:huggingface",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_inference_endpoint/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_inference_endpoint/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_inference_endpoint/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_inference_endpoint/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "huggingface-hub>=0.20.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-22"
+      }
+    },
+    {
+      "id": "huggingface_model_asset",
+      "name": "HuggingFace Model (observed)",
+      "category": "ai",
+      "description": "Observe a HuggingFace Hub model's metadata as a Dagster source asset \u2014 downloads, likes, pipeline tag, last_modified.",
+      "path": "assets/ai/huggingface_model_asset",
+      "tags": [
+        "ai",
+        "huggingface",
+        "model",
+        "observation"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_model_asset/schema.json",
+      "component_type": "dagster_community_components.HuggingfaceModelAssetComponent",
+      "icon": "si:huggingface",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_model_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_model_asset/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_model_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_model_asset/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "huggingface-hub>=0.20.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-22"
+      }
+    },
+    {
+      "id": "huggingface_pipeline",
+      "name": "HuggingFace Pipeline",
+      "category": "ai",
+      "description": "Run any HuggingFace transformers.pipeline task on a list of inputs \u2014 no DataFrame required. Local or Inference API.",
+      "path": "assets/ai/huggingface_pipeline",
+      "tags": [
+        "ai",
+        "huggingface",
+        "transformers",
+        "inference"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_pipeline/schema.json",
+      "component_type": "dagster_community_components.HuggingfacePipelineComponent",
+      "icon": "si:huggingface",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_pipeline/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_pipeline/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_pipeline/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/huggingface_pipeline/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "huggingface-hub>=0.20.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-22"
+      }
+    },
+    {
+      "id": "huggingface_space_status_sensor",
+      "name": "HuggingFace Space Status Sensor",
+      "category": "sensor",
+      "description": "Fire a Dagster RunRequest when a HuggingFace Space hits a target stage (e.g. RUNNING after a rebuild).",
+      "path": "sensors/huggingface_space_status_sensor",
+      "tags": [
+        "sensor",
+        "huggingface",
+        "space",
+        "status"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/huggingface_space_status_sensor/schema.json",
+      "component_type": "dagster_community_components.HuggingfaceSpaceStatusSensorComponent",
+      "icon": "si:huggingface",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/huggingface_space_status_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/huggingface_space_status_sensor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/huggingface_space_status_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/huggingface_space_status_sensor/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "huggingface-hub>=0.20.0"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-22"
+      }
+    },
+    {
       "id": "iceberg_catalog_resource",
       "name": "Iceberg Catalog Resource",
       "category": "resource",

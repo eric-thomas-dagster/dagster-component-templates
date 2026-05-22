@@ -1,0 +1,5 @@
+huggingface-hub>=0.20.0
+# transformers + torch only needed for mode=local
+# transformers>=4.30.0
+# torch>=2.0.0
+# Pillow>=10.0.0  # for image tasks

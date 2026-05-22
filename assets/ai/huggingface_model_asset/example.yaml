@@ -1,0 +1,5 @@
+type: dagster_community_components.HuggingfaceModelAssetComponent
+attributes:
+  asset_key: hf/models/sentiment_model
+  model_id: cardiffnlp/twitter-roberta-base-sentiment-latest
+  group_name: huggingface

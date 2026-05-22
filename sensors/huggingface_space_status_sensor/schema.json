@@ -1,0 +1,43 @@
+{
+  "component_type": "dagster_community_components.HuggingfaceSpaceStatusSensorComponent",
+  "description": "Fire a Dagster RunRequest when a HuggingFace Space hits a target stage (e.g. RUNNING after a rebuild).",
+  "category": "sensor",
+  "icon": "si:huggingface",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "RunRequest on target-stage transition"
+    }
+  },
+  "attributes": {
+    "sensor_name": { "type": "string", "label": "Sensor Name", "required": true },
+    "space_id": { "type": "string", "label": "Space ID", "description": "HuggingFace Space id (e.g. 'my-org/my-app')", "required": true },
+    "target_stages": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Target Stages",
+      "description": "Space stages that should fire a RunRequest. Default ['RUNNING'].",
+      "required": false,
+      "default": ["RUNNING"],
+      "ui:widget": "list"
+    },
+    "job_name": { "type": "string", "label": "Job Name", "description": "Dagster job to trigger", "required": true },
+    "hf_token_env_var": {
+      "type": "string",
+      "label": "HF Token Env Var",
+      "description": "Env var with HF token (required for gated / private Spaces)",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "minimum_interval_seconds": { "type": "integer", "label": "Minimum Interval Seconds", "required": false, "default": 60 },
+    "default_status": { "type": "string", "label": "Default Status", "required": false, "default": "running", "enum": ["running", "stopped"] }
+  },
+  "tags": [
+    "sensor",
+    "huggingface",
+    "space",
+    "status"
+  ],
+  "name": "HuggingFace Space Status Sensor"
+}

@@ -1,0 +1,5 @@
+type: dagster_community_components.HuggingfaceDatasetAssetComponent
+attributes:
+  asset_key: hf/datasets/imdb
+  dataset_id: imdb
+  group_name: huggingface

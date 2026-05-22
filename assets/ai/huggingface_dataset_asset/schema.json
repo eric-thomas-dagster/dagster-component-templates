@@ -1,0 +1,87 @@
+{
+  "component_type": "dagster_community_components.HuggingfaceDatasetAssetComponent",
+  "description": "Observe a HuggingFace Hub dataset's metadata as a Dagster source asset. Downloads / likes / files / configs / license tracked per observation.",
+  "category": "ai",
+  "icon": "si:huggingface",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "ObserveResult",
+      "description": "Dataset metadata snapshot"
+    }
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Dagster asset key (e.g. 'hf/datasets/imdb').",
+      "required": true
+    },
+    "dataset_id": {
+      "type": "string",
+      "label": "Dataset ID",
+      "description": "HuggingFace Hub dataset id (e.g. 'imdb', 'mozilla-foundation/common_voice_16_0').",
+      "required": true
+    },
+    "revision": {
+      "type": "string",
+      "label": "Revision",
+      "description": "Optional revision (branch / tag / commit) to inspect.",
+      "required": false,
+      "default": null
+    },
+    "hf_token_env_var": {
+      "type": "string",
+      "label": "HF Token Env Var",
+      "description": "Env var with HF token (required for gated / private datasets).",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": "huggingface"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "deps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Deps",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "ai",
+    "huggingface",
+    "dataset",
+    "observation"
+  ],
+  "name": "HuggingFace Dataset (observed)"
+}

@@ -1,0 +1,11 @@
+type: dagster_community_components.HuggingfacePipelineComponent
+attributes:
+  asset_key: hf/sentiment
+  task: text-classification
+  model: cardiffnlp/twitter-roberta-base-sentiment-latest
+  mode: local
+  inputs:
+    - "I love this product!"
+    - "Terrible experience, would not recommend."
+    - "It's fine. Nothing special."
+  group_name: huggingface

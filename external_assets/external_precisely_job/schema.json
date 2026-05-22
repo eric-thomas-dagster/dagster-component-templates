@@ -1,0 +1,26 @@
+{
+  "component_type": "dagster_community_components.ExternalPreciselyJobAsset",
+  "description": "Declare a Precisely Connect ETL job as an external Dagster asset (declare-only AssetSpec). Pair with precisely_job_sensor to materialize on terminal SUCCESS.",
+  "category": "external",
+  "icon": "Radar",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "Declare-only external asset"
+    }
+  },
+  "attributes": {
+    "asset_key": { "type": "string", "label": "Asset Key", "required": true },
+    "job_id": { "type": "string", "label": "Job ID", "description": "Precisely Connect ETL job id (stable)", "required": false, "default": null },
+    "job_run_id": { "type": "string", "label": "Job Run ID", "description": "Specific run id (optional metadata)", "required": false, "default": null },
+    "host": { "type": "string", "label": "Host", "description": "Precisely Connect ETL host URL", "required": false, "default": null },
+    "group_name": { "type": "string", "label": "Group Name", "required": false, "default": "precisely" },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
+    "tags": { "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value" },
+    "kinds": { "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" },
+    "deps": { "type": "array", "items": { "type": "string" }, "label": "Deps", "required": false, "ui:widget": "list" }
+  },
+  "tags": ["external", "precisely", "etl", "asset-spec"],
+  "name": "External Precisely Job Asset"
+}

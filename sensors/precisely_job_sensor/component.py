@@ -10,9 +10,11 @@ only verified public REST surface — earlier versions of this component
 shipped a second "watch the latest run of a job" mode that depended on
 an unverified list-runs path, which has been removed.
 
-Pair this sensor with the ``precisely_run_asset`` component to surface
-the same Precisely run in the Dagster catalog as an
-``observable_source_asset``.
+Pair this sensor with the ``external_precisely_job`` component to surface
+the same Precisely run in the Dagster catalog as a declare-only external
+asset; on terminal SUCCESS the sensor emits ``AssetMaterialization`` for
+the asset_key configured below, which lights up that external asset's
+materialization history.
 
 Job Status enum (returned as plain text):
     WAITING | RUNNING | COMPLETED | COMPLETED_WITH_WARNINGS |
@@ -23,7 +25,14 @@ Docs: https://help.precisely.com/r/Connect-ETL/pub/Latest/en-US/Connect-ETL-Rest
 from typing import Dict, Optional
 
 import dagster as dg
-from dagster import ConfigurableResource, RunRequest, SensorEvaluationContext, SensorResult, sensor
+from dagster import (
+    AssetMaterialization,
+    ConfigurableResource,
+    RunRequest,
+    SensorEvaluationContext,
+    SensorResult,
+    sensor,
+)
 from dagster._core.definitions.sensor_definition import DefaultSensorStatus
 from pydantic import Field
 
@@ -98,6 +107,15 @@ class PreciselyJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
     job_name: str = Field(description="Dagster job to trigger when the Precisely run reaches terminal SUCCESS.")
+    asset_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional Dagster asset key. When set, the sensor also yields "
+            "AssetMaterialization(asset_key=...) on terminal SUCCESS — which "
+            "lights up the matching external_precisely_job asset in the catalog. "
+            "Use '/' separators for nested keys, e.g. 'precisely/etl/load_customers'."
+        ),
+    )
     host_env_var: Optional[str] = Field(default=None, description="Env var with Precisely Connect ETL host URL")
     api_token_env_var: Optional[str] = Field(default=None, description="Env var with Precisely API token")
     resource_key: Optional[str] = Field(default=None, description="Key of a PreciselyResource")
@@ -152,6 +170,17 @@ class PreciselyJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             cursor = context.cursor or ""
 
             if status in PRECISELY_TERMINAL_SUCCESS and run_id != cursor:
+                asset_events = []
+                if _self.asset_key:
+                    asset_events.append(AssetMaterialization(
+                        asset_key=dg.AssetKey(_self.asset_key.split("/")),
+                        description=f"Precisely run {run_id} → {status}",
+                        metadata={
+                            "precisely_job_run_id": run_id,
+                            "precisely_status": status,
+                            "precisely_host": base,
+                        },
+                    ))
                 return SensorResult(
                     run_requests=[RunRequest(
                         run_key=run_id,
@@ -160,6 +189,7 @@ class PreciselyJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                             "precisely_status": status,
                         }}},
                     )],
+                    asset_events=asset_events or None,
                     cursor=run_id,
                 )
 

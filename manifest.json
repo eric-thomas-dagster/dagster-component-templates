@@ -7646,6 +7646,30 @@
       }
     },
     {
+      "id": "external_huggingface_space",
+      "name": "External HuggingFace Space Asset",
+      "category": "external",
+      "description": "Declare a HuggingFace Space as an external Dagster asset (declare-only AssetSpec). Pair with huggingface_space_status_sensor.",
+      "path": "external_assets/external_huggingface_space",
+      "tags": [
+        "external",
+        "huggingface",
+        "space",
+        "asset-spec"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_huggingface_space/schema.json",
+      "component_type": "dagster_community_components.ExternalHuggingfaceSpaceAsset",
+      "icon": "si:huggingface",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_huggingface_space/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_huggingface_space/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_huggingface_space/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_huggingface_space/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-22"
+      }
+    },
+    {
       "id": "external_iceberg_table",
       "name": "External Iceberg Table",
       "category": "external",
@@ -7787,6 +7811,30 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
         "last_validated": "2026-05-08"
+      }
+    },
+    {
+      "id": "external_precisely_job",
+      "name": "External Precisely Job Asset",
+      "category": "external",
+      "description": "Declare a Precisely Connect ETL job as an external Dagster asset (declare-only AssetSpec). Pair with precisely_job_sensor.",
+      "path": "external_assets/external_precisely_job",
+      "tags": [
+        "external",
+        "precisely",
+        "etl",
+        "asset-spec"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_precisely_job/schema.json",
+      "component_type": "dagster_community_components.ExternalPreciselyJobAsset",
+      "icon": "Radar",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_precisely_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_precisely_job/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_precisely_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_precisely_job/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-22"
       }
     },
     {

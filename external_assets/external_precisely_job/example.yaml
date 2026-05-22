@@ -1,0 +1,7 @@
+type: dagster_community_components.ExternalPreciselyJobAsset
+attributes:
+  asset_key: precisely/etl/load_customers
+  job_id: "abc-123-xyz"
+  host: https://precisely.mycompany.com
+  group_name: precisely
+  description: "Precisely Connect ETL job that loads customer records — externally scheduled."

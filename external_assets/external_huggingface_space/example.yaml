@@ -1,0 +1,6 @@
+type: dagster_community_components.ExternalHuggingfaceSpaceAsset
+attributes:
+  asset_key: hf/spaces/my_app
+  space_id: my-org/my-app
+  group_name: huggingface
+  description: "HuggingFace Space hosting the demo UI."

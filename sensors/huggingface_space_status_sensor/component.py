@@ -13,7 +13,9 @@ Standard Space stages: ``NO_APP_FILE``, ``CONFIG_ERROR``, ``BUILDING``,
 
 from typing import List, Optional
 
+import dagster as dg
 from dagster import (
+    AssetMaterialization,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -63,6 +65,15 @@ class HuggingfaceSpaceStatusSensorComponent(Component, Model, Resolvable):
         ),
     )
     job_name: str = Field(description="Dagster job to trigger when the Space hits a target stage.")
+    asset_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional Dagster asset key. When set, the sensor also yields "
+            "AssetMaterialization(asset_key=...) on each target-stage transition "
+            "— which lights up the matching external_huggingface_space asset. "
+            "Use '/' separators for nested keys."
+        ),
+    )
     hf_token_env_var: Optional[str] = Field(
         default=None,
         description="Env var with HF token (required for gated / private Spaces).",
@@ -111,6 +122,18 @@ class HuggingfaceSpaceStatusSensorComponent(Component, Model, Resolvable):
             prev_cursor = context.cursor or ""
 
             if stage_str in targets and cursor_key != prev_cursor:
+                asset_events = []
+                if _self.asset_key:
+                    asset_events.append(AssetMaterialization(
+                        asset_key=dg.AssetKey(_self.asset_key.split("/")),
+                        description=f"HF Space {_self.space_id} → {stage_str}",
+                        metadata={
+                            "huggingface_space_id": _self.space_id,
+                            "huggingface_space_stage": stage_str,
+                            "huggingface_space_last_modified": last_modified,
+                            "hub_url": dg.MetadataValue.url(f"https://huggingface.co/spaces/{_self.space_id}"),
+                        },
+                    ))
                 return SensorResult(
                     run_requests=[RunRequest(
                         run_key=cursor_key,
@@ -120,6 +143,7 @@ class HuggingfaceSpaceStatusSensorComponent(Component, Model, Resolvable):
                             "huggingface_space_last_modified": last_modified,
                         }}},
                     )],
+                    asset_events=asset_events or None,
                     cursor=cursor_key,
                 )
 

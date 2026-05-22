@@ -758,6 +758,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SnowflakePySparkIOManagerComponent": "io_managers/snowflake_pyspark_io_manager/component.py",
     "SnowflakeResourceComponent": "resources/snowflake_resource/component.py",
     "SnowflakeSnowpipeComponent": "integrations/snowflake_snowpipe/component.py",
+    "SnowflakeSnowpipeLoadSensorComponent": "sensors/snowflake_snowpipe_load_sensor/component.py",
     "SnowflakeStoredProcedureComponent": "integrations/snowflake_stored_procedure/component.py",
     "SnowflakeStreamComponent": "integrations/snowflake_stream/component.py",
     "SnowflakeTableObservationSensorComponent": "observations/snowflake_table_observation_sensor/component.py",

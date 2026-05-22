@@ -1,0 +1,119 @@
+{
+  "component_type": "dagster_component_templates.SnowflakeSnowpipeLoadSensorComponent",
+  "description": "Watch a Snowflake PIPE for new file-level loads (COPY_HISTORY) and trigger downstream Dagster runs per ingested file.",
+  "category": "sensor",
+  "icon": "Snowflake",
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "required": true,
+      "description": "Unique sensor name."
+    },
+    "job_name": {
+      "type": "string",
+      "required": true,
+      "description": "Dagster job to trigger on each new pipe ingestion."
+    },
+    "pipe_name": {
+      "type": "string",
+      "required": true,
+      "description": "Pipe name (unqualified; resolved against database.schema_name)."
+    },
+    "destination_table": {
+      "type": "string",
+      "required": true,
+      "description": "Destination table the pipe is configured to COPY INTO. Required because COPY_HISTORY is queried per-table, not per-pipe."
+    },
+    "account": {
+      "type": "string",
+      "required": true,
+      "description": "Snowflake account identifier."
+    },
+    "user": {
+      "type": "string",
+      "required": true,
+      "description": "Snowflake user (NAME for keypair; LOGIN_NAME for password/SSO/PAT)."
+    },
+    "warehouse": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "database": {
+      "type": "string",
+      "required": true,
+      "description": "Database containing the pipe + destination table."
+    },
+    "schema": {
+      "type": "string",
+      "required": true,
+      "description": "Schema containing the pipe + destination table."
+    },
+    "role": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "password": {
+      "type": "string",
+      "required": false,
+      "description": "Snowflake password. Leave unset for SSO/keypair/PAT.",
+      "default": null
+    },
+    "authenticator": {
+      "type": "string",
+      "required": false,
+      "description": "'SNOWFLAKE_JWT' (keypair), 'externalbrowser' (SSO), 'PROGRAMMATIC_ACCESS_TOKEN' (PAT), 'oauth'.",
+      "default": null
+    },
+    "private_key_file": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "private_key_file_pwd": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "token": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "required": false,
+      "description": "Seconds between polls. COPY_HISTORY has ~minute-level latency.",
+      "default": 60
+    },
+    "default_status": {
+      "type": "string",
+      "required": false,
+      "description": "'running' or 'stopped'.",
+      "default": "running"
+    },
+    "lookback_minutes": {
+      "type": "integer",
+      "required": false,
+      "description": "How far back to query COPY_HISTORY on each tick. The sensor cursor (the LAST_LOAD_TIME of the most recent processed file) prevents re-firing for the same file; lookback just bounds the query window.",
+      "default": 60
+    },
+    "pass_file_metadata": {
+      "type": "boolean",
+      "required": false,
+      "description": "Include file_name + file_size + row_count in the run_config passed to the triggered job. Disable if you have many RunRequests per tick and want to keep the config small.",
+      "default": true
+    },
+    "description": {
+      "type": "string",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "required": false,
+      "default": null
+    }
+  }
+}

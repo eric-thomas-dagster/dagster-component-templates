@@ -1,0 +1,23 @@
+type: dagster_component_templates.SnowflakeSnowpipeLoadSensorComponent
+attributes:
+  sensor_name: orders_pipe_load_sensor
+  job_name: process_new_orders_job
+
+  pipe_name: ORDERS_PIPE
+  destination_table: ORDERS_INGESTED
+
+  account:     "{{ env('SNOWFLAKE_ACCOUNT') }}"
+  user:        "{{ env('SNOWFLAKE_USER') }}"
+  warehouse:   COMPUTE_WH
+  database:    DAGSTER_DEMO
+  schema:      STAGING
+  role:        SYSADMIN
+
+  # Pick ONE auth method:
+  authenticator: SNOWFLAKE_JWT
+  private_key_file: "{{ env('SNOWFLAKE_PRIVATE_KEY_FILE') }}"
+
+  minimum_interval_seconds: 60
+  lookback_minutes: 60
+  pass_file_metadata: true
+  default_status: running

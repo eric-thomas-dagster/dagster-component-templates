@@ -22907,6 +22907,34 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_time_travel_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_time_travel_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_time_travel_asset/requirements.txt"
+    },
+    {
+      "id": "snowflake_snowpipe_load_sensor",
+      "name": "Snowflake Snowpipe Load Sensor",
+      "category": "sensor",
+      "description": "Fires a Dagster RunRequest each time a Snowflake PIPE ingests new files (reads COPY_HISTORY). Per-file granularity with rich metadata. Works for both AUTO_INGEST and manual PUT-COPY pipes.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/snowflake_snowpipe_load_sensor",
+      "tags": [
+        "snowflake",
+        "snowpipe",
+        "sensor",
+        "copy-history",
+        "auto-ingest",
+        "ingestion"
+      ],
+      "dependencies": [],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_snowpipe_load_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_snowpipe_load_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_snowpipe_load_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_snowpipe_load_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_snowpipe_load_sensor/requirements.txt",
+      "icon": "si:snowflake",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-22"
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

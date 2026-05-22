@@ -1,0 +1,5 @@
+name: Snowflake Snowpipe Load Sensor
+description: Fires a Dagster RunRequest each time a Snowflake PIPE ingests new files (reads COPY_HISTORY). Per-file granularity with rich metadata. Works for both AUTO_INGEST and manual PUT-COPY pipes.
+category: sensor
+version: 1.0.0
+author: Dagster Community

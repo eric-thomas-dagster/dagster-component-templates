@@ -1,0 +1,14 @@
+type: dagster_community_components.SnowflakeTaskCompletionSensorComponent
+attributes:
+  sensor_name: refresh_orders_done
+  task_name: DAILY_REFRESH_ORDERS
+  database: DAGSTER_DEMO
+  schema: RAW
+  asset_key: snowflake/tasks/refresh_orders
+  account_env_var: SNOWFLAKE_ACCOUNT
+  user_env_var: SNOWFLAKE_USER
+  password_env_var: SNOWFLAKE_PASSWORD
+  warehouse_env_var: SNOWFLAKE_WAREHOUSE
+  role_env_var: SNOWFLAKE_ROLE
+  minimum_interval_seconds: 60
+  default_status: stopped

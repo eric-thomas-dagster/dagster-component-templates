@@ -8078,6 +8078,30 @@
       }
     },
     {
+      "id": "external_snowflake_openflow_flow",
+      "name": "External Snowflake OpenFlow Flow Asset",
+      "category": "external",
+      "description": "Declare a Snowflake OpenFlow process group as an external Dagster asset. Pair with snowflake_openflow_status_sensor.",
+      "path": "external_assets/external_snowflake_openflow_flow",
+      "tags": [
+        "external",
+        "snowflake",
+        "openflow",
+        "asset-spec"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_snowflake_openflow_flow/schema.json",
+      "component_type": "dagster_community_components.ExternalSnowflakeOpenflowFlowAsset",
+      "icon": "si:snowflake",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_snowflake_openflow_flow/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_snowflake_openflow_flow/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_snowflake_openflow_flow/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_snowflake_openflow_flow/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-22"
+      }
+    },
+    {
       "id": "external_snowflake_table",
       "name": "External Snowflake Table",
       "category": "external",
@@ -19549,6 +19573,35 @@
       }
     },
     {
+      "id": "snowflake_dynamic_table_refresh_asset",
+      "name": "Snowflake Dynamic Table Refresh Asset",
+      "category": "data-warehouse",
+      "description": "Materialize by ALTER DYNAMIC TABLE ... REFRESH on a named Snowflake dynamic table.",
+      "path": "assets/data-warehouse/snowflake_dynamic_table_refresh_asset",
+      "tags": [
+        "data-warehouse",
+        "snowflake",
+        "dynamic-table",
+        "refresh"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_dynamic_table_refresh_asset/schema.json",
+      "component_type": "dagster_community_components.SnowflakeDynamicTableRefreshAssetComponent",
+      "icon": "si:snowflake",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_dynamic_table_refresh_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_dynamic_table_refresh_asset/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_dynamic_table_refresh_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_dynamic_table_refresh_asset/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-22"
+      },
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      }
+    },
+    {
       "id": "snowflake_io_manager",
       "name": "Snowflake IO Manager",
       "category": "io_manager",
@@ -19606,6 +19659,35 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-20"
+      }
+    },
+    {
+      "id": "snowflake_openflow_status_sensor",
+      "name": "Snowflake OpenFlow Status Sensor",
+      "category": "sensor",
+      "description": "Poll SNOWFLAKE.TELEMETRY.EVENTS for openflow_metric activity; emit AssetMaterialization when a named flow's activity advances.",
+      "path": "sensors/snowflake_openflow_status_sensor",
+      "tags": [
+        "sensor",
+        "snowflake",
+        "openflow",
+        "telemetry"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_openflow_status_sensor/schema.json",
+      "component_type": "dagster_community_components.SnowflakeOpenflowStatusSensorComponent",
+      "icon": "si:snowflake",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_openflow_status_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_openflow_status_sensor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_openflow_status_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_openflow_status_sensor/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-22"
+      },
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
       }
     },
     {
@@ -19760,6 +19842,35 @@
       }
     },
     {
+      "id": "snowflake_stored_procedure_call_asset",
+      "name": "Snowflake Stored Procedure Call Asset",
+      "category": "data-warehouse",
+      "description": "Materialize by CALL on a named Snowflake stored procedure. Single-entity counterpart to snowflake_workspace.",
+      "path": "assets/data-warehouse/snowflake_stored_procedure_call_asset",
+      "tags": [
+        "data-warehouse",
+        "snowflake",
+        "stored-procedure",
+        "call"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_stored_procedure_call_asset/schema.json",
+      "component_type": "dagster_community_components.SnowflakeStoredProcedureCallAssetComponent",
+      "icon": "si:snowflake",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_stored_procedure_call_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_stored_procedure_call_asset/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_stored_procedure_call_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_stored_procedure_call_asset/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-22"
+      },
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      }
+    },
+    {
       "id": "snowflake_stream",
       "name": "Snowflake Stream",
       "category": "integration",
@@ -19841,6 +19952,64 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-20"
+      }
+    },
+    {
+      "id": "snowflake_task_completion_sensor",
+      "name": "Snowflake Task Completion Sensor",
+      "category": "sensor",
+      "description": "Poll Snowflake TASK_HISTORY for a named task and emit AssetMaterialization on each new SUCCESS.",
+      "path": "sensors/snowflake_task_completion_sensor",
+      "tags": [
+        "sensor",
+        "snowflake",
+        "task",
+        "completion"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_task_completion_sensor/schema.json",
+      "component_type": "dagster_community_components.SnowflakeTaskCompletionSensorComponent",
+      "icon": "si:snowflake",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_task_completion_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_task_completion_sensor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_task_completion_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_task_completion_sensor/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-22"
+      },
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
+      }
+    },
+    {
+      "id": "snowflake_task_execute_asset",
+      "name": "Snowflake Task Execute Asset",
+      "category": "data-warehouse",
+      "description": "Materialize by EXECUTE TASK on a named Snowflake task. Single-entity counterpart to snowflake_workspace.",
+      "path": "assets/data-warehouse/snowflake_task_execute_asset",
+      "tags": [
+        "data-warehouse",
+        "snowflake",
+        "task",
+        "execute"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_task_execute_asset/schema.json",
+      "component_type": "dagster_community_components.SnowflakeTaskExecuteAssetComponent",
+      "icon": "si:snowflake",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_task_execute_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_task_execute_asset/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_task_execute_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/data-warehouse/snowflake_task_execute_asset/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-22"
+      },
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python>=3.0.0"
+        ]
       }
     },
     {

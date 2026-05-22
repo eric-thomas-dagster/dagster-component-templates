@@ -1,0 +1,22 @@
+{
+  "component_type": "dagster_community_components.ExternalSnowflakeOpenflowFlowAsset",
+  "description": "Declare a Snowflake OpenFlow process group as an external Dagster asset. Pair with snowflake_openflow_status_sensor to materialize on completion.",
+  "category": "external",
+  "icon": "si:snowflake",
+  "x-dagster-io": {
+    "outputs": { "type": "AssetSpec", "description": "Declare-only external asset" }
+  },
+  "attributes": {
+    "asset_key": { "type": "string", "label": "Asset Key", "required": true },
+    "flow_name": { "type": "string", "label": "Flow Name", "description": "OpenFlow process-group name", "required": true },
+    "runtime_id": { "type": "string", "label": "Runtime ID", "required": false, "default": null },
+    "group_name": { "type": "string", "label": "Group Name", "required": false, "default": "snowflake" },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
+    "tags": { "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value" },
+    "kinds": { "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" },
+    "deps": { "type": "array", "items": { "type": "string" }, "label": "Deps", "required": false, "ui:widget": "list" }
+  },
+  "tags": ["external", "snowflake", "openflow", "asset-spec"],
+  "name": "External Snowflake OpenFlow Flow Asset"
+}

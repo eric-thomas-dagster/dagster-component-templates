@@ -1,0 +1,13 @@
+type: dagster_community_components.SnowflakeStoredProcedureCallAssetComponent
+attributes:
+  asset_key: snowflake/procs/transform_customers
+  procedure_name: TRANSFORM_CUSTOMERS
+  database: DAGSTER_DEMO
+  schema: ANALYTICS
+  arguments: []
+  account_env_var: SNOWFLAKE_ACCOUNT
+  user_env_var: SNOWFLAKE_USER
+  password_env_var: SNOWFLAKE_PASSWORD
+  warehouse_env_var: SNOWFLAKE_WAREHOUSE
+  role_env_var: SNOWFLAKE_ROLE
+  group_name: snowflake

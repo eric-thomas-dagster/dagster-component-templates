@@ -1,0 +1,35 @@
+{
+  "component_type": "dagster_community_components.SnowflakeStoredProcedureCallAssetComponent",
+  "description": "Materialize by CALL on a named Snowflake stored procedure. Single-entity counterpart to snowflake_workspace's auto-discovered procs.",
+  "category": "data-warehouse",
+  "icon": "si:snowflake",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Snowflake stored procedure result"
+    }
+  },
+  "attributes": {
+    "asset_key": { "type": "string", "label": "Asset Key", "required": true },
+    "procedure_name": { "type": "string", "label": "Procedure Name", "required": true },
+    "database": { "type": "string", "label": "Database", "required": true },
+    "schema": { "type": "string", "label": "Schema", "required": true },
+    "arguments": { "type": "array", "items": {}, "label": "Arguments", "description": "Positional args (strings auto-quoted)", "required": false, "ui:widget": "list" },
+    "account_env_var": { "type": "string", "label": "Account Env Var", "required": true, "ui:widget": "env_var" },
+    "user_env_var": { "type": "string", "label": "User Env Var", "required": true, "ui:widget": "env_var" },
+    "password_env_var": { "type": "string", "label": "Password Env Var", "required": false, "ui:widget": "env_var" },
+    "pat_env_var": { "type": "string", "label": "PAT Env Var", "required": false, "ui:widget": "env_var" },
+    "private_key_path_env_var": { "type": "string", "label": "Private Key Path Env Var", "required": false, "ui:widget": "env_var" },
+    "private_key_passphrase_env_var": { "type": "string", "label": "Private Key Passphrase Env Var", "required": false, "ui:widget": "env_var" },
+    "warehouse_env_var": { "type": "string", "label": "Warehouse Env Var", "required": false, "ui:widget": "env_var" },
+    "role_env_var": { "type": "string", "label": "Role Env Var", "required": false, "ui:widget": "env_var" },
+    "group_name": { "type": "string", "label": "Group Name", "required": false, "default": "snowflake" },
+    "description": { "type": "string", "label": "Description", "required": false },
+    "owners": { "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
+    "asset_tags": { "type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value" },
+    "kinds": { "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" },
+    "deps": { "type": "array", "items": { "type": "string" }, "label": "Deps", "required": false, "ui:widget": "list" }
+  },
+  "tags": ["data-warehouse", "snowflake", "stored-procedure", "call"],
+  "name": "Snowflake Stored Procedure Call Asset"
+}

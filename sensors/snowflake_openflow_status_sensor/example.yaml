@@ -1,0 +1,11 @@
+type: dagster_community_components.SnowflakeOpenflowStatusSensorComponent
+attributes:
+  sensor_name: customer_sync_done
+  flow_name: customer_sync
+  asset_key: snowflake/openflow/customer_sync
+  account_env_var: SNOWFLAKE_ACCOUNT
+  user_env_var: SNOWFLAKE_USER
+  password_env_var: SNOWFLAKE_PASSWORD
+  warehouse_env_var: SNOWFLAKE_WAREHOUSE
+  minimum_interval_seconds: 120
+  default_status: stopped

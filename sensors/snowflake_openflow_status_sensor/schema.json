@@ -1,0 +1,28 @@
+{
+  "component_type": "dagster_community_components.SnowflakeOpenflowStatusSensorComponent",
+  "description": "Poll SNOWFLAKE.TELEMETRY.EVENTS for openflow_metric activity on a named flow; emit AssetMaterialization (and optional RunRequest) when activity advances.",
+  "category": "sensor",
+  "icon": "si:snowflake",
+  "x-dagster-io": {
+    "outputs": { "type": "AssetMaterialization + RunRequest", "description": "AssetMaterialization (asset_key set) and/or RunRequest (job_name set)" }
+  },
+  "attributes": {
+    "sensor_name": { "type": "string", "label": "Sensor Name", "required": true },
+    "flow_name": { "type": "string", "label": "Flow Name", "description": "OpenFlow process-group name", "required": true },
+    "asset_key": { "type": "string", "label": "Asset Key", "required": false, "default": null },
+    "job_name": { "type": "string", "label": "Job Name", "required": false, "default": null },
+    "account_env_var": { "type": "string", "label": "Account Env Var", "required": true, "ui:widget": "env_var" },
+    "user_env_var": { "type": "string", "label": "User Env Var", "required": true, "ui:widget": "env_var" },
+    "password_env_var": { "type": "string", "label": "Password Env Var", "required": false, "ui:widget": "env_var" },
+    "pat_env_var": { "type": "string", "label": "PAT Env Var", "required": false, "ui:widget": "env_var" },
+    "private_key_path_env_var": { "type": "string", "label": "Private Key Path Env Var", "required": false, "ui:widget": "env_var" },
+    "private_key_passphrase_env_var": { "type": "string", "label": "Private Key Passphrase Env Var", "required": false, "ui:widget": "env_var" },
+    "warehouse_env_var": { "type": "string", "label": "Warehouse Env Var", "required": false, "ui:widget": "env_var" },
+    "role_env_var": { "type": "string", "label": "Role Env Var", "required": false, "ui:widget": "env_var" },
+    "minimum_interval_seconds": { "type": "integer", "label": "Minimum Interval Seconds", "required": false, "default": 120 },
+    "lookback_minutes": { "type": "integer", "label": "Lookback Minutes", "required": false, "default": 15 },
+    "default_status": { "type": "string", "label": "Default Status", "required": false, "default": "running", "enum": ["running", "stopped"] }
+  },
+  "tags": ["sensor", "snowflake", "openflow", "telemetry"],
+  "name": "Snowflake OpenFlow Status Sensor"
+}

@@ -1,0 +1,33 @@
+{
+  "component_type": "dagster_community_components.SnowflakeTaskCompletionSensorComponent",
+  "description": "Poll Snowflake TASK_HISTORY for a named task and emit AssetMaterialization on each new SUCCESS. Optionally fire a downstream Dagster job.",
+  "category": "sensor",
+  "icon": "si:snowflake",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetMaterialization + RunRequest",
+      "description": "Materialization events (always when asset_key set) + optional RunRequest (when job_name set)"
+    }
+  },
+  "attributes": {
+    "sensor_name": { "type": "string", "label": "Sensor Name", "required": true },
+    "task_name": { "type": "string", "label": "Task Name", "required": true },
+    "database": { "type": "string", "label": "Database", "required": true },
+    "schema": { "type": "string", "label": "Schema", "required": true },
+    "asset_key": { "type": "string", "label": "Asset Key", "required": false, "default": null },
+    "job_name": { "type": "string", "label": "Job Name", "required": false, "default": null },
+    "account_env_var": { "type": "string", "label": "Account Env Var", "required": true, "ui:widget": "env_var" },
+    "user_env_var": { "type": "string", "label": "User Env Var", "required": true, "ui:widget": "env_var" },
+    "password_env_var": { "type": "string", "label": "Password Env Var", "required": false, "ui:widget": "env_var" },
+    "pat_env_var": { "type": "string", "label": "PAT Env Var", "required": false, "ui:widget": "env_var" },
+    "private_key_path_env_var": { "type": "string", "label": "Private Key Path Env Var", "required": false, "ui:widget": "env_var" },
+    "private_key_passphrase_env_var": { "type": "string", "label": "Private Key Passphrase Env Var", "required": false, "ui:widget": "env_var" },
+    "warehouse_env_var": { "type": "string", "label": "Warehouse Env Var", "required": false, "ui:widget": "env_var" },
+    "role_env_var": { "type": "string", "label": "Role Env Var", "required": false, "ui:widget": "env_var" },
+    "minimum_interval_seconds": { "type": "integer", "label": "Minimum Interval Seconds", "required": false, "default": 60 },
+    "lookback_minutes": { "type": "integer", "label": "Lookback Minutes", "required": false, "default": 10 },
+    "default_status": { "type": "string", "label": "Default Status", "required": false, "default": "running", "enum": ["running", "stopped"] }
+  },
+  "tags": ["sensor", "snowflake", "task", "completion"],
+  "name": "Snowflake Task Completion Sensor"
+}

@@ -1,0 +1,7 @@
+type: dagster_community_components.ExternalSnowflakeOpenflowFlowAsset
+attributes:
+  asset_key: snowflake/openflow/customer_sync
+  flow_name: customer_sync
+  runtime_id: my-openflow-runtime
+  group_name: snowflake
+  description: "Snowflake OpenFlow process group syncing customer records."

@@ -1,26 +1,15 @@
-# Two operating modes — pick one.
-
-# (A) Watch a fixed job-run ID. Uses the documented Job Status endpoint
-#     (GET /projects/{jobRunId}/status) — fully verified against Precisely's
-#     public REST API docs.
-type: dagster_component_templates.PreciselyJobSensorComponent
+# Watch a Precisely Connect ETL job-run via the documented Job Status endpoint
+# (GET /projects/{jobRunId}/status — the ONLY Precisely REST endpoint Dagster
+# can rely on; submit / list-runs paths are not in their public REST docs).
+#
+# Sensor fires a RunRequest for `job_name` when the run reaches terminal SUCCESS
+# (COMPLETED / COMPLETED_WITH_WARNINGS) and dedupes by run_id.
+type: dagster_community_components.PreciselyJobSensorComponent
 attributes:
   sensor_name: precisely_etl_done
   job_run_id: "abc-123-def-456"
   host_env_var: PRECISELY_HOST
   api_token_env_var: PRECISELY_API_TOKEN
   job_name: downstream_processing_job
-
----
-
-# (B) Watch the latest run of a Precisely job. Uses an unverified
-#     list-runs endpoint — adjust list_runs_path_template if it doesn't
-#     match your install's API.
-# type: dagster_component_templates.PreciselyJobSensorComponent
-# attributes:
-#   sensor_name: precisely_etl_done
-#   job_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-#   list_runs_path_template: "/api/v1/jobs/{job_id}/runs"
-#   host_env_var: PRECISELY_HOST
-#   api_token_env_var: PRECISELY_API_TOKEN
-#   job_name: downstream_processing_job
+  minimum_interval_seconds: 60
+  default_status: stopped

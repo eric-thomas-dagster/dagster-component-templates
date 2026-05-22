@@ -1,12 +1,12 @@
 {
-  "component_type": "dagster_component_templates.PreciselyJobSensorComponent",
-  "description": "Trigger a Dagster job when a Precisely Connect job run completes.",
+  "component_type": "dagster_community_components.PreciselyJobSensorComponent",
+  "description": "Fire a Dagster RunRequest when a Precisely Connect ETL job-run reaches terminal SUCCESS. Uses the documented Job Status endpoint only — sensor-only because Precisely does not publish submit / list-runs endpoints.",
   "category": "sensor",
   "icon": "Radar",
   "x-dagster-io": {
     "outputs": {
       "type": "RunRequest",
-      "description": "Sensor run requests"
+      "description": "RunRequest on terminal SUCCESS"
     }
   },
   "attributes": {
@@ -16,17 +16,16 @@
       "description": "Unique sensor name",
       "required": true
     },
-    "job_id": {
+    "job_run_id": {
       "type": "string",
-      "label": "Job ID",
-      "description": "Precisely Connect ETL job ID (use with list-runs mode).",
-      "required": false,
-      "default": null
+      "label": "Job Run ID",
+      "description": "Precisely Connect ETL job-run ID to watch (the only REST surface we can reliably hit).",
+      "required": true
     },
     "job_name": {
       "type": "string",
       "label": "Job Name",
-      "description": "Dagster job to trigger when Precisely run completes",
+      "description": "Dagster job to trigger when Precisely run reaches terminal SUCCESS",
       "required": true
     },
     "host_env_var": {
@@ -64,27 +63,15 @@
       "label": "Default Status",
       "description": "running or stopped",
       "required": false,
-      "default": "running"
-    },
-    "job_run_id": {
-      "type": "string",
-      "label": "Job Run ID",
-      "description": "Specific job-run ID to watch. Uses verified Job Status endpoint.",
-      "required": false,
-      "default": null
-    },
-    "list_runs_path_template": {
-      "type": "string",
-      "label": "List Runs Path Template",
-      "description": "Path template for listing recent runs. Validate vs your install (not in Precisely's public REST docs).",
-      "required": false,
-      "default": "/api/v1/jobs/{job_id}/runs"
+      "default": "running",
+      "enum": ["running", "stopped"]
     }
   },
   "tags": [
     "sensor",
     "precisely",
-    "job"
+    "job",
+    "etl"
   ],
   "name": "Precisely Job Sensor"
 }

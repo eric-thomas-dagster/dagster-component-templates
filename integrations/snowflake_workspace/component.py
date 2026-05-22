@@ -451,61 +451,57 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "task",
                             },
                         ))
-                        @asset(**_task_kwargs)
-                        def _task_asset(context: AssetExecutionContext, task_name=task_name, db=task['DATABASE_NAME'], schema=task['SCHEMA_NAME']):
-                            """Materialize by executing Snowflake task."""
-                            conn = self._create_connection()
-                            cursor = conn.cursor()
+                        def _make_task_asset(task_name_v, db_v, schema_v, task_kwargs_v, self_v):
+                            @asset(**task_kwargs_v)
+                            def _task_asset(context: AssetExecutionContext):
+                                """Materialize by executing Snowflake task."""
+                                conn = self_v._create_connection()
+                                cursor = conn.cursor()
+                                try:
+                                    execute_query = f"EXECUTE TASK {db_v}.{schema_v}.{task_name_v}"
+                                    cursor.execute(execute_query)
+                                    context.log.info(f"Executed Snowflake task: {task_name_v}")
 
-                            try:
-                                # Execute the task
-                                execute_query = f"EXECUTE TASK {db}.{schema}.{task_name}"
-                                cursor.execute(execute_query)
+                                    history_query = f"""
+                                    SELECT
+                                        query_id,
+                                        state,
+                                        scheduled_time,
+                                        query_start_time,
+                                        completed_time,
+                                        error_message
+                                    FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY(
+                                        TASK_NAME => '{task_name_v}',
+                                        SCHEDULED_TIME_RANGE_START => DATEADD('hour', -1, CURRENT_TIMESTAMP())
+                                    ))
+                                    ORDER BY scheduled_time DESC
+                                    LIMIT 1
+                                    """
+                                    cursor.execute(history_query)
+                                    history = cursor.fetchone()
 
-                                context.log.info(f"Executed Snowflake task: {task_name}")
+                                    metadata = {
+                                        "task_name": task_name_v,
+                                        "database": db_v,
+                                        "schema": schema_v,
+                                    }
+                                    if history:
+                                        columns = [col[0] for col in cursor.description]
+                                        history_dict = dict(zip(columns, history))
+                                        metadata.update({
+                                            "query_id": history_dict.get('QUERY_ID'),
+                                            "state": history_dict.get('STATE'),
+                                            "scheduled_time": str(history_dict.get('SCHEDULED_TIME')) if history_dict.get('SCHEDULED_TIME') else None,
+                                        })
+                                    return metadata
+                                finally:
+                                    cursor.close()
+                                    conn.close()
+                            return _task_asset
 
-                                # Get task execution history
-                                history_query = f"""
-                                SELECT
-                                    query_id,
-                                    state,
-                                    scheduled_time,
-                                    query_start_time,
-                                    completed_time,
-                                    error_message
-                                FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY(
-                                    TASK_NAME => '{task_name}',
-                                    SCHEDULED_TIME_RANGE_START => DATEADD('hour', -1, CURRENT_TIMESTAMP())
-                                ))
-                                ORDER BY scheduled_time DESC
-                                LIMIT 1
-                                """
-
-                                cursor.execute(history_query)
-                                history = cursor.fetchone()
-
-                                metadata = {
-                                    "task_name": task_name,
-                                    "database": db,
-                                    "schema": schema,
-                                }
-
-                                if history:
-                                    columns = [col[0] for col in cursor.description]
-                                    history_dict = dict(zip(columns, history))
-                                    metadata.update({
-                                        "query_id": history_dict.get('QUERY_ID'),
-                                        "state": history_dict.get('STATE'),
-                                        "scheduled_time": str(history_dict.get('SCHEDULED_TIME')) if history_dict.get('SCHEDULED_TIME') else None,
-                                    })
-
-                                return metadata
-
-                            finally:
-                                cursor.close()
-                                conn.close()
-
-                        assets_list.append(_task_asset)
+                        assets_list.append(_make_task_asset(
+                            task_name, task['DATABASE_NAME'], task['SCHEMA_NAME'], _task_kwargs, self,
+                        ))
 
                 except Exception as e:
                     _logger.error(f"Error importing Snowflake tasks: {e}")
@@ -620,56 +616,52 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "dynamic_table",
                             },
                         ))
-                        @asset(**_dt_kwargs)
-                        def _dynamic_table_asset(context: AssetExecutionContext, dt_name=dt_name, db=dt['DATABASE_NAME'], schema=dt['SCHEMA_NAME']):
-                            """Materialize by triggering dynamic table refresh."""
-                            conn = self._create_connection()
-                            cursor = conn.cursor()
+                        def _make_dynamic_table_asset(dt_name_v, db_v, schema_v, dt_kwargs_v, self_v):
+                            @asset(**dt_kwargs_v)
+                            def _dynamic_table_asset(context: AssetExecutionContext):
+                                """Materialize by triggering dynamic table refresh."""
+                                conn = self_v._create_connection()
+                                cursor = conn.cursor()
+                                try:
+                                    refresh_query = f"ALTER DYNAMIC TABLE {db_v}.{schema_v}.{dt_name_v} REFRESH"
+                                    cursor.execute(refresh_query)
+                                    context.log.info(f"Triggered refresh for dynamic table: {dt_name_v}")
 
-                            try:
-                                # Trigger refresh
-                                refresh_query = f"ALTER DYNAMIC TABLE {db}.{schema}.{dt_name} REFRESH"
-                                cursor.execute(refresh_query)
+                                    info_query = f"""
+                                    SELECT
+                                        name,
+                                        refresh_mode,
+                                        target_lag,
+                                        scheduling_state,
+                                        last_refresh_status
+                                    FROM {db_v}.INFORMATION_SCHEMA.DYNAMIC_TABLES
+                                    WHERE schema_name = '{schema_v}' AND name = '{dt_name_v}'
+                                    """
+                                    cursor.execute(info_query)
+                                    info = cursor.fetchone()
 
-                                context.log.info(f"Triggered refresh for dynamic table: {dt_name}")
+                                    metadata = {
+                                        "table_name": dt_name_v,
+                                        "database": db_v,
+                                        "schema": schema_v,
+                                    }
+                                    if info:
+                                        columns = [col[0] for col in cursor.description]
+                                        info_dict = dict(zip(columns, info))
+                                        metadata.update({
+                                            "refresh_mode": info_dict.get('REFRESH_MODE'),
+                                            "scheduling_state": info_dict.get('SCHEDULING_STATE'),
+                                            "last_refresh_status": info_dict.get('LAST_REFRESH_STATUS'),
+                                        })
+                                    return metadata
+                                finally:
+                                    cursor.close()
+                                    conn.close()
+                            return _dynamic_table_asset
 
-                                # Get table info
-                                info_query = f"""
-                                SELECT
-                                    name,
-                                    refresh_mode,
-                                    target_lag,
-                                    scheduling_state,
-                                    last_refresh_status
-                                FROM {db}.INFORMATION_SCHEMA.DYNAMIC_TABLES
-                                WHERE schema_name = '{schema}' AND name = '{dt_name}'
-                                """
-
-                                cursor.execute(info_query)
-                                info = cursor.fetchone()
-
-                                metadata = {
-                                    "table_name": dt_name,
-                                    "database": db,
-                                    "schema": schema,
-                                }
-
-                                if info:
-                                    columns = [col[0] for col in cursor.description]
-                                    info_dict = dict(zip(columns, info))
-                                    metadata.update({
-                                        "refresh_mode": info_dict.get('REFRESH_MODE'),
-                                        "scheduling_state": info_dict.get('SCHEDULING_STATE'),
-                                        "last_refresh_status": info_dict.get('LAST_REFRESH_STATUS'),
-                                    })
-
-                                return metadata
-
-                            finally:
-                                cursor.close()
-                                conn.close()
-
-                        assets_list.append(_dynamic_table_asset)
+                        assets_list.append(_make_dynamic_table_asset(
+                            dt_name, dt['DATABASE_NAME'], dt['SCHEMA_NAME'], _dt_kwargs, self,
+                        ))
 
                 except Exception as e:
                     _logger.error(f"Error importing Snowflake dynamic tables: {e}")
@@ -705,25 +697,25 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "stream",
                             },
                         ))
-                        @observable_source_asset(**_stream_kwargs)
-                        def _stream_asset(context: AssetExecutionContext, stream_name=stream_name, db=stream['DATABASE_NAME'], schema=stream['SCHEMA_NAME']):
-                            """Observable stream asset."""
-                            conn = self._create_connection()
-                            cursor = conn.cursor()
+                        def _make_stream_asset(stream_name_v, db_v, schema_v, stream_kwargs_v, self_v):
+                            @observable_source_asset(**stream_kwargs_v)
+                            def _stream_asset(context: AssetExecutionContext):
+                                """Observable stream asset."""
+                                conn = self_v._create_connection()
+                                cursor = conn.cursor()
+                                try:
+                                    query = f"SELECT SYSTEM$STREAM_HAS_DATA('{db_v}.{schema_v}.{stream_name_v}')"
+                                    cursor.execute(query)
+                                    has_data = cursor.fetchone()[0]
+                                    context.log.info(f"Stream {stream_name_v} has data: {has_data}")
+                                finally:
+                                    cursor.close()
+                                    conn.close()
+                            return _stream_asset
 
-                            try:
-                                # Check if stream has data
-                                query = f"SELECT SYSTEM$STREAM_HAS_DATA('{db}.{schema}.{stream_name}')"
-                                cursor.execute(query)
-                                has_data = cursor.fetchone()[0]
-
-                                context.log.info(f"Stream {stream_name} has data: {has_data}")
-
-                            finally:
-                                cursor.close()
-                                conn.close()
-
-                        assets_list.append(_stream_asset)
+                        assets_list.append(_make_stream_asset(
+                            stream_name, stream['DATABASE_NAME'], stream['SCHEMA_NAME'], _stream_kwargs, self,
+                        ))
 
                 except Exception as e:
                     _logger.error(f"Error importing Snowflake streams: {e}")
@@ -765,64 +757,59 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "snowpipe",
                             },
                         ))
-                        @asset(**_pipe_kwargs)
-                        def _snowpipe_asset(context: AssetExecutionContext, pipe_name=pipe_name, db=pipe['DATABASE_NAME'], schema=pipe['SCHEMA_NAME']):
-                            """Materialize by refreshing Snowpipe (loading pending files)."""
-                            conn = self._create_connection()
-                            cursor = conn.cursor()
-
-                            try:
-                                # Refresh the pipe to process pending files
-                                refresh_query = f"ALTER PIPE {db}.{schema}.{pipe_name} REFRESH"
-                                cursor.execute(refresh_query)
-
-                                context.log.info(f"Refreshed Snowpipe: {pipe_name}")
-
-                                # Get pipe status
-                                status_query = f"SELECT SYSTEM$PIPE_STATUS('{db}.{schema}.{pipe_name}')"
-                                cursor.execute(status_query)
-                                status = cursor.fetchone()
-
-                                # Get load history
-                                history_query = f"""
-                                SELECT
-                                    file_name,
-                                    stage_location,
-                                    last_load_time,
-                                    row_count,
-                                    row_parsed,
-                                    file_size,
-                                    first_error_message
-                                FROM TABLE(INFORMATION_SCHEMA.COPY_HISTORY(
-                                    TABLE_NAME => '{pipe_name}',
-                                    START_TIME => DATEADD('hour', -1, CURRENT_TIMESTAMP())
-                                ))
-                                ORDER BY last_load_time DESC
-                                LIMIT 5
-                                """
-
+                        def _make_snowpipe_asset(pipe_name_v, db_v, schema_v, pipe_kwargs_v, self_v):
+                            @asset(**pipe_kwargs_v)
+                            def _snowpipe_asset(context: AssetExecutionContext):
+                                """Materialize by refreshing Snowpipe (loading pending files)."""
+                                conn = self_v._create_connection()
+                                cursor = conn.cursor()
                                 try:
-                                    cursor.execute(history_query)
-                                    recent_loads = cursor.fetchall()
-                                    load_count = len(recent_loads) if recent_loads else 0
-                                except:
-                                    load_count = 0
+                                    refresh_query = f"ALTER PIPE {db_v}.{schema_v}.{pipe_name_v} REFRESH"
+                                    cursor.execute(refresh_query)
+                                    context.log.info(f"Refreshed Snowpipe: {pipe_name_v}")
 
-                                metadata = {
-                                    "pipe_name": pipe_name,
-                                    "database": db,
-                                    "schema": schema,
-                                    "pipe_status": str(status[0]) if status else None,
-                                    "recent_loads": load_count,
-                                }
+                                    status_query = f"SELECT SYSTEM$PIPE_STATUS('{db_v}.{schema_v}.{pipe_name_v}')"
+                                    cursor.execute(status_query)
+                                    status = cursor.fetchone()
 
-                                return metadata
+                                    history_query = f"""
+                                    SELECT
+                                        file_name,
+                                        stage_location,
+                                        last_load_time,
+                                        row_count,
+                                        row_parsed,
+                                        file_size,
+                                        first_error_message
+                                    FROM TABLE(INFORMATION_SCHEMA.COPY_HISTORY(
+                                        TABLE_NAME => '{pipe_name_v}',
+                                        START_TIME => DATEADD('hour', -1, CURRENT_TIMESTAMP())
+                                    ))
+                                    ORDER BY last_load_time DESC
+                                    LIMIT 5
+                                    """
+                                    try:
+                                        cursor.execute(history_query)
+                                        recent_loads = cursor.fetchall()
+                                        load_count = len(recent_loads) if recent_loads else 0
+                                    except Exception:
+                                        load_count = 0
 
-                            finally:
-                                cursor.close()
-                                conn.close()
+                                    return {
+                                        "pipe_name": pipe_name_v,
+                                        "database": db_v,
+                                        "schema": schema_v,
+                                        "pipe_status": str(status[0]) if status else None,
+                                        "recent_loads": load_count,
+                                    }
+                                finally:
+                                    cursor.close()
+                                    conn.close()
+                            return _snowpipe_asset
 
-                        assets_list.append(_snowpipe_asset)
+                        assets_list.append(_make_snowpipe_asset(
+                            pipe_name, pipe['DATABASE_NAME'], pipe['SCHEMA_NAME'], _pipe_kwargs, self,
+                        ))
 
                 except Exception as e:
                     _logger.error(f"Error importing Snowflake pipes: {e}")
@@ -868,34 +855,31 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "stage",
                             },
                         ))
-                        @observable_source_asset(**_stage_kwargs)
-                        def _stage_asset(context: AssetExecutionContext, stage_name=stage_name, db=stage['STAGE_CATALOG'], schema=stage['STAGE_SCHEMA']):
-                            """Observable stage asset - monitor files."""
-                            conn = self._create_connection()
-                            cursor = conn.cursor()
+                        def _make_stage_asset(stage_name_v, db_v, schema_v, stage_kwargs_v, self_v):
+                            @observable_source_asset(**stage_kwargs_v)
+                            def _stage_asset(context: AssetExecutionContext):
+                                """Observable stage asset - monitor files."""
+                                conn = self_v._create_connection()
+                                cursor = conn.cursor()
+                                try:
+                                    list_query = f"LIST @{db_v}.{schema_v}.{stage_name_v}"
+                                    cursor.execute(list_query)
+                                    files = cursor.fetchall()
+                                    file_count = len(files) if files else 0
+                                    total_size = 0
+                                    if files:
+                                        for file_row in files:
+                                            if len(file_row) > 2:
+                                                total_size += file_row[2]
+                                    context.log.info(f"Stage {stage_name_v} has {file_count} files, total size: {total_size} bytes")
+                                finally:
+                                    cursor.close()
+                                    conn.close()
+                            return _stage_asset
 
-                            try:
-                                # List files in stage
-                                list_query = f"LIST @{db}.{schema}.{stage_name}"
-                                cursor.execute(list_query)
-
-                                files = cursor.fetchall()
-                                file_count = len(files) if files else 0
-
-                                total_size = 0
-                                if files:
-                                    # Sum up file sizes (size is typically in column index 2)
-                                    for file_row in files:
-                                        if len(file_row) > 2:
-                                            total_size += file_row[2]
-
-                                context.log.info(f"Stage {stage_name} has {file_count} files, total size: {total_size} bytes")
-
-                            finally:
-                                cursor.close()
-                                conn.close()
-
-                        assets_list.append(_stage_asset)
+                        assets_list.append(_make_stage_asset(
+                            stage_name, stage['STAGE_CATALOG'], stage['STAGE_SCHEMA'], _stage_kwargs, self,
+                        ))
 
                 except Exception as e:
                     _logger.error(f"Error importing Snowflake stages: {e}")
@@ -934,56 +918,48 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "materialized_view",
                             },
                         ))
-                        @asset(**_mv_kwargs)
-                        def _mv_asset(context: AssetExecutionContext, mv_name=mv_name, db=mv['DATABASE_NAME'], schema=mv['SCHEMA_NAME']):
-                            """Materialize by refreshing materialized view."""
-                            conn = self._create_connection()
-                            cursor = conn.cursor()
+                        def _make_mv_asset(mv_name_v, db_v, schema_v, mv_kwargs_v, self_v):
+                            @asset(**mv_kwargs_v)
+                            def _mv_asset(context: AssetExecutionContext):
+                                """Materialize by refreshing materialized view."""
+                                conn = self_v._create_connection()
+                                cursor = conn.cursor()
+                                try:
+                                    cursor.execute(f"ALTER MATERIALIZED VIEW {db_v}.{schema_v}.{mv_name_v} SUSPEND")
+                                    cursor.execute(f"ALTER MATERIALIZED VIEW {db_v}.{schema_v}.{mv_name_v} RESUME")
+                                    context.log.info(f"Refreshed materialized view: {mv_name_v}")
 
-                            try:
-                                # Refresh the materialized view
-                                refresh_query = f"ALTER MATERIALIZED VIEW {db}.{schema}.{mv_name} SUSPEND"
-                                cursor.execute(refresh_query)
+                                    info_query = f"""
+                                    SELECT
+                                        table_name,
+                                        row_count,
+                                        bytes
+                                    FROM {db_v}.INFORMATION_SCHEMA.TABLES
+                                    WHERE table_schema = '{schema_v}' AND table_name = '{mv_name_v}'
+                                    """
+                                    cursor.execute(info_query)
+                                    info = cursor.fetchone()
+                                    metadata = {
+                                        "view_name": mv_name_v,
+                                        "database": db_v,
+                                        "schema": schema_v,
+                                    }
+                                    if info:
+                                        columns = [col[0] for col in cursor.description]
+                                        info_dict = dict(zip(columns, info))
+                                        metadata.update({
+                                            "row_count": info_dict.get('ROW_COUNT'),
+                                            "bytes": info_dict.get('BYTES'),
+                                        })
+                                    return metadata
+                                finally:
+                                    cursor.close()
+                                    conn.close()
+                            return _mv_asset
 
-                                resume_query = f"ALTER MATERIALIZED VIEW {db}.{schema}.{mv_name} RESUME"
-                                cursor.execute(resume_query)
-
-                                context.log.info(f"Refreshed materialized view: {mv_name}")
-
-                                # Get view info
-                                info_query = f"""
-                                SELECT
-                                    table_name,
-                                    row_count,
-                                    bytes
-                                FROM {db}.INFORMATION_SCHEMA.TABLES
-                                WHERE table_schema = '{schema}' AND table_name = '{mv_name}'
-                                """
-
-                                cursor.execute(info_query)
-                                info = cursor.fetchone()
-
-                                metadata = {
-                                    "view_name": mv_name,
-                                    "database": db,
-                                    "schema": schema,
-                                }
-
-                                if info:
-                                    columns = [col[0] for col in cursor.description]
-                                    info_dict = dict(zip(columns, info))
-                                    metadata.update({
-                                        "row_count": info_dict.get('ROW_COUNT'),
-                                        "bytes": info_dict.get('BYTES'),
-                                    })
-
-                                return metadata
-
-                            finally:
-                                cursor.close()
-                                conn.close()
-
-                        assets_list.append(_mv_asset)
+                        assets_list.append(_make_mv_asset(
+                            mv_name, mv['DATABASE_NAME'], mv['SCHEMA_NAME'], _mv_kwargs, self,
+                        ))
 
                 except Exception as e:
                     _logger.error(f"Error importing Snowflake materialized views: {e}")
@@ -1027,53 +1003,47 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "external_table",
                             },
                         ))
-                        @asset(**_ext_kwargs)
-                        def _external_table_asset(context: AssetExecutionContext, table_name=table_name, db=ext_table['TABLE_CATALOG'], schema=ext_table['TABLE_SCHEMA']):
-                            """Materialize by refreshing external table metadata."""
-                            conn = self._create_connection()
-                            cursor = conn.cursor()
+                        def _make_external_table_asset(table_name_v, db_v, schema_v, ext_kwargs_v, self_v):
+                            @asset(**ext_kwargs_v)
+                            def _external_table_asset(context: AssetExecutionContext):
+                                """Materialize by refreshing external table metadata."""
+                                conn = self_v._create_connection()
+                                cursor = conn.cursor()
+                                try:
+                                    cursor.execute(f"ALTER EXTERNAL TABLE {db_v}.{schema_v}.{table_name_v} REFRESH")
+                                    context.log.info(f"Refreshed external table: {table_name_v}")
 
-                            try:
-                                # Refresh external table metadata
-                                refresh_query = f"ALTER EXTERNAL TABLE {db}.{schema}.{table_name} REFRESH"
-                                cursor.execute(refresh_query)
+                                    info_query = f"""
+                                    SELECT
+                                        table_name,
+                                        row_count,
+                                        bytes
+                                    FROM {db_v}.INFORMATION_SCHEMA.TABLES
+                                    WHERE table_schema = '{schema_v}' AND table_name = '{table_name_v}'
+                                    """
+                                    cursor.execute(info_query)
+                                    info = cursor.fetchone()
+                                    metadata = {
+                                        "table_name": table_name_v,
+                                        "database": db_v,
+                                        "schema": schema_v,
+                                    }
+                                    if info:
+                                        columns = [col[0] for col in cursor.description]
+                                        info_dict = dict(zip(columns, info))
+                                        metadata.update({
+                                            "row_count": info_dict.get('ROW_COUNT'),
+                                            "bytes": info_dict.get('BYTES'),
+                                        })
+                                    return metadata
+                                finally:
+                                    cursor.close()
+                                    conn.close()
+                            return _external_table_asset
 
-                                context.log.info(f"Refreshed external table: {table_name}")
-
-                                # Get table info
-                                info_query = f"""
-                                SELECT
-                                    table_name,
-                                    row_count,
-                                    bytes
-                                FROM {db}.INFORMATION_SCHEMA.TABLES
-                                WHERE table_schema = '{schema}' AND table_name = '{table_name}'
-                                """
-
-                                cursor.execute(info_query)
-                                info = cursor.fetchone()
-
-                                metadata = {
-                                    "table_name": table_name,
-                                    "database": db,
-                                    "schema": schema,
-                                }
-
-                                if info:
-                                    columns = [col[0] for col in cursor.description]
-                                    info_dict = dict(zip(columns, info))
-                                    metadata.update({
-                                        "row_count": info_dict.get('ROW_COUNT'),
-                                        "bytes": info_dict.get('BYTES'),
-                                    })
-
-                                return metadata
-
-                            finally:
-                                cursor.close()
-                                conn.close()
-
-                        assets_list.append(_external_table_asset)
+                        assets_list.append(_make_external_table_asset(
+                            table_name, ext_table['TABLE_CATALOG'], ext_table['TABLE_SCHEMA'], _ext_kwargs, self,
+                        ))
 
                 except Exception as e:
                     _logger.error(f"Error importing Snowflake external tables: {e}")
@@ -1107,43 +1077,41 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "alert",
                             },
                         ))
-                        @observable_source_asset(**_alert_kwargs)
-                        def _alert_asset(context: AssetExecutionContext, alert_name=alert_name, db=alert['DATABASE_NAME'], schema=alert['SCHEMA_NAME']):
-                            """Observable alert asset - monitor alert status."""
-                            conn = self._create_connection()
-                            cursor = conn.cursor()
+                        def _make_alert_asset(alert_name_v, db_v, schema_v, alert_kwargs_v, self_v):
+                            @observable_source_asset(**alert_kwargs_v)
+                            def _alert_asset(context: AssetExecutionContext):
+                                """Observable alert asset - monitor alert status."""
+                                conn = self_v._create_connection()
+                                cursor = conn.cursor()
+                                try:
+                                    history_query = f"""
+                                    SELECT
+                                        name,
+                                        state,
+                                        scheduled_time,
+                                        completed_time,
+                                        error
+                                    FROM TABLE(INFORMATION_SCHEMA.ALERT_HISTORY(
+                                        SCHEDULED_TIME_RANGE_START => DATEADD('hour', -24, CURRENT_TIMESTAMP())
+                                    ))
+                                    WHERE name = '{alert_name_v}'
+                                    ORDER BY scheduled_time DESC
+                                    LIMIT 1
+                                    """
+                                    cursor.execute(history_query)
+                                    history = cursor.fetchone()
+                                    if history:
+                                        columns = [col[0] for col in cursor.description]
+                                        history_dict = dict(zip(columns, history))
+                                        context.log.info(f"Alert {alert_name_v} last state: {history_dict.get('STATE')}")
+                                finally:
+                                    cursor.close()
+                                    conn.close()
+                            return _alert_asset
 
-                            try:
-                                # Get alert history
-                                history_query = f"""
-                                SELECT
-                                    name,
-                                    state,
-                                    scheduled_time,
-                                    completed_time,
-                                    error
-                                FROM TABLE(INFORMATION_SCHEMA.ALERT_HISTORY(
-                                    SCHEDULED_TIME_RANGE_START => DATEADD('hour', -24, CURRENT_TIMESTAMP())
-                                ))
-                                WHERE name = '{alert_name}'
-                                ORDER BY scheduled_time DESC
-                                LIMIT 1
-                                """
-
-                                cursor.execute(history_query)
-                                history = cursor.fetchone()
-
-                                if history:
-                                    columns = [col[0] for col in cursor.description]
-                                    history_dict = dict(zip(columns, history))
-
-                                    context.log.info(f"Alert {alert_name} last state: {history_dict.get('STATE')}")
-
-                            finally:
-                                cursor.close()
-                                conn.close()
-
-                        assets_list.append(_alert_asset)
+                        assets_list.append(_make_alert_asset(
+                            alert_name, alert['DATABASE_NAME'], alert['SCHEMA_NAME'], _alert_kwargs, self,
+                        ))
 
                 except Exception as e:
                     _logger.error(f"Error importing Snowflake alerts: {e}")
@@ -1187,41 +1155,40 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "openflow_flow",
                             },
                         ))
-                        @observable_source_asset(**_flow_kwargs)
-                        def _openflow_asset(context: AssetExecutionContext, flow_name=flow_name, runtime_id=runtime_id):
-                            """Observable OpenFlow flow - monitor via telemetry."""
-                            conn = self._create_connection()
-                            cursor = conn.cursor()
+                        def _make_openflow_asset(flow_name_v, runtime_id_v, flow_kwargs_v, self_v):
+                            @observable_source_asset(**flow_kwargs_v)
+                            def _openflow_asset(context: AssetExecutionContext):
+                                """Observable OpenFlow flow - monitor via telemetry."""
+                                conn = self_v._create_connection()
+                                cursor = conn.cursor()
+                                try:
+                                    metrics_query = f"""
+                                    SELECT
+                                        TIMESTAMP,
+                                        RECORD['metric_name']::STRING AS metric_name,
+                                        RECORD['metric_value']::NUMBER AS metric_value,
+                                        RECORD['component_name']::STRING AS component_name
+                                    FROM SNOWFLAKE.TELEMETRY.EVENTS
+                                    WHERE RECORD_TYPE = 'openflow_metric'
+                                    AND RECORD['process_group_name']::STRING = '{flow_name_v}'
+                                    AND TIMESTAMP >= DATEADD('hour', -1, CURRENT_TIMESTAMP())
+                                    ORDER BY TIMESTAMP DESC
+                                    LIMIT 100
+                                    """
+                                    cursor.execute(metrics_query)
+                                    metrics = cursor.fetchall()
+                                    if metrics:
+                                        context.log.info(f"OpenFlow flow {flow_name_v} (runtime {runtime_id_v}) has {len(metrics)} recent metrics")
+                                    else:
+                                        context.log.info(f"OpenFlow flow {flow_name_v} (runtime {runtime_id_v}) has no recent activity")
+                                finally:
+                                    cursor.close()
+                                    conn.close()
+                            return _openflow_asset
 
-                            try:
-                                # Get recent flow metrics
-                                metrics_query = f"""
-                                SELECT
-                                    TIMESTAMP,
-                                    RECORD['metric_name']::STRING AS metric_name,
-                                    RECORD['metric_value']::NUMBER AS metric_value,
-                                    RECORD['component_name']::STRING AS component_name
-                                FROM SNOWFLAKE.TELEMETRY.EVENTS
-                                WHERE RECORD_TYPE = 'openflow_metric'
-                                AND RECORD['process_group_name']::STRING = '{flow_name}'
-                                AND TIMESTAMP >= DATEADD('hour', -1, CURRENT_TIMESTAMP())
-                                ORDER BY TIMESTAMP DESC
-                                LIMIT 100
-                                """
-
-                                cursor.execute(metrics_query)
-                                metrics = cursor.fetchall()
-
-                                if metrics:
-                                    context.log.info(f"OpenFlow flow {flow_name} has {len(metrics)} recent metrics")
-                                else:
-                                    context.log.info(f"OpenFlow flow {flow_name} has no recent activity")
-
-                            finally:
-                                cursor.close()
-                                conn.close()
-
-                        assets_list.append(_openflow_asset)
+                        assets_list.append(_make_openflow_asset(
+                            flow_name, runtime_id, _flow_kwargs, self,
+                        ))
 
                 except Exception as e:
                     _logger.error(f"Error importing OpenFlow flows: {e}")

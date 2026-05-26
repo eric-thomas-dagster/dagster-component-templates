@@ -5,4 +5,4 @@ attributes:
   http_path: /sql/1.0/warehouses/abc123def456
   access_token_env_var: DATABRICKS_TOKEN
   catalog: main
-  schema_name: dagster_assets
+  default_schema: dagster_assets

@@ -1,6 +1,7 @@
 type: dagster_component_templates.TicketClassifierComponent
 attributes:
   asset_name: classified_support_tickets
+  upstream_asset_key: raw_tickets
 
   # Classification Method
   method: llm  # Options: llm, transformer

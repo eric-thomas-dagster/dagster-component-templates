@@ -1,6 +1,7 @@
 type: dagster_component_templates.AnthropicLLMComponent
 attributes:
   asset_name: document_analysis
+  upstream_asset_key: raw_documents
 
   # Anthropic Configuration
   api_key: "${ANTHROPIC_API_KEY}"

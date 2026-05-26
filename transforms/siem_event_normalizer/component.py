@@ -9,16 +9,19 @@ from typing import Optional
 
 import dagster as dg
 import pandas as pd
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 class SiemEventNormalizerComponent(dg.Component, dg.Model, dg.Resolvable):
     """Normalize heterogeneous audit-log events to a common schema (OCSF or ECS) before shipping to a SIEM."""
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream DataFrame to normalize")
 
-    schema: str = Field(default="ocsf", description="Target schema: 'ocsf' (Open Cybersecurity Schema Framework) | 'ecs' (Elastic Common Schema)")
+    schema_name: str = Field(
+        alias="schema",
+        default="ocsf", description="Target schema: 'ocsf' (Open Cybersecurity Schema Framework) | 'ecs' (Elastic Common Schema)")
     source_kind: str = Field(default="generic", description="Source hint: 'cloudtrail' | 'okta' | 'github' | 'azure' | 'generic'")
     event_column: Optional[str] = Field(
         default=None,
@@ -177,14 +180,14 @@ class SiemEventNormalizerComponent(dg.Component, dg.Model, dg.Resolvable):
             action_col = _self.action_column or auto_action.get(_self.source_kind)
 
             out = pd.DataFrame()
-            if _self.schema == "ocsf":
+            if _self.schema_name == "ocsf":
                 # OCSF Activity event: time, actor.user.name, activity_name, raw_data
                 out["time"] = df[ts_col] if ts_col and ts_col in df.columns else None
                 out["activity_name"] = df[action_col] if action_col and action_col in df.columns else None
                 out["actor.user.name"] = df[actor_col] if actor_col and actor_col in df.columns else None
                 out["metadata.product.vendor_name"] = _self.source_kind
                 out["raw_data"] = df.apply(lambda r: r.to_json(), axis=1)
-            elif _self.schema == "ecs":
+            elif _self.schema_name == "ecs":
                 # ECS: @timestamp, event.action, user.name, source
                 out["@timestamp"] = df[ts_col] if ts_col and ts_col in df.columns else None
                 out["event.action"] = df[action_col] if action_col and action_col in df.columns else None
@@ -192,7 +195,7 @@ class SiemEventNormalizerComponent(dg.Component, dg.Model, dg.Resolvable):
                 out["event.dataset"] = _self.source_kind
                 out["event.original"] = df.apply(lambda r: r.to_json(), axis=1)
             else:
-                raise ValueError(f"Unknown schema: {_self.schema}")
+                raise ValueError(f"Unknown schema: {_self.schema_name}")
 
             if not _self.drop_extras:
                 # Pass-through original fields (prefixed) for debuggability
@@ -203,7 +206,7 @@ class SiemEventNormalizerComponent(dg.Component, dg.Model, dg.Resolvable):
             df = out
             context.add_output_metadata({
                 "dagster/row_count": dg.MetadataValue.int(len(df)),
-                "schema": dg.MetadataValue.text(_self.schema),
+                "schema": dg.MetadataValue.text(_self.schema_name),
                 "source_kind": dg.MetadataValue.text(_self.source_kind),
             })
             return df

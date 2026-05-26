@@ -25,7 +25,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -169,6 +169,7 @@ class AnthropicLLMComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(
         description="Name of the asset that will hold the enriched data"
     )
@@ -177,7 +178,8 @@ class AnthropicLLMComponent(Component, Model, Resolvable):
         description="Anthropic API key. Use ${ANTHROPIC_API_KEY} for environment variables."
     )
 
-    model: str = Field(
+    model_id: str = Field(
+        alias="model",
         default="claude-3-5-sonnet-20241022",
         description="Claude model: claude-3-5-sonnet-20241022, claude-3-opus-20240229, claude-3-sonnet-20240229, claude-3-haiku-20240307"
     )
@@ -393,7 +395,7 @@ class AnthropicLLMComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         api_key = self.api_key
-        model = self.model
+        model = self.model_id
         system_prompt = self.system_prompt
         user_prompt_template = self.user_prompt_template
         input_column = self.input_column

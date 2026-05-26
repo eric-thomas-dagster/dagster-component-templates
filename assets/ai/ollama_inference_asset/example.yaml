@@ -7,5 +7,4 @@ attributes:
   prompt_template: "Categorize this customer feedback into one of [bug, feature, praise, question]: {feedback_text}"
   system_prompt: "You are a feedback classifier. Respond with only one word: bug, feature, praise, or question."
   response_column: category
-  database_url_env_var: DATABASE_URL
   table_name: categorized_feedback

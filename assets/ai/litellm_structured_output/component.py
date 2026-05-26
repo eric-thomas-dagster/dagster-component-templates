@@ -17,7 +17,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -143,11 +143,14 @@ class LitellmStructuredOutputComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     text_column: str = Field(description="Column containing input text")
     schema_definition: Dict[str, Any] = Field(description='JSON Schema describing the fields to extract e.g. {"name": {"type": "string"}, "age": {"type": "integer"}}')
-    model: str = Field(default="gpt-4o-mini", description="LiteLLM model string")
+    model_id: str = Field(
+        alias="model",
+        default="gpt-4o-mini", description="LiteLLM model string")
     prompt_prefix: Optional[str] = Field(default=None, description="Instruction prepended to each extraction request")
     output_prefix: str = Field(default="", description="Prefix for extracted column names")
     on_error: str = Field(default="null", description='Error handling strategy: "skip" (drop row), "null" (fill with nulls), "raise" (raise exception)')
@@ -276,7 +279,7 @@ class LitellmStructuredOutputComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         text_column = self.text_column
         schema_definition = self.schema_definition
-        model = self.model
+        model = self.model_id
         prompt_prefix = self.prompt_prefix
         output_prefix = self.output_prefix
         on_error = self.on_error

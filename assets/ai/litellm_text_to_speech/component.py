@@ -32,16 +32,18 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 class LitellmTextToSpeechComponent(Component, Model, Resolvable):
     """Multi-provider text-to-speech via LiteLLM."""
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output asset name.")
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key.")
 
-    model: str = Field(
+    model_id: str = Field(
+        alias="model",
         description=(
             "LiteLLM model id. e.g. `openai/tts-1`, `openai/tts-1-hd`, "
             "`elevenlabs/eleven_multilingual_v2`, `azure/<deployment>`."
@@ -172,7 +174,7 @@ class LitellmTextToSpeechComponent(Component, Model, Resolvable):
 
         asset_name = self.asset_name
         upstream_key = AssetKey.from_user_string(self.upstream_asset_key)
-        model = self.model
+        model = self.model_id
         api_key_env_var = self.api_key_env_var
         text_column = self.text_column
         output_dir = self.output_dir

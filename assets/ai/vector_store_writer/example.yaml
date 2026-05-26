@@ -4,6 +4,7 @@
 type: dagster_component_templates.VectorStoreWriterComponent
 attributes:
   asset_name: vector_index
+  upstream_asset_key: rows_to_index
   provider: chromadb
   collection_name: documents
   embedding_column: embedding

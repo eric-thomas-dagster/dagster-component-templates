@@ -1,6 +1,7 @@
 type: dagster_component_templates.SentimentAnalyzerComponent
 attributes:
   asset_name: sentiment_analyzed_reviews
+  upstream_asset_key: raw_text
 
   # Analysis Method
   method: "transformer"  # or "llm"

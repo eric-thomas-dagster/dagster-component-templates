@@ -17,7 +17,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -141,11 +141,14 @@ class LitellmBatchCompletionComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     text_column: str = Field(description="Column containing input text")
     output_column: str = Field(default="llm_response", description="Column to write LLM responses to")
-    model: str = Field(default="gpt-4o-mini", description='LiteLLM model string (e.g. "gpt-4o", "claude-3-haiku-20240307", "ollama/llama3")')
+    model_id: str = Field(
+        alias="model",
+        default="gpt-4o-mini", description='LiteLLM model string (e.g. "gpt-4o", "claude-3-haiku-20240307", "ollama/llama3")')
     system_prompt: Optional[str] = Field(default=None, description="System message prepended to each request")
     prompt_template: Optional[str] = Field(default=None, description='Jinja2-style template using row values e.g. "Summarize: {text}". If set, renders per row. If not set, sends text_column value directly.')
     max_tokens: int = Field(default=500, description="Maximum tokens per completion")
@@ -277,7 +280,7 @@ class LitellmBatchCompletionComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         text_column = self.text_column
         output_column = self.output_column
-        model = self.model
+        model = self.model_id
         system_prompt = self.system_prompt
         prompt_template = self.prompt_template
         max_tokens = self.max_tokens

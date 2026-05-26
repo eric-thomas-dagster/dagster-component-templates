@@ -18,7 +18,7 @@ from dagster import (
     asset,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -126,13 +126,16 @@ def _build_partitions_def(
 class DataframeFromTableComponent(Component, Model, Resolvable):
     """Read a database table and output a DataFrame."""
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     table_name: str = Field(description="Database table to read")
     database_url_env_var: str = Field(
         default="DATABASE_URL",
         description="Environment variable containing the database connection URL",
     )
-    schema: Optional[str] = Field(default=None, description="Database schema")
+    schema_name: Optional[str] = Field(
+        alias="schema",
+        default=None, description="Database schema")
     columns: Optional[List[str]] = Field(
         default=None, description="Columns to select (None = all)"
     )
@@ -264,7 +267,7 @@ class DataframeFromTableComponent(Component, Model, Resolvable):
         preview_rows = self.preview_rows
         table_name = self.table_name
         database_url_env_var = self.database_url_env_var
-        schema = self.schema
+        schema = self.schema_name
         columns = self.columns
         where_clause = self.where_clause
         deps = self.deps

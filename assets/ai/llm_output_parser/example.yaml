@@ -1,6 +1,7 @@
 type: dagster_component_templates.LLMOutputParserComponent
 attributes:
   asset_name: structured_data
+  upstream_asset_key: raw_llm_output
   parser_type: json
   validation_schema: '{"type": "object", "properties": {"name": {"type": "string"}}}'
   output_format: dict

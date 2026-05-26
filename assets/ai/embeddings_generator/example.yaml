@@ -1,6 +1,7 @@
 type: dagster_component_templates.EmbeddingsGeneratorComponent
 attributes:
   asset_name: document_embeddings
+  upstream_asset_key: raw_text
 
   # Provider Configuration
   provider: "openai"  # openai, cohere, sentence_transformers, huggingface

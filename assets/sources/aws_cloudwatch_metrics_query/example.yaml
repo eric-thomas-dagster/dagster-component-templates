@@ -1,3 +1,6 @@
 type: dagster_component_templates.AwsCloudwatchMetricsQueryComponent
 attributes:
-  # See schema.json for full attribute reference
+  asset_name: lambda_invocations
+  region: us-east-1
+  namespace: AWS/Lambda
+  metric_name: Invocations

@@ -18,7 +18,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -143,6 +143,7 @@ class InvoiceExtractorComponent(Component, Model, Resolvable):
     - Spend analytics
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(
         description="Upstream asset key providing a DataFrame with invoice content"
@@ -155,7 +156,9 @@ class InvoiceExtractorComponent(Component, Model, Resolvable):
         default="text",
         description="Input type: 'text' (raw invoice text) or 'file' (PDF/image path)",
     )
-    model: str = Field(default="gpt-4o", description="LLM model name (litellm format)")
+    model_id: str = Field(
+        alias="model",
+        default="gpt-4o", description="LLM model name (litellm format)")
     api_key_env_var: str = Field(
         default="OPENAI_API_KEY",
         description="Environment variable name holding the API key",
@@ -297,7 +300,7 @@ class InvoiceExtractorComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         input_column = self.input_column
         input_type = self.input_type
-        model = self.model
+        model = self.model_id
         api_key_env_var = self.api_key_env_var
         output_fields = self.output_fields
         batch_size = self.batch_size

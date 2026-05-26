@@ -18,7 +18,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -144,10 +144,13 @@ class InstructorExtractorComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     text_column: str = Field(description="Column containing input text")
-    model: str = Field(default="gpt-4o-mini", description="LLM model string")
+    model_id: str = Field(
+        alias="model",
+        default="gpt-4o-mini", description="LLM model string")
     extraction_schema: Dict[str, Any] = Field(description='Dict describing fields to extract: {"field_name": {"type": "str|int|float|bool|list", "description": "..."}}')
     output_prefix: str = Field(default="", description="Prefix for extracted column names")
     max_retries: int = Field(default=3, description="Max retries for structured extraction")
@@ -275,7 +278,7 @@ class InstructorExtractorComponent(Component, Model, Resolvable):
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         text_column = self.text_column
-        model = self.model
+        model = self.model_id
         extraction_schema = self.extraction_schema
         output_prefix = self.output_prefix
         max_retries = self.max_retries

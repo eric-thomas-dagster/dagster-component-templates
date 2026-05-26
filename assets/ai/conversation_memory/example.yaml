@@ -12,6 +12,7 @@
 type: dagster_component_templates.ConversationMemoryComponent
 attributes:
   asset_name: conversation
+  upstream_asset_key: raw_messages
   memory_file: ./conversation.json
   max_messages: 10
   group_name: conversations

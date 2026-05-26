@@ -17,7 +17,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -142,13 +142,16 @@ class DspyProgramComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     text_column: str = Field(description="Column containing input text")
     output_column: str = Field(default="dspy_output", description="Primary output column (first output field)")
     program_type: str = Field(default="chain_of_thought", description="DSPy program type: predict, chain_of_thought, react, or multi_chain_comparison")
     signature: str = Field(description='DSPy signature string e.g. "question -> answer" or "document -> summary, key_points"')
-    model: str = Field(default="gpt-4o-mini", description="LLM model string")
+    model_id: str = Field(
+        alias="model",
+        default="gpt-4o-mini", description="LLM model string")
     api_key_env_var: Optional[str] = Field(default=None, description="Env var name for API key")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
@@ -276,7 +279,7 @@ class DspyProgramComponent(Component, Model, Resolvable):
         output_column = self.output_column
         program_type = self.program_type
         signature = self.signature
-        model = self.model
+        model = self.model_id
         api_key_env_var = self.api_key_env_var
         group_name = self.group_name
 

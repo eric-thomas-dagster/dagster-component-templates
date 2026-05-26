@@ -5,4 +5,4 @@ attributes:
   database: dev
   user: dagster_user
   password_env_var: REDSHIFT_PASSWORD
-  schema_name: public
+  default_schema: public

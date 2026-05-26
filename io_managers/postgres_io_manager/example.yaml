@@ -6,5 +6,5 @@ attributes:
   database: analytics
   user: dagster_user
   password_env_var: POSTGRES_PASSWORD
-  schema_name: public
+  default_schema: public
   if_exists: replace

@@ -1,12 +1,11 @@
 {
   "summary": {
-    "PASS": 487,
-    "FAIL": 73,
-    "SKIP_OPTIONAL_DEP": 102,
+    "PASS": 562,
+    "FAIL": 41,
+    "SKIP_OPTIONAL_DEP": 101,
     "SKIP_EXAMPLE_MULTI_DOC": 51,
     "SKIP_PROJECT_REQUIRED": 11,
     "SKIP_RELATIVE_IMPORT": 3,
-    "WARN": 34,
     "SKIP_CREDENTIALS": 34
   },
   "results": [
@@ -21,17 +20,12 @@
     {
       "id": "ab_test_analysis",
       "path": "assets/analytics/ab_test_analysis",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "2 validation errors for ABTestAnalysisComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'ab_test_r...ame': 'experimentation'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nsource_asset\n  Extra inputs are not permitted [type=extra_forbidden, input_value='experiment_data', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Field required [type=missing, input_value={'asset_name': 'ab_test_r...ame': 'experimentation'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-        "source_asset",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='experiment_data', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "ab_treatments",
@@ -84,17 +78,12 @@
     {
       "id": "ad_spend_standardizer",
       "path": "assets/analytics/ad_spend_standardizer",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "2 validation errors for AdSpendStandardizerComponent\ngoogle_ads_asset\n  Extra inputs are not permitted [type=extra_forbidden, input_value='google_ads_data', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nfacebook_ads_asset\n  Extra inputs are not permitted [type=extra_forbidden, input_value='facebook_ads_data', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='google_ads_data', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
-        "facebook_ads_asset",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='facebook_ads_data', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "adls_cleanup_job",
@@ -230,17 +219,12 @@
     {
       "id": "anthropic_llm",
       "path": "assets/ai/anthropic_llm",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for AnthropicLLMComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'document_...preview_metadata': True}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for AnthropicLLMComponent",
-        "upstream_asset_key",
-        "  Field required [type=missing, input_value={'asset_name': 'document_...preview_metadata': True}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "anthropic_resource",
@@ -483,32 +467,18 @@
     {
       "id": "aws_cloudwatch_logs_insights_query",
       "path": "assets/sources/aws_cloudwatch_logs_insights_query",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "4 validation errors for AwsCloudwatchLogsInsightsQueryComponent\nasset_name\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nregion\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nlog_group_names\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nquery_string\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-        "query_string",
-        "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "aws_cloudwatch_metrics_query",
       "path": "assets/sources/aws_cloudwatch_metrics_query",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "4 validation errors for AwsCloudwatchMetricsQueryComponent\nasset_name\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nregion\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nnamespace\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nmetric_name\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-        "metric_name",
-        "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "aws_dms",
@@ -655,10 +625,8 @@
     {
       "id": "bank_statement_extractor",
       "path": "assets/ai/bank_statement_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"BankStatementExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"BankStatementExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -815,12 +783,12 @@
       "path": "assets/analytics/campaign_performance",
       "status": "FAIL",
       "warnings": [],
-      "error": "3 validation errors for CampaignPerformanceComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'campaign_...: 'marketing_analytics'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\ncampaign_data_asset\n  Extra inputs are not permitted [type=extra_forbidden, input_value='campaign_metrics', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nconversion_data_asset\n  Extra inputs are not permitted [type=extra_forbidden, input_value='conversions', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
+      "error": "2 validation errors for CampaignPerformanceComponent\ncampaign_data_asset_key\n  Extra inputs are not permitted [type=extra_forbidden, input_value='campaign_metrics', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nconversion_data_asset_key\n  Extra inputs are not permitted [type=extra_forbidden, input_value='conversions', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='campaign_metrics', input_type=str]",
         "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
-        "conversion_data_asset",
+        "conversion_data_asset_key",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='conversions', input_type=str]",
         "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
       ]
@@ -872,11 +840,11 @@
       "path": "assets/analytics/chromadb_asset",
       "status": "FAIL",
       "warnings": [],
-      "error": "3 validation errors for ChromadbAssetComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'product_c...deps': ['raw/products']}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\ndatabase_url_env_var\n  Extra inputs are not permitted [type=extra_forbidden, input_value='DATABASE_URL', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nsource_table\n  Extra inputs are not permitted [type=extra_forbidden, input_value='public.products', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
+      "error": "1 validation error for ChromadbAssetComponent\nsource_table\n  Extra inputs are not permitted [type=extra_forbidden, input_value='public.products', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='DATABASE_URL', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
+        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "pydantic_core._pydantic_core.ValidationError: 1 validation error for ChromadbAssetComponent",
         "source_table",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='public.products', input_type=str]",
         "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
@@ -895,17 +863,12 @@
     {
       "id": "churn_prediction",
       "path": "assets/analytics/churn_prediction",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "2 validation errors for ChurnPredictionComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'customer_...preview_metadata': True}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nsource_asset\n  Extra inputs are not permitted [type=extra_forbidden, input_value='customer_metrics', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Field required [type=missing, input_value={'asset_name': 'customer_...preview_metadata': True}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-        "source_asset",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='customer_metrics', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "clickhouse_io_manager",
@@ -1046,17 +1009,12 @@
     {
       "id": "cohort_analysis",
       "path": "assets/analytics/cohort_analysis",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "2 validation errors for CohortAnalysisComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'customer_...preview_metadata': True}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nsource_asset\n  Extra inputs are not permitted [type=extra_forbidden, input_value='customer_activity', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Field required [type=missing, input_value={'asset_name': 'customer_...preview_metadata': True}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-        "source_asset",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='customer_activity', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "community_component_installer",
@@ -1077,10 +1035,8 @@
     {
       "id": "contract_extractor",
       "path": "assets/ai/contract_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"ContractExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"ContractExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -1089,17 +1045,12 @@
     {
       "id": "conversation_memory",
       "path": "assets/ai/conversation_memory",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for ConversationMemoryComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'conversat..._name': 'conversations'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for ConversationMemoryComponent",
-        "upstream_asset_key",
-        "  Field required [type=missing, input_value={'asset_name': 'conversat..._name': 'conversations'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "coordinate_transformer",
@@ -1254,17 +1205,10 @@
     {
       "id": "customer_health_score",
       "path": "assets/analytics/customer_health_score",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "2 validation errors for CustomerHealthScoreComponent\nproduct_usage_asset\n  Extra inputs are not permitted [type=extra_forbidden, input_value='product_events', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nsupport_ticket_asset\n  Extra inputs are not permitted [type=extra_forbidden, input_value='support_tickets', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='product_events', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
-        "support_ticket_asset",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='support_tickets', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "customer_journey_mapping",
@@ -1434,17 +1378,10 @@
     {
       "id": "databricks_io_manager",
       "path": "io_managers/databricks_io_manager",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "1 validation error for DatabricksIOManagerComponent\nschema_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='dagster_assets', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for DatabricksIOManagerComponent",
-        "schema_name",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='dagster_assets', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "databricks_resource",
@@ -1553,10 +1490,8 @@
     {
       "id": "dataframe_from_table",
       "path": "assets/sources/dataframe_from_table",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"schema\" in \"DataframeFromTableComponent\" shadows an attribute in parent \"Model\"",
-        "UserWarning: Field name \"schema\" in \"DataframeFromTableComponent\" shadows an attribute in parent \"Model\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -1620,11 +1555,8 @@
     {
       "id": "dataframe_to_databricks",
       "path": "assets/sinks/dataframe_to_databricks",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"schema\" in \"DataframeToDatabricksComponent\" shadows an attribute in parent \"Model\"",
-        "UserWarning: Field name \"schema\" in \"DataframeToDatabricksComponent\" shadows an attribute in parent \"Model\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -1719,30 +1651,23 @@
     {
       "id": "dataframe_to_otlp_logs",
       "path": "assets/sinks/dataframe_to_otlp_logs",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "3 validation errors for DataframeToOtlpLogsComponent\nasset_name\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nupstream_asset_key\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nendpoint\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-        "endpoint",
-        "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "dataframe_to_otlp_metrics",
       "path": "assets/sinks/dataframe_to_otlp_metrics",
       "status": "FAIL",
       "warnings": [],
-      "error": "5 validation errors for DataframeToOtlpMetricsComponent\nasset_name\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nupstream_asset_key\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nendpoint\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nmetric_name\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nvalue_column\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
+      "error": "2 validation errors for DataframeToOtlpMetricsComponent\nmetric_name\n  Field required [type=missing, input_value={'asset_name': 'otlp_metr...'http://localhost:4318'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nvalue_column\n  Field required [type=missing, input_value={'asset_name': 'otlp_metr...'http://localhost:4318'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
       "error_class": "ValidationError",
       "traceback": [
-        "  Field required [type=missing, input_value={}, input_type=dict]",
+        "  Field required [type=missing, input_value={'asset_name': 'otlp_metr...'http://localhost:4318'}, input_type=dict]",
         "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
         "value_column",
-        "  Field required [type=missing, input_value={}, input_type=dict]",
+        "  Field required [type=missing, input_value={'asset_name': 'otlp_metr...'http://localhost:4318'}, input_type=dict]",
         "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
       ]
     },
@@ -1751,13 +1676,13 @@
       "path": "assets/sinks/dataframe_to_otlp_traces",
       "status": "FAIL",
       "warnings": [],
-      "error": "4 validation errors for DataframeToOtlpTracesComponent\nasset_name\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nupstream_asset_key\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nendpoint\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nspan_name_column\n  Field required [type=missing, input_value={}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
+      "error": "1 validation error for DataframeToOtlpTracesComponent\nspan_name_column\n  Field required [type=missing, input_value={'asset_name': 'otlp_trac...'http://localhost:4318'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
       "error_class": "ValidationError",
       "traceback": [
-        "  Field required [type=missing, input_value={}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
+        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "pydantic_core._pydantic_core.ValidationError: 1 validation error for DataframeToOtlpTracesComponent",
         "span_name_column",
-        "  Field required [type=missing, input_value={}, input_type=dict]",
+        "  Field required [type=missing, input_value={'asset_name': 'otlp_trac...'http://localhost:4318'}, input_type=dict]",
         "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
       ]
     },
@@ -1780,11 +1705,8 @@
     {
       "id": "dataframe_to_redshift",
       "path": "assets/sinks/dataframe_to_redshift",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"schema\" in \"DataframeToRedshiftComponent\" shadows an attribute in parent \"Model\"",
-        "UserWarning: Field name \"schema\" in \"DataframeToRedshiftComponent\" shadows an attribute in parent \"Model\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -1831,11 +1753,8 @@
     {
       "id": "dataframe_to_table",
       "path": "assets/sinks/dataframe_to_table",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"schema\" in \"DataframeToTableComponent\" shadows an attribute in parent \"Model\"",
-        "UserWarning: Field name \"schema\" in \"DataframeToTableComponent\" shadows an attribute in parent \"Model\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -2023,17 +1942,12 @@
     {
       "id": "document_chunker",
       "path": "assets/ai/document_chunker",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for DocumentChunkerComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'document_...preview_metadata': True}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for DocumentChunkerComponent",
-        "upstream_asset_key",
-        "  Field required [type=missing, input_value={'asset_name': 'document_...preview_metadata': True}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "document_ingestion",
@@ -2064,17 +1978,12 @@
     {
       "id": "document_summarizer",
       "path": "assets/ai/document_summarizer",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for DocumentSummarizerComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'report_su..._name': 'summarization'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for DocumentSummarizerComponent",
-        "upstream_asset_key",
-        "  Field required [type=missing, input_value={'asset_name': 'report_su..._name': 'summarization'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "document_text_extractor",
@@ -2097,10 +2006,8 @@
     {
       "id": "dspy_program",
       "path": "assets/ai/dspy_program",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"DspyProgramComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"DspyProgramComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -2221,7 +2128,7 @@
       "path": "assets/analytics/elasticsearch_asset",
       "status": "FAIL",
       "warnings": [],
-      "error": "3 validation errors for ElasticsearchAssetComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'product_s...deps': ['raw/products']}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nsource_database_url_env_var\n  Extra inputs are not permitted [type=extra_forbidden, input_value='DATABASE_URL', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nsource_table_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='products', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
+      "error": "2 validation errors for ElasticsearchAssetComponent\nsource_database_url_env_var\n  Extra inputs are not permitted [type=extra_forbidden, input_value='DATABASE_URL', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nsource_table_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='products', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='DATABASE_URL', input_type=str]",
@@ -2260,40 +2167,37 @@
     {
       "id": "embeddings_generator",
       "path": "assets/ai/embeddings_generator",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for EmbeddingsGeneratorComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'document_...preview_metadata': True}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for EmbeddingsGeneratorComponent",
-        "upstream_asset_key",
-        "  Field required [type=missing, input_value={'asset_name': 'document_...preview_metadata': True}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "enhanced_data_quality_checks",
       "path": "asset_checks/enhanced_data_quality_checks",
-      "status": "SKIP_OPTIONAL_DEP",
+      "status": "FAIL",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'scipy'",
-      "error_class": null
+      "error": "\"group:dbt_marts_mart_row_count\" is not a valid name in Dagster. Names must be in regex ^[A-Za-z0-9_]+$.",
+      "error_class": "DagsterInvalidDefinitionError",
+      "traceback": [
+        "  File \"/Users/ericthomas/dagster_components/dagster-community-components-cli/.venv/lib/python3.11/site-packages/dagster/_core/definitions/utils.py\", line 82, in check_valid_name",
+        "    check_valid_chars(name)",
+        "  File \"/Users/ericthomas/dagster_components/dagster-community-components-cli/.venv/lib/python3.11/site-packages/dagster/_core/definitions/utils.py\", line 90, in check_valid_chars",
+        "    raise DagsterInvalidDefinitionError(",
+        "dagster._core.errors.DagsterInvalidDefinitionError: \"group:dbt_marts_mart_row_count\" is not a valid name in Dagster. Names must be in regex ^[A-Za-z0-9_]+$."
+      ]
     },
     {
       "id": "entity_extractor",
       "path": "assets/ai/entity_extractor",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for EntityExtractorComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'extracted...preview_metadata': True}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for EntityExtractorComponent",
-        "upstream_asset_key",
-        "  Field required [type=missing, input_value={'asset_name': 'extracted...preview_metadata': True}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "ets_forecast",
@@ -2342,10 +2246,8 @@
     {
       "id": "expense_report_extractor",
       "path": "assets/ai/expense_report_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"ExpenseReportExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"ExpenseReportExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -2408,6 +2310,14 @@
       "error_class": null
     },
     {
+      "id": "external_huggingface_space",
+      "path": "external_assets/external_huggingface_space",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "external_iceberg_table",
       "path": "external_assets/external_iceberg_table",
       "status": "PASS",
@@ -2442,6 +2352,14 @@
     {
       "id": "external_nats_asset",
       "path": "external_assets/external_nats_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "external_precisely_job",
+      "path": "external_assets/external_precisely_job",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -2506,6 +2424,14 @@
     {
       "id": "external_sharepoint_library",
       "path": "external_assets/external_sharepoint_library",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "external_snowflake_openflow_flow",
+      "path": "external_assets/external_snowflake_openflow_flow",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -2818,7 +2744,7 @@
       "path": "assets/analytics/funnel_analysis",
       "status": "FAIL",
       "warnings": [],
-      "error": "5 validation errors for FunnelAnalysisComponent\nsource_asset\n  Extra inputs are not permitted [type=extra_forbidden, input_value='user_events', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nfunnel_steps\n  Extra inputs are not permitted [type=extra_forbidden, input_value='Landing,Product View,Add... Cart,Checkout,Purchase', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nconversion_window_hours\n  Extra inputs are not permitted [type=extra_forbidden, input_value=24, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nrequire_sequential\n  Extra inputs are not permitted [type=extra_forbidden, input_value=True, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nallow_skips\n  Extra inputs are not permitted [type=extra_forbidden, input_value=False, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
+      "error": "5 validation errors for FunnelAnalysisComponent\nupstream_asset_key\n  Extra inputs are not permitted [type=extra_forbidden, input_value='user_events', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nfunnel_steps\n  Extra inputs are not permitted [type=extra_forbidden, input_value='Landing,Product View,Add... Cart,Checkout,Purchase', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nconversion_window_hours\n  Extra inputs are not permitted [type=extra_forbidden, input_value=24, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nrequire_sequential\n  Extra inputs are not permitted [type=extra_forbidden, input_value=True, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nallow_skips\n  Extra inputs are not permitted [type=extra_forbidden, input_value=False, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
         "  Extra inputs are not permitted [type=extra_forbidden, input_value=True, input_type=bool]",
@@ -3378,10 +3304,8 @@
     {
       "id": "image_llm_extractor",
       "path": "assets/ai/image_llm_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"ImageLlmExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"ImageLlmExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -3446,10 +3370,8 @@
     {
       "id": "instructor_extractor",
       "path": "assets/ai/instructor_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"InstructorExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"InstructorExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -3458,10 +3380,8 @@
     {
       "id": "insurance_claim_extractor",
       "path": "assets/ai/insurance_claim_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"InsuranceClaimExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"InsuranceClaimExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -3493,9 +3413,8 @@
     {
       "id": "invoice_extractor",
       "path": "assets/ai/invoice_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"InvoiceExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -3536,10 +3455,8 @@
     {
       "id": "job_posting_extractor",
       "path": "assets/ai/job_posting_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"JobPostingExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"JobPostingExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -3722,11 +3639,11 @@
       "path": "assets/ai/langchain_chain_asset",
       "status": "FAIL",
       "warnings": [],
-      "error": "2 validation errors for LangChainChainAssetComponent\ndatabase_url_env_var\n  Extra inputs are not permitted [type=extra_forbidden, input_value='DATABASE_URL', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\ntable_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='summarized_articles', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
+      "error": "1 validation error for LangChainChainAssetComponent\ntable_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='summarized_articles', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='DATABASE_URL', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
+        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "pydantic_core._pydantic_core.ValidationError: 1 validation error for LangChainChainAssetComponent",
         "table_name",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='summarized_articles', input_type=str]",
         "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
@@ -3751,10 +3668,8 @@
     {
       "id": "legal_document_extractor",
       "path": "assets/ai/legal_document_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LegalDocumentExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LegalDocumentExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -3874,10 +3789,8 @@
     {
       "id": "litellm_audio_transcription",
       "path": "assets/ai/litellm_audio_transcription",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LitellmAudioTranscriptionComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LitellmAudioTranscriptionComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -3886,10 +3799,8 @@
     {
       "id": "litellm_batch_completion",
       "path": "assets/ai/litellm_batch_completion",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LitellmBatchCompletionComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LitellmBatchCompletionComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -3898,10 +3809,8 @@
     {
       "id": "litellm_embedding_batch",
       "path": "assets/ai/litellm_embedding_batch",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LitellmEmbeddingBatchComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LitellmEmbeddingBatchComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -3910,10 +3819,8 @@
     {
       "id": "litellm_function_calling",
       "path": "assets/ai/litellm_function_calling",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LitellmFunctionCallingComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LitellmFunctionCallingComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -3922,10 +3829,8 @@
     {
       "id": "litellm_image_generation",
       "path": "assets/ai/litellm_image_generation",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LitellmImageGenerationComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LitellmImageGenerationComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -3934,21 +3839,16 @@
     {
       "id": "litellm_inference_asset",
       "path": "assets/ai/litellm_inference_asset",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"LiteLLMInferenceAssetComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LiteLLMInferenceAssetComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
     {
       "id": "litellm_structured_output",
       "path": "assets/ai/litellm_structured_output",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LitellmStructuredOutputComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LitellmStructuredOutputComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -3957,11 +3857,8 @@
     {
       "id": "litellm_text_to_speech",
       "path": "assets/ai/litellm_text_to_speech",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"LitellmTextToSpeechComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LitellmTextToSpeechComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -3970,11 +3867,11 @@
       "path": "assets/ai/llm_chain_executor",
       "status": "FAIL",
       "warnings": [],
-      "error": "2 validation errors for LLMChainExecutorComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'chain_out...oup_name': 'llm_chains'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nchain_steps\n  Input should be a valid list [type=list_type, input_value='[{\"prompt\": \"Summarize: ...utput_key\": \"summary\"}]', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/list_type",
+      "error": "1 validation error for LLMChainExecutorComponent\nchain_steps\n  Input should be a valid list [type=list_type, input_value='[{\"prompt\": \"Summarize: ...utput_key\": \"summary\"}]', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/list_type",
       "error_class": "ValidationError",
       "traceback": [
-        "  Field required [type=missing, input_value={'asset_name': 'chain_out...oup_name': 'llm_chains'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
+        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "pydantic_core._pydantic_core.ValidationError: 1 validation error for LLMChainExecutorComponent",
         "chain_steps",
         "  Input should be a valid list [type=list_type, input_value='[{\"prompt\": \"Summarize: ...utput_key\": \"summary\"}]', input_type=str]",
         "    For further information visit https://errors.pydantic.dev/2.13/v/list_type"
@@ -3983,10 +3880,8 @@
     {
       "id": "llm_judge",
       "path": "assets/ai/llm_judge",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LlmJudgeComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LlmJudgeComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -3997,11 +3892,11 @@
       "path": "assets/ai/llm_output_parser",
       "status": "FAIL",
       "warnings": [],
-      "error": "2 validation errors for LLMOutputParserComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'structure...'group_name': 'parsing'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\noutput_format\n  Extra inputs are not permitted [type=extra_forbidden, input_value='dict', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
+      "error": "1 validation error for LLMOutputParserComponent\noutput_format\n  Extra inputs are not permitted [type=extra_forbidden, input_value='dict', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
-        "  Field required [type=missing, input_value={'asset_name': 'structure...'group_name': 'parsing'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
+        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "pydantic_core._pydantic_core.ValidationError: 1 validation error for LLMOutputParserComponent",
         "output_format",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='dict', input_type=str]",
         "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
@@ -4010,17 +3905,12 @@
     {
       "id": "llm_prompt_executor",
       "path": "assets/ai/llm_prompt_executor",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for LLMPromptExecutorComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'product_d...roup_name': 'marketing'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for LLMPromptExecutorComponent",
-        "upstream_asset_key",
-        "  Field required [type=missing, input_value={'asset_name': 'product_d...roup_name': 'marketing'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "local_csv_io_manager",
@@ -4080,17 +3970,12 @@
     {
       "id": "ltv_prediction",
       "path": "assets/analytics/ltv_prediction",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "2 validation errors for LTVPredictionComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'customer_...': 'customer_analytics'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nsource_asset\n  Extra inputs are not permitted [type=extra_forbidden, input_value='transaction_data', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Field required [type=missing, input_value={'asset_name': 'customer_...': 'customer_analytics'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-        "source_asset",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='transaction_data', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "make_columns",
@@ -4194,10 +4079,8 @@
     {
       "id": "medical_record_extractor",
       "path": "assets/ai/medical_record_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"MedicalRecordExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"MedicalRecordExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -4270,17 +4153,10 @@
     {
       "id": "moderation_scorer",
       "path": "assets/ai/moderation_scorer",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "2 validation errors for ModerationScorerComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'moderatio...n scores and decisions'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nsource_asset\n  Extra inputs are not permitted [type=extra_forbidden, input_value='user_content', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Field required [type=missing, input_value={'asset_name': 'moderatio...n scores and decisions'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-        "source_asset",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='user_content', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "mongodb_ingestion",
@@ -4430,12 +4306,12 @@
       "path": "assets/analytics/multi_touch_attribution",
       "status": "FAIL",
       "warnings": [],
-      "error": "2 validation errors for MultiTouchAttributionComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'channel_a...: 'marketing_analytics'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\ntouchpoint_data_asset\n  Extra inputs are not permitted [type=extra_forbidden, input_value='marketing_touchpoints', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
+      "error": "1 validation error for MultiTouchAttributionComponent\ntouchpoint_data_asset_key\n  Extra inputs are not permitted [type=extra_forbidden, input_value='marketing_touchpoints', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
-        "  Field required [type=missing, input_value={'asset_name': 'channel_a...: 'marketing_analytics'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-        "touchpoint_data_asset",
+        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "pydantic_core._pydantic_core.ValidationError: 1 validation error for MultiTouchAttributionComponent",
+        "touchpoint_data_asset_key",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='marketing_touchpoints', input_type=str]",
         "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
       ]
@@ -4707,11 +4583,11 @@
       "path": "assets/ai/ollama_inference_asset",
       "status": "FAIL",
       "warnings": [],
-      "error": "2 validation errors for OllamaInferenceAssetComponent\ndatabase_url_env_var\n  Extra inputs are not permitted [type=extra_forbidden, input_value='DATABASE_URL', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\ntable_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='categorized_feedback', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
+      "error": "1 validation error for OllamaInferenceAssetComponent\ntable_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='categorized_feedback', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='DATABASE_URL', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
+        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "pydantic_core._pydantic_core.ValidationError: 1 validation error for OllamaInferenceAssetComponent",
         "table_name",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='categorized_feedback', input_type=str]",
         "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
@@ -4730,17 +4606,12 @@
     {
       "id": "openai_llm",
       "path": "assets/ai/openai_llm",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for OpenAILLMComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'product_d...preview_metadata': True}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for OpenAILLMComponent",
-        "upstream_asset_key",
-        "  Field required [type=missing, input_value={'asset_name': 'product_d...preview_metadata': True}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "openai_resource",
@@ -4968,11 +4839,11 @@
       "path": "assets/analytics/pgvector_asset",
       "status": "FAIL",
       "warnings": [],
-      "error": "2 validation errors for PgvectorAssetComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'product_d...deps': ['raw/products']}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nsource_table\n  Extra inputs are not permitted [type=extra_forbidden, input_value='public.products', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
+      "error": "1 validation error for PgvectorAssetComponent\nsource_table\n  Extra inputs are not permitted [type=extra_forbidden, input_value='public.products', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
       "error_class": "ValidationError",
       "traceback": [
-        "  Field required [type=missing, input_value={'asset_name': 'product_d...deps': ['raw/products']}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
+        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "pydantic_core._pydantic_core.ValidationError: 1 validation error for PgvectorAssetComponent",
         "source_table",
         "  Extra inputs are not permitted [type=extra_forbidden, input_value='public.products', input_type=str]",
         "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
@@ -5128,17 +4999,10 @@
     {
       "id": "postgres_io_manager",
       "path": "io_managers/postgres_io_manager",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "1 validation error for PostgresIOManagerComponent\nschema_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='public', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for PostgresIOManagerComponent",
-        "schema_name",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='public', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "postgres_resource",
@@ -5187,17 +5051,12 @@
     {
       "id": "product_recommendations",
       "path": "assets/analytics/product_recommendations",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "2 validation errors for ProductRecommendationsComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'product_r...e': 'product_analytics'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nsource_asset\n  Extra inputs are not permitted [type=extra_forbidden, input_value='order_items', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Field required [type=missing, input_value={'asset_name': 'product_r...e': 'product_analytics'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-        "source_asset",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='order_items', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "product_usage_analytics",
@@ -5225,17 +5084,12 @@
     {
       "id": "propensity_scoring",
       "path": "assets/analytics/propensity_scoring",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "2 validation errors for PropensityScoringComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'customer_...': 'customer_analytics'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nsource_asset\n  Extra inputs are not permitted [type=extra_forbidden, input_value='customer_behavior', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Field required [type=missing, input_value={'asset_name': 'customer_...': 'customer_analytics'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-        "source_asset",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='customer_behavior', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "pubsub_monitor",
@@ -5308,10 +5162,8 @@
     {
       "id": "purchase_order_extractor",
       "path": "assets/ai/purchase_order_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"PurchaseOrderExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"PurchaseOrderExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -5378,17 +5230,12 @@
     {
       "id": "rag_pipeline",
       "path": "assets/ai/rag_pipeline",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for RAGPipelineComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'rag_answe...}', 'group_name': 'rag'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for RAGPipelineComponent",
-        "upstream_asset_key",
-        "  Field required [type=missing, input_value={'asset_name': 'rag_answe...}', 'group_name': 'rag'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "random_forest_model",
@@ -5411,10 +5258,8 @@
     {
       "id": "receipt_extractor",
       "path": "assets/ai/receipt_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"ReceiptExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"ReceiptExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -5485,17 +5330,10 @@
     {
       "id": "redshift_io_manager",
       "path": "io_managers/redshift_io_manager",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "1 validation error for RedshiftIOManagerComponent\nschema_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='public', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for RedshiftIOManagerComponent",
-        "schema_name",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='public', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "redshift_resource",
@@ -5518,17 +5356,12 @@
     {
       "id": "reranker",
       "path": "assets/ai/reranker",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "2 validation errors for RerankerComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'reranked_...preview_metadata': True}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nsource_asset\n  Extra inputs are not permitted [type=extra_forbidden, input_value='vector_search_results', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Field required [type=missing, input_value={'asset_name': 'reranked_...preview_metadata': True}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-        "source_asset",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='vector_search_results', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "rest_api_fetcher",
@@ -5541,10 +5374,8 @@
     {
       "id": "resume_extractor",
       "path": "assets/ai/resume_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"ResumeExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"ResumeExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -5781,9 +5612,8 @@
     {
       "id": "schema_fit",
       "path": "assets/ai/schema_fit",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"SchemaFitComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -5800,10 +5630,8 @@
     {
       "id": "scientific_paper_extractor",
       "path": "assets/ai/scientific_paper_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"ScientificPaperExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"ScientificPaperExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -5830,17 +5658,12 @@
     {
       "id": "sentiment_analyzer",
       "path": "assets/ai/sentiment_analyzer",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for SentimentAnalyzerComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'sentiment...preview_metadata': True}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for SentimentAnalyzerComponent",
-        "upstream_asset_key",
-        "  Field required [type=missing, input_value={'asset_name': 'sentiment...preview_metadata': True}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "servicebus_monitor",
@@ -5962,10 +5785,8 @@
     {
       "id": "shipping_label_extractor",
       "path": "assets/ai/shipping_label_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"ShippingLabelExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"ShippingLabelExtractorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -5998,11 +5819,8 @@
     {
       "id": "siem_event_normalizer",
       "path": "transforms/siem_event_normalizer",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"schema\" in \"SiemEventNormalizerComponent\" shadows an attribute in parent \"Model\"",
-        "UserWarning: Field name \"schema\" in \"SiemEventNormalizerComponent\" shadows an attribute in parent \"Model\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -6145,6 +5963,14 @@
       "error_class": null
     },
     {
+      "id": "snowflake_dynamic_table_refresh_asset",
+      "path": "assets/data-warehouse/snowflake_dynamic_table_refresh_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "snowflake_iceberg_table",
       "path": "integrations/snowflake_iceberg_table",
       "status": "PASS",
@@ -6163,6 +5989,14 @@
     {
       "id": "snowflake_materialized_view",
       "path": "integrations/snowflake_materialized_view",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "snowflake_openflow_status_sensor",
+      "path": "sensors/snowflake_openflow_status_sensor",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -6217,6 +6051,14 @@
       "error_class": null
     },
     {
+      "id": "snowflake_stored_procedure_call_asset",
+      "path": "assets/data-warehouse/snowflake_stored_procedure_call_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "snowflake_stream",
       "path": "integrations/snowflake_stream",
       "status": "PASS",
@@ -6237,6 +6079,22 @@
     {
       "id": "snowflake_task",
       "path": "integrations/snowflake_task",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "snowflake_task_completion_sensor",
+      "path": "sensors/snowflake_task_completion_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "snowflake_task_execute_asset",
+      "path": "assets/data-warehouse/snowflake_task_execute_asset",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -6626,32 +6484,22 @@
     {
       "id": "text_chunker",
       "path": "assets/ai/text_chunker",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for TextChunkerComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'document_...: 'document_processing'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for TextChunkerComponent",
-        "upstream_asset_key",
-        "  Field required [type=missing, input_value={'asset_name': 'document_...: 'document_processing'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "text_classifier",
       "path": "assets/ai/text_classifier",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for TextClassifierComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'sentiment...name': 'classification'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for TextClassifierComponent",
-        "upstream_asset_key",
-        "  Field required [type=missing, input_value={'asset_name': 'sentiment...name': 'classification'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "text_codec_convert_asset",
@@ -6664,17 +6512,12 @@
     {
       "id": "text_moderator",
       "path": "assets/ai/text_moderator",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for TextModeratorComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'moderated...preview_metadata': True}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for TextModeratorComponent",
-        "upstream_asset_key",
-        "  Field required [type=missing, input_value={'asset_name': 'moderated...preview_metadata': True}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "text_preprocessing",
@@ -6705,17 +6548,12 @@
     {
       "id": "ticket_classifier",
       "path": "assets/ai/ticket_classifier",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for TicketClassifierComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'classifie...preview_metadata': True}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for TicketClassifierComponent",
-        "upstream_asset_key",
-        "  Field required [type=missing, input_value={'asset_name': 'classifie...preview_metadata': True}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "tiktok_ads_ingestion",
@@ -6807,17 +6645,10 @@
     {
       "id": "trino_io_manager",
       "path": "io_managers/trino_io_manager",
-      "status": "FAIL",
+      "status": "PASS",
       "warnings": [],
-      "error": "1 validation error for TrinoIOManagerComponent\nschema_name\n  Extra inputs are not permitted [type=extra_forbidden, input_value='default', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for TrinoIOManagerComponent",
-        "schema_name",
-        "  Extra inputs are not permitted [type=extra_forbidden, input_value='default', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
-      ]
+      "error": null,
+      "error_class": null
     },
     {
       "id": "trino_resource",
@@ -6856,9 +6687,8 @@
     {
       "id": "ts_forecast",
       "path": "assets/analytics/ts_forecast",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"TsForecastComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -6867,9 +6697,8 @@
     {
       "id": "ts_model_factory",
       "path": "assets/analytics/ts_model_factory",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"TsModelFactoryComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -6936,32 +6765,22 @@
     {
       "id": "vector_store_query",
       "path": "assets/ai/vector_store_query",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for VectorStoreQueryComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'search_re...roup_name': 'retrieval'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for VectorStoreQueryComponent",
-        "upstream_asset_key",
-        "  Field required [type=missing, input_value={'asset_name': 'search_re...roup_name': 'retrieval'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "vector_store_writer",
       "path": "assets/ai/vector_store_writer",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "1 validation error for VectorStoreWriterComponent\nupstream_asset_key\n  Field required [type=missing, input_value={'asset_name': 'vector_in...name': 'vector_storage'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
-        "pydantic_core._pydantic_core.ValidationError: 1 validation error for VectorStoreWriterComponent",
-        "upstream_asset_key",
-        "  Field required [type=missing, input_value={'asset_name': 'vector_in...name': 'vector_storage'}, input_type=dict]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/missing"
-      ]
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "vertex_ai_text_embeddings_asset",
@@ -7014,10 +6833,8 @@
     {
       "id": "vision_model",
       "path": "assets/ai/vision_model",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"VisionModelComponent\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"VisionModelComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,

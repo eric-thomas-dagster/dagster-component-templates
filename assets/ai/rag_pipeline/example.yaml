@@ -5,6 +5,7 @@
 type: dagster_component_templates.RAGPipelineComponent
 attributes:
   asset_name: rag_answer
+  upstream_asset_key: raw_documents
   vector_store_provider: chromadb
   collection_name: documents
   llm_provider: openai

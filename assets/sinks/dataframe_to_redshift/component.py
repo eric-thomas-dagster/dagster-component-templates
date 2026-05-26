@@ -19,7 +19,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -127,10 +127,13 @@ def _build_partitions_def(
 class DataframeToRedshiftComponent(Component, Model, Resolvable):
     """Write a DataFrame to an Amazon Redshift table."""
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     table: str = Field(description="Destination Redshift table name")
-    schema: str = Field(default="public", description="Redshift schema")
+    schema_name: str = Field(
+        alias="schema",
+        default="public", description="Redshift schema")
     host_env_var: str = Field(default="REDSHIFT_HOST", description="Env var containing Redshift host")
     port: int = Field(default=5439, description="Redshift port")
     database_env_var: str = Field(default="REDSHIFT_DATABASE", description="Env var containing Redshift database name")
@@ -243,7 +246,7 @@ class DataframeToRedshiftComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
         table = self.table
-        schema = self.schema
+        schema = self.schema_name
         host_env_var = self.host_env_var
         port = self.port
         database_env_var = self.database_env_var

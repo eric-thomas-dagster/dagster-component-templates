@@ -1,6 +1,7 @@
 type: dagster_component_templates.PgvectorAssetComponent
 attributes:
   asset_name: product_description_embeddings
+  upstream_asset_key: rows_to_index
   database_url_env_var: POSTGRES_URL
   source_table: public.products
   id_column: product_id

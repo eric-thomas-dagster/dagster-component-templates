@@ -4,6 +4,7 @@
 type: dagster_component_templates.LLMChainExecutorComponent
 attributes:
   asset_name: chain_output
+  upstream_asset_key: raw_text
   provider: openai
   model: gpt-4
   chain_steps: '[{"prompt": "Summarize: {text}", "output_key": "summary"}]'

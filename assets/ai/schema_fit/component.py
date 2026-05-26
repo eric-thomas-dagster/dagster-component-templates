@@ -19,7 +19,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -145,6 +145,7 @@ class SchemaFitComponent(Component, Model, Resolvable):
     - API response normalization
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(
         description="Upstream asset key providing the source DataFrame to transform"
@@ -152,7 +153,9 @@ class SchemaFitComponent(Component, Model, Resolvable):
     target_schema: Dict[str, str] = Field(
         description="Target schema definition: {column_name: description} e.g. {'customer_id': 'unique customer identifier'}"
     )
-    model: str = Field(default="gpt-4o-mini", description="LLM model name (litellm format)")
+    model_id: str = Field(
+        alias="model",
+        default="gpt-4o-mini", description="LLM model name (litellm format)")
     api_key_env_var: str = Field(
         default="OPENAI_API_KEY",
         description="Environment variable name holding the API key",
@@ -286,7 +289,7 @@ class SchemaFitComponent(Component, Model, Resolvable):
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         target_schema = self.target_schema
-        model = self.model
+        model = self.model_id
         api_key_env_var = self.api_key_env_var
         sample_rows = self.sample_rows
 

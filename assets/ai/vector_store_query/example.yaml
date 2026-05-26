@@ -4,6 +4,7 @@
 type: dagster_component_templates.VectorStoreQueryComponent
 attributes:
   asset_name: search_results
+  upstream_asset_key: queries
   provider: chromadb
   collection_name: documents
   top_k: 10

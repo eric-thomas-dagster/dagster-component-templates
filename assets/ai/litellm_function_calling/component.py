@@ -16,7 +16,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -148,11 +148,14 @@ class LitellmFunctionCallingComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     text_column: str = Field(description="Column containing input text")
     tools: List[Dict[str, Any]] = Field(description="List of tool definitions in OpenAI format")
-    model: str = Field(default="gpt-4o-mini", description="LiteLLM model string")
+    model_id: str = Field(
+        alias="model",
+        default="gpt-4o-mini", description="LiteLLM model string")
     output_column: str = Field(default="tool_calls", description="Column to write tool call results as JSON string")
     system_prompt: Optional[str] = Field(default=None, description="System message prepended to each request")
     api_key_env_var: Optional[str] = Field(default=None, description="Env var name for API key")
@@ -280,7 +283,7 @@ class LitellmFunctionCallingComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         text_column = self.text_column
         tools = self.tools
-        model = self.model
+        model = self.model_id
         output_column = self.output_column
         system_prompt = self.system_prompt
         api_key_env_var = self.api_key_env_var

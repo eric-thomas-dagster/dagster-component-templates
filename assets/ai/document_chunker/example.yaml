@@ -1,6 +1,7 @@
 type: dagster_component_templates.DocumentChunkerComponent
 attributes:
   asset_name: document_chunks
+  upstream_asset_key: raw_documents
 
   # Chunking Strategy
   strategy: "recursive"  # fixed, recursive, sentence, token_aware, semantic

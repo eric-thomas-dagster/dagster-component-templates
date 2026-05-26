@@ -3,7 +3,7 @@ attributes:
   asset_name: reranked_search_results
 
   # Source Configuration
-  source_asset: vector_search_results
+  upstream_asset_key: vector_search_results
 
   # Reranking Configuration
   method: "cohere"  # Options: cohere, cross_encoder, bm25

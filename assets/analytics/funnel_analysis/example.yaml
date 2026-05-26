@@ -3,7 +3,7 @@ attributes:
   asset_name: checkout_funnel
 
   # Source data (set via lineage in Dagster Designer)
-  source_asset: user_events
+  upstream_asset_key: user_events
 
   # Funnel Configuration
   funnel_steps: "Landing,Product View,Add to Cart,Checkout,Purchase"

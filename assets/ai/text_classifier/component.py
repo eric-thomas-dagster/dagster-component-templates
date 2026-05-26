@@ -21,7 +21,7 @@ from dagster import (
     Model,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -150,13 +150,16 @@ class TextClassifierComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Name of the asset")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame with text to classify")
     input_column: str = Field(default="text", description="Column name containing text to classify")
     output_column: str = Field(default="category", description="Column name for classification result")
     confidence_column: Optional[str] = Field(default="confidence", description="Column name for confidence score (None to skip)")
     provider: str = Field(description="LLM provider")
-    model: str = Field(description="Model name")
+    model_id: str = Field(
+        alias="model",
+        description="Model name")
     categories: List[str] = Field(description="List of categories to classify into")
     classification_task: str = Field(default="classification", description="Task description")
     include_confidence: bool = Field(default=True, description="Include confidence scores")
@@ -282,7 +285,7 @@ class TextClassifierComponent(Component, Model, Resolvable):
         output_column = self.output_column
         confidence_column = self.confidence_column
         provider = self.provider
-        model = self.model
+        model = self.model_id
         categories_list = self.categories
         classification_task = self.classification_task
         include_confidence = self.include_confidence

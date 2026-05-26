@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 import dagster as dg
 from dagster import AssetExecutionContext, AssetIn, AssetKey
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 class LiteLLMResource(dg.ConfigurableResource):
@@ -26,7 +26,9 @@ class LiteLLMResource(dg.ConfigurableResource):
         }
         ```
     """
-    model: str = Field(description="LiteLLM model string (e.g. gpt-4o, claude-3-5-sonnet, gemini/gemini-pro)")
+    model_id: str = Field(
+        alias="model",
+        description="LiteLLM model string (e.g. gpt-4o, claude-3-5-sonnet, gemini/gemini-pro)")
     api_key_env_var: Optional[str] = Field(default=None, description="Env var with provider API key")
     api_base_env_var: Optional[str] = Field(default=None, description="Env var with custom API base URL (for proxies)")
     temperature: float = Field(default=0.0, description="Sampling temperature")
@@ -39,7 +41,7 @@ class LiteLLMResource(dg.ConfigurableResource):
         import litellm
 
         kwargs: dict = {
-            "model": self.model,
+            "model": self.model_id,
             "messages": messages,
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
@@ -176,9 +178,13 @@ class LiteLLMInferenceAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame (e.g. 'raw_orders' or 'schema/table')")
-    model: Optional[str] = Field(default=None, description="LiteLLM model string — overrides resource if set")
+    model_id: Optional[str] = Field(
+        alias="model",
+        default=None, description="LiteLLM model string — overrides resource if set",
+    )
     api_key_env_var: Optional[str] = Field(default=None, description="Env var with provider API key — overrides resource if set")
     api_base_env_var: Optional[str] = Field(default=None, description="Env var with custom API base URL")
     litellm_resource_key: Optional[str] = Field(default=None, description="Key of a LiteLLMResource in resources dict")
@@ -359,7 +365,7 @@ class LiteLLMInferenceAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             if _self.api_base_env_var:
                 litellm_kwargs["api_base"] = dg.EnvVar(_self.api_base_env_var).get_value()
 
-            model = _self.model
+            model = _self.model_id
             if not model:
                 raise ValueError("model must be set on the component or via litellm_resource_key")
 

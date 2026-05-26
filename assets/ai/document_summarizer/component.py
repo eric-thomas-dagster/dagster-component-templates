@@ -20,7 +20,7 @@ from dagster import (
     Model,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -145,12 +145,15 @@ class DocumentSummarizerComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Name of the asset")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame with documents to summarize")
     input_column: str = Field(default="text", description="Column name containing document text to summarize")
     output_column: str = Field(default="summary", description="Column name for generated summaries")
     provider: str = Field(description="LLM provider")
-    model: str = Field(description="Model name")
+    model_id: str = Field(
+        alias="model",
+        description="Model name")
     summary_type: str = Field(default="concise", description="Type: 'concise', 'detailed', 'bullet_points', 'executive'")
     max_length: Optional[int] = Field(default=None, description="Max summary length in words")
     chunk_size: int = Field(default=3000, description="Chunk size for long documents")
@@ -275,7 +278,7 @@ class DocumentSummarizerComponent(Component, Model, Resolvable):
         input_column = self.input_column
         output_column = self.output_column
         provider = self.provider
-        model = self.model
+        model = self.model_id
         summary_type = self.summary_type
         max_length = self.max_length
         chunk_size = self.chunk_size

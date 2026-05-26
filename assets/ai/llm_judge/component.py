@@ -17,7 +17,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -144,6 +144,7 @@ class LlmJudgeComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     response_column: str = Field(description="Column containing LLM responses to evaluate")
@@ -151,7 +152,9 @@ class LlmJudgeComponent(Component, Model, Resolvable):
     criteria: List[str] = Field(description='Evaluation criteria e.g. ["accuracy", "clarity", "completeness"]')
     score_column: str = Field(default="judge_score", description="Column to write numeric score (0-10)")
     reason_column: str = Field(default="judge_reason", description="Column to write explanation")
-    model: str = Field(default="gpt-4o", description="Judge model (use a strong model for reliable evaluation)")
+    model_id: str = Field(
+        alias="model",
+        default="gpt-4o", description="Judge model (use a strong model for reliable evaluation)")
     rubric: Optional[str] = Field(default=None, description="Custom scoring rubric to guide the judge")
     api_key_env_var: Optional[str] = Field(default=None, description="Env var name for API key")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
@@ -281,7 +284,7 @@ class LlmJudgeComponent(Component, Model, Resolvable):
         criteria = self.criteria
         score_column = self.score_column
         reason_column = self.reason_column
-        model = self.model
+        model = self.model_id
         rubric = self.rubric
         api_key_env_var = self.api_key_env_var
         group_name = self.group_name

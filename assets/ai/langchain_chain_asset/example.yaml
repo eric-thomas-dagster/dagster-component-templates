@@ -10,5 +10,4 @@ attributes:
     {content}
   system_message: "You are a concise summarizer. Respond with plain text only."
   response_column: summary
-  database_url_env_var: DATABASE_URL
   table_name: summarized_articles

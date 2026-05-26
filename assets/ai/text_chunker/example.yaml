@@ -4,6 +4,7 @@
 type: dagster_component_templates.TextChunkerComponent
 attributes:
   asset_name: document_chunks
+  upstream_asset_key: raw_text
   chunking_strategy: fixed_tokens
   chunk_size: 512
   chunk_overlap: 50

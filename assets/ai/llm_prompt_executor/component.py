@@ -22,7 +22,7 @@ from dagster import (
     Model,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -148,6 +148,7 @@ class LLMPromptExecutorComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(
         description="Name of the asset"
     )
@@ -170,7 +171,8 @@ class LLMPromptExecutorComponent(Component, Model, Resolvable):
         description="LLM provider: 'openai', 'anthropic', 'cohere', or 'huggingface'"
     )
 
-    model: str = Field(
+    model_id: str = Field(
+        alias="model",
         description="Model name (e.g., 'gpt-4', 'claude-3-5-sonnet-20241022', 'command-r-plus')"
     )
 
@@ -340,7 +342,7 @@ class LLMPromptExecutorComponent(Component, Model, Resolvable):
         input_column = self.input_column
         output_column = self.output_column
         provider = self.provider
-        model = self.model
+        model = self.model_id
         system_prompt = self.system_prompt
         user_prompt_template = self.user_prompt_template
         temperature = self.temperature

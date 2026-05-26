@@ -3,7 +3,7 @@ attributes:
   asset_name: customer_churn_risk
 
   # Source data (set via lineage in Dagster Designer)
-  source_asset: customer_metrics
+  upstream_asset_key: customer_metrics
 
   # Churn Prediction Configuration
   inactivity_threshold_days: 90  # Consider 90+ days inactive as high risk

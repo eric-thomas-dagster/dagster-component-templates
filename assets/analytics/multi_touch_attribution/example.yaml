@@ -1,7 +1,8 @@
 type: dagster_component_templates.MultiTouchAttributionComponent
 attributes:
   asset_name: channel_attribution
-  touchpoint_data_asset: marketing_touchpoints
+  upstream_asset_key: touchpoint_events
+  touchpoint_data_asset_key: marketing_touchpoints
   attribution_model: time_decay
   lookback_window_days: 30
   time_decay_half_life_days: 7.0

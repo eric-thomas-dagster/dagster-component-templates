@@ -26,7 +26,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -171,6 +171,7 @@ class OpenAILLMComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(
         description="Name of the asset that will hold the enriched data"
     )
@@ -179,7 +180,8 @@ class OpenAILLMComponent(Component, Model, Resolvable):
         description="OpenAI API key. Use ${OPENAI_API_KEY} for environment variables."
     )
 
-    model: str = Field(
+    model_id: str = Field(
+        alias="model",
         default="gpt-3.5-turbo",
         description="OpenAI model: gpt-4, gpt-4-turbo, gpt-3.5-turbo, gpt-4o, gpt-4o-mini"
     )
@@ -400,7 +402,7 @@ class OpenAILLMComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         api_key = self.api_key
-        model = self.model
+        model = self.model_id
         system_prompt = self.system_prompt
         user_prompt_template = self.user_prompt_template
         input_column = self.input_column

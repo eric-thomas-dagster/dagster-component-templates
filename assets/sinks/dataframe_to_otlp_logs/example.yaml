@@ -1,3 +1,5 @@
 type: dagster_component_templates.DataframeToOtlpLogsComponent
 attributes:
-  # See schema.json for full attribute reference
+  asset_name: otlp_logs_sink
+  upstream_asset_key: log_dataframe
+  endpoint: http://localhost:4318

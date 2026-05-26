@@ -22,7 +22,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -163,6 +163,7 @@ class SentimentAnalyzerComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(
         description="Name of the asset that will hold the sentiment analysis results"
     )
@@ -172,7 +173,8 @@ class SentimentAnalyzerComponent(Component, Model, Resolvable):
         description="Analysis method: llm (GPT/Claude), transformer (local models)"
     )
 
-    model: Optional[str] = Field(
+    model_id: Optional[str] = Field(
+        alias="model",
         default=None,
         description="Model name. LLM: gpt-4, claude-3-5-sonnet. Transformer: distilbert-base-uncased-finetuned-sst-2-english, cardiffnlp/twitter-roberta-base-sentiment"
     )
@@ -373,7 +375,7 @@ class SentimentAnalyzerComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         method = self.method
-        model = self.model
+        model = self.model_id
         api_key = self.api_key
         provider = self.provider
         input_column = self.input_column

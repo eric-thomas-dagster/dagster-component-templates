@@ -19,7 +19,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -127,10 +127,13 @@ def _build_partitions_def(
 class DataframeToDatabricksComponent(Component, Model, Resolvable):
     """Write a DataFrame to a Databricks Delta Lake table."""
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     catalog: str = Field(default="main", description="Unity Catalog name")
-    schema: str = Field(description="Target schema/database name")
+    schema_name: str = Field(
+        alias="schema",
+        description="Target schema/database name")
     table: str = Field(description="Target table name")
     host_env_var: str = Field(default="DATABRICKS_HOST", description="Env var containing Databricks workspace URL")
     token_env_var: str = Field(default="DATABRICKS_TOKEN", description="Env var containing Databricks personal access token")
@@ -271,7 +274,7 @@ class DataframeToDatabricksComponent(Component, Model, Resolvable):
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         catalog = self.catalog
-        schema = self.schema
+        schema = self.schema_name
         table = self.table
         host_env_var = self.host_env_var
         token_env_var = self.token_env_var

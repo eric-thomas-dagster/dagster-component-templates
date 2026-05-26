@@ -18,7 +18,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -143,6 +143,7 @@ class TsForecastComponent(Component, Model, Resolvable):
     - Financial projections
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(
         description="Upstream asset key providing a DataFrame with date + value columns"
@@ -150,7 +151,8 @@ class TsForecastComponent(Component, Model, Resolvable):
     date_column: str = Field(description="Column containing dates or timestamps")
     value_column: str = Field(description="Column containing the numeric time series values")
     forecast_periods: int = Field(default=12, description="Number of future periods to forecast")
-    model: str = Field(
+    model_id: str = Field(
+        alias="model",
         default="auto",
         description="Model to use: 'auto' (tries ARIMA and ETS, picks best AIC), 'arima', 'ets'",
     )
@@ -295,7 +297,7 @@ class TsForecastComponent(Component, Model, Resolvable):
         date_column = self.date_column
         value_column = self.value_column
         forecast_periods = self.forecast_periods
-        model = self.model
+        model = self.model_id
         arima_order = self.arima_order
         ets_trend = self.ets_trend
         ets_seasonal = self.ets_seasonal

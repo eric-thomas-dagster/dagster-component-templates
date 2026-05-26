@@ -1,7 +1,7 @@
 type: dagster_component_templates.LTVPredictionComponent
 attributes:
   asset_name: customer_ltv
-  source_asset: transaction_data
+  upstream_asset_key: transaction_data
   prediction_period_months: 24
   cohort_analysis: true
   include_confidence_intervals: true

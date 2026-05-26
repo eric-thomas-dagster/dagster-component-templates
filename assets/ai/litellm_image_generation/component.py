@@ -17,7 +17,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -140,11 +140,14 @@ class LitellmImageGenerationComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     prompt_column: str = Field(description="Column containing image prompts")
     output_column: str = Field(default="image_url", description="Column to write image URLs or base64 data")
-    model: str = Field(default="dall-e-3", description='Model to use (e.g. "dall-e-3", "dall-e-2", "stability/stable-diffusion-xl-1024-v1-0")')
+    model_id: str = Field(
+        alias="model",
+        default="dall-e-3", description='Model to use (e.g. "dall-e-3", "dall-e-2", "stability/stable-diffusion-xl-1024-v1-0")')
     size: str = Field(default="1024x1024", description="Image size: 256x256, 512x512, 1024x1024, 1792x1024, or 1024x1792")
     quality: str = Field(default="standard", description="Image quality: standard or hd")
     response_format: str = Field(default="url", description="Response format: url or b64_json")
@@ -273,7 +276,7 @@ class LitellmImageGenerationComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         prompt_column = self.prompt_column
         output_column = self.output_column
-        model = self.model
+        model = self.model_id
         size = self.size
         quality = self.quality
         response_format = self.response_format

@@ -1,3 +1,5 @@
 type: dagster_component_templates.DataframeToOtlpTracesComponent
 attributes:
-  # See schema.json for full attribute reference
+  asset_name: otlp_traces_sink
+  upstream_asset_key: trace_dataframe
+  endpoint: http://localhost:4318

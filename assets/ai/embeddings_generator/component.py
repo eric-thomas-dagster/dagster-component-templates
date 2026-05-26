@@ -22,7 +22,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -163,6 +163,7 @@ class EmbeddingsGeneratorComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(
         description="Name of the asset that will hold the embeddings"
     )
@@ -171,7 +172,8 @@ class EmbeddingsGeneratorComponent(Component, Model, Resolvable):
         description="Embedding provider: openai, cohere, sentence_transformers, huggingface"
     )
 
-    model: str = Field(
+    model_id: str = Field(
+        alias="model",
         description="Model name (e.g., 'text-embedding-3-small', 'embed-english-v3.0', 'all-MiniLM-L6-v2')"
     )
 
@@ -361,7 +363,7 @@ class EmbeddingsGeneratorComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         provider = self.provider
-        model = self.model
+        model = self.model_id
         api_key = self.api_key
         input_column = self.input_column
         output_column = self.output_column

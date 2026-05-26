@@ -3,7 +3,7 @@ attributes:
   asset_name: moderation_scores
 
   # Source asset (automatically set via lineage)
-  source_asset: user_content
+  upstream_asset_key: user_content
 
   # Organization
   description: "Content moderation scores and decisions"

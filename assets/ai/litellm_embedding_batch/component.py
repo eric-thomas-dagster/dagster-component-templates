@@ -17,7 +17,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -140,11 +140,14 @@ class LitellmEmbeddingBatchComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     text_column: str = Field(description="Column containing input text")
     output_column: str = Field(default="embedding", description="Column to write embedding vectors (lists of floats)")
-    model: str = Field(default="text-embedding-3-small", description='Embedding model (e.g. "text-embedding-3-small", "text-embedding-ada-002", "cohere/embed-english-v3.0")')
+    model_id: str = Field(
+        alias="model",
+        default="text-embedding-3-small", description='Embedding model (e.g. "text-embedding-3-small", "text-embedding-ada-002", "cohere/embed-english-v3.0")')
     batch_size: int = Field(default=100, description="Rows per API call")
     dimensions: Optional[int] = Field(default=None, description="Embedding dimensions (for models that support it)")
     fallback_models: Optional[List[str]] = Field(default=None, description="Models to try if primary fails")
@@ -273,7 +276,7 @@ class LitellmEmbeddingBatchComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         text_column = self.text_column
         output_column = self.output_column
-        model = self.model
+        model = self.model_id
         batch_size = self.batch_size
         dimensions = self.dimensions
         fallback_models = self.fallback_models

@@ -1,6 +1,7 @@
 type: dagster_component_templates.EntityExtractorComponent
 attributes:
   asset_name: extracted_ticket_entities
+  upstream_asset_key: raw_text
 
   # Extraction Method
   method: spacy  # Options: llm, spacy, transformer

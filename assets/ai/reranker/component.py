@@ -23,7 +23,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -167,6 +167,7 @@ class RerankerComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(
         description="Name of the asset that will hold reranked results"
     )
@@ -179,7 +180,8 @@ class RerankerComponent(Component, Model, Resolvable):
         description="Reranking method: cohere, cross_encoder, bm25"
     )
 
-    model: Optional[str] = Field(
+    model_id: Optional[str] = Field(
+        alias="model",
         default=None,
         description="Model name (e.g., 'rerank-english-v2.0', 'ms-marco-MiniLM-L-12-v2')"
     )
@@ -379,7 +381,7 @@ class RerankerComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
         method = self.method
-        model = self.model
+        model = self.model_id
         api_key = self.api_key
         query_column = self.query_column
         text_column = self.text_column

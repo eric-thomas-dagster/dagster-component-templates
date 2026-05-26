@@ -18,7 +18,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -143,6 +143,7 @@ class ExpenseReportExtractorComponent(Component, Model, Resolvable):
     - Audit trail generation
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(
         description="Upstream asset key providing a DataFrame with expense report content"
@@ -155,7 +156,9 @@ class ExpenseReportExtractorComponent(Component, Model, Resolvable):
         default="text",
         description="Input type: 'text' (raw text) or 'file' (read file content)",
     )
-    model: str = Field(default="gpt-4o-mini", description="LiteLLM model string")
+    model_id: str = Field(
+        alias="model",
+        default="gpt-4o-mini", description="LiteLLM model string")
     api_key_env_var: str = Field(
         default="OPENAI_API_KEY",
         description="Env var name for API key",
@@ -301,7 +304,7 @@ class ExpenseReportExtractorComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         input_column = self.input_column
         input_type = self.input_type
-        model = self.model
+        model = self.model_id
         api_key_env_var = self.api_key_env_var
         output_fields = self.output_fields
         batch_size = self.batch_size

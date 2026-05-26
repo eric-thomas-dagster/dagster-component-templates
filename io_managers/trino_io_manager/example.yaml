@@ -5,4 +5,4 @@ attributes:
   port: 8080
   user: dagster
   catalog: iceberg
-  schema_name: default
+  default_schema: default

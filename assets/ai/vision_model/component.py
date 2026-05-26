@@ -24,7 +24,7 @@ from dagster import (
     Output,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -171,6 +171,7 @@ class VisionModelComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(
         description="Name of the asset that will hold image analysis results"
     )
@@ -183,7 +184,8 @@ class VisionModelComponent(Component, Model, Resolvable):
         description="Vision model provider: openai, anthropic"
     )
 
-    model: str = Field(
+    model_id: str = Field(
+        alias="model",
         description="Model name (e.g., 'gpt-4o', 'gpt-4-vision-preview', 'claude-3-opus-20240229')"
     )
 
@@ -375,7 +377,7 @@ class VisionModelComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
         provider = self.provider
-        model = self.model
+        model = self.model_id
         api_key = self.api_key
         prompt = self.prompt
         image_column = self.image_column

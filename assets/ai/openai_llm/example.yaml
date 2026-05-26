@@ -1,6 +1,7 @@
 type: dagster_component_templates.OpenAILLMComponent
 attributes:
   asset_name: product_descriptions_enriched
+  upstream_asset_key: raw_documents
 
   # OpenAI Configuration
   api_key: "${OPENAI_API_KEY}"

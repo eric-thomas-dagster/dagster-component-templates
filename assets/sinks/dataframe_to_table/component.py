@@ -20,7 +20,7 @@ from dagster import (
     asset,
     MetadataValue,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -128,6 +128,7 @@ def _build_partitions_def(
 class DataframeToTableComponent(Component, Model, Resolvable):
     """Write a DataFrame to a database table (terminal sink)."""
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     table_name: str = Field(description="Destination database table name")
@@ -145,7 +146,9 @@ class DataframeToTableComponent(Component, Model, Resolvable):
         default="replace",
         description="Behavior if the table already exists: 'replace', 'append', or 'fail'",
     )
-    schema: Optional[str] = Field(default=None, description="Database schema")
+    schema_name: Optional[str] = Field(
+        alias="schema",
+        default=None, description="Database schema")
     drop_timezone: bool = Field(
         default=True,
         description=(
@@ -266,7 +269,7 @@ class DataframeToTableComponent(Component, Model, Resolvable):
         database_url = self.database_url
         database_url_env_var = self.database_url_env_var
         if_exists = self.if_exists
-        schema = self.schema
+        schema = self.schema_name
         chunksize = self.chunksize
         drop_timezone = self.drop_timezone
         group_name = self.group_name

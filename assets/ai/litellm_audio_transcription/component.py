@@ -17,7 +17,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -141,11 +141,14 @@ class LitellmAudioTranscriptionComponent(Component, Model, Resolvable):
         ```
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     audio_path_column: str = Field(description="Column containing local audio file paths")
     output_column: str = Field(default="transcription", description="Column to write transcribed text")
-    model: str = Field(default="whisper-1", description="Transcription model (e.g. whisper-1)")
+    model_id: str = Field(
+        alias="model",
+        default="whisper-1", description="Transcription model (e.g. whisper-1)")
     language: Optional[str] = Field(default=None, description="ISO 639-1 language code hint (e.g. en, es, fr)")
     api_key_env_var: Optional[str] = Field(default=None, description="Env var name for API key")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
@@ -272,7 +275,7 @@ class LitellmAudioTranscriptionComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         audio_path_column = self.audio_path_column
         output_column = self.output_column
-        model = self.model
+        model = self.model_id
         language = self.language
         api_key_env_var = self.api_key_env_var
         group_name = self.group_name

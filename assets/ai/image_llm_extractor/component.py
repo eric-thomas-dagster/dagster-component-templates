@@ -18,7 +18,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -144,6 +144,7 @@ class ImageLlmExtractorComponent(Component, Model, Resolvable):
     - Medical image metadata extraction
     """
 
+    model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(
         description="Upstream asset key providing a DataFrame"
@@ -159,7 +160,8 @@ class ImageLlmExtractorComponent(Component, Model, Resolvable):
         default=None,
         description="Extra instruction prepended to the extraction prompt",
     )
-    model: str = Field(
+    model_id: str = Field(
+        alias="model",
         default="gpt-4o-mini",
         description="Vision-capable model name (litellm format)",
     )
@@ -297,7 +299,7 @@ class ImageLlmExtractorComponent(Component, Model, Resolvable):
         image_column = self.image_column
         extraction_fields = self.extraction_fields
         prompt_prefix = self.prompt_prefix
-        model = self.model
+        model = self.model_id
         max_tokens = self.max_tokens
         api_key_env_var = self.api_key_env_var
         input_type = self.input_type

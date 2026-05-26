@@ -1,6 +1,7 @@
 type: dagster_component_templates.TextModeratorComponent
 attributes:
   asset_name: moderated_content
+  upstream_asset_key: raw_comments
 
   # Moderation Method
   method: openai_moderation  # Options: openai_moderation, perspective_api, transformer, llm

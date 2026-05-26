@@ -120,8 +120,19 @@ class SnowflakeTaskExecuteAssetComponent(Component, Model, Resolvable):
             cursor = conn.cursor()
             try:
                 fqn = f"{_self.database}.{_self.schema_name}.{_self.task_name}"
-                context.log.info(f"EXECUTE TASK {fqn}")
-                cursor.execute(f"EXECUTE TASK {fqn}")
+                execute_query = f"EXECUTE TASK {fqn}"
+                try:
+                    cursor.execute(execute_query)
+                    context.log.info(f"Executed Snowflake task: {_self.task_name}")
+                except Exception as exc:
+                    if "non-root task" in str(exc).lower():
+                        context.log.info(
+                            f"{_self.task_name} is a child task — skipping direct EXECUTE TASK "
+                            f"(parent triggers it). Run the parent task asset (or wait for "
+                            f"its schedule) to actually exercise this asset."
+                        )
+                    else:
+                        raise
 
                 metadata: Dict[str, Any] = {
                     "task_fqn": fqn,

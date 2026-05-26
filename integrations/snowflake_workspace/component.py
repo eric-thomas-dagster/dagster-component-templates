@@ -459,8 +459,18 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 cursor = conn.cursor()
                                 try:
                                     execute_query = f"EXECUTE TASK {db_v}.{schema_v}.{task_name_v}"
-                                    cursor.execute(execute_query)
-                                    context.log.info(f"Executed Snowflake task: {task_name_v}")
+                                    try:
+                                        cursor.execute(execute_query)
+                                        context.log.info(f"Executed Snowflake task: {task_name_v}")
+                                    except Exception as exc:
+                                        if "non-root task" in str(exc).lower():
+                                            context.log.info(
+                                                f"{task_name_v} is a child task — skipping direct EXECUTE TASK "
+                                                f"(parent triggers it). Run the parent task asset (or wait for "
+                                                f"its schedule) to actually exercise this asset."
+                                            )
+                                        else:
+                                            raise
 
                                     metadata = {
                                         "task_name": task_name_v,
@@ -542,21 +552,18 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # Import Stored Procedures
             if self.import_stored_procedures:
                 try:
-                    query = f"""
-                    SELECT
-                        procedure_name,
-                        procedure_schema,
-                        procedure_catalog,
-                        argument_signature,
-                        created
-                    FROM {self.database}.INFORMATION_SCHEMA.PROCEDURES
-                    WHERE procedure_schema = '{self.schema_name}'
-                    """
-
+                    # SHOW PROCEDURES (not INFORMATION_SCHEMA.PROCEDURES) —
+                    # SHOW only needs USAGE on the schema + any privilege on
+                    # the proc; INFORMATION_SCHEMA can be invisible to
+                    # least-privilege roles.
+                    query = f"SHOW PROCEDURES IN SCHEMA {self.database}.{self.schema_name}"
                     procedures = self._execute_query(conn, query)
 
                     for proc in procedures:
-                        proc_name = proc['PROCEDURE_NAME']
+                        # SHOW PROCEDURES returns NAME (no PROCEDURE_NAME) and
+                        # has no CATALOG column — we already know the database
+                        # from self.database.
+                        proc_name = proc['NAME']
 
                         if not self._should_include_entity(proc_name):
                             continue
@@ -571,9 +578,9 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             description=f"Snowflake stored procedure: {proc_name}",
                             metadata={
                                 "snowflake_procedure_name": proc_name,
-                                "snowflake_database": proc['PROCEDURE_CATALOG'],
-                                "snowflake_schema": proc['PROCEDURE_SCHEMA'],
-                                "snowflake_signature": proc.get('ARGUMENT_SIGNATURE'),
+                                "snowflake_database": self.database,
+                                "snowflake_schema": proc.get('SCHEMA_NAME', self.schema_name),
+                                "snowflake_signature": proc.get('ARGUMENTS'),
                                 "entity_type": "stored_procedure",
                             },
                         ))
@@ -605,8 +612,9 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             return _procedure_asset
 
                         assets_list.append(_make_proc_asset(
-                            proc_name, proc['PROCEDURE_CATALOG'],
-                            proc['PROCEDURE_SCHEMA'], _proc_kwargs, self,
+                            proc_name, self.database,
+                            proc.get('SCHEMA_NAME', self.schema_name),
+                            _proc_kwargs, self,
                         ))
 
                 except Exception as e:
@@ -894,23 +902,17 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # Import Stages
             if self.import_stages:
                 try:
-                    query = f"""
-                    SELECT
-                        stage_name,
-                        stage_schema,
-                        stage_catalog,
-                        stage_url,
-                        stage_type,
-                        stage_owner,
-                        created
-                    FROM {self.database}.INFORMATION_SCHEMA.STAGES
-                    WHERE stage_schema = '{self.schema_name}'
-                    """
-
+                    # SHOW STAGES (not INFORMATION_SCHEMA.STAGES) — SHOW only
+                    # needs USAGE on the schema; INFORMATION_SCHEMA can be
+                    # invisible to least-privilege roles.
+                    query = f"SHOW STAGES IN SCHEMA {self.database}.{self.schema_name}"
                     stages = self._execute_query(conn, query)
 
                     for stage in stages:
-                        stage_name = stage['STAGE_NAME']
+                        # SHOW STAGES returns NAME (not STAGE_NAME), DATABASE_NAME,
+                        # SCHEMA_NAME, URL, TYPE, OWNER — different from
+                        # INFORMATION_SCHEMA.STAGES column names.
+                        stage_name = stage['NAME']
 
                         if not self._should_include_entity(stage_name):
                             continue
@@ -925,10 +927,10 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             description=f"Snowflake stage: {stage_name}",
                             metadata={
                                 "snowflake_stage_name": stage_name,
-                                "snowflake_database": stage['STAGE_CATALOG'],
-                                "snowflake_schema": stage['STAGE_SCHEMA'],
-                                "snowflake_url": stage.get('STAGE_URL'),
-                                "snowflake_type": stage.get('STAGE_TYPE'),
+                                "snowflake_database": stage.get('DATABASE_NAME', self.database),
+                                "snowflake_schema": stage.get('SCHEMA_NAME', self.schema_name),
+                                "snowflake_url": stage.get('URL'),
+                                "snowflake_type": stage.get('TYPE'),
                                 "entity_type": "stage",
                             },
                         ))
@@ -955,7 +957,10 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             return _stage_asset
 
                         assets_list.append(_make_stage_asset(
-                            stage_name, stage['STAGE_CATALOG'], stage['STAGE_SCHEMA'], _stage_kwargs, self,
+                            stage_name,
+                            stage.get('DATABASE_NAME', self.database),
+                            stage.get('SCHEMA_NAME', self.schema_name),
+                            _stage_kwargs, self,
                         ))
 
                 except Exception as e:
@@ -1052,23 +1057,18 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             # Import External Tables
             if self.import_external_tables:
                 try:
-                    query = f"""
-                    SELECT
-                        table_name,
-                        table_schema,
-                        table_catalog,
-                        table_owner,
-                        created,
-                        last_altered
-                    FROM {self.database}.INFORMATION_SCHEMA.TABLES
-                    WHERE table_schema = '{self.schema_name}'
-                    AND table_type = 'EXTERNAL TABLE'
-                    """
-
+                    # SHOW EXTERNAL TABLES (not INFORMATION_SCHEMA.TABLES) —
+                    # SHOW only needs USAGE on the schema; INFORMATION_SCHEMA
+                    # can be invisible to least-privilege roles.
+                    query = f"SHOW EXTERNAL TABLES IN SCHEMA {self.database}.{self.schema_name}"
                     ext_tables = self._execute_query(conn, query)
 
                     for ext_table in ext_tables:
-                        table_name = ext_table['TABLE_NAME']
+                        # SHOW EXTERNAL TABLES returns NAME (not TABLE_NAME),
+                        # DATABASE_NAME (not TABLE_CATALOG), SCHEMA_NAME (not
+                        # TABLE_SCHEMA), plus richer fields (location, owner,
+                        # last_refreshed_on, file_format_name, etc.).
+                        table_name = ext_table['NAME']
 
                         if not self._should_include_entity(table_name):
                             continue
@@ -1083,8 +1083,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             description=f"Snowflake external table: {table_name}",
                             metadata={
                                 "snowflake_table_name": table_name,
-                                "snowflake_database": ext_table['TABLE_CATALOG'],
-                                "snowflake_schema": ext_table['TABLE_SCHEMA'],
+                                "snowflake_database": ext_table.get('DATABASE_NAME', self.database),
+                                "snowflake_schema": ext_table.get('SCHEMA_NAME', self.schema_name),
                                 "entity_type": "external_table",
                             },
                         ))
@@ -1135,7 +1135,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             return _external_table_asset
 
                         assets_list.append(_make_external_table_asset(
-                            table_name, ext_table['TABLE_CATALOG'], ext_table['TABLE_SCHEMA'], _ext_kwargs, self,
+                            table_name, ext_table.get('DATABASE_NAME', self.database), ext_table.get('SCHEMA_NAME', self.schema_name), _ext_kwargs, self,
                         ))
 
                 except Exception as e:

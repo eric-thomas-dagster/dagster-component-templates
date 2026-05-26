@@ -462,37 +462,70 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                     cursor.execute(execute_query)
                                     context.log.info(f"Executed Snowflake task: {task_name_v}")
 
-                                    history_query = f"""
-                                    SELECT
-                                        query_id,
-                                        state,
-                                        scheduled_time,
-                                        query_start_time,
-                                        completed_time,
-                                        error_message
-                                    FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY(
-                                        TASK_NAME => '{task_name_v}',
-                                        SCHEDULED_TIME_RANGE_START => DATEADD('hour', -1, CURRENT_TIMESTAMP())
-                                    ))
-                                    ORDER BY scheduled_time DESC
-                                    LIMIT 1
-                                    """
-                                    cursor.execute(history_query)
-                                    history = cursor.fetchone()
-
                                     metadata = {
                                         "task_name": task_name_v,
                                         "database": db_v,
                                         "schema": schema_v,
                                     }
-                                    if history:
-                                        columns = [col[0] for col in cursor.description]
-                                        history_dict = dict(zip(columns, history))
-                                        metadata.update({
-                                            "query_id": history_dict.get('QUERY_ID'),
-                                            "state": history_dict.get('STATE'),
-                                            "scheduled_time": str(history_dict.get('SCHEDULED_TIME')) if history_dict.get('SCHEDULED_TIME') else None,
-                                        })
+
+                                    # SHOW TASKS first — works for least-privilege roles where
+                                    # INFORMATION_SCHEMA may be invisible. Pulls schedule + state.
+                                    try:
+                                        cursor.execute(
+                                            f"SHOW TASKS LIKE '{task_name_v}' "
+                                            f"IN SCHEMA {db_v}.{schema_v}"
+                                        )
+                                        info = cursor.fetchone()
+                                        if info:
+                                            columns = [col[0].lower() for col in cursor.description]
+                                            info_dict = dict(zip(columns, info))
+                                            metadata.update({
+                                                "task_state": info_dict.get("state"),
+                                                "task_schedule": info_dict.get("schedule"),
+                                                "warehouse": info_dict.get("warehouse"),
+                                                "owner": info_dict.get("owner"),
+                                            })
+                                    except Exception as exc:
+                                        context.log.warning(
+                                            f"Could not read task metadata for {task_name_v}: {exc}. "
+                                            f"Execute succeeded; emitting asset without enriched metadata."
+                                        )
+
+                                    # TASK_HISTORY is a table function (not a view) — Snowflake
+                                    # serves it via the ACCOUNT_USAGE / INFORMATION_SCHEMA function
+                                    # surface. Wrap in try/except so EXECUTE TASK still wins even
+                                    # if the role can't read history.
+                                    try:
+                                        history_query = f"""
+                                        SELECT
+                                            query_id,
+                                            state,
+                                            scheduled_time,
+                                            query_start_time,
+                                            completed_time,
+                                            error_message
+                                        FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY(
+                                            TASK_NAME => '{task_name_v}',
+                                            SCHEDULED_TIME_RANGE_START => DATEADD('hour', -1, CURRENT_TIMESTAMP())
+                                        ))
+                                        ORDER BY scheduled_time DESC
+                                        LIMIT 1
+                                        """
+                                        cursor.execute(history_query)
+                                        history = cursor.fetchone()
+                                        if history:
+                                            columns = [col[0] for col in cursor.description]
+                                            history_dict = dict(zip(columns, history))
+                                            metadata.update({
+                                                "query_id": history_dict.get('QUERY_ID'),
+                                                "state": history_dict.get('STATE'),
+                                                "scheduled_time": str(history_dict.get('SCHEDULED_TIME')) if history_dict.get('SCHEDULED_TIME') else None,
+                                            })
+                                    except Exception as exc:
+                                        context.log.warning(
+                                            f"Could not read TASK_HISTORY for {task_name_v}: {exc}. "
+                                            f"Execute succeeded; emitting asset without history metadata."
+                                        )
                                     return metadata
                                 finally:
                                     cursor.close()
@@ -627,32 +660,40 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                     cursor.execute(refresh_query)
                                     context.log.info(f"Triggered refresh for dynamic table: {dt_name_v}")
 
-                                    info_query = f"""
-                                    SELECT
-                                        name,
-                                        refresh_mode,
-                                        target_lag,
-                                        scheduling_state,
-                                        last_refresh_status
-                                    FROM {db_v}.INFORMATION_SCHEMA.DYNAMIC_TABLES
-                                    WHERE schema_name = '{schema_v}' AND name = '{dt_name_v}'
-                                    """
-                                    cursor.execute(info_query)
-                                    info = cursor.fetchone()
-
                                     metadata = {
                                         "table_name": dt_name_v,
                                         "database": db_v,
                                         "schema": schema_v,
                                     }
-                                    if info:
-                                        columns = [col[0] for col in cursor.description]
-                                        info_dict = dict(zip(columns, info))
-                                        metadata.update({
-                                            "refresh_mode": info_dict.get('REFRESH_MODE'),
-                                            "scheduling_state": info_dict.get('SCHEDULING_STATE'),
-                                            "last_refresh_status": info_dict.get('LAST_REFRESH_STATUS'),
-                                        })
+
+                                    # Read enriched metadata via SHOW (not INFORMATION_SCHEMA).
+                                    # SHOW DYNAMIC TABLES only needs USAGE on the schema + any
+                                    # privilege on the DT; INFORMATION_SCHEMA.DYNAMIC_TABLES can
+                                    # be invisible to least-privilege roles (e.g. DAGSTER_RUNNER)
+                                    # even when the same role has USAGE on the database — Snowflake
+                                    # reports the view as "does not exist or not authorized".
+                                    # Wrap in try/except so refresh still wins if SHOW also fails.
+                                    try:
+                                        cursor.execute(
+                                            f"SHOW DYNAMIC TABLES LIKE '{dt_name_v}' "
+                                            f"IN SCHEMA {db_v}.{schema_v}"
+                                        )
+                                        info = cursor.fetchone()
+                                        if info:
+                                            columns = [col[0].lower() for col in cursor.description]
+                                            info_dict = dict(zip(columns, info))
+                                            metadata.update({
+                                                "refresh_mode": info_dict.get("refresh_mode"),
+                                                "scheduling_state": info_dict.get("scheduling_state"),
+                                                "target_lag": info_dict.get("target_lag"),
+                                                "rows": info_dict.get("rows"),
+                                                "bytes": info_dict.get("bytes"),
+                                            })
+                                    except Exception as exc:
+                                        context.log.warning(
+                                            f"Could not read DT metadata for {dt_name_v}: {exc}. "
+                                            f"Refresh succeeded; emitting asset without enriched metadata."
+                                        )
                                     return metadata
                                 finally:
                                     cursor.close()
@@ -768,40 +809,76 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                     cursor.execute(refresh_query)
                                     context.log.info(f"Refreshed Snowpipe: {pipe_name_v}")
 
-                                    status_query = f"SELECT SYSTEM$PIPE_STATUS('{db_v}.{schema_v}.{pipe_name_v}')"
-                                    cursor.execute(status_query)
-                                    status = cursor.fetchone()
-
-                                    history_query = f"""
-                                    SELECT
-                                        file_name,
-                                        stage_location,
-                                        last_load_time,
-                                        row_count,
-                                        row_parsed,
-                                        file_size,
-                                        first_error_message
-                                    FROM TABLE(INFORMATION_SCHEMA.COPY_HISTORY(
-                                        TABLE_NAME => '{pipe_name_v}',
-                                        START_TIME => DATEADD('hour', -1, CURRENT_TIMESTAMP())
-                                    ))
-                                    ORDER BY last_load_time DESC
-                                    LIMIT 5
-                                    """
-                                    try:
-                                        cursor.execute(history_query)
-                                        recent_loads = cursor.fetchall()
-                                        load_count = len(recent_loads) if recent_loads else 0
-                                    except Exception:
-                                        load_count = 0
-
-                                    return {
+                                    metadata = {
                                         "pipe_name": pipe_name_v,
                                         "database": db_v,
                                         "schema": schema_v,
-                                        "pipe_status": str(status[0]) if status else None,
-                                        "recent_loads": load_count,
                                     }
+
+                                    # SYSTEM$PIPE_STATUS — works for any role with USAGE on the pipe.
+                                    try:
+                                        cursor.execute(
+                                            f"SELECT SYSTEM$PIPE_STATUS('{db_v}.{schema_v}.{pipe_name_v}')"
+                                        )
+                                        status = cursor.fetchone()
+                                        metadata["pipe_status"] = str(status[0]) if status else None
+                                    except Exception as exc:
+                                        context.log.warning(
+                                            f"Could not read pipe status for {pipe_name_v}: {exc}."
+                                        )
+
+                                    # SHOW PIPES picks up notification_channel + owner, which the
+                                    # INFORMATION_SCHEMA path doesn't expose. Works for
+                                    # least-privilege roles.
+                                    try:
+                                        cursor.execute(
+                                            f"SHOW PIPES LIKE '{pipe_name_v}' "
+                                            f"IN SCHEMA {db_v}.{schema_v}"
+                                        )
+                                        info = cursor.fetchone()
+                                        if info:
+                                            columns = [col[0].lower() for col in cursor.description]
+                                            info_dict = dict(zip(columns, info))
+                                            metadata.update({
+                                                "owner": info_dict.get("owner"),
+                                                "notification_channel": info_dict.get("notification_channel"),
+                                                "definition": info_dict.get("definition"),
+                                            })
+                                    except Exception as exc:
+                                        context.log.warning(
+                                            f"Could not read pipe metadata for {pipe_name_v}: {exc}."
+                                        )
+
+                                    # COPY_HISTORY is a table function — wrap in try/except so
+                                    # REFRESH still wins even if the role can't read it.
+                                    try:
+                                        history_query = f"""
+                                        SELECT
+                                            file_name,
+                                            stage_location,
+                                            last_load_time,
+                                            row_count,
+                                            row_parsed,
+                                            file_size,
+                                            first_error_message
+                                        FROM TABLE(INFORMATION_SCHEMA.COPY_HISTORY(
+                                            TABLE_NAME => '{pipe_name_v}',
+                                            START_TIME => DATEADD('hour', -1, CURRENT_TIMESTAMP())
+                                        ))
+                                        ORDER BY last_load_time DESC
+                                        LIMIT 5
+                                        """
+                                        cursor.execute(history_query)
+                                        recent_loads = cursor.fetchall()
+                                        metadata["recent_loads"] = len(recent_loads) if recent_loads else 0
+                                    except Exception as exc:
+                                        context.log.warning(
+                                            f"Could not read COPY_HISTORY for {pipe_name_v}: {exc}. "
+                                            f"Refresh succeeded; emitting asset without load-count metadata."
+                                        )
+                                        metadata["recent_loads"] = None
+
+                                    return metadata
                                 finally:
                                     cursor.close()
                                     conn.close()
@@ -929,28 +1006,36 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                     cursor.execute(f"ALTER MATERIALIZED VIEW {db_v}.{schema_v}.{mv_name_v} RESUME")
                                     context.log.info(f"Refreshed materialized view: {mv_name_v}")
 
-                                    info_query = f"""
-                                    SELECT
-                                        table_name,
-                                        row_count,
-                                        bytes
-                                    FROM {db_v}.INFORMATION_SCHEMA.TABLES
-                                    WHERE table_schema = '{schema_v}' AND table_name = '{mv_name_v}'
-                                    """
-                                    cursor.execute(info_query)
-                                    info = cursor.fetchone()
                                     metadata = {
                                         "view_name": mv_name_v,
                                         "database": db_v,
                                         "schema": schema_v,
                                     }
-                                    if info:
-                                        columns = [col[0] for col in cursor.description]
-                                        info_dict = dict(zip(columns, info))
-                                        metadata.update({
-                                            "row_count": info_dict.get('ROW_COUNT'),
-                                            "bytes": info_dict.get('BYTES'),
-                                        })
+
+                                    # SHOW MATERIALIZED VIEWS — works for least-privilege roles.
+                                    # Provides rows + bytes + cluster_by + behind_by + invalid + owner.
+                                    try:
+                                        cursor.execute(
+                                            f"SHOW MATERIALIZED VIEWS LIKE '{mv_name_v}' "
+                                            f"IN SCHEMA {db_v}.{schema_v}"
+                                        )
+                                        info = cursor.fetchone()
+                                        if info:
+                                            columns = [col[0].lower() for col in cursor.description]
+                                            info_dict = dict(zip(columns, info))
+                                            metadata.update({
+                                                "rows": info_dict.get("rows"),
+                                                "bytes": info_dict.get("bytes"),
+                                                "cluster_by": info_dict.get("cluster_by"),
+                                                "behind_by": info_dict.get("behind_by"),
+                                                "invalid": info_dict.get("invalid"),
+                                                "owner": info_dict.get("owner"),
+                                            })
+                                    except Exception as exc:
+                                        context.log.warning(
+                                            f"Could not read MV metadata for {mv_name_v}: {exc}. "
+                                            f"Refresh succeeded; emitting asset without enriched metadata."
+                                        )
                                     return metadata
                                 finally:
                                     cursor.close()
@@ -1013,28 +1098,36 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                     cursor.execute(f"ALTER EXTERNAL TABLE {db_v}.{schema_v}.{table_name_v} REFRESH")
                                     context.log.info(f"Refreshed external table: {table_name_v}")
 
-                                    info_query = f"""
-                                    SELECT
-                                        table_name,
-                                        row_count,
-                                        bytes
-                                    FROM {db_v}.INFORMATION_SCHEMA.TABLES
-                                    WHERE table_schema = '{schema_v}' AND table_name = '{table_name_v}'
-                                    """
-                                    cursor.execute(info_query)
-                                    info = cursor.fetchone()
                                     metadata = {
                                         "table_name": table_name_v,
                                         "database": db_v,
                                         "schema": schema_v,
                                     }
-                                    if info:
-                                        columns = [col[0] for col in cursor.description]
-                                        info_dict = dict(zip(columns, info))
-                                        metadata.update({
-                                            "row_count": info_dict.get('ROW_COUNT'),
-                                            "bytes": info_dict.get('BYTES'),
-                                        })
+
+                                    # SHOW EXTERNAL TABLES — works for least-privilege roles.
+                                    # Provides rows + location + file_format_name + last_refreshed.
+                                    try:
+                                        cursor.execute(
+                                            f"SHOW EXTERNAL TABLES LIKE '{table_name_v}' "
+                                            f"IN SCHEMA {db_v}.{schema_v}"
+                                        )
+                                        info = cursor.fetchone()
+                                        if info:
+                                            columns = [col[0].lower() for col in cursor.description]
+                                            info_dict = dict(zip(columns, info))
+                                            metadata.update({
+                                                "rows": info_dict.get("rows"),
+                                                "location": info_dict.get("location"),
+                                                "file_format_name": info_dict.get("file_format_name"),
+                                                "last_refreshed_on": str(info_dict.get("last_refreshed_on"))
+                                                    if info_dict.get("last_refreshed_on") else None,
+                                                "owner": info_dict.get("owner"),
+                                            })
+                                    except Exception as exc:
+                                        context.log.warning(
+                                            f"Could not read external table metadata for {table_name_v}: {exc}. "
+                                            f"Refresh succeeded; emitting asset without enriched metadata."
+                                        )
                                     return metadata
                                 finally:
                                     cursor.close()
@@ -1084,26 +1177,58 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 conn = self_v._create_connection()
                                 cursor = conn.cursor()
                                 try:
-                                    history_query = f"""
-                                    SELECT
-                                        name,
-                                        state,
-                                        scheduled_time,
-                                        completed_time,
-                                        error
-                                    FROM TABLE(INFORMATION_SCHEMA.ALERT_HISTORY(
-                                        SCHEDULED_TIME_RANGE_START => DATEADD('hour', -24, CURRENT_TIMESTAMP())
-                                    ))
-                                    WHERE name = '{alert_name_v}'
-                                    ORDER BY scheduled_time DESC
-                                    LIMIT 1
-                                    """
-                                    cursor.execute(history_query)
-                                    history = cursor.fetchone()
-                                    if history:
-                                        columns = [col[0] for col in cursor.description]
-                                        history_dict = dict(zip(columns, history))
-                                        context.log.info(f"Alert {alert_name_v} last state: {history_dict.get('STATE')}")
+                                    # SHOW ALERTS first — works for least-privilege roles where
+                                    # INFORMATION_SCHEMA may be invisible. Exposes state +
+                                    # condition + action + schedule.
+                                    try:
+                                        cursor.execute(
+                                            f"SHOW ALERTS LIKE '{alert_name_v}' "
+                                            f"IN SCHEMA {db_v}.{schema_v}"
+                                        )
+                                        info = cursor.fetchone()
+                                        if info:
+                                            columns = [col[0].lower() for col in cursor.description]
+                                            info_dict = dict(zip(columns, info))
+                                            context.log.info(
+                                                f"Alert {alert_name_v} state={info_dict.get('state')} "
+                                                f"schedule={info_dict.get('schedule')}"
+                                            )
+                                    except Exception as exc:
+                                        context.log.warning(
+                                            f"Could not read alert metadata for {alert_name_v}: {exc}."
+                                        )
+
+                                    # ALERT_HISTORY is a table function — wrap in try/except
+                                    # so the observation still emits even if the role can't
+                                    # read history.
+                                    try:
+                                        history_query = f"""
+                                        SELECT
+                                            name,
+                                            state,
+                                            scheduled_time,
+                                            completed_time,
+                                            error
+                                        FROM TABLE(INFORMATION_SCHEMA.ALERT_HISTORY(
+                                            SCHEDULED_TIME_RANGE_START => DATEADD('hour', -24, CURRENT_TIMESTAMP())
+                                        ))
+                                        WHERE name = '{alert_name_v}'
+                                        ORDER BY scheduled_time DESC
+                                        LIMIT 1
+                                        """
+                                        cursor.execute(history_query)
+                                        history = cursor.fetchone()
+                                        if history:
+                                            columns = [col[0] for col in cursor.description]
+                                            history_dict = dict(zip(columns, history))
+                                            context.log.info(
+                                                f"Alert {alert_name_v} last run state: "
+                                                f"{history_dict.get('STATE')}"
+                                            )
+                                    except Exception as exc:
+                                        context.log.warning(
+                                            f"Could not read ALERT_HISTORY for {alert_name_v}: {exc}."
+                                        )
                                 finally:
                                     cursor.close()
                                     conn.close()
@@ -1259,33 +1384,33 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         schema_name = metadata['schema']
 
                         try:
-                            # Get dynamic table refresh info
-                            info_query = f"""
-                            SELECT
-                                name,
-                                scheduling_state,
-                                last_refresh_status,
-                                last_successful_refresh_time
-                            FROM {db}.INFORMATION_SCHEMA.DYNAMIC_TABLES
-                            WHERE schema_name = '{schema_name}' AND name = '{table_name}'
-                            """
-
-                            cursor.execute(info_query)
+                            # SHOW DYNAMIC TABLES (not INFORMATION_SCHEMA.DYNAMIC_TABLES) —
+                            # INFORMATION_SCHEMA can be invisible to least-privilege roles
+                            # (e.g. DAGSTER_RUNNER) even with USAGE on the database. SHOW
+                            # only requires USAGE on the schema + any privilege on the DT.
+                            cursor.execute(
+                                f"SHOW DYNAMIC TABLES LIKE '{table_name}' "
+                                f"IN SCHEMA {db}.{schema_name}"
+                            )
                             result = cursor.fetchone()
 
                             if result:
-                                columns = [col[0] for col in cursor.description]
+                                columns = [col[0].lower() for col in cursor.description]
                                 info_dict = dict(zip(columns, result))
 
                                 # Only emit if last refresh was successful
-                                if info_dict.get('LAST_REFRESH_STATUS') == 'SUCCESS':
+                                if (info_dict.get('last_refresh_state') == 'SUCCEEDED'
+                                        or info_dict.get('scheduling_state') == 'RUNNING'):
                                     yield AssetMaterialization(
                                         asset_key=asset_key,
                                         metadata={
                                             "table_name": table_name,
-                                            "scheduling_state": info_dict.get('SCHEDULING_STATE'),
-                                            "last_refresh_status": info_dict.get('LAST_REFRESH_STATUS'),
-                                            "last_successful_refresh_time": str(info_dict.get('LAST_SUCCESSFUL_REFRESH_TIME')) if info_dict.get('LAST_SUCCESSFUL_REFRESH_TIME') else None,
+                                            "scheduling_state": info_dict.get('scheduling_state'),
+                                            "last_refresh_status": info_dict.get('last_refresh_state'),
+                                            "refresh_mode": info_dict.get('refresh_mode'),
+                                            "target_lag": info_dict.get('target_lag'),
+                                            "rows": info_dict.get('rows'),
+                                            "bytes": info_dict.get('bytes'),
                                             "source": "snowflake_observation_sensor",
                                             "entity_type": "dynamic_table",
                                         }

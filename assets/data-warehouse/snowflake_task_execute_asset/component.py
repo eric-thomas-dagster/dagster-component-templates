@@ -123,38 +123,67 @@ class SnowflakeTaskExecuteAssetComponent(Component, Model, Resolvable):
                 context.log.info(f"EXECUTE TASK {fqn}")
                 cursor.execute(f"EXECUTE TASK {fqn}")
 
-                # Pull the most recent history entry so the materialization
-                # has the run-id / state / scheduled_time on it.
-                cursor.execute(f"""
-                    SELECT query_id, state, scheduled_time, query_start_time,
-                           completed_time, error_code, error_message
-                    FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY(
-                        TASK_NAME => '{_self.task_name}',
-                        SCHEDULED_TIME_RANGE_START =>
-                            DATEADD('minute', -5, CURRENT_TIMESTAMP())
-                    ))
-                    ORDER BY scheduled_time DESC
-                    LIMIT 1
-                """)
-                row = cursor.fetchone()
-
                 metadata: Dict[str, Any] = {
                     "task_fqn": fqn,
                     "task_name": _self.task_name,
                     "database": _self.database,
                     "schema": _self.schema_name,
                 }
-                if row:
-                    columns = [c[0] for c in cursor.description]
-                    rd = dict(zip(columns, row))
-                    metadata.update({
-                        "query_id": rd.get("QUERY_ID"),
-                        "state": rd.get("STATE"),
-                        "scheduled_time": str(rd.get("SCHEDULED_TIME")) if rd.get("SCHEDULED_TIME") else None,
-                        "completed_time": str(rd.get("COMPLETED_TIME")) if rd.get("COMPLETED_TIME") else None,
-                        "error_code": rd.get("ERROR_CODE"),
-                        "error_message": rd.get("ERROR_MESSAGE"),
-                    })
+
+                # SHOW TASKS — works for least-privilege roles where
+                # INFORMATION_SCHEMA may be invisible. Surfaces schedule + state.
+                try:
+                    cursor.execute(
+                        f"SHOW TASKS LIKE '{_self.task_name}' "
+                        f"IN SCHEMA {_self.database}.{_self.schema_name}"
+                    )
+                    info = cursor.fetchone()
+                    if info:
+                        columns = [c[0].lower() for c in cursor.description]
+                        rd = dict(zip(columns, info))
+                        metadata.update({
+                            "task_state": rd.get("state"),
+                            "task_schedule": rd.get("schedule"),
+                            "warehouse": rd.get("warehouse"),
+                            "owner": rd.get("owner"),
+                        })
+                except Exception as exc:
+                    context.log.warning(
+                        f"Could not read task metadata for {_self.task_name}: {exc}. "
+                        f"Execute succeeded; emitting asset without enriched metadata."
+                    )
+
+                # TASK_HISTORY is a table function — wrap in try/except so
+                # EXECUTE TASK still wins even if the role can't read history.
+                try:
+                    cursor.execute(f"""
+                        SELECT query_id, state, scheduled_time, query_start_time,
+                               completed_time, error_code, error_message
+                        FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY(
+                            TASK_NAME => '{_self.task_name}',
+                            SCHEDULED_TIME_RANGE_START =>
+                                DATEADD('minute', -5, CURRENT_TIMESTAMP())
+                        ))
+                        ORDER BY scheduled_time DESC
+                        LIMIT 1
+                    """)
+                    row = cursor.fetchone()
+                    if row:
+                        columns = [c[0] for c in cursor.description]
+                        rd = dict(zip(columns, row))
+                        metadata.update({
+                            "query_id": rd.get("QUERY_ID"),
+                            "state": rd.get("STATE"),
+                            "scheduled_time": str(rd.get("SCHEDULED_TIME")) if rd.get("SCHEDULED_TIME") else None,
+                            "completed_time": str(rd.get("COMPLETED_TIME")) if rd.get("COMPLETED_TIME") else None,
+                            "error_code": rd.get("ERROR_CODE"),
+                            "error_message": rd.get("ERROR_MESSAGE"),
+                        })
+                except Exception as exc:
+                    context.log.warning(
+                        f"Could not read TASK_HISTORY for {_self.task_name}: {exc}. "
+                        f"Execute succeeded; emitting asset without history metadata."
+                    )
                 return MaterializeResult(metadata=metadata)
             finally:
                 cursor.close()

@@ -151,7 +151,18 @@ class SnowflakeTaskCompletionSensorComponent(Component, Model, Resolvable):
             except Exception as e:
                 cursor.close()
                 conn.close()
-                return SensorResult(skip_reason=f"Snowflake TASK_HISTORY query failed: {e}")
+                # Least-privilege roles (e.g. DAGSTER_RUNNER without MONITOR on
+                # the task) may not be able to read INFORMATION_SCHEMA.TASK_HISTORY
+                # even if they can EXECUTE TASK. To unblock, grant MONITOR on the
+                # task to the role, or use a role with broader privileges for the
+                # sensor's connection.
+                return SensorResult(
+                    skip_reason=(
+                        f"Snowflake TASK_HISTORY query failed: {e}. If this is "
+                        f"a permission error, grant MONITOR on the task to the "
+                        f"role (or use a role with broader privileges for the sensor)."
+                    )
+                )
             finally:
                 pass
 

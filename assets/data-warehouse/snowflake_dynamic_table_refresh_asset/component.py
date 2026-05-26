@@ -120,34 +120,41 @@ class SnowflakeDynamicTableRefreshAssetComponent(Component, Model, Resolvable):
                 context.log.info(f"ALTER DYNAMIC TABLE {fqn} REFRESH")
                 cursor.execute(f"ALTER DYNAMIC TABLE {fqn} REFRESH")
 
-                # Pull current state from INFORMATION_SCHEMA.DYNAMIC_TABLES.
-                cursor.execute(f"""
-                    SELECT name, scheduling_state, last_refresh_status,
-                           target_lag, refresh_mode,
-                           last_successful_refresh_time
-                    FROM {_self.database}.INFORMATION_SCHEMA.DYNAMIC_TABLES
-                    WHERE schema_name = '{_self.schema_name}'
-                      AND name = '{_self.dynamic_table_name}'
-                """)
-                row = cursor.fetchone()
-
                 metadata: Dict[str, Any] = {
                     "dynamic_table_fqn": fqn,
                     "dynamic_table_name": _self.dynamic_table_name,
                     "database": _self.database,
                     "schema": _self.schema_name,
                 }
-                if row:
-                    columns = [c[0] for c in cursor.description]
-                    rd = dict(zip(columns, row))
-                    metadata.update({
-                        "scheduling_state": rd.get("SCHEDULING_STATE"),
-                        "last_refresh_status": rd.get("LAST_REFRESH_STATUS"),
-                        "target_lag": rd.get("TARGET_LAG"),
-                        "refresh_mode": rd.get("REFRESH_MODE"),
-                        "last_successful_refresh_time": str(rd.get("LAST_SUCCESSFUL_REFRESH_TIME"))
-                            if rd.get("LAST_SUCCESSFUL_REFRESH_TIME") else None,
-                    })
+
+                # SHOW DYNAMIC TABLES (not INFORMATION_SCHEMA.DYNAMIC_TABLES) —
+                # INFORMATION_SCHEMA can be invisible to least-privilege roles
+                # (e.g. DAGSTER_RUNNER) even with USAGE on the database. SHOW
+                # only requires USAGE on the schema + any privilege on the DT.
+                # Wrap in try/except so refresh still wins even if SHOW fails.
+                try:
+                    cursor.execute(
+                        f"SHOW DYNAMIC TABLES LIKE '{_self.dynamic_table_name}' "
+                        f"IN SCHEMA {_self.database}.{_self.schema_name}"
+                    )
+                    row = cursor.fetchone()
+                    if row:
+                        columns = [c[0].lower() for c in cursor.description]
+                        rd = dict(zip(columns, row))
+                        metadata.update({
+                            "scheduling_state": rd.get("scheduling_state"),
+                            "last_refresh_status": rd.get("last_refresh_state"),
+                            "target_lag": rd.get("target_lag"),
+                            "refresh_mode": rd.get("refresh_mode"),
+                            "rows": rd.get("rows"),
+                            "bytes": rd.get("bytes"),
+                            "owner": rd.get("owner"),
+                        })
+                except Exception as exc:
+                    context.log.warning(
+                        f"Could not read DT metadata for {_self.dynamic_table_name}: {exc}. "
+                        f"Refresh succeeded; emitting asset without enriched metadata."
+                    )
                 return MaterializeResult(metadata=metadata)
             finally:
                 cursor.close()

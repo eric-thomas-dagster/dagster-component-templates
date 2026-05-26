@@ -105,14 +105,17 @@ class SnowflakeTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolv
                 return SensorResult(skip_reason=f"Connect failed: {e}")
 
             try:
-                cursor.execute(f"SELECT COUNT(*), MAX(LAST_DDL_TIME) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{_self.table_name.upper()}' AND TABLE_SCHEMA = '{_self.schema_name.upper()}'")
-                row = cursor.fetchone()
-                # Row count
+                # Row count via direct COUNT(*) on the table — works for any
+                # role with SELECT.
                 cursor.execute(f"SELECT COUNT(*) FROM {_self.database}.{_self.schema_name}.{_self.table_name}")
                 row_count = cursor.fetchone()[0]
-                # Table info
+                # Table info via SHOW TABLES — works for any role with USAGE on
+                # the schema; INFORMATION_SCHEMA.TABLES can be invisible to
+                # least-privilege roles.
                 cursor.execute(f"SHOW TABLES LIKE '{_self.table_name}' IN SCHEMA {_self.database}.{_self.schema_name}")
                 info = cursor.fetchone()
+                info_cols = [c[0].lower() for c in cursor.description] if info else []
+                info_dict = dict(zip(info_cols, info)) if info else {}
             except Exception as e:
                 conn.close()
                 return SensorResult(skip_reason=f"Query failed: {e}")
@@ -123,6 +126,14 @@ class SnowflakeTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolv
                 "schema": _self.schema_name,
                 "table": _self.table_name,
             }
+            if info_dict:
+                # Surface the SHOW TABLES fields that are universally useful
+                # (works for any role that could see the table at all).
+                metadata.update({
+                    k: info_dict[k] for k in ("bytes", "owner", "kind") if k in info_dict
+                })
+                if info_dict.get("created_on"):
+                    metadata["created_on"] = str(info_dict["created_on"])
             if _self.include_preview_metadata and row_count > 0:
                 try:
                     fqn = f"{_self.database}.{_self.schema_name}.{_self.table_name}"

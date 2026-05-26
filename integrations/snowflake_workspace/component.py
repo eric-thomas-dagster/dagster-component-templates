@@ -559,11 +559,34 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                     query = f"SHOW PROCEDURES IN SCHEMA {self.database}.{self.schema_name}"
                     procedures = self._execute_query(conn, query)
 
+                    # Dedupe overloaded procedure signatures (Snowflake returns
+                    # one SHOW row per (name, argument_signature) pair, so a
+                    # proc like SYSTEM$SEND_EMAIL with 1-arg / 2-arg / 3-arg
+                    # variants shows up 3 times — all hashing to the same
+                    # asset_key. Keep the first signature; log the rest.
+                    _seen_proc_names: set[str] = set()
+
                     for proc in procedures:
                         # SHOW PROCEDURES returns NAME (no PROCEDURE_NAME) and
                         # has no CATALOG column — we already know the database
                         # from self.database.
                         proc_name = proc['NAME']
+
+                        # SYSTEM$* procedures are Snowflake-managed (e.g.
+                        # SYSTEM$SEND_EMAIL, SYSTEM$WAIT). They're not
+                        # user-managed assets and shouldn't be auto-imported
+                        # into the workspace asset graph.
+                        if proc_name.startswith("SYSTEM$"):
+                            continue
+
+                        if proc_name in _seen_proc_names:
+                            _logger.info(
+                                f"Skipping overloaded signature for procedure "
+                                f"{proc_name} (signature={proc.get('ARGUMENTS')!r}) — "
+                                f"first signature already imported."
+                            )
+                            continue
+                        _seen_proc_names.add(proc_name)
 
                         if not self._should_include_entity(proc_name):
                             continue

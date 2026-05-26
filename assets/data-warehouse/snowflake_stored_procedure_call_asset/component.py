@@ -13,11 +13,45 @@ from dagster import (
     ComponentLoadContext,
     Definitions,
     MaterializeResult,
+    MetadataValue,
     Model,
     Resolvable,
     asset,
 )
 from pydantic import Field
+
+
+def _emit_query_perf(cursor, query_id) -> dict:
+    """Per-query Snowflake perf metrics as plottable MetadataValue.int/float fields.
+
+    Dagster auto-plots numeric metadata on each asset's Plots tab; calling
+    this after every ``cursor.execute()`` adds a time-series of duration,
+    rows produced, bytes scanned, credits used, partition pruning.
+    """
+    if not query_id:
+        return {}
+    try:
+        cursor.execute(
+            "SELECT total_elapsed_time, rows_produced, bytes_scanned, "
+            "       bytes_spilled_to_local_storage, "
+            "       credits_used_cloud_services, "
+            "       partitions_scanned, partitions_total "
+            f"FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY_BY_QUERY_ID('{query_id}'))"
+        )
+        row = cursor.fetchone()
+        if not row:
+            return {}
+        return {
+            "snowflake/query_duration_ms":   MetadataValue.int(int(row[0] or 0)),
+            "snowflake/rows_produced":       MetadataValue.int(int(row[1] or 0)),
+            "snowflake/bytes_scanned":       MetadataValue.int(int(row[2] or 0)),
+            "snowflake/bytes_spilled_local": MetadataValue.int(int(row[3] or 0)),
+            "snowflake/credits_used":        MetadataValue.float(float(row[4] or 0.0)),
+            "snowflake/partitions_scanned":  MetadataValue.int(int(row[5] or 0)),
+            "snowflake/partitions_total":    MetadataValue.int(int(row[6] or 0)),
+        }
+    except Exception:
+        return {}
 
 
 class SnowflakeStoredProcedureCallAssetComponent(Component, Model, Resolvable):
@@ -141,15 +175,19 @@ class SnowflakeStoredProcedureCallAssetComponent(Component, Model, Resolvable):
             try:
                 context.log.info(call_sql)
                 cursor.execute(call_sql)
+                call_sfqid = cursor.sfqid
                 result = cursor.fetchone()
-                return MaterializeResult(metadata={
+                metadata = {
                     "procedure_fqn": fqn,
                     "procedure_name": _self.procedure_name,
                     "database": _self.database,
                     "schema": _self.schema_name,
                     "call_sql": call_sql,
                     "return_value": str(result[0]) if result else None,
-                })
+                }
+                # Per-run numeric perf trace (auto-plots on Plots tab).
+                metadata.update(_emit_query_perf(cursor, call_sfqid))
+                return MaterializeResult(metadata=metadata)
             finally:
                 cursor.close()
                 conn.close()

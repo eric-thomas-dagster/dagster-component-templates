@@ -18,11 +18,48 @@ from dagster import (
     ComponentLoadContext,
     Definitions,
     MaterializeResult,
+    MetadataValue,
     Model,
     Resolvable,
     asset,
 )
 from pydantic import Field
+
+
+def _emit_query_perf(cursor, query_id) -> dict:
+    """Pull plottable per-query perf metrics from QUERY_HISTORY for ``query_id``.
+
+    Dagster auto-plots ``MetadataValue.int`` / ``MetadataValue.float`` on
+    each asset's Plots tab — so calling this after ``cursor.execute()``
+    turns every materialization into a time-series of duration / rows /
+    bytes / credits / partition pruning. ``cursor.sfqid`` exposed by
+    snowflake-connector returns the last query id. Returns ``{}`` on any
+    failure so callers can blindly ``metadata.update(...)``.
+    """
+    if not query_id:
+        return {}
+    try:
+        cursor.execute(
+            "SELECT total_elapsed_time, rows_produced, bytes_scanned, "
+            "       bytes_spilled_to_local_storage, "
+            "       credits_used_cloud_services, "
+            "       partitions_scanned, partitions_total "
+            f"FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY_BY_QUERY_ID('{query_id}'))"
+        )
+        row = cursor.fetchone()
+        if not row:
+            return {}
+        return {
+            "snowflake/query_duration_ms":   MetadataValue.int(int(row[0] or 0)),
+            "snowflake/rows_produced":       MetadataValue.int(int(row[1] or 0)),
+            "snowflake/bytes_scanned":       MetadataValue.int(int(row[2] or 0)),
+            "snowflake/bytes_spilled_local": MetadataValue.int(int(row[3] or 0)),
+            "snowflake/credits_used":        MetadataValue.float(float(row[4] or 0.0)),
+            "snowflake/partitions_scanned":  MetadataValue.int(int(row[5] or 0)),
+            "snowflake/partitions_total":    MetadataValue.int(int(row[6] or 0)),
+        }
+    except Exception:
+        return {}
 
 
 class SnowflakeTaskExecuteAssetComponent(Component, Model, Resolvable):
@@ -121,8 +158,10 @@ class SnowflakeTaskExecuteAssetComponent(Component, Model, Resolvable):
             try:
                 fqn = f"{_self.database}.{_self.schema_name}.{_self.task_name}"
                 execute_query = f"EXECUTE TASK {fqn}"
+                exec_sfqid = None
                 try:
                     cursor.execute(execute_query)
+                    exec_sfqid = cursor.sfqid
                     context.log.info(f"Executed Snowflake task: {_self.task_name}")
                 except Exception as exc:
                     if "non-root task" in str(exc).lower():
@@ -140,6 +179,8 @@ class SnowflakeTaskExecuteAssetComponent(Component, Model, Resolvable):
                     "database": _self.database,
                     "schema": _self.schema_name,
                 }
+                # Per-run numeric perf trace (auto-plots on Plots tab).
+                metadata.update(_emit_query_perf(cursor, exec_sfqid))
 
                 # SHOW TASKS — works for least-privilege roles where
                 # INFORMATION_SCHEMA may be invisible. Surfaces schedule + state.

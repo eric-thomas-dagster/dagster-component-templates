@@ -16,11 +16,45 @@ from dagster import (
     ComponentLoadContext,
     Definitions,
     MaterializeResult,
+    MetadataValue,
     Model,
     Resolvable,
     asset,
 )
 from pydantic import Field
+
+
+def _emit_query_perf(cursor, query_id) -> dict:
+    """Per-query Snowflake perf metrics as plottable MetadataValue.int/float fields.
+
+    Dagster auto-plots numeric metadata on each asset's Plots tab; calling
+    this after every ``cursor.execute()`` adds a time-series of duration,
+    rows produced, bytes scanned, credits used, partition pruning.
+    """
+    if not query_id:
+        return {}
+    try:
+        cursor.execute(
+            "SELECT total_elapsed_time, rows_produced, bytes_scanned, "
+            "       bytes_spilled_to_local_storage, "
+            "       credits_used_cloud_services, "
+            "       partitions_scanned, partitions_total "
+            f"FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY_BY_QUERY_ID('{query_id}'))"
+        )
+        row = cursor.fetchone()
+        if not row:
+            return {}
+        return {
+            "snowflake/query_duration_ms":   MetadataValue.int(int(row[0] or 0)),
+            "snowflake/rows_produced":       MetadataValue.int(int(row[1] or 0)),
+            "snowflake/bytes_scanned":       MetadataValue.int(int(row[2] or 0)),
+            "snowflake/bytes_spilled_local": MetadataValue.int(int(row[3] or 0)),
+            "snowflake/credits_used":        MetadataValue.float(float(row[4] or 0.0)),
+            "snowflake/partitions_scanned":  MetadataValue.int(int(row[5] or 0)),
+            "snowflake/partitions_total":    MetadataValue.int(int(row[6] or 0)),
+        }
+    except Exception:
+        return {}
 
 
 class SnowflakeDynamicTableRefreshAssetComponent(Component, Model, Resolvable):
@@ -119,6 +153,7 @@ class SnowflakeDynamicTableRefreshAssetComponent(Component, Model, Resolvable):
             try:
                 context.log.info(f"ALTER DYNAMIC TABLE {fqn} REFRESH")
                 cursor.execute(f"ALTER DYNAMIC TABLE {fqn} REFRESH")
+                refresh_sfqid = cursor.sfqid
 
                 metadata: Dict[str, Any] = {
                     "dynamic_table_fqn": fqn,
@@ -126,6 +161,8 @@ class SnowflakeDynamicTableRefreshAssetComponent(Component, Model, Resolvable):
                     "database": _self.database,
                     "schema": _self.schema_name,
                 }
+                # Per-run numeric perf trace (auto-plots on Plots tab).
+                metadata.update(_emit_query_perf(cursor, refresh_sfqid))
 
                 # SHOW DYNAMIC TABLES (not INFORMATION_SCHEMA.DYNAMIC_TABLES) —
                 # INFORMATION_SCHEMA can be invisible to least-privilege roles
@@ -146,10 +183,13 @@ class SnowflakeDynamicTableRefreshAssetComponent(Component, Model, Resolvable):
                             "last_refresh_status": rd.get("last_refresh_state"),
                             "target_lag": rd.get("target_lag"),
                             "refresh_mode": rd.get("refresh_mode"),
-                            "rows": rd.get("rows"),
-                            "bytes": rd.get("bytes"),
                             "owner": rd.get("owner"),
                         })
+                        # Numeric fields → plottable.
+                        if rd.get("rows") is not None:
+                            metadata["snowflake/rows"] = MetadataValue.int(int(rd["rows"]))
+                        if rd.get("bytes") is not None:
+                            metadata["snowflake/bytes"] = MetadataValue.int(int(rd["bytes"]))
                 except Exception as exc:
                     context.log.warning(
                         f"Could not read DT metadata for {_self.dynamic_table_name}: {exc}. "

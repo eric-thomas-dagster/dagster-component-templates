@@ -23,6 +23,7 @@ from dagster import (
     sensor,
     SensorEvaluationContext,
     AssetMaterialization,
+    ObserveResult,
     Resolvable,
     Model,
     MetadataValue,
@@ -30,6 +31,47 @@ from dagster import (
 from pydantic import ConfigDict, Field
 
 _logger = logging.getLogger(__name__)
+
+
+def _emit_query_perf(cursor, query_id) -> dict:
+    """Return Dagster MetadataValue.int/float fields from QUERY_HISTORY for a
+    Snowflake query, keyed by a stable ``snowflake/*`` namespace.
+
+    Dagster's catalog auto-plots ``MetadataValue.int`` / ``MetadataValue.float``
+    fields over time on each asset's ``Plots`` tab — so wiring this after
+    every ``cursor.execute()`` turns each materialization into a per-run
+    perf trace (duration, rows produced, bytes scanned, credits used,
+    partition pruning ratio, spill bytes).
+
+    ``cursor.sfqid`` exposed by snowflake-connector returns the most-recent
+    query id; pass that as ``query_id``. Returns an empty dict on any
+    failure so callers can blindly ``metadata.update(...)`` without
+    risking the materialization itself.
+    """
+    if not query_id:
+        return {}
+    try:
+        cursor.execute(
+            "SELECT total_elapsed_time, rows_produced, bytes_scanned, "
+            "       bytes_spilled_to_local_storage, "
+            "       credits_used_cloud_services, "
+            "       partitions_scanned, partitions_total "
+            f"FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY_BY_QUERY_ID('{query_id}'))"
+        )
+        row = cursor.fetchone()
+        if not row:
+            return {}
+        return {
+            "snowflake/query_duration_ms":   MetadataValue.int(int(row[0] or 0)),
+            "snowflake/rows_produced":       MetadataValue.int(int(row[1] or 0)),
+            "snowflake/bytes_scanned":       MetadataValue.int(int(row[2] or 0)),
+            "snowflake/bytes_spilled_local": MetadataValue.int(int(row[3] or 0)),
+            "snowflake/credits_used":        MetadataValue.float(float(row[4] or 0.0)),
+            "snowflake/partitions_scanned":  MetadataValue.int(int(row[5] or 0)),
+            "snowflake/partitions_total":    MetadataValue.int(int(row[6] or 0)),
+        }
+    except Exception:
+        return {}
 
 
 class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
@@ -459,8 +501,10 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 cursor = conn.cursor()
                                 try:
                                     execute_query = f"EXECUTE TASK {db_v}.{schema_v}.{task_name_v}"
+                                    exec_sfqid = None
                                     try:
                                         cursor.execute(execute_query)
+                                        exec_sfqid = cursor.sfqid
                                         context.log.info(f"Executed Snowflake task: {task_name_v}")
                                     except Exception as exc:
                                         if "non-root task" in str(exc).lower():
@@ -477,6 +521,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         "database": db_v,
                                         "schema": schema_v,
                                     }
+                                    # Per-run numeric perf trace (auto-plots on Plots tab).
+                                    metadata.update(_emit_query_perf(cursor, exec_sfqid))
 
                                     # SHOW TASKS first — works for least-privilege roles where
                                     # INFORMATION_SCHEMA may be invisible. Pulls schedule + state.
@@ -621,14 +667,18 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 try:
                                     call_query = f"CALL {db_v}.{schema_v}.{proc_name_v}()"
                                     cursor.execute(call_query)
+                                    call_sfqid = cursor.sfqid
                                     result = cursor.fetchone()
                                     context.log.info(f"Called Snowflake stored procedure: {proc_name_v}")
-                                    return {
+                                    metadata = {
                                         "procedure_name": proc_name_v,
                                         "database": db_v,
                                         "schema": schema_v,
                                         "result": str(result) if result else None,
                                     }
+                                    # Per-run numeric perf trace (auto-plots).
+                                    metadata.update(_emit_query_perf(cursor, call_sfqid))
+                                    return metadata
                                 finally:
                                     cursor.close()
                                     conn.close()
@@ -689,6 +739,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 try:
                                     refresh_query = f"ALTER DYNAMIC TABLE {db_v}.{schema_v}.{dt_name_v} REFRESH"
                                     cursor.execute(refresh_query)
+                                    refresh_sfqid = cursor.sfqid
                                     context.log.info(f"Triggered refresh for dynamic table: {dt_name_v}")
 
                                     metadata = {
@@ -696,6 +747,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         "database": db_v,
                                         "schema": schema_v,
                                     }
+                                    # Per-run numeric perf trace (auto-plots).
+                                    metadata.update(_emit_query_perf(cursor, refresh_sfqid))
 
                                     # Read enriched metadata via SHOW (not INFORMATION_SCHEMA).
                                     # SHOW DYNAMIC TABLES only needs USAGE on the schema + any
@@ -717,9 +770,12 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                                 "refresh_mode": info_dict.get("refresh_mode"),
                                                 "scheduling_state": info_dict.get("scheduling_state"),
                                                 "target_lag": info_dict.get("target_lag"),
-                                                "rows": info_dict.get("rows"),
-                                                "bytes": info_dict.get("bytes"),
                                             })
+                                            # Numeric fields → MetadataValue.int so Dagster plots them.
+                                            if info_dict.get("rows") is not None:
+                                                metadata["snowflake/rows"] = MetadataValue.int(int(info_dict["rows"]))
+                                            if info_dict.get("bytes") is not None:
+                                                metadata["snowflake/bytes"] = MetadataValue.int(int(info_dict["bytes"]))
                                     except Exception as exc:
                                         context.log.warning(
                                             f"Could not read DT metadata for {dt_name_v}: {exc}. "
@@ -771,18 +827,46 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         ))
                         def _make_stream_asset(stream_name_v, db_v, schema_v, stream_kwargs_v, self_v):
                             @observable_source_asset(**stream_kwargs_v)
-                            def _stream_asset(context: AssetExecutionContext):
-                                """Observable stream asset."""
+                            def _stream_asset(context):
+                                """Observable stream asset — emits has_data + pending_rows metrics."""
                                 conn = self_v._create_connection()
                                 cursor = conn.cursor()
+                                metadata: dict = {
+                                    "stream_name": stream_name_v,
+                                    "database": db_v,
+                                    "schema": schema_v,
+                                }
                                 try:
-                                    query = f"SELECT SYSTEM$STREAM_HAS_DATA('{db_v}.{schema_v}.{stream_name_v}')"
-                                    cursor.execute(query)
-                                    has_data = cursor.fetchone()[0]
-                                    context.log.info(f"Stream {stream_name_v} has data: {has_data}")
+                                    cursor.execute(
+                                        f"SELECT SYSTEM$STREAM_HAS_DATA('{db_v}.{schema_v}.{stream_name_v}')"
+                                    )
+                                    has_data_raw = cursor.fetchone()[0]
+                                    # Normalize to 0/1 int (SYSTEM$STREAM_HAS_DATA returns 'true'/'false' string).
+                                    has_data_bool = str(has_data_raw).lower() == "true"
+                                    metadata["snowflake/has_data"] = MetadataValue.int(1 if has_data_bool else 0)
+                                    context.log.info(f"Stream {stream_name_v} has data: {has_data_bool}")
+
+                                    # Plottable pending rows — only query if HAS_DATA to avoid
+                                    # an unnecessary full scan on quiet streams.
+                                    if has_data_bool:
+                                        try:
+                                            cursor.execute(
+                                                f"SELECT COUNT(*) FROM {db_v}.{schema_v}.{stream_name_v}"
+                                            )
+                                            pending = cursor.fetchone()[0] or 0
+                                            metadata["snowflake/pending_rows"] = MetadataValue.int(int(pending))
+                                        except Exception as exc:
+                                            context.log.warning(
+                                                f"Could not read pending row count for {stream_name_v}: {exc}."
+                                            )
+                                except Exception as exc:
+                                    context.log.warning(
+                                        f"Could not observe stream {stream_name_v}: {exc}."
+                                    )
                                 finally:
                                     cursor.close()
                                     conn.close()
+                                return ObserveResult(metadata=metadata)
                             return _stream_asset
 
                         assets_list.append(_make_stream_asset(
@@ -838,6 +922,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 try:
                                     refresh_query = f"ALTER PIPE {db_v}.{schema_v}.{pipe_name_v} REFRESH"
                                     cursor.execute(refresh_query)
+                                    refresh_sfqid = cursor.sfqid
                                     context.log.info(f"Refreshed Snowpipe: {pipe_name_v}")
 
                                     metadata = {
@@ -845,14 +930,37 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         "database": db_v,
                                         "schema": schema_v,
                                     }
+                                    # Per-run numeric perf trace for the REFRESH query.
+                                    metadata.update(_emit_query_perf(cursor, refresh_sfqid))
 
                                     # SYSTEM$PIPE_STATUS — works for any role with USAGE on the pipe.
+                                    # Returns a JSON string with numeric fields worth plotting:
+                                    # pendingFileCount, lastReceivedMessageTimestamp, executionState, etc.
                                     try:
                                         cursor.execute(
                                             f"SELECT SYSTEM$PIPE_STATUS('{db_v}.{schema_v}.{pipe_name_v}')"
                                         )
                                         status = cursor.fetchone()
-                                        metadata["pipe_status"] = str(status[0]) if status else None
+                                        if status and status[0]:
+                                            status_raw = status[0]
+                                            metadata["pipe_status"] = str(status_raw)
+                                            # Parse the JSON for numeric plottable fields.
+                                            try:
+                                                import json as _json
+                                                status_json = _json.loads(status_raw) if isinstance(status_raw, str) else status_raw
+                                                if isinstance(status_json, dict):
+                                                    if "pendingFileCount" in status_json:
+                                                        metadata["snowflake/pending_file_count"] = MetadataValue.int(
+                                                            int(status_json["pendingFileCount"] or 0)
+                                                        )
+                                                    if "executionState" in status_json:
+                                                        metadata["pipe_execution_state"] = status_json["executionState"]
+                                                    if "lastReceivedMessageTimestamp" in status_json:
+                                                        metadata["last_received_message_timestamp"] = (
+                                                            status_json["lastReceivedMessageTimestamp"]
+                                                        )
+                                            except Exception:
+                                                pass
                                     except Exception as exc:
                                         context.log.warning(
                                             f"Could not read pipe status for {pipe_name_v}: {exc}."
@@ -901,13 +1009,14 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         """
                                         cursor.execute(history_query)
                                         recent_loads = cursor.fetchall()
-                                        metadata["recent_loads"] = len(recent_loads) if recent_loads else 0
+                                        metadata["snowflake/recent_loads"] = MetadataValue.int(
+                                            len(recent_loads) if recent_loads else 0
+                                        )
                                     except Exception as exc:
                                         context.log.warning(
                                             f"Could not read COPY_HISTORY for {pipe_name_v}: {exc}. "
                                             f"Refresh succeeded; emitting asset without load-count metadata."
                                         )
-                                        metadata["recent_loads"] = None
 
                                     return metadata
                                 finally:
@@ -959,24 +1068,40 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         ))
                         def _make_stage_asset(stage_name_v, db_v, schema_v, stage_kwargs_v, self_v):
                             @observable_source_asset(**stage_kwargs_v)
-                            def _stage_asset(context: AssetExecutionContext):
-                                """Observable stage asset - monitor files."""
+                            def _stage_asset(context):
+                                """Observable stage asset — emits file_count + total_bytes metrics."""
                                 conn = self_v._create_connection()
                                 cursor = conn.cursor()
+                                metadata: dict = {
+                                    "stage_name": stage_name_v,
+                                    "database": db_v,
+                                    "schema": schema_v,
+                                }
                                 try:
-                                    list_query = f"LIST @{db_v}.{schema_v}.{stage_name_v}"
-                                    cursor.execute(list_query)
-                                    files = cursor.fetchall()
-                                    file_count = len(files) if files else 0
-                                    total_size = 0
-                                    if files:
-                                        for file_row in files:
-                                            if len(file_row) > 2:
-                                                total_size += file_row[2]
-                                    context.log.info(f"Stage {stage_name_v} has {file_count} files, total size: {total_size} bytes")
+                                    cursor.execute(f"LIST @{db_v}.{schema_v}.{stage_name_v}")
+                                    files = cursor.fetchall() or []
+                                    file_count = len(files)
+                                    total_bytes = 0
+                                    for file_row in files:
+                                        if len(file_row) > 2 and file_row[2] is not None:
+                                            try:
+                                                total_bytes += int(file_row[2])
+                                            except (TypeError, ValueError):
+                                                pass
+                                    metadata["snowflake/file_count"] = MetadataValue.int(file_count)
+                                    metadata["snowflake/total_bytes"] = MetadataValue.int(total_bytes)
+                                    context.log.info(
+                                        f"Stage {stage_name_v} has {file_count} files, "
+                                        f"total size: {total_bytes} bytes"
+                                    )
+                                except Exception as exc:
+                                    context.log.warning(
+                                        f"Could not LIST @{stage_name_v}: {exc}."
+                                    )
                                 finally:
                                     cursor.close()
                                     conn.close()
+                                return ObserveResult(metadata=metadata)
                             return _stage_asset
 
                         assets_list.append(_make_stage_asset(
@@ -1032,6 +1157,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 try:
                                     cursor.execute(f"ALTER MATERIALIZED VIEW {db_v}.{schema_v}.{mv_name_v} SUSPEND")
                                     cursor.execute(f"ALTER MATERIALIZED VIEW {db_v}.{schema_v}.{mv_name_v} RESUME")
+                                    resume_sfqid = cursor.sfqid
                                     context.log.info(f"Refreshed materialized view: {mv_name_v}")
 
                                     metadata = {
@@ -1039,6 +1165,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         "database": db_v,
                                         "schema": schema_v,
                                     }
+                                    # Per-run numeric perf trace for the RESUME query.
+                                    metadata.update(_emit_query_perf(cursor, resume_sfqid))
 
                                     # SHOW MATERIALIZED VIEWS — works for least-privilege roles.
                                     # Provides rows + bytes + cluster_by + behind_by + invalid + owner.
@@ -1052,13 +1180,16 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                             columns = [col[0].lower() for col in cursor.description]
                                             info_dict = dict(zip(columns, info))
                                             metadata.update({
-                                                "rows": info_dict.get("rows"),
-                                                "bytes": info_dict.get("bytes"),
                                                 "cluster_by": info_dict.get("cluster_by"),
                                                 "behind_by": info_dict.get("behind_by"),
                                                 "invalid": info_dict.get("invalid"),
                                                 "owner": info_dict.get("owner"),
                                             })
+                                            # Numeric fields → plottable.
+                                            if info_dict.get("rows") is not None:
+                                                metadata["snowflake/rows"] = MetadataValue.int(int(info_dict["rows"]))
+                                            if info_dict.get("bytes") is not None:
+                                                metadata["snowflake/bytes"] = MetadataValue.int(int(info_dict["bytes"]))
                                     except Exception as exc:
                                         context.log.warning(
                                             f"Could not read MV metadata for {mv_name_v}: {exc}. "
@@ -1119,6 +1250,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 cursor = conn.cursor()
                                 try:
                                     cursor.execute(f"ALTER EXTERNAL TABLE {db_v}.{schema_v}.{table_name_v} REFRESH")
+                                    refresh_sfqid = cursor.sfqid
                                     context.log.info(f"Refreshed external table: {table_name_v}")
 
                                     metadata = {
@@ -1126,6 +1258,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         "database": db_v,
                                         "schema": schema_v,
                                     }
+                                    # Per-run numeric perf trace for the REFRESH query.
+                                    metadata.update(_emit_query_perf(cursor, refresh_sfqid))
 
                                     # SHOW EXTERNAL TABLES — works for least-privilege roles.
                                     # Provides rows + location + file_format_name + last_refreshed.
@@ -1139,13 +1273,14 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                             columns = [col[0].lower() for col in cursor.description]
                                             info_dict = dict(zip(columns, info))
                                             metadata.update({
-                                                "rows": info_dict.get("rows"),
                                                 "location": info_dict.get("location"),
                                                 "file_format_name": info_dict.get("file_format_name"),
                                                 "last_refreshed_on": str(info_dict.get("last_refreshed_on"))
                                                     if info_dict.get("last_refreshed_on") else None,
                                                 "owner": info_dict.get("owner"),
                                             })
+                                            if info_dict.get("rows") is not None:
+                                                metadata["snowflake/rows"] = MetadataValue.int(int(info_dict["rows"]))
                                     except Exception as exc:
                                         context.log.warning(
                                             f"Could not read external table metadata for {table_name_v}: {exc}. "

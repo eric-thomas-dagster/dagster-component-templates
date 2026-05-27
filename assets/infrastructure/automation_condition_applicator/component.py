@@ -677,7 +677,32 @@ def apply_rules(
             return spec
         return spec.replace_attributes(automation_condition=cond)
 
-    return defs.map_asset_specs(func=transform)
+    # Definitions.map_asset_specs() rejects SourceAsset instances with
+    # DagsterInvariantViolationError ("Can only map over AssetSpec or
+    # AssetsDefinition"). The snowflake_workspace component (and any
+    # other defs that emit @observable_source_asset — streams, stages,
+    # alerts, openflow flows) hits this immediately. Constrain the map
+    # to an explicit selection of mappable keys so SourceAssets pass
+    # through untouched.
+    mappable_keys = []
+    for obj in (defs.assets or []):
+        if isinstance(obj, dg.SourceAsset):
+            continue
+        if hasattr(obj, "key") and not hasattr(obj, "keys_by_output_name"):
+            mappable_keys.append(obj.key)
+        else:
+            specs = getattr(obj, "specs", None) or []
+            for spec in specs:
+                mappable_keys.append(spec.key)
+            if not specs:
+                for k in (getattr(obj, "keys", []) or []):
+                    mappable_keys.append(k)
+
+    if not mappable_keys:
+        return defs
+
+    selection = dg.AssetSelection.assets(*mappable_keys)
+    return defs.map_asset_specs(func=transform, selection=selection)
 
 
 class _SpecView:

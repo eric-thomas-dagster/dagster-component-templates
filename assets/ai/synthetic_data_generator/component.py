@@ -574,47 +574,76 @@ def _generate_customers(n: int, target_date: Optional[datetime] = None) -> pd.Da
 
 
 def _generate_orders(n: int, target_date: Optional[datetime] = None) -> pd.DataFrame:
-    """Generate order data.
+    """Generate synthetic e-commerce orders matching the Snowflake RAW.ORDERS schema.
+
+    Column shape (lowercase here; ``dataframe_to_snowflake`` / ``write_pandas``
+    upper-cases on write, so this is compatible with::
+
+        CREATE TABLE RAW.ORDERS (
+            ORDER_ID     VARCHAR,        -- 'ORD' + 10-digit zero-padded
+            CUSTOMER_ID  VARCHAR,        -- 'CUST' + 6-digit zero-padded
+            ORDER_DATE   TIMESTAMP_NTZ,
+            CATEGORY     VARCHAR,        -- lowercase
+            NUM_ITEMS    NUMBER,
+            SUBTOTAL     NUMBER(18,2),
+            SHIPPING     NUMBER(10,2),
+            TAX          NUMBER(10,2),
+            TOTAL        NUMBER(18,2),
+            STATUS       VARCHAR,
+            REGION       VARCHAR
+        )
 
     Args:
-        n: Number of orders to generate
-        target_date: If provided, all orders will be placed on this date
+        n: Number of orders to generate.
+        target_date: If provided, every order's ``order_date`` falls within that
+            day (uniform random hours/minutes/seconds). Without it, dates are
+            sampled uniformly over the last 30 days.
+
+    ``order_date`` is emitted as a ``datetime`` object (not a formatted
+    string) so Snowflake's ``write_pandas`` maps it to TIMESTAMP_NTZ
+    cleanly without any string-parsing fallback.
     """
-    product_categories = ["Electronics", "Clothing", "Home & Garden", "Sports", "Books", "Toys", "Food"]
-    statuses = ["pending", "shipped", "delivered", "cancelled"]
+    categories = ["electronics", "clothing", "books", "home", "sports", "toys", "beauty", "food"]
+    statuses = ["pending", "paid", "shipped", "delivered", "cancelled"]
+    regions = ["NA", "EU", "APAC", "LATAM"]
 
     data = []
     for i in range(n):
-        order_id = f"ORD{i+1:08d}"
+        order_id = f"ORD{i+1:010d}"
         customer_id = f"CUST{random.randint(1, 1000):06d}"
 
-        # Use target_date if partitioned, otherwise random date
         if target_date:
-            # Add random hours/minutes within the day
             order_date = target_date + timedelta(
                 hours=random.randint(0, 23),
                 minutes=random.randint(0, 59),
-                seconds=random.randint(0, 59)
+                seconds=random.randint(0, 59),
             )
         else:
-            order_date = datetime.now() - timedelta(days=random.randint(0, 365))
+            order_date = datetime.now() - timedelta(
+                days=random.randint(0, 30),
+                hours=random.randint(0, 23),
+                minutes=random.randint(0, 59),
+                seconds=random.randint(0, 59),
+            )
 
-        num_items = random.randint(1, 5)
-        item_total = sum(random.uniform(10, 200) for _ in range(num_items))
-        shipping = random.choice([0, 5.99, 9.99, 14.99])
-        tax = item_total * 0.08
+        num_items = random.randint(1, 10)
+        subtotal = round(random.uniform(10.0, 1000.0), 2)
+        shipping = round(random.uniform(0.0, 30.0), 2)
+        tax = round(subtotal * 0.08, 2)
+        total = round(subtotal + shipping + tax, 2)
 
         data.append({
             "order_id": order_id,
             "customer_id": customer_id,
-            "order_date": order_date.strftime("%Y-%m-%d %H:%M:%S"),
-            "category": random.choice(product_categories),
+            "order_date": order_date,           # datetime object → TIMESTAMP_NTZ
+            "category": random.choice(categories),
             "num_items": num_items,
-            "subtotal": round(item_total, 2),
+            "subtotal": subtotal,
             "shipping": shipping,
-            "tax": round(tax, 2),
-            "total": round(item_total + shipping + tax, 2),
-            "status": random.choice(statuses)
+            "tax": tax,
+            "total": total,
+            "status": random.choice(statuses),
+            "region": random.choice(regions),
         })
 
     return pd.DataFrame(data)

@@ -389,7 +389,7 @@ class DataframeToSnowflakeComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
 group_name=group_name,
             description=DataframeToSnowflakeComponent.get_description(),
-            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> MaterializeResult:
             # Filter to current partition if partitioned
@@ -486,7 +486,7 @@ group_name=group_name,
                     "table": MetadataValue.text(table),
                     "success": MetadataValue.bool(success),
                 
-                    "dagster/row_count": MetadataValue.int(row_count),
+                    "dagster/row_count": MetadataValue.int(nrows),
                     **({"preview": MetadataValue.md((upstream.sample(preview_rows) if len(upstream) > preview_rows * 10 else upstream.head(preview_rows)).to_markdown(index=False))} if include_preview and len(upstream) > 0 else {}),
                 }
             )

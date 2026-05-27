@@ -33,6 +33,23 @@ from pydantic import ConfigDict, Field
 _logger = logging.getLogger(__name__)
 
 
+def _serialize_proc_arg(a):
+    """Convert a Python value to a SQL literal for CALL <proc>(args...).
+
+    NULL / TRUE / FALSE / numbers inlined as-is; strings single-quoted with
+    embedded-quote escaping. Used by the stored-procedure asset path so
+    customers can wire literal args (or per-instance args under
+    ``assets_by_name.<proc>.instances[].args``) without writing SQL.
+    """
+    if a is None:
+        return "NULL"
+    if isinstance(a, bool):
+        return "TRUE" if a else "FALSE"
+    if isinstance(a, (int, float)):
+        return str(a)
+    return "'" + str(a).replace("'", "''") + "'"
+
+
 def _emit_query_perf(cursor, query_id) -> dict:
     """Return Dagster MetadataValue.int/float fields from QUERY_HISTORY for a
     Snowflake query, keyed by a stable ``snowflake/*`` namespace.
@@ -637,43 +654,35 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         if not self._should_include_entity(proc_name):
                             continue
 
-                        # Sanitize name for asset key
-                        asset_key = f"proc_{re.sub(r'[^a-zA-Z0-9_]', '_', proc_name.lower())}"
-
-                        # Stored procedures are materializable
-                        _proc_kwargs = self._apply_asset_overrides(proc_name, dict(
-                            name=asset_key,
-                            group_name=self.group_name,
-                            description=f"Snowflake stored procedure: {proc_name}",
-                            metadata={
-                                "snowflake_procedure_name": proc_name,
-                                "snowflake_database": self.database,
-                                "snowflake_schema": proc.get('SCHEMA_NAME', self.schema_name),
-                                "snowflake_signature": proc.get('ARGUMENTS'),
-                                "entity_type": "stored_procedure",
-                            },
-                        ))
                         # Factory pattern: capture loop variables in a closure
                         # WITHOUT using default args. Dagster's @asset decorator
                         # treats non-context function parameters as upstream
                         # asset inputs; default args here caused
                         # DagsterInvalidDefinitionError: Input asset "['proc_name']"
-                        def _make_proc_asset(proc_name_v, db_v, schema_v, proc_kwargs_v, self_v):
+                        # Defined here (before the dispatch) so both multi-instance
+                        # and single-instance paths can call it.
+                        def _make_proc_asset(proc_name_v, db_v, schema_v, proc_kwargs_v, self_v, args_v):
                             @asset(**proc_kwargs_v)
                             def _procedure_asset(context: AssetExecutionContext):
-                                """Materialize by calling stored procedure."""
+                                """Materialize by calling stored procedure (with optional args)."""
                                 conn = self_v._create_connection()
                                 cursor = conn.cursor()
                                 try:
-                                    call_query = f"CALL {db_v}.{schema_v}.{proc_name_v}()"
+                                    args_sql = ", ".join(
+                                        _serialize_proc_arg(a) for a in (args_v or [])
+                                    )
+                                    call_query = f"CALL {db_v}.{schema_v}.{proc_name_v}({args_sql})"
                                     cursor.execute(call_query)
                                     call_sfqid = cursor.sfqid
                                     result = cursor.fetchone()
-                                    context.log.info(f"Called Snowflake stored procedure: {proc_name_v}")
+                                    context.log.info(
+                                        f"Called {proc_name_v}({args_sql}) → {result}"
+                                    )
                                     metadata = {
                                         "procedure_name": proc_name_v,
                                         "database": db_v,
                                         "schema": schema_v,
+                                        "args": list(args_v or []),
                                         "result": str(result) if result else None,
                                     }
                                     # Per-run numeric perf trace (auto-plots).
@@ -684,10 +693,79 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                     conn.close()
                             return _procedure_asset
 
+                        override = (self.assets_by_name or {}).get(proc_name) or {}
+
+                        # Multi-instance mode: one proc → N Dagster assets, each
+                        # with its own arg set + (optional) key / deps / kinds /
+                        # tags / owners overrides.
+                        if isinstance(override, dict) and override.get("instances"):
+                            for inst in override["instances"]:
+                                inst_name = inst.get("asset_name") or inst.get("key")
+                                if not inst_name:
+                                    _logger.warning(
+                                        f"{proc_name}.instances entry missing "
+                                        f"'asset_name' or 'key'; skipping"
+                                    )
+                                    continue
+                                inst_args = inst.get("args", [])
+                                inst_kwargs: dict = dict(
+                                    name=re.sub(r'[^a-zA-Z0-9_]', '_', inst_name.lower()),
+                                    group_name=inst.get("group_name", self.group_name),
+                                    description=inst.get(
+                                        "description",
+                                        f"Snowflake stored procedure: "
+                                        f"{proc_name}({', '.join(map(str, inst_args))})",
+                                    ),
+                                    metadata={
+                                        "snowflake_procedure_name": proc_name,
+                                        "snowflake_database": self.database,
+                                        "snowflake_schema": proc.get("SCHEMA_NAME", self.schema_name),
+                                        "snowflake_signature": proc.get("ARGUMENTS"),
+                                        "snowflake_call_args": inst_args,
+                                        "entity_type": "stored_procedure",
+                                    },
+                                )
+                                if "key" in inst:
+                                    inst_kwargs.pop("name", None)
+                                    inst_kwargs["key"] = AssetKey.from_user_string(str(inst["key"]))
+                                if "deps" in inst:
+                                    inst_kwargs["deps"] = [
+                                        AssetKey.from_user_string(d) for d in inst["deps"]
+                                    ]
+                                if "kinds" in inst:
+                                    inst_kwargs["kinds"] = set(inst["kinds"])
+                                if "tags" in inst:
+                                    inst_kwargs["tags"] = dict(inst["tags"])
+                                if "owners" in inst:
+                                    inst_kwargs["owners"] = inst["owners"]
+                                assets_list.append(_make_proc_asset(
+                                    proc_name, self.database,
+                                    proc.get("SCHEMA_NAME", self.schema_name),
+                                    inst_kwargs, self, inst_args,
+                                ))
+                            continue  # skip the single-instance path
+
+                        # Single-instance mode (default): one Dagster asset per
+                        # proc, with optional `args:` override.
+                        proc_args = override.get("args", []) if isinstance(override, dict) else []
+                        asset_key = f"proc_{re.sub(r'[^a-zA-Z0-9_]', '_', proc_name.lower())}"
+                        _proc_kwargs = self._apply_asset_overrides(proc_name, dict(
+                            name=asset_key,
+                            group_name=self.group_name,
+                            description=f"Snowflake stored procedure: {proc_name}",
+                            metadata={
+                                "snowflake_procedure_name": proc_name,
+                                "snowflake_database": self.database,
+                                "snowflake_schema": proc.get('SCHEMA_NAME', self.schema_name),
+                                "snowflake_signature": proc.get('ARGUMENTS'),
+                                "snowflake_call_args": proc_args,
+                                "entity_type": "stored_procedure",
+                            },
+                        ))
                         assets_list.append(_make_proc_asset(
                             proc_name, self.database,
                             proc.get('SCHEMA_NAME', self.schema_name),
-                            _proc_kwargs, self,
+                            _proc_kwargs, self, proc_args,
                         ))
 
                 except Exception as e:

@@ -78,6 +78,25 @@ _INVENTORY_QUERIES = {
         "sequence":  "SELECT 'sequence', seqschema, seqname, NULL, NULL FROM syscat.sequences WHERE seqschema NOT LIKE 'SYS%'",
         "trigger":   "SELECT 'trigger', trigschema, trigname, NULL, NULL FROM syscat.triggers WHERE trigschema NOT LIKE 'SYS%'",
     },
+    # IBM i / AS/400 / iSeries — Db2 for i uses the QSYS2 catalog, NOT
+    # SYSCAT.* (which is Db2 LUW-only). On i:
+    #   - schemas / libraries: QSYS2.SYSSCHEMAS
+    #   - tables / files:      QSYS2.SYSTABLES  (table_type='T' for tables, 'V' for views, 'P' for physical files)
+    #   - procedures:          QSYS2.SYSPROCS
+    #   - functions:           QSYS2.SYSFUNCS
+    #   - triggers:            QSYS2.SYSTRIGGERS
+    #   - sequences:           QSYS2.SYSSEQUENCES
+    # The "library list" concept replaces the schema search path —
+    # connect via db2_resource(system_type=iseries, library_list=[...])
+    # to drive CURRENT SCHEMA at session start.
+    "db2_iseries": {
+        "table":     "SELECT 'table' AS object_type, table_schema AS schema_name, table_name AS object_name, NULL AS definition, NULL AS row_count FROM qsys2.systables WHERE table_type IN ('T','P') AND table_schema NOT IN ('QSYS','QSYS2','SYSIBM','SYSPROC','SYSCAT','SYSIBMADM','QSYS2ROW')",
+        "view":      "SELECT 'view', table_schema, table_name, NULL, NULL FROM qsys2.systables WHERE table_type='V' AND table_schema NOT IN ('QSYS','QSYS2','SYSIBM','SYSPROC','SYSCAT','SYSIBMADM','QSYS2ROW')",
+        "procedure": "SELECT 'procedure', routine_schema, routine_name, NULL, NULL FROM qsys2.sysprocs WHERE routine_schema NOT IN ('QSYS','QSYS2','SYSIBM','SYSPROC','SYSCAT','SYSIBMADM','QSYS2ROW')",
+        "function":  "SELECT 'function', routine_schema, routine_name, NULL, NULL FROM qsys2.sysfuncs WHERE routine_schema NOT IN ('QSYS','QSYS2','SYSIBM','SYSPROC','SYSCAT','SYSIBMADM','QSYS2ROW')",
+        "sequence":  "SELECT 'sequence', sequence_schema, sequence_name, NULL, NULL FROM qsys2.syssequences WHERE sequence_schema NOT IN ('QSYS','QSYS2','SYSIBM','SYSPROC','SYSCAT','SYSIBMADM','QSYS2ROW')",
+        "trigger":   "SELECT 'trigger', trigger_schema, trigger_name, NULL, NULL FROM qsys2.systriggers WHERE trigger_schema NOT IN ('QSYS','QSYS2','SYSIBM','SYSPROC','SYSCAT','SYSIBMADM','QSYS2ROW')",
+    },
     "snowflake": {
         "table":     "SELECT 'table' AS OBJECT_TYPE, TABLE_SCHEMA AS SCHEMA_NAME, TABLE_NAME AS OBJECT_NAME, NULL AS DEFINITION, ROW_COUNT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' AND TABLE_SCHEMA <> 'INFORMATION_SCHEMA'",
         "view":      "SELECT 'view', TABLE_SCHEMA, TABLE_NAME, VIEW_DEFINITION, NULL FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA <> 'INFORMATION_SCHEMA'",
@@ -128,7 +147,14 @@ class DatabaseSchemaInventoryComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Env var with the source database SQLAlchemy URL. Set this OR connection.",
     )
     database_type: str = Field(
-        description="Source database dialect: postgres / mysql / mssql / oracle / db2 / snowflake / redshift"
+        description=(
+            "Source database dialect: postgres / mysql / mssql / oracle / "
+            "db2 / db2_iseries / snowflake / redshift. Use 'db2' for Db2 "
+            "LUW / Cloud / Warehouse (catalog at SYSCAT.*); use "
+            "'db2_iseries' for Db2 for i / AS/400 / IBM i (catalog at "
+            "QSYS2.*). Connect via db2_resource(system_type='iseries', "
+            "library_list=[...]) for the i path."
+        ),
     )
 
     schemas: Optional[List[str]] = Field(

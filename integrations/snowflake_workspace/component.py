@@ -1697,9 +1697,19 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         def _make_alert_asset(alert_name_v, db_v, schema_v, alert_kwargs_v, self_v):
                             @observable_source_asset(**alert_kwargs_v)
                             def _alert_asset(context: AssetExecutionContext):
-                                """Observable alert asset - monitor alert status."""
+                                """Observable alert asset - monitor alert status.
+
+                                Returns ObserveResult with state / schedule / last-run
+                                metadata. Newer Dagster rejects None returns from
+                                @observable_source_asset bodies.
+                                """
                                 conn = self_v._create_connection()
                                 cursor = conn.cursor()
+                                metadata: Dict[str, Any] = {
+                                    "alert_name": alert_name_v,
+                                    "database": db_v,
+                                    "schema": schema_v,
+                                }
                                 try:
                                     # SHOW ALERTS first — works for least-privilege roles where
                                     # INFORMATION_SCHEMA may be invisible. Exposes state +
@@ -1713,6 +1723,13 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         if info:
                                             columns = [col[0].lower() for col in cursor.description]
                                             info_dict = dict(zip(columns, info))
+                                            metadata.update({
+                                                "alert_state": info_dict.get("state"),
+                                                "alert_schedule": info_dict.get("schedule"),
+                                                "alert_condition": info_dict.get("condition"),
+                                                "alert_action": info_dict.get("action"),
+                                                "alert_owner": info_dict.get("owner"),
+                                            })
                                             context.log.info(
                                                 f"Alert {alert_name_v} state={info_dict.get('state')} "
                                                 f"schedule={info_dict.get('schedule')}"
@@ -1724,15 +1741,22 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
 
                                     # ALERT_HISTORY is a table function — wrap in try/except
                                     # so the observation still emits even if the role can't
-                                    # read history.
+                                    # read history. Column list per INFORMATION_SCHEMA.ALERT_HISTORY
+                                    # docs: name, database_name, schema_name, condition, action,
+                                    # scheduled_time, state, query_id, error_code, error_message,
+                                    # duration. The old query included `error` and
+                                    # `completed_time` — neither exist; Snowflake compile-errored
+                                    # on every observation tick.
                                     try:
                                         history_query = f"""
                                         SELECT
                                             name,
                                             state,
                                             scheduled_time,
-                                            completed_time,
-                                            error
+                                            query_id,
+                                            error_code,
+                                            error_message,
+                                            duration
                                         FROM TABLE(INFORMATION_SCHEMA.ALERT_HISTORY(
                                             SCHEDULED_TIME_RANGE_START => DATEADD('hour', -24, CURRENT_TIMESTAMP())
                                         ))
@@ -1745,6 +1769,18 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         if history:
                                             columns = [col[0] for col in cursor.description]
                                             history_dict = dict(zip(columns, history))
+                                            metadata.update({
+                                                "last_run_state": history_dict.get("STATE"),
+                                                "last_run_query_id": history_dict.get("QUERY_ID"),
+                                                "last_run_scheduled_time": str(history_dict.get("SCHEDULED_TIME")) if history_dict.get("SCHEDULED_TIME") else None,
+                                                "last_run_error_code": history_dict.get("ERROR_CODE"),
+                                                "last_run_error_message": history_dict.get("ERROR_MESSAGE"),
+                                            })
+                                            if history_dict.get("DURATION") is not None:
+                                                try:
+                                                    metadata["snowflake/alert_duration_ms"] = MetadataValue.int(int(history_dict["DURATION"]))
+                                                except (TypeError, ValueError):
+                                                    pass
                                             context.log.info(
                                                 f"Alert {alert_name_v} last run state: "
                                                 f"{history_dict.get('STATE')}"
@@ -1753,6 +1789,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         context.log.warning(
                                             f"Could not read ALERT_HISTORY for {alert_name_v}: {exc}."
                                         )
+                                    return ObserveResult(metadata=metadata)
                                 finally:
                                     cursor.close()
                                     conn.close()
@@ -1807,9 +1844,18 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         def _make_openflow_asset(flow_name_v, runtime_id_v, flow_kwargs_v, self_v):
                             @observable_source_asset(**flow_kwargs_v)
                             def _openflow_asset(context: AssetExecutionContext):
-                                """Observable OpenFlow flow - monitor via telemetry."""
+                                """Observable OpenFlow flow — monitor via telemetry.
+
+                                Returns ObserveResult with recent-metric count.
+                                Newer Dagster rejects None returns from
+                                @observable_source_asset bodies.
+                                """
                                 conn = self_v._create_connection()
                                 cursor = conn.cursor()
+                                metadata: Dict[str, Any] = {
+                                    "openflow_flow_name": flow_name_v,
+                                    "openflow_runtime_id": runtime_id_v,
+                                }
                                 try:
                                     metrics_query = f"""
                                     SELECT
@@ -1824,12 +1870,22 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                     ORDER BY TIMESTAMP DESC
                                     LIMIT 100
                                     """
-                                    cursor.execute(metrics_query)
-                                    metrics = cursor.fetchall()
+                                    try:
+                                        cursor.execute(metrics_query)
+                                        metrics = cursor.fetchall()
+                                    except Exception as exc:
+                                        context.log.warning(
+                                            f"Could not query OpenFlow telemetry for {flow_name_v}: {exc}. "
+                                            f"Common cause: role lacks IMPORT SHARE on SNOWFLAKE database "
+                                            f"or telemetry is disabled on this runtime."
+                                        )
+                                        metrics = []
+                                    metadata["snowflake/openflow_recent_metric_count"] = MetadataValue.int(len(metrics))
                                     if metrics:
                                         context.log.info(f"OpenFlow flow {flow_name_v} (runtime {runtime_id_v}) has {len(metrics)} recent metrics")
                                     else:
                                         context.log.info(f"OpenFlow flow {flow_name_v} (runtime {runtime_id_v}) has no recent activity")
+                                    return ObserveResult(metadata=metadata)
                                 finally:
                                     cursor.close()
                                     conn.close()

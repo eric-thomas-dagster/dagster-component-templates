@@ -2,12 +2,13 @@
 
 IBM Db2 Dagster resource. Mirrors `postgres_resource` / `mssql_resource` / `oracle_resource` — provides a SQLAlchemy connection string + factory other components can share.
 
-Targets the full Db2 family unchanged — only `host` / `port` / `ssl` change:
+Targets the full Db2 family. The `system_type` field switches between the major variants — port defaults + AS/400-specific connection params follow:
 
-- **Db2 Community Edition** (`icr.io/db2_community/db2`) — free, local dev
-- **Db2 LUW** — on-prem (Linux/UNIX/Windows)
-- **Db2 on Cloud** (IBM Cloud DBaaS) — port 31xxx, SSL required
-- **Db2 Warehouse** — IBM's cloud data warehouse
+- **Db2 Community Edition** (`icr.io/db2_community/db2`) — free, local dev. `system_type: luw`
+- **Db2 LUW** — on-prem (Linux/UNIX/Windows). `system_type: luw`
+- **Db2 on Cloud** (IBM Cloud DBaaS) — port 31xxx, SSL required. `system_type: cloud`
+- **Db2 Warehouse** — IBM's cloud data warehouse. `system_type: luw` (same shape as LUW)
+- **Db2 for i / AS/400 / iSeries / IBM i** — port 446 (DRDA listener), `library_list` becomes the schema search path, catalog lives at `QSYS2.*` not `SYSCAT.*`. `system_type: iseries`. See [`examples/db2_iseries.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/db2_iseries.md) for the end-to-end walkthrough.
 
 ## Dependencies
 
@@ -25,16 +26,16 @@ The `ibm_db` wheel bundles the necessary clidriver libraries (`libdb2`) for Linu
 
 | Field | Type | Description |
 |---|---|---|
-| `host` | `str` | Db2 hostname |
-| `database` | `str` | Database name |
-| `username` | `str` | Login username |
+| `host` | `str` | Db2 hostname (LUW server / Cloud DBaaS endpoint / IBM i system name). |
+| `database` | `str` | Database name. For LUW / Cloud / Warehouse this is the DB name (e.g. 'BLUDB', 'testdb'). For iSeries this is the **Relational Database Directory entry** (often the *LOCAL system name — find via WRKRDBDIRE on the i). |
+| `username` | `str` | Login username (AS/400: user profile name, e.g. QSECOFR or a service profile). |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"db2_resource"` | Resource key. Other components reference it via this name. |
-| `port` | `int` | `50000` | Db2 port (default 50000; 31xxx for Db2 on Cloud) |
+| `port` | `int` | — | Db2 port. If unset, defaults based on system_type: 50000 (luw / cloud) or 446 (iseries — DRDA listener). Override for non-standard ports (Db2 on Cloud typically uses 31xxx). |
 | `password` | `str` | — | Db2 password (literal). Set this OR password_env_var. |
 | `password_env_var` | `str` | — | Env var holding the password. Set this OR password. |
 
@@ -42,8 +43,10 @@ The `ibm_db` wheel bundles the necessary clidriver libraries (`libdb2`) for Linu
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `ssl` | `bool` | `false` | Enable SSL connection. Required for Db2 on Cloud. |
+| `ssl` | `bool` | `false` | Enable SSL connection. Required for Db2 on Cloud and almost always required for IBM i 7.x+. |
 | `security_mechanism` | `str` | — | Optional SecurityMechanism override (e.g. 'PLAIN'). Leave unset for default. |
+| `system_type` | `str` | `"luw"` | Db2 system variant: 'luw' (default — Db2 LUW / Community Edition / Warehouse), 'cloud' (Db2 on Cloud DBaaS), or 'iseries' (Db2 for i / AS/400 / IBM i). Drives port defaults + library-list connection params. All three use the same ibm_db_sa SQLAlchemy dialect; the catalog SQL differs (see database_schema_inventory's database_type='db2_iseries'). |
+| `library_list` | `List[str]` | — | AS/400 only: ordered library-list passed as CURRENT SCHEMA (first entry) + CURRENT PATH (rest). Equivalent to a CHGLIBL on the i. Ignored when system_type != 'iseries'. |
 
 <!-- FIELDS:END -->
 
@@ -88,9 +91,35 @@ attributes:
   username: bluadmin
   password_env_var: DB2_CLOUD_PASSWORD
   ssl: true
+  system_type: cloud
 ```
 
 For Db2 Warehouse, the connection shape is identical — same `ibm_db_sa` driver, just a different host.
+
+## AS/400 / Db2 for i
+
+Set `system_type: iseries` and the resource:
+
+- Defaults `port` to **446** (DRDA listener) instead of 50000
+- Accepts an ordered `library_list:` that maps to `CURRENT SCHEMA` (first entry) + `CURRENT PATH` (rest). Equivalent to a `CHGLIBL` on the i.
+- Stays on the same `ibm_db_sa` SQLAlchemy dialect — only the connection parameters differ.
+
+```yaml
+attributes:
+  resource_key: db2_iseries_resource
+  host: as400.example.com
+  database: 'S101ABCD'         # *LOCAL RDB name — see WRKRDBDIRE on the i
+  username: QSECOFR
+  password_env_var: AS400_PASSWORD
+  ssl: true                    # almost always required on i 7.x+
+  system_type: iseries
+  library_list:
+    - MYAPP
+    - MYAPP_DATA
+    - QSYS2
+```
+
+The catalog on Db2 for i lives at `QSYS2.SYSTABLES` / `QSYS2.SYSCOLUMNS` — NOT `SYSCAT.*`. Pair this resource with `database_schema_inventory` using `database_type: db2_iseries` (separate from the `db2` LUW dialect) so the inventory queries hit the right catalog. See [`examples/db2_iseries.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/db2_iseries.md).
 
 ## See also
 

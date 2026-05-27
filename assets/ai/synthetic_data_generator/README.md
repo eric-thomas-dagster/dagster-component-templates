@@ -34,11 +34,41 @@ Realistic customer profiles with:
 - Active status
 
 ### Orders
-E-commerce order data with:
-- Order ID, customer ID, date
-- Product category
-- Item counts and pricing (subtotal, shipping, tax, total)
-- Order status
+E-commerce orders, shaped to match the canonical Snowflake `RAW.ORDERS`
+table (so `dataframe_to_snowflake` / `write_pandas` can `if_exists: append`
+without schema mismatches):
+
+| Column | Type | Detail |
+|---|---|---|
+| `order_id` | `str` | `'ORD'` + 10-digit zero-padded sequence |
+| `customer_id` | `str` | `'CUST'` + 6-digit zero-padded (random 1..1000) |
+| `order_date` | `datetime` | Python `datetime` object (not a string) — maps to Snowflake `TIMESTAMP_NTZ` via `write_pandas`. With `partition_target_date` set, falls within that day; otherwise sampled uniformly over the last 30 days |
+| `category` | `str` | lowercase: `electronics`, `clothing`, `books`, `home`, `sports`, `toys`, `beauty`, `food` |
+| `num_items` | `int` | 1..10 |
+| `subtotal` | `float` | uniform 10.0..1000.0 |
+| `shipping` | `float` | uniform 0.0..30.0 |
+| `tax` | `float` | `round(subtotal * 0.08, 2)` |
+| `total` | `float` | `round(subtotal + shipping + tax, 2)` |
+| `status` | `str` | `pending`, `paid`, `shipped`, `delivered`, `cancelled` |
+| `region` | `str` | `NA`, `EU`, `APAC`, `LATAM` |
+
+Matching Snowflake DDL:
+
+```sql
+CREATE TABLE RAW.ORDERS (
+    ORDER_ID     VARCHAR,        -- 'ORD' + 10-digit
+    CUSTOMER_ID  VARCHAR,        -- 'CUST' + 6-digit
+    ORDER_DATE   TIMESTAMP_NTZ,
+    CATEGORY     VARCHAR,
+    NUM_ITEMS    NUMBER,
+    SUBTOTAL     NUMBER(18,2),
+    SHIPPING     NUMBER(10,2),
+    TAX          NUMBER(10,2),
+    TOTAL        NUMBER(18,2),
+    STATUS       VARCHAR,
+    REGION       VARCHAR
+)
+```
 
 ### Products
 Product catalog with:

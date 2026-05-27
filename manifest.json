@@ -5772,7 +5772,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/precisely_dis_dq_check/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/precisely_dis_dq_check/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/precisely_dis_dq_check/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/precisely_dis_dq_check/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/precisely_dis_dq_check/requirements.txt",
+      "vendor": "Precisely"
     },
     {
       "id": "sifflet_check",
@@ -6338,7 +6339,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-22"
-      }
+      },
+      "vendor": "Precisely"
     },
     {
       "id": "external_pubsub_asset",
@@ -7426,7 +7428,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/precisely_connect_job_trigger/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/precisely_connect_job_trigger/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/precisely_connect_job_trigger/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/precisely_connect_job_trigger/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/precisely_connect_job_trigger/requirements.txt",
+      "vendor": "Precisely"
     },
     {
       "id": "pulumi_asset",
@@ -16874,7 +16877,8 @@
         "level": "code",
         "last_validated": "2026-05-22",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/precisely_validation.md \u2014 API surface matches Precisely's public REST docs; no live Precisely cluster available to validate end-to-end."
-      }
+      },
+      "vendor": "Precisely"
     },
     {
       "id": "pubsub_monitor",
@@ -18867,7 +18871,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_data360/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_data360/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_data360/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_data360/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_data360/requirements.txt",
+      "vendor": "Precisely"
     },
     {
       "id": "lineage_to_datahub",
@@ -22216,7 +22221,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/precisely_address_verify/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/precisely_address_verify/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/precisely_address_verify/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/precisely_address_verify/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/precisely_address_verify/requirements.txt",
+      "vendor": "Precisely"
     },
     {
       "id": "pyspark_pipeline",

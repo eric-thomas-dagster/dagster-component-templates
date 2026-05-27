@@ -1100,11 +1100,32 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         # Sanitize name for asset key
                         asset_key = f"snowpipe_{re.sub(r'[^a-zA-Z0-9_]', '_', pipe_name.lower())}"
 
+                        # Parse the COPY target table out of the pipe DEFINITION
+                        # so the sensor can query COPY_HISTORY against the right
+                        # table. COPY_HISTORY's TABLE_NAME parameter wants the
+                        # COPY target — passing pipe_name produces a 002003
+                        # "Table … does not exist or not authorized" error
+                        # spammed once per pipe per sensor tick.
+                        # Target can be 1-/2-/3-part; default missing parts to
+                        # the pipe's own database/schema.
+                        _defn = pipe.get('DEFINITION') or ''
+                        _m = re.search(r'COPY\s+INTO\s+([A-Za-z0-9_."]+)', _defn, re.IGNORECASE)
+                        if _m:
+                            _parts = [p.strip('"') for p in _m.group(1).split('.')]
+                            if len(_parts) == 1:
+                                _parts = [pipe['DATABASE_NAME'], pipe['SCHEMA_NAME'], _parts[0]]
+                            elif len(_parts) == 2:
+                                _parts = [pipe['DATABASE_NAME'], _parts[0], _parts[1]]
+                            target_table = '.'.join(_parts)
+                        else:
+                            target_table = None
+
                         # Store metadata for sensor
                         snowpipe_metadata[asset_key] = {
                             'pipe_name': pipe_name,
                             'database': pipe['DATABASE_NAME'],
                             'schema': pipe['SCHEMA_NAME'],
+                            'target_table': target_table,
                         }
 
                         # Snowpipes are materializable - can trigger refresh
@@ -1120,7 +1141,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "entity_type": "snowpipe",
                             },
                         ))
-                        def _make_snowpipe_asset(pipe_name_v, db_v, schema_v, pipe_kwargs_v, self_v):
+                        def _make_snowpipe_asset(pipe_name_v, db_v, schema_v, target_table_v, pipe_kwargs_v, self_v):
                             @asset(**pipe_kwargs_v)
                             def _snowpipe_asset(context: AssetExecutionContext):
                                 """Materialize by refreshing Snowpipe (loading pending files)."""
@@ -1195,34 +1216,50 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                             f"Could not read pipe metadata for {pipe_name_v}: {exc}."
                                         )
 
-                                    # COPY_HISTORY is a table function — wrap in try/except so
-                                    # REFRESH still wins even if the role can't read it.
-                                    try:
-                                        history_query = f"""
-                                        SELECT
-                                            file_name,
-                                            stage_location,
-                                            last_load_time,
-                                            row_count,
-                                            row_parsed,
-                                            file_size,
-                                            first_error_message
-                                        FROM TABLE(INFORMATION_SCHEMA.COPY_HISTORY(
-                                            TABLE_NAME => '{pipe_name_v}',
-                                            START_TIME => DATEADD('hour', -1, CURRENT_TIMESTAMP())
-                                        ))
-                                        ORDER BY last_load_time DESC
-                                        LIMIT 5
-                                        """
-                                        cursor.execute(history_query)
-                                        recent_loads = cursor.fetchall()
-                                        metadata["snowflake/recent_loads"] = MetadataValue.int(
-                                            len(recent_loads) if recent_loads else 0
-                                        )
-                                    except Exception as exc:
+                                    # COPY_HISTORY's TABLE_NAME parameter takes the COPY
+                                    # *target* table, NOT the pipe name. The target was
+                                    # parsed out of the pipe DEFINITION at import-time and
+                                    # captured in this closure as target_table_v; if it's
+                                    # None (couldn't parse), skip the query entirely rather
+                                    # than running one guaranteed to fail. The
+                                    # `pipe_name = ...` filter scopes the result to this
+                                    # pipe in case multiple pipes COPY into the same target.
+                                    if target_table_v:
+                                        try:
+                                            qualified_pipe = f"{db_v}.{schema_v}.{pipe_name_v}"
+                                            history_query = f"""
+                                            SELECT
+                                                file_name,
+                                                stage_location,
+                                                last_load_time,
+                                                row_count,
+                                                row_parsed,
+                                                file_size,
+                                                first_error_message,
+                                                pipe_name
+                                            FROM TABLE(INFORMATION_SCHEMA.COPY_HISTORY(
+                                                TABLE_NAME => '{target_table_v}',
+                                                START_TIME => DATEADD('hour', -1, CURRENT_TIMESTAMP())
+                                            ))
+                                            WHERE pipe_name = '{qualified_pipe}'
+                                            ORDER BY last_load_time DESC
+                                            LIMIT 5
+                                            """
+                                            cursor.execute(history_query)
+                                            recent_loads = cursor.fetchall()
+                                            metadata["snowflake/recent_loads"] = MetadataValue.int(
+                                                len(recent_loads) if recent_loads else 0
+                                            )
+                                        except Exception as exc:
+                                            context.log.warning(
+                                                f"Could not read COPY_HISTORY for {pipe_name_v}: {exc}. "
+                                                f"Refresh succeeded; emitting asset without load-count metadata."
+                                            )
+                                    else:
                                         context.log.warning(
-                                            f"Could not read COPY_HISTORY for {pipe_name_v}: {exc}. "
-                                            f"Refresh succeeded; emitting asset without load-count metadata."
+                                            f"Skipping COPY_HISTORY for {pipe_name_v}: could "
+                                            f"not determine COPY target table from pipe "
+                                            f"definition."
                                         )
 
                                     return metadata
@@ -1232,7 +1269,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             return _snowpipe_asset
 
                         assets_list.append(_make_snowpipe_asset(
-                            pipe_name, pipe['DATABASE_NAME'], pipe['SCHEMA_NAME'], _pipe_kwargs, self,
+                            pipe_name, pipe['DATABASE_NAME'], pipe['SCHEMA_NAME'],
+                            target_table, _pipe_kwargs, self,
                         ))
 
                 except Exception as e:
@@ -1746,14 +1784,32 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         except Exception as e:
                             _logger.error(f"Error checking runs for task {task_name}: {e}")
 
-                    # Check for Snowpipe loads
+                    # Check for Snowpipe loads.
+                    # COPY_HISTORY's TABLE_NAME parameter takes the COPY
+                    # *target* table, NOT the pipe name (passing the pipe
+                    # name yields a 002003 "Table does not exist" error
+                    # every tick). The target was parsed out of the pipe
+                    # DEFINITION at import-time; if parsing failed, skip
+                    # the pipe with a one-line warning instead of running
+                    # a broken query. The `pipe_name = '<qualified_pipe>'`
+                    # filter prevents cross-pipe interference when multiple
+                    # pipes COPY into the same target table.
                     for asset_key, metadata in snowpipe_metadata.items():
                         pipe_name = metadata['pipe_name']
-                        db = metadata['database']
-                        schema_name = metadata['schema']
+                        target_table = metadata.get('target_table')
+                        if not target_table:
+                            _logger.warning(
+                                f"Skipping Snowpipe {pipe_name}: could not "
+                                f"determine COPY target table from pipe "
+                                f"definition."
+                            )
+                            continue
+
+                        qualified_pipe = (
+                            f"{metadata['database']}.{metadata['schema']}.{pipe_name}"
+                        )
 
                         try:
-                            # Get recent copy history for the pipe
                             history_query = f"""
                             SELECT
                                 file_name,
@@ -1763,12 +1819,16 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 row_parsed,
                                 file_size,
                                 status,
-                                first_error_message
+                                first_error_message,
+                                pipe_name
                             FROM TABLE(INFORMATION_SCHEMA.COPY_HISTORY(
-                                TABLE_NAME => '{pipe_name}',
-                                START_TIME => DATEADD('minute', -{self.poll_interval_seconds / 60}, CURRENT_TIMESTAMP())
+                                TABLE_NAME => '{target_table}',
+                                START_TIME => DATEADD('minute',
+                                                      -{self.poll_interval_seconds / 60},
+                                                      CURRENT_TIMESTAMP())
                             ))
                             WHERE status = 'LOADED'
+                              AND pipe_name = '{qualified_pipe}'
                             ORDER BY last_load_time DESC
                             LIMIT 10
                             """

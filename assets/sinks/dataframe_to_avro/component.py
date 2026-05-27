@@ -34,19 +34,27 @@ _PANDAS_TO_AVRO = {
 }
 
 
+_AVRO_TIMESTAMP_MICROS = {"type": "long", "logicalType": "timestamp-micros"}
+
+
 def _infer_avro_schema(df: pd.DataFrame, record_name: str) -> Dict[str, Any]:
     """Build a record-type Avro schema by mapping each column's dtype.
 
     All fields are emitted as nullable Avro unions (`["null", T]`) so the
     schema works even when pandas has NaNs. Caller can override with an
     explicit `avro_schema:` if they need stricter typing or named records.
+
+    Datetime columns use Avro's ``timestamp-micros`` logical type so
+    downstream readers (BigQuery, Snowflake, Iceberg, Spark) restore them
+    as real timestamps. The previous "ISO string" encoding silently
+    degraded the column's type — downstream typed engines saw it as
+    plain STRING.
     """
     fields: List[Dict[str, Any]] = []
     for col in df.columns:
         dtype = str(df[col].dtype)
         if dtype.startswith("datetime64"):
-            # Emit as ISO-8601 strings for cross-engine portability.
-            avro_type = "string"
+            avro_type: Any = _AVRO_TIMESTAMP_MICROS
         else:
             avro_type = _PANDAS_TO_AVRO.get(dtype, "string")
         fields.append({"name": str(col), "type": ["null", avro_type], "default": None})
@@ -59,17 +67,37 @@ def _infer_avro_schema(df: pd.DataFrame, record_name: str) -> Dict[str, Any]:
 
 def _coerce_for_avro(records: List[Dict[str, Any]]) -> None:
     """In-place: convert pandas Timestamp / NaT / numpy types to plain Python
-    types so fastavro can serialize."""
+    types so fastavro can serialize.
+
+    Timestamps are emitted as ``datetime`` (fastavro recognizes them and
+    converts to micros), NOT as ISO strings — the schema is now
+    ``timestamp-micros`` so a string would fail validation.
+    """
     import math
+    from datetime import datetime
+    try:
+        import pandas as _pd
+        _Timestamp = _pd.Timestamp
+        _NaT = _pd.NaT
+    except ImportError:
+        _Timestamp = None
+        _NaT = None
     for row in records:
         for k, v in list(row.items()):
             # NaN → None for nullable unions
             if isinstance(v, float) and math.isnan(v):
                 row[k] = None
                 continue
-            # pandas.Timestamp / numpy.datetime64 → ISO string
-            if hasattr(v, "isoformat"):
-                row[k] = v.isoformat()
+            # pandas.NaT → None (NaT is a singleton; isnan() above doesn't catch it)
+            if _NaT is not None and v is _NaT:
+                row[k] = None
+                continue
+            # pandas.Timestamp → datetime (fastavro encodes timestamp-micros from datetime)
+            if _Timestamp is not None and isinstance(v, _Timestamp):
+                row[k] = v.to_pydatetime()
+                continue
+            # Already a datetime → leave as-is (fastavro handles it)
+            if isinstance(v, datetime):
                 continue
             # numpy scalars → native Python
             if hasattr(v, "item") and not isinstance(v, (str, bytes, dict, list)):

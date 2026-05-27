@@ -208,7 +208,7 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
                             f"  SELECT ARRAY_AGG(OBJECT_CONSTRUCT(*)) FROM TABLE("
                             f"    INFER_SCHEMA("
                             f"      LOCATION => '{stage_name}', "
-                            f"      FILE_FORMAT => '(TYPE => PARQUET)'"
+                            f"      FILE_FORMAT => '(TYPE => PARQUET, USE_LOGICAL_TYPE => TRUE)'"
                             f"    )"
                             f"  )"
                             f")"
@@ -216,7 +216,7 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
                         tc = time.time()
                         cur.execute(
                             f"COPY INTO {qualified_table} FROM {stage_name} "
-                            f"FILE_FORMAT = (TYPE = PARQUET) "
+                            f"FILE_FORMAT = (TYPE = PARQUET, USE_LOGICAL_TYPE = TRUE) "
                             f"MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE "
                             f"ON_ERROR = {on_error} "
                             f"PURGE = {'TRUE' if purge_stage else 'FALSE'}"
@@ -234,14 +234,14 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
                             f"  SELECT ARRAY_AGG(OBJECT_CONSTRUCT(*)) FROM TABLE("
                             f"    INFER_SCHEMA("
                             f"      LOCATION => '{stage_name}', "
-                            f"      FILE_FORMAT => '(TYPE => PARQUET)'"
+                            f"      FILE_FORMAT => '(TYPE => PARQUET, USE_LOGICAL_TYPE => TRUE)'"
                             f"    )"
                             f"  )"
                             f")"
                         )
                         cur.execute(
                             f"COPY INTO {qualified_staging} FROM {stage_name} "
-                            f"FILE_FORMAT = (TYPE = PARQUET) "
+                            f"FILE_FORMAT = (TYPE = PARQUET, USE_LOGICAL_TYPE = TRUE) "
                             f"MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE "
                             f"ON_ERROR = {on_error}"
                         )

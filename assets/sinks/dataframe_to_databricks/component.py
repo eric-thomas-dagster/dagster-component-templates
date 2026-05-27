@@ -410,6 +410,32 @@ group_name=group_name,
                         upstream[_c] = upstream[_c].dt.tz_convert("UTC").dt.tz_localize(None)
                     context.log.info(f"Stripped tz from columns for Databricks compat: {_tz_cols}")
 
+            # Map pandas dtype → Databricks SQL type for the CREATE DDL. The
+            # previous implementation emitted every column as STRING, which
+            # silently coerced ints/floats/bools/datetimes to text (worse
+            # than the snowflake use_logical_type bug — affects every
+            # dtype, not just timestamps). object/category default to
+            # STRING which is the right fallback for mixed/string columns.
+            def _databricks_type(pd_dtype) -> str:
+                dt = str(pd_dtype)
+                if dt.startswith("datetime64"):
+                    return "TIMESTAMP"
+                if dt == "bool":
+                    return "BOOLEAN"
+                if dt in ("int64", "Int64"):
+                    return "BIGINT"
+                if dt in ("int32", "Int32"):
+                    return "INT"
+                if dt in ("int16", "Int16"):
+                    return "SMALLINT"
+                if dt in ("int8", "Int8"):
+                    return "TINYINT"
+                if dt in ("float64", "Float64"):
+                    return "DOUBLE"
+                if dt in ("float32", "Float32"):
+                    return "FLOAT"
+                return "STRING"
+
             with databricks_sql.connect(
                 server_hostname=host,
                 http_path=http_path,
@@ -417,7 +443,10 @@ group_name=group_name,
             ) as conn:
                 with conn.cursor() as cursor:
                     if mode == "overwrite":
-                        cols = ", ".join([f"`{c}` STRING" for c in upstream.columns])
+                        cols = ", ".join(
+                            f"`{c}` {_databricks_type(upstream[c].dtype)}"
+                            for c in upstream.columns
+                        )
                         cursor.execute(f"CREATE OR REPLACE TABLE {full_table} ({cols})")
                     elif mode == "error":
                         cursor.execute(

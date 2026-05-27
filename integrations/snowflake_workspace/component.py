@@ -25,6 +25,7 @@ from dagster import (
     sensor,
     SensorEvaluationContext,
     SensorResult,
+    SkipReason,
     AssetMaterialization,
     ObserveResult,
     Resolvable,
@@ -1749,9 +1750,15 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
 
                 Dynamic-table refreshes are handled by the dedicated
                 ``<group>_dt_refresh_sensor`` (see DT-refresh sensor block).
+
+                Returns a single ``SensorResult(asset_events=[...])`` —
+                Dagster's sensor framework rejects ``yield
+                AssetMaterialization(...)`` (list-member-type check
+                expects SkipReason/RunRequest/DagsterRunReaction).
                 """
                 conn = self._create_connection()
                 cursor = conn.cursor()
+                events: list = []
 
                 try:
                     # Check for completed task runs
@@ -1784,7 +1791,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 columns = [col[0] for col in cursor.description]
                                 run_dict = dict(zip(columns, run))
 
-                                yield AssetMaterialization(
+                                events.append(AssetMaterialization(
                                     asset_key=asset_key,
                                     metadata={
                                         "query_id": run_dict.get('QUERY_ID'),
@@ -1794,7 +1801,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         "source": "snowflake_observation_sensor",
                                         "entity_type": "task",
                                     }
-                                )
+                                ))
                         except Exception as e:
                             _logger.error(f"Error checking runs for task {task_name}: {e}")
 
@@ -1861,7 +1868,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 columns = [col[0] for col in cursor.description]
                                 load_dict = dict(zip(columns, load))
 
-                                yield AssetMaterialization(
+                                events.append(AssetMaterialization(
                                     asset_key=asset_key,
                                     metadata={
                                         "pipe_name": pipe_name,
@@ -1872,13 +1879,19 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         "source": "snowflake_observation_sensor",
                                         "entity_type": "snowpipe",
                                     }
-                                )
+                                ))
                         except Exception as e:
                             _logger.error(f"Error checking loads for Snowpipe {pipe_name}: {e}")
 
                 finally:
                     cursor.close()
                     conn.close()
+
+                if events:
+                    return SensorResult(asset_events=events)
+                return SkipReason(
+                    "No new task completions or pipe loads in this tick window."
+                )
 
             sensors_list.append(snowflake_observation_sensor)
 
@@ -1973,7 +1986,18 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
 
                         if prev_tuple == cur_tuple:
                             continue
-                        if status != "SUCCEEDED":
+                        # Some Snowflake versions/regions don't expose any
+                        # refresh-status column on SHOW DYNAMIC TABLES —
+                        # only `data_timestamp`. In that case status is
+                        # None and we use the advancing `data_timestamp`
+                        # itself as the success signal (Snowflake does
+                        # not advance data_timestamp on failed refreshes).
+                        # Accounts that DO expose status keep the strict
+                        # 'SUCCEEDED' check.
+                        # TODO: refactor to INFORMATION_SCHEMA.DYNAMIC_TABLE_REFRESH_HISTORY
+                        # (stable cross-version columns: state,
+                        # refresh_action, data_timestamp).
+                        if status is not None and status != "SUCCEEDED":
                             continue
 
                         asset_key_str = _dt_name_to_asset_key[dt_name]

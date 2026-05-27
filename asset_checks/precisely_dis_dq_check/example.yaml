@@ -1,0 +1,11 @@
+type: dagster_community_components.PreciselyDISDQCheckComponent
+attributes:
+  asset_key: warehouse/orders
+  dataset_id: "ds-abc-123"
+  rule_ids:
+    - "rule-not-null-order_id"
+    - "rule-unique-order_id"
+    - "rule-valid-status-enum"
+  client_id_env_var: PRECISELY_DIS_CLIENT_ID
+  client_secret_env_var: PRECISELY_DIS_CLIENT_SECRET
+  severity: ERROR

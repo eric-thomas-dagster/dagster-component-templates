@@ -1,0 +1,7 @@
+type: dagster_community_components.LineageToData360Component
+attributes:
+  asset_name: lineage_to_data360
+  upstream_asset_key: lineage_graph
+  catalog_url: https://api.data.precisely.com/data360/catalog
+  client_id_env: PRECISELY_DIS_CLIENT_ID
+  client_secret_env: PRECISELY_DIS_CLIENT_SECRET

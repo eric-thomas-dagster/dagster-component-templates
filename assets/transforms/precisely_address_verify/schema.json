@@ -1,0 +1,182 @@
+{
+  "additionalProperties": false,
+  "description": "Verify + standardize an address column via Precisely Address Verify.\n\nExample:\n    ```yaml\n    type: dagster_community_components.PreciselyAddressVerifyComponent\n    attributes:\n      asset_name: verified_customer_addresses\n      upstream_asset_key: customer_raw_addresses\n      address_column: full_address\n      country_column: country_code        # optional; defaults to USA\n      output_prefix: av_\n      client_id_env_var: PRECISELY_CLIENT_ID\n      client_secret_env_var: PRECISELY_CLIENT_SECRET\n    ```",
+  "properties": {
+    "asset_name": {
+      "description": "Output Dagster asset name.",
+      "title": "Asset Name",
+      "type": "string"
+    },
+    "upstream_asset_key": {
+      "description": "Upstream asset key providing a DataFrame with the address column.",
+      "title": "Upstream Asset Key",
+      "type": "string"
+    },
+    "address_column": {
+      "description": "Source column with the single-line address string ('123 Main St, Springfield, MA 01103'). The API can also accept parsed components \u2014 see address_line_columns if you already have street/city/state split out.",
+      "title": "Address Column",
+      "type": "string"
+    },
+    "address_line_columns": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional: pass parsed address parts instead of a single line. Map of {payload_field: source_column}, e.g. {addressLines: street, city: city, postalCode: zip}. When set, address_column is ignored.",
+      "title": "Address Line Columns"
+    },
+    "country_column": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional column with ISO 3166-1 alpha-3 country code per row. Falls back to default_country when null/missing.",
+      "title": "Country Column"
+    },
+    "default_country": {
+      "default": "USA",
+      "description": "Country code used when country_column is missing.",
+      "title": "Default Country",
+      "type": "string"
+    },
+    "output_prefix": {
+      "default": "av_",
+      "description": "Prefix for added columns (default 'av_': av_status, av_standardized, ...).",
+      "title": "Output Prefix",
+      "type": "string"
+    },
+    "client_id_env_var": {
+      "default": "PRECISELY_CLIENT_ID",
+      "description": "Env var with Precisely OAuth2 client_id.",
+      "title": "Client Id Env Var",
+      "type": "string"
+    },
+    "client_secret_env_var": {
+      "default": "PRECISELY_CLIENT_SECRET",
+      "description": "Env var with Precisely OAuth2 client_secret.",
+      "title": "Client Secret Env Var",
+      "type": "string"
+    },
+    "token_url": {
+      "default": "https://api.precisely.com/oauth/token",
+      "description": "OAuth2 token endpoint.",
+      "title": "Token Url",
+      "type": "string"
+    },
+    "verify_url": {
+      "default": "https://api.precisely.com/addresses/v1/verify",
+      "description": "Address Verify endpoint.",
+      "title": "Verify Url",
+      "type": "string"
+    },
+    "request_timeout_seconds": {
+      "default": 30,
+      "description": "Per-request HTTP timeout.",
+      "minimum": 1,
+      "title": "Request Timeout Seconds",
+      "type": "integer"
+    },
+    "batch_size": {
+      "default": 100,
+      "description": "Addresses per request batch (Address Verify accepts batches).",
+      "maximum": 1000,
+      "minimum": 1,
+      "title": "Batch Size",
+      "type": "integer"
+    },
+    "group_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "precisely",
+      "description": "Dagster asset group name.",
+      "title": "Group Name"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset description.",
+      "title": "Description"
+    },
+    "owners": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset owners.",
+      "title": "Owners"
+    },
+    "asset_tags": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Catalog tags.",
+      "title": "Asset Tags"
+    },
+    "kinds": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset kinds (auto-includes 'precisely').",
+      "title": "Kinds"
+    }
+  },
+  "required": [
+    "asset_name",
+    "upstream_asset_key",
+    "address_column"
+  ],
+  "title": "PreciselyAddressVerifyComponent",
+  "type": "object"
+}

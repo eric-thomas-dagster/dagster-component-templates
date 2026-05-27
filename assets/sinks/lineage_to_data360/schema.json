@@ -1,0 +1,119 @@
+{
+  "additionalProperties": false,
+  "description": "Lineage \u2192 Precisely Data360 Govern \u2014 sink asset that depends on lineage_graph.\n\nExample:\n    ```yaml\n    type: dagster_community_components.LineageToData360Component\n    attributes:\n      asset_name: lineage_to_data360\n      upstream_asset_key: lineage_graph\n      catalog_url: https://api.data.precisely.com/data360/catalog\n      client_id_env: PRECISELY_DIS_CLIENT_ID\n      client_secret_env: PRECISELY_DIS_CLIENT_SECRET\n    ```\n\nPair with the registry's ``lineage_graph_extractor`` component as\nthe upstream \u2014 it produces the canonical lineage payload every\n``lineage_to_*`` sink consumes.",
+  "properties": {
+    "asset_name": {
+      "default": "lineage_to_data360",
+      "description": "Output sink asset name.",
+      "title": "Asset Name",
+      "type": "string"
+    },
+    "upstream_asset_key": {
+      "default": "lineage_graph",
+      "description": "Upstream asset emitting the canonical lineage payload (lineage_graph_extractor).",
+      "title": "Upstream Asset Key",
+      "type": "string"
+    },
+    "catalog_url": {
+      "default": "https://api.data.precisely.com/data360/catalog",
+      "description": "Data360 Govern Catalog REST base URL.",
+      "title": "Catalog Url",
+      "type": "string"
+    },
+    "token_url": {
+      "default": "https://api.data.precisely.com/oauth/token",
+      "description": "OAuth2 token endpoint (override for non-global Data360 tenants).",
+      "title": "Token Url",
+      "type": "string"
+    },
+    "client_id_env": {
+      "default": "PRECISELY_DIS_CLIENT_ID",
+      "description": "Env var with the Data360 OAuth2 client_id.",
+      "title": "Client Id Env",
+      "type": "string"
+    },
+    "client_secret_env": {
+      "default": "PRECISELY_DIS_CLIENT_SECRET",
+      "description": "Env var with the Data360 OAuth2 client_secret.",
+      "title": "Client Secret Env",
+      "type": "string"
+    },
+    "request_timeout_seconds": {
+      "default": 30,
+      "description": "Per-request HTTP timeout.",
+      "minimum": 1,
+      "title": "Request Timeout Seconds",
+      "type": "integer"
+    },
+    "only_push_on_change": {
+      "default": true,
+      "description": "If true, skip the catalog POST when the upstream payload_hash matches the last successfully pushed hash. Stored as asset metadata across runs.",
+      "title": "Only Push On Change",
+      "type": "boolean"
+    },
+    "group_name": {
+      "default": "lineage",
+      "title": "Group Name",
+      "type": "string"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Description"
+    },
+    "owners": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Owners"
+    },
+    "asset_tags": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Asset Tags"
+    },
+    "kinds": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Kinds"
+    }
+  },
+  "title": "LineageToData360Component",
+  "type": "object"
+}

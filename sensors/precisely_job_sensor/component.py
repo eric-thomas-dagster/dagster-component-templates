@@ -27,6 +27,7 @@ from typing import Dict, Optional
 import dagster as dg
 from dagster import (
     AssetMaterialization,
+    AssetObservation,
     ConfigurableResource,
     RunRequest,
     SensorEvaluationContext,
@@ -110,10 +111,23 @@ class PreciselyJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     asset_key: Optional[str] = Field(
         default=None,
         description=(
-            "Optional Dagster asset key. When set, the sensor also yields "
-            "AssetMaterialization(asset_key=...) on terminal SUCCESS — which "
-            "lights up the matching external_precisely_job asset in the catalog. "
-            "Use '/' separators for nested keys, e.g. 'precisely/etl/load_customers'."
+            "Optional Dagster asset key. When set, the sensor also emits "
+            "AssetMaterialization (or AssetObservation — see asset_event_type) "
+            "for this key on terminal SUCCESS — which lights up the matching "
+            "external_precisely_job asset in the catalog. Use '/' separators "
+            "for nested keys, e.g. 'precisely/etl/load_customers'."
+        ),
+    )
+    asset_event_type: str = Field(
+        default="materialization",
+        description=(
+            "What kind of asset event to emit on terminal SUCCESS: "
+            "'materialization' (default — lights up the materialization "
+            "history, what you want for jobs Dagster doesn't run itself) or "
+            "'observation' (emits AssetObservation instead — better when "
+            "you want the materialization timeline reserved for assets "
+            "Dagster materializes itself, and Precisely runs to be "
+            "observability data alongside)."
         ),
     )
     host_env_var: Optional[str] = Field(default=None, description="Env var with Precisely Connect ETL host URL")
@@ -172,22 +186,39 @@ class PreciselyJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             if status in PRECISELY_TERMINAL_SUCCESS and run_id != cursor:
                 asset_events = []
                 if _self.asset_key:
-                    asset_events.append(AssetMaterialization(
-                        asset_key=dg.AssetKey(_self.asset_key.split("/")),
-                        description=f"Precisely run {run_id} → {status}",
-                        metadata={
-                            "precisely_job_run_id": run_id,
-                            "precisely_status": status,
-                            "precisely_host": base,
-                        },
-                    ))
+                    asset_key = dg.AssetKey(_self.asset_key.split("/"))
+                    description = f"Precisely run {run_id} → {status}"
+                    metadata = {
+                        "precisely_job_run_id": run_id,
+                        "precisely_status": status,
+                        "precisely_host": base,
+                    }
+                    if _self.asset_event_type == "observation":
+                        asset_events.append(AssetObservation(
+                            asset_key=asset_key,
+                            description=description,
+                            metadata=metadata,
+                        ))
+                    else:
+                        asset_events.append(AssetMaterialization(
+                            asset_key=asset_key,
+                            description=description,
+                            metadata=metadata,
+                        ))
+                # Pass Precisely identifiers via `tags` rather than
+                # `run_config`. The old run_config={"ops": {"config":
+                # {...}}} treated the literal string "config" as an op
+                # name, so downstream ops' context.op_config was always
+                # empty. tags are accessible to downstream ops via
+                # context.run.tags and aren't tied to a specific op-name.
                 return SensorResult(
                     run_requests=[RunRequest(
                         run_key=run_id,
-                        run_config={"ops": {"config": {
-                            "precisely_job_run_id": run_id,
-                            "precisely_status": status,
-                        }}},
+                        tags={
+                            "precisely/job_run_id": run_id,
+                            "precisely/status": status,
+                            "precisely/host": base,
+                        },
                     )],
                     asset_events=asset_events or None,
                     cursor=run_id,

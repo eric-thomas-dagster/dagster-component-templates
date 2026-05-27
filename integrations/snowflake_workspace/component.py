@@ -37,6 +37,58 @@ from pydantic import ConfigDict, Field
 _logger = logging.getLogger(__name__)
 
 
+_CONFIG_SCHEMA_TYPE_MAP = {
+    "int": int,
+    "str": str,
+    "string": str,
+    "float": float,
+    "bool": bool,
+    "boolean": bool,
+}
+
+
+def _build_task_config_class(task_name: str, schema: Dict[str, Any]):
+    """Build a ``dg.Config`` subclass from a YAML config_schema dict.
+
+    Each field is a dict of ``{type, default, description}``. The supported
+    type strings are int / str / float / bool — the minimum-viable set for
+    the `EXECUTE TASK ... WITH CONFIG => '<json>'` pattern. Anything else
+    raises ValueError at component build_defs time (loudly, not silently).
+
+    Defaults are required when the YAML supplies a `default:` key, optional
+    otherwise — in which case the field is required at launchpad time.
+    """
+    from pydantic import create_model
+    import dagster as _dg
+
+    sane_name = re.sub(r"[^A-Za-z0-9]+", "_", task_name).strip("_") or "Task"
+    fields: Dict[str, Any] = {}
+    for field_name, spec in schema.items():
+        if not isinstance(spec, dict):
+            raise ValueError(
+                f"config_schema['{field_name}'] must be a dict with "
+                f"`type:` (int/str/float/bool); got {type(spec).__name__}."
+            )
+        type_str = str(spec.get("type", "")).lower()
+        if type_str not in _CONFIG_SCHEMA_TYPE_MAP:
+            raise ValueError(
+                f"config_schema['{field_name}'].type must be one of "
+                f"{sorted(_CONFIG_SCHEMA_TYPE_MAP)}; got {spec.get('type')!r}."
+            )
+        py_type = _CONFIG_SCHEMA_TYPE_MAP[type_str]
+        if "default" in spec:
+            fields[field_name] = (
+                py_type,
+                Field(default=spec["default"], description=spec.get("description")),
+            )
+        else:
+            fields[field_name] = (
+                py_type,
+                Field(..., description=spec.get("description")),
+            )
+    return create_model(f"{sane_name}Config", __base__=_dg.Config, **fields)
+
+
 def _serialize_proc_arg(a):
     """Convert a Python value to a SQL literal for CALL <proc>(args...).
 
@@ -508,114 +560,145 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                     # DagsterInvalidDefinitionError: Input asset "['task_name']"
                     # Defined once before the per-task loop so both
                     # multi-instance and single-instance paths can call it.
-                    def _make_task_asset(task_name_v, db_v, schema_v, task_kwargs_v, self_v, config_v):
+                    #
+                    # Two execution-shape variants:
+                    #   - No config_schema → @asset(context) with hardcoded
+                    #     `config_v` baked into the EXECUTE TASK USING CONFIG
+                    #     (current behavior; backwards-compatible).
+                    #   - config_schema set → @asset(context, config:
+                    #     <generated dg.Config subclass>) so Dagster renders
+                    #     the launchpad form. Values resolved at materialize
+                    #     time; `config_v` is ignored on this path.
+                    def _run_task_body(context, self_v, task_name_v, db_v, schema_v, config_dict):
+                        """Shared body: execute the task, gather metadata, return it."""
+                        conn = self_v._create_connection()
+                        cursor = conn.cursor()
+                        try:
+                            if config_dict:
+                                import json as _json
+                                config_json = _json.dumps(config_dict).replace("'", "''")
+                                execute_query = (
+                                    f"EXECUTE TASK {db_v}.{schema_v}.{task_name_v} "
+                                    f"WITH CONFIG => '{config_json}'"
+                                )
+                            else:
+                                execute_query = f"EXECUTE TASK {db_v}.{schema_v}.{task_name_v}"
+                            exec_sfqid = None
+                            try:
+                                cursor.execute(execute_query)
+                                exec_sfqid = cursor.sfqid
+                                context.log.info(
+                                    f"Executed Snowflake task: {task_name_v}"
+                                    + (f" WITH CONFIG => {config_dict}" if config_dict else "")
+                                )
+                            except Exception as exc:
+                                if "non-root task" in str(exc).lower():
+                                    context.log.info(
+                                        f"{task_name_v} is a child task — skipping direct EXECUTE TASK "
+                                        f"(parent triggers it). Run the parent task asset (or wait for "
+                                        f"its schedule) to actually exercise this asset."
+                                    )
+                                else:
+                                    raise
+
+                            metadata = {
+                                "task_name": task_name_v,
+                                "database": db_v,
+                                "schema": schema_v,
+                                "snowflake_task_config": config_dict or {},
+                            }
+                            # Per-run numeric perf trace (auto-plots on Plots tab).
+                            metadata.update(_emit_query_perf(cursor, exec_sfqid))
+
+                            # SHOW TASKS first — works for least-privilege roles where
+                            # INFORMATION_SCHEMA may be invisible. Pulls schedule + state.
+                            try:
+                                cursor.execute(
+                                    f"SHOW TASKS LIKE '{task_name_v}' "
+                                    f"IN SCHEMA {db_v}.{schema_v}"
+                                )
+                                info = cursor.fetchone()
+                                if info:
+                                    columns = [col[0].lower() for col in cursor.description]
+                                    info_dict = dict(zip(columns, info))
+                                    metadata.update({
+                                        "task_state": info_dict.get("state"),
+                                        "task_schedule": info_dict.get("schedule"),
+                                        "warehouse": info_dict.get("warehouse"),
+                                        "owner": info_dict.get("owner"),
+                                    })
+                            except Exception as exc:
+                                context.log.warning(
+                                    f"Could not read task metadata for {task_name_v}: {exc}. "
+                                    f"Execute succeeded; emitting asset without enriched metadata."
+                                )
+
+                            # TASK_HISTORY is a table function (not a view) — Snowflake
+                            # serves it via the ACCOUNT_USAGE / INFORMATION_SCHEMA function
+                            # surface. Wrap in try/except so EXECUTE TASK still wins even
+                            # if the role can't read history.
+                            try:
+                                history_query = f"""
+                                SELECT
+                                    query_id,
+                                    state,
+                                    scheduled_time,
+                                    query_start_time,
+                                    completed_time,
+                                    error_message
+                                FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY(
+                                    TASK_NAME => '{task_name_v}',
+                                    SCHEDULED_TIME_RANGE_START => DATEADD('hour', -1, CURRENT_TIMESTAMP())
+                                ))
+                                ORDER BY scheduled_time DESC
+                                LIMIT 1
+                                """
+                                cursor.execute(history_query)
+                                history = cursor.fetchone()
+                                if history:
+                                    columns = [col[0] for col in cursor.description]
+                                    history_dict = dict(zip(columns, history))
+                                    metadata.update({
+                                        "query_id": history_dict.get('QUERY_ID'),
+                                        "state": history_dict.get('STATE'),
+                                        "scheduled_time": str(history_dict.get('SCHEDULED_TIME')) if history_dict.get('SCHEDULED_TIME') else None,
+                                    })
+                            except Exception as exc:
+                                context.log.warning(
+                                    f"Could not read TASK_HISTORY for {task_name_v}: {exc}. "
+                                    f"Execute succeeded; emitting asset without history metadata."
+                                )
+                            return metadata
+                        finally:
+                            cursor.close()
+                            conn.close()
+
+                    def _make_task_asset(task_name_v, db_v, schema_v, task_kwargs_v, self_v, config_v, config_schema_v=None):
+                        if config_schema_v:
+                            # Launchpad-overridable path: build a dg.Config
+                            # subclass from the YAML config_schema dict.
+                            # Dagster's @asset introspects the function
+                            # signature; a parameter typed as a dg.Config
+                            # subclass triggers automatic form rendering.
+                            ConfigClass = _build_task_config_class(task_name_v, config_schema_v)
+
+                            @asset(**task_kwargs_v)
+                            def _task_asset(context: AssetExecutionContext, config: ConfigClass):  # type: ignore[valid-type]
+                                """Materialize by executing Snowflake task (config from launchpad)."""
+                                return _run_task_body(
+                                    context, self_v, task_name_v, db_v, schema_v,
+                                    config.model_dump(),
+                                )
+                            return _task_asset
+
+                        # Hardcoded-config (or no-config) path: legacy behavior.
                         @asset(**task_kwargs_v)
                         def _task_asset(context: AssetExecutionContext):
                             """Materialize by executing Snowflake task (with optional config)."""
-                            conn = self_v._create_connection()
-                            cursor = conn.cursor()
-                            try:
-                                # If config_v is set, pass it via EXECUTE TASK ... WITH CONFIG => '<json>'.
-                                # Inside the task body, SYSTEM$GET_TASK_GRAPH_CONFIG()
-                                # exposes the JSON for SQL / Snowpark logic to read.
-                                if config_v:
-                                    import json as _json
-                                    config_json = _json.dumps(config_v).replace("'", "''")
-                                    execute_query = (
-                                        f"EXECUTE TASK {db_v}.{schema_v}.{task_name_v} "
-                                        f"WITH CONFIG => '{config_json}'"
-                                    )
-                                else:
-                                    execute_query = f"EXECUTE TASK {db_v}.{schema_v}.{task_name_v}"
-                                exec_sfqid = None
-                                try:
-                                    cursor.execute(execute_query)
-                                    exec_sfqid = cursor.sfqid
-                                    context.log.info(
-                                        f"Executed Snowflake task: {task_name_v}"
-                                        + (f" WITH CONFIG => {config_v}" if config_v else "")
-                                    )
-                                except Exception as exc:
-                                    if "non-root task" in str(exc).lower():
-                                        context.log.info(
-                                            f"{task_name_v} is a child task — skipping direct EXECUTE TASK "
-                                            f"(parent triggers it). Run the parent task asset (or wait for "
-                                            f"its schedule) to actually exercise this asset."
-                                        )
-                                    else:
-                                        raise
-
-                                metadata = {
-                                    "task_name": task_name_v,
-                                    "database": db_v,
-                                    "schema": schema_v,
-                                    "snowflake_task_config": config_v or {},
-                                }
-                                # Per-run numeric perf trace (auto-plots on Plots tab).
-                                metadata.update(_emit_query_perf(cursor, exec_sfqid))
-
-                                # SHOW TASKS first — works for least-privilege roles where
-                                # INFORMATION_SCHEMA may be invisible. Pulls schedule + state.
-                                try:
-                                    cursor.execute(
-                                        f"SHOW TASKS LIKE '{task_name_v}' "
-                                        f"IN SCHEMA {db_v}.{schema_v}"
-                                    )
-                                    info = cursor.fetchone()
-                                    if info:
-                                        columns = [col[0].lower() for col in cursor.description]
-                                        info_dict = dict(zip(columns, info))
-                                        metadata.update({
-                                            "task_state": info_dict.get("state"),
-                                            "task_schedule": info_dict.get("schedule"),
-                                            "warehouse": info_dict.get("warehouse"),
-                                            "owner": info_dict.get("owner"),
-                                        })
-                                except Exception as exc:
-                                    context.log.warning(
-                                        f"Could not read task metadata for {task_name_v}: {exc}. "
-                                        f"Execute succeeded; emitting asset without enriched metadata."
-                                    )
-
-                                # TASK_HISTORY is a table function (not a view) — Snowflake
-                                # serves it via the ACCOUNT_USAGE / INFORMATION_SCHEMA function
-                                # surface. Wrap in try/except so EXECUTE TASK still wins even
-                                # if the role can't read history.
-                                try:
-                                    history_query = f"""
-                                    SELECT
-                                        query_id,
-                                        state,
-                                        scheduled_time,
-                                        query_start_time,
-                                        completed_time,
-                                        error_message
-                                    FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY(
-                                        TASK_NAME => '{task_name_v}',
-                                        SCHEDULED_TIME_RANGE_START => DATEADD('hour', -1, CURRENT_TIMESTAMP())
-                                    ))
-                                    ORDER BY scheduled_time DESC
-                                    LIMIT 1
-                                    """
-                                    cursor.execute(history_query)
-                                    history = cursor.fetchone()
-                                    if history:
-                                        columns = [col[0] for col in cursor.description]
-                                        history_dict = dict(zip(columns, history))
-                                        metadata.update({
-                                            "query_id": history_dict.get('QUERY_ID'),
-                                            "state": history_dict.get('STATE'),
-                                            "scheduled_time": str(history_dict.get('SCHEDULED_TIME')) if history_dict.get('SCHEDULED_TIME') else None,
-                                        })
-                                except Exception as exc:
-                                    context.log.warning(
-                                        f"Could not read TASK_HISTORY for {task_name_v}: {exc}. "
-                                        f"Execute succeeded; emitting asset without history metadata."
-                                    )
-                                return metadata
-                            finally:
-                                cursor.close()
-                                conn.close()
+                            return _run_task_body(
+                                context, self_v, task_name_v, db_v, schema_v,
+                                config_v or {},
+                            )
                         return _task_asset
 
                     for task in tasks:
@@ -649,6 +732,16 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                     )
                                     continue
                                 inst_config = inst.get("config", {})
+                                inst_config_schema = inst.get("config_schema")
+                                if inst_config and inst_config_schema:
+                                    raise ValueError(
+                                        f"assets_by_name.{task_name}.instances[{inst_name}]: "
+                                        f"can't mix hardcoded `config:` with overridable "
+                                        f"`config_schema:` on the same asset — pick one. "
+                                        f"`config_schema:` exposes a launchpad form so "
+                                        f"customers override at materialize time; `config:` "
+                                        f"bakes the values in."
+                                    )
                                 inst_kwargs: dict = dict(
                                     retry_policy=_retry_policy,
                                     name=re.sub(r'[^a-zA-Z0-9_]', '_', inst_name.lower()),
@@ -656,7 +749,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                     description=inst.get(
                                         "description",
                                         f"Snowflake task: {task_name}"
-                                        + (f" (config={inst_config})" if inst_config else ""),
+                                        + (f" (config={inst_config})" if inst_config else "")
+                                        + (" (launchpad config_schema)" if inst_config_schema else ""),
                                     ),
                                     metadata={
                                         "snowflake_task_name": task_name,
@@ -665,6 +759,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         "snowflake_state": task['STATE'],
                                         "snowflake_schedule": task.get('SCHEDULE'),
                                         "snowflake_task_config": inst_config,
+                                        "snowflake_task_config_schema": list((inst_config_schema or {}).keys()),
                                         "entity_type": "task",
                                     },
                                 )
@@ -693,13 +788,23 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 }
                                 assets_list.append(_make_task_asset(
                                     task_name, task['DATABASE_NAME'], task['SCHEMA_NAME'],
-                                    inst_kwargs, self, inst_config,
+                                    inst_kwargs, self, inst_config, inst_config_schema,
                                 ))
                             continue  # skip single-instance path
 
                         # Single-instance mode (default): one Dagster asset per
-                        # task, with optional `config:` override.
+                        # task, with optional `config:` (hardcoded) OR
+                        # `config_schema:` (launchpad-overridable) override.
                         task_config = override.get("config", {}) if isinstance(override, dict) else {}
+                        task_config_schema = override.get("config_schema") if isinstance(override, dict) else None
+                        if task_config and task_config_schema:
+                            raise ValueError(
+                                f"assets_by_name.{task_name}: can't mix hardcoded "
+                                f"`config:` with overridable `config_schema:` on "
+                                f"the same asset — pick one. `config_schema:` "
+                                f"exposes a launchpad form so customers override at "
+                                f"materialize time; `config:` bakes the values in."
+                            )
                         asset_key = f"task_{re.sub(r'[^a-zA-Z0-9_]', '_', task_name.lower())}"
                         task_metadata[asset_key] = {
                             'task_name': task_name,
@@ -719,12 +824,13 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 "snowflake_state": task['STATE'],
                                 "snowflake_schedule": task.get('SCHEDULE'),
                                 "snowflake_task_config": task_config,
+                                "snowflake_task_config_schema": list((task_config_schema or {}).keys()),
                                 "entity_type": "task",
                             },
                         ))
                         assets_list.append(_make_task_asset(
                             task_name, task['DATABASE_NAME'], task['SCHEMA_NAME'],
-                            _task_kwargs, self, task_config,
+                            _task_kwargs, self, task_config, task_config_schema,
                         ))
 
                 except Exception as e:

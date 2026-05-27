@@ -1,0 +1,10 @@
+type: dagster_community_components.PreciselyConnectJobTriggerComponent
+attributes:
+  asset_key: precisely/etl/load_customers
+  job_id: "abc-123-xyz"
+  host_env_var: PRECISELY_HOST
+  api_token_env_var: PRECISELY_API_TOKEN
+  parameters:
+    INPUT_FILE: /data/customers.csv
+    BATCH_DATE: "2026-05-27"
+  group_name: precisely

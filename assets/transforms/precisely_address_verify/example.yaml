@@ -1,0 +1,11 @@
+type: dagster_community_components.PreciselyAddressVerifyComponent
+attributes:
+  asset_name: verified_customer_addresses
+  upstream_asset_key: customer_raw_addresses
+  address_column: full_address
+  default_country: USA
+  output_prefix: av_
+  client_id_env_var: PRECISELY_CLIENT_ID
+  client_secret_env_var: PRECISELY_CLIENT_SECRET
+  batch_size: 100
+  group_name: precisely

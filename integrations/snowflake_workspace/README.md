@@ -217,6 +217,48 @@ Supported override keys (all optional):
 
 The mapping key is the **Snowflake entity name** as it appears in `INFORMATION_SCHEMA` (case-matters depending on your Snowflake configuration — typically uppercase). Works for any of the imported entity types: Tasks, Dynamic Tables, Stored Procedures, Streams, Snowpipes, Stages, Materialized Views, External Tables, Alerts, OpenFlow Flows.
 
+## Task `config:` and `config_schema:`
+
+Snowflake tasks accept a JSON config blob via `EXECUTE TASK ... WITH CONFIG => '<json>'`, readable inside the task body via `SYSTEM$GET_TASK_GRAPH_CONFIG('<field>')`. `assets_by_name` exposes two ways to wire it — they're mutually exclusive on the same asset (setting both raises `ValueError` at component build time):
+
+### `config:` — hardcoded, baked into the asset
+
+Use when the values don't change between runs:
+
+```yaml
+assets_by_name:
+  REFRESH_CUSTOMER_METRICS:
+    config:
+      domain: analytics
+      retention_days: 90
+```
+
+Every materialization runs with the same config. To get different values you'd need `instances:` (N separate assets) or a code change.
+
+### `config_schema:` — launchpad-overridable Dagster `Config`
+
+Use when you want the same task callable with different runtime knobs without spawning N assets. Dagster auto-renders a form in the launchpad with the declared defaults; visitors can override per-run.
+
+```yaml
+assets_by_name:
+  NIGHTLY_EVENTS_PURGE_TASK:
+    config_schema:
+      days_old:
+        type: int
+        default: 90
+        description: Days of event history to retain. Older events purged.
+      dry_run:
+        type: bool
+        default: false
+        description: If true, only log what would be purged; don't delete.
+```
+
+Behind the scenes the component builds a `dg.Config` subclass dynamically from this dict, injects it as the asset's `config` parameter, and passes `config.model_dump()` into `EXECUTE TASK ... WITH CONFIG => '<json>'`. Same materialization path as `config:` — just with launchpad-time field resolution.
+
+Supported field types: `int`, `str`, `float`, `bool`. Anything else raises `ValueError` at build time. Omit `default:` to make the field required at launchpad time.
+
+This works for `instances[].config_schema:` too — useful when one Snowflake task underlies N intentionally-distinct assets (e.g. by-region), each with its own overridable knobs.
+
 ## How It Works
 
 ### Tasks

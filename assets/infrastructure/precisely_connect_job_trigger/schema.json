@@ -1,0 +1,147 @@
+{
+  "additionalProperties": false,
+  "description": "Trigger a Precisely Connect ETL job-run via the ``/runtask`` endpoint.\n\nExample:\n    ```yaml\n    type: dagster_community_components.PreciselyConnectJobTriggerComponent\n    attributes:\n      asset_name: precisely_load_customers_run\n      job_id: \"abc-123-xyz\"\n      host_env_var: PRECISELY_HOST\n      api_token_env_var: PRECISELY_API_TOKEN\n      parameters:\n        INPUT_FILE: /data/customers.csv\n        BATCH_DATE: \"2026-05-27\"\n    ```\n\nThe returned jobRunId is captured as asset metadata so a paired\n``precisely_job_sensor`` can read it from the latest materialization\nand watch for terminal SUCCESS \u2014 closing the submit + watch loop.",
+  "properties": {
+    "asset_key": {
+      "description": "Dagster asset key for the Precisely job (e.g. 'precisely/etl/load_customers'). Use '/' separators for nested keys. Same value an ``external_precisely_job`` would use \u2014 but do NOT use both components on the same key; pick the Case (A or B in the module docstring) that matches your schedule ownership.",
+      "title": "Asset Key",
+      "type": "string"
+    },
+    "job_id": {
+      "description": "Precisely Connect ETL stable job id (the job to trigger).",
+      "title": "Job Id",
+      "type": "string"
+    },
+    "host_env_var": {
+      "default": "PRECISELY_HOST",
+      "description": "Env var with Precisely Connect ETL host URL.",
+      "title": "Host Env Var",
+      "type": "string"
+    },
+    "api_token_env_var": {
+      "default": "PRECISELY_API_TOKEN",
+      "description": "Env var with Precisely API bearer token.",
+      "title": "Api Token Env Var",
+      "type": "string"
+    },
+    "parameters": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional Connect ETL task parameters passed as JSON body to /runtask. Shape is job-specific (defined in DMExpress / Connect ETL UI); examples include INPUT_FILE, BATCH_DATE, etc.",
+      "title": "Parameters"
+    },
+    "timeout_seconds": {
+      "default": 60,
+      "description": "HTTP timeout for the submit POST.",
+      "minimum": 1,
+      "title": "Timeout Seconds",
+      "type": "integer"
+    },
+    "group_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "precisely",
+      "description": "Dagster asset group name.",
+      "title": "Group Name"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset description.",
+      "title": "Description"
+    },
+    "owners": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset owners.",
+      "title": "Owners"
+    },
+    "asset_tags": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Catalog tags.",
+      "title": "Asset Tags"
+    },
+    "kinds": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset kinds (auto-includes 'precisely', 'etl').",
+      "title": "Kinds"
+    },
+    "deps": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Upstream Dagster asset keys.",
+      "title": "Deps"
+    }
+  },
+  "required": [
+    "asset_key",
+    "job_id"
+  ],
+  "title": "PreciselyConnectJobTriggerComponent",
+  "type": "object"
+}

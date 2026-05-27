@@ -330,7 +330,7 @@ class DataframeUnion(Component, Model, Resolvable):
             raise ValueError(f"backend must be 'pandas' or 'polars', got {self.backend!r}")
 
 
-        @asset(partitions_def=partitions_def, name=asset_name, ins=ins, group_name=group_name, retry_policy=_retry_policy, freshness_policy=_freshness_policy, owners=self.owners or [], tags=_all_tags, deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])])
+        @asset(partitions_def=partitions_def, name=asset_name, ins=ins, group_name=group_name, retry_policy=_retry_policy, freshness_policy=_freshness_policy, owners=self.owners or [], tags=_all_tags, deps=[AssetKey.from_user_string(k) for k in (self.deps or [])])
         def _asset(context: AssetExecutionContext, **kwargs) -> Any:
             try:
                 import polars as pl

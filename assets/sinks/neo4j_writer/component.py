@@ -389,7 +389,7 @@ class Neo4jWriterComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
 group_name=group_name,
             description=f"Write DataFrame to Neo4j as {node_label} nodes",
-            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def neo4j_writer_asset(
             context: AssetExecutionContext, upstream: pd.DataFrame

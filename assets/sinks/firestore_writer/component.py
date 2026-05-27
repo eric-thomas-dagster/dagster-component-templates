@@ -383,7 +383,7 @@ class FirestoreWriterComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
 group_name=group_name,
             description=f"Write DataFrame to Firestore collection {collection}",
-            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def firestore_writer_asset(
             context: AssetExecutionContext, upstream: pd.DataFrame

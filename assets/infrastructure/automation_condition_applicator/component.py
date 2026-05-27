@@ -679,30 +679,44 @@ def apply_rules(
 
     # Definitions.map_asset_specs() rejects SourceAsset instances with
     # DagsterInvariantViolationError ("Can only map over AssetSpec or
-    # AssetsDefinition"). The snowflake_workspace component (and any
-    # other defs that emit @observable_source_asset — streams, stages,
-    # alerts, openflow flows) hits this immediately. Constrain the map
-    # to an explicit selection of mappable keys so SourceAssets pass
-    # through untouched.
-    mappable_keys = []
-    for obj in (defs.assets or []):
-        if isinstance(obj, dg.SourceAsset):
-            continue
-        if hasattr(obj, "key") and not hasattr(obj, "keys_by_output_name"):
-            mappable_keys.append(obj.key)
-        else:
-            specs = getattr(obj, "specs", None) or []
-            for spec in specs:
-                mappable_keys.append(spec.key)
-            if not specs:
-                for k in (getattr(obj, "keys", []) or []):
-                    mappable_keys.append(k)
+    # AssetsDefinition"). The `selection` kwarg only scopes which
+    # assets `func` runs on — it doesn't filter the iteration the
+    # framework type-checks against, so passing selection didn't help.
+    # Split the Definitions into (mappable, sources), transform the
+    # mappable subset, reattach the sources untouched. Any project
+    # that emits @observable_source_asset (snowflake_workspace's
+    # streams / stages / alerts / openflow flows, etc.) lands here.
+    sources = [a for a in (defs.assets or []) if isinstance(a, dg.SourceAsset)]
+    mappable = [a for a in (defs.assets or []) if not isinstance(a, dg.SourceAsset)]
 
-    if not mappable_keys:
+    if not mappable:
         return defs
 
-    selection = dg.AssetSelection.assets(*mappable_keys)
-    return defs.map_asset_specs(func=transform, selection=selection)
+    trimmed = dg.Definitions(
+        assets=mappable,
+        schedules=defs.schedules,
+        sensors=defs.sensors,
+        jobs=defs.jobs,
+        resources=defs.resources,
+        executor=defs.executor,
+        loggers=defs.loggers,
+        asset_checks=defs.asset_checks,
+    )
+    transformed = trimmed.map_asset_specs(func=transform)
+
+    if not sources:
+        return transformed
+
+    return dg.Definitions(
+        assets=[*(transformed.assets or []), *sources],
+        schedules=transformed.schedules,
+        sensors=transformed.sensors,
+        jobs=transformed.jobs,
+        resources=transformed.resources,
+        executor=transformed.executor,
+        loggers=transformed.loggers,
+        asset_checks=transformed.asset_checks,
+    )
 
 
 class _SpecView:

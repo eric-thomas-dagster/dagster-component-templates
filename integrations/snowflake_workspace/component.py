@@ -4,6 +4,7 @@ Import Snowflake tasks, stored procedures, dynamic tables, and streams
 as Dagster assets with automatic observation and orchestration.
 """
 
+import json
 import logging
 import re
 from typing import Optional, List, Dict, Any
@@ -14,6 +15,7 @@ from snowflake.connector import SnowflakeConnection
 
 from dagster import (
     AssetKey,
+    AssetSpec,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -22,6 +24,7 @@ from dagster import (
     observable_source_asset,
     sensor,
     SensorEvaluationContext,
+    SensorResult,
     AssetMaterialization,
     ObserveResult,
     Resolvable,
@@ -204,6 +207,28 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
     import_dynamic_tables: bool = Field(
         default=False,
         description="Import dynamic tables as observable assets"
+    )
+
+    dt_modeling: str = Field(
+        default="external",
+        description=(
+            "How imported dynamic tables are emitted: 'external' (default; "
+            "AssetSpec — no manual refresh from Dagster, sensor owns "
+            "materialization events) or 'asset' (legacy @asset with manual "
+            "ALTER ... REFRESH — sensor still runs, so manual materializations "
+            "and auto-refreshes can both emit materialization events for the "
+            "same DT)."
+        ),
+    )
+
+    dt_refresh_sensor_interval_seconds: int = Field(
+        default=60,
+        description=(
+            "Polling interval (seconds) for the DT-refresh detection sensor. "
+            "The sensor runs whenever import_dynamic_tables=True regardless of "
+            "dt_modeling, so Snowflake's TARGET_LAG-driven auto-refreshes "
+            "propagate to downstream Dagster consumers."
+        ),
     )
 
     import_streams: bool = Field(
@@ -450,10 +475,17 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
         assets_list = []
         sensors_list = []
 
-        # Track task, dynamic table, and snowpipe metadata for sensor
+        # Track task and snowpipe metadata for the legacy observation sensor.
+        # Dynamic-table refreshes are owned by the dedicated DT-refresh sensor
+        # below (wired in unconditionally when import_dynamic_tables=True).
         task_metadata = {}
-        dynamic_table_metadata = {}
         snowpipe_metadata = {}
+
+        # Collected during the DT import loop and consumed by the dedicated
+        # DT-refresh sensor below. Hoisted out of the try-block so the sensor
+        # block can read them even if an earlier import path raised.
+        dt_asset_keys: list = []
+        dt_name_to_asset_key: Dict[str, str] = {}
 
         try:
             # Import Tasks
@@ -857,11 +889,64 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                     _logger.error(f"Error importing Snowflake stored procedures: {e}")
 
             # Import Dynamic Tables
+            # All imported DTs land at asset_key dynamic_table_<lower> regardless
+            # of dt_modeling, so downstream `deps:` references stay stable across
+            # mode flips. dt_asset_keys + dt_name_to_asset_key are hoisted to
+            # the top of build_defs so the dedicated DT-refresh sensor can
+            # read them even if an earlier import path raised.
             if self.import_dynamic_tables:
                 try:
-                    # INFORMATION_SCHEMA.DYNAMIC_TABLES isn't a queryable view.
                     query = f"SHOW DYNAMIC TABLES IN SCHEMA {self.database}.{self.schema_name}"
                     dynamic_tables = self._execute_query(conn, query)
+
+                    # Factory for the legacy @asset (dt_modeling="asset") path.
+                    def _make_dynamic_table_asset(dt_name_v, db_v, schema_v, dt_kwargs_v, self_v):
+                        @asset(**dt_kwargs_v)
+                        def _dynamic_table_asset(context: AssetExecutionContext):
+                            """Materialize by triggering dynamic table refresh."""
+                            conn = self_v._create_connection()
+                            cursor = conn.cursor()
+                            try:
+                                refresh_query = f"ALTER DYNAMIC TABLE {db_v}.{schema_v}.{dt_name_v} REFRESH"
+                                cursor.execute(refresh_query)
+                                refresh_sfqid = cursor.sfqid
+                                context.log.info(f"Triggered refresh for dynamic table: {dt_name_v}")
+
+                                metadata = {
+                                    "table_name": dt_name_v,
+                                    "database": db_v,
+                                    "schema": schema_v,
+                                }
+                                metadata.update(_emit_query_perf(cursor, refresh_sfqid))
+
+                                try:
+                                    cursor.execute(
+                                        f"SHOW DYNAMIC TABLES LIKE '{dt_name_v}' "
+                                        f"IN SCHEMA {db_v}.{schema_v}"
+                                    )
+                                    info = cursor.fetchone()
+                                    if info:
+                                        columns = [col[0].lower() for col in cursor.description]
+                                        info_dict = dict(zip(columns, info))
+                                        metadata.update({
+                                            "refresh_mode": info_dict.get("refresh_mode"),
+                                            "scheduling_state": info_dict.get("scheduling_state"),
+                                            "target_lag": info_dict.get("target_lag"),
+                                        })
+                                        if info_dict.get("rows") is not None:
+                                            metadata["snowflake/rows"] = MetadataValue.int(int(info_dict["rows"]))
+                                        if info_dict.get("bytes") is not None:
+                                            metadata["snowflake/bytes"] = MetadataValue.int(int(info_dict["bytes"]))
+                                except Exception as exc:
+                                    context.log.warning(
+                                        f"Could not read DT metadata for {dt_name_v}: {exc}. "
+                                        f"Refresh succeeded; emitting asset without enriched metadata."
+                                    )
+                                return metadata
+                            finally:
+                                cursor.close()
+                                conn.close()
+                        return _dynamic_table_asset
 
                     for dt in dynamic_tables:
                         dt_name = dt['NAME']
@@ -869,90 +954,49 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         if not self._should_include_entity(dt_name):
                             continue
 
-                        # Sanitize name for asset key
+                        # Asset key shape is identical across both modes so
+                        # downstream `deps:` references don't break on flip.
                         asset_key = f"dynamic_table_{re.sub(r'[^a-zA-Z0-9_]', '_', dt_name.lower())}"
+                        dt_asset_keys.append(asset_key)
+                        dt_name_to_asset_key[dt_name] = asset_key
 
-                        # Store metadata for sensor
-                        dynamic_table_metadata[asset_key] = {
-                            'table_name': dt_name,
-                            'database': dt['DATABASE_NAME'],
-                            'schema': dt['SCHEMA_NAME'],
+                        base_metadata = {
+                            "snowflake_table_name": dt_name,
+                            "snowflake_database": dt['DATABASE_NAME'],
+                            "snowflake_schema": dt['SCHEMA_NAME'],
+                            "snowflake_target_lag": dt.get('TARGET_LAG'),
+                            "snowflake_refresh_mode": dt.get('REFRESH_MODE'),
+                            "entity_type": "dynamic_table",
                         }
 
-                        # Dynamic tables can be manually refreshed
-                        _dt_kwargs = self._apply_asset_overrides(dt_name, dict(
-                            name=asset_key,
-                            group_name=self.group_name,
-                            description=f"Snowflake dynamic table: {dt_name}",
-                            metadata={
-                                "snowflake_table_name": dt_name,
-                                "snowflake_database": dt['DATABASE_NAME'],
-                                "snowflake_schema": dt['SCHEMA_NAME'],
-                                "snowflake_target_lag": dt.get('TARGET_LAG'),
-                                "snowflake_refresh_mode": dt.get('REFRESH_MODE'),
-                                "entity_type": "dynamic_table",
-                            },
-                        ))
-                        def _make_dynamic_table_asset(dt_name_v, db_v, schema_v, dt_kwargs_v, self_v):
-                            @asset(**dt_kwargs_v)
-                            def _dynamic_table_asset(context: AssetExecutionContext):
-                                """Materialize by triggering dynamic table refresh."""
-                                conn = self_v._create_connection()
-                                cursor = conn.cursor()
-                                try:
-                                    refresh_query = f"ALTER DYNAMIC TABLE {db_v}.{schema_v}.{dt_name_v} REFRESH"
-                                    cursor.execute(refresh_query)
-                                    refresh_sfqid = cursor.sfqid
-                                    context.log.info(f"Triggered refresh for dynamic table: {dt_name_v}")
-
-                                    metadata = {
-                                        "table_name": dt_name_v,
-                                        "database": db_v,
-                                        "schema": schema_v,
-                                    }
-                                    # Per-run numeric perf trace (auto-plots).
-                                    metadata.update(_emit_query_perf(cursor, refresh_sfqid))
-
-                                    # Read enriched metadata via SHOW (not INFORMATION_SCHEMA).
-                                    # SHOW DYNAMIC TABLES only needs USAGE on the schema + any
-                                    # privilege on the DT; INFORMATION_SCHEMA.DYNAMIC_TABLES can
-                                    # be invisible to least-privilege roles (e.g. DAGSTER_RUNNER)
-                                    # even when the same role has USAGE on the database — Snowflake
-                                    # reports the view as "does not exist or not authorized".
-                                    # Wrap in try/except so refresh still wins if SHOW also fails.
-                                    try:
-                                        cursor.execute(
-                                            f"SHOW DYNAMIC TABLES LIKE '{dt_name_v}' "
-                                            f"IN SCHEMA {db_v}.{schema_v}"
-                                        )
-                                        info = cursor.fetchone()
-                                        if info:
-                                            columns = [col[0].lower() for col in cursor.description]
-                                            info_dict = dict(zip(columns, info))
-                                            metadata.update({
-                                                "refresh_mode": info_dict.get("refresh_mode"),
-                                                "scheduling_state": info_dict.get("scheduling_state"),
-                                                "target_lag": info_dict.get("target_lag"),
-                                            })
-                                            # Numeric fields → MetadataValue.int so Dagster plots them.
-                                            if info_dict.get("rows") is not None:
-                                                metadata["snowflake/rows"] = MetadataValue.int(int(info_dict["rows"]))
-                                            if info_dict.get("bytes") is not None:
-                                                metadata["snowflake/bytes"] = MetadataValue.int(int(info_dict["bytes"]))
-                                    except Exception as exc:
-                                        context.log.warning(
-                                            f"Could not read DT metadata for {dt_name_v}: {exc}. "
-                                            f"Refresh succeeded; emitting asset without enriched metadata."
-                                        )
-                                    return metadata
-                                finally:
-                                    cursor.close()
-                                    conn.close()
-                            return _dynamic_table_asset
-
-                        assets_list.append(_make_dynamic_table_asset(
-                            dt_name, dt['DATABASE_NAME'], dt['SCHEMA_NAME'], _dt_kwargs, self,
-                        ))
+                        if self.dt_modeling == "external":
+                            # Declare-only AssetSpec — no compute. Materialization
+                            # events come exclusively from the DT-refresh sensor
+                            # below, which catches Snowflake's TARGET_LAG-driven
+                            # auto-refreshes too.
+                            base_metadata["dagster.observability_type"] = "external"
+                            assets_list.append(AssetSpec(
+                                key=AssetKey([asset_key]),
+                                group_name=self.group_name,
+                                description=f"Snowflake dynamic table: {dt_name}",
+                                kinds={"snowflake", "dynamic_table"},
+                                metadata=base_metadata,
+                            ))
+                        else:
+                            # Legacy @asset path: manual REFRESH from Dagster.
+                            # NOTE: the DT-refresh sensor still runs, so manual
+                            # materializations and auto-refreshes can both emit
+                            # materialization events for the same DT (accepted
+                            # double-count — see component docstring).
+                            _dt_kwargs = self._apply_asset_overrides(dt_name, dict(
+                                name=asset_key,
+                                group_name=self.group_name,
+                                description=f"Snowflake dynamic table: {dt_name}",
+                                metadata=base_metadata,
+                            ))
+                            assets_list.append(_make_dynamic_table_asset(
+                                dt_name, dt['DATABASE_NAME'], dt['SCHEMA_NAME'], _dt_kwargs, self,
+                            ))
 
                 except Exception as e:
                     _logger.error(f"Error importing Snowflake dynamic tables: {e}")
@@ -1643,13 +1687,17 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
             conn.close()
 
         # Create observation sensor if requested
-        if self.generate_sensor and (task_metadata or dynamic_table_metadata or snowpipe_metadata):
+        if self.generate_sensor and (task_metadata or snowpipe_metadata):
             @sensor(
                 name=f"{self.group_name}_observation_sensor",
                 minimum_interval_seconds=self.poll_interval_seconds
             )
             def snowflake_observation_sensor(context: SensorEvaluationContext):
-                """Sensor to observe Snowflake task runs, dynamic table refreshes, and Snowpipe loads."""
+                """Sensor to observe Snowflake task runs and Snowpipe loads.
+
+                Dynamic-table refreshes are handled by the dedicated
+                ``<group>_dt_refresh_sensor`` (see DT-refresh sensor block).
+                """
                 conn = self._create_connection()
                 cursor = conn.cursor()
 
@@ -1697,47 +1745,6 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 )
                         except Exception as e:
                             _logger.error(f"Error checking runs for task {task_name}: {e}")
-
-                    # Check for dynamic table refreshes
-                    for asset_key, metadata in dynamic_table_metadata.items():
-                        table_name = metadata['table_name']
-                        db = metadata['database']
-                        schema_name = metadata['schema']
-
-                        try:
-                            # SHOW DYNAMIC TABLES (not INFORMATION_SCHEMA.DYNAMIC_TABLES) —
-                            # INFORMATION_SCHEMA can be invisible to least-privilege roles
-                            # (e.g. DAGSTER_RUNNER) even with USAGE on the database. SHOW
-                            # only requires USAGE on the schema + any privilege on the DT.
-                            cursor.execute(
-                                f"SHOW DYNAMIC TABLES LIKE '{table_name}' "
-                                f"IN SCHEMA {db}.{schema_name}"
-                            )
-                            result = cursor.fetchone()
-
-                            if result:
-                                columns = [col[0].lower() for col in cursor.description]
-                                info_dict = dict(zip(columns, result))
-
-                                # Only emit if last refresh was successful
-                                if (info_dict.get('last_refresh_state') == 'SUCCEEDED'
-                                        or info_dict.get('scheduling_state') == 'RUNNING'):
-                                    yield AssetMaterialization(
-                                        asset_key=asset_key,
-                                        metadata={
-                                            "table_name": table_name,
-                                            "scheduling_state": info_dict.get('scheduling_state'),
-                                            "last_refresh_status": info_dict.get('last_refresh_state'),
-                                            "refresh_mode": info_dict.get('refresh_mode'),
-                                            "target_lag": info_dict.get('target_lag'),
-                                            "rows": info_dict.get('rows'),
-                                            "bytes": info_dict.get('bytes'),
-                                            "source": "snowflake_observation_sensor",
-                                            "entity_type": "dynamic_table",
-                                        }
-                                    )
-                        except Exception as e:
-                            _logger.error(f"Error checking refreshes for dynamic table {table_name}: {e}")
 
                     # Check for Snowpipe loads
                     for asset_key, metadata in snowpipe_metadata.items():
@@ -1792,6 +1799,111 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                     conn.close()
 
             sensors_list.append(snowflake_observation_sensor)
+
+        # Dedicated DT-refresh sensor.
+        # Always wired in when import_dynamic_tables=True (regardless of
+        # dt_modeling), so Snowflake's TARGET_LAG-driven auto-refreshes
+        # propagate as Dagster materialization events for every imported DT.
+        # One SHOW DYNAMIC TABLES IN SCHEMA <db>.<schema> per tick + a JSON
+        # cursor keyed by DT name stores each DT's previous
+        # (last_refresh_action, last_refresh_status, last_refresh_status_timestamp);
+        # we emit AssetMaterialization only when that tuple changes AND status
+        # is SUCCEEDED. Skips ticks with no change (de-dupe).
+        if self.import_dynamic_tables and dt_asset_keys:
+            _dt_name_to_asset_key = dict(dt_name_to_asset_key)
+            _dt_asset_selection = [AssetKey([k]) for k in dt_asset_keys]
+            _self_for_sensor = self
+
+            @sensor(
+                name=f"{self.group_name}_dt_refresh_sensor",
+                minimum_interval_seconds=self.dt_refresh_sensor_interval_seconds,
+                asset_selection=_dt_asset_selection,
+            )
+            def snowflake_dt_refresh_sensor(context: SensorEvaluationContext):
+                """Emit AssetMaterialization for any DT whose latest refresh tuple changed.
+
+                One SHOW DYNAMIC TABLES per tick; per-DT diff against a JSON
+                cursor. Catches Snowflake's TARGET_LAG-driven auto-refreshes
+                that Dagster never triggered itself, so external assets
+                (``dt_modeling='external'``) still get materialization events.
+                """
+                try:
+                    prev_state: Dict[str, list] = json.loads(context.cursor) if context.cursor else {}
+                except Exception:
+                    prev_state = {}
+
+                new_state: Dict[str, list] = dict(prev_state)
+                asset_events: list = []
+
+                conn = _self_for_sensor._create_connection()
+                cursor = conn.cursor()
+                try:
+                    try:
+                        cursor.execute(
+                            f"SHOW DYNAMIC TABLES IN SCHEMA "
+                            f"{_self_for_sensor.database}.{_self_for_sensor.schema_name}"
+                        )
+                        rows = cursor.fetchall()
+                        columns = [c[0].lower() for c in cursor.description]
+                    except Exception as exc:
+                        context.log.warning(
+                            f"snowflake_dt_refresh_sensor: SHOW DYNAMIC TABLES failed: {exc}"
+                        )
+                        return SensorResult(asset_events=[], cursor=context.cursor or "{}")
+
+                    for row in rows:
+                        rd = dict(zip(columns, row))
+                        dt_name = rd.get("name")
+                        if not dt_name or dt_name not in _dt_name_to_asset_key:
+                            continue
+
+                        # Snowflake column names vary across versions —
+                        # last_refresh_action vs last_successful_refresh_action,
+                        # last_refresh_status vs last_refresh_state, etc.
+                        action = rd.get("last_refresh_action") or rd.get("last_successful_refresh_action")
+                        status = rd.get("last_refresh_status") or rd.get("last_refresh_state")
+                        ts = rd.get("last_refresh_status_timestamp") or rd.get("last_suspended_on") or rd.get("last_refreshed_on")
+                        cur_tuple = [action, status, str(ts) if ts is not None else None]
+                        prev_tuple = prev_state.get(dt_name)
+
+                        new_state[dt_name] = cur_tuple
+
+                        if prev_tuple == cur_tuple:
+                            continue
+                        if status != "SUCCEEDED":
+                            continue
+
+                        asset_key_str = _dt_name_to_asset_key[dt_name]
+                        metadata: Dict[str, Any] = {
+                            "last_refresh_status": status,
+                            "refresh_mode": rd.get("refresh_mode"),
+                            "target_lag": rd.get("target_lag"),
+                        }
+                        if rd.get("rows") is not None:
+                            try:
+                                metadata["rows"] = int(rd["rows"])
+                            except (TypeError, ValueError):
+                                pass
+                        if rd.get("bytes") is not None:
+                            try:
+                                metadata["bytes"] = int(rd["bytes"])
+                            except (TypeError, ValueError):
+                                pass
+
+                        asset_events.append(AssetMaterialization(
+                            asset_key=AssetKey([asset_key_str]),
+                            metadata=metadata,
+                        ))
+                finally:
+                    cursor.close()
+                    conn.close()
+
+                return SensorResult(
+                    asset_events=asset_events,
+                    cursor=json.dumps(new_state),
+                )
+
+            sensors_list.append(snowflake_dt_refresh_sensor)
 
         return Definitions(
             assets=assets_list,

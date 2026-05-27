@@ -14,7 +14,7 @@ Writes a Pandas DataFrame to a CSV file. This is a terminal sink component — i
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `file_path` | `str` | Destination file path or fsspec URI. Local paths (`/tmp/out.csv`) and remote URIs (`s3://bucket/out.csv`, `gs://bucket/out.csv`, `az://container/out.csv`) both work — pandas' `to_csv()` accepts fsspec URIs natively when the matching driver (`s3fs` / `gcsfs` / `adlfs`) is installed. Supports env-var substitution, e.g. `${OUTPUT_DIR}/results.csv`. |
+| `file_path` | `str` | Destination file path or fsspec URI. Local paths (`/tmp/out.csv`) and remote URIs (`s3://bucket/out.csv`, `gs://bucket/out.csv`, `az://container/out.csv`) both work — pandas' `to_csv()` accepts fsspec URIs natively when the matching driver (`s3fs` / `gcsfs` / `adlfs`) is installed. Supports env-var substitution (e.g. `${OUTPUT_DIR}/results.csv`) and opt-in placeholders substituted at materialization time: `{partition_key}` (stringified `context.partition_key`), `{run_id}` (`context.run.run_id`), and — for `MultiPartitionKey` — any axis name as `{<dim>}` (e.g. `{date}`, `{customer}`). Legacy placeholders `{partition_date}` / `{partition_date_next}` remain supported for daily-partitioned assets. |
 
 ### Catalog metadata
 
@@ -92,6 +92,44 @@ attributes:
 ### Environment Variable Substitution
 
 The `file_path` supports shell-style environment variable substitution via `os.path.expandvars`. For example, `${OUTPUT_DIR}/results.csv` will be expanded using the `OUTPUT_DIR` environment variable at runtime.
+
+### Partition-key templating
+
+`file_path` also supports opt-in placeholders substituted at
+materialization time. When `file_path` contains none of them, behavior
+is identical to the literal-path example above.
+
+| Placeholder | Substituted with |
+|---|---|
+| `{partition_key}` | `str(context.partition_key)` |
+| `{run_id}` | `context.run.run_id` |
+| `{<dim>}` | per-axis value from `MultiPartitionKey.keys_by_dimension` |
+| `{partition_date}` / `{partition_date_next}` | parsed daily-partition date and the following day (legacy, kept for backward compat) |
+
+```yaml
+# One CSV per daily partition.
+attributes:
+  asset_name: write_daily_report_csv
+  upstream_asset_key: daily_revenue_summary
+  file_path: ${OUTPUT_DIR}/reports/{partition_key}/report.csv
+  partition_type: daily
+  partition_start: '2024-01-01'
+```
+
+```yaml
+# Multi-axis partitions: {date} + {customer} addressable by name.
+attributes:
+  asset_name: write_customer_daily_csv
+  upstream_asset_key: customer_daily_summary
+  file_path: ${OUTPUT_DIR}/{customer}/dt={date}/run-{run_id}.csv
+  partition_dimensions:
+    - name: date
+      type: daily
+      start: '2024-01-01'
+    - name: customer
+      type: static
+      values: [acme, globex, initech]
+```
 
 ### Column Selection
 

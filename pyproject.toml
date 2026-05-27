@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dagster-community-components"
-version = "0.7.0"
+version = "0.8.0"
 description = "Community-maintained Dagster components — ingestion, transforms, IO managers, sensors, sinks, resources, and more."
 readme = "README.md"
 requires-python = ">=3.10"

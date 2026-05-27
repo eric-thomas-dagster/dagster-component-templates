@@ -136,7 +136,14 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
             "`gs://bucket/out.csv`, `az://container/out.csv`) both work — "
             "pandas' `to_csv()` accepts fsspec URIs natively when the "
             "matching driver (`s3fs` / `gcsfs` / `adlfs`) is installed. "
-            "Supports env-var substitution, e.g. `${OUTPUT_DIR}/results.csv`."
+            "Supports env-var substitution (e.g. `${OUTPUT_DIR}/results.csv`) "
+            "and opt-in placeholders substituted at materialization time: "
+            "`{partition_key}` (stringified `context.partition_key`), "
+            "`{run_id}` (`context.run.run_id`), and — for "
+            "`MultiPartitionKey` — any axis name as `{<dim>}` (e.g. "
+            "`{date}`, `{customer}`). Legacy placeholders "
+            "`{partition_date}` / `{partition_date_next}` remain "
+            "supported for daily-partitioned assets."
         )
     )
     delimiter: str = Field(default=",", description="Column delimiter")
@@ -361,15 +368,29 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-            # Format-string templating for file_path with partition placeholders.
-            # Users can include {partition_key}, {partition_date}, {partition_date_next}
-            # in file_path; they're substituted at run-time when partitioned.
+            # Opt-in placeholder interpolation for file_path. Behavior is
+            # byte-for-byte identical to the literal file_path if none of
+            # the placeholders are present. Two layers:
+            #   1. {partition_key} / {<dim>} / {run_id} — substituted via
+            #      str.replace (won't crash on unknown placeholders)
+            #   2. legacy {partition_date} / {partition_date_next} — kept
+            #      via .format() for backward compat with earlier configs
             _path_to_resolve = file_path
+            if context.has_partition_key:
+                _pk = context.partition_key
+                if hasattr(_pk, "keys_by_dimension"):
+                    for _dim, _val in _pk.keys_by_dimension.items():
+                        _path_to_resolve = _path_to_resolve.replace("{" + _dim + "}", str(_val))
+                    _path_to_resolve = _path_to_resolve.replace("{partition_key}", str(_pk))
+                else:
+                    _path_to_resolve = _path_to_resolve.replace("{partition_key}", str(_pk))
+            _path_to_resolve = _path_to_resolve.replace("{run_id}", context.run.run_id)
+            # Legacy date-math placeholders ({partition_date}, {partition_date_next}).
             if context.has_partition_key and "{" in _path_to_resolve:
                 from datetime import datetime, timedelta
-                _fmt_kwargs = {"partition_key": str(context.partition_key)}
+                _fmt_kwargs: Dict[str, str] = {}
                 try:
-                    _pdate = datetime.strptime(context.partition_key, "%Y-%m-%d")
+                    _pdate = datetime.strptime(str(context.partition_key), "%Y-%m-%d")
                     _fmt_kwargs["partition_date"] = _pdate.strftime("%Y-%m-%d")
                     _fmt_kwargs["partition_date_next"] = (
                         _pdate + timedelta(days=1)

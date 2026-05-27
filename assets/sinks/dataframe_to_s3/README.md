@@ -16,7 +16,7 @@ This component receives a DataFrame from an upstream Dagster asset and writes it
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `key` | `str` | S3 object key / path within bucket e.g. data/output/results.parquet |
+| `key` | `str` | S3 object key / path within bucket, e.g. `data/output/results.parquet`. Supports opt-in placeholders substituted at materialization time: `{partition_key}` (stringified `context.partition_key`), `{run_id}` (`context.run.run_id`), and — for `MultiPartitionKey` — any axis name as `{<dim>}` (e.g. `{date}`, `{customer}`). If `key` contains no placeholders the path is written literally. Can be combined with `partition_cols` to nest pyarrow Hive partitions inside a per-run folder. |
 
 ### Catalog metadata
 
@@ -97,6 +97,56 @@ attributes:
     - date
   group_name: storage_sinks
 ```
+
+### Partition-key templating
+
+`key` supports opt-in placeholders that get substituted at materialization
+time. When `key` contains none of them, behavior is identical to the
+literal-path example above.
+
+| Placeholder | Substituted with |
+|---|---|
+| `{partition_key}` | `str(context.partition_key)` |
+| `{run_id}` | `context.run.run_id` |
+| `{<dim>}` | per-axis value from `MultiPartitionKey.keys_by_dimension` |
+
+Use this when `partition_cols` doesn't fit — `csv`/`json` output (no
+pyarrow Hive partitioning), one-file-per-partition with a predictable
+name for downstream Snowpipe `COPY`, or keeping the partition column in
+the file body instead of stripped into the directory name.
+
+```yaml
+# One parquet file per daily partition, named by partition key.
+attributes:
+  asset_name: s3_daily_report
+  upstream_asset_key: processed_daily_report
+  bucket_env_var: S3_BUCKET
+  key: data/reports/dt={partition_key}/report.parquet
+  format: parquet
+  partition_type: daily
+  partition_start: '2024-01-01'
+```
+
+```yaml
+# Multi-axis partitions: {date} + {customer} addressable by name.
+attributes:
+  asset_name: s3_customer_daily
+  upstream_asset_key: processed_customer_daily
+  bucket_env_var: S3_BUCKET
+  key: data/customers/{customer}/dt={date}/run-{run_id}.parquet
+  format: parquet
+  partition_dimensions:
+    - name: date
+      type: daily
+      start: '2024-01-01'
+    - name: customer
+      type: static
+      values: [acme, globex, initech]
+```
+
+Templating composes with `partition_cols` — e.g.
+`key: orders/{partition_key}` plus `partition_cols: [region]` nests
+pyarrow's Hive `region=...` directories inside each partition's folder.
 
 ## Authentication / Credentials
 

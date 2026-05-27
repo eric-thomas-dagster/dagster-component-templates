@@ -106,6 +106,8 @@ uv run dg dev
 | `import_tasks` | `bool` | `true` | Import Snowflake tasks as materializable assets |
 | `import_stored_procedures` | `bool` | `false` | Import stored procedures as materializable assets |
 | `import_dynamic_tables` | `bool` | `false` | Import dynamic tables as observable assets |
+| `dt_modeling` | `str` | `"external"` | How imported dynamic tables are emitted: 'external' (default; AssetSpec — no manual refresh from Dagster, sensor owns materialization events) or 'asset' (legacy @asset with manual ALTER ... REFRESH — sensor still runs, so manual materializations and auto-refreshes can both emit materialization events for the same DT). |
+| `dt_refresh_sensor_interval_seconds` | `int` | `60` | Polling interval (seconds) for the DT-refresh detection sensor. The sensor runs whenever import_dynamic_tables=True regardless of dt_modeling, so Snowflake's TARGET_LAG-driven auto-refreshes propagate to downstream Dagster consumers. |
 | `import_streams` | `bool` | `false` | Import streams as observable assets |
 | `import_snowpipes` | `bool` | `false` | Import Snowpipe continuous ingestion pipes as materializable assets |
 | `import_stages` | `bool` | `false` | Import internal and external stages as observable assets |

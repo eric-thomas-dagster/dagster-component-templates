@@ -130,7 +130,19 @@ class DataframeToS3Component(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     bucket_env_var: str = Field(default="S3_BUCKET", description="Env var containing the S3 bucket name")
-    key: str = Field(description="S3 object key / path within bucket e.g. data/output/results.parquet")
+    key: str = Field(
+        description=(
+            "S3 object key / path within bucket, e.g. "
+            "`data/output/results.parquet`. Supports opt-in placeholders "
+            "substituted at materialization time: `{partition_key}` "
+            "(stringified `context.partition_key`), `{run_id}` "
+            "(`context.run.run_id`), and — for `MultiPartitionKey` — any "
+            "axis name as `{<dim>}` (e.g. `{date}`, `{customer}`). If "
+            "`key` contains no placeholders the path is written literally. "
+            "Can be combined with `partition_cols` to nest pyarrow Hive "
+            "partitions inside a per-run folder."
+        )
+    )
     format: str = Field(default="parquet", description="Output format: 'parquet', 'csv', or 'json'")
     aws_access_key_env_var: Optional[str] = Field(
         default=None,
@@ -395,7 +407,23 @@ group_name=group_name,
                 )
 
             bucket = os.environ[bucket_env_var]
-            s3_path = f"s3://{bucket}/{key}"
+            # Opt-in placeholder interpolation: behavior is byte-for-byte
+            # identical to `f"s3://{bucket}/{key}"` if `key` contains none
+            # of the placeholders. Layered on top of `partition_cols=` —
+            # the two can be combined (e.g. `key: orders/{partition_key}`
+            # with `partition_cols: [region]` nests Hive partitions inside
+            # each run's partition folder).
+            _interp_key = key
+            if context.has_partition_key:
+                _pk = context.partition_key
+                if hasattr(_pk, "keys_by_dimension"):
+                    for _dim, _val in _pk.keys_by_dimension.items():
+                        _interp_key = _interp_key.replace("{" + _dim + "}", str(_val))
+                    _interp_key = _interp_key.replace("{partition_key}", str(_pk))
+                else:
+                    _interp_key = _interp_key.replace("{partition_key}", str(_pk))
+            _interp_key = _interp_key.replace("{run_id}", context.run.run_id)
+            s3_path = f"s3://{bucket}/{_interp_key}"
 
             storage_options: dict = {}
             if aws_access_key_env_var:

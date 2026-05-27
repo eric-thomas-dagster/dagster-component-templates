@@ -1227,6 +1227,16 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                     if target_table_v:
                                         try:
                                             qualified_pipe = f"{db_v}.{schema_v}.{pipe_name_v}"
+                                            # COPY_HISTORY returns `status` as
+                                            # 'Loaded' (mixed-case) and `pipe_name`
+                                            # either qualified or unqualified
+                                            # depending on the role's schema
+                                            # context — so compare case-insensitively
+                                            # and accept both forms. TABLE_NAME
+                                            # already scopes to one target table,
+                                            # so allowing the unqualified pipe
+                                            # name can't cross-fire between
+                                            # schemas.
                                             history_query = f"""
                                             SELECT
                                                 file_name,
@@ -1241,7 +1251,11 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                                 TABLE_NAME => '{target_table_v}',
                                                 START_TIME => DATEADD('hour', -1, CURRENT_TIMESTAMP())
                                             ))
-                                            WHERE pipe_name = '{qualified_pipe}'
+                                            WHERE UPPER(status) = 'LOADED'
+                                              AND UPPER(pipe_name) IN (
+                                                UPPER('{pipe_name_v}'),
+                                                UPPER('{qualified_pipe}')
+                                              )
                                             ORDER BY last_load_time DESC
                                             LIMIT 5
                                             """
@@ -1791,9 +1805,14 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                     # every tick). The target was parsed out of the pipe
                     # DEFINITION at import-time; if parsing failed, skip
                     # the pipe with a one-line warning instead of running
-                    # a broken query. The `pipe_name = '<qualified_pipe>'`
-                    # filter prevents cross-pipe interference when multiple
-                    # pipes COPY into the same target table.
+                    # a broken query.
+                    #
+                    # The pipe_name filter prevents cross-pipe interference
+                    # when multiple pipes COPY into the same target table.
+                    # Snowflake returns `status` as 'Loaded' (mixed-case)
+                    # and `pipe_name` either qualified or unqualified
+                    # depending on the role's schema context — so compare
+                    # case-insensitively and accept both forms.
                     for asset_key, metadata in snowpipe_metadata.items():
                         pipe_name = metadata['pipe_name']
                         target_table = metadata.get('target_table')
@@ -1827,8 +1846,11 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                                       -{self.poll_interval_seconds / 60},
                                                       CURRENT_TIMESTAMP())
                             ))
-                            WHERE status = 'LOADED'
-                              AND pipe_name = '{qualified_pipe}'
+                            WHERE UPPER(status) = 'LOADED'
+                              AND UPPER(pipe_name) IN (
+                                UPPER('{pipe_name}'),
+                                UPPER('{qualified_pipe}')
+                              )
                             ORDER BY last_load_time DESC
                             LIMIT 10
                             """
@@ -1917,12 +1939,33 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         if not dt_name or dt_name not in _dt_name_to_asset_key:
                             continue
 
-                        # Snowflake column names vary across versions —
-                        # last_refresh_action vs last_successful_refresh_action,
-                        # last_refresh_status vs last_refresh_state, etc.
-                        action = rd.get("last_refresh_action") or rd.get("last_successful_refresh_action")
-                        status = rd.get("last_refresh_status") or rd.get("last_refresh_state")
-                        ts = rd.get("last_refresh_status_timestamp") or rd.get("last_suspended_on") or rd.get("last_refreshed_on")
+                        # Snowflake renamed the SHOW DYNAMIC TABLES refresh
+                        # columns to `last_completed_refresh_*` in 2024;
+                        # legacy accounts still expose `last_refresh_*`
+                        # (and older still `last_successful_refresh_*` /
+                        # `last_refresh_state`). Probe current names
+                        # first, fall back to legacy. `data_timestamp` is
+                        # populated even when refresh-status fields are
+                        # null (initial materialization, accounts where
+                        # refresh tracking lags), so include it in the
+                        # timestamp fallback chain.
+                        action = (
+                            rd.get("last_completed_refresh_action")
+                            or rd.get("last_refresh_action")
+                            or rd.get("last_successful_refresh_action")
+                        )
+                        status = (
+                            rd.get("last_completed_refresh_status")
+                            or rd.get("last_refresh_status")
+                            or rd.get("last_refresh_state")
+                        )
+                        ts = (
+                            rd.get("last_completed_refresh_status_timestamp")
+                            or rd.get("last_refresh_status_timestamp")
+                            or rd.get("data_timestamp")
+                            or rd.get("last_suspended_on")
+                            or rd.get("last_refreshed_on")
+                        )
                         cur_tuple = [action, status, str(ts) if ts is not None else None]
                         prev_tuple = prev_state.get(dt_name)
 

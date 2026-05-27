@@ -463,12 +463,18 @@ group_name=group_name,
                 cursor.execute(f"DROP TABLE IF EXISTS {full_table}")
                 cursor.close()
 
+            # use_logical_type=True is required so write_pandas emits
+            # Parquet TIMESTAMP logical types instead of raw INT64. Without
+            # it, COPY into an existing TIMESTAMP_NTZ column fails with
+            # 002023 "expecting TIMESTAMP_NTZ(9) but got NUMBER(38,0)".
+            # Available since snowflake-connector-python 3.4.0.
             success, nchunks, nrows, _ = write_pandas(
                 conn,
                 df_write,
                 table.upper(),
                 auto_create_table=True,
                 chunk_size=chunksize,
+                use_logical_type=True,
             )
             conn.close()
 

@@ -2025,6 +2025,10 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 columns = [col[0] for col in cursor.description]
                                 run_dict = dict(zip(columns, run))
 
+                                # Stable signature so eager downstream doesn't
+                                # re-fire when the sensor's lookback window catches
+                                # the same TASK_HISTORY row twice.
+                                _sig = f"{run_dict.get('QUERY_ID')}:{run_dict.get('STATE')}"
                                 events.append(AssetMaterialization(
                                     asset_key=asset_key,
                                     metadata={
@@ -2034,7 +2038,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         "completed_time": str(run_dict.get('COMPLETED_TIME')) if run_dict.get('COMPLETED_TIME') else None,
                                         "source": "snowflake_observation_sensor",
                                         "entity_type": "task",
-                                    }
+                                    },
+                                    tags={"dagster/data_version": _sig},
                                 ))
                         except Exception as e:
                             _logger.error(f"Error checking runs for task {task_name}: {e}")
@@ -2102,6 +2107,11 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 columns = [col[0] for col in cursor.description]
                                 load_dict = dict(zip(columns, load))
 
+                                # Stable signature — same loaded file + load time
+                                # means same materialization. Prevents double-emit
+                                # when the sensor's lookback window catches the
+                                # same COPY_HISTORY row twice across ticks.
+                                _sig = f"{load_dict.get('FILE_NAME')}:{load_dict.get('LAST_LOAD_TIME')}"
                                 events.append(AssetMaterialization(
                                     asset_key=asset_key,
                                     metadata={
@@ -2112,7 +2122,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         "file_size": load_dict.get('FILE_SIZE'),
                                         "source": "snowflake_observation_sensor",
                                         "entity_type": "snowpipe",
-                                    }
+                                    },
+                                    tags={"dagster/data_version": _sig},
                                 ))
                         except Exception as e:
                             _logger.error(f"Error checking loads for Snowpipe {pipe_name}: {e}")
@@ -2251,9 +2262,16 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             except (TypeError, ValueError):
                                 pass
 
+                        # Big-impact site: DTs auto-refresh on TARGET_LAG even
+                        # when their inputs haven't moved. Same row count + same
+                        # bytes = no material change in the DT's output, so
+                        # downstream AutomationCondition.eager() treats the
+                        # emission as a no-op instead of cascading every TARGET_LAG.
+                        _sig = f"{metadata.get('rows')}:{metadata.get('bytes')}"
                         asset_events.append(AssetMaterialization(
                             asset_key=AssetKey([asset_key_str]),
                             metadata=metadata,
+                            tags={"dagster/data_version": _sig},
                         ))
                 finally:
                     cursor.close()

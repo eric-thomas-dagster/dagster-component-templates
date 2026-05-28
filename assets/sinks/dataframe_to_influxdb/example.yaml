@@ -1,0 +1,12 @@
+type: dagster_community_components.DataframeToInfluxDBComponent
+attributes:
+  asset_name: influxdb_metrics_write
+  upstream_asset_key: service_throughput_per_region
+  measurement: service_throughput
+  bucket: metrics
+  url_env_var: INFLUXDB_URL
+  token_env_var: INFLUXDB_TOKEN
+  org_env_var: INFLUXDB_ORG
+  timestamp_column: ts
+  tag_columns: [region, service]
+  field_columns: [throughput, errors]

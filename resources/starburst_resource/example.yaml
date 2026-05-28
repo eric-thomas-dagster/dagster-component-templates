@@ -1,0 +1,9 @@
+type: dagster_community_components.StarburstResourceComponent
+attributes:
+  resource_key: starburst_resource
+  host: my-cluster.galaxy.starburst.io
+  port: 443
+  user: my-user@example.com
+  catalog: tpch
+  schema_name: sf1
+  password_env_var: STARBURST_PASSWORD

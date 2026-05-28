@@ -1,0 +1,80 @@
+{
+  "additionalProperties": false,
+  "description": "Register an InfluxDB resource.\n\nExample (local Docker InfluxDB 2.x):\n\n    ```yaml\n    type: dagster_community_components.InfluxDBResourceComponent\n    attributes:\n      resource_key: influxdb_resource\n      url: http://localhost:8086\n      token_env_var: INFLUXDB_TOKEN\n      org: my-org\n      bucket: metrics\n    ```\n\nExample (InfluxDB Cloud 3.x):\n\n    ```yaml\n    type: dagster_community_components.InfluxDBResourceComponent\n    attributes:\n      resource_key: influxdb_resource\n      url: https://us-east-1-1.aws.cloud2.influxdata.com\n      token_env_var: INFLUXDB_TOKEN\n      org: my-org\n      bucket: events\n    ```",
+  "properties": {
+    "resource_key": {
+      "default": "influxdb_resource",
+      "description": "Resource key.",
+      "title": "Resource Key",
+      "type": "string"
+    },
+    "url": {
+      "description": "InfluxDB base URL.",
+      "title": "Url",
+      "type": "string"
+    },
+    "token": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "API token. Set this OR token_env_var.",
+      "title": "Token"
+    },
+    "token_env_var": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Env var with API token.",
+      "title": "Token Env Var"
+    },
+    "org": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "InfluxDB organization (required for v2).",
+      "title": "Org"
+    },
+    "bucket": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Default destination bucket.",
+      "title": "Bucket"
+    },
+    "timeout_ms": {
+      "default": 30000,
+      "minimum": 100,
+      "title": "Timeout Ms",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "url"
+  ],
+  "title": "InfluxDBResourceComponent",
+  "type": "object"
+}

@@ -1,0 +1,8 @@
+type: dagster_community_components.TimescaleDBResourceComponent
+attributes:
+  resource_key: timescaledb_resource
+  host: localhost
+  port: 5432
+  database: metrics
+  username: postgres
+  password_env_var: TIMESCALEDB_PASSWORD

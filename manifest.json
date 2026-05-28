@@ -12392,7 +12392,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Trino"
     },
     {
       "id": "adls_cleanup_job",
@@ -15018,6 +15019,36 @@
       }
     },
     {
+      "id": "influxdb_resource",
+      "name": "InfluxDB Resource",
+      "category": "resource",
+      "description": "InfluxDB 2.x / 3.x connection resource via the official influxdb-client SDK.",
+      "path": "resources/influxdb_resource",
+      "tags": [
+        "resource",
+        "influxdb",
+        "timeseries"
+      ],
+      "vendor": "InfluxDB",
+      "dependencies": {
+        "pip": [
+          "influxdb-client>=1.40.0"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/influxdb_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/influxdb_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/influxdb_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/influxdb_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/influxdb_resource/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "Pydantic instantiation + build_defs pass; awaiting live Docker demo for promotion"
+      }
+    },
+    {
       "id": "intercom_resource",
       "name": "Intercom Resource",
       "category": "resource",
@@ -16240,6 +16271,38 @@
       "vendor": "Snowflake"
     },
     {
+      "id": "starburst_resource",
+      "name": "Starburst Resource",
+      "category": "resource",
+      "description": "Starburst connection resource \u2014 alias for trino_resource. Same engine, registered separately for vendor discoverability.",
+      "path": "resources/starburst_resource",
+      "tags": [
+        "resource",
+        "starburst",
+        "trino",
+        "federation",
+        "sql"
+      ],
+      "vendor": "Starburst",
+      "dependencies": {
+        "pip": [
+          "trino>=0.330.0"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/starburst_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/starburst_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/starburst_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/starburst_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/starburst_resource/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "Pydantic instantiation + build_defs pass; awaiting live Docker demo for promotion"
+      }
+    },
+    {
       "id": "starrocks_resource",
       "name": "StarRocks Resource",
       "category": "resource",
@@ -16305,6 +16368,38 @@
       }
     },
     {
+      "id": "timescaledb_resource",
+      "name": "TimescaleDB Resource",
+      "category": "resource",
+      "description": "TimescaleDB connection resource (Postgres extension) with hypertable / compression / retention helpers.",
+      "path": "resources/timescaledb_resource",
+      "tags": [
+        "resource",
+        "timescaledb",
+        "timeseries",
+        "postgres"
+      ],
+      "vendor": "TimescaleDB",
+      "dependencies": {
+        "pip": [
+          "sqlalchemy>=2.0.0",
+          "psycopg2-binary"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/timescaledb_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/timescaledb_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/timescaledb_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/timescaledb_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/timescaledb_resource/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "Pydantic instantiation + build_defs pass; awaiting live Docker demo for promotion"
+      }
+    },
+    {
       "id": "trino_resource",
       "name": "Trino Resource",
       "category": "resource",
@@ -16336,7 +16431,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Trino"
     },
     {
       "id": "twilio_resource",
@@ -16369,6 +16465,37 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "victoriametrics_resource",
+      "name": "VictoriaMetrics Resource",
+      "category": "resource",
+      "description": "VictoriaMetrics connection resource \u2014 Prometheus-compatible time-series DB. Read/write helpers + bearer/basic auth.",
+      "path": "resources/victoriametrics_resource",
+      "tags": [
+        "resource",
+        "victoriametrics",
+        "timeseries",
+        "prometheus"
+      ],
+      "vendor": "VictoriaMetrics",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/victoriametrics_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/victoriametrics_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/victoriametrics_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/victoriametrics_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/victoriametrics_resource/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "Pydantic instantiation + build_defs pass; awaiting live Docker demo for promotion"
       }
     },
     {
@@ -18688,6 +18815,37 @@
       }
     },
     {
+      "id": "dataframe_to_influxdb",
+      "name": "DataFrame to InfluxDB",
+      "category": "sink",
+      "description": "Bulk-write a Pandas DataFrame to InfluxDB 2.x / 3.x as line-protocol points.",
+      "path": "assets/sinks/dataframe_to_influxdb",
+      "tags": [
+        "sink",
+        "influxdb",
+        "timeseries"
+      ],
+      "vendor": "InfluxDB",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "influxdb-client>=1.40.0"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_influxdb/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_influxdb/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_influxdb/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_influxdb/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_influxdb/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "Pydantic instantiation + build_defs pass; awaiting live Docker demo for promotion"
+      }
+    },
+    {
       "id": "dataframe_to_json",
       "name": "DataFrame to JSON",
       "category": "sink",
@@ -19137,6 +19295,38 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_mysql.md",
         "last_validated": "2026-05-06"
+      }
+    },
+    {
+      "id": "dataframe_to_victoriametrics",
+      "name": "DataFrame to VictoriaMetrics",
+      "category": "sink",
+      "description": "Bulk-ingest a Pandas DataFrame as VictoriaMetrics time-series via /api/v1/import/prometheus.",
+      "path": "assets/sinks/dataframe_to_victoriametrics",
+      "tags": [
+        "sink",
+        "victoriametrics",
+        "timeseries",
+        "prometheus"
+      ],
+      "vendor": "VictoriaMetrics",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28.0"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_victoriametrics/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_victoriametrics/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_victoriametrics/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_victoriametrics/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_victoriametrics/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "Pydantic instantiation + build_defs pass; awaiting live Docker demo for promotion"
       }
     },
     {
@@ -20988,6 +21178,38 @@
         "level": "live",
         "evidence": "",
         "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "victoriametrics_query_asset",
+      "name": "VictoriaMetrics PromQL Query Asset",
+      "category": "source",
+      "description": "Run a PromQL query against VictoriaMetrics; emit result as Pandas DataFrame.",
+      "path": "assets/sources/victoriametrics_query_asset",
+      "tags": [
+        "source",
+        "victoriametrics",
+        "timeseries",
+        "promql"
+      ],
+      "vendor": "VictoriaMetrics",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28.0"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/victoriametrics_query_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/victoriametrics_query_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/victoriametrics_query_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/victoriametrics_query_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/victoriametrics_query_asset/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "Pydantic instantiation + build_defs pass; awaiting live Docker demo for promotion"
       }
     },
     {

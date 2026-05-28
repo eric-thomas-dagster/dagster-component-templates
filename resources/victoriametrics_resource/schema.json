@@ -1,0 +1,80 @@
+{
+  "additionalProperties": false,
+  "description": "Register a VictoriaMetrics resource for use by other components.\n\nExample (local docker / single-node):\n\n    ```yaml\n    type: dagster_community_components.VictoriaMetricsResourceComponent\n    attributes:\n      resource_key: vm_resource\n      base_url: http://localhost:8428\n    ```\n\nExample (production cluster fronted by vmauth):\n\n    ```yaml\n    type: dagster_community_components.VictoriaMetricsResourceComponent\n    attributes:\n      resource_key: vm_resource\n      base_url: https://vm.mycompany.com\n      bearer_token_env_var: VM_TOKEN\n    ```",
+  "properties": {
+    "resource_key": {
+      "default": "vm_resource",
+      "description": "Resource key.",
+      "title": "Resource Key",
+      "type": "string"
+    },
+    "base_url": {
+      "description": "VictoriaMetrics base URL (e.g. http://localhost:8428).",
+      "title": "Base Url",
+      "type": "string"
+    },
+    "bearer_token": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Bearer token (literal). Set this OR bearer_token_env_var.",
+      "title": "Bearer Token"
+    },
+    "bearer_token_env_var": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Env var with bearer token.",
+      "title": "Bearer Token Env Var"
+    },
+    "basic_user": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional HTTP basic auth user.",
+      "title": "Basic User"
+    },
+    "basic_password_env_var": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Env var with HTTP basic password.",
+      "title": "Basic Password Env Var"
+    },
+    "timeout_seconds": {
+      "default": 60,
+      "minimum": 1,
+      "title": "Timeout Seconds",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "base_url"
+  ],
+  "title": "VictoriaMetricsResourceComponent",
+  "type": "object"
+}

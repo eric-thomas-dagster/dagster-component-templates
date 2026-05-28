@@ -1,0 +1,7 @@
+type: dagster_community_components.InfluxDBResourceComponent
+attributes:
+  resource_key: influxdb_resource
+  url: http://localhost:8086
+  token_env_var: INFLUXDB_TOKEN
+  org: my-org
+  bucket: metrics

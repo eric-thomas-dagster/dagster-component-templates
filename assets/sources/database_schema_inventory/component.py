@@ -271,10 +271,29 @@ class DatabaseSchemaInventoryComponent(dg.Component, dg.Model, dg.Resolvable):
                     break
             engine = create_engine(url)
 
+            # Auto-detect Db2-LUW vs Db2-for-i (AS/400). Customers can leave
+            # database_type='db2' and we route to the right catalog by
+            # probing for QSYS2.SYSTABLES — exists on Db2 for i, doesn't
+            # exist on Db2 LUW. Saves the customer from picking
+            # database_type='db2_iseries' explicitly.
+            _db_type_resolved = db_type
+            if db_type == "db2":
+                try:
+                    with engine.connect() as _probe:
+                        _probe.execute(text("SELECT 1 FROM QSYS2.SYSTABLES FETCH FIRST 1 ROW ONLY"))
+                    _db_type_resolved = "db2_iseries"
+                    context.log.info("Auto-detected Db2 for i (QSYS2 catalog) — routing inventory to db2_iseries dialect.")
+                except Exception:
+                    # QSYS2 not present → Db2 LUW; keep db_type='db2'.
+                    pass
+            queries_resolved = _INVENTORY_QUERIES[_db_type_resolved]
+            if self.object_types:
+                queries_resolved = {k: v for k, v in queries_resolved.items() if k in self.object_types}
+
             canonical_cols = ["object_type", "schema_name", "object_name", "definition", "row_count"]
             frames = []
             with engine.connect() as conn:
-                for object_type, sql in queries.items():
+                for object_type, sql in queries_resolved.items():
                     try:
                         df = pd.read_sql(text(sql), conn)
                     except Exception as e:

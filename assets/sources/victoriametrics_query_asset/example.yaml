@@ -1,0 +1,8 @@
+type: dagster_community_components.VictoriaMetricsQueryAssetComponent
+attributes:
+  asset_name: vm_request_rate_last_24h
+  query: 'sum(rate(http_requests_total[5m])) by (service)'
+  query_range: true
+  range_lookback_minutes: 1440
+  step_seconds: 60
+  base_url_env_var: VM_BASE_URL

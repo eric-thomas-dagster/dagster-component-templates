@@ -1,0 +1,2 @@
+dagster
+trino>=0.330.0

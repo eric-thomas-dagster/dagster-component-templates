@@ -1,0 +1,4 @@
+type: dagster_community_components.VictoriaMetricsResourceComponent
+attributes:
+  resource_key: vm_resource
+  base_url: http://localhost:8428

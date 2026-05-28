@@ -1,0 +1,72 @@
+{
+  "additionalProperties": false,
+  "description": "Register a TimescaleDB resource.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.TimescaleDBResourceComponent\n    attributes:\n      resource_key: timescaledb_resource\n      host: localhost\n      port: 5432\n      database: metrics\n      username: postgres\n      password_env_var: TIMESCALEDB_PASSWORD\n    ```\n\nUse the resource's helpers from a regular @asset:\n\n    ```python\n    @asset(required_resource_keys={\"timescaledb_resource\"})\n    def setup_metrics_hypertable(context):\n        ctx.resources.timescaledb_resource.create_hypertable(\"events\", \"ts\")\n        ctx.resources.timescaledb_resource.add_compression_policy(\"events\", \"7 days\")\n        ctx.resources.timescaledb_resource.add_retention_policy(\"events\", \"90 days\")\n    ```",
+  "properties": {
+    "resource_key": {
+      "default": "timescaledb_resource",
+      "description": "Resource key.",
+      "title": "Resource Key",
+      "type": "string"
+    },
+    "host": {
+      "description": "TimescaleDB / Postgres host.",
+      "title": "Host",
+      "type": "string"
+    },
+    "port": {
+      "default": 5432,
+      "description": "Postgres port.",
+      "title": "Port",
+      "type": "integer"
+    },
+    "database": {
+      "description": "Database name.",
+      "title": "Database",
+      "type": "string"
+    },
+    "username": {
+      "description": "Postgres username.",
+      "title": "Username",
+      "type": "string"
+    },
+    "password": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Password. Set this OR password_env_var.",
+      "title": "Password"
+    },
+    "password_env_var": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Env var with password.",
+      "title": "Password Env Var"
+    },
+    "ssl": {
+      "default": false,
+      "description": "Use sslmode=require.",
+      "title": "Ssl",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "host",
+    "database",
+    "username"
+  ],
+  "title": "TimescaleDBResourceComponent",
+  "type": "object"
+}

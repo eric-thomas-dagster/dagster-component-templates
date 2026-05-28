@@ -27,7 +27,6 @@ The `ibm_db` wheel bundles the necessary clidriver libraries (`libdb2`) for Linu
 | Field | Type | Description |
 |---|---|---|
 | `host` | `str` | Db2 hostname (LUW server / Cloud DBaaS endpoint / IBM i system name). |
-| `database` | `str` | Database name. For LUW / Cloud / Warehouse this is the DB name (e.g. 'BLUDB', 'testdb'). For iSeries this is the **Relational Database Directory entry** (often the *LOCAL system name — find via WRKRDBDIRE on the i). |
 | `username` | `str` | Login username (AS/400: user profile name, e.g. QSECOFR or a service profile). |
 
 ### Connection
@@ -36,6 +35,7 @@ The `ibm_db` wheel bundles the necessary clidriver libraries (`libdb2`) for Linu
 |---|---|---|---|
 | `resource_key` | `str` | `"db2_resource"` | Resource key. Other components reference it via this name. |
 | `port` | `int` | — | Db2 port. If unset, defaults based on system_type: 50000 (luw / cloud) or 446 (iseries — DRDA listener). Override for non-standard ports (Db2 on Cloud typically uses 31xxx). |
+| `database` | `str` | — | Database name. For LUW / Cloud / Warehouse this is the DB name (e.g. 'BLUDB', 'testdb'). For iSeries this is the **Relational Database Directory entry** (often the *LOCAL system name). **Leave empty on iSeries** and the resource auto-discovers it via ``SELECT CURRENT_SERVER`` — no `WRKRDBDIRE` lookup required. |
 | `password` | `str` | — | Db2 password (literal). Set this OR password_env_var. |
 | `password_env_var` | `str` | — | Env var holding the password. Set this OR password. |
 
@@ -47,6 +47,7 @@ The `ibm_db` wheel bundles the necessary clidriver libraries (`libdb2`) for Linu
 | `security_mechanism` | `str` | — | Optional SecurityMechanism override (e.g. 'PLAIN'). Leave unset for default. |
 | `system_type` | `str` | `"luw"` | Db2 system variant: 'luw' (default — Db2 LUW / Community Edition / Warehouse), 'cloud' (Db2 on Cloud DBaaS), or 'iseries' (Db2 for i / AS/400 / IBM i). Drives port defaults + library-list connection params. All three use the same ibm_db_sa SQLAlchemy dialect; the catalog SQL differs (see database_schema_inventory's database_type='db2_iseries'). |
 | `library_list` | `List[str]` | — | AS/400 only: ordered library-list passed as CURRENT SCHEMA (first entry) + CURRENT PATH (rest). Equivalent to a CHGLIBL on the i. Ignored when system_type != 'iseries'. |
+| `ccsid` | `int` | `1208` | AS/400 only: CCSID for string-column encoding. Defaults to 1208 (UTF-8) — fixes EBCDIC mojibake without requiring CHGUSRPRF on the i. Override only if you have a specific reason to use a different CCSID. Ignored when system_type != 'iseries'. |
 
 <!-- FIELDS:END -->
 

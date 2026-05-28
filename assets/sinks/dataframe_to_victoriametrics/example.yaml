@@ -1,0 +1,8 @@
+type: dagster_community_components.DataframeToVictoriaMetricsComponent
+attributes:
+  asset_name: vm_orders_throughput
+  upstream_asset_key: orders_throughput_per_region
+  metric_name: orders_throughput
+  base_url_env_var: VM_BASE_URL
+  timestamp_column: ts
+  value_column: throughput

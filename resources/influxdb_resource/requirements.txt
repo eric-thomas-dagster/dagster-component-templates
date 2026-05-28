@@ -1,0 +1,2 @@
+dagster
+influxdb-client>=1.40.0

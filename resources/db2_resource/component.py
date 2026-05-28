@@ -47,45 +47,109 @@ class Db2Resource(dg.ConfigurableResource):
     ``system_type`` controls port defaults + AS/400-specific connection
     parameters. The SQLAlchemy dialect (``ibm_db_sa``) is the same for
     all three; only the connection-string params differ.
+
+    AS/400 auto-fixes (when ``system_type='iseries'``):
+
+      * If ``database`` is empty, the resource discovers the local RDB
+        name automatically at connect time via
+        ``SELECT CURRENT_SERVER FROM SYSIBM.SYSDUMMY1`` — saves customers
+        from running ``WRKRDBDIRE`` on the i to find the ``*LOCAL`` entry.
+      * ``CCSID=1208`` (UTF-8) is forced on the connection DSN so string
+        columns round-trip cleanly instead of returning EBCDIC mojibake
+        — overridable via ``ccsid`` field.
+      * The library-list is wired to ``CURRENT SCHEMA`` (first entry) +
+        ``CURRENT PATH`` (full list) via the DSN. Equivalent to ``CHGLIBL``
+        on the i.
+
+    Catalog auto-routing: paired with ``database_schema_inventory``, the
+    inventory component can auto-detect i vs LUW from the resource's
+    ``system_type`` and switch to the ``QSYS2.*`` catalog automatically
+    — see ``database_schema_inventory.database_type='db2'`` (auto-routes
+    to ``db2_iseries`` when system_type='iseries').
     """
 
     host: str
     port: int = 50000
-    database: str
+    database: str = ""  # auto-discovered for iseries when empty
     username: str
     password: str
     ssl: bool = False
     security_mechanism: Optional[str] = None
     system_type: str = "luw"
     library_list: Optional[List[str]] = None
+    ccsid: int = 1208  # UTF-8 by default — fixes EBCDIC mojibake on iseries
+
+    def _discover_rdb_name(self) -> Optional[str]:
+        """Connect to the i without a database param and ask for CURRENT_SERVER.
+
+        ``SELECT CURRENT_SERVER FROM SYSIBM.SYSDUMMY1`` returns the local
+        RDB name on Db2 for i. Used when ``database`` is empty and
+        ``system_type='iseries'`` — saves the customer from running
+        ``WRKRDBDIRE`` on the system.
+        """
+        try:
+            import ibm_db
+        except ImportError:
+            return None
+        # Probe DSN without a DATABASE clause; CURRENT_SERVER works at session start.
+        probe_dsn = (
+            f"HOSTNAME={self.host};PORT={self.port};"
+            f"PROTOCOL=TCPIP;UID={self.username};PWD={self.password};"
+        )
+        if self.ssl:
+            probe_dsn += "Security=SSL;"
+        try:
+            conn = ibm_db.connect(probe_dsn, "", "")
+            stmt = ibm_db.exec_immediate(conn, "SELECT CURRENT_SERVER FROM SYSIBM.SYSDUMMY1")
+            row = ibm_db.fetch_assoc(stmt)
+            ibm_db.close(conn)
+            if row:
+                # Key casing varies; first value works
+                return str(next(iter(row.values()))).strip()
+        except Exception:
+            return None
+        return None
+
+    @property
+    def effective_database(self) -> str:
+        """Resolve ``database``, auto-discovering on iseries when unset."""
+        if self.database:
+            return self.database
+        if self.system_type == "iseries":
+            discovered = self._discover_rdb_name()
+            if discovered:
+                return discovered
+        return self.database  # empty → caller will error appropriately
 
     @property
     def connection_string(self) -> str:
         """SQLAlchemy URL for ``ibm_db_sa``.
 
-        For ``system_type='iseries'``, the library-list (if provided) is
-        appended as ``CurrentSchema=<first>;LibraryList=<comma-sep>`` —
-        ``ibm_db_sa`` forwards these through to the underlying ``ibm_db``
-        DSN, which AS/400's DRDA listener interprets as ``CURRENT
-        SCHEMA`` + ``CURRENT PATH``.
+        On iseries: CCSID=1208 forced (override via ``ccsid``); library-
+        list mapped to CURRENT SCHEMA + CURRENT PATH; RDB name
+        auto-discovered when ``database`` is empty.
         """
         pw = urllib.parse.quote_plus(self.password)
         url = (
             f"db2+ibm_db://{self.username}:{pw}@{self.host}:{self.port}/"
-            f"{self.database}"
+            f"{self.effective_database}"
         )
         params: List[str] = []
         if self.ssl:
             params.append("Security=SSL")
         if self.security_mechanism:
             params.append(f"SecurityMechanism={self.security_mechanism}")
-        if self.system_type == "iseries" and self.library_list:
-            # First library wins as CURRENT SCHEMA; the rest land on
-            # CURRENT PATH. This matches the AS/400 library-list model
-            # (search order is left-to-right).
-            params.append(f"CurrentSchema={self.library_list[0]}")
-            if len(self.library_list) > 1:
-                params.append("LibraryList=" + ",".join(self.library_list))
+        if self.system_type == "iseries":
+            # CCSID=1208 forces UTF-8 on string columns — fixes EBCDIC
+            # mojibake without requiring CHGUSRPRF on the i.
+            params.append(f"CCSID={self.ccsid}")
+            if self.library_list:
+                # First library wins as CURRENT SCHEMA; the rest land on
+                # CURRENT PATH. AS/400 library-list model (search order
+                # is left-to-right).
+                params.append(f"CurrentSchema={self.library_list[0]}")
+                if len(self.library_list) > 1:
+                    params.append("LibraryList=" + ",".join(self.library_list))
         if params:
             url += "?" + "&".join(params)
         return url
@@ -98,18 +162,21 @@ class Db2Resource(dg.ConfigurableResource):
     def get_connection(self):
         """Return a raw ``ibm_db`` connection."""
         import ibm_db
+        db = self.effective_database
         dsn = (
-            f"DATABASE={self.database};HOSTNAME={self.host};PORT={self.port};"
+            f"DATABASE={db};HOSTNAME={self.host};PORT={self.port};"
             f"PROTOCOL=TCPIP;UID={self.username};PWD={self.password};"
         )
         if self.ssl:
             dsn += "Security=SSL;"
         if self.security_mechanism:
             dsn += f"SecurityMechanism={self.security_mechanism};"
-        if self.system_type == "iseries" and self.library_list:
-            dsn += f"CurrentSchema={self.library_list[0]};"
-            if len(self.library_list) > 1:
-                dsn += "LibraryList=" + ",".join(self.library_list) + ";"
+        if self.system_type == "iseries":
+            dsn += f"CCSID={self.ccsid};"
+            if self.library_list:
+                dsn += f"CurrentSchema={self.library_list[0]};"
+                if len(self.library_list) > 1:
+                    dsn += "LibraryList=" + ",".join(self.library_list) + ";"
         return ibm_db.connect(dsn, "", "")
 
 
@@ -195,11 +262,13 @@ class Db2ResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
     database: str = Field(
+        default="",
         description=(
             "Database name. For LUW / Cloud / Warehouse this is the DB name "
             "(e.g. 'BLUDB', 'testdb'). For iSeries this is the **Relational "
-            "Database Directory entry** (often the *LOCAL system name — find "
-            "via WRKRDBDIRE on the i)."
+            "Database Directory entry** (often the *LOCAL system name). "
+            "**Leave empty on iSeries** and the resource auto-discovers it via "
+            "``SELECT CURRENT_SERVER`` — no `WRKRDBDIRE` lookup required."
         ),
     )
     username: str = Field(description="Login username (AS/400: user profile name, e.g. QSECOFR or a service profile).")
@@ -229,6 +298,15 @@ class Db2ResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             "AS/400 only: ordered library-list passed as CURRENT SCHEMA (first "
             "entry) + CURRENT PATH (rest). Equivalent to a CHGLIBL on the i. "
             "Ignored when system_type != 'iseries'."
+        ),
+    )
+    ccsid: int = Field(
+        default=1208,
+        description=(
+            "AS/400 only: CCSID for string-column encoding. Defaults to 1208 "
+            "(UTF-8) — fixes EBCDIC mojibake without requiring CHGUSRPRF on "
+            "the i. Override only if you have a specific reason to use a "
+            "different CCSID. Ignored when system_type != 'iseries'."
         ),
     )
 

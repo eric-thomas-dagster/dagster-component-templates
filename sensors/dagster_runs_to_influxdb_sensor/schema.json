@@ -1,0 +1,18 @@
+{
+  "component_type": "dagster_component_templates.DagsterRunsToInfluxdbSensorComponent",
+  "description": "Push Dagster run lifecycle metrics (duration / count / run_id) to InfluxDB 2.x / 3.x (and AWS Timestream for InfluxDB) as line protocol on every run completion.",
+  "category": "sensor",
+  "icon": "Bell",
+  "attributes": {
+    "sensor_name": {"type": "string", "label": "Sensor Name", "description": "Dagster sensor name.", "required": true},
+    "base_url_env_var": {"type": "string", "label": "Base URL Env Var", "description": "Env var with InfluxDB base URL.", "required": true},
+    "token_env_var": {"type": "string", "label": "Token Env Var", "description": "Env var with the InfluxDB write token.", "required": true},
+    "org": {"type": "string", "label": "Org", "description": "InfluxDB org name.", "required": true},
+    "bucket": {"type": "string", "label": "Bucket", "description": "Destination bucket for the metrics.", "required": true},
+    "measurement": {"type": "string", "label": "Measurement", "description": "InfluxDB measurement name.", "required": false, "default": "dagster_run"},
+    "location_label": {"type": "string", "label": "Location Label", "description": "Free-form low-cardinality tag — usually the Dagster deployment/region.", "required": false, "default": "default"},
+    "monitor_jobs": {"type": "array", "label": "Monitor Jobs", "description": "Only emit metrics for these Dagster job names. None = all.", "required": false},
+    "default_status": {"type": "string", "label": "Default Status", "description": "STOPPED | RUNNING", "required": false, "default": "STOPPED"},
+    "request_timeout_seconds": {"type": "integer", "label": "Request Timeout Seconds", "description": "HTTP timeout for the push.", "required": false, "default": 15}
+  }
+}

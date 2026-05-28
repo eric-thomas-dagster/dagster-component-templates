@@ -1,0 +1,26 @@
+{
+  "component_type": "dagster_component_templates.DorisWorkspaceComponent",
+  "description": "Auto-discover tables / views / MVs in an Apache Doris database; emit one observable Dagster asset per entity.",
+  "category": "integration",
+  "icon": "Database",
+  "attributes": {
+    "host": {"type": "string", "label": "Host", "description": "Doris FE host.", "required": true},
+    "query_port": {"type": "integer", "label": "Query Port", "description": "Doris MySQL-protocol query port.", "required": false, "default": 9030},
+    "database": {"type": "string", "label": "Database", "description": "Database to discover (single DB per workspace).", "required": true},
+    "username": {"type": "string", "label": "Username", "description": "Doris user with read access to information_schema + target tables.", "required": true},
+    "password": {"type": "string", "label": "Password", "description": "Password (literal). Set this OR password_env_var.", "required": false},
+    "password_env_var": {"type": "string", "label": "Password Env Var", "description": "Env var with password.", "required": false, "default": "DORIS_PASSWORD"},
+    "ssl": {"type": "boolean", "label": "SSL", "description": "Use SSL for the MySQL connection.", "required": false, "default": false},
+    "schemas": {"type": "array", "label": "Schemas", "description": "Restrict discovery to these schemas. Default = the configured `database`.", "required": false},
+    "include_patterns": {"type": "array", "label": "Include Patterns", "description": "fnmatch-style globs — keep matching object names.", "required": false},
+    "exclude_patterns": {"type": "array", "label": "Exclude Patterns", "description": "fnmatch-style globs — drop matching object names.", "required": false},
+    "import_tables": {"type": "boolean", "label": "Import Tables", "description": "Emit assets for base tables.", "required": false, "default": true},
+    "import_views": {"type": "boolean", "label": "Import Views", "description": "Emit assets for views.", "required": false, "default": true},
+    "import_materialized_views": {"type": "boolean", "label": "Import Materialized Views", "description": "Emit assets for materialized views + async MVs.", "required": false, "default": true},
+    "group_name": {"type": "string", "label": "Group Name", "description": "Dagster group name for all discovered assets.", "required": false, "default": "doris"},
+    "owners": {"type": "array", "label": "Owners", "description": "Owners applied to every discovered asset.", "required": false},
+    "tags": {"type": "object", "label": "Tags", "description": "Tags applied to every discovered asset.", "required": false},
+    "kinds": {"type": "array", "label": "Kinds", "description": "Additional kinds (always includes 'doris').", "required": false},
+    "request_timeout_seconds": {"type": "integer", "label": "Request Timeout Seconds", "description": "HTTP timeout for discovery queries.", "required": false, "default": 30}
+  }
+}

@@ -28,6 +28,7 @@ from dagster import (
     SkipReason,
     AssetMaterialization,
     DataVersion,
+    MaterializeResult,
     ObserveResult,
     Resolvable,
     Model,
@@ -644,6 +645,8 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             # serves it via the ACCOUNT_USAGE / INFORMATION_SCHEMA function
                             # surface. Wrap in try/except so EXECUTE TASK still wins even
                             # if the role can't read history.
+                            history_state = None
+                            history_return_value = None
                             try:
                                 history_query = f"""
                                 SELECT
@@ -652,6 +655,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                     scheduled_time,
                                     query_start_time,
                                     completed_time,
+                                    return_value,
                                     error_message
                                 FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY(
                                     TASK_NAME => '{task_name_v}',
@@ -665,17 +669,30 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 if history:
                                     columns = [col[0] for col in cursor.description]
                                     history_dict = dict(zip(columns, history))
+                                    history_state = history_dict.get('STATE')
+                                    history_return_value = history_dict.get('RETURN_VALUE')
                                     metadata.update({
                                         "query_id": history_dict.get('QUERY_ID'),
-                                        "state": history_dict.get('STATE'),
+                                        "state": history_state,
                                         "scheduled_time": str(history_dict.get('SCHEDULED_TIME')) if history_dict.get('SCHEDULED_TIME') else None,
+                                        "return_value": history_return_value,
                                     })
                             except Exception as exc:
                                 context.log.warning(
                                     f"Could not read TASK_HISTORY for {task_name_v}: {exc}. "
                                     f"Execute succeeded; emitting asset without history metadata."
                                 )
-                            return metadata
+
+                            # Stable signature: state + return_value. Tasks whose
+                            # body is idempotent (proc returns same string when input
+                            # data hasn't changed — e.g. "Recomputed 0 tiers") get
+                            # the same data_version across runs, so downstream
+                            # AutomationCondition.eager() treats them as no-ops.
+                            signature = f"{history_state}:{history_return_value}"
+                            return MaterializeResult(
+                                data_version=DataVersion(signature),
+                                metadata=metadata,
+                            )
                         finally:
                             cursor.close()
                             conn.close()

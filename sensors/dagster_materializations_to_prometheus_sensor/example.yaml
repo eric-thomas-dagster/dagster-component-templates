@@ -1,0 +1,7 @@
+type: dagster_component_templates.DagsterMaterializationsToPrometheusSensorComponent
+attributes:
+  sensor_name: dagster_asset_materializations
+  base_url_env_var: PROM_PUSHGATEWAY_URL
+  target_kind: push_gateway
+  push_job: dagster_assets
+  location_label: prod-east

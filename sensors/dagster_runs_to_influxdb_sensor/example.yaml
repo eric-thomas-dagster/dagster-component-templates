@@ -1,0 +1,9 @@
+type: dagster_component_templates.DagsterRunsToInfluxdbSensorComponent
+attributes:
+  sensor_name: dagster_runs_to_influxdb
+  base_url_env_var: INFLUX_URL
+  token_env_var: INFLUX_TOKEN
+  org: my-org
+  bucket: dagster-runs
+  measurement: dagster_run
+  location_label: prod-east

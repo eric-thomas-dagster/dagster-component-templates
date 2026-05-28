@@ -1,0 +1,15 @@
+type: dagster_component_templates.DorisWorkspaceComponent
+attributes:
+  host: doris.mycompany.com
+  query_port: 9030
+  database: analytics
+  username: dagster_reader
+  password_env_var: DORIS_PASSWORD
+  schemas: [sales, marketing]
+  include_patterns: ["fact_*", "dim_*"]
+  exclude_patterns: ["*_staging", "*_tmp"]
+  import_tables: true
+  import_views: true
+  import_materialized_views: true
+  group_name: doris_analytics
+  owners: ["data-platform@mycompany.com"]

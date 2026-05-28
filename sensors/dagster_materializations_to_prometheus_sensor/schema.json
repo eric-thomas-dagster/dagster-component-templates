@@ -1,0 +1,18 @@
+{
+  "component_type": "dagster_component_templates.DagsterMaterializationsToPrometheusSensorComponent",
+  "description": "Push per-asset materialization metrics (counter + last-materialized timestamp) to Prometheus Push Gateway / VictoriaMetrics. Workspace-wide or filtered to specific asset keys.",
+  "category": "sensor",
+  "icon": "Eye",
+  "attributes": {
+    "sensor_name": {"type": "string", "label": "Sensor Name", "description": "Dagster sensor name.", "required": true},
+    "base_url_env_var": {"type": "string", "label": "Base URL Env Var", "description": "Env var with target base URL.", "required": true},
+    "target_kind": {"type": "string", "label": "Target Kind", "description": "push_gateway | vm_import.", "required": false, "default": "push_gateway"},
+    "push_job": {"type": "string", "label": "Push Job", "description": "Push Gateway 'job' grouping key.", "required": false, "default": "dagster_assets"},
+    "location_label": {"type": "string", "label": "Location Label", "description": "Deployment / region label.", "required": false, "default": "default"},
+    "watch_asset_keys": {"type": "array", "label": "Watch Asset Keys", "description": "Slash-joined asset keys to watch. None = watch all assets.", "required": false},
+    "bearer_token_env_var": {"type": "string", "label": "Bearer Token Env Var", "description": "Env var with bearer token.", "required": false},
+    "default_status": {"type": "string", "label": "Default Status", "description": "STOPPED | RUNNING", "required": false, "default": "STOPPED"},
+    "interval_seconds": {"type": "integer", "label": "Interval Seconds", "description": "Sensor poll interval.", "required": false, "default": 60},
+    "request_timeout_seconds": {"type": "integer", "label": "Request Timeout Seconds", "description": "HTTP timeout per push.", "required": false, "default": 15}
+  }
+}

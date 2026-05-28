@@ -1,0 +1,18 @@
+{
+  "component_type": "dagster_component_templates.VictoriaMetricsCardinalitySensorComponent",
+  "description": "Poll VictoriaMetrics /api/v1/status/tsdb and emit a RunRequest (or warning SkipReason) when totalSeries crosses a threshold.",
+  "category": "sensor",
+  "icon": "Eye",
+  "attributes": {
+    "sensor_name": {"type": "string", "label": "Sensor Name", "description": "Dagster sensor name.", "required": true},
+    "interval_seconds": {"type": "integer", "label": "Interval Seconds", "description": "Sensor poll interval in seconds.", "required": false, "default": 300},
+    "default_status": {"type": "string", "label": "Default Status", "description": "STOPPED | RUNNING", "required": false, "default": "STOPPED"},
+    "base_url_env_var": {"type": "string", "label": "Base URL Env Var", "description": "Env var with VictoriaMetrics base URL.", "required": false, "default": "VM_BASE_URL"},
+    "bearer_token_env_var": {"type": "string", "label": "Bearer Token Env Var", "description": "Env var with bearer token (vmauth).", "required": false},
+    "threshold_series": {"type": "integer", "label": "Threshold (series)", "description": "Series count threshold. Cross this → RunRequest or warning SkipReason.", "required": false, "default": 1000000},
+    "top_n_metrics": {"type": "integer", "label": "Top N Metrics", "description": "topN metrics by cardinality to surface in the sensor evaluation.", "required": false, "default": 10},
+    "target_job_name": {"type": "string", "label": "Target Job Name", "description": "Job to RunRequest against when threshold breached. None = SkipReason warning only.", "required": false},
+    "target_job_tags": {"type": "object", "label": "Target Job Tags", "description": "Tags for the RunRequest.", "required": false},
+    "request_timeout_seconds": {"type": "integer", "label": "Request Timeout Seconds", "description": "HTTP timeout for the cardinality poll.", "required": false, "default": 30}
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "component_type": "dagster_component_templates.VictoriaMetricsSnapshotJobComponent",
+  "description": "Create a VictoriaMetrics snapshot via /snapshot/create, optionally with retention-based cleanup of older snapshots. Job-shaped; can be scheduled.",
+  "category": "infrastructure",
+  "icon": "Cog",
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "STOPPED | RUNNING",
+      "required": false,
+      "default": "STOPPED"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "base_url_env_var": {
+      "type": "string",
+      "label": "Base URL Env Var",
+      "description": "Env var with VictoriaMetrics base URL (e.g. http://localhost:8428).",
+      "required": false,
+      "default": "VM_BASE_URL"
+    },
+    "snapshot_auth_key_env_var": {
+      "type": "string",
+      "label": "Snapshot Auth Key Env Var",
+      "description": "Env var with VM -snapshotAuthKey value (sent as ?authKey=…). Required when VM is started with -snapshotAuthKey.",
+      "required": false
+    },
+    "bearer_token_env_var": {
+      "type": "string",
+      "label": "Bearer Token Env Var",
+      "description": "Env var with bearer token (for vmauth-fronted clusters).",
+      "required": false
+    },
+    "retention_hours": {
+      "type": "integer",
+      "label": "Retention Hours",
+      "description": "If set, delete snapshots older than this many hours after each successful create. None disables auto-delete.",
+      "required": false
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "HTTP timeout for create/list/delete calls.",
+      "required": false,
+      "default": 60
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset/op group name (op naming only — this is a job).",
+      "required": false,
+      "default": "victoriametrics"
+    }
+  }
+}

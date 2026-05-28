@@ -1,0 +1,6 @@
+type: dagster_component_templates.VictoriaMetricsSnapshotJobComponent
+attributes:
+  job_name: vm_daily_snapshot
+  schedule: "0 3 * * *"
+  base_url_env_var: VM_BASE_URL
+  retention_hours: 168    # keep 7 days

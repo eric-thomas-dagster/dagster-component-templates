@@ -1,0 +1,17 @@
+{
+  "component_type": "dagster_component_templates.DagsterRunsToPrometheusSensorComponent",
+  "description": "Push Dagster run lifecycle metrics (duration / count / last-finished) to a Prometheus-compatible endpoint on every run completion. Targets Push Gateway, VictoriaMetrics import, or remote_write.",
+  "category": "sensor",
+  "icon": "Bell",
+  "attributes": {
+    "sensor_name": {"type": "string", "label": "Sensor Name", "description": "Dagster sensor name.", "required": true},
+    "base_url_env_var": {"type": "string", "label": "Base URL Env Var", "description": "Env var with the target base URL (push gateway / VM / Mimir endpoint).", "required": true},
+    "target_kind": {"type": "string", "label": "Target Kind", "description": "push_gateway | vm_import | remote_write", "required": false, "default": "push_gateway"},
+    "push_job": {"type": "string", "label": "Push Job", "description": "Push Gateway 'job' grouping key.", "required": false, "default": "dagster_runs"},
+    "location_label": {"type": "string", "label": "Location Label", "description": "Label added to every pushed metric (deployment / region).", "required": false, "default": "default"},
+    "monitor_jobs": {"type": "array", "label": "Monitor Jobs", "description": "Only emit metrics for these Dagster job names. None = all.", "required": false},
+    "bearer_token_env_var": {"type": "string", "label": "Bearer Token Env Var", "description": "Env var with bearer token.", "required": false},
+    "default_status": {"type": "string", "label": "Default Status", "description": "STOPPED | RUNNING", "required": false, "default": "STOPPED"},
+    "request_timeout_seconds": {"type": "integer", "label": "Request Timeout Seconds", "description": "HTTP timeout for the push.", "required": false, "default": 15}
+  }
+}

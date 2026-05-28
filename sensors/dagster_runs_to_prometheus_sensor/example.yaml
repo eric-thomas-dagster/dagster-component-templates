@@ -1,0 +1,7 @@
+type: dagster_component_templates.DagsterRunsToPrometheusSensorComponent
+attributes:
+  sensor_name: dagster_runs_to_prometheus
+  base_url_env_var: PROM_PUSHGATEWAY_URL
+  target_kind: push_gateway
+  push_job: dagster_runs
+  location_label: prod-east

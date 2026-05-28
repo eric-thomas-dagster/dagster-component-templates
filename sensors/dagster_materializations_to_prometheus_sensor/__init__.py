@@ -1,0 +1,3 @@
+from .component import DagsterMaterializationsToPrometheusSensorComponent
+
+__all__ = ["DagsterMaterializationsToPrometheusSensorComponent"]

@@ -129,7 +129,8 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/bigquery_ml_pipeline.md",
         "last_validated": "2026-05-08"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "bigquery_ml_train_asset",
@@ -169,7 +170,8 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/bigquery_ml_pipeline.md",
         "last_validated": "2026-05-08"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "cloud_dlp_inspect_asset",
@@ -2229,7 +2231,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "snowflake_cortex_search",
@@ -2257,7 +2260,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_cortex_search/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_cortex_search/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_cortex_search/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_cortex_search/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_cortex_search/requirements.txt",
+      "vendor": "Snowflake"
     },
     {
       "id": "speech_to_text_asset",
@@ -2702,7 +2706,8 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vertex_ai_embeddings.md",
         "last_validated": "2026-05-08"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "vision_api_asset",
@@ -5417,7 +5422,8 @@
         "level": "live",
         "evidence": "",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "bigquery_table_freshness_check",
@@ -5446,7 +5452,8 @@
         "level": "live",
         "evidence": "",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "cloud_dlp_pii_check",
@@ -5859,7 +5866,8 @@
         "pip": [
           "snowflake-connector-python>=3.0.0"
         ]
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "snowflake_stored_procedure_call_asset",
@@ -5888,7 +5896,8 @@
         "pip": [
           "snowflake-connector-python>=3.0.0"
         ]
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "snowflake_task_execute_asset",
@@ -5917,7 +5926,8 @@
         "pip": [
           "snowflake-connector-python>=3.0.0"
         ]
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "dbt_docs_enriched_project",
@@ -6002,7 +6012,8 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
         "last_validated": "2026-05-08"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "external_clickhouse_table",
@@ -6062,7 +6073,8 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
         "last_validated": "2026-05-08"
-      }
+      },
+      "vendor": "Databricks"
     },
     {
       "id": "external_delta_table",
@@ -6087,7 +6099,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
         "last_validated": "2026-05-14"
-      }
+      },
+      "vendor": "Databricks"
     },
     {
       "id": "external_eventhubs_asset",
@@ -6147,7 +6160,8 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
         "last_validated": "2026-05-08"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "external_huggingface_space",
@@ -6255,7 +6269,8 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
         "last_validated": "2026-05-08"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "external_mqtt_asset",
@@ -6370,7 +6385,8 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
         "last_validated": "2026-05-08"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "external_pulsar_asset",
@@ -6490,7 +6506,8 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
         "last_validated": "2026-05-08"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "external_servicebus_asset",
@@ -6580,7 +6597,8 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
         "last_validated": "2026-05-08"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "external_snowflake_openflow_flow",
@@ -6604,7 +6622,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-22"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "external_snowflake_table",
@@ -6634,7 +6653,8 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
         "last_validated": "2026-05-08"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "external_sql_asset",
@@ -6694,7 +6714,8 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
         "last_validated": "2026-05-08"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "abinitio_run_asset",
@@ -6905,7 +6926,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "bicep_asset",
@@ -7236,7 +7258,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/bicep_self_provision.md",
         "last_validated": "2026-05-06"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "hashicorp_vault",
@@ -7777,7 +7800,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "azure_activity_log_ingestion",
@@ -7809,7 +7833,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "bigquery_load_from_gcs_asset",
@@ -7846,7 +7871,8 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/bigquery_bulk_bridge.md",
         "last_validated": "2026-05-08"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "dagster_plus_asset_events_ingestion",
@@ -8143,7 +8169,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
         "last_validated": "2026-05-14"
-      }
+      },
+      "vendor": "Databricks"
     },
     {
       "id": "document_ingestion",
@@ -8352,7 +8379,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "gcs_to_database_asset",
@@ -8384,7 +8412,8 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "github_audit_log_ingestion",
@@ -8817,7 +8846,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "linkedin_ads_ingestion",
@@ -9019,7 +9049,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "oauth_rest_ingestion",
@@ -9245,7 +9276,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "pulsar_to_database_asset",
@@ -9389,7 +9421,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "salesforce_event_log_ingestion",
@@ -9710,7 +9743,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "sql_to_database_asset",
@@ -9767,7 +9801,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "ssh_asset",
@@ -10083,7 +10118,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "aws_glue",
@@ -10108,7 +10144,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "aws_kinesis",
@@ -10133,7 +10170,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "aws_redshift",
@@ -10158,7 +10196,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "aws_sagemaker",
@@ -10183,7 +10222,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "azure_data_factory",
@@ -10210,7 +10250,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_data_factory.md",
         "last_validated": "2026-05-06"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "azure_stream_analytics",
@@ -10236,7 +10277,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "azure_synapse",
@@ -10262,7 +10304,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_synapse.md",
         "last_validated": "2026-05-06"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "census_sync_asset",
@@ -10348,7 +10391,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Databricks"
     },
     {
       "id": "databricks_workspace",
@@ -10373,7 +10417,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Databricks"
     },
     {
       "id": "dlt_pipeline_assets",
@@ -10430,7 +10475,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "fivetran_assets",
@@ -10485,7 +10531,8 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "google_cloud_functions",
@@ -10613,7 +10660,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "google_vertex_ai",
@@ -10638,7 +10686,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "hex_project_assets",
@@ -10827,7 +10876,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-20"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "snowflake_dynamic_table",
@@ -10854,7 +10904,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-20"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "snowflake_iceberg_table",
@@ -10881,7 +10932,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_iceberg_table/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_iceberg_table/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_iceberg_table/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_iceberg_table/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_iceberg_table/requirements.txt",
+      "vendor": "Snowflake"
     },
     {
       "id": "snowflake_materialized_view",
@@ -10908,7 +10960,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-20"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "snowflake_snowpipe",
@@ -10936,7 +10989,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-20"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "snowflake_stored_procedure",
@@ -10963,7 +11017,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-20"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "snowflake_stream",
@@ -10990,7 +11045,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-20"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "snowflake_task",
@@ -11017,7 +11073,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-20"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "snowflake_time_travel_asset",
@@ -11044,7 +11101,8 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_time_travel_asset/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_time_travel_asset/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_time_travel_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_time_travel_asset/requirements.txt"
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_time_travel_asset/requirements.txt",
+      "vendor": "Snowflake"
     },
     {
       "id": "snowflake_workspace",
@@ -11069,7 +11127,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "tableau_assets",
@@ -11135,7 +11194,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "azure_blob_parquet_io_manager",
@@ -11168,7 +11228,8 @@
         "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_synapse_serverless.md",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "bigquery_io_manager",
@@ -11202,7 +11263,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "clickhouse_io_manager",
@@ -11299,7 +11361,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Databricks"
     },
     {
       "id": "delta_lake_io_manager",
@@ -11334,7 +11397,8 @@
         "level": "live",
         "last_validated": "2026-05-19",
         "evidence": "setup_local_io_demo.sh"
-      }
+      },
+      "vendor": "Databricks"
     },
     {
       "id": "deltalake_polars_io_manager",
@@ -11495,7 +11559,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "gcs_parquet_io_manager",
@@ -11532,7 +11597,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "iceberg_io_manager",
@@ -11864,7 +11930,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_postgres.md",
         "last_validated": "2026-05-06"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "mysql_io_manager",
@@ -12001,7 +12068,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "s3_csv_io_manager",
@@ -12031,7 +12099,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "s3_parquet_io_manager",
@@ -12067,7 +12136,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "snowflake_io_manager",
@@ -12100,7 +12170,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "snowflake_polars_io_manager",
@@ -12132,7 +12203,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "snowflake_pyspark_io_manager",
@@ -12164,7 +12236,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "trino_io_manager",
@@ -12436,7 +12509,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "fabric_pipeline_trigger_job",
@@ -12462,7 +12536,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "fivetran_sync_trigger_job",
@@ -12521,7 +12596,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "http_webhook_job",
@@ -12826,7 +12902,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "shell_command_job",
@@ -12973,7 +13050,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "teams_notification_job",
@@ -13122,7 +13200,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "clickhouse_table_observation_sensor",
@@ -13182,7 +13261,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Databricks"
     },
     {
       "id": "eventhubs_observation_sensor",
@@ -13241,7 +13321,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "kafka_observation_sensor",
@@ -13300,7 +13381,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "mqtt_observation_sensor",
@@ -13389,7 +13471,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "pulsar_observation_sensor",
@@ -13508,7 +13591,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "sap_cpi_observation_sensor",
@@ -13624,7 +13708,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "sql_observation_sensor",
@@ -13682,7 +13767,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "airtable_resource",
@@ -13813,7 +13899,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "azure_openai_resource",
@@ -13839,7 +13926,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "bigquery_resource",
@@ -13871,7 +13959,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "cassandra_resource",
@@ -14067,7 +14156,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Databricks"
     },
     {
       "id": "datadog_resource",
@@ -14165,7 +14255,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/db2.md",
         "last_validated": "2026-05-14"
-      }
+      },
+      "vendor": "IBM"
     },
     {
       "id": "dbt_cloud_resource",
@@ -14265,7 +14356,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "dynatrace_resource",
@@ -14353,7 +14445,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "fabric_workspace_resource",
@@ -14379,7 +14472,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "facebook_ads_resource",
@@ -14511,7 +14605,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "gemini_resource",
@@ -15046,7 +15141,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_postgres.md",
         "last_validated": "2026-05-06"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "msteams_resource",
@@ -15677,7 +15773,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "salesforce_resource",
@@ -15952,7 +16049,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "stripe_resource",
@@ -16442,7 +16540,8 @@
         "level": "live",
         "last_validated": "2026-05-19",
         "evidence": "s3_pipeline.md"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "github_event_sensor",
@@ -16648,7 +16747,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "linear_issue_sensor",
@@ -16907,7 +17007,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "pulsar_monitor",
@@ -17086,7 +17187,8 @@
         "level": "live",
         "last_validated": "2026-05-19",
         "evidence": "s3_pipeline.md"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "sap_event_mesh_sensor",
@@ -17229,7 +17331,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "slack_notification",
@@ -17285,7 +17388,8 @@
         "pip": [
           "snowflake-connector-python>=3.0.0"
         ]
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "snowflake_snowpipe_load_sensor",
@@ -17313,7 +17417,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-22"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "snowflake_task_completion_sensor",
@@ -17342,7 +17447,8 @@
         "pip": [
           "snowflake-connector-python>=3.0.0"
         ]
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "sql_monitor",
@@ -17400,7 +17506,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "stripe_event_sensor",
@@ -17636,7 +17743,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/dagster_plus_to_sentinel.md",
         "last_validated": "2026-05-06"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "audit_logs_to_splunk",
@@ -17725,7 +17833,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_search.md",
         "last_validated": "2026-05-06"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "bigquery_export_to_gcs_asset",
@@ -17762,7 +17871,8 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/bigquery_bulk_bridge.md",
         "last_validated": "2026-05-08"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "bigtable_writer_asset",
@@ -17978,7 +18088,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_tables.md",
         "last_validated": "2026-05-06"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "dataframe_to_bigquery",
@@ -18000,7 +18111,8 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "dataframe_to_csv",
@@ -18045,7 +18157,8 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Databricks"
     },
     {
       "id": "dataframe_to_delta_table",
@@ -18072,7 +18185,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
         "last_validated": "2026-05-14"
-      }
+      },
+      "vendor": "Databricks"
     },
     {
       "id": "dataframe_to_dynatrace_events",
@@ -18176,7 +18290,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "dataframe_to_gcs",
@@ -18480,7 +18595,8 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "dataframe_to_s3",
@@ -18584,7 +18700,8 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "dataframe_to_snowflake_bulk",
@@ -18618,7 +18735,8 @@
       },
       "validation": {
         "level": "code"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "dataframe_to_table",
@@ -18727,7 +18845,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "firestore_writer",
@@ -19114,7 +19233,8 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "redis_writer",
@@ -19195,7 +19315,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/aws_cloudwatch.md",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "aws_cloudwatch_metrics_query",
@@ -19221,7 +19342,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/aws_cloudwatch.md",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "azure_log_analytics_query",
@@ -19249,7 +19371,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_data_explorer.md",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "azure_search_query",
@@ -19276,7 +19399,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_search.md",
         "last_validated": "2026-05-06"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "azure_table_reader",
@@ -19302,7 +19426,8 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_tables.md",
         "last_validated": "2026-05-06"
-      }
+      },
+      "vendor": "Microsoft"
     },
     {
       "id": "bigquery_query_asset",
@@ -19339,7 +19464,8 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/bigquery_query.md",
         "last_validated": "2026-05-08"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "bigquery_vector_search_asset",
@@ -19369,7 +19495,8 @@
         "level": "live",
         "evidence": "",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "bigtable_reader_asset",
@@ -19875,7 +20002,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "AWS"
     },
     {
       "id": "dynatrace_metrics_query",
@@ -20756,7 +20884,8 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/bigquery_ml_pipeline.md",
         "last_validated": "2026-05-08"
-      }
+      },
+      "vendor": "Google"
     },
     {
       "id": "count_records",
@@ -22599,7 +22728,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-19"
-      }
+      },
+      "vendor": "Snowflake"
     },
     {
       "id": "sort",

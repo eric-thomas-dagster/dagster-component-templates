@@ -15,15 +15,15 @@ Each vendor page has the same shape:
 
 | Vendor | Page | Components |
 |---|---|---|
+| AWS | [aws.md](aws.md) | ~32 — S3 + Kinesis + SQS + Redshift + Athena + DynamoDB + Glue + DMS + SageMaker + CDK + CloudWatch + CloudTrail |
+| Databricks | [databricks.md](databricks.md) | 11 — workspace + Delta Lake + Asset Bundles + lakehouse |
+| Google Cloud | [google.md](google.md) | ~32 — BigQuery + GCS + Pub/Sub + Vertex AI + Deployment Manager |
+| IBM | [ibm.md](ibm.md) | Db2 family — LUW + Cloud + Warehouse + Db2 for i / AS/400 |
+| Microsoft | [microsoft.md](microsoft.md) | ~25 — SQL Server + Synapse + Fabric + Azure Data Factory + Power BI + MSGraph + Dynamics + SharePoint + Azure OpenAI + Sentinel |
 | Precisely | [precisely.md](precisely.md) | 6 — Connect ETL (sensor, trigger, external asset), DIS DQ check, Address Verify, Data360 lineage sink |
+| Snowflake | [snowflake.md](snowflake.md) | 29 — workspace + Snowpark + DT/MV/Iceberg/Cortex + tasks + procs + alerts + OpenFlow + Snowpipe |
 
-More vendor pages land here as the registry grows. Suggested next:
-
-- `ibm.md` — Db2 LUW + Db2 on Cloud + Db2 for i / AS/400
-- `snowflake.md` — workspace + Snowpark + DT/MV/iceberg/cortex
-- `databricks.md` — workspace + lakehouse + Unity Catalog
-- `microsoft.md` — Synapse + Fabric + Power BI + MSGraph + Dynamics
-- `aws.md` — S3 + SQS + Glue + Kinesis + DynamoDB
+More vendor pages land here as the registry grows.
 
 ## Why these exist
 

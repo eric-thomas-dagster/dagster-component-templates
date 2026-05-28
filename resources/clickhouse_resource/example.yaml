@@ -1,0 +1,9 @@
+type: dagster_community_components.ClickHouseResourceComponent
+attributes:
+  resource_key: clickhouse_resource
+  host: clickhouse.mycompany.com
+  port: 8443
+  database: analytics
+  username: dagster_runner
+  password_env_var: CLICKHOUSE_PASSWORD
+  secure: true

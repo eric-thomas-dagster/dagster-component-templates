@@ -1,0 +1,7 @@
+type: dagster_community_components.ExternalStarRocksTableAsset
+attributes:
+  asset_key: starrocks/analytics/events_realtime
+  database: analytics
+  table: events_realtime
+  fe_host: starrocks-fe.mycompany.com
+  group_name: starrocks

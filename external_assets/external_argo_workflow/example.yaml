@@ -1,0 +1,7 @@
+type: dagster_community_components.ExternalArgoWorkflowAsset
+attributes:
+  asset_key: argo/etl/nightly_aggregation
+  workflow_template: nightly-aggregation
+  namespace: argo
+  argo_ui_url: https://argo.mycompany.com
+  group_name: argo

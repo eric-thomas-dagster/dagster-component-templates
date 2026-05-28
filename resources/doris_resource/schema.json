@@ -1,0 +1,78 @@
+{
+  "additionalProperties": false,
+  "description": "Register an Apache Doris resource for use by other components.\n\nPairs with the generic SQL components (``sql_transform``,\n``dataframe_to_table``, ``database_schema_inventory``) by exposing\nits SQLAlchemy URL, and with ``dataframe_to_doris`` for Stream-Load-\nbased bulk ingestion via the HTTP frontend.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.DorisResourceComponent\n    attributes:\n      resource_key: doris_resource\n      host: doris-fe.mycompany.com\n      query_port: 9030\n      http_port: 8030\n      database: analytics\n      username: dagster_runner\n      password_env_var: DORIS_PASSWORD\n    ```",
+  "properties": {
+    "resource_key": {
+      "default": "doris_resource",
+      "description": "Resource key. Other components reference it via this name.",
+      "title": "Resource Key",
+      "type": "string"
+    },
+    "host": {
+      "description": "Doris Frontend (FE) hostname.",
+      "title": "Host",
+      "type": "string"
+    },
+    "query_port": {
+      "default": 9030,
+      "description": "MySQL-protocol query port.",
+      "title": "Query Port",
+      "type": "integer"
+    },
+    "http_port": {
+      "default": 8030,
+      "description": "HTTP frontend port (Stream Load + admin REST).",
+      "title": "Http Port",
+      "type": "integer"
+    },
+    "database": {
+      "description": "Database name (Doris's term for catalog).",
+      "title": "Database",
+      "type": "string"
+    },
+    "username": {
+      "description": "Doris username.",
+      "title": "Username",
+      "type": "string"
+    },
+    "password": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Doris password (literal). Set this OR password_env_var.",
+      "title": "Password"
+    },
+    "password_env_var": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Env var holding the password.",
+      "title": "Password Env Var"
+    },
+    "ssl": {
+      "default": false,
+      "description": "Enable TLS for query + HTTP endpoints (Doris 2.0+).",
+      "title": "Ssl",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "host",
+    "database",
+    "username"
+  ],
+  "title": "DorisResourceComponent",
+  "type": "object"
+}

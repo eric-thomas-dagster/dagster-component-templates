@@ -1,0 +1,11 @@
+type: dagster_community_components.DataframeToStarRocksComponent
+attributes:
+  asset_name: starrocks_orders_load
+  upstream_asset_key: orders_clean
+  table: orders
+  database: analytics
+  host_env_var: STARROCKS_FE_HOST
+  http_port: 8030
+  username_env_var: STARROCKS_USER
+  password_env_var: STARROCKS_PASSWORD
+  group_name: starrocks

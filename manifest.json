@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-05-27",
+  "last_updated": "2026-05-28",
   "components": [
     {
       "id": "anthropic_llm",
@@ -5985,6 +5985,35 @@
       }
     },
     {
+      "id": "external_argo_workflow",
+      "name": "External Argo Workflow",
+      "category": "external",
+      "description": "Declare-only AssetSpec for an Argo Workflow. Pair with argo_workflow_sensor (Case A) or argo_workflow_trigger (Case B).",
+      "path": "external_assets/external_argo_workflow",
+      "tags": [
+        "external",
+        "argo",
+        "workflow",
+        "kubernetes"
+      ],
+      "vendor": "Argo",
+      "dependencies": {
+        "pip": []
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_argo_workflow/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_argo_workflow/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_argo_workflow/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_argo_workflow/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_argo_workflow/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "build_defs + Pydantic instantiation pass; awaiting customer pilot for live"
+      }
+    },
+    {
       "id": "external_bigquery_table",
       "name": "External BigQuery Table",
       "category": "external",
@@ -6043,7 +6072,8 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
         "last_validated": "2026-05-08"
-      }
+      },
+      "vendor": "ClickHouse"
     },
     {
       "id": "external_databricks_table",
@@ -6101,6 +6131,34 @@
         "last_validated": "2026-05-14"
       },
       "vendor": "Databricks"
+    },
+    {
+      "id": "external_doris_table",
+      "name": "External Apache Doris Table",
+      "category": "external",
+      "description": "Declare-only AssetSpec for an Apache Doris table. For tables Doris owns the lifecycle of (Routine Load, Flink CDC, etc.).",
+      "path": "external_assets/external_doris_table",
+      "tags": [
+        "external",
+        "doris",
+        "olap"
+      ],
+      "vendor": "Apache Doris",
+      "dependencies": {
+        "pip": []
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_doris_table/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_doris_table/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_doris_table/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_doris_table/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_doris_table/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "build_defs + Pydantic instantiation pass; awaiting customer pilot for live"
+      }
     },
     {
       "id": "external_eventhubs_asset",
@@ -6718,6 +6776,34 @@
       "vendor": "AWS"
     },
     {
+      "id": "external_starrocks_table",
+      "name": "External StarRocks Table",
+      "category": "external",
+      "description": "Declare-only AssetSpec for a StarRocks table. Mirror of external_doris_table.",
+      "path": "external_assets/external_starrocks_table",
+      "tags": [
+        "external",
+        "starrocks",
+        "olap"
+      ],
+      "vendor": "StarRocks",
+      "dependencies": {
+        "pip": []
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_starrocks_table/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_starrocks_table/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_starrocks_table/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_starrocks_table/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_starrocks_table/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "build_defs + Pydantic instantiation pass; awaiting customer pilot for live"
+      }
+    },
+    {
       "id": "abinitio_run_asset",
       "name": "Ab Initio Run Asset",
       "category": "infrastructure",
@@ -6769,6 +6855,38 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "argo_workflow_trigger",
+      "name": "Argo Workflow Trigger",
+      "category": "infrastructure",
+      "description": "Materializable asset that submits an Argo Workflow via /api/v1/workflows/{namespace}/submit. Pairs with argo_workflow_sensor in observation mode for submit-then-watch.",
+      "path": "assets/infrastructure/argo_workflow_trigger",
+      "tags": [
+        "infrastructure",
+        "argo",
+        "workflow",
+        "trigger",
+        "kubernetes"
+      ],
+      "vendor": "Argo",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/argo_workflow_trigger/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/argo_workflow_trigger/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/argo_workflow_trigger/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/argo_workflow_trigger/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/argo_workflow_trigger/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "build_defs + Pydantic instantiation pass; awaiting customer pilot for live"
       }
     },
     {
@@ -11294,7 +11412,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "ClickHouse"
     },
     {
       "id": "clickhouse_polars_io_manager",
@@ -11326,7 +11445,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "ClickHouse"
     },
     {
       "id": "databricks_io_manager",
@@ -13231,7 +13351,8 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
-      }
+      },
+      "vendor": "ClickHouse"
     },
     {
       "id": "databricks_table_observation_sensor",
@@ -14030,6 +14151,39 @@
       }
     },
     {
+      "id": "clickhouse_resource",
+      "name": "ClickHouse Resource",
+      "category": "resource",
+      "description": "ClickHouse connection resource via clickhouse-connect (HTTP) + SQLAlchemy URL via clickhouse-sqlalchemy.",
+      "path": "resources/clickhouse_resource",
+      "tags": [
+        "resource",
+        "clickhouse",
+        "olap",
+        "mpp"
+      ],
+      "vendor": "ClickHouse",
+      "dependencies": {
+        "pip": [
+          "clickhouse-connect>=0.7.0",
+          "sqlalchemy>=2.0.0",
+          "clickhouse-sqlalchemy"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/clickhouse_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/clickhouse_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/clickhouse_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/clickhouse_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/clickhouse_resource/requirements.txt",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-05-28",
+        "evidence": "examples/clickhouse.md \u2014 Docker container + Dagster scaffold validated end-to-end"
+      }
+    },
+    {
       "id": "composer_airflow_auth_backend",
       "name": "Composer Airflow Auth Backend",
       "category": "resource",
@@ -14288,6 +14442,39 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "doris_resource",
+      "name": "Apache Doris Resource",
+      "category": "resource",
+      "description": "Apache Doris connection resource \u2014 SQLAlchemy URL via MySQL wire protocol (port 9030) + HTTP frontend endpoint (port 8030) for Stream Load.",
+      "path": "resources/doris_resource",
+      "tags": [
+        "resource",
+        "doris",
+        "olap",
+        "mpp",
+        "apache"
+      ],
+      "vendor": "Apache Doris",
+      "dependencies": {
+        "pip": [
+          "sqlalchemy>=2.0.0",
+          "pymysql"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/doris_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/doris_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/doris_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/doris_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/doris_resource/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "build_defs + Pydantic instantiation pass; awaiting customer pilot for live"
       }
     },
     {
@@ -16053,6 +16240,38 @@
       "vendor": "Snowflake"
     },
     {
+      "id": "starrocks_resource",
+      "name": "StarRocks Resource",
+      "category": "resource",
+      "description": "StarRocks connection resource \u2014 same MySQL wire protocol + Stream Load HTTP path as Doris (StarRocks is a Doris fork).",
+      "path": "resources/starrocks_resource",
+      "tags": [
+        "resource",
+        "starrocks",
+        "olap",
+        "mpp"
+      ],
+      "vendor": "StarRocks",
+      "dependencies": {
+        "pip": [
+          "sqlalchemy>=2.0.0",
+          "pymysql"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/starrocks_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/starrocks_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/starrocks_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/starrocks_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/starrocks_resource/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "build_defs + Pydantic instantiation pass; awaiting customer pilot for live"
+      }
+    },
+    {
       "id": "stripe_resource",
       "name": "Stripe Resource",
       "category": "resource",
@@ -16367,6 +16586,37 @@
       }
     },
     {
+      "id": "argo_workflow_sensor",
+      "name": "Argo Workflow Sensor",
+      "category": "sensor",
+      "description": "Polls Argo Server REST API for workflow status; emits AssetMaterialization / AssetObservation + RunRequest on terminal success.",
+      "path": "sensors/argo_workflow_sensor",
+      "tags": [
+        "sensor",
+        "argo",
+        "workflow",
+        "kubernetes"
+      ],
+      "vendor": "Argo",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28.0"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/argo_workflow_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/argo_workflow_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/argo_workflow_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/argo_workflow_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/argo_workflow_sensor/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "build_defs + Pydantic instantiation pass; awaiting customer pilot for live"
+      }
+    },
+    {
       "id": "coalesce_job_sensor",
       "name": "Coalesce Job Sensor",
       "category": "sensor",
@@ -16423,6 +16673,39 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "doris_routine_load_sensor",
+      "name": "Doris Routine Load Sensor",
+      "category": "sensor",
+      "description": "Watch Apache Doris Routine Load jobs (Kafka->Doris continuous ingestion). Emits AssetObservation on healthy state + AssetMaterialization + RunRequest on PAUSED / CANCELLED / STOPPED.",
+      "path": "sensors/doris_routine_load_sensor",
+      "tags": [
+        "sensor",
+        "doris",
+        "olap",
+        "routine-load",
+        "kafka"
+      ],
+      "vendor": "Apache Doris",
+      "dependencies": {
+        "pip": [
+          "sqlalchemy>=2.0.0",
+          "pymysql"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/doris_routine_load_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/doris_routine_load_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/doris_routine_load_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/doris_routine_load_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/doris_routine_load_sensor/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "build_defs + Pydantic instantiation pass; awaiting customer pilot for live"
       }
     },
     {
@@ -18115,6 +18398,37 @@
       "vendor": "Google"
     },
     {
+      "id": "dataframe_to_clickhouse",
+      "name": "DataFrame to ClickHouse",
+      "category": "sink",
+      "description": "Insert a Pandas DataFrame into ClickHouse via clickhouse-connect's client.insert_df. ~1M rows/sec per client over HTTP.",
+      "path": "assets/sinks/dataframe_to_clickhouse",
+      "tags": [
+        "sink",
+        "clickhouse",
+        "olap"
+      ],
+      "vendor": "ClickHouse",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "clickhouse-connect>=0.7.0"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_clickhouse/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_clickhouse/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_clickhouse/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_clickhouse/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_clickhouse/requirements.txt",
+      "validation": {
+        "level": "live",
+        "last_validated": "2026-05-28",
+        "evidence": "examples/clickhouse.md \u2014 Docker container + Dagster scaffold validated end-to-end"
+      }
+    },
+    {
       "id": "dataframe_to_csv",
       "name": "DataFrame to CSV",
       "category": "sink",
@@ -18187,6 +18501,38 @@
         "last_validated": "2026-05-14"
       },
       "vendor": "Databricks"
+    },
+    {
+      "id": "dataframe_to_doris",
+      "name": "DataFrame to Apache Doris",
+      "category": "sink",
+      "description": "Bulk-ingest a Pandas DataFrame into Apache Doris via Stream Load (HTTP PUT). Production high-throughput path \u2014 100k-1M rows/sec per FE.",
+      "path": "assets/sinks/dataframe_to_doris",
+      "tags": [
+        "sink",
+        "doris",
+        "olap",
+        "stream-load"
+      ],
+      "vendor": "Apache Doris",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28.0"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_doris/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_doris/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_doris/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_doris/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_doris/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "build_defs + Pydantic instantiation pass; awaiting customer pilot for live"
+      }
     },
     {
       "id": "dataframe_to_dynatrace_events",
@@ -18737,6 +19083,38 @@
         "level": "code"
       },
       "vendor": "Snowflake"
+    },
+    {
+      "id": "dataframe_to_starrocks",
+      "name": "DataFrame to StarRocks",
+      "category": "sink",
+      "description": "Bulk-ingest a Pandas DataFrame into StarRocks via Stream Load. Mirror of dataframe_to_doris.",
+      "path": "assets/sinks/dataframe_to_starrocks",
+      "tags": [
+        "sink",
+        "starrocks",
+        "olap",
+        "stream-load"
+      ],
+      "vendor": "StarRocks",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28.0"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_starrocks/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_starrocks/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_starrocks/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_starrocks/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_starrocks/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "build_defs + Pydantic instantiation pass; awaiting customer pilot for live"
+      }
     },
     {
       "id": "dataframe_to_table",
@@ -19947,6 +20325,39 @@
         "level": "code",
         "evidence": "",
         "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "doris_query_asset",
+      "name": "Apache Doris Query Asset",
+      "category": "source",
+      "description": "Run a SQL query against Apache Doris and emit the result as a Pandas DataFrame asset. Symmetric to dataframe_to_doris.",
+      "path": "assets/sources/doris_query_asset",
+      "tags": [
+        "source",
+        "doris",
+        "olap",
+        "sql"
+      ],
+      "vendor": "Apache Doris",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "sqlalchemy>=2.0.0",
+          "pymysql"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/doris_query_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/doris_query_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/doris_query_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/doris_query_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/doris_query_asset/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-05-28",
+        "evidence": "build_defs + Pydantic instantiation pass; awaiting customer pilot for live"
       }
     },
     {

@@ -1,0 +1,78 @@
+{
+  "additionalProperties": false,
+  "description": "Register a StarRocks resource for use by other components.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.StarRocksResourceComponent\n    attributes:\n      resource_key: starrocks_resource\n      host: starrocks-fe.mycompany.com\n      query_port: 9030\n      http_port: 8030\n      database: analytics\n      username: dagster_runner\n      password_env_var: STARROCKS_PASSWORD\n    ```",
+  "properties": {
+    "resource_key": {
+      "default": "starrocks_resource",
+      "description": "Resource key.",
+      "title": "Resource Key",
+      "type": "string"
+    },
+    "host": {
+      "description": "StarRocks Frontend (FE) hostname.",
+      "title": "Host",
+      "type": "string"
+    },
+    "query_port": {
+      "default": 9030,
+      "description": "MySQL-protocol query port.",
+      "title": "Query Port",
+      "type": "integer"
+    },
+    "http_port": {
+      "default": 8030,
+      "description": "HTTP frontend port.",
+      "title": "Http Port",
+      "type": "integer"
+    },
+    "database": {
+      "description": "Database name.",
+      "title": "Database",
+      "type": "string"
+    },
+    "username": {
+      "description": "StarRocks username.",
+      "title": "Username",
+      "type": "string"
+    },
+    "password": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "StarRocks password. Set this OR password_env_var.",
+      "title": "Password"
+    },
+    "password_env_var": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Env var with password.",
+      "title": "Password Env Var"
+    },
+    "ssl": {
+      "default": false,
+      "description": "Enable TLS.",
+      "title": "Ssl",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "host",
+    "database",
+    "username"
+  ],
+  "title": "StarRocksResourceComponent",
+  "type": "object"
+}

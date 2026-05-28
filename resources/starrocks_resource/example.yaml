@@ -1,0 +1,9 @@
+type: dagster_community_components.StarRocksResourceComponent
+attributes:
+  resource_key: starrocks_resource
+  host: starrocks-fe.mycompany.com
+  query_port: 9030
+  http_port: 8030
+  database: analytics
+  username: dagster_runner
+  password_env_var: STARROCKS_PASSWORD

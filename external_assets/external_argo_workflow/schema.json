@@ -1,0 +1,151 @@
+{
+  "additionalProperties": false,
+  "description": "Declare an Argo Workflow as an external Dagster asset.\n\nExample:\n    ```yaml\n    type: dagster_community_components.ExternalArgoWorkflowAsset\n    attributes:\n      asset_key: argo/etl/nightly_aggregation\n      workflow_template: nightly-aggregation\n      namespace: argo\n      argo_ui_url: https://argo.mycompany.com\n      group_name: argo\n    ```",
+  "properties": {
+    "asset_key": {
+      "description": "Dagster asset key (e.g. 'argo/etl/nightly_aggregation').",
+      "title": "Asset Key",
+      "type": "string"
+    },
+    "workflow_template": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Argo WorkflowTemplate name (the reusable template; templates produce Workflows when triggered).",
+      "title": "Workflow Template"
+    },
+    "workflow_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Specific Argo Workflow name this asset represents (one-off runs, not template-derived).",
+      "title": "Workflow Name"
+    },
+    "namespace": {
+      "default": "argo",
+      "description": "Kubernetes namespace the workflow runs in.",
+      "title": "Namespace",
+      "type": "string"
+    },
+    "argo_ui_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Argo Server UI base URL \u2014 surfaced as a clickable link in the catalog.",
+      "title": "Argo Ui Url"
+    },
+    "group_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "argo",
+      "description": "Dagster asset group name.",
+      "title": "Group Name"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset description.",
+      "title": "Description"
+    },
+    "owners": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset owners.",
+      "title": "Owners"
+    },
+    "tags": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Catalog tags.",
+      "title": "Tags"
+    },
+    "kinds": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset kinds (auto-includes 'argo', 'workflow').",
+      "title": "Kinds"
+    },
+    "deps": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Upstream Dagster asset keys.",
+      "title": "Deps"
+    }
+  },
+  "required": [
+    "asset_key"
+  ],
+  "title": "ExternalArgoWorkflowAsset",
+  "type": "object"
+}

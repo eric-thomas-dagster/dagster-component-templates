@@ -1,0 +1,11 @@
+type: dagster_community_components.DataframeToClickHouseComponent
+attributes:
+  asset_name: clickhouse_events_load
+  upstream_asset_key: events_clean
+  table: events
+  database: analytics
+  host_env_var: CLICKHOUSE_HOST
+  port: 8443
+  secure: true
+  username_env_var: CLICKHOUSE_USER
+  password_env_var: CLICKHOUSE_PASSWORD

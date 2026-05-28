@@ -1,0 +1,90 @@
+{
+  "additionalProperties": false,
+  "description": "Watch Apache Doris Routine Load jobs for state changes.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.DorisRoutineLoadSensorComponent\n    attributes:\n      sensor_name: doris_orders_rl_health\n      database: analytics\n      job_name: orders_rl                  # or omit to watch all jobs in db\n      host_env_var: DORIS_FE_HOST\n      query_port: 9030\n      username_env_var: DORIS_USER\n      password_env_var: DORIS_PASSWORD\n      job_name_target: alert_oncall_job\n      asset_key: doris/analytics/events_realtime\n    ```",
+  "properties": {
+    "sensor_name": {
+      "description": "Unique sensor name.",
+      "title": "Sensor Name",
+      "type": "string"
+    },
+    "database": {
+      "description": "Doris database to watch.",
+      "title": "Database",
+      "type": "string"
+    },
+    "job_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Specific Routine Load job name. If unset, watches all jobs in the database and fires an event per state change observed.",
+      "title": "Job Name"
+    },
+    "job_name_target": {
+      "description": "Dagster job to trigger when an unhealthy state is detected.",
+      "title": "Job Name Target",
+      "type": "string"
+    },
+    "asset_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional asset key for the destination table. Sensor emits AssetObservation (default \u2014 Routine Load is an external ingestion path; observation is the right shape) on state changes.",
+      "title": "Asset Key"
+    },
+    "host_env_var": {
+      "default": "DORIS_FE_HOST",
+      "description": "Env var with Doris FE host.",
+      "title": "Host Env Var",
+      "type": "string"
+    },
+    "query_port": {
+      "default": 9030,
+      "description": "Doris MySQL-protocol query port.",
+      "title": "Query Port",
+      "type": "integer"
+    },
+    "username_env_var": {
+      "default": "DORIS_USER",
+      "description": "Env var with username.",
+      "title": "Username Env Var",
+      "type": "string"
+    },
+    "password_env_var": {
+      "default": "DORIS_PASSWORD",
+      "description": "Env var with password.",
+      "title": "Password Env Var",
+      "type": "string"
+    },
+    "minimum_interval_seconds": {
+      "default": 60,
+      "description": "Seconds between polls.",
+      "title": "Minimum Interval Seconds",
+      "type": "integer"
+    },
+    "default_status": {
+      "default": "running",
+      "description": "'running' or 'stopped'.",
+      "title": "Default Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "sensor_name",
+    "database",
+    "job_name_target"
+  ],
+  "title": "DorisRoutineLoadSensorComponent",
+  "type": "object"
+}

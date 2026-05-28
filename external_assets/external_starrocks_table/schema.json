@@ -1,0 +1,139 @@
+{
+  "additionalProperties": false,
+  "description": "Declare a StarRocks table as an external Dagster asset.\n\nExample:\n    ```yaml\n    type: dagster_community_components.ExternalStarRocksTableAsset\n    attributes:\n      asset_key: starrocks/analytics/events_realtime\n      database: analytics\n      table: events_realtime\n      fe_host: starrocks-fe.mycompany.com\n      group_name: starrocks\n    ```",
+  "properties": {
+    "asset_key": {
+      "description": "Dagster asset key.",
+      "title": "Asset Key",
+      "type": "string"
+    },
+    "database": {
+      "description": "StarRocks database (catalog) name.",
+      "title": "Database",
+      "type": "string"
+    },
+    "table": {
+      "description": "StarRocks table name.",
+      "title": "Table",
+      "type": "string"
+    },
+    "fe_host": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "StarRocks Frontend host (metadata only).",
+      "title": "Fe Host"
+    },
+    "table_model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "StarRocks table model: 'duplicate' / 'unique' / 'aggregate' / 'primary' / 'mv'.",
+      "title": "Table Model"
+    },
+    "group_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "starrocks",
+      "description": "Dagster asset group name.",
+      "title": "Group Name"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Description"
+    },
+    "owners": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Owners"
+    },
+    "tags": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tags"
+    },
+    "kinds": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Kinds"
+    },
+    "deps": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Deps"
+    }
+  },
+  "required": [
+    "asset_key",
+    "database",
+    "table"
+  ],
+  "title": "ExternalStarRocksTableAsset",
+  "type": "object"
+}

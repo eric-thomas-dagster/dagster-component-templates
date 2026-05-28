@@ -15,13 +15,17 @@ Each vendor page has the same shape:
 
 | Vendor | Page | Components |
 |---|---|---|
+| Apache Doris | [doris.md](doris.md) | 6 — resource, dataframe sink (Stream Load), external table, query asset, Routine Load sensor, schema_inventory dialect |
+| Argo | [argo.md](argo.md) | 3 — external workflow + status sensor + trigger asset (submit→watch pattern) |
 | AWS | [aws.md](aws.md) | ~32 — S3 + Kinesis + SQS + Redshift + Athena + DynamoDB + Glue + DMS + SageMaker + CDK + CloudWatch + CloudTrail |
+| ClickHouse | [clickhouse.md](clickhouse.md) | 6 — resource (NEW) + dataframe sink (NEW) + IO managers + external table + observation sensor |
 | Databricks | [databricks.md](databricks.md) | 11 — workspace + Delta Lake + Asset Bundles + lakehouse |
 | Google Cloud | [google.md](google.md) | ~32 — BigQuery + GCS + Pub/Sub + Vertex AI + Deployment Manager |
 | IBM | [ibm.md](ibm.md) | Db2 family — LUW + Cloud + Warehouse + Db2 for i / AS/400 |
 | Microsoft | [microsoft.md](microsoft.md) | ~25 — SQL Server + Synapse + Fabric + Azure Data Factory + Power BI + MSGraph + Dynamics + SharePoint + Azure OpenAI + Sentinel |
 | Precisely | [precisely.md](precisely.md) | 6 — Connect ETL (sensor, trigger, external asset), DIS DQ check, Address Verify, Data360 lineage sink |
 | Snowflake | [snowflake.md](snowflake.md) | 29 — workspace + Snowpark + DT/MV/Iceberg/Cortex + tasks + procs + alerts + OpenFlow + Snowpipe |
+| StarRocks | [starrocks.md](starrocks.md) | 3 — resource + dataframe sink (Stream Load) + external table (Doris fork; same wire protocol) |
 
 More vendor pages land here as the registry grows.
 

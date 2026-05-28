@@ -1,0 +1,11 @@
+type: dagster_community_components.DorisRoutineLoadSensorComponent
+attributes:
+  sensor_name: doris_orders_rl_health
+  database: analytics
+  job_name: orders_rl
+  host_env_var: DORIS_FE_HOST
+  query_port: 9030
+  username_env_var: DORIS_USER
+  password_env_var: DORIS_PASSWORD
+  job_name_target: alert_oncall_job
+  asset_key: doris/analytics/events_realtime

@@ -1,0 +1,12 @@
+type: dagster_community_components.ArgoWorkflowSensorComponent
+attributes:
+  sensor_name: argo_nightly_done
+  workflow_template_label: workflows.argoproj.io/workflow-template=nightly-aggregation
+  namespace: argo
+  host_env_var: ARGO_SERVER_URL
+  token_env_var: ARGO_TOKEN
+  job_name: downstream_processing_job
+  asset_key: argo/etl/nightly_aggregation
+  asset_event_type: materialization
+  minimum_interval_seconds: 60
+  default_status: stopped

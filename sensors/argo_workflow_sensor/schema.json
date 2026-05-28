@@ -1,0 +1,110 @@
+{
+  "additionalProperties": false,
+  "description": "Fire a Dagster job when an Argo Workflow reaches a terminal success phase.\n\nTwo modes \u2014 set exactly one of ``workflow_name`` or\n``workflow_template_label``:\n\n  - ``workflow_name`` \u2014 watch one specific Workflow by name. Useful\n    when Dagster knows the workflow's name (e.g. it triggered it).\n\n  - ``workflow_template_label`` \u2014 list workflows by a label selector\n    like ``workflows.argoproj.io/workflow-template=nightly-agg``\n    and watch the most-recently-completed one. Useful when Argo's\n    scheduler creates workflows on its own cadence and Dagster\n    wants to react to the latest finish.\n\nExample:\n    ```yaml\n    type: dagster_community_components.ArgoWorkflowSensorComponent\n    attributes:\n      sensor_name: argo_nightly_done\n      workflow_template_label: workflows.argoproj.io/workflow-template=nightly-aggregation\n      namespace: argo\n      host_env_var: ARGO_SERVER_URL\n      token_env_var: ARGO_TOKEN\n      job_name: downstream_processing_job\n      asset_key: argo/etl/nightly_aggregation\n    ```",
+  "properties": {
+    "sensor_name": {
+      "description": "Unique sensor name.",
+      "title": "Sensor Name",
+      "type": "string"
+    },
+    "namespace": {
+      "default": "argo",
+      "description": "Kubernetes namespace the workflow runs in.",
+      "title": "Namespace",
+      "type": "string"
+    },
+    "workflow_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Specific Argo Workflow name to watch. Set this OR workflow_template_label, not both.",
+      "title": "Workflow Name"
+    },
+    "workflow_template_label": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Label selector to identify workflows of a given template, e.g. 'workflows.argoproj.io/workflow-template=nightly-agg'. Sensor watches the most-recently-completed matching workflow. Set this OR workflow_name, not both.",
+      "title": "Workflow Template Label"
+    },
+    "job_name": {
+      "description": "Dagster job to trigger on terminal success.",
+      "title": "Job Name",
+      "type": "string"
+    },
+    "asset_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional Dagster asset key. When set, the sensor emits AssetMaterialization (default) or AssetObservation (see asset_event_type) on terminal success. Use '/' separators.",
+      "title": "Asset Key"
+    },
+    "asset_event_type": {
+      "default": "materialization",
+      "description": "'materialization' (default) or 'observation'. Use 'observation' when paired with argo_workflow_trigger to avoid double-counting materializations on the same asset.",
+      "title": "Asset Event Type",
+      "type": "string"
+    },
+    "host_env_var": {
+      "default": "ARGO_SERVER_URL",
+      "description": "Env var with Argo Server base URL (e.g. https://argo.mycompany.com).",
+      "title": "Host Env Var",
+      "type": "string"
+    },
+    "token_env_var": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "ARGO_TOKEN",
+      "description": "Env var with the bearer token for the Argo Server. Leave empty for clusters with anonymous read enabled.",
+      "title": "Token Env Var"
+    },
+    "verify_ssl": {
+      "default": true,
+      "description": "Verify TLS certs (set False only for dev clusters).",
+      "title": "Verify Ssl",
+      "type": "boolean"
+    },
+    "minimum_interval_seconds": {
+      "default": 60,
+      "description": "Seconds between polls.",
+      "title": "Minimum Interval Seconds",
+      "type": "integer"
+    },
+    "default_status": {
+      "default": "running",
+      "description": "'running' or 'stopped'.",
+      "title": "Default Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "sensor_name",
+    "job_name"
+  ],
+  "title": "ArgoWorkflowSensorComponent",
+  "type": "object"
+}

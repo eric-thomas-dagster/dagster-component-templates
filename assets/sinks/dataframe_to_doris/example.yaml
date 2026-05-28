@@ -1,0 +1,13 @@
+type: dagster_community_components.DataframeToDorisComponent
+attributes:
+  asset_name: doris_orders_load
+  upstream_asset_key: orders_clean
+  table: orders
+  database: analytics
+  host_env_var: DORIS_FE_HOST
+  http_port: 8030
+  username_env_var: DORIS_USER
+  password_env_var: DORIS_PASSWORD
+  mode: append
+  format: csv
+  group_name: doris

@@ -1,0 +1,11 @@
+type: dagster_community_components.ArgoWorkflowTriggerComponent
+attributes:
+  asset_key: argo/etl/nightly_aggregation
+  workflow_template: nightly-aggregation
+  namespace: argo
+  parameters:
+    INPUT_DATE: "2026-05-27"
+    REGION: us-east-1
+  host_env_var: ARGO_SERVER_URL
+  token_env_var: ARGO_TOKEN
+  group_name: argo

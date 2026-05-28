@@ -1,0 +1,186 @@
+{
+  "additionalProperties": false,
+  "description": "Trigger an Argo Workflow run via the Argo Server REST API.\n\nExample \u2014 submit from a WorkflowTemplate with parameters:\n\n    ```yaml\n    type: dagster_community_components.ArgoWorkflowTriggerComponent\n    attributes:\n      asset_key: argo/etl/nightly_aggregation\n      workflow_template: nightly-aggregation\n      namespace: argo\n      parameters:\n        INPUT_DATE: \"2026-05-27\"\n        REGION: us-east-1\n      host_env_var: ARGO_SERVER_URL\n      token_env_var: ARGO_TOKEN\n    ```\n\nThe returned workflow name (Argo generates it server-side, often\nwith a 5-char suffix like `nightly-aggregation-xyz12`) lands in\nasset metadata so a paired ``argo_workflow_sensor`` can pick it up.\n\n**Do NOT pair on the same asset_key as ``external_argo_workflow``** \u2014\nthose represent the same workflow with different schedule ownership.\nPick the Case (A or B) that matches your setup; the components are\nalternatives, not complements.",
+  "properties": {
+    "asset_key": {
+      "description": "Dagster asset key for the workflow (e.g. 'argo/etl/nightly_aggregation'). Use '/' separators.",
+      "title": "Asset Key",
+      "type": "string"
+    },
+    "workflow_template": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Argo WorkflowTemplate name to instantiate. Set this OR workflow_manifest, not both.",
+      "title": "Workflow Template"
+    },
+    "workflow_manifest": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Full Argo Workflow manifest as a dict (apiVersion / kind / metadata / spec). Use this for one-off workflows that aren't pre-registered as templates. Set this OR workflow_template, not both.",
+      "title": "Workflow Manifest"
+    },
+    "namespace": {
+      "default": "argo",
+      "description": "Kubernetes namespace.",
+      "title": "Namespace",
+      "type": "string"
+    },
+    "parameters": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Workflow parameters (key=value). Passed via submitOptions.parameters as `name=value` strings.",
+      "title": "Parameters"
+    },
+    "host_env_var": {
+      "default": "ARGO_SERVER_URL",
+      "description": "Env var with the Argo Server URL.",
+      "title": "Host Env Var",
+      "type": "string"
+    },
+    "token_env_var": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "ARGO_TOKEN",
+      "description": "Env var with the bearer token. Leave empty for anonymous-read clusters.",
+      "title": "Token Env Var"
+    },
+    "verify_ssl": {
+      "default": true,
+      "description": "Verify TLS certs.",
+      "title": "Verify Ssl",
+      "type": "boolean"
+    },
+    "request_timeout_seconds": {
+      "default": 60,
+      "minimum": 1,
+      "title": "Request Timeout Seconds",
+      "type": "integer"
+    },
+    "group_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "argo",
+      "description": "Dagster asset group name.",
+      "title": "Group Name"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset description.",
+      "title": "Description"
+    },
+    "owners": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset owners.",
+      "title": "Owners"
+    },
+    "tags": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Catalog tags.",
+      "title": "Tags"
+    },
+    "kinds": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset kinds (auto-includes 'argo', 'workflow').",
+      "title": "Kinds"
+    },
+    "deps": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Upstream Dagster asset keys.",
+      "title": "Deps"
+    }
+  },
+  "required": [
+    "asset_key"
+  ],
+  "title": "ArgoWorkflowTriggerComponent",
+  "type": "object"
+}

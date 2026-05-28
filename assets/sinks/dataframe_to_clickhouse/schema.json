@@ -1,0 +1,160 @@
+{
+  "additionalProperties": false,
+  "description": "Insert a Pandas DataFrame into a ClickHouse table.\n\nExample:\n    ```yaml\n    type: dagster_community_components.DataframeToClickHouseComponent\n    attributes:\n      asset_name: clickhouse_events_load\n      upstream_asset_key: events_clean\n      table: events\n      database: analytics\n      host_env_var: CLICKHOUSE_HOST\n      port: 8443\n      secure: true\n      username_env_var: CLICKHOUSE_USER\n      password_env_var: CLICKHOUSE_PASSWORD\n    ```",
+  "properties": {
+    "asset_name": {
+      "description": "Output Dagster asset name.",
+      "title": "Asset Name",
+      "type": "string"
+    },
+    "upstream_asset_key": {
+      "description": "Upstream asset providing the DataFrame.",
+      "title": "Upstream Asset Key",
+      "type": "string"
+    },
+    "table": {
+      "description": "Destination ClickHouse table name.",
+      "title": "Table",
+      "type": "string"
+    },
+    "database": {
+      "default": "default",
+      "description": "Destination ClickHouse database.",
+      "title": "Database",
+      "type": "string"
+    },
+    "host_env_var": {
+      "default": "CLICKHOUSE_HOST",
+      "description": "Env var with ClickHouse hostname.",
+      "title": "Host Env Var",
+      "type": "string"
+    },
+    "port": {
+      "default": 8123,
+      "description": "ClickHouse HTTP port (8123 plain / 8443 TLS).",
+      "title": "Port",
+      "type": "integer"
+    },
+    "username_env_var": {
+      "default": "CLICKHOUSE_USER",
+      "description": "Env var with username.",
+      "title": "Username Env Var",
+      "type": "string"
+    },
+    "password_env_var": {
+      "default": "CLICKHOUSE_PASSWORD",
+      "description": "Env var with password.",
+      "title": "Password Env Var",
+      "type": "string"
+    },
+    "secure": {
+      "default": false,
+      "description": "Enable TLS.",
+      "title": "Secure",
+      "type": "boolean"
+    },
+    "column_names": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional explicit column list (must match destination table order). If unset, DataFrame column order is used.",
+      "title": "Column Names"
+    },
+    "request_timeout_seconds": {
+      "default": 300,
+      "minimum": 10,
+      "title": "Request Timeout Seconds",
+      "type": "integer"
+    },
+    "group_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "clickhouse",
+      "description": "Dagster asset group name.",
+      "title": "Group Name"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset description.",
+      "title": "Description"
+    },
+    "owners": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset owners.",
+      "title": "Owners"
+    },
+    "tags": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Catalog tags.",
+      "title": "Tags"
+    },
+    "kinds": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset kinds (auto-includes 'clickhouse').",
+      "title": "Kinds"
+    }
+  },
+  "required": [
+    "asset_name",
+    "upstream_asset_key",
+    "table"
+  ],
+  "title": "DataframeToClickHouseComponent",
+  "type": "object"
+}

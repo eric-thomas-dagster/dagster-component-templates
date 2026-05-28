@@ -1,0 +1,10 @@
+type: dagster_community_components.DorisResourceComponent
+attributes:
+  resource_key: doris_resource
+  host: doris-fe.mycompany.com
+  query_port: 9030
+  http_port: 8030
+  database: analytics
+  username: dagster_runner
+  password_env_var: DORIS_PASSWORD
+  ssl: false

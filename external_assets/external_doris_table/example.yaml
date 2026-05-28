@@ -1,0 +1,10 @@
+type: dagster_community_components.ExternalDorisTableAsset
+attributes:
+  asset_key: doris/analytics/events_realtime
+  database: analytics
+  table: events_realtime
+  fe_host: doris-fe.mycompany.com
+  table_model: unique
+  group_name: doris
+  description: |
+    Real-time events table populated by Routine Load from Kafka.

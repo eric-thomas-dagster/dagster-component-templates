@@ -1,0 +1,12 @@
+type: dagster_community_components.DorisQueryAssetComponent
+attributes:
+  asset_name: doris_orders_recent
+  query: |
+    SELECT order_id, customer_id, total, order_date
+      FROM analytics.orders
+     WHERE order_date >= CURRENT_DATE - INTERVAL 7 DAY
+  host_env_var: DORIS_FE_HOST
+  query_port: 9030
+  database: analytics
+  username_env_var: DORIS_USER
+  password_env_var: DORIS_PASSWORD

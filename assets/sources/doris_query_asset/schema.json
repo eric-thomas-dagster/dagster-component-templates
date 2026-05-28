@@ -1,0 +1,203 @@
+{
+  "additionalProperties": false,
+  "description": "Run a SQL query against Apache Doris and emit the result as a DataFrame asset.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.DorisQueryAssetComponent\n    attributes:\n      asset_name: doris_orders_recent\n      query: |\n        SELECT order_id, customer_id, total, order_date\n          FROM analytics.orders\n         WHERE order_date >= CURRENT_DATE - INTERVAL 7 DAY\n      host_env_var: DORIS_FE_HOST\n      query_port: 9030\n      database: analytics\n      username_env_var: DORIS_USER\n      password_env_var: DORIS_PASSWORD\n    ```\n\nPair with ``doris_resource`` if you have multiple Doris assets \u2014 they\ncan share one connection via ``connection_string_env_var``. For a\nsingle asset, the env-var fields below are enough.",
+  "properties": {
+    "asset_name": {
+      "description": "Output Dagster asset name.",
+      "title": "Asset Name",
+      "type": "string"
+    },
+    "query": {
+      "description": "SQL query to execute. Returns the full result set as a DataFrame.",
+      "title": "Query",
+      "type": "string"
+    },
+    "host_env_var": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "DORIS_FE_HOST",
+      "description": "Env var with Doris FE host.",
+      "title": "Host Env Var"
+    },
+    "query_port": {
+      "default": 9030,
+      "description": "Doris MySQL-protocol query port.",
+      "title": "Query Port",
+      "type": "integer"
+    },
+    "database": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Doris database (catalog).",
+      "title": "Database"
+    },
+    "username_env_var": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "DORIS_USER",
+      "description": "Env var with username.",
+      "title": "Username Env Var"
+    },
+    "password_env_var": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "DORIS_PASSWORD",
+      "description": "Env var with password.",
+      "title": "Password Env Var"
+    },
+    "ssl": {
+      "default": false,
+      "description": "Connect via TLS.",
+      "title": "Ssl",
+      "type": "boolean"
+    },
+    "connection_string_env_var": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Env var with a full SQLAlchemy URL (mysql+pymysql://user:pw@host:9030/db). Overrides the field-by-field host/port/database/username/password configuration.",
+      "title": "Connection String Env Var"
+    },
+    "chunksize": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional pandas read_sql chunksize for streaming-large-result-set reads. Leave unset for full-materialize-in-memory (typical).",
+      "title": "Chunksize"
+    },
+    "group_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "doris",
+      "description": "Dagster asset group name.",
+      "title": "Group Name"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset description.",
+      "title": "Description"
+    },
+    "owners": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset owners.",
+      "title": "Owners"
+    },
+    "tags": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Catalog tags.",
+      "title": "Tags"
+    },
+    "kinds": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset kinds (auto-includes 'doris').",
+      "title": "Kinds"
+    },
+    "deps": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Upstream Dagster asset keys.",
+      "title": "Deps"
+    }
+  },
+  "required": [
+    "asset_name",
+    "query"
+  ],
+  "title": "DorisQueryAssetComponent",
+  "type": "object"
+}

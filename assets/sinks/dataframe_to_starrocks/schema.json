@@ -1,0 +1,178 @@
+{
+  "additionalProperties": false,
+  "description": "Bulk-ingest a Pandas DataFrame into StarRocks via Stream Load.\n\nMirrors ``dataframe_to_doris`` \u2014 same wire protocol, same response\nshape. Use this when your tables live on StarRocks instead of Doris.\n\nExample:\n    ```yaml\n    type: dagster_community_components.DataframeToStarRocksComponent\n    attributes:\n      asset_name: starrocks_orders_load\n      upstream_asset_key: orders_clean\n      table: orders\n      database: analytics\n      host_env_var: STARROCKS_FE_HOST\n      username_env_var: STARROCKS_USER\n      password_env_var: STARROCKS_PASSWORD\n    ```",
+  "properties": {
+    "asset_name": {
+      "description": "Output Dagster asset name.",
+      "title": "Asset Name",
+      "type": "string"
+    },
+    "upstream_asset_key": {
+      "description": "Upstream asset providing the DataFrame.",
+      "title": "Upstream Asset Key",
+      "type": "string"
+    },
+    "table": {
+      "description": "Destination StarRocks table name.",
+      "title": "Table",
+      "type": "string"
+    },
+    "database": {
+      "description": "Destination StarRocks database.",
+      "title": "Database",
+      "type": "string"
+    },
+    "host_env_var": {
+      "default": "STARROCKS_FE_HOST",
+      "description": "Env var with StarRocks FE host.",
+      "title": "Host Env Var",
+      "type": "string"
+    },
+    "http_port": {
+      "default": 8030,
+      "description": "StarRocks FE HTTP port.",
+      "title": "Http Port",
+      "type": "integer"
+    },
+    "username_env_var": {
+      "default": "STARROCKS_USER",
+      "description": "Env var with StarRocks username.",
+      "title": "Username Env Var",
+      "type": "string"
+    },
+    "password_env_var": {
+      "default": "STARROCKS_PASSWORD",
+      "description": "Env var with StarRocks password.",
+      "title": "Password Env Var",
+      "type": "string"
+    },
+    "ssl": {
+      "default": false,
+      "description": "Use https for the Stream Load endpoint.",
+      "title": "Ssl",
+      "type": "boolean"
+    },
+    "format": {
+      "default": "csv",
+      "description": "'csv' or 'json'.",
+      "title": "Format",
+      "type": "string"
+    },
+    "column_separator": {
+      "default": ",",
+      "description": "CSV column separator.",
+      "title": "Column Separator",
+      "type": "string"
+    },
+    "line_delimiter": {
+      "default": "\\n",
+      "description": "CSV line delimiter.",
+      "title": "Line Delimiter",
+      "type": "string"
+    },
+    "columns": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional explicit column list (defaults to DataFrame column order).",
+      "title": "Columns"
+    },
+    "request_timeout_seconds": {
+      "default": 300,
+      "minimum": 10,
+      "title": "Request Timeout Seconds",
+      "type": "integer"
+    },
+    "group_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "starrocks",
+      "description": "Dagster asset group name.",
+      "title": "Group Name"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset description.",
+      "title": "Description"
+    },
+    "owners": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset owners.",
+      "title": "Owners"
+    },
+    "tags": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Catalog tags.",
+      "title": "Tags"
+    },
+    "kinds": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Asset kinds (auto-includes 'starrocks').",
+      "title": "Kinds"
+    }
+  },
+  "required": [
+    "asset_name",
+    "upstream_asset_key",
+    "table",
+    "database"
+  ],
+  "title": "DataframeToStarRocksComponent",
+  "type": "object"
+}

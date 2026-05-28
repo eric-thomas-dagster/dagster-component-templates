@@ -1,0 +1,72 @@
+{
+  "additionalProperties": false,
+  "description": "Register a ClickHouse resource for use by other components.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.ClickHouseResourceComponent\n    attributes:\n      resource_key: clickhouse_resource\n      host: clickhouse.mycompany.com\n      port: 8443\n      database: analytics\n      username: dagster_runner\n      password_env_var: CLICKHOUSE_PASSWORD\n      secure: true\n    ```\n\nPairs with:\n  - ``clickhouse_io_manager`` \u2014 Pandas asset persistence\n  - ``dataframe_to_clickhouse`` \u2014 bulk insert\n  - ``external_clickhouse_table`` \u2014 catalog declaration\n  - Generic SQL components via ``connection_string``",
+  "properties": {
+    "resource_key": {
+      "default": "clickhouse_resource",
+      "description": "Resource key.",
+      "title": "Resource Key",
+      "type": "string"
+    },
+    "host": {
+      "description": "ClickHouse server hostname.",
+      "title": "Host",
+      "type": "string"
+    },
+    "port": {
+      "default": 8123,
+      "description": "HTTP port (8123 plain, 8443 TLS). For native TCP use 9000 + a different client.",
+      "title": "Port",
+      "type": "integer"
+    },
+    "database": {
+      "default": "default",
+      "description": "Database name.",
+      "title": "Database",
+      "type": "string"
+    },
+    "username": {
+      "default": "default",
+      "description": "ClickHouse username.",
+      "title": "Username",
+      "type": "string"
+    },
+    "password": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Password. Set this OR password_env_var.",
+      "title": "Password"
+    },
+    "password_env_var": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Env var with password.",
+      "title": "Password Env Var"
+    },
+    "secure": {
+      "default": false,
+      "description": "Enable TLS.",
+      "title": "Secure",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "host"
+  ],
+  "title": "ClickHouseResourceComponent",
+  "type": "object"
+}

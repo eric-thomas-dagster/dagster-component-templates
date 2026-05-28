@@ -118,6 +118,28 @@ _INVENTORY_QUERIES = {
         "function":  "SELECT 'function', s.name, o.name, m.definition, NULL FROM sys.objects o JOIN sys.schemas s ON s.schema_id=o.schema_id LEFT JOIN sys.sql_modules m ON m.object_id=o.object_id WHERE o.type IN ('FN','IF','TF')",
         "trigger":   "SELECT 'trigger', s.name, tr.name, m.definition, NULL FROM sys.triggers tr JOIN sys.objects o ON o.object_id=tr.parent_id JOIN sys.schemas s ON s.schema_id=o.schema_id LEFT JOIN sys.sql_modules m ON m.object_id=tr.object_id",
     },
+    # Apache Doris — speaks MySQL wire protocol; INFORMATION_SCHEMA is
+    # MySQL-compatible. Doris has no stored procedures / functions /
+    # triggers / sequences (it's an OLAP DB), so only tables + views.
+    # Doris does have a unique "materialized views" surface — exposed
+    # via INFORMATION_SCHEMA.MV_INFOS or SHOW MATERIALIZED VIEWS.
+    "doris": {
+        "table":     "SELECT 'table' AS object_type, table_schema AS schema_name, table_name AS object_name, NULL AS definition, NULL AS row_count FROM information_schema.tables WHERE table_type='BASE TABLE' AND table_schema NOT IN ('information_schema','__internal_schema','mysql','sys')",
+        "view":      "SELECT 'view', table_schema, table_name, view_definition, NULL FROM information_schema.views WHERE table_schema NOT IN ('information_schema','__internal_schema','mysql','sys')",
+    },
+    # StarRocks — same OLAP MPP family as Doris (literal fork); identical
+    # INFORMATION_SCHEMA surface. Catalog queries identical to Doris.
+    "starrocks": {
+        "table":     "SELECT 'table' AS object_type, table_schema AS schema_name, table_name AS object_name, NULL AS definition, NULL AS row_count FROM information_schema.tables WHERE table_type='BASE TABLE' AND table_schema NOT IN ('information_schema','_statistics_','sys')",
+        "view":      "SELECT 'view', table_schema, table_name, view_definition, NULL FROM information_schema.views WHERE table_schema NOT IN ('information_schema','_statistics_','sys')",
+    },
+    # ClickHouse — uses system.tables + system.views; SQL dialect is its
+    # own (close to ANSI). Includes engine info on tables which is useful
+    # for migration planning (MergeTree / ReplicatedMergeTree / etc.).
+    "clickhouse": {
+        "table":     "SELECT 'table' AS object_type, database AS schema_name, name AS object_name, engine AS definition, total_rows AS row_count FROM system.tables WHERE database NOT IN ('system','INFORMATION_SCHEMA','information_schema') AND engine NOT LIKE 'View%' AND engine NOT LIKE 'MaterializedView%'",
+        "view":      "SELECT 'view', database, name, create_table_query, NULL FROM system.tables WHERE database NOT IN ('system','INFORMATION_SCHEMA','information_schema') AND (engine LIKE 'View%' OR engine LIKE 'MaterializedView%')",
+    },
     "redshift": {
         "table":     "SELECT 'table' AS object_type, table_schema AS schema_name, table_name AS object_name, NULL AS definition, NULL AS row_count FROM information_schema.tables WHERE table_type='BASE TABLE' AND table_schema NOT IN ('pg_catalog','information_schema')",
         "view":      "SELECT 'view', table_schema, table_name, view_definition, NULL FROM information_schema.views WHERE table_schema NOT IN ('pg_catalog','information_schema')",

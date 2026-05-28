@@ -2198,47 +2198,52 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             continue
 
                         # Snowflake renamed the SHOW DYNAMIC TABLES refresh
-                        # columns to `last_completed_refresh_*` in 2024;
-                        # legacy accounts still expose `last_refresh_*`
-                        # (and older still `last_successful_refresh_*` /
-                        # `last_refresh_state`). Probe current names
-                        # first, fall back to legacy. `data_timestamp` is
-                        # populated even when refresh-status fields are
-                        # null (initial materialization, accounts where
-                        # refresh tracking lags), so include it in the
-                        # timestamp fallback chain.
-                        action = (
-                            rd.get("last_completed_refresh_action")
-                            or rd.get("last_refresh_action")
-                            or rd.get("last_successful_refresh_action")
-                        )
+                        # columns to `last_completed_refresh_status` in 2024;
+                        # legacy accounts still expose `last_refresh_status`
+                        # (and older still `last_refresh_state`). Probe
+                        # current name first, fall back to legacy.
                         status = (
                             rd.get("last_completed_refresh_status")
                             or rd.get("last_refresh_status")
                             or rd.get("last_refresh_state")
                         )
-                        ts = (
-                            rd.get("last_completed_refresh_status_timestamp")
-                            or rd.get("last_refresh_status_timestamp")
-                            or rd.get("data_timestamp")
-                            or rd.get("last_suspended_on")
-                            or rd.get("last_refreshed_on")
-                        )
-                        cur_tuple = [action, status, str(ts) if ts is not None else None]
-                        prev_tuple = prev_state.get(dt_name)
+                        # Dedup on [rows, bytes] — NOT on [action, status,
+                        # data_timestamp]. Snowflake advances `data_timestamp`
+                        # on every TARGET_LAG refresh whether the DT's output
+                        # moved or not, so a timestamp-keyed dedup emits an
+                        # AssetMaterialization on every refresh. The v0.10.4
+                        # `dagster/data_version` tag below alone doesn't fix
+                        # this: AutomationCondition.eager() is event-driven
+                        # ("any new materialization on a parent since I last
+                        # ran?"), not version-driven — the tag gates *staleness*
+                        # checks, not *newness* checks. So we have to suppress
+                        # the emission itself when rows + bytes haven't moved.
+                        _rows_val = None
+                        _bytes_val = None
+                        if rd.get("rows") is not None:
+                            try:
+                                _rows_val = int(rd["rows"])
+                            except (TypeError, ValueError):
+                                pass
+                        if rd.get("bytes") is not None:
+                            try:
+                                _bytes_val = int(rd["bytes"])
+                            except (TypeError, ValueError):
+                                pass
 
+                        cur_tuple = [_rows_val, _bytes_val]
+                        prev_tuple = prev_state.get(dt_name)
                         new_state[dt_name] = cur_tuple
 
                         if prev_tuple == cur_tuple:
                             continue
                         # Some Snowflake versions/regions don't expose any
-                        # refresh-status column on SHOW DYNAMIC TABLES —
-                        # only `data_timestamp`. In that case status is
-                        # None and we use the advancing `data_timestamp`
-                        # itself as the success signal (Snowflake does
-                        # not advance data_timestamp on failed refreshes).
-                        # Accounts that DO expose status keep the strict
-                        # 'SUCCEEDED' check.
+                        # refresh-status column on SHOW DYNAMIC TABLES — only
+                        # `data_timestamp`. In that case status is None and
+                        # we accept the emission (the rows/bytes change is
+                        # the success signal). Accounts that DO expose status
+                        # keep the strict 'SUCCEEDED' check so failed refreshes
+                        # don't emit.
                         # TODO: refactor to INFORMATION_SCHEMA.DYNAMIC_TABLE_REFRESH_HISTORY
                         # (stable cross-version columns: state,
                         # refresh_action, data_timestamp).
@@ -2251,23 +2256,16 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             "refresh_mode": rd.get("refresh_mode"),
                             "target_lag": rd.get("target_lag"),
                         }
-                        if rd.get("rows") is not None:
-                            try:
-                                metadata["rows"] = int(rd["rows"])
-                            except (TypeError, ValueError):
-                                pass
-                        if rd.get("bytes") is not None:
-                            try:
-                                metadata["bytes"] = int(rd["bytes"])
-                            except (TypeError, ValueError):
-                                pass
+                        if _rows_val is not None:
+                            metadata["rows"] = _rows_val
+                        if _bytes_val is not None:
+                            metadata["bytes"] = _bytes_val
 
-                        # Big-impact site: DTs auto-refresh on TARGET_LAG even
-                        # when their inputs haven't moved. Same row count + same
-                        # bytes = no material change in the DT's output, so
-                        # downstream AutomationCondition.eager() treats the
-                        # emission as a no-op instead of cascading every TARGET_LAG.
-                        _sig = f"{metadata.get('rows')}:{metadata.get('bytes')}"
+                        # data_version tag still useful for the UI's
+                        # "current version" panel + manual staleness checks
+                        # downstream. The cursor dedup above is what prevents
+                        # the eager-cascade storm on TARGET_LAG refreshes.
+                        _sig = f"{_rows_val}:{_bytes_val}"
                         asset_events.append(AssetMaterialization(
                             asset_key=AssetKey([asset_key_str]),
                             metadata=metadata,

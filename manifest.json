@@ -15043,9 +15043,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/influxdb_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/influxdb_resource/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-28",
-        "evidence": "Pydantic instantiation + build_defs pass; awaiting live Docker demo for promotion"
+        "level": "live",
+        "last_validated": "2026-05-27",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/influxdb.md"
       }
     },
     {
@@ -16394,9 +16394,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/timescaledb_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/timescaledb_resource/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-28",
-        "evidence": "Pydantic instantiation + build_defs pass; awaiting live Docker demo for promotion"
+        "level": "live",
+        "last_validated": "2026-05-27",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/timescaledb.md"
       }
     },
     {
@@ -16493,9 +16493,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/victoriametrics_resource/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/victoriametrics_resource/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-28",
-        "evidence": "Pydantic instantiation + build_defs pass; awaiting live Docker demo for promotion"
+        "level": "live",
+        "last_validated": "2026-05-27",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/victoriametrics.md"
       }
     },
     {
@@ -18840,9 +18840,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_influxdb/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_influxdb/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-28",
-        "evidence": "Pydantic instantiation + build_defs pass; awaiting live Docker demo for promotion"
+        "level": "live",
+        "last_validated": "2026-05-27",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/influxdb.md"
       }
     },
     {
@@ -19324,9 +19324,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_victoriametrics/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_victoriametrics/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-28",
-        "evidence": "Pydantic instantiation + build_defs pass; awaiting live Docker demo for promotion"
+        "level": "live",
+        "last_validated": "2026-05-27",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/victoriametrics.md"
       }
     },
     {
@@ -21207,9 +21207,9 @@
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/victoriametrics_query_asset/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/victoriametrics_query_asset/requirements.txt",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-05-28",
-        "evidence": "Pydantic instantiation + build_defs pass; awaiting live Docker demo for promotion"
+        "level": "live",
+        "last_validated": "2026-05-27",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/victoriametrics.md"
       }
     },
     {

@@ -1797,16 +1797,22 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                     # duration. The old query included `error` and
                                     # `completed_time` — neither exist; Snowflake compile-errored
                                     # on every observation tick.
+                                    # SELECT list intentionally minimal: `name`,
+                                    # `state`, `scheduled_time`, and `error_message`
+                                    # are present on every Snowflake tier. Older
+                                    # versions of this query also asked for
+                                    # `query_id` + `duration` — both are documented
+                                    # but missing from the function's return schema
+                                    # in current Standard accounts, where the
+                                    # SELECT compile-errors with "invalid identifier
+                                    # 'QUERY_ID'" and ALERT_HISTORY is never read.
                                     try:
                                         history_query = f"""
                                         SELECT
                                             name,
                                             state,
                                             scheduled_time,
-                                            query_id,
-                                            error_code,
-                                            error_message,
-                                            duration
+                                            error_message
                                         FROM TABLE(INFORMATION_SCHEMA.ALERT_HISTORY(
                                             SCHEDULED_TIME_RANGE_START => DATEADD('hour', -24, CURRENT_TIMESTAMP())
                                         ))
@@ -1821,16 +1827,9 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                             history_dict = dict(zip(columns, history))
                                             metadata.update({
                                                 "last_run_state": history_dict.get("STATE"),
-                                                "last_run_query_id": history_dict.get("QUERY_ID"),
                                                 "last_run_scheduled_time": str(history_dict.get("SCHEDULED_TIME")) if history_dict.get("SCHEDULED_TIME") else None,
-                                                "last_run_error_code": history_dict.get("ERROR_CODE"),
                                                 "last_run_error_message": history_dict.get("ERROR_MESSAGE"),
                                             })
-                                            if history_dict.get("DURATION") is not None:
-                                                try:
-                                                    metadata["snowflake/alert_duration_ms"] = MetadataValue.int(int(history_dict["DURATION"]))
-                                                except (TypeError, ValueError):
-                                                    pass
                                             context.log.info(
                                                 f"Alert {alert_name_v} last run state: "
                                                 f"{history_dict.get('STATE')}"
@@ -1840,13 +1839,13 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                             f"Could not read ALERT_HISTORY for {alert_name_v}: {exc}."
                                         )
                                     # data_version: last-scheduled-time +
-                                    # last-state + query_id signature so
-                                    # downstream eager only re-fires when the
-                                    # alert actually ran a new evaluation.
+                                    # last-state signature so downstream eager only
+                                    # re-fires when the alert actually ran a new
+                                    # evaluation. (query_id was the more precise
+                                    # signal but isn't readable on all tiers.)
                                     signature = (
                                         f"{metadata.get('last_run_scheduled_time')}:"
-                                        f"{metadata.get('last_run_state')}:"
-                                        f"{metadata.get('last_run_query_id')}"
+                                        f"{metadata.get('last_run_state')}"
                                     )
                                     return ObserveResult(
                                         data_version=DataVersion(signature),

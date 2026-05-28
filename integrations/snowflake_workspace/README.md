@@ -2,35 +2,37 @@
 
 Import Snowflake workspace entities as Dagster assets with comprehensive orchestration and observation capabilities.
 
-## Quickstart — booth demo
+## Quickstart — full-surface demo
 
-Two scripts. Five minutes. A fully-orchestrated Dagster project against Snowflake.
+Two scripts. A fully-orchestrated Dagster project against Snowflake — every primitive (tasks, DTs, procs, streams, snowpipes, stages, MVs, Iceberg, Cortex, Snowpark) as a first-class asset with live schedules + sensors + eager automation.
 
 ```bash
-# 1. Seed Snowflake with realistic stuff to orchestrate
-#    (DAGSTER_DEMO database — ~30 entities: tasks, dynamic tables, stored procs,
-#    streams, snowpipes, Cortex Search service, Hybrid table, views, UDFs, tags...)
-curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_snowflake_environment.sh -o setup_snowflake_environment.sh
-chmod +x setup_snowflake_environment.sh
-./setup_snowflake_environment.sh
+# 1. Provision Snowflake (+ optionally AWS for Iceberg / Snowpipe auto-ingest).
+#    Interactive — prompts for creds, runs Day-0 governance probes,
+#    detects collisions, writes .env. Creates DAGSTER_DEMO with ~30 entities
+#    and a scoped DAGSTER_RUNNER role.
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/seed.sh -o seed.sh
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/seed.sql -o seed.sql
+chmod +x seed.sh
+./seed.sh
 
-# 2. Scaffold the Dagster project (auto-detects capabilities, only scaffolds
-#    what your account can actually materialize)
-curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_snowflake_workspace_demo.sh -o setup_snowflake_workspace_demo.sh
-chmod +x setup_snowflake_workspace_demo.sh
-export WANT_EVERYTHING=true
-./setup_snowflake_workspace_demo.sh
+# 2. Scaffold the Dagster project (reads .env, comprehensive by default —
+#    Cortex / Snowpark / warehouse_pipeline / observation sensor all on).
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/bootstrap.sh -o bootstrap.sh
+chmod +x bootstrap.sh
+./bootstrap.sh                  # OR ./bootstrap.sh --lean for minimum spine
 
 # 3. Run it
-cd snowflake-dagster
-source .env.demo
-uv run dg dev
-# Opens UI at http://localhost:3000
+cd snowflake-demo
+uv run dg dev                   # auto-loads .env + .env.secrets
+# UI at http://localhost:3000 — ~30 assets in one connected lineage graph
 ```
 
-**Prerequisites**: a Snowflake account (any tier — Standard works) and a role that can `CREATE DATABASE` (e.g. `ACCOUNTADMIN` / `SYSADMIN`). Auth via keypair, PAT, SSO, password, or password+MFA.
+**Prerequisites**: a Snowflake account (any tier — Standard works, Enterprise+ unlocks more features) and a role that can `CREATE DATABASE` (e.g. `ACCOUNTADMIN` / `SYSADMIN`) — or `seed.sh` falls back to "sandbox mode" inside an existing DB you own. Auth via keypair, PAT, SSO, password, or password+MFA. AWS CLI optional (unlocks Iceberg + Snowpipe auto-ingest if authenticated).
 
-**Full walkthrough** (auth options, what gets generated, troubleshooting, deploy-to-prod): [snowflake_workspace.md](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/snowflake_workspace.md)
+**Full walkthrough** (Why-Dagster framing, OpenFlow notes, SE corporate-account triage, troubleshooting, deploy-to-prod): [snowflake_workspace.md](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/snowflake_workspace.md)
+
+**Account permission matrix** (what to ask your Snowflake partnership contact for): [snowflake_demo_account_requirements.md](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/snowflake_demo_account_requirements.md)
 
 ## Features
 

@@ -66,7 +66,7 @@ Parse raw email content (RFC 2822 format) from a column into structured fields. 
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
-| `extract_fields` | `List[str]` | `lambda : list(DEFAULT_FIELDS)()` | Which fields to extract: from, to, subject, date, body. |
+| `extract_fields` | `List[str]` | `lambda: list(DEFAULT_FIELDS)()` | Which fields to extract: from, to, subject, date, body. |
 | `drop_source` | `bool` | `false` | Drop the source column after parsing. |
 
 <!-- FIELDS:END -->

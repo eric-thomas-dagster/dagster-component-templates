@@ -20,7 +20,7 @@ from dagster import (
     asset,
     MetadataValue,
 )
-from pydantic import ConfigDict, Field
+from pydantic import AliasChoices, ConfigDict, Field
 
 
 def _build_partitions_def(
@@ -131,7 +131,10 @@ class DataframeToTableComponent(Component, Model, Resolvable):
     model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    table_name: str = Field(description="Destination database table name")
+    table: str = Field(
+        description="Destination database table name",
+        validation_alias=AliasChoices("table", "table_name"),
+    )
     database_url: Optional[str] = Field(
         default=None,
         description="SQLAlchemy database URL (e.g. 'postgres://user:pass@host/db'). "
@@ -265,7 +268,7 @@ class DataframeToTableComponent(Component, Model, Resolvable):
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
-        table_name = self.table_name
+        table_name = self.table
         database_url = self.database_url
         database_url_env_var = self.database_url_env_var
         if_exists = self.if_exists

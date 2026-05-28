@@ -15,7 +15,7 @@ This component takes a DataFrame from an upstream asset and writes it to any dlt
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `table_name` | `str` | Name of the table to write data to in the destination |
+| `table` | `str` | Name of the table to write data to in the destination |
 
 ### Catalog metadata
 
@@ -236,7 +236,7 @@ The component detects environment using Dagster Cloud variables:
 
 ```yaml
 asset_name: customer_data_table
-table_name: customers
+table: customers
 write_disposition: replace
 ```
 
@@ -244,7 +244,7 @@ write_disposition: replace
 
 ```yaml
 asset_name: orders_table
-table_name: orders
+table: orders
 write_disposition: merge
 primary_key: order_id
 
@@ -267,7 +267,7 @@ snowflake_password: ${SNOWFLAKE_PASSWORD}
 
 ```yaml
 asset_name: events_table
-table_name: events
+table: events
 write_disposition: append
 destination: bigquery
 

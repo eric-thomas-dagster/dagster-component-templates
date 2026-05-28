@@ -58,7 +58,7 @@ Train and evaluate multiple sklearn models side-by-side using k-fold cross-valid
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `models` | `List[str]` | `lambda : list(_DEFAULT_MODELS)()` | Models to compare: 'logistic_regression', 'random_forest', 'gradient_boosting', 'decision_tree', 'naive_bayes' |
+| `models` | `List[str]` | `lambda: list(_DEFAULT_MODELS)()` | Models to compare: 'logistic_regression', 'random_forest', 'gradient_boosting', 'decision_tree', 'naive_bayes' |
 
 ### Other
 

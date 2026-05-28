@@ -41,7 +41,7 @@ attributes:
 | `credentials` | `Dict[str, Any]` | — | — |
 | `credentials_path` | `str` | — | — |
 | `project_id` | `str` | — | — |
-| `forbidden_info_types` | `List[str]` | `lambda : ['US_SOCIAL_SECURITY_NUMBER', 'CREDIT_CARD_NUMBER', 'US_DRIVERS_LICENSE_NUMBER', 'IBAN_CODE', 'AUTH_TOKEN', 'GCP_CREDENTIALS', 'AWS_CREDENTIALS']()` | InfoTypes that, if detected, count as failures. |
+| `forbidden_info_types` | `List[str]` | `lambda: ['US_SOCIAL_SECURITY_NUMBER', 'CREDIT_CARD_NUMBER', 'US_DRIVERS_LICENSE_NUMBER', 'IBAN_CODE', 'AUTH_TOKEN', 'GCP_CREDENTIALS', 'AWS_CREDENTIALS']()` | InfoTypes that, if detected, count as failures. |
 | `min_likelihood` | `Literal['LIKELIHOOD_UNSPECIFIED', 'VERY_UNLIKELY', 'UNLIKELY', 'POSSIBLE', 'LIKELY', 'VERY_LIKELY']` | `"LIKELY"` | Minimum likelihood to count. Default LIKELY (cuts noise vs. inspect_asset's POSSIBLE). |
 | `max_allowed_findings` | `int` | `0` | Maximum forbidden findings before the check fails. 0 = any forbidden finding fails. |
 | `sample_size` | `int` | `200` | Only scan the first N rows. Default 200 — full scans on large frames get expensive. |

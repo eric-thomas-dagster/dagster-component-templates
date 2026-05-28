@@ -27,7 +27,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 
 class DataframeToFabricLakehouseComponent(Component, Model, Resolvable):
@@ -38,7 +38,10 @@ class DataframeToFabricLakehouseComponent(Component, Model, Resolvable):
 
     workspace_id: str = Field(description="Fabric workspace ID (GUID)")
     lakehouse_name: str = Field(description="Lakehouse name (the .Lakehouse item in the workspace)")
-    table_name: str = Field(description="Target Delta table name (created if missing)")
+    table: str = Field(
+        description="Target Delta table name (created if missing)",
+        validation_alias=AliasChoices("table", "table_name"),
+    )
     write_mode: str = Field(
         default="overwrite",
         description="'overwrite' | 'append'. (Delta MERGE not yet supported here.)",
@@ -145,7 +148,7 @@ class DataframeToFabricLakehouseComponent(Component, Model, Resolvable):
         upstream = self.upstream_asset_key
         ws = self.workspace_id
         lh = self.lakehouse_name
-        table = self.table_name
+        table = self.table
         write_mode = self.write_mode
         tenant_env = self.tenant_id_env_var
         client_env = self.client_id_env_var

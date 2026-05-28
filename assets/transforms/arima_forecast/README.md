@@ -65,7 +65,7 @@ Fit an ARIMA (AutoRegressive Integrated Moving Average) time series model and ge
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `forecast_periods` | `int` | `12` | Number of periods to forecast ahead |
-| `order` | `List[int]` | `lambda : [1, 1, 1]()` | ARIMA (p, d, q) order |
+| `order` | `List[int]` | `lambda: [1, 1, 1]()` | ARIMA (p, d, q) order |
 | `seasonal_order` | `List[int]` | — | Seasonal (P, D, Q, S) order |
 | `confidence_level` | `float` | `0.95` | Confidence level for prediction intervals |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

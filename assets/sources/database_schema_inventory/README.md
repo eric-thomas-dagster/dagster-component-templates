@@ -38,7 +38,7 @@ For Oracle the inventory also captures `package` objects.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `database_type` | `str` | Source database dialect: postgres / mysql / mssql / oracle / db2 / snowflake / redshift |
+| `database_type` | `str` | Source database dialect: postgres / mysql / mssql / oracle / db2 / db2_iseries / snowflake / redshift. Use 'db2' for Db2 LUW / Cloud / Warehouse (catalog at SYSCAT.*); use 'db2_iseries' for Db2 for i / AS/400 / IBM i (catalog at QSYS2.*). Connect via db2_resource(system_type='iseries', library_list=[...]) for the i path. |
 
 ### Catalog metadata
 

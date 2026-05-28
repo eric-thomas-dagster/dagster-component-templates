@@ -62,7 +62,7 @@ Merge two document DataFrames on a key column. Wraps `pandas.merge()` but design
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
 | `how` | `str` | `"left"` | Join type: 'inner', 'left', 'right', or 'outer'. |
-| `suffixes` | `List[str]` | `lambda : ['_left', '_right']()` | Two-element list of suffixes for overlapping column names. |
+| `suffixes` | `List[str]` | `lambda: ['_left', '_right']()` | Two-element list of suffixes for overlapping column names. |
 | `flatten_result` | `bool` | `false` | Auto-flatten any nested dict columns after the merge. |
 
 <!-- FIELDS:END -->

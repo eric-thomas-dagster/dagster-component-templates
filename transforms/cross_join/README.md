@@ -56,7 +56,7 @@ Cartesian product of two DataFrames. Optional row-count guard to prevent memory 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `suffixes` | `list` | `lambda : ['_left', '_right']()` | Suffixes for overlapping column names |
+| `suffixes` | `list` | `lambda: ['_left', '_right']()` | Suffixes for overlapping column names |
 | `max_result_rows` | `int` | `10000000` | Fail if result would exceed this row count (None = no limit) |
 | `include_preview_metadata` | `bool` | `true` | — |
 | `preview_rows` | `int` | `20` | — |

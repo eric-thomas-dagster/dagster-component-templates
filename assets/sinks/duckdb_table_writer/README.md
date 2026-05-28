@@ -54,7 +54,7 @@ This component expects to receive a DataFrame from an upstream asset. Use the **
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `table_name` | `str` | Name of the table to write data to |
+| `table` | `str` | Name of the table to write data to |
 
 ### Catalog metadata
 
@@ -121,7 +121,7 @@ type: duckdb_table_writer.DuckDBTableWriterComponent
 attributes:
   asset_name: customers_to_db
   database_path: "{{ project_root }}/data/demo.duckdb"
-  table_name: customers
+  table: customers
   write_mode: replace
 ```
 
@@ -134,7 +134,7 @@ type: duckdb_table_writer.DuckDBTableWriterComponent
 attributes:
   asset_name: sensor_data_writer
   database_path: "{{ project_root }}/data/sensors.duckdb"
-  table_name: readings
+  table: readings
   write_mode: append
   description: "Append new sensor readings to historical table"
 ```
@@ -148,7 +148,7 @@ type: duckdb_table_writer.DuckDBTableWriterComponent
 attributes:
   asset_name: write_customers
   database_path: "{{ project_root }}/data/ecommerce.duckdb"
-  table_name: customers
+  table: customers
   write_mode: replace
 
 ---
@@ -157,7 +157,7 @@ type: duckdb_table_writer.DuckDBTableWriterComponent
 attributes:
   asset_name: write_orders
   database_path: "{{ project_root }}/data/ecommerce.duckdb"
-  table_name: orders
+  table: orders
   write_mode: replace
 ```
 

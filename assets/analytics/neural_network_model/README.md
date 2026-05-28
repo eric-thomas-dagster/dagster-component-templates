@@ -65,7 +65,7 @@ Fit a multi-layer perceptron (MLP) neural network using scikit-learn's `MLPClass
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `task_type` | `str` | `"classification"` | 'classification' or 'regression' |
-| `hidden_layer_sizes` | `List[int]` | `lambda : [100]()` | Neurons per hidden layer, e.g. [128, 64] for two hidden layers |
+| `hidden_layer_sizes` | `List[int]` | `lambda: [100]()` | Neurons per hidden layer, e.g. [128, 64] for two hidden layers |
 | `activation` | `str` | `"relu"` | Activation function: 'relu', 'tanh', or 'logistic' |
 | `max_iter` | `int` | `500` | Maximum number of training iterations |
 | `learning_rate_init` | `float` | `0.001` | Initial learning rate |

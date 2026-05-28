@@ -68,7 +68,7 @@ Extract keywords and key phrases from a text column. Supports TF-IDF (corpus-lev
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
 | `method` | `str` | `"tfidf"` | Extraction method: tfidf, yake, or rake |
 | `top_n` | `int` | `10` | Number of keywords to extract per row |
-| `ngram_range` | `List[int]` | `lambda : [1, 2]()` | Min/max n-gram size as [min, max] |
+| `ngram_range` | `List[int]` | `lambda: [1, 2]()` | Min/max n-gram size as [min, max] |
 | `language` | `str` | `"en"` | Language of the text |
 
 <!-- FIELDS:END -->

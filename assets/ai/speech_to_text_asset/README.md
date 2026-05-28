@@ -90,7 +90,7 @@ attributes:
 | `credentials_path` | `str` | — | Falls back to GOOGLE_APPLICATION_CREDENTIALS. |
 | `project_id` | `str` | — | — |
 | `location` | `str` | `"global"` | Recognizer region — 'global' or a specific region (e.g. 'us-central1'). |
-| `language_codes` | `List[str]` | `lambda : ['en-US']()` | One or more BCP-47 language codes. Multiple → multilingual recognition. |
+| `language_codes` | `List[str]` | `lambda: ['en-US']()` | One or more BCP-47 language codes. Multiple → multilingual recognition. |
 | `recognizer_model` | `str` | `"latest_long"` | Speech v2 model: 'latest_short' / 'latest_long' / 'chirp' / 'chirp_2' / 'phone_call' / 'medical_conversation'. (Field is named recognizer_model rather than model to avoid a Pydantic name collision.) |
 | `enable_automatic_punctuation` | `bool` | `true` | — |
 | `enable_word_time_offsets` | `bool` | `false` | — |

@@ -20,7 +20,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 
 def _build_partitions_def(
@@ -137,7 +137,7 @@ class DynamodbWriterComponent(Component, Model, Resolvable):
         attributes:
           asset_name: write_orders_to_dynamo
           upstream_asset_key: processed_orders
-          table_name: orders
+          table: orders
           aws_region: us-east-1
           group_name: sinks
         ```
@@ -147,7 +147,10 @@ class DynamodbWriterComponent(Component, Model, Resolvable):
     upstream_asset_key: str = Field(
         description="Asset key of the upstream DataFrame asset"
     )
-    table_name: str = Field(description="DynamoDB table name")
+    table: str = Field(
+        description="DynamoDB table name",
+        validation_alias=AliasChoices("table", "table_name"),
+    )
     aws_region: str = Field(
         default="us-east-1",
         description="AWS region where the DynamoDB table is located",
@@ -284,7 +287,7 @@ class DynamodbWriterComponent(Component, Model, Resolvable):
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
-        table_name = self.table_name
+        table_name = self.table
         aws_region = self.aws_region
         aws_access_key_env_var = self.aws_access_key_env_var
         aws_secret_key_env_var = self.aws_secret_key_env_var

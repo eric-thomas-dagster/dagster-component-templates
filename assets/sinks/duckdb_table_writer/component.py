@@ -13,7 +13,7 @@ from dagster import (
     AssetKey,
     asset,
 )
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 
 def _build_partitions_def(
@@ -141,8 +141,9 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
         description="Path to the DuckDB database file (will be created if doesn't exist)"
     )
 
-    table_name: str = Field(
-        description="Name of the table to write data to"
+    table: str = Field(
+        description="Name of the table to write data to",
+        validation_alias=AliasChoices("table", "table_name"),
     )
 
     write_mode: Literal["create", "replace", "append"] = Field(
@@ -256,7 +257,7 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
         # Capture fields for closure
         asset_name = self.asset_name
         database_path = self.database_path
-        table_name = self.table_name
+        table_name = self.table
         write_mode = self.write_mode
         description = self.description or f"Write data to DuckDB table {table_name}"
         group_name = self.group_name or None

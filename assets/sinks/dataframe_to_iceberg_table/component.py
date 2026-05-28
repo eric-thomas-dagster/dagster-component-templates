@@ -34,7 +34,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 
 def _resolve_env_vars(d: Optional[Dict[str, str]]) -> Dict[str, str]:
@@ -105,7 +105,7 @@ class DataframeToIcebergTableComponent(Component, Model, Resolvable):
             credential: "${CATALOG_CREDENTIAL}"
             warehouse: my_warehouse
           namespace: sales
-          table_name: orders
+          table: orders
           mode: append
         ```
     """
@@ -130,7 +130,10 @@ class DataframeToIcebergTableComponent(Component, Model, Resolvable):
     # --- Table identity ----------------------------------------------------
 
     namespace: str = Field(description="Iceberg namespace")
-    table_name: str = Field(description="Iceberg table name")
+    table: str = Field(
+        description="Iceberg table name",
+        validation_alias=AliasChoices("table", "table_name"),
+    )
 
     # --- Write options -----------------------------------------------------
 
@@ -205,7 +208,7 @@ class DataframeToIcebergTableComponent(Component, Model, Resolvable):
         component = self
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
-        description = self.description or f"Iceberg sink ({self.mode}) → {self.namespace}.{self.table_name}"
+        description = self.description or f"Iceberg sink ({self.mode}) → {self.namespace}.{self.table}"
 
         kinds = list(self.kinds or []) or ["iceberg"]
         all_tags = dict(self.asset_tags or {})
@@ -254,14 +257,14 @@ class DataframeToIcebergTableComponent(Component, Model, Resolvable):
             catalog = component._load_catalog()
             from pyiceberg.exceptions import NoSuchTableError, NoSuchNamespaceError
             try:
-                table = catalog.load_table((component.namespace, component.table_name))
+                table = catalog.load_table((component.namespace, component.table))
             except NoSuchTableError:
                 try:
                     catalog.create_namespace(component.namespace)
                 except (NoSuchNamespaceError, Exception):
                     pass
                 table = catalog.create_table(
-                    identifier=(component.namespace, component.table_name),
+                    identifier=(component.namespace, component.table),
                     schema=arrow_table.schema,
                 )
 
@@ -285,7 +288,7 @@ class DataframeToIcebergTableComponent(Component, Model, Resolvable):
             metadata: Dict[str, Any] = {
                 "rows_written": MetadataValue.int(len(df)),
                 "mode": MetadataValue.text(mode),
-                "table": MetadataValue.text(f"{component.namespace}.{component.table_name}"),
+                "table": MetadataValue.text(f"{component.namespace}.{component.table}"),
                 "catalog_type": MetadataValue.text(component.catalog_type),
             }
             if current_snap is not None:
@@ -295,7 +298,7 @@ class DataframeToIcebergTableComponent(Component, Model, Resolvable):
                 metadata["partition_key"] = MetadataValue.text(partition_key)
             context.log.info(
                 f"Iceberg sink: wrote {len(df)} rows ({mode}) to "
-                f"{component.namespace}.{component.table_name}"
+                f"{component.namespace}.{component.table}"
             )
             return Output(value=None, metadata=metadata)
 

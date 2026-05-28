@@ -4,7 +4,7 @@ attributes:
   upstream_asset_key: orders_raw
   account_name_env_var: AZURE_STORAGE_ACCOUNT
   account_key_env_var: AZURE_STORAGE_ACCOUNT_KEY
-  table_name: orders
+  table: orders
   partition_key_column: customer_id
   row_key_column: order_id
   write_mode: upsert            # 'upsert' | 'merge' | 'insert'

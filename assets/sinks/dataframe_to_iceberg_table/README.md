@@ -31,7 +31,7 @@ PyIceberg's MERGE / upsert support is limited. For upserts, use Spark / Trino / 
 | `asset_name` | `str` | Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset producing the DataFrame to write |
 | `namespace` | `str` | Iceberg namespace |
-| `table_name` | `str` | Iceberg table name |
+| `table` | `str` | Iceberg table name |
 
 ### Catalog metadata
 

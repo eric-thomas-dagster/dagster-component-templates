@@ -16,7 +16,7 @@ The `DynamodbWriterComponent` accepts an upstream DataFrame asset and writes its
 |---|---|---|
 | `asset_name` | `str` | Name of the output asset to create |
 | `upstream_asset_key` | `str` | Asset key of the upstream DataFrame asset |
-| `table_name` | `str` | DynamoDB table name |
+| `table` | `str` | DynamoDB table name |
 
 ### Catalog metadata
 
@@ -86,7 +86,7 @@ type: dagster_component_templates.DynamodbWriterComponent
 attributes:
   asset_name: write_users_to_dynamo
   upstream_asset_key: processed_users
-  table_name: users
+  table: users
   aws_region: us-east-1
   group_name: sinks
 ```
@@ -98,7 +98,7 @@ type: dagster_component_templates.DynamodbWriterComponent
 attributes:
   asset_name: write_events_to_dynamo
   upstream_asset_key: enriched_events
-  table_name: events
+  table: events
   aws_region: eu-west-1
   aws_access_key_env_var: AWS_ACCESS_KEY_ID
   aws_secret_key_env_var: AWS_SECRET_ACCESS_KEY

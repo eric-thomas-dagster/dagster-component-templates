@@ -12,7 +12,7 @@ from dagster import (
     AssetKey,
     asset,
 )
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 
 def _build_partitions_def(
@@ -135,8 +135,9 @@ class DLTDataFrameWriterComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    table_name: str = Field(
-        description="Name of the table to write data to in the destination"
+    table: str = Field(
+        description="Name of the table to write data to in the destination",
+        validation_alias=AliasChoices("table", "table_name"),
     )
 
     write_disposition: Literal["replace", "append", "merge"] = Field(
@@ -511,7 +512,7 @@ class DLTDataFrameWriterComponent(Component, Model, Resolvable):
 
         # Capture fields for closure
         asset_name = self.asset_name
-        table_name = self.table_name
+        table_name = self.table
         write_disposition = self.write_disposition
         primary_key = self.primary_key
         destination = self.destination

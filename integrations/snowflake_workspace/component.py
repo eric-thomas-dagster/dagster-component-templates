@@ -27,6 +27,7 @@ from dagster import (
     SensorResult,
     SkipReason,
     AssetMaterialization,
+    DataVersion,
     ObserveResult,
     Resolvable,
     Model,
@@ -52,7 +53,7 @@ def _build_task_config_class(task_name: str, schema: Dict[str, Any]):
 
     Each field is a dict of ``{type, default, description}``. The supported
     type strings are int / str / float / bool — the minimum-viable set for
-    the `EXECUTE TASK ... WITH CONFIG => '<json>'` pattern. Anything else
+    the `EXECUTE TASK ... USING CONFIG = '<json>'` pattern. Anything else
     raises ValueError at component build_defs time (loudly, not silently).
 
     Defaults are required when the YAML supplies a `default:` key, optional
@@ -577,9 +578,15 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             if config_dict:
                                 import json as _json
                                 config_json = _json.dumps(config_dict).replace("'", "''")
+                                # NB: `USING CONFIG = '<json>'` (equals) — NOT
+                                # `WITH CONFIG => '<json>'` (arrow). The arrow
+                                # syntax is for table-function args; EXECUTE
+                                # TASK uses the SQL clause syntax. Snowflake
+                                # compile-errors on the arrow form with
+                                # "unexpected 'WITH'".
                                 execute_query = (
                                     f"EXECUTE TASK {db_v}.{schema_v}.{task_name_v} "
-                                    f"WITH CONFIG => '{config_json}'"
+                                    f"USING CONFIG = '{config_json}'"
                                 )
                             else:
                                 execute_query = f"EXECUTE TASK {db_v}.{schema_v}.{task_name_v}"
@@ -589,7 +596,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 exec_sfqid = cursor.sfqid
                                 context.log.info(
                                     f"Executed Snowflake task: {task_name_v}"
-                                    + (f" WITH CONFIG => {config_dict}" if config_dict else "")
+                                    + (f" USING CONFIG = {config_dict}" if config_dict else "")
                                 )
                             except Exception as exc:
                                 if "non-root task" in str(exc).lower():
@@ -720,7 +727,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             )
 
                         # Multi-instance mode: one task → N Dagster assets, each
-                        # with its own EXECUTE TASK WITH CONFIG => '<json>' + optional
+                        # with its own EXECUTE TASK USING CONFIG = '<json>' + optional
                         # key / deps / kinds / tags / owners overrides.
                         if isinstance(override, dict) and override.get("instances"):
                             for inst in override["instances"]:
@@ -1180,7 +1187,20 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 finally:
                                     cursor.close()
                                     conn.close()
-                                return ObserveResult(metadata=metadata)
+                                # data_version: change-sensitive signature so
+                                # downstream AutomationCondition.eager() doesn't
+                                # re-fire on every observation tick when the
+                                # stream's state hasn't moved.
+                                _has = metadata.get("snowflake/has_data")
+                                _pending = metadata.get("snowflake/pending_rows")
+                                signature = (
+                                    f"{getattr(_has, 'value', _has)}:"
+                                    f"{getattr(_pending, 'value', _pending)}"
+                                )
+                                return ObserveResult(
+                                    data_version=DataVersion(signature),
+                                    metadata=metadata,
+                                )
                             return _stream_asset
 
                         assets_list.append(_make_stream_asset(
@@ -1467,7 +1487,20 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 finally:
                                     cursor.close()
                                     conn.close()
-                                return ObserveResult(metadata=metadata)
+                                # data_version: file_count + total_bytes — only
+                                # changes when stage contents actually move,
+                                # so downstream eager doesn't cascade on
+                                # every observation tick.
+                                _fc = metadata.get("snowflake/file_count")
+                                _tb = metadata.get("snowflake/total_bytes")
+                                signature = (
+                                    f"{getattr(_fc, 'value', _fc)}:"
+                                    f"{getattr(_tb, 'value', _tb)}"
+                                )
+                                return ObserveResult(
+                                    data_version=DataVersion(signature),
+                                    metadata=metadata,
+                                )
                             return _stage_asset
 
                         assets_list.append(_make_stage_asset(
@@ -1789,7 +1822,19 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         context.log.warning(
                                             f"Could not read ALERT_HISTORY for {alert_name_v}: {exc}."
                                         )
-                                    return ObserveResult(metadata=metadata)
+                                    # data_version: last-scheduled-time +
+                                    # last-state + query_id signature so
+                                    # downstream eager only re-fires when the
+                                    # alert actually ran a new evaluation.
+                                    signature = (
+                                        f"{metadata.get('last_run_scheduled_time')}:"
+                                        f"{metadata.get('last_run_state')}:"
+                                        f"{metadata.get('last_run_query_id')}"
+                                    )
+                                    return ObserveResult(
+                                        data_version=DataVersion(signature),
+                                        metadata=metadata,
+                                    )
                                 finally:
                                     cursor.close()
                                     conn.close()
@@ -1881,11 +1926,21 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         )
                                         metrics = []
                                     metadata["snowflake/openflow_recent_metric_count"] = MetadataValue.int(len(metrics))
+                                    # Pull the most-recent metric timestamp
+                                    # for the data_version signature so
+                                    # downstream eager re-fires only when new
+                                    # metrics actually land in TELEMETRY.EVENTS.
+                                    latest_ts = str(metrics[0][0]) if metrics else "none"
+                                    metadata["snowflake/openflow_latest_metric_ts"] = latest_ts
                                     if metrics:
                                         context.log.info(f"OpenFlow flow {flow_name_v} (runtime {runtime_id_v}) has {len(metrics)} recent metrics")
                                     else:
                                         context.log.info(f"OpenFlow flow {flow_name_v} (runtime {runtime_id_v}) has no recent activity")
-                                    return ObserveResult(metadata=metadata)
+                                    signature = f"{len(metrics)}:{latest_ts}"
+                                    return ObserveResult(
+                                        data_version=DataVersion(signature),
+                                        metadata=metadata,
+                                    )
                                 finally:
                                     cursor.close()
                                     conn.close()

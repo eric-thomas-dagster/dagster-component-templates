@@ -28,7 +28,7 @@ derived.
 | `upstream_asset_key` | `str` | Asset key of upstream DataFrame |
 | `workspace_id` | `str` | Fabric workspace ID (GUID) |
 | `lakehouse_name` | `str` | Lakehouse name (the .Lakehouse item in the workspace) |
-| `table_name` | `str` | Target Delta table name (created if missing) |
+| `table` | `str` | Target Delta table name (created if missing) |
 
 ### Connection
 

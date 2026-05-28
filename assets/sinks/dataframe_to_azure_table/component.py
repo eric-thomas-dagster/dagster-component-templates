@@ -30,7 +30,7 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 
 class DataframeToAzureTableComponent(Component, Model, Resolvable):
@@ -47,7 +47,10 @@ class DataframeToAzureTableComponent(Component, Model, Resolvable):
         default="AZURE_STORAGE_ACCOUNT_KEY",
         description="Env var holding the account key. Omit to use DefaultAzureCredential (Entra OAuth).",
     )
-    table_name: str = Field(description="Table name (created if it doesn't exist)")
+    table: str = Field(
+        description="Table name (created if it doesn't exist)",
+        validation_alias=AliasChoices("table", "table_name"),
+    )
 
     partition_key_column: str = Field(
         description="DataFrame column that maps to PartitionKey on each entity",
@@ -177,7 +180,7 @@ class DataframeToAzureTableComponent(Component, Model, Resolvable):
             name=self.asset_name,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(self.upstream_asset_key))},
             group_name=self.group_name,
-            description=self.description or f"Write DataFrame rows to Azure Table '{self.table_name}'",
+            description=self.description or f"Write DataFrame rows to Azure Table '{self.table}'",
             owners=self.owners or [],
             tags=tags,
             deps=[AssetKey.from_user_string(d) for d in (self.deps or [])],
@@ -211,12 +214,12 @@ class DataframeToAzureTableComponent(Component, Model, Resolvable):
 
             if cfg.create_if_missing:
                 try:
-                    service.create_table(cfg.table_name)
-                    context.log.info(f"Created table '{cfg.table_name}'")
+                    service.create_table(cfg.table)
+                    context.log.info(f"Created table '{cfg.table}'")
                 except Exception:
                     pass  # exists already
 
-            client = service.get_table_client(cfg.table_name)
+            client = service.get_table_client(cfg.table)
 
             mode_map = {"upsert": UpdateMode.REPLACE, "merge": UpdateMode.MERGE}
 
@@ -255,11 +258,11 @@ class DataframeToAzureTableComponent(Component, Model, Resolvable):
                         errors.append(str(e)[:200])
                         context.log.warning(f"batch failed for partition '{pk}': {e}")
 
-            context.log.info(f"Wrote {sent}/{len(records)} entities to {cfg.table_name}")
+            context.log.info(f"Wrote {sent}/{len(records)} entities to {cfg.table}")
             return MaterializeResult(
                 metadata={
                     "entities_written": MetadataValue.int(sent),
-                    "table": MetadataValue.text(f"{account}/{cfg.table_name}"),
+                    "table": MetadataValue.text(f"{account}/{cfg.table}"),
                     "write_mode": MetadataValue.text(cfg.write_mode),
                     "errors": MetadataValue.int(len(errors)),
                 }

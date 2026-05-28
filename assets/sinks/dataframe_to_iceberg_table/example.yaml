@@ -10,7 +10,7 @@ attributes:
     warehouse: my_warehouse
 
   namespace: sales
-  table_name: orders
+  table: orders
 
   mode: append          # 'append' or 'overwrite'
   # overwrite_filter: order_date = '{partition_key}'   # for partition-level overwrite

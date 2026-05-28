@@ -14,7 +14,7 @@ Writes a Pandas DataFrame to a relational database table. This is a terminal sin
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `table_name` | `str` | Destination database table name |
+| `table` | `str` | Destination database table name |
 
 ### Connection
 
@@ -86,7 +86,7 @@ type: dagster_component_templates.DataframeToTableComponent
 attributes:
   asset_name: write_monthly_summary
   upstream_asset_key: monthly_revenue_summary
-  table_name: monthly_revenue_summary
+  table: monthly_revenue_summary
   database_url_env_var: DATABASE_URL
   if_exists: replace
   schema: reporting

@@ -36,7 +36,7 @@ Cron-driven Iceberg maintenance — OPTIMIZE (compaction), expire snapshots, rem
 |---|---|---|---|
 | `schedule` | `str` | — | Cron schedule (None = no schedule) |
 | `connection_string_env` | `str` | `"ICEBERG_DB_URL"` | Env var with SQLAlchemy URL for the engine (e.g. 'trino://user@host:443/iceberg') |
-| `operations` | `list` | `lambda : ['optimize', 'expire_snapshots', 'remove_orphan_files']()` | Subset of: optimize \| expire_snapshots \| remove_orphan_files \| rewrite_manifests |
+| `operations` | `list` | `lambda: ['optimize', 'expire_snapshots', 'remove_orphan_files']()` | Subset of: optimize \| expire_snapshots \| remove_orphan_files \| rewrite_manifests |
 | `operation_params` | `dict` | — | Per-op params: {optimize: {target_file_size_bytes: ...}, expire_snapshots: {older_than_days: 7, retain_last: 5}} |
 | `fail_fast` | `bool` | `true` | Stop on first error (False = collect errors and continue) |
 | `job_tags` | `dict` | — | — |

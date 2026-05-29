@@ -2285,9 +2285,11 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
 
                         cur_tuple = [_rows_val, _bytes_val, _ts_str]
                         prev_tuple = prev_state.get(dt_name)
-                        new_state[dt_name] = cur_tuple
 
                         if prev_tuple == cur_tuple:
+                            # `new_state = dict(prev_state)` at the top of the
+                            # sensor already carries the prior tuple forward;
+                            # no explicit advance needed.
                             continue
                         # Some Snowflake versions/regions don't expose any
                         # refresh-status column on SHOW DYNAMIC TABLES — only
@@ -2300,7 +2302,19 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         # (stable cross-version columns: state,
                         # refresh_action, data_timestamp).
                         if status is not None and status != "SUCCEEDED":
+                            # Don't advance the cursor on a FAILED refresh — that
+                            # would poison the baseline. Leave prev_state's last-
+                            # known-good tuple in place; if status recovers later,
+                            # the next SUCCEEDED tuple will differ from the last
+                            # good one and the sensor will emit.
                             continue
+
+                        # Past all skip gates — emit AND advance the cursor.
+                        # Strict invariant: new_state[dt_name] always equals the
+                        # (rows, bytes, data_timestamp) of the materialization we
+                        # ACTUALLY reported to Dagster — never a heartbeat or a
+                        # failure.
+                        new_state[dt_name] = cur_tuple
 
                         asset_key_str = _dt_name_to_asset_key[dt_name]
                         metadata: Dict[str, Any] = {

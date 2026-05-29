@@ -30,7 +30,7 @@ uv run dg dev                   # auto-loads .env + .env.secrets
 
 **Prerequisites**: a Snowflake account (any tier — Standard works, Enterprise+ unlocks more features) and a role that can `CREATE DATABASE` (e.g. `ACCOUNTADMIN` / `SYSADMIN`) — or `seed.sh` falls back to "sandbox mode" inside an existing DB you own. Auth via keypair, PAT, SSO, password, or password+MFA. AWS CLI optional (unlocks Iceberg + Snowpipe auto-ingest if authenticated).
 
-**Full walkthrough** (Why-Dagster framing, OpenFlow notes, SE corporate-account triage, troubleshooting, deploy-to-prod): [snowflake_workspace.md](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/snowflake_workspace.md)
+**Full walkthrough** (Why-Dagster framing, OpenFlow notes, restricted-role triage, troubleshooting, deploy-to-prod): [snowflake_workspace.md](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/snowflake_workspace.md)
 
 **Account permission matrix** (what to ask your Snowflake admin for): [snowflake_demo_account_requirements.md](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/snowflake_demo_account_requirements.md)
 

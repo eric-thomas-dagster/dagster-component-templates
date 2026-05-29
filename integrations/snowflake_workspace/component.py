@@ -1789,30 +1789,21 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                             f"Could not read alert metadata for {alert_name_v}: {exc}."
                                         )
 
-                                    # ALERT_HISTORY is a table function — wrap in try/except
-                                    # so the observation still emits even if the role can't
-                                    # read history. Column list per INFORMATION_SCHEMA.ALERT_HISTORY
-                                    # docs: name, database_name, schema_name, condition, action,
-                                    # scheduled_time, state, query_id, error_code, error_message,
-                                    # duration. The old query included `error` and
-                                    # `completed_time` — neither exist; Snowflake compile-errored
-                                    # on every observation tick.
-                                    # SELECT list intentionally minimal: `name`,
-                                    # `state`, `scheduled_time`, and `error_message`
-                                    # are present on every Snowflake tier. Older
-                                    # versions of this query also asked for
-                                    # `query_id` + `duration` — both are documented
-                                    # but missing from the function's return schema
-                                    # in current Standard accounts, where the
-                                    # SELECT compile-errors with "invalid identifier
-                                    # 'QUERY_ID'" and ALERT_HISTORY is never read.
+                                    # ALERT_HISTORY's documented column set varies
+                                    # across editions/regions — we've seen `query_id`,
+                                    # `duration`, AND `error_message` all rejected with
+                                    # "invalid identifier" SQL compile errors on real
+                                    # customer accounts. SELECT * + runtime field
+                                    # probing dodges the differences entirely:
+                                    # `name`, `state`, `scheduled_time` are the only
+                                    # universally-present fields and the data_version
+                                    # signature below uses just `state` + `scheduled_time`.
+                                    # Everything else (error_message, error_code,
+                                    # query_id, duration, completed_time) is bonus
+                                    # metadata, populated only if the account exposes it.
                                     try:
                                         history_query = f"""
-                                        SELECT
-                                            name,
-                                            state,
-                                            scheduled_time,
-                                            error_message
+                                        SELECT *
                                         FROM TABLE(INFORMATION_SCHEMA.ALERT_HISTORY(
                                             SCHEDULED_TIME_RANGE_START => DATEADD('hour', -24, CURRENT_TIMESTAMP())
                                         ))
@@ -1823,16 +1814,23 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         cursor.execute(history_query)
                                         history = cursor.fetchone()
                                         if history:
-                                            columns = [col[0] for col in cursor.description]
+                                            columns = [col[0].lower() for col in cursor.description]
                                             history_dict = dict(zip(columns, history))
-                                            metadata.update({
-                                                "last_run_state": history_dict.get("STATE"),
-                                                "last_run_scheduled_time": str(history_dict.get("SCHEDULED_TIME")) if history_dict.get("SCHEDULED_TIME") else None,
-                                                "last_run_error_message": history_dict.get("ERROR_MESSAGE"),
-                                            })
+                                            metadata["last_run_state"] = history_dict.get("state")
+                                            if history_dict.get("scheduled_time") is not None:
+                                                metadata["last_run_scheduled_time"] = str(history_dict["scheduled_time"])
+                                            for opt in (
+                                                "error_message",
+                                                "error_code",
+                                                "query_id",
+                                                "duration",
+                                                "completed_time",
+                                            ):
+                                                if history_dict.get(opt) is not None:
+                                                    metadata[f"last_run_{opt}"] = history_dict[opt]
                                             context.log.info(
                                                 f"Alert {alert_name_v} last run state: "
-                                                f"{history_dict.get('STATE')}"
+                                                f"{history_dict.get('state')}"
                                             )
                                     except Exception as exc:
                                         context.log.warning(

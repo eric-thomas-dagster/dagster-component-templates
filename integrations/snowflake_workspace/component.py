@@ -2188,10 +2188,58 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         )
                         return SensorResult(asset_events=[], cursor=context.cursor or "{}")
 
+                    # Pre-fetch the latest refresh_action per DT from
+                    # DYNAMIC_TABLE_REFRESH_HISTORY so we can skip emission
+                    # on NO_DATA heartbeats. Snowflake's lazy refresh
+                    # produces a SUCCEEDED row with refresh_action=NO_DATA
+                    # every 3–5 minutes on idle DTs (TARGET_LAG heartbeat),
+                    # which advances `data_timestamp` even though no rows
+                    # changed. Without this filter, the v0.10.7
+                    # [rows, bytes, data_timestamp] dedup would emit on
+                    # every heartbeat for any DT whose data_timestamp
+                    # changed since the previous tick — exactly the
+                    # TARGET_LAG-tick storm we were trying to suppress.
+                    #
+                    # If REFRESH_HISTORY isn't readable (privilege issue,
+                    # older Snowflake), `latest_actions` stays empty and
+                    # filtering is a no-op — falls back to v0.10.7 behavior.
+                    latest_actions: Dict[str, str] = {}
+                    try:
+                        cursor.execute(f"""
+                            SELECT name, refresh_action
+                            FROM (
+                                SELECT name, refresh_action,
+                                       ROW_NUMBER() OVER (PARTITION BY name ORDER BY refresh_end_time DESC) AS rn
+                                FROM TABLE(INFORMATION_SCHEMA.DYNAMIC_TABLE_REFRESH_HISTORY(
+                                    DATA_TIMESTAMP_START => DATEADD('hour', -6, CURRENT_TIMESTAMP())
+                                ))
+                                WHERE schema_name = '{_self_for_sensor.schema_name}'
+                                  AND state = 'SUCCEEDED'
+                            )
+                            WHERE rn = 1
+                        """)
+                        for dt_name_row, action_row in cursor.fetchall():
+                            if dt_name_row:
+                                latest_actions[dt_name_row] = action_row
+                    except Exception as exc:
+                        context.log.warning(
+                            f"DYNAMIC_TABLE_REFRESH_HISTORY unavailable ({exc}). "
+                            f"Falling back to data_timestamp-only dedup — "
+                            f"may produce false-positive emissions on NO_DATA heartbeats."
+                        )
+
                     for row in rows:
                         rd = dict(zip(columns, row))
                         dt_name = rd.get("name")
                         if not dt_name or dt_name not in _dt_name_to_asset_key:
+                            continue
+
+                        # Skip NO_DATA heartbeat refreshes — Snowflake bumped
+                        # data_timestamp without producing any actual change.
+                        # Gate is BEFORE the rows/bytes/ts dedup so even
+                        # accounts whose previous cursor tuple differs (e.g.
+                        # first tick after upgrade) get correctly suppressed.
+                        if latest_actions.get(dt_name) == "NO_DATA":
                             continue
 
                         # Snowflake renamed the SHOW DYNAMIC TABLES refresh

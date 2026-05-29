@@ -2206,17 +2206,22 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             or rd.get("last_refresh_status")
                             or rd.get("last_refresh_state")
                         )
-                        # Dedup on [rows, bytes] — NOT on [action, status,
-                        # data_timestamp]. Snowflake advances `data_timestamp`
-                        # on every TARGET_LAG refresh whether the DT's output
-                        # moved or not, so a timestamp-keyed dedup emits an
-                        # AssetMaterialization on every refresh. The v0.10.4
-                        # `dagster/data_version` tag below alone doesn't fix
-                        # this: AutomationCondition.eager() is event-driven
-                        # ("any new materialization on a parent since I last
-                        # ran?"), not version-driven — the tag gates *staleness*
-                        # checks, not *newness* checks. So we have to suppress
-                        # the emission itself when rows + bytes haven't moved.
+                        # Dedup on [rows, bytes, data_timestamp]. `rows`+`bytes`
+                        # alone catches DTs whose row count grows on real
+                        # change (e.g. PAID_ORDERS_DT), but miss DTs that
+                        # GROUP BY a fixed dimension (CUSTOMER_360_DT,
+                        # ~1000 rows always; TOP_PRODUCTS_DT, ~7 rows always)
+                        # — those refresh by updating column values inside
+                        # existing rows, and bytes deltas often fall below
+                        # the SHOW DYNAMIC TABLES granularity.
+                        #
+                        # Adding `data_timestamp` rescues those. Snowflake's
+                        # data_timestamp is *lazy* — it only advances when
+                        # a refresh ACTUALLY produces new data (verified
+                        # against DYNAMIC_TABLE_REFRESH_HISTORY) — so it
+                        # doesn't reintroduce the TARGET_LAG-tick noise that
+                        # the original [action, status, ts] dedup suffered
+                        # from in v0.10.4.
                         _rows_val = None
                         _bytes_val = None
                         if rd.get("rows") is not None:
@@ -2229,8 +2234,10 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 _bytes_val = int(rd["bytes"])
                             except (TypeError, ValueError):
                                 pass
+                        _ts_val = rd.get("data_timestamp")
+                        _ts_str = str(_ts_val) if _ts_val is not None else None
 
-                        cur_tuple = [_rows_val, _bytes_val]
+                        cur_tuple = [_rows_val, _bytes_val, _ts_str]
                         prev_tuple = prev_state.get(dt_name)
                         new_state[dt_name] = cur_tuple
 
@@ -2259,12 +2266,14 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             metadata["rows"] = _rows_val
                         if _bytes_val is not None:
                             metadata["bytes"] = _bytes_val
+                        if _ts_str is not None:
+                            metadata["data_timestamp"] = _ts_str
 
                         # data_version tag still useful for the UI's
                         # "current version" panel + manual staleness checks
                         # downstream. The cursor dedup above is what prevents
                         # the eager-cascade storm on TARGET_LAG refreshes.
-                        _sig = f"{_rows_val}:{_bytes_val}"
+                        _sig = f"{_rows_val}:{_bytes_val}:{_ts_str}"
                         asset_events.append(AssetMaterialization(
                             asset_key=AssetKey([asset_key_str]),
                             metadata=metadata,

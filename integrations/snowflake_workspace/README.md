@@ -261,6 +261,69 @@ Supported field types: `int`, `str`, `float`, `bool`. Anything else raises `Valu
 
 This works for `instances[].config_schema:` too — useful when one Snowflake task underlies N intentionally-distinct assets (e.g. by-region), each with its own overridable knobs.
 
+## Stored procedure `args:` and `config_schema:`
+
+Snowflake stored procedures are called positionally — `CALL <proc>(arg1, arg2, …)`. `assets_by_name` exposes the same dual shape as tasks for wiring those args: hardcoded via `args:`, or launchpad-overridable via `config_schema:`. They're mutually exclusive on the same asset (setting both raises `ValueError` at component build time).
+
+### `args:` — hardcoded, baked into the asset
+
+Use when the proc's arguments don't change between runs:
+
+```yaml
+assets_by_name:
+  SP_PURGE_OLD_EVENTS:
+    args: [90]
+```
+
+Every materialization calls `SP_PURGE_OLD_EVENTS(90)`. To run it with a different value you'd need `instances:` (N separate assets) or a YAML edit + redeploy.
+
+### `config_schema:` — launchpad-overridable Dagster `Config`
+
+Use when you want the same proc callable with different runtime values without spawning N assets. Dagster auto-renders a form in the launchpad pre-filled with the declared defaults; visitors override per-run.
+
+```yaml
+assets_by_name:
+  SP_PURGE_OLD_EVENTS:
+    config_schema:
+      days_old:
+        type: int
+        default: 90
+        description: Days of event history to retain. Older events purged.
+```
+
+Behind the scenes the component builds a `dg.Config` subclass dynamically from this dict, injects it as the asset's `config` parameter, and passes the field values into `CALL <proc>(...)` as positional args **in YAML insertion order** (Python preserves dict order). Same materialization path as `args:` — just with launchpad-time field resolution.
+
+Supported field types: `int`, `str`, `float`, `bool`. Anything else raises `ValueError` at build time. Omit `default:` to make the field required at launchpad time.
+
+**Multi-arg note:** for procs with multiple positional args (`SP_FOO(a, b, c)`), declare the fields in the same order as the proc signature. The component passes `[cfg['a'], cfg['b'], cfg['c']]` to CALL — name them however you like, but the order in `config_schema:` is the order they go in the call.
+
+### Per-instance `config_schema:`
+
+Works on `instances[].config_schema:` too — useful when one proc underlies N intentionally-distinct assets, each with its own overridable knobs:
+
+```yaml
+assets_by_name:
+  SP_SNOWPARK_TOP_N:
+    instances:
+      - asset_name: snowpark_top3_revenue_days
+        config_schema:
+          n: {type: int, default: 3, description: How many top revenue days to return.}
+        deps: [task_daily_orders_rollup]
+        kinds: [snowflake, stored_procedure, snowpark]
+      - asset_name: snowpark_top10_revenue_days
+        config_schema:
+          n: {type: int, default: 10, description: How many top revenue days to return.}
+        deps: [task_daily_orders_rollup]
+        kinds: [snowflake, stored_procedure, snowpark]
+      - asset_name: snowpark_top100_revenue_days
+        config_schema:
+          n: {type: int, default: 100, description: How many top revenue days to return.}
+        deps: [task_daily_orders_rollup]
+        kinds: [snowflake, stored_procedure, snowpark]
+```
+
+Three Dagster assets each call `SP_SNOWPARK_TOP_N(n)` with their own default; the launchpad lets you override `n` per materialization.
+
 ## How It Works
 
 ### Tasks

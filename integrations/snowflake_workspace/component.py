@@ -902,6 +902,40 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         if not self._should_include_entity(proc_name):
                             continue
 
+                        # Shared CALL body — same dual-shape pattern as
+                        # _run_task_body. Accepts a list of already-resolved
+                        # positional args (either the YAML `args:` list or the
+                        # config_schema values pulled out in YAML insertion
+                        # order, in which case Python's preserved dict ordering
+                        # gives us positional CALL semantics for free).
+                        def _run_proc_body(context, self_v, proc_name_v, db_v, schema_v, args_list):
+                            conn = self_v._create_connection()
+                            cursor = conn.cursor()
+                            try:
+                                args_sql = ", ".join(
+                                    _serialize_proc_arg(a) for a in (args_list or [])
+                                )
+                                call_query = f"CALL {db_v}.{schema_v}.{proc_name_v}({args_sql})"
+                                cursor.execute(call_query)
+                                call_sfqid = cursor.sfqid
+                                result = cursor.fetchone()
+                                context.log.info(
+                                    f"Called {proc_name_v}({args_sql}) → {result}"
+                                )
+                                metadata = {
+                                    "procedure_name": proc_name_v,
+                                    "database": db_v,
+                                    "schema": schema_v,
+                                    "args": list(args_list or []),
+                                    "result": str(result) if result else None,
+                                }
+                                # Per-run numeric perf trace (auto-plots).
+                                metadata.update(_emit_query_perf(cursor, call_sfqid))
+                                return metadata
+                            finally:
+                                cursor.close()
+                                conn.close()
+
                         # Factory pattern: capture loop variables in a closure
                         # WITHOUT using default args. Dagster's @asset decorator
                         # treats non-context function parameters as upstream
@@ -909,36 +943,34 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         # DagsterInvalidDefinitionError: Input asset "['proc_name']"
                         # Defined here (before the dispatch) so both multi-instance
                         # and single-instance paths can call it.
-                        def _make_proc_asset(proc_name_v, db_v, schema_v, proc_kwargs_v, self_v, args_v):
+                        def _make_proc_asset(proc_name_v, db_v, schema_v, proc_kwargs_v, self_v, args_v, config_schema_v=None):
+                            if config_schema_v:
+                                # Launchpad-overridable path: build a dg.Config
+                                # subclass from the YAML config_schema dict (the
+                                # builder is generic over entity name — fine to
+                                # reuse from the task path). Field values become
+                                # positional args to CALL in YAML insertion order
+                                # (Python preserves dict order).
+                                ConfigClass = _build_task_config_class(proc_name_v, config_schema_v)
+                                field_order = list(config_schema_v.keys())
+
+                                @asset(**proc_kwargs_v)
+                                def _procedure_asset(context: AssetExecutionContext, config: ConfigClass):  # type: ignore[valid-type]
+                                    """Materialize by calling stored procedure (args from launchpad)."""
+                                    cfg = config.model_dump()
+                                    args_list = [cfg[k] for k in field_order]
+                                    return _run_proc_body(
+                                        context, self_v, proc_name_v, db_v, schema_v, args_list,
+                                    )
+                                return _procedure_asset
+
+                            # Hardcoded-args (or no-args) path: legacy behavior.
                             @asset(**proc_kwargs_v)
                             def _procedure_asset(context: AssetExecutionContext):
                                 """Materialize by calling stored procedure (with optional args)."""
-                                conn = self_v._create_connection()
-                                cursor = conn.cursor()
-                                try:
-                                    args_sql = ", ".join(
-                                        _serialize_proc_arg(a) for a in (args_v or [])
-                                    )
-                                    call_query = f"CALL {db_v}.{schema_v}.{proc_name_v}({args_sql})"
-                                    cursor.execute(call_query)
-                                    call_sfqid = cursor.sfqid
-                                    result = cursor.fetchone()
-                                    context.log.info(
-                                        f"Called {proc_name_v}({args_sql}) → {result}"
-                                    )
-                                    metadata = {
-                                        "procedure_name": proc_name_v,
-                                        "database": db_v,
-                                        "schema": schema_v,
-                                        "args": list(args_v or []),
-                                        "result": str(result) if result else None,
-                                    }
-                                    # Per-run numeric perf trace (auto-plots).
-                                    metadata.update(_emit_query_perf(cursor, call_sfqid))
-                                    return metadata
-                                finally:
-                                    cursor.close()
-                                    conn.close()
+                                return _run_proc_body(
+                                    context, self_v, proc_name_v, db_v, schema_v, args_v,
+                                )
                             return _procedure_asset
 
                         override = (self.assets_by_name or {}).get(proc_name) or {}
@@ -956,13 +988,24 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                     )
                                     continue
                                 inst_args = inst.get("args", [])
+                                inst_config_schema = inst.get("config_schema")
+                                if inst_args and inst_config_schema:
+                                    raise ValueError(
+                                        f"assets_by_name.{proc_name}.instances[{inst_name}]: "
+                                        f"can't mix hardcoded `args:` with overridable "
+                                        f"`config_schema:` on the same asset — pick one. "
+                                        f"`config_schema:` exposes a launchpad form so "
+                                        f"customers override at materialize time; `args:` "
+                                        f"bakes the values in."
+                                    )
                                 inst_kwargs: dict = dict(
                                     name=re.sub(r'[^a-zA-Z0-9_]', '_', inst_name.lower()),
                                     group_name=inst.get("group_name", self.group_name),
                                     description=inst.get(
                                         "description",
                                         f"Snowflake stored procedure: "
-                                        f"{proc_name}({', '.join(map(str, inst_args))})",
+                                        f"{proc_name}({', '.join(map(str, inst_args))})"
+                                        + (" (launchpad config_schema)" if inst_config_schema else ""),
                                     ),
                                     metadata={
                                         "snowflake_procedure_name": proc_name,
@@ -970,6 +1013,7 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                         "snowflake_schema": proc.get("SCHEMA_NAME", self.schema_name),
                                         "snowflake_signature": proc.get("ARGUMENTS"),
                                         "snowflake_call_args": inst_args,
+                                        "snowflake_proc_config_schema": list((inst_config_schema or {}).keys()),
                                         "entity_type": "stored_procedure",
                                     },
                                 )
@@ -989,31 +1033,43 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                                 assets_list.append(_make_proc_asset(
                                     proc_name, self.database,
                                     proc.get("SCHEMA_NAME", self.schema_name),
-                                    inst_kwargs, self, inst_args,
+                                    inst_kwargs, self, inst_args, inst_config_schema,
                                 ))
                             continue  # skip the single-instance path
 
                         # Single-instance mode (default): one Dagster asset per
-                        # proc, with optional `args:` override.
+                        # proc, with optional `args:` (hardcoded) OR
+                        # `config_schema:` (launchpad-overridable) override.
                         proc_args = override.get("args", []) if isinstance(override, dict) else []
+                        proc_config_schema = override.get("config_schema") if isinstance(override, dict) else None
+                        if proc_args and proc_config_schema:
+                            raise ValueError(
+                                f"assets_by_name.{proc_name}: can't mix hardcoded "
+                                f"`args:` with overridable `config_schema:` on the "
+                                f"same asset — pick one. `config_schema:` exposes a "
+                                f"launchpad form so customers override at materialize "
+                                f"time; `args:` bakes the values in."
+                            )
                         asset_key = f"proc_{re.sub(r'[^a-zA-Z0-9_]', '_', proc_name.lower())}"
                         _proc_kwargs = self._apply_asset_overrides(proc_name, dict(
                             name=asset_key,
                             group_name=self.group_name,
-                            description=f"Snowflake stored procedure: {proc_name}",
+                            description=f"Snowflake stored procedure: {proc_name}"
+                            + (" (launchpad config_schema)" if proc_config_schema else ""),
                             metadata={
                                 "snowflake_procedure_name": proc_name,
                                 "snowflake_database": self.database,
                                 "snowflake_schema": proc.get('SCHEMA_NAME', self.schema_name),
                                 "snowflake_signature": proc.get('ARGUMENTS'),
                                 "snowflake_call_args": proc_args,
+                                "snowflake_proc_config_schema": list((proc_config_schema or {}).keys()),
                                 "entity_type": "stored_procedure",
                             },
                         ))
                         assets_list.append(_make_proc_asset(
                             proc_name, self.database,
                             proc.get('SCHEMA_NAME', self.schema_name),
-                            _proc_kwargs, self, proc_args,
+                            _proc_kwargs, self, proc_args, proc_config_schema,
                         ))
 
                 except Exception as e:

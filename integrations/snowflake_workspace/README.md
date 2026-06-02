@@ -36,6 +36,8 @@ uv run dg dev                   # auto-loads .env + .env.secrets
 
 ## Features
 
+- **Tables**: Observe base tables (row_count + last_altered, stable data_version)
+- **Views**: Observe non-materialized views (same shape as tables)
 - **Tasks**: Execute Snowflake tasks on demand from Dagster
 - **Stored Procedures**: Call stored procedures from Dagster
 - **Dynamic Tables**: Trigger manual refreshes for dynamic tables
@@ -117,6 +119,8 @@ uv run dg dev                   # auto-loads .env + .env.secrets
 | `import_external_tables` | `bool` | `false` | Import external tables as materializable assets (trigger refresh) |
 | `import_alerts` | `bool` | `false` | Import Snowflake alerts as observable assets (monitor alert status) |
 | `import_openflow_flows` | `bool` | `false` | Import OpenFlow data integration flows as observable assets (monitor via telemetry) |
+| `import_tables` | `bool` | `false` | Import base tables (TABLE_TYPE='BASE TABLE') as observable source assets. Each table becomes an @observable_source_asset that polls row_count + last_altered via INFORMATION_SCHEMA.TABLES and emits a stable data_version signature. Useful for lineage display + freshness checks against tables the team owns out-of-band (manually loaded, ETL'd by external tools, etc.). Iceberg + Hybrid tables are not included here — use dedicated components for those. |
+| `import_views` | `bool` | `false` | Import non-materialized views (TABLE_TYPE='VIEW') as observable source assets. Same shape as import_tables — row_count + last_altered observation, stable data_version. Materialized views are a separate concept; use import_materialized_views. |
 | `exclude_name_pattern` | `str` | — | Regex pattern to exclude entities by name |
 | `task_filter_by_state` | `str` | — | Filter tasks by state (STARTED, SUSPENDED). If not specified, imports all tasks. |
 | `generate_sensor` | `bool` | `true` | Create a sensor to observe task runs and dynamic table refreshes |

@@ -321,6 +321,27 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
         description="Import OpenFlow data integration flows as observable assets (monitor via telemetry)"
     )
 
+    import_tables: bool = Field(
+        default=False,
+        description=(
+            "Import base tables (TABLE_TYPE='BASE TABLE') as observable source assets. "
+            "Each table becomes an @observable_source_asset that polls row_count + last_altered "
+            "via INFORMATION_SCHEMA.TABLES and emits a stable data_version signature. "
+            "Useful for lineage display + freshness checks against tables the team owns "
+            "out-of-band (manually loaded, ETL'd by external tools, etc.). Iceberg + Hybrid "
+            "tables are not included here — use dedicated components for those."
+        ),
+    )
+
+    import_views: bool = Field(
+        default=False,
+        description=(
+            "Import non-materialized views (TABLE_TYPE='VIEW') as observable source assets. "
+            "Same shape as import_tables — row_count + last_altered observation, stable "
+            "data_version. Materialized views are a separate concept; use import_materialized_views."
+        ),
+    )
+
     filter_by_name_pattern: Optional[str] = Field(
         default=None,
         description="Regex pattern to filter entities by name"
@@ -2022,6 +2043,139 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
 
                 except Exception as e:
                     _logger.error(f"Error importing OpenFlow flows: {e}")
+
+            # Import Base Tables + Views — both are observable source assets
+            # with the same shape: poll row_count + last_altered from
+            # INFORMATION_SCHEMA.TABLES, emit ObserveResult with a stable
+            # `data_version = f"{row_count}:{last_altered}"` signature so
+            # downstream eager only fires when the table genuinely changes.
+            # Differences vs the operational entities above:
+            #   - tables/views aren't materialized BY Dagster (no @asset,
+            #     no EXECUTE TASK / ALTER REFRESH). Pure observation.
+            #   - covers the "I just want my raw data in the lineage graph"
+            #     case without writing a RAW.<name> AssetSpec by hand.
+            #
+            # `import_tables` covers TABLE_TYPE='BASE TABLE'. Iceberg /
+            # Hybrid / Event tables are excluded — those have dedicated
+            # components (snowflake_iceberg_table) or warrant their own
+            # follow-up flags.
+            # `import_views` covers TABLE_TYPE='VIEW' (regular views).
+            # Materialized views have their own import_materialized_views flag.
+            if self.import_tables or self.import_views:
+                wanted_types: list = []
+                if self.import_tables:
+                    wanted_types.append("BASE TABLE")
+                if self.import_views:
+                    wanted_types.append("VIEW")
+                wanted_types_sql = ", ".join(f"'{t}'" for t in wanted_types)
+
+                try:
+                    query = (
+                        f"SELECT TABLE_NAME, TABLE_TYPE, ROW_COUNT, BYTES, "
+                        f"LAST_ALTERED, CREATED, COMMENT "
+                        f"FROM {self.database}.INFORMATION_SCHEMA.TABLES "
+                        f"WHERE TABLE_SCHEMA = '{self.schema_name}' "
+                        f"AND TABLE_TYPE IN ({wanted_types_sql})"
+                    )
+                    table_rows = self._execute_query(conn, query)
+
+                    def _make_table_asset(table_name_v, table_type_v, db_v, schema_v, table_kwargs_v, self_v):
+                        @observable_source_asset(**table_kwargs_v)
+                        def _table_asset(context: AssetExecutionContext) -> ObserveResult:
+                            """Observe row count + last_altered against INFORMATION_SCHEMA.TABLES."""
+                            conn = self_v._create_connection()
+                            cursor = conn.cursor()
+                            row_count = None
+                            bytes_val = None
+                            last_altered = None
+                            try:
+                                cursor.execute(
+                                    f"SELECT ROW_COUNT, BYTES, LAST_ALTERED "
+                                    f"FROM {db_v}.INFORMATION_SCHEMA.TABLES "
+                                    f"WHERE TABLE_SCHEMA = '{schema_v}' "
+                                    f"AND TABLE_NAME = '{table_name_v}'"
+                                )
+                                row = cursor.fetchone()
+                                if row:
+                                    if row[0] is not None:
+                                        try:
+                                            row_count = int(row[0])
+                                        except (TypeError, ValueError):
+                                            pass
+                                    if row[1] is not None:
+                                        try:
+                                            bytes_val = int(row[1])
+                                        except (TypeError, ValueError):
+                                            pass
+                                    if row[2] is not None:
+                                        last_altered = str(row[2])
+                            except Exception as exc:
+                                context.log.warning(
+                                    f"Could not observe {db_v}.{schema_v}.{table_name_v}: {exc}"
+                                )
+                            finally:
+                                cursor.close()
+                                conn.close()
+
+                            metadata: Dict[str, Any] = {
+                                "snowflake_database": db_v,
+                                "snowflake_schema": schema_v,
+                                "snowflake_table_name": table_name_v,
+                                "snowflake_table_type": table_type_v,
+                            }
+                            if row_count is not None:
+                                metadata["snowflake/row_count"] = MetadataValue.int(row_count)
+                            if bytes_val is not None:
+                                metadata["snowflake/bytes"] = MetadataValue.int(bytes_val)
+                            if last_altered is not None:
+                                metadata["snowflake/last_altered"] = last_altered
+
+                            # Stable signature — quiet observation ticks
+                            # against an unchanged table don't cascade through
+                            # downstream AutomationCondition.eager().
+                            signature = f"{row_count}:{last_altered}"
+                            return ObserveResult(
+                                data_version=DataVersion(signature),
+                                metadata=metadata,
+                            )
+
+                        return _table_asset
+
+                    for tbl in table_rows:
+                        table_name = tbl["TABLE_NAME"]
+                        table_type = tbl["TABLE_TYPE"]
+                        if not table_name or not self._should_include_entity(table_name):
+                            continue
+                        is_view = table_type == "VIEW"
+                        prefix = "view" if is_view else "table"
+                        asset_key = f"{prefix}_{re.sub(r'[^a-zA-Z0-9_]', '_', table_name.lower())}"
+
+                        base_metadata: Dict[str, Any] = {
+                            "snowflake_database": self.database,
+                            "snowflake_schema": self.schema_name,
+                            "snowflake_table_name": table_name,
+                            "snowflake_table_type": table_type,
+                            "entity_type": prefix,
+                        }
+                        if tbl.get("COMMENT"):
+                            base_metadata["snowflake/comment"] = tbl["COMMENT"]
+
+                        _table_kwargs = self._apply_asset_overrides(table_name, dict(
+                            name=asset_key,
+                            group_name=self.group_name,
+                            description=(
+                                f"Snowflake {table_type.lower()}: "
+                                f"{self.database}.{self.schema_name}.{table_name}"
+                            ),
+                            metadata=base_metadata,
+                        ))
+                        assets_list.append(_make_table_asset(
+                            table_name, table_type, self.database,
+                            self.schema_name, _table_kwargs, self,
+                        ))
+
+                except Exception as e:
+                    _logger.error(f"Error importing Snowflake tables/views: {e}")
 
         finally:
             conn.close()

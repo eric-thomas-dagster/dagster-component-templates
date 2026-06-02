@@ -261,6 +261,56 @@ Supported field types: `int`, `str`, `float`, `bool`. Anything else raises `Valu
 
 This works for `instances[].config_schema:` too — useful when one Snowflake task underlies N intentionally-distinct assets (e.g. by-region), each with its own overridable knobs.
 
+## Stored procedure `args:` and `config_schema:`
+
+Stored procedures are called via `CALL <proc>(arg1, arg2, ...)` — positional arguments. `assets_by_name` exposes the same dual shape as tasks, again mutually exclusive on the same asset:
+
+### `args:` — hardcoded positional values, baked into the asset
+
+```yaml
+assets_by_name:
+  SP_PURGE_OLD_EVENTS:
+    args: [90]
+```
+
+Every materialization invokes the proc with the same args. Good for one-shot wiring of procs whose values genuinely never change.
+
+### `config_schema:` — launchpad-overridable Dagster `Config`
+
+Use when you want the same proc callable with different runtime knobs and the booth-friendly UX of a pre-filled launchpad form:
+
+```yaml
+assets_by_name:
+  SP_PURGE_OLD_EVENTS:
+    config_schema:
+      days_old:
+        type: int
+        default: 90
+        description: Delete events older than this many days.
+```
+
+```yaml
+assets_by_name:
+  SP_SNOWPARK_TOP_N:
+    instances:
+      - asset_name: snowpark_top10_revenue_days
+        config_schema:
+          n:
+            type: int
+            default: 10
+            description: Number of top revenue days to return.
+      - asset_name: snowpark_top100_revenue_days
+        config_schema:
+          n:
+            type: int
+            default: 100
+            description: Number of top revenue days to return.
+```
+
+The component builds a `dg.Config` subclass per asset and reads field values at materialize time. Fields are passed to `CALL <proc>(...)` positionally in YAML insertion order (Python preserves dict order), so for multi-arg procs declare fields in the order the proc expects them. Supported types and `default`-omission rules match the task case.
+
+This works for `instances[].config_schema:` too — useful when one proc backs N distinct assets each with their own default values (the `SP_SNOWPARK_TOP_N` pattern above).
+
 ## How It Works
 
 ### Tasks

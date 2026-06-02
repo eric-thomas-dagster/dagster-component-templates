@@ -36,8 +36,8 @@ uv run dg dev                   # auto-loads .env + .env.secrets
 
 ## Features
 
-- **Tables**: Observe base tables (row_count + last_altered, stable data_version)
-- **Views**: Observe non-materialized views (same shape as tables)
+- **Tables**: Observe (default) or materialize regular / Iceberg / Hybrid / Event tables (row_count + last_altered, stable data_version). Materialize via customer-supplied `materialize_sql:` (see [Tables and views](#tables-and-views))
+- **Views**: Materialize (default — re-runs `CREATE OR REPLACE VIEW`) or observe (toggle via `view_modeling`)
 - **Tasks**: Execute Snowflake tasks on demand from Dagster
 - **Stored Procedures**: Call stored procedures from Dagster
 - **Dynamic Tables**: Trigger manual refreshes for dynamic tables
@@ -101,6 +101,7 @@ uv run dg dev                   # auto-loads .env + .env.secrets
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `table_modeling` | `str` | `"observable"` | How imported tables are emitted: 'observable' (default; @observable_source_asset, polls row_count + last_altered via INFORMATION_SCHEMA, no click-to-materialize) or 'asset' (@asset that runs CREATE OR REPLACE TABLE <name> AS <materialize_sql>). 'asset' requires per-table `materialize_sql:` in `assets_by_name`; ValueError at component build time if any imported table is missing the SQL. Snowflake doesn't store the SELECT used at CTAS time — so the customer must supply it, same as a dbt model file. |
 | `filter_by_name_pattern` | `str` | — | Regex pattern to filter entities by name |
 
 ### Other
@@ -119,8 +120,9 @@ uv run dg dev                   # auto-loads .env + .env.secrets
 | `import_external_tables` | `bool` | `false` | Import external tables as materializable assets (trigger refresh) |
 | `import_alerts` | `bool` | `false` | Import Snowflake alerts as observable assets (monitor alert status) |
 | `import_openflow_flows` | `bool` | `false` | Import OpenFlow data integration flows as observable assets (monitor via telemetry) |
-| `import_tables` | `bool` | `false` | Import base tables (TABLE_TYPE='BASE TABLE') as observable source assets. Each table becomes an @observable_source_asset that polls row_count + last_altered via INFORMATION_SCHEMA.TABLES and emits a stable data_version signature. Useful for lineage display + freshness checks against tables the team owns out-of-band (manually loaded, ETL'd by external tools, etc.). Iceberg + Hybrid tables are not included here — use dedicated components for those. |
-| `import_views` | `bool` | `false` | Import non-materialized views (TABLE_TYPE='VIEW') as observable source assets. Same shape as import_tables — row_count + last_altered observation, stable data_version. Materialized views are a separate concept; use import_materialized_views. |
+| `import_tables` | `bool` | `false` | Import tables as Dagster assets. Covers every table-shaped object that doesn't have its own dedicated import_* flag: regular base tables (BASE TABLE — permanent / transient / temporary), Iceberg tables, Hybrid tables (Unistore), and Event tables. Default behavior is observation (row_count + last_altered, stable data_version) — opt into materialization via `table_modeling: asset` + a per-table `materialize_sql:` in `assets_by_name`. External / materialized / dynamic tables have their own flags and are not included here. |
+| `import_views` | `bool` | `false` | Import non-materialized views (TABLE_TYPE='VIEW') as Dagster assets. Default behavior is materializable — re-runs the view's stored definition via CREATE OR REPLACE VIEW (recompiles against current upstream schema, catches schema drift). Opt back into observation-only via `view_modeling: observable`. Materialized views are a separate concept; use `import_materialized_views`. |
+| `view_modeling` | `str` | `"asset"` | How imported views are emitted: 'asset' (default; @asset that runs CREATE OR REPLACE VIEW <name> AS <VIEW_DEFINITION pulled from INFORMATION_SCHEMA.VIEWS> — zero config, Snowflake already stores the SELECT) or 'observable' (@observable_source_asset, lineage-display-only). |
 | `exclude_name_pattern` | `str` | — | Regex pattern to exclude entities by name |
 | `task_filter_by_state` | `str` | — | Filter tasks by state (STARTED, SUSPENDED). If not specified, imports all tasks. |
 | `generate_sensor` | `bool` | `true` | Create a sensor to observe task runs and dynamic table refreshes |
@@ -264,6 +266,84 @@ Behind the scenes the component builds a `dg.Config` subclass dynamically from t
 Supported field types: `int`, `str`, `float`, `bool`. Anything else raises `ValueError` at build time. Omit `default:` to make the field required at launchpad time.
 
 This works for `instances[].config_schema:` too — useful when one Snowflake task underlies N intentionally-distinct assets (e.g. by-region), each with its own overridable knobs.
+
+## Tables and views
+
+`import_tables` and `import_views` surface table-shaped objects from `INFORMATION_SCHEMA.TABLES` as Dagster assets. Both support dual-mode emission — pure observation (default for tables) or materializable @asset (default for views).
+
+### What each flag covers
+
+| `TABLE_TYPE` (Snowflake) | Imported by | Notes |
+|---|---|---|
+| `BASE TABLE` (permanent / transient / temporary) | `import_tables` | Regular tables. CTAS-created tables show as `BASE TABLE` too — Snowflake doesn't store the SELECT used at create time. |
+| `ICEBERG TABLE` | `import_tables` | Iceberg tables on external volumes. |
+| `HYBRID TABLE` (Unistore) | `import_tables` | OLTP + analytics on the same row store. |
+| `EVENT TABLE` | `import_tables` | Telemetry capture tables. |
+| `VIEW` | `import_views` | Non-materialized views. |
+| `MATERIALIZED VIEW` | `import_materialized_views` | Separate flag. |
+| `DYNAMIC TABLE` | `import_dynamic_tables` | Separate flag. |
+| `EXTERNAL TABLE` | `import_external_tables` | Separate flag. |
+
+### Table modeling
+
+`table_modeling:` controls how every imported table is emitted:
+
+| Value | What you get | When to use |
+|---|---|---|
+| `observable` (default) | `@observable_source_asset`. Polls `INFORMATION_SCHEMA.TABLES.{ROW_COUNT, LAST_ALTERED}` on each tick. Emits `ObserveResult` with `data_version = f"{row_count}:{last_altered}"` so downstream eager only fires on real change. No click-to-materialize. | Catalog discoverability, lineage display, freshness checks against tables an external system writes. |
+| `asset` | `@asset` that runs `CREATE OR REPLACE TABLE <name> AS <materialize_sql>` on materialize. Emits `MaterializeResult` with the same row_count + last_altered metadata plus the executed query_id. | "Rebuild this table from SQL" — the customer-supplied SELECT plays the same role as a dbt model's `.sql` file. |
+
+When `table_modeling: asset` is set, each imported table **must** carry a `materialize_sql:` in `assets_by_name`:
+
+```yaml
+import_tables: true
+table_modeling: asset
+assets_by_name:
+  DAILY_REVENUE:
+    materialize_sql: |
+      SELECT REGION,
+             COUNT(*) AS ORDER_COUNT,
+             SUM(TOTAL) AS REVENUE
+      FROM RAW.ORDERS
+      WHERE STATUS = 'paid'
+      GROUP BY REGION
+  CUSTOMER_LIFETIME_VALUE:
+    materialize_sql: |
+      SELECT CUSTOMER_ID,
+             SUM(TOTAL) AS LIFETIME_VALUE,
+             MAX(ORDER_DATE) AS LAST_ORDER
+      FROM RAW.ORDERS
+      WHERE STATUS IN ('paid', 'delivered')
+      GROUP BY CUSTOMER_ID
+```
+
+The component raises `ValueError` at build time if any imported table is missing `materialize_sql:` while `table_modeling: asset` is on — fail loud, no surprises at materialize time. Why is the SELECT a customer input? Snowflake's `GET_DDL('TABLE', …)` returns schema only (no SELECT), so the workspace can't auto-supply it. Same constraint dbt's `materialized='table'` works under.
+
+### View modeling
+
+`view_modeling:` controls how every imported view is emitted:
+
+| Value | What you get | When to use |
+|---|---|---|
+| `asset` (default) | `@asset` that runs `CREATE OR REPLACE VIEW <name> AS <VIEW_DEFINITION>`. The SELECT is auto-loaded from `INFORMATION_SCHEMA.VIEWS.VIEW_DEFINITION` — zero customer input. Click materialize = recompile against current upstream schema, catches schema drift. | Default. Views are pure DDL; re-running is safe and useful. |
+| `observable` | `@observable_source_asset`. Lineage-display only, no click-to-materialize. | When you don't want Dagster touching the view DDL. |
+
+To override the stored view definition (e.g. pin a known-good SELECT from source control rather than trusting Snowflake's stored copy), set `materialize_sql:` on the view's `assets_by_name` entry — same field as tables.
+
+```yaml
+import_views: true
+view_modeling: asset    # default — shown for clarity
+assets_by_name:
+  V_PAID_ORDERS:
+    # Optional: pin the SELECT explicitly. Without this, the workspace
+    # uses whatever VIEW_DEFINITION Snowflake currently has stored.
+    materialize_sql: |
+      SELECT ORDER_ID, CUSTOMER_ID, TOTAL, ORDER_DATE
+      FROM RAW.ORDERS
+      WHERE STATUS = 'paid'
+```
+
+If `view_modeling: asset` is set but Snowflake doesn't return a `VIEW_DEFINITION` for a given view (privilege issue, secure view) and no override is supplied, that view falls back to observable mode with a warning log entry.
 
 ## Stored procedure `args:` and `config_schema:`
 

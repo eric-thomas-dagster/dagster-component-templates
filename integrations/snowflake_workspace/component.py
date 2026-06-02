@@ -324,21 +324,47 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
     import_tables: bool = Field(
         default=False,
         description=(
-            "Import base tables (TABLE_TYPE='BASE TABLE') as observable source assets. "
-            "Each table becomes an @observable_source_asset that polls row_count + last_altered "
-            "via INFORMATION_SCHEMA.TABLES and emits a stable data_version signature. "
-            "Useful for lineage display + freshness checks against tables the team owns "
-            "out-of-band (manually loaded, ETL'd by external tools, etc.). Iceberg + Hybrid "
-            "tables are not included here — use dedicated components for those."
+            "Import tables as Dagster assets. Covers every table-shaped object that doesn't have "
+            "its own dedicated import_* flag: regular base tables (BASE TABLE — permanent / "
+            "transient / temporary), Iceberg tables, Hybrid tables (Unistore), and Event tables. "
+            "Default behavior is observation (row_count + last_altered, stable data_version) — "
+            "opt into materialization via `table_modeling: asset` + a per-table `materialize_sql:` "
+            "in `assets_by_name`. External / materialized / dynamic tables have their own flags "
+            "and are not included here."
+        ),
+    )
+
+    table_modeling: str = Field(
+        default="observable",
+        description=(
+            "How imported tables are emitted: 'observable' (default; @observable_source_asset, "
+            "polls row_count + last_altered via INFORMATION_SCHEMA, no click-to-materialize) or "
+            "'asset' (@asset that runs CREATE OR REPLACE TABLE <name> AS <materialize_sql>). "
+            "'asset' requires per-table `materialize_sql:` in `assets_by_name`; ValueError at "
+            "component build time if any imported table is missing the SQL. Snowflake doesn't "
+            "store the SELECT used at CTAS time — so the customer must supply it, same as a "
+            "dbt model file."
         ),
     )
 
     import_views: bool = Field(
         default=False,
         description=(
-            "Import non-materialized views (TABLE_TYPE='VIEW') as observable source assets. "
-            "Same shape as import_tables — row_count + last_altered observation, stable "
-            "data_version. Materialized views are a separate concept; use import_materialized_views."
+            "Import non-materialized views (TABLE_TYPE='VIEW') as Dagster assets. Default "
+            "behavior is materializable — re-runs the view's stored definition via CREATE OR "
+            "REPLACE VIEW (recompiles against current upstream schema, catches schema drift). "
+            "Opt back into observation-only via `view_modeling: observable`. Materialized views "
+            "are a separate concept; use `import_materialized_views`."
+        ),
+    )
+
+    view_modeling: str = Field(
+        default="asset",
+        description=(
+            "How imported views are emitted: 'asset' (default; @asset that runs CREATE OR "
+            "REPLACE VIEW <name> AS <VIEW_DEFINITION pulled from INFORMATION_SCHEMA.VIEWS> — "
+            "zero config, Snowflake already stores the SELECT) or 'observable' "
+            "(@observable_source_asset, lineage-display-only)."
         ),
     )
 
@@ -2044,32 +2070,59 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                 except Exception as e:
                     _logger.error(f"Error importing OpenFlow flows: {e}")
 
-            # Import Base Tables + Views — both are observable source assets
-            # with the same shape: poll row_count + last_altered from
-            # INFORMATION_SCHEMA.TABLES, emit ObserveResult with a stable
-            # `data_version = f"{row_count}:{last_altered}"` signature so
-            # downstream eager only fires when the table genuinely changes.
-            # Differences vs the operational entities above:
-            #   - tables/views aren't materialized BY Dagster (no @asset,
-            #     no EXECUTE TASK / ALTER REFRESH). Pure observation.
-            #   - covers the "I just want my raw data in the lineage graph"
-            #     case without writing a RAW.<name> AssetSpec by hand.
+            # Import Tables + Views — dual-mode emission.
             #
-            # `import_tables` covers TABLE_TYPE='BASE TABLE'. Iceberg /
-            # Hybrid / Event tables are excluded — those have dedicated
-            # components (snowflake_iceberg_table) or warrant their own
-            # follow-up flags.
+            # `import_tables` covers every table-shaped object that doesn't
+            # have its own dedicated import_* flag: BASE TABLE (permanent /
+            # transient / temporary), ICEBERG TABLE, HYBRID TABLE (Unistore),
+            # EVENT TABLE. External / materialized / dynamic tables have
+            # their own flags. Default behavior: @observable_source_asset.
+            # Opt into materializable with `table_modeling: asset` + a
+            # per-table `materialize_sql:` in `assets_by_name` (Snowflake
+            # doesn't store the SELECT used at CTAS time — the customer
+            # supplies it, same as a dbt model file).
+            #
             # `import_views` covers TABLE_TYPE='VIEW' (regular views).
-            # Materialized views have their own import_materialized_views flag.
+            # Default behavior: @asset that runs CREATE OR REPLACE VIEW
+            # against the stored VIEW_DEFINITION from INFORMATION_SCHEMA
+            # (zero config — Snowflake already has the SELECT). Opt back
+            # into observation via `view_modeling: observable`.
+            #
+            # Both paths emit the same observable shape:
+            # data_version = f"{row_count}:{last_altered}" so downstream
+            # AutomationCondition.eager() only fires on real change. The
+            # `asset` mode emits a MaterializeResult carrying the same
+            # metadata after each click-to-materialize.
             if self.import_tables or self.import_views:
                 wanted_types: list = []
                 if self.import_tables:
-                    wanted_types.append("BASE TABLE")
+                    wanted_types.extend(["BASE TABLE", "ICEBERG TABLE", "HYBRID TABLE", "EVENT TABLE"])
                 if self.import_views:
                     wanted_types.append("VIEW")
                 wanted_types_sql = ", ".join(f"'{t}'" for t in wanted_types)
 
                 try:
+                    # VIEW_DEFINITION lives only on the views projection of
+                    # INFORMATION_SCHEMA — fetch separately so customers can
+                    # toggle import_views off without us querying VIEWS
+                    # against a role that lacks USAGE on it.
+                    view_definitions: Dict[str, str] = {}
+                    if self.import_views:
+                        try:
+                            vd_query = (
+                                f"SELECT TABLE_NAME, VIEW_DEFINITION "
+                                f"FROM {self.database}.INFORMATION_SCHEMA.VIEWS "
+                                f"WHERE TABLE_SCHEMA = '{self.schema_name}'"
+                            )
+                            for vrow in self._execute_query(conn, vd_query):
+                                if vrow.get("VIEW_DEFINITION"):
+                                    view_definitions[vrow["TABLE_NAME"]] = vrow["VIEW_DEFINITION"]
+                        except Exception as exc:
+                            _logger.warning(
+                                f"Could not read INFORMATION_SCHEMA.VIEWS for VIEW_DEFINITION: {exc}. "
+                                f"Views will fall back to observable mode."
+                            )
+
                     query = (
                         f"SELECT TABLE_NAME, TABLE_TYPE, ROW_COUNT, BYTES, "
                         f"LAST_ALTERED, CREATED, COMMENT "
@@ -2079,67 +2132,174 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                     )
                     table_rows = self._execute_query(conn, query)
 
-                    def _make_table_asset(table_name_v, table_type_v, db_v, schema_v, table_kwargs_v, self_v):
+                    # Shared body: fetch latest row_count + last_altered for
+                    # metadata + data_version signature. Used in both
+                    # observable and asset modes.
+                    def _fetch_table_state(self_v, db_v, schema_v, table_name_v, context):
+                        conn = self_v._create_connection()
+                        cursor = conn.cursor()
+                        row_count = None
+                        bytes_val = None
+                        last_altered = None
+                        try:
+                            cursor.execute(
+                                f"SELECT ROW_COUNT, BYTES, LAST_ALTERED "
+                                f"FROM {db_v}.INFORMATION_SCHEMA.TABLES "
+                                f"WHERE TABLE_SCHEMA = '{schema_v}' "
+                                f"AND TABLE_NAME = '{table_name_v}'"
+                            )
+                            row = cursor.fetchone()
+                            if row:
+                                if row[0] is not None:
+                                    try:
+                                        row_count = int(row[0])
+                                    except (TypeError, ValueError):
+                                        pass
+                                if row[1] is not None:
+                                    try:
+                                        bytes_val = int(row[1])
+                                    except (TypeError, ValueError):
+                                        pass
+                                if row[2] is not None:
+                                    last_altered = str(row[2])
+                        except Exception as exc:
+                            context.log.warning(
+                                f"Could not read state for {db_v}.{schema_v}.{table_name_v}: {exc}"
+                            )
+                        finally:
+                            cursor.close()
+                            conn.close()
+                        return row_count, bytes_val, last_altered
+
+                    def _build_metadata(db_v, schema_v, table_name_v, table_type_v, row_count, bytes_val, last_altered):
+                        metadata: Dict[str, Any] = {
+                            "snowflake_database": db_v,
+                            "snowflake_schema": schema_v,
+                            "snowflake_table_name": table_name_v,
+                            "snowflake_table_type": table_type_v,
+                        }
+                        if row_count is not None:
+                            metadata["snowflake/row_count"] = MetadataValue.int(row_count)
+                        if bytes_val is not None:
+                            metadata["snowflake/bytes"] = MetadataValue.int(bytes_val)
+                        if last_altered is not None:
+                            metadata["snowflake/last_altered"] = last_altered
+                        return metadata
+
+                    def _make_observable_table_asset(table_name_v, table_type_v, db_v, schema_v, table_kwargs_v, self_v):
                         @observable_source_asset(**table_kwargs_v)
                         def _table_asset(context: AssetExecutionContext) -> ObserveResult:
                             """Observe row count + last_altered against INFORMATION_SCHEMA.TABLES."""
-                            conn = self_v._create_connection()
-                            cursor = conn.cursor()
-                            row_count = None
-                            bytes_val = None
-                            last_altered = None
-                            try:
-                                cursor.execute(
-                                    f"SELECT ROW_COUNT, BYTES, LAST_ALTERED "
-                                    f"FROM {db_v}.INFORMATION_SCHEMA.TABLES "
-                                    f"WHERE TABLE_SCHEMA = '{schema_v}' "
-                                    f"AND TABLE_NAME = '{table_name_v}'"
-                                )
-                                row = cursor.fetchone()
-                                if row:
-                                    if row[0] is not None:
-                                        try:
-                                            row_count = int(row[0])
-                                        except (TypeError, ValueError):
-                                            pass
-                                    if row[1] is not None:
-                                        try:
-                                            bytes_val = int(row[1])
-                                        except (TypeError, ValueError):
-                                            pass
-                                    if row[2] is not None:
-                                        last_altered = str(row[2])
-                            except Exception as exc:
-                                context.log.warning(
-                                    f"Could not observe {db_v}.{schema_v}.{table_name_v}: {exc}"
-                                )
-                            finally:
-                                cursor.close()
-                                conn.close()
-
-                            metadata: Dict[str, Any] = {
-                                "snowflake_database": db_v,
-                                "snowflake_schema": schema_v,
-                                "snowflake_table_name": table_name_v,
-                                "snowflake_table_type": table_type_v,
-                            }
-                            if row_count is not None:
-                                metadata["snowflake/row_count"] = MetadataValue.int(row_count)
-                            if bytes_val is not None:
-                                metadata["snowflake/bytes"] = MetadataValue.int(bytes_val)
-                            if last_altered is not None:
-                                metadata["snowflake/last_altered"] = last_altered
-
-                            # Stable signature — quiet observation ticks
-                            # against an unchanged table don't cascade through
-                            # downstream AutomationCondition.eager().
+                            row_count, bytes_val, last_altered = _fetch_table_state(
+                                self_v, db_v, schema_v, table_name_v, context
+                            )
+                            metadata = _build_metadata(
+                                db_v, schema_v, table_name_v, table_type_v,
+                                row_count, bytes_val, last_altered,
+                            )
                             signature = f"{row_count}:{last_altered}"
                             return ObserveResult(
                                 data_version=DataVersion(signature),
                                 metadata=metadata,
                             )
-
                         return _table_asset
+
+                    def _make_materializable_table_asset(table_name_v, table_type_v, db_v, schema_v, table_kwargs_v, self_v, materialize_sql_v):
+                        @asset(**table_kwargs_v)
+                        def _table_asset(context: AssetExecutionContext) -> MaterializeResult:
+                            """Materialize via CREATE OR REPLACE TABLE <name> AS <materialize_sql>."""
+                            conn = self_v._create_connection()
+                            cursor = conn.cursor()
+                            exec_sfqid = None
+                            try:
+                                ddl = (
+                                    f"CREATE OR REPLACE TABLE {db_v}.{schema_v}.{table_name_v} AS "
+                                    f"{materialize_sql_v}"
+                                )
+                                cursor.execute(ddl)
+                                exec_sfqid = cursor.sfqid
+                                context.log.info(
+                                    f"Rebuilt {db_v}.{schema_v}.{table_name_v} via CREATE OR REPLACE TABLE AS"
+                                )
+                            finally:
+                                cursor.close()
+                                conn.close()
+                            row_count, bytes_val, last_altered = _fetch_table_state(
+                                self_v, db_v, schema_v, table_name_v, context
+                            )
+                            metadata = _build_metadata(
+                                db_v, schema_v, table_name_v, table_type_v,
+                                row_count, bytes_val, last_altered,
+                            )
+                            if exec_sfqid:
+                                metadata["snowflake/query_id"] = exec_sfqid
+                            signature = f"{row_count}:{last_altered}"
+                            return MaterializeResult(
+                                data_version=DataVersion(signature),
+                                metadata=metadata,
+                            )
+                        return _table_asset
+
+                    def _make_materializable_view_asset(view_name_v, db_v, schema_v, view_kwargs_v, self_v, view_definition_v):
+                        @asset(**view_kwargs_v)
+                        def _view_asset(context: AssetExecutionContext) -> MaterializeResult:
+                            """Materialize via CREATE OR REPLACE VIEW <name> AS <stored definition>."""
+                            conn = self_v._create_connection()
+                            cursor = conn.cursor()
+                            exec_sfqid = None
+                            try:
+                                ddl = (
+                                    f"CREATE OR REPLACE VIEW {db_v}.{schema_v}.{view_name_v} AS "
+                                    f"{view_definition_v}"
+                                )
+                                cursor.execute(ddl)
+                                exec_sfqid = cursor.sfqid
+                                context.log.info(
+                                    f"Recompiled view {db_v}.{schema_v}.{view_name_v} via CREATE OR REPLACE VIEW"
+                                )
+                            finally:
+                                cursor.close()
+                                conn.close()
+                            row_count, bytes_val, last_altered = _fetch_table_state(
+                                self_v, db_v, schema_v, view_name_v, context
+                            )
+                            metadata = _build_metadata(
+                                db_v, schema_v, view_name_v, "VIEW",
+                                row_count, bytes_val, last_altered,
+                            )
+                            if exec_sfqid:
+                                metadata["snowflake/query_id"] = exec_sfqid
+                            signature = f"{row_count}:{last_altered}"
+                            return MaterializeResult(
+                                data_version=DataVersion(signature),
+                                metadata=metadata,
+                            )
+                        return _view_asset
+
+                    # Pre-flight: validate table_modeling='asset' has SQL
+                    # for every table that will be imported. Fail loud at
+                    # component build time, not at materialize time.
+                    if self.import_tables and self.table_modeling == "asset":
+                        missing_sql: list = []
+                        for tbl in table_rows:
+                            tname = tbl["TABLE_NAME"]
+                            ttype = tbl["TABLE_TYPE"]
+                            if ttype == "VIEW":
+                                continue
+                            if not tname or not self._should_include_entity(tname):
+                                continue
+                            tov = (self.assets_by_name or {}).get(tname) or {}
+                            if not (isinstance(tov, dict) and tov.get("materialize_sql")):
+                                missing_sql.append(tname)
+                        if missing_sql:
+                            raise ValueError(
+                                f"table_modeling='asset' requires a `materialize_sql:` "
+                                f"under `assets_by_name.<TABLE>:` for every imported "
+                                f"table. Missing for: {', '.join(missing_sql)}. "
+                                f"Snowflake doesn't store the SELECT used at CTAS time, "
+                                f"so the customer must supply it — same as a dbt model "
+                                f"file. Either add the SQL or set `table_modeling: observable`."
+                            )
 
                     for tbl in table_rows:
                         table_name = tbl["TABLE_NAME"]
@@ -2160,19 +2320,74 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                         if tbl.get("COMMENT"):
                             base_metadata["snowflake/comment"] = tbl["COMMENT"]
 
+                        # Decide modeling per entity. view_def / tbl_sql
+                        # initialized here (not inside the branches) so
+                        # Pyright's flow analysis sees them bound on both
+                        # paths into the use-site below.
+                        view_def: Optional[str] = None
+                        tbl_sql: Optional[str] = None
+                        if is_view:
+                            modeling = self.view_modeling
+                            override = (self.assets_by_name or {}).get(table_name) or {}
+                            # Customer can pin the view definition explicitly
+                            # in YAML (overrides what Snowflake has stored).
+                            if isinstance(override, dict) and override.get("materialize_sql"):
+                                view_def = override["materialize_sql"]
+                            elif table_name in view_definitions:
+                                view_def = view_definitions[table_name]
+                            # No definition available → fall back to observable.
+                            if modeling == "asset" and not view_def:
+                                _logger.warning(
+                                    f"View {table_name}: view_modeling='asset' but no "
+                                    f"VIEW_DEFINITION available from INFORMATION_SCHEMA "
+                                    f"and no `materialize_sql:` override. Falling back to "
+                                    f"observable mode for this view."
+                                )
+                                modeling = "observable"
+                        else:
+                            modeling = self.table_modeling
+                            override = (self.assets_by_name or {}).get(table_name) or {}
+                            if isinstance(override, dict) and override.get("materialize_sql"):
+                                tbl_sql = override["materialize_sql"]
+
+                        description_suffix = (
+                            " (materializable — re-runs DDL on click)"
+                            if modeling == "asset"
+                            else ""
+                        )
                         _table_kwargs = self._apply_asset_overrides(table_name, dict(
                             name=asset_key,
                             group_name=self.group_name,
                             description=(
                                 f"Snowflake {table_type.lower()}: "
                                 f"{self.database}.{self.schema_name}.{table_name}"
+                                f"{description_suffix}"
                             ),
                             metadata=base_metadata,
                         ))
-                        assets_list.append(_make_table_asset(
-                            table_name, table_type, self.database,
-                            self.schema_name, _table_kwargs, self,
-                        ))
+
+                        if is_view:
+                            if modeling == "asset":
+                                assets_list.append(_make_materializable_view_asset(
+                                    table_name, self.database, self.schema_name,
+                                    _table_kwargs, self, view_def,
+                                ))
+                            else:
+                                assets_list.append(_make_observable_table_asset(
+                                    table_name, table_type, self.database,
+                                    self.schema_name, _table_kwargs, self,
+                                ))
+                        else:
+                            if modeling == "asset":
+                                assets_list.append(_make_materializable_table_asset(
+                                    table_name, table_type, self.database,
+                                    self.schema_name, _table_kwargs, self, tbl_sql,
+                                ))
+                            else:
+                                assets_list.append(_make_observable_table_asset(
+                                    table_name, table_type, self.database,
+                                    self.schema_name, _table_kwargs, self,
+                                ))
 
                 except Exception as e:
                     _logger.error(f"Error importing Snowflake tables/views: {e}")

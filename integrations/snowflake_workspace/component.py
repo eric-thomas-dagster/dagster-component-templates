@@ -337,13 +337,19 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
     table_modeling: str = Field(
         default="observable",
         description=(
-            "How imported tables are emitted: 'observable' (default; @observable_source_asset, "
-            "polls row_count + last_altered via INFORMATION_SCHEMA, no click-to-materialize) or "
-            "'asset' (@asset that runs CREATE OR REPLACE TABLE <name> AS <materialize_sql>). "
-            "'asset' requires per-table `materialize_sql:` in `assets_by_name`; ValueError at "
+            "How imported tables are emitted. One of:\n"
+            "  'observable' (default) — @observable_source_asset polling row_count + "
+            "last_altered via INFORMATION_SCHEMA. No click-to-materialize.\n"
+            "  'asset' — @asset that runs CREATE OR REPLACE TABLE <name> AS <materialize_sql>. "
+            "Requires per-table `materialize_sql:` in `assets_by_name`; ValueError at "
             "component build time if any imported table is missing the SQL. Snowflake doesn't "
             "store the SELECT used at CTAS time — so the customer must supply it, same as a "
-            "dbt model file."
+            "dbt model file.\n"
+            "  'virtual' — AssetSpec(is_virtual=True). No execution, no observation polling, "
+            "no Dagster credits. Status inherits from upstream via "
+            "AutomationCondition.eager().resolve_through_virtual(). Useful when the table is "
+            "written by a Dagster asset upstream and you just want it in the lineage graph; "
+            "wire `assets_by_name.<TABLE>.deps:` to that upstream asset."
         ),
     )
 
@@ -359,12 +365,19 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
     )
 
     view_modeling: str = Field(
-        default="asset",
+        default="virtual",
         description=(
-            "How imported views are emitted: 'asset' (default; @asset that runs CREATE OR "
-            "REPLACE VIEW <name> AS <VIEW_DEFINITION pulled from INFORMATION_SCHEMA.VIEWS> — "
-            "zero config, Snowflake already stores the SELECT) or 'observable' "
-            "(@observable_source_asset, lineage-display-only)."
+            "How imported views are emitted. One of:\n"
+            "  'virtual' (default) — AssetSpec(is_virtual=True). Views have no state of their "
+            "own (Snowflake reads the underlying tables live on every query) and "
+            "INFORMATION_SCHEMA.TABLES.ROW_COUNT for views is mostly NULL anyway — so observation "
+            "is uninformative and materialization (CREATE OR REPLACE VIEW) doesn't actually "
+            "produce data. Virtual gives lineage display with zero Dagster overhead. Status "
+            "inherits from upstream via AutomationCondition.eager().resolve_through_virtual().\n"
+            "  'asset' — @asset that runs CREATE OR REPLACE VIEW <name> AS <VIEW_DEFINITION>. "
+            "Use when you want click-to-materialize as a force-recompile / schema-drift check.\n"
+            "  'observable' — @observable_source_asset polling row_count + last_altered. "
+            "Rarely useful for views; included for symmetry with table_modeling."
         ),
     )
 
@@ -2366,7 +2379,34 @@ class SnowflakeWorkspaceComponent(Component, Model, Resolvable):
                             metadata=base_metadata,
                         ))
 
-                        if is_view:
+                        if modeling == "virtual":
+                            # AssetSpec(is_virtual=True) — no execution, no
+                            # observation, no Dagster credits. Downstream
+                            # eager resolves through via
+                            # AutomationCondition.eager().resolve_through_virtual().
+                            spec_kwargs = dict(
+                                key=AssetKey([_table_kwargs["name"]]),
+                                group_name=_table_kwargs.get("group_name"),
+                                description=_table_kwargs.get("description"),
+                                metadata=_table_kwargs.get("metadata") or {},
+                            )
+                            for k in ("deps", "kinds", "tags", "owners"):
+                                if k in _table_kwargs:
+                                    spec_kwargs[k] = _table_kwargs[k]
+                            try:
+                                assets_list.append(AssetSpec(is_virtual=True, **spec_kwargs))
+                            except TypeError as exc:
+                                # AssetSpec(is_virtual=...) requires a newer
+                                # Dagster. Fail loud with a hint instead of
+                                # silently producing a non-virtual AssetSpec.
+                                raise RuntimeError(
+                                    f"{prefix}_modeling='virtual' requires a Dagster version "
+                                    f"that supports AssetSpec(is_virtual=True). "
+                                    f"Upgrade dagster, or set "
+                                    f"{prefix}_modeling='observable' (tables) / 'asset' (views). "
+                                    f"Original error: {exc}"
+                                ) from exc
+                        elif is_view:
                             if modeling == "asset":
                                 assets_list.append(_make_materializable_view_asset(
                                     table_name, self.database, self.schema_name,

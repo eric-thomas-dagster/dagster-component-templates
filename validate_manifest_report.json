@@ -1,13 +1,12 @@
 {
   "summary": {
-    "PASS": 628,
-    "FAIL": 62,
+    "PASS": 634,
+    "FAIL": 64,
     "SKIP_OPTIONAL_DEP": 37,
     "SKIP_EXAMPLE_MULTI_DOC": 51,
     "SKIP_PROJECT_REQUIRED": 11,
     "SKIP_CREDENTIALS": 35,
-    "SKIP_RELATIVE_IMPORT": 2,
-    "WARN": 1
+    "SKIP_RELATIVE_IMPORT": 2
   },
   "results": [
     {
@@ -22,9 +21,7 @@
       "id": "ab_test_analysis",
       "path": "assets/analytics/ab_test_analysis",
       "status": "PASS",
-      "warnings": [
-        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -228,7 +225,9 @@
       "id": "anthropic_llm",
       "path": "assets/ai/anthropic_llm",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
       "error": null,
       "error_class": null
     },
@@ -566,7 +565,9 @@
       "id": "aws_s3_resource",
       "path": "resources/aws_s3_resource",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-aws` (0.28.1)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -683,7 +684,9 @@
       "id": "bank_statement_extractor",
       "path": "assets/ai/bank_statement_extractor",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
       "error": null,
       "error_class": null
     },
@@ -763,9 +766,7 @@
       "id": "bigquery_resource",
       "path": "resources/bigquery_resource",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-pandas` (0.28.1)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -1294,6 +1295,22 @@
       "error_class": null
     },
     {
+      "id": "dagster_failures_to_otlp_sensor",
+      "path": "sensors/dagster_failures_to_otlp_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dagster_materializations_to_prometheus_sensor",
+      "path": "sensors/dagster_materializations_to_prometheus_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "dagster_plus_asset_events_ingestion",
       "path": "ingestion/dagster_plus_asset_events_ingestion",
       "status": "PASS",
@@ -1320,6 +1337,22 @@
     {
       "id": "dagster_plus_to_siem_job",
       "path": "jobs/dagster_plus_to_siem_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dagster_runs_to_influxdb_sensor",
+      "path": "sensors/dagster_runs_to_influxdb_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dagster_runs_to_prometheus_sensor",
+      "path": "sensors/dagster_runs_to_prometheus_sensor",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -1466,10 +1499,7 @@
       "id": "databricks_resource",
       "path": "resources/databricks_resource",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-spark` (0.28.12).",
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-gcp` (0.28.1)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -1487,7 +1517,10 @@
       "id": "databricks_workspace",
       "path": "integrations/databricks_workspace",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-spark` (0.28.12).",
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-sling` (0.28.1)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -1614,7 +1647,9 @@
       "id": "dataframe_to_azure_table",
       "path": "assets/sinks/dataframe_to_azure_table",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-pyspark` (0.28.12)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -1638,7 +1673,9 @@
       "id": "dataframe_to_csv",
       "path": "assets/sinks/dataframe_to_csv",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-databricks` (0.28.12)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -1945,12 +1982,17 @@
     {
       "id": "dbt_cloud_resource",
       "path": "resources/dbt_cloud_resource",
-      "status": "PASS",
-      "warnings": [
-        "BetaWarning: Class `DbtCloudResource` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
-      ],
-      "error": null,
-      "error_class": null
+      "status": "FAIL",
+      "warnings": [],
+      "error": "deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 5124603216",
+      "error_class": "_DeadlockError",
+      "traceback": [
+        "    from dagster_dbt.components.dbt_project.component import DbtProjectComponent as DbtProjectComponent",
+        "  File \"<frozen importlib._bootstrap>\", line 1173, in _find_and_load",
+        "  File \"<frozen importlib._bootstrap>\", line 171, in __enter__",
+        "  File \"<frozen importlib._bootstrap>\", line 116, in acquire",
+        "_frozen_importlib._DeadlockError: deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 5124603216"
+      ]
     },
     {
       "id": "dbt_docs_enriched_project",
@@ -1995,7 +2037,9 @@
       "id": "delta_lake_io_manager",
       "path": "io_managers/delta_lake_io_manager",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-dbt` (0.28.12)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -2128,6 +2172,7 @@
       "path": "assets/ai/document_text_extractor",
       "status": "PASS",
       "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-dlt` (0.28.1).",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -2158,6 +2203,21 @@
       "error_class": null
     },
     {
+      "id": "doris_workspace",
+      "path": "integrations/doris_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "Doris workspace requires a password \u2014 set `password` or `password_env_var` (currently 'DORIS_PASSWORD').",
+      "error_class": "RuntimeError",
+      "traceback": [
+        "    pw = urllib.parse.quote_plus(self._password())",
+        "                                 ^^^^^^^^^^^^^^^^",
+        "  File \"/Users/ericthomas/dagster_components/dagster-component-templates /integrations/doris_workspace/component.py\", line 155, in _password",
+        "    raise RuntimeError(",
+        "RuntimeError: Doris workspace requires a password \u2014 set `password` or `password_env_var` (currently 'DORIS_PASSWORD')."
+      ]
+    },
+    {
       "id": "dremio_ingestion",
       "path": "assets/ingestion/dremio_ingestion",
       "status": "PASS",
@@ -2179,10 +2239,7 @@
       "id": "duckdb_io_manager",
       "path": "io_managers/duckdb_io_manager",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-duckdb` (0.28.1).",
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-duckdb-pandas` (0.28.1)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -2250,7 +2307,9 @@
       "id": "dynamodb_resource",
       "path": "resources/dynamodb_resource",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-duckdb` (0.28.1)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -2258,7 +2317,9 @@
       "id": "dynamodb_writer",
       "path": "assets/sinks/dynamodb_writer",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-duckdb-pandas` (0.28.1)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -4063,9 +4124,7 @@
       "id": "linkedin_ads_resource",
       "path": "resources/linkedin_ads_resource",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-databricks` (0.28.12)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -5052,9 +5111,8 @@
     {
       "id": "part_of_speech_tagger",
       "path": "assets/ai/part_of_speech_tagger",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"OllamaInferenceAssetComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -5181,9 +5239,7 @@
       "id": "pinterest_ads_ingestion",
       "path": "assets/ingestion/pinterest_ads_ingestion",
       "status": "PASS",
-      "warnings": [
-        "UserWarning: Found version mismatch between `dagster-shared` (1.13.4) expected library version (0.29.4) and `dagster-sling` (0.28.1)."
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -7139,6 +7195,14 @@
       "error_class": "FileNotFoundError"
     },
     {
+      "id": "victoriametrics_cardinality_sensor",
+      "path": "sensors/victoriametrics_cardinality_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "victoriametrics_query_asset",
       "path": "assets/sources/victoriametrics_query_asset",
       "status": "PASS",
@@ -7149,6 +7213,14 @@
     {
       "id": "victoriametrics_resource",
       "path": "resources/victoriametrics_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "victoriametrics_snapshot_job",
+      "path": "jobs/victoriametrics_snapshot_job",
       "status": "PASS",
       "warnings": [],
       "error": null,

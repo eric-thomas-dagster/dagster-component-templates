@@ -13185,29 +13185,34 @@
       }
     },
     {
-      "id": "lineage_to_openlineage",
-      "name": "Lineage \u2192 OpenLineage",
+      "id": "lineage_to_openmetadata",
+      "name": "Lineage \u2192 OpenMetadata",
       "category": "sink",
-      "description": "Sink asset that emits the upstream lineage_graph as OpenLineage RunEvents (Marquez, Atlan, Astronomer Observe).",
-      "path": "assets/sinks/lineage_to_openlineage",
+      "description": "Sink asset that pushes the upstream lineage_graph payload to OpenMetadata via REST API. Maps Dagster's asset graph onto OpenMetadata's service\u2192database\u2192schema\u2192table hierarchy with lineage edges between tables.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/lineage_to_openmetadata",
       "tags": [
         "sink",
         "lineage",
+        "openmetadata",
         "catalog",
-        "openlineage"
+        "governance"
       ],
-      "type": "dagster_component_templates.LineageToOpenLineageComponent",
-      "component_type": "dagster_component_templates.LineageToOpenLineageComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_openlineage/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_openlineage/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_openlineage/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_openlineage/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_openlineage/requirements.txt",
-      "icon": "ArrowRightLeft",
+      "vendor": "OpenMetadata",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_openmetadata/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_openmetadata/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_openmetadata/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_openmetadata/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_openmetadata/requirements.txt",
       "validation": {
-        "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lineage_catalogs.md",
-        "last_validated": "2026-05-06"
+        "level": "code",
+        "last_validated": "2026-06-04"
       }
     },
     {

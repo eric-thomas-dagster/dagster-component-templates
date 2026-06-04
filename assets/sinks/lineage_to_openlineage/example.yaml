@@ -1,7 +1,0 @@
-type: dagster_component_templates.LineageToOpenLineageComponent
-attributes:
-  asset_name: lineage_to_openlineage
-  upstream_asset_key: lineage_graph
-  catalog_url: https://marquez.example.com
-  api_token_env: OPENLINEAGE_API_TOKEN
-  only_push_on_change: true

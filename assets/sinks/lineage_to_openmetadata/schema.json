@@ -1,0 +1,20 @@
+{
+  "component_type": "dagster_component_templates.LineageToOpenMetadataComponent",
+  "description": "Lineage → OpenMetadata sink. Pushes the upstream lineage_graph payload to OpenMetadata via REST API (service → database → schema → table hierarchy + lineage edges).",
+  "category": "sink",
+  "icon": "Network",
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "description": "Output sink asset name.", "required": false, "default": "lineage_to_openmetadata"},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "description": "Upstream asset emitting the canonical lineage payload.", "required": false, "default": "lineage_graph"},
+    "catalog_url": {"type": "string", "label": "Catalog URL", "description": "OpenMetadata host (e.g. https://openmetadata.acme.com).", "required": true},
+    "api_token_env": {"type": "string", "label": "API Token Env Var", "description": "Env var holding the JWT bearer token.", "required": false, "default": "OPENMETADATA_API_TOKEN"},
+    "service_name": {"type": "string", "label": "Service Name", "description": "OpenMetadata DatabaseService name.", "required": false, "default": "dagster"},
+    "database_name": {"type": "string", "label": "Database Name", "description": "OpenMetadata Database name under the service.", "required": false, "default": "default"},
+    "verify_ssl": {"type": "boolean", "label": "Verify SSL", "description": "Verify OpenMetadata's TLS cert.", "required": false, "default": true},
+    "only_push_on_change": {"type": "boolean", "label": "Only Push on Change", "description": "Skip the catalog POST when the upstream payload_hash matches the last successfully pushed hash.", "required": false, "default": true},
+    "group_name": {"type": "string", "label": "Group Name", "required": false, "default": "lineage"},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "label": "Owners", "required": false},
+    "asset_tags": {"type": "object", "label": "Tags", "required": false}
+  }
+}

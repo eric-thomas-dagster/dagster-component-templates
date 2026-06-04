@@ -1,0 +1,10 @@
+type: dagster_component_templates.LineageToOpenMetadataComponent
+attributes:
+  asset_name: lineage_to_openmetadata
+  upstream_asset_key: lineage_graph
+  catalog_url: https://openmetadata.acme.com
+  api_token_env: OPENMETADATA_API_TOKEN
+  service_name: dagster
+  database_name: default
+  verify_ssl: true
+  only_push_on_change: true

@@ -1,0 +1,78 @@
+# Lineage → OpenMetadata
+
+Sink asset that pushes the upstream `lineage_graph` (from [`lineage_graph_extractor`](../../sources/lineage_graph_extractor/)) to **OpenMetadata** via the REST API.
+
+```
+lineage_graph_extractor (source asset)
+        │
+        ▼
+Lineage → OpenMetadata (sink asset)
+```
+
+## What it pushes
+
+OpenMetadata's entity hierarchy is `service → database → schema → table` — the sink maps Dagster's asset graph onto it:
+
+| OpenMetadata entity | Source from Dagster payload | Default |
+|---|---|---|
+| `DatabaseService` | configurable | `dagster` (one service per Dagster deployment) |
+| `Database` | configurable | `default` (one database under the service) |
+| `DatabaseSchema` | per Dagster `group` | one schema per group; ungrouped assets land in `default` |
+| `Table` | per Dagster asset | name = sanitized asset key |
+| Lineage edge | per Dagster asset graph edge | `PUT /api/v1/lineage` between table FQNs |
+
+All PUTs are upsert / idempotent — re-running with the same payload doesn't duplicate.
+
+The `only_push_on_change: true` default (recommended) skips the network call when the upstream payload hash matches the last successful push, so the asset becomes a cheap no-op on most ticks.
+
+## Distinct from
+
+- **`lineage_to_datahub` / `lineage_to_alation` / `lineage_to_collibra` / `lineage_to_purview` / `lineage_to_data360` / `lineage_to_file` / `lineage_to_webhook`** — same family, same upstream `lineage_graph` payload, different downstream catalog.
+- **`dagster-openlineage`** (official Dagster library) — per-materialization run events for lineage-event backends like Marquez. This sink is a **graph snapshot exporter** for governance catalogs, not a real-time event emitter. The two are complementary; use whichever fits your downstream tool's ingestion model.
+
+## Setup
+
+### 1. Generate a JWT bot token in OpenMetadata
+
+OpenMetadata Web → **Settings → Bots → ingestion-bot → Revoke / Generate Token**. Copy it; set on every machine running Dagster:
+
+```bash
+export OPENMETADATA_API_TOKEN=<jwt>
+```
+
+### 2. Wire the YAML
+
+```yaml
+# defs/lineage_graph_extractor/defs.yaml
+type: dagster_component_templates.LineageGraphExtractorComponent
+attributes:
+  asset_name: lineage_graph
+
+# defs/lineage_to_openmetadata/defs.yaml
+type: dagster_component_templates.LineageToOpenMetadataComponent
+attributes:
+  asset_name: lineage_to_openmetadata
+  upstream_asset_key: lineage_graph
+  catalog_url: https://openmetadata.acme.com
+  api_token_env: OPENMETADATA_API_TOKEN
+  service_name: dagster
+  database_name: default
+  only_push_on_change: true
+```
+
+### 3. Materialize
+
+```bash
+uv run dg launch --assets lineage_graph,lineage_to_openmetadata
+```
+
+Then in OpenMetadata Web → **Explore → Database Services → Dagster** — every asset shows as a table, grouped by Dagster's `group` into schemas, with directed lineage edges in the Lineage tab.
+
+## See also
+
+- [`lineage_graph_extractor`](../../sources/lineage_graph_extractor/) — the upstream that builds the payload
+- [`lineage_to_datahub`](../lineage_to_datahub/) — same shape, DataHub
+- [`lineage_to_alation`](../lineage_to_alation/) / [`lineage_to_collibra`](../lineage_to_collibra/) / [`lineage_to_purview`](../lineage_to_purview/) / [`lineage_to_data360`](../lineage_to_data360/) — other catalog targets
+- [`lineage_to_webhook`](../lineage_to_webhook/) — push the raw payload to any HTTP endpoint
+- [`lineage_to_file`](../lineage_to_file/) — write to local JSON for inspection / debugging
+- [OpenMetadata REST API docs](https://docs.open-metadata.org/latest/swagger.html)

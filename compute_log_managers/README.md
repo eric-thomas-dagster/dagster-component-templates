@@ -16,13 +16,23 @@ A Dagster instance has **exactly one** compute log manager. The default `LocalCo
 | Manager | What it does | When to use |
 |---|---|---|
 | [`splunk.SplunkComputeLogManager`](splunk/) | Streams op stdout/stderr to Splunk HEC. UI surfaces "View in Splunk →" deep-links per step. | Customers running Dagster OSS who want compute logs in Splunk and never touching Dagster+. Or Dagster+ customers who need a Splunk copy for compliance — compose via Tee. |
+| [`otlp.OtlpComputeLogManager`](otlp/) | Streams op stdout/stderr via OTLP/HTTP to any OTel-compatible backend (Splunk via Splunk OTel Collector, Datadog, Honeycomb, Sumo, Loki, CloudWatch, ...). | Customers who already run an OTel Collector or want vendor portability. One config swap = different backend. |
 | [`tee.TeeComputeLogManager`](tee/) | Composes N inner CLMs. Fan-out writes, first-success reads. | Sending to multiple destinations from one `dagster.yaml`. Common case: Splunk + Dagster+. |
 
-Coming soon:
+### HEC direct vs OTLP — which Splunk path?
 
-| Manager | What it'll do |
-|---|---|
-| `otlp.OtlpComputeLogManager` | OTLP/HTTP logs — works against any OTel Collector. Targets Splunk (via Splunk OTel Collector), Datadog, Honeycomb, Sumo, etc. through one wire protocol. |
+Both target Splunk. Different ergonomics:
+
+| | HEC direct ([`splunk/`](splunk/)) | OTLP ([`otlp/`](otlp/)) → Splunk OTel Collector |
+|---|---|---|
+| Hops | Dagster → Splunk | Dagster → Collector → Splunk |
+| Setup | HEC token + endpoint | Operate an OTel Collector |
+| Reliability | Splunk down = events drop | Collector usually buffers + retries |
+| Vendor portability | Splunk-only | Multi-vendor (Splunk, Datadog, Honeycomb, Sumo, Loki, CloudWatch, ...) |
+| Field mapping | Direct → Splunk fields | Collector translates OTel semantic conventions |
+| Splunk's current docs | Still supported, mature | "Modern recommended path" |
+
+**Use HEC** if Splunk is your only observability backend and adding an OTel Collector is unwelcome ops surface. **Use OTLP** if you already run a Collector for app traces/metrics, or want to keep `dagster.yaml` portable across vendors. They coexist cleanly — Tee can write to both at once if you want belt-and-suspenders.
 
 ## How this differs from the `audit_logs_to_*` sinks
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dagster-community-components"
-version = "0.10.16"
+version = "0.10.17"
 description = "Community-maintained Dagster components — ingestion, transforms, IO managers, sensors, sinks, resources, and more."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -81,8 +81,13 @@ include = [
     "/tools",
 ]
 
-# Optional extras — the Splunk path needs `requests`. Most environments
-# already have it, but minimal images can `pip install
-# dagster-community-components[splunk]` to pull it explicitly.
+# Optional extras — Splunk + OTLP compute log managers need `requests`.
+# Most environments already have it, but minimal images can pull it
+# explicitly via these extras:
+#   pip install dagster-community-components[splunk]
+#   pip install dagster-community-components[otlp]
+#   pip install dagster-community-components[compute-log-managers]
 [project.optional-dependencies]
 splunk = ["requests>=2.28"]
+otlp = ["requests>=2.28"]
+compute-log-managers = ["requests>=2.28"]

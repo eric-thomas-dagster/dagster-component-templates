@@ -1,0 +1,51 @@
+# OTLP/HTTP compute log manager — ships op stdout/stderr to any OTel
+# Collector or OTLP-compatible backend (Splunk via Splunk OTC, Datadog
+# OTel ingest, Honeycomb, Sumo, Loki via OTel, CloudWatch via OTel, ...).
+#
+# Drop into dagster.yaml. Restart the Dagster daemon, webserver, and
+# any user-code containers to apply.
+
+compute_logs:
+  module: dagster_community_components.compute_log_managers.otlp
+  class: OtlpComputeLogManager
+  config:
+    # Base URL — /v1/logs is appended. Three common shapes:
+    #   - Local OTel Collector:  http://otel-collector.svc:4318
+    #   - Honeycomb direct:       https://api.honeycomb.io
+    #   - Datadog OTel ingest:    https://otlp-intake.logs.datadoghq.com
+    otlp_endpoint: http://otel-collector.svc:4318
+
+    # Auth headers — vendor-specific:
+    #   Honeycomb:  x-honeycomb-team / x-honeycomb-dataset
+    #   Datadog:    DD-API-KEY
+    #   Splunk OTC: usually no auth (intra-cluster)
+    otlp_headers:
+      x-honeycomb-team:
+        env: HONEYCOMB_API_KEY
+      x-honeycomb-dataset: dagster_compute_logs
+
+    # Resource attributes — show up on every log line in the destination.
+    service_name: dagster
+    location_label: prod-east
+
+    # UI deep-link template. {run_id} / {step_key} / {io_type} / {location} /
+    # {service} placeholders supported. Leave unset for no deep-link.
+    display_url_template: "https://ui.honeycomb.io/acme/datasets/dagster_compute_logs?query=dagster.run_id%3D{run_id}"
+
+    # OTel severity numbers per spec (1-24): 9=INFO, 13=WARN, 17=ERROR.
+    # Default: stdout→INFO, stderr→WARN (NOT ERROR — Dagster doesn't
+    # distinguish app errors from operational stderr).
+    severity_stdout: 9
+    severity_stderr: 13
+
+    verify_ssl: true
+    batch_size: 100
+    request_timeout_seconds: 30
+    skip_empty_files: false
+
+    # Local capture dir — used for in-flight subscription streaming
+    # and the UI's "logs at <url>" stub.
+    # local_dir: /tmp/dagster_compute_logs
+
+    # Partial-upload interval for long-running ops (omit for upload-on-finish).
+    upload_interval: 30

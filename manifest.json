@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-05-28",
+  "last_updated": "2026-06-04",
   "components": [
     {
       "id": "ab_controls",
@@ -4473,6 +4473,41 @@
       }
     },
     {
+      "id": "dagster_runs_to_otlp_sensor",
+      "name": "Dagster Runs \u2192 OTLP Sensor",
+      "category": "sensor",
+      "description": "Push Dagster run lifecycle events (success + failure) as OTLP/HTTP log records to any OTel-compatible backend (Splunk via Splunk OTC, Datadog, Honeycomb, Sumo, Loki via OTC).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/dagster_runs_to_otlp_sensor",
+      "tags": [
+        "sensor",
+        "telemetry",
+        "otlp",
+        "opentelemetry",
+        "honeycomb",
+        "datadog",
+        "splunk",
+        "sumo",
+        "observability"
+      ],
+      "vendor": "OpenTelemetry",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_otlp_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_otlp_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_otlp_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_otlp_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_otlp_sensor/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-04"
+      }
+    },
+    {
       "id": "dagster_runs_to_prometheus_sensor",
       "name": "Dagster Runs \u2192 Prometheus Sensor",
       "category": "sensor",
@@ -4502,6 +4537,37 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-28"
+      }
+    },
+    {
+      "id": "dagster_runs_to_splunk_hec_sensor",
+      "name": "Dagster Runs \u2192 Splunk HEC Sensor",
+      "category": "sensor",
+      "description": "Push Dagster run lifecycle events (success + failure) directly to Splunk via HTTP Event Collector (HEC). One hop, no OTel Collector required.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/dagster_runs_to_splunk_hec_sensor",
+      "tags": [
+        "sensor",
+        "telemetry",
+        "splunk",
+        "hec",
+        "observability"
+      ],
+      "vendor": "Splunk",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_splunk_hec_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_splunk_hec_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_splunk_hec_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_splunk_hec_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_splunk_hec_sensor/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-04"
       }
     },
     {
@@ -24453,5 +24519,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 834
+  "total": 836
 }

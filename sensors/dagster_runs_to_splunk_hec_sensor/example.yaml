@@ -1,0 +1,10 @@
+type: dagster_component_templates.DagsterRunsToSplunkHecSensorComponent
+attributes:
+  sensor_name: dagster_runs_to_splunk
+  hec_url_env_var: SPLUNK_HEC_URL
+  hec_token_env_var: SPLUNK_HEC_TOKEN
+  index: dagster
+  sourcetype: dagster:run_event
+  source: dagster
+  location_label: prod-east
+  verify_ssl: true

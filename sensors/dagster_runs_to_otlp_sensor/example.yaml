@@ -1,0 +1,7 @@
+type: dagster_component_templates.DagsterRunsToOtlpSensorComponent
+attributes:
+  sensor_name: dagster_runs_to_otlp
+  otlp_endpoint_env_var: OTLP_LOGS_ENDPOINT
+  otlp_headers_env_var: OTLP_HEADERS
+  service_name: dagster
+  location_label: prod-east

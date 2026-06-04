@@ -171,7 +171,7 @@ class SplunkComputeLogManager(TruncatingCloudStorageComputeLogManager, Configura
         self._session = None
 
         # Subscription manager — polls local files for live UI streaming.
-        from dagster._core.storage.local_compute_log_manager import (
+        from dagster._core.storage.cloud_storage_compute_log_manager import (
             PollingComputeLogSubscriptionManager,
         )
         self._subscription_manager = PollingComputeLogSubscriptionManager(self)
@@ -368,7 +368,9 @@ class SplunkComputeLogManager(TruncatingCloudStorageComputeLogManager, Configura
 
     @staticmethod
     def _key_tuple(log_key: Sequence[str], io_type: ComputeIOType, partial: bool) -> tuple:
-        return ("/".join(log_key), int(io_type), bool(partial))
+        # ComputeIOType is an Enum (.value is "stdout"/"stderr") — use the
+        # value, not int(), since it's not an IntEnum.
+        return ("/".join(log_key), io_type.value, bool(partial))
 
     def _post_hec(self, body: str) -> None:
         """POST a batch of HEC events. Raises on non-200 — caller's caller

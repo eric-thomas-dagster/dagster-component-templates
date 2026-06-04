@@ -60,10 +60,12 @@ from dagster._core.storage.cloud_storage_compute_log_manager import (
     TruncatingCloudStorageComputeLogManager,
 )
 from dagster._core.storage.compute_log_manager import ComputeIOType
+from dagster._core.storage.cloud_storage_compute_log_manager import (
+    PollingComputeLogSubscriptionManager,
+)
 from dagster._core.storage.local_compute_log_manager import (
     IO_TYPE_EXTENSION,
     LocalComputeLogManager,
-    PollingComputeLogSubscriptionManager,
 )
 from dagster._serdes import ConfigurableClass, ConfigurableClassData
 from dagster._utils import ensure_dir
@@ -349,7 +351,9 @@ class OtlpComputeLogManager(TruncatingCloudStorageComputeLogManager, Configurabl
 
     @staticmethod
     def _key_tuple(log_key: Sequence[str], io_type: ComputeIOType, partial: bool) -> tuple:
-        return ("/".join(log_key), int(io_type), bool(partial))
+        # ComputeIOType is an Enum (.value is "stdout"/"stderr") — use the
+        # value, not int(), since it's not an IntEnum.
+        return ("/".join(log_key), io_type.value, bool(partial))
 
     def _build_envelope(self, lines, attrs, severity, severity_text):
         """Build one OTLP/HTTP logs envelope for a batch of lines.

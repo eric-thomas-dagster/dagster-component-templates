@@ -27,9 +27,27 @@ Inner managers **share Tee's `local_manager`** — Tee patches each inner's `_lo
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `managers` | list[dict] | required | Inner CLM configs. Each: `{module, class, config}`. |
-| `local_dir` | str (env) | system temp dir | Shared local capture directory. |
+| `local_dir` | str (env) | system temp dir | Shared local capture directory. See [About `local_dir`](#about-local_dir). |
 | `display_manager_index` | int | `0` | Which inner manager's URL the UI shows. |
 | `fail_on_partial_upload` | bool | `false` | If True, raise on any inner upload failure. |
+
+### About `local_dir`
+
+`local_dir` is where Dagster captures op stdout/stderr to disk *during* execution — the CLM reads from this path at step finish and ships to each inner destination (Splunk, OTLP, Dagster+, …). After upload the local file isn't load-bearing; each inner destination is the system of record.
+
+Defaults to the system temp directory (`/tmp` on Linux containers) when omitted. That default works fine in:
+
+- **Dagster+ Serverless** — containers are ephemeral but each has its own `/tmp` for the duration of the step
+- **Dagster+ Hybrid** — same: the user-code container's `/tmp` lives long enough for capture → upload
+- **OSS in K8s** — `/tmp` lives on the default `emptyDir` volume already
+- **Local `dg dev`** — `/tmp` on macOS / Linux
+
+Set it explicitly when you want either:
+
+- Compute log captures to survive a mid-step container restart (rare — point at a mounted persistent volume)
+- A dedicated directory for ops reasons (audit policy, cleanup automation, separate volume sizing)
+
+The Tee value is shared with every inner manager — Tee patches each inner's `_local_manager` at construction so there's a single source of truth on disk. Inner `local_dir` config is **ignored**.
 
 ## Example — Splunk + Dagster+
 

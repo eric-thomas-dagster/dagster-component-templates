@@ -1,0 +1,38 @@
+# Tee compute logs to multiple destinations. Drop into dagster.yaml.
+#
+# This example writes to BOTH Splunk and Dagster+'s CloudComputeLogManager.
+# The UI surfaces Splunk's "View in Splunk →" link (display_manager_index: 0).
+
+compute_logs:
+  module: dagster_community_components.compute_log_managers.tee
+  class: TeeComputeLogManager
+  config:
+    # Single source of truth for the local capture file. Every inner
+    # manager reads from here — Tee patches their _local_manager at
+    # construction so they all share this dir.
+    local_dir: /tmp/dagster_compute_logs
+
+    # Which inner manager's display URL the Dagster UI surfaces per step.
+    # 0 = first manager (Splunk in this example), 1 = second (Dagster+).
+    display_manager_index: 0
+
+    # Inner upload failures are logged + skipped by default — Splunk being
+    # down should not fail a Dagster run. Set fail_on_partial_upload: true
+    # for strict at-least-once semantics where any failure raises.
+    fail_on_partial_upload: false
+
+    managers:
+      - module: dagster_community_components.compute_log_managers.splunk
+        class: SplunkComputeLogManager
+        config:
+          hec_url: https://splunk.acme.com:8088/services/collector
+          hec_token:
+            env: SPLUNK_HEC_TOKEN
+          splunk_web_url: https://splunk.acme.com:8000
+          index: dagster
+          sourcetype: dagster:compute_log
+          # NB: local_dir on inner managers is IGNORED — Tee shares its own.
+
+      - module: dagster_cloud.storage.compute_logs
+        class: CloudComputeLogManager
+        config: {}    # Dagster+'s default config

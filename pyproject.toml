@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dagster-community-components"
-version = "0.10.15"
+version = "0.10.16"
 description = "Community-maintained Dagster components — ingestion, transforms, IO managers, sensors, sinks, resources, and more."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -60,6 +60,7 @@ packages = ["dagster_community_components"]
 "external_assets" = "dagster_community_components/external_assets"
 "integrations" = "dagster_community_components/integrations"
 "asset_checks" = "dagster_community_components/asset_checks"
+"compute_log_managers" = "dagster_community_components/compute_log_managers"
 "manifest.json" = "dagster_community_components/manifest.json"
 
 [tool.hatch.build.targets.sdist]
@@ -73,8 +74,15 @@ include = [
     "/external_assets",
     "/integrations",
     "/asset_checks",
+    "/compute_log_managers",
     "/manifest.json",
     "/README.md",
     "/LICENSE",
     "/tools",
 ]
+
+# Optional extras — the Splunk path needs `requests`. Most environments
+# already have it, but minimal images can `pip install
+# dagster-community-components[splunk]` to pull it explicitly.
+[project.optional-dependencies]
+splunk = ["requests>=2.28"]

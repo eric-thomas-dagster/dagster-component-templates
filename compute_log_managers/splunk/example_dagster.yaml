@@ -1,0 +1,30 @@
+# Drop this into your dagster.yaml to route op stdout/stderr to Splunk.
+# The HEC token MUST come from an env var — never commit it.
+#
+# Required env: SPLUNK_HEC_TOKEN (set on the user_code container, agent, daemon).
+
+compute_logs:
+  module: dagster_community_components.compute_log_managers.splunk
+  class: SplunkComputeLogManager
+  config:
+    hec_url: https://splunk.acme.com:8088/services/collector
+    hec_token:
+      env: SPLUNK_HEC_TOKEN
+    # Splunk Web base for the "View in Splunk →" deep-links rendered
+    # in the Dagster UI per step.
+    splunk_web_url: https://splunk.acme.com:8000
+    index: dagster
+    sourcetype: dagster:compute_log
+    source: dagster
+    host: prod-east
+    verify_ssl: true
+    # 100 events per HEC POST; tune up to ~1000 if your Splunk allows.
+    batch_size: 100
+    request_timeout_seconds: 30
+    skip_empty_files: false
+    # Local capture dir — used for the in-flight subscription
+    # streaming + the "logs in Splunk" stub Dagster UI shows.
+    # local_dir: /tmp/dagster_compute_logs
+    # Upload partial logs every N seconds for long-running ops
+    # (omit to only upload on step finish).
+    upload_interval: 30

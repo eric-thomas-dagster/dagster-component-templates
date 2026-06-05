@@ -1,0 +1,44 @@
+{
+  "component_type": "dagster_component_templates.GeminiAgentComponent",
+  "description": "Single-shot LLM agent with MCP tool support, using the Google Gen AI SDK directly (no LiteLLM dependency). Runs a tool-calling loop until the model returns a final answer or max_iterations.",
+  "category": "ai",
+  "icon": "si:googlegemini",
+  "x-dagster-io": {
+    "inputs": {"type": "none"},
+    "outputs": {"type": "dict", "description": "Agent run dict: {final_answer, iterations, tool_calls_made, tool_call_details, transcript, stopped_reason, model, mcp_servers}"},
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "prompt": {"type": "string", "label": "User Prompt", "required": true},
+    "system_prompt": {"type": "string", "label": "System Prompt", "required": false},
+    "model": {"type": "string", "label": "Model", "description": "Gemini model id (gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite, …).", "required": false, "default": "gemini-2.5-flash"},
+    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "required": false, "default": "GEMINI_API_KEY"},
+    "temperature": {"type": "number", "label": "Temperature", "required": false, "default": 0.0},
+    "max_output_tokens": {"type": "integer", "label": "Max Output Tokens", "required": false, "default": 2048},
+    "thinking_budget": {"type": "integer", "label": "Thinking Budget", "description": "Gemini 2.5+ thinking budget. Default 0 — thinking tokens come out of max_output_tokens and can silently truncate. Raise only if multi-step reasoning is required beyond the iteration loop.", "required": false, "default": 0},
+    "max_iterations": {"type": "integer", "label": "Max Iterations", "required": false, "default": 10},
+    "mcp_servers": {
+      "type": "array",
+      "label": "MCP Servers",
+      "required": false,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "type": {"type": "string", "enum": ["stdio", "http", "sse"], "default": "stdio"},
+          "command": {"type": "array", "items": {"type": "string"}},
+          "url": {"type": "string"},
+          "env": {"type": "object"},
+          "headers": {"type": "object"},
+          "headers_env": {"type": "object"}
+        }
+      }
+    },
+    "group_name": {"type": "string", "required": false},
+    "description": {"type": "string", "required": false},
+    "owners": {"type": "array", "required": false},
+    "asset_tags": {"type": "object", "required": false},
+    "deps": {"type": "array", "required": false}
+  }
+}

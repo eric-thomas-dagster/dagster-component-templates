@@ -27,10 +27,12 @@
         "type": "object",
         "properties": {
           "name": {"type": "string", "description": "Tool-name prefix."},
-          "type": {"type": "string", "enum": ["stdio", "sse"], "default": "stdio"},
+          "type": {"type": "string", "enum": ["stdio", "http", "sse"], "default": "stdio"},
           "command": {"type": "array", "items": {"type": "string"}, "description": "stdio: [executable, ...args]"},
-          "url": {"type": "string", "description": "sse: full URL of the MCP SSE endpoint"},
-          "env": {"type": "object", "description": "stdio: extra env vars for the subprocess"}
+          "url": {"type": "string", "description": "http / sse: full URL of the MCP endpoint"},
+          "env": {"type": "object", "description": "stdio: extra env vars for the subprocess"},
+          "headers": {"type": "object", "description": "http / sse: literal HTTP headers (avoid secrets — use headers_env)"},
+          "headers_env": {"type": "object", "description": "http / sse: map of header_name → env_var_name; header value is read from the env var at materialization time"}
         }
       }
     },

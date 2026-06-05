@@ -1,0 +1,73 @@
+# Anthropic Agent
+
+> **🔑 Anthropic key required.** Set `ANTHROPIC_API_KEY` (or override `api_key_env_var`).
+
+Single-shot LLM agent with Model Context Protocol (MCP) tool support, using the **Anthropic SDK directly** — no LiteLLM dependency. Pick this when you're a Claude-only shop and want one less Python dep.
+
+## How it works
+
+Standard tool-calling loop, adapted to Anthropic's message shape:
+
+1. Connect to every MCP server in `mcp_servers` (stdio / streamable-http / sse).
+2. List tools from each, register with Anthropic as `[{name, description, input_schema}]` (prefixed by server name).
+3. Send the user prompt with `system` (top-level on Anthropic) + `tools`.
+4. Anthropic returns content blocks — some `text`, some `tool_use`. We dispatch every `tool_use` block to its MCP session.
+5. Tool results go back as a `role: user` message with `tool_result` content blocks (Anthropic's convention, *not* `role: tool`).
+6. Loop until the model returns text without any `tool_use`, or `max_iterations` is hit.
+
+## Output
+
+Identical shape across `litellm_agent` / `openai_agent` / `anthropic_agent` / `gemini_agent`:
+
+```python
+{
+    "final_answer": "...",
+    "iterations": 3,
+    "tool_calls_made": 2,
+    "tool_call_details": [...],
+    "transcript": [...],
+    "stopped_reason": "final_answer" | "max_iterations",
+    "model": "claude-haiku-4-5-20251001",
+    "mcp_servers": ["dgp"],
+}
+```
+
+## MCP transports
+
+Identical config to `openai_agent`:
+
+```yaml
+mcp_servers:
+  - name: fs
+    type: stdio
+    command: [npx, -y, "@modelcontextprotocol/server-filesystem", /tmp]
+
+  - name: dgp
+    type: http
+    url: https://mcp.agent.dagster.cloud/mcp/
+    headers:
+      Dagster-Cloud-Organization: my-org
+    headers_env:
+      Authorization: DAGSTER_PLUS_BEARER
+
+  - name: legacy
+    type: sse
+    url: http://localhost:3030/sse
+    headers:
+      X-Tenant: acme
+```
+
+## When to use vs `openai_agent` / `gemini_agent` / `litellm_agent`
+
+- **`anthropic_agent`** — Claude-only shop. `anthropic`+`mcp` deps only.
+- **`openai_agent`** — OpenAI / Azure OpenAI / OpenAI-compatible. `openai`+`mcp` deps only.
+- **`gemini_agent`** — Gemini-only. `google-generativeai`+`mcp` deps only.
+- **`litellm_agent`** — multi-vendor + model routing + fallbacks. `litellm`+`mcp` deps.
+
+## When NOT to use
+
+| Task | Right component |
+|---|---|
+| Per-row DataFrame enrichment via chat completion | `anthropic_llm` |
+| Per-row single tool/function call (no loop) | `litellm_function_calling` |
+| RAG over a corpus | `rag_pipeline` |

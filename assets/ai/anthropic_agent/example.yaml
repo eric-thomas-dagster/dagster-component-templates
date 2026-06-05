@@ -1,0 +1,21 @@
+type: dagster_component_templates.AnthropicAgentComponent
+attributes:
+  asset_name: dagster_plus_claude_agent
+  prompt: "Summarize the last 5 runs in this Dagster Cloud deployment."
+  system_prompt: "You are a Dagster Cloud operator assistant. Use the available tools precisely."
+
+  model: claude-haiku-4-5-20251001
+  api_key_env_var: ANTHROPIC_API_KEY
+  max_iterations: 8
+  max_tokens: 2048
+
+  mcp_servers:
+    - name: dgp
+      type: http
+      url: https://mcp.agent.dagster.cloud/mcp/
+      headers:
+        Dagster-Cloud-Organization: my-org
+      headers_env:
+        Authorization: DAGSTER_PLUS_BEARER
+
+  group_name: ai

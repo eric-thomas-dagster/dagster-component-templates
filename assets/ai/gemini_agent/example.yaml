@@ -1,0 +1,26 @@
+type: dagster_component_templates.GeminiAgentComponent
+attributes:
+  asset_name: dagster_plus_gemini_agent
+  prompt: "Summarize the last 5 runs in this Dagster Cloud deployment."
+  system_prompt: "You are a Dagster Cloud operator assistant. Use the available tools precisely."
+
+  model: gemini-2.5-flash
+  api_key_env_var: GEMINI_API_KEY
+  max_iterations: 8
+  max_output_tokens: 2048
+
+  # Gemini-2.5: thinking tokens come out of max_output_tokens.
+  # Keep at 0 for short structured outputs; raise (e.g. 1024) for multi-step
+  # planning if the iteration loop alone isn't enough.
+  thinking_budget: 0
+
+  mcp_servers:
+    - name: dgp
+      type: http
+      url: https://mcp.agent.dagster.cloud/mcp/
+      headers:
+        Dagster-Cloud-Organization: my-org
+      headers_env:
+        Authorization: DAGSTER_PLUS_BEARER
+
+  group_name: ai

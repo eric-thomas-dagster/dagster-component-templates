@@ -1,0 +1,44 @@
+{
+  "component_type": "dagster_component_templates.AnthropicAgentComponent",
+  "description": "Single-shot LLM agent with MCP tool support, using the Anthropic SDK directly (no LiteLLM dependency). Runs a tool-calling loop until the model returns a final answer or max_iterations.",
+  "category": "ai",
+  "icon": "si:anthropic",
+  "x-dagster-io": {
+    "inputs": {"type": "none"},
+    "outputs": {"type": "dict", "description": "Agent run dict: {final_answer, iterations, tool_calls_made, tool_call_details, transcript, stopped_reason, model, mcp_servers}"},
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "prompt": {"type": "string", "label": "User Prompt", "required": true},
+    "system_prompt": {"type": "string", "label": "System Prompt", "required": false},
+    "model": {"type": "string", "label": "Model", "description": "Anthropic model id (claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5-20251001, …).", "required": false, "default": "claude-haiku-4-5-20251001"},
+    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "required": false, "default": "ANTHROPIC_API_KEY"},
+    "base_url_env_var": {"type": "string", "label": "Base URL Env Var", "required": false},
+    "temperature": {"type": "number", "label": "Temperature", "required": false, "default": 0.0},
+    "max_tokens": {"type": "integer", "label": "Max Tokens", "required": false, "default": 2048},
+    "max_iterations": {"type": "integer", "label": "Max Iterations", "required": false, "default": 10},
+    "mcp_servers": {
+      "type": "array",
+      "label": "MCP Servers",
+      "required": false,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "type": {"type": "string", "enum": ["stdio", "http", "sse"], "default": "stdio"},
+          "command": {"type": "array", "items": {"type": "string"}},
+          "url": {"type": "string"},
+          "env": {"type": "object"},
+          "headers": {"type": "object"},
+          "headers_env": {"type": "object"}
+        }
+      }
+    },
+    "group_name": {"type": "string", "required": false},
+    "description": {"type": "string", "required": false},
+    "owners": {"type": "array", "required": false},
+    "asset_tags": {"type": "object", "required": false},
+    "deps": {"type": "array", "required": false}
+  }
+}

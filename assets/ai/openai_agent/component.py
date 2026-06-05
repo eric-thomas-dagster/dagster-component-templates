@@ -1,12 +1,13 @@
-"""LiteLLM Agent Component.
+"""OpenAI Agent Component.
 
-Single-shot LLM agent that uses Model Context Protocol (MCP) servers as its
-tool layer. Materializes one agent run per asset materialization.
+Single-shot LLM agent with MCP tool support, using the OpenAI SDK directly
+(no LiteLLM dependency). For multi-vendor support via LiteLLM, see
+LiteLLMAgentComponent.
 
 The agent loop is the standard tool-calling shape:
   1. List tools from every configured MCP server (prefix tool names by
      server name so cross-server collisions are impossible).
-  2. Send the system + user prompt to the LLM with all tool defs.
+  2. Send the system + user prompt to OpenAI with all tool defs.
   3. If the model emits tool calls, dispatch each to the owning MCP
      session, append the result as a `role: tool` message, and loop.
   4. Stop when the model returns a plain text response or
@@ -43,47 +44,46 @@ class MCPServerSpec(dg.Model, dg.Resolvable):
     )
     command: Optional[List[str]] = Field(
         default=None,
-        description="stdio only: [executable, ...args]. Example: ['npx', '-y', '@modelcontextprotocol/server-filesystem', '/tmp'].",
+        description="stdio only: [executable, ...args].",
     )
     url: Optional[str] = Field(
         default=None,
-        description="http / sse: full URL of the MCP endpoint. Example: 'https://mcp.agent.dagster.cloud/mcp/'.",
+        description="http / sse: full URL of the MCP endpoint.",
     )
     env: Optional[Dict[str, str]] = Field(
         default=None,
-        description="stdio only: extra environment variables to set on the subprocess.",
+        description="stdio only: extra env vars for the subprocess.",
     )
     headers: Optional[Dict[str, str]] = Field(
         default=None,
-        description="http / sse: literal HTTP headers (don't put secrets here — use `headers_env` instead).",
+        description="http / sse: literal HTTP headers (don't put secrets here — use `headers_env`).",
     )
     headers_env: Optional[Dict[str, str]] = Field(
         default=None,
-        description="http / sse: map of header_name → env_var_name; the header value is read from the named env var at materialization time. Use this for tokens (e.g. {'Authorization': 'DAGSTER_PLUS_TOKEN'} where DAGSTER_PLUS_TOKEN env var holds 'Bearer xyz123').",
+        description="http / sse: map of header_name → env_var_name; the header value is read from the named env var at materialization time.",
     )
 
 
-class LiteLLMAgentComponent(Component, Model, Resolvable):
-    """Single-shot LiteLLM agent with MCP tool support.
+class OpenAIAgentComponent(Component, Model, Resolvable):
+    """Single-shot agent using the OpenAI SDK directly + MCP tools.
 
     Example:
         ```yaml
-        type: dagster_component_templates.LiteLLMAgentComponent
+        type: dagster_component_templates.OpenAIAgentComponent
         attributes:
-          asset_name: filesystem_agent
-          prompt: "Find the three largest files in /tmp and return their paths."
-          system_prompt: "You are a helpful filesystem assistant."
+          asset_name: dagster_plus_agent
+          prompt: "Summarize the last 5 runs in this Dagster+ deployment."
           model: gpt-4o-mini
           api_key_env_var: OPENAI_API_KEY
-          max_iterations: 10
+          max_iterations: 8
           mcp_servers:
-            - name: fs
-              type: stdio
-              command:
-                - npx
-                - -y
-                - "@modelcontextprotocol/server-filesystem"
-                - /tmp
+            - name: dgp
+              type: http
+              url: https://mcp.agent.dagster.cloud/mcp/
+              headers:
+                Dagster-Cloud-Organization: my-org
+              headers_env:
+                Authorization: DAGSTER_PLUS_BEARER
         ```
     """
 
@@ -98,15 +98,19 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
     model_id: str = Field(
         alias="model",
         default="gpt-4o-mini",
-        description="LiteLLM model string (e.g. gpt-4o, claude-haiku-4-5-20251001, gemini/gemini-2.5-flash).",
+        description="OpenAI model id (e.g. gpt-4o, gpt-4o-mini, gpt-4-turbo, o1-mini).",
     )
-    api_key_env_var: Optional[str] = Field(
-        default=None,
-        description="Env var holding the provider API key.",
+    api_key_env_var: str = Field(
+        default="OPENAI_API_KEY",
+        description="Env var holding the OpenAI API key.",
     )
-    api_base_env_var: Optional[str] = Field(
+    base_url_env_var: Optional[str] = Field(
         default=None,
-        description="Env var holding a custom API base URL (proxies, self-hosted).",
+        description="Optional env var holding a custom base_url (Azure OpenAI / proxies / OpenAI-compatible endpoints).",
+    )
+    organization_env_var: Optional[str] = Field(
+        default=None,
+        description="Optional env var holding the OpenAI organization id.",
     )
     temperature: float = Field(default=0.0, description="Sampling temperature.")
     max_tokens: int = Field(default=2048, description="Max tokens per model call.")
@@ -118,7 +122,7 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
     )
     mcp_servers: List[MCPServerSpec] = Field(
         default_factory=list,
-        description="List of MCP servers to expose as tools. Empty list = no tools (chat-only).",
+        description="List of MCP servers to expose as tools.",
     )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
@@ -135,7 +139,8 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
         system_prompt = self.system_prompt
         model = self.model_id
         api_key_env_var = self.api_key_env_var
-        api_base_env_var = self.api_base_env_var
+        base_url_env_var = self.base_url_env_var
+        organization_env_var = self.organization_env_var
         temperature = self.temperature
         max_tokens = self.max_tokens
         max_iterations = self.max_iterations
@@ -145,7 +150,7 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
         owners = self.owners or []
 
         _all_tags = dict(self.asset_tags or {})
-        _all_tags["dagster/kind/llm"] = ""
+        _all_tags["dagster/kind/openai"] = ""
         _all_tags["dagster/kind/agent"] = ""
 
         @asset(
@@ -166,7 +171,8 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
                     system_prompt=system_prompt,
                     model=model,
                     api_key_env_var=api_key_env_var,
-                    api_base_env_var=api_base_env_var,
+                    base_url_env_var=base_url_env_var,
+                    organization_env_var=organization_env_var,
                     temperature=temperature,
                     max_tokens=max_tokens,
                     max_iterations=max_iterations,
@@ -190,15 +196,12 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
 
 
 def _resolve_headers(cfg: Dict[str, Any], server_name: str) -> Dict[str, str]:
-    """Build the headers dict from literal `headers` + env-backed `headers_env`."""
     import os
 
     headers: Dict[str, str] = {}
-    literal = cfg.get("headers") or {}
-    for k, v in literal.items():
+    for k, v in (cfg.get("headers") or {}).items():
         headers[k] = str(v)
-    env_backed = cfg.get("headers_env") or {}
-    for header_name, env_var in env_backed.items():
+    for header_name, env_var in (cfg.get("headers_env") or {}).items():
         val = os.environ.get(env_var)
         if val is None:
             raise ValueError(
@@ -214,30 +217,41 @@ async def _run_agent(
     prompt: str,
     system_prompt: Optional[str],
     model: str,
-    api_key_env_var: Optional[str],
-    api_base_env_var: Optional[str],
+    api_key_env_var: str,
+    base_url_env_var: Optional[str],
+    organization_env_var: Optional[str],
     temperature: float,
     max_tokens: int,
     max_iterations: int,
     mcp_servers: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
-    """Run the agent loop. Returns the final result dict."""
     import json
     import os
     from contextlib import AsyncExitStack
 
     try:
-        import litellm
+        from openai import AsyncOpenAI
     except ImportError:
-        raise ImportError("pip install 'litellm>=1.30.0'")
+        raise ImportError("pip install 'openai>=1.30.0'")
 
-    # Connect to every MCP server. Use one AsyncExitStack so cleanup happens
-    # even if any single connection fails mid-startup.
+    api_key = os.environ.get(api_key_env_var)
+    if not api_key:
+        raise RuntimeError(f"OpenAI API key env var {api_key_env_var!r} is not set.")
+    client_kwargs: Dict[str, Any] = {"api_key": api_key}
+    if base_url_env_var:
+        bu = os.environ.get(base_url_env_var)
+        if bu:
+            client_kwargs["base_url"] = bu
+    if organization_env_var:
+        org = os.environ.get(organization_env_var)
+        if org:
+            client_kwargs["organization"] = org
+
+    client = AsyncOpenAI(**client_kwargs)
+
     async with AsyncExitStack() as stack:
-        # tool_name (prefixed) → (session, tool_object, original_name)
         tool_index: Dict[str, Any] = {}
-        # OpenAI function-calling format for litellm.completion(tools=…)
-        llm_tools: List[Dict[str, Any]] = []
+        openai_tools: List[Dict[str, Any]] = []
         servers_used: List[str] = []
 
         for cfg in mcp_servers:
@@ -251,9 +265,7 @@ async def _run_agent(
                 if not cmd:
                     raise ValueError(f"MCP server '{name}' is stdio but command is empty.")
                 params = StdioServerParameters(
-                    command=cmd[0],
-                    args=list(cmd[1:]),
-                    env=cfg.get("env"),
+                    command=cmd[0], args=list(cmd[1:]), env=cfg.get("env")
                 )
                 log.info(f"[mcp:{name}] starting stdio server: {' '.join(cmd)}")
                 read, write = await stack.enter_async_context(stdio_client(params))
@@ -267,13 +279,11 @@ async def _run_agent(
                 if not url:
                     raise ValueError(f"MCP server '{name}' is http but url is empty.")
                 headers = _resolve_headers(cfg, name)
-                # Don't log header values — they may contain bearer tokens.
                 log.info(
                     f"[mcp:{name}] connecting via streamable-http: {url}"
                     + (f" (headers: {sorted(headers.keys())})" if headers else "")
                 )
-                # streamablehttp_client returns a 3-tuple — we only need read/write.
-                read, write, _get_session_id = await stack.enter_async_context(
+                read, write, _sid = await stack.enter_async_context(
                     streamablehttp_client(url, headers=headers or None)
                 )
                 session = await stack.enter_async_context(ClientSession(read, write))
@@ -302,7 +312,7 @@ async def _run_agent(
             for tool in tools_response.tools:
                 prefixed = f"{name}__{tool.name}"
                 tool_index[prefixed] = (session, tool, tool.name)
-                llm_tools.append(
+                openai_tools.append(
                     {
                         "type": "function",
                         "function": {
@@ -315,45 +325,40 @@ async def _run_agent(
             servers_used.append(name)
             log.info(f"[mcp:{name}] discovered {len(tools_response.tools)} tools")
 
-        # Build the initial message list.
         messages: List[Dict[str, Any]] = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
-        completion_kwargs: Dict[str, Any] = {
-            "model": model,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
-        if api_key_env_var:
-            completion_kwargs["api_key"] = os.environ[api_key_env_var]
-        if api_base_env_var:
-            completion_kwargs["api_base"] = os.environ[api_base_env_var]
-
         tool_call_details: List[Dict[str, Any]] = []
         iterations = 0
         stopped_reason = "max_iterations"
+        last_assistant_content: Optional[str] = None
 
         for i in range(max_iterations):
             iterations = i + 1
-            kwargs = dict(completion_kwargs)
-            if llm_tools:
-                kwargs["tools"] = llm_tools
+            kwargs: Dict[str, Any] = {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+            if openai_tools:
+                kwargs["tools"] = openai_tools
 
-            response = await litellm.acompletion(messages=messages, **kwargs)
-            assistant_msg = response.choices[0].message
-            # Convert to dict for the next message list. LiteLLM message objects
-            # have a `.model_dump()` shim on newer versions, else `.dict()`.
+            response = await client.chat.completions.create(**kwargs)
+            msg = response.choices[0].message
             try:
-                assistant_dict = assistant_msg.model_dump(exclude_none=True)
+                msg_dict = msg.model_dump(exclude_none=True)
             except AttributeError:
-                assistant_dict = assistant_msg.dict(exclude_none=True)
-            # OpenAI requires `role: assistant`
-            assistant_dict.setdefault("role", "assistant")
-            messages.append(assistant_dict)
+                msg_dict = msg.dict(exclude_none=True)
+            msg_dict.setdefault("role", "assistant")
+            messages.append(msg_dict)
 
-            tool_calls = assistant_msg.tool_calls or []
+            if msg.content:
+                last_assistant_content = msg.content
+
+            tool_calls = msg.tool_calls or []
             if not tool_calls:
                 stopped_reason = "final_answer"
                 break
@@ -371,19 +376,10 @@ async def _run_agent(
                     err = f"tool {fn_name!r} not registered with any MCP server"
                     log.warning(err)
                     messages.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tc.id,
-                            "content": f"Error: {err}",
-                        }
+                        {"role": "tool", "tool_call_id": tc.id, "content": f"Error: {err}"}
                     )
                     tool_call_details.append(
-                        {
-                            "iteration": iterations,
-                            "tool": fn_name,
-                            "args": fn_args,
-                            "error": err,
-                        }
+                        {"iteration": iterations, "tool": fn_name, "args": fn_args, "error": err}
                     )
                     continue
 
@@ -391,14 +387,10 @@ async def _run_agent(
                 log.info(f"[iter {iterations}] calling {fn_name} args={fn_args!r}")
                 try:
                     call_result = await session.call_tool(original_name, fn_args)
-                    # MCP returns a CallToolResult with .content (list of TextContent etc).
                     parts = []
                     for c in call_result.content:
                         text = getattr(c, "text", None)
-                        if text is not None:
-                            parts.append(text)
-                        else:
-                            parts.append(str(c))
+                        parts.append(text if text is not None else str(c))
                     tool_output = "\n".join(parts) if parts else "(empty)"
                     is_error = bool(getattr(call_result, "isError", False))
                 except Exception as e:  # noqa: BLE001
@@ -407,11 +399,7 @@ async def _run_agent(
                     log.warning(f"tool {fn_name} raised: {e}")
 
                 messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tc.id,
-                        "content": tool_output,
-                    }
+                    {"role": "tool", "tool_call_id": tc.id, "content": tool_output}
                 )
                 tool_call_details.append(
                     {
@@ -422,19 +410,9 @@ async def _run_agent(
                         "is_error": is_error,
                     }
                 )
-        else:
-            # for/else: hit when the loop exits via exhaustion, not break.
-            stopped_reason = "max_iterations"
-
-        final_answer = ""
-        # Walk backwards to find the last assistant text message.
-        for m in reversed(messages):
-            if m.get("role") == "assistant" and m.get("content"):
-                final_answer = m["content"]
-                break
 
         return {
-            "final_answer": final_answer,
+            "final_answer": last_assistant_content or "",
             "iterations": iterations,
             "tool_calls_made": len(tool_call_details),
             "tool_call_details": tool_call_details,

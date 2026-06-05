@@ -719,6 +719,34 @@
       }
     },
     {
+      "id": "anthropic_agent",
+      "name": "Anthropic Agent",
+      "category": "ai",
+      "description": "Single-shot LLM agent with Model Context Protocol (MCP) tool support, using the Anthropic SDK directly (no LiteLLM dep). Runs a tool-calling loop until the model returns a final answer or max_iterations.",
+      "path": "assets/ai/anthropic_agent",
+      "tags": [
+        "ai",
+        "llm",
+        "agent",
+        "mcp",
+        "tool-use",
+        "anthropic",
+        "claude"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_agent/schema.json",
+      "component_type": "dagster_component_templates.AnthropicAgentComponent",
+      "icon": "si:anthropic",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_agent/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_agent/requirements.txt",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/litellm_agent.md",
+        "last_validated": "2026-06-04"
+      }
+    },
+    {
       "id": "anthropic_llm",
       "name": "Anthropic Claude LLM",
       "category": "ai",
@@ -10193,6 +10221,34 @@
       }
     },
     {
+      "id": "gemini_agent",
+      "name": "Gemini Agent",
+      "category": "ai",
+      "description": "Single-shot LLM agent with Model Context Protocol (MCP) tool support, using the Google Gen AI SDK directly (no LiteLLM dep). Defaults thinking_budget=0 to avoid truncation; raise explicitly for multi-step reasoning per turn.",
+      "path": "assets/ai/gemini_agent",
+      "tags": [
+        "ai",
+        "llm",
+        "agent",
+        "mcp",
+        "tool-use",
+        "gemini",
+        "google"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_agent/schema.json",
+      "component_type": "dagster_component_templates.GeminiAgentComponent",
+      "icon": "si:googlegemini",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_agent/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_agent/requirements.txt",
+      "validation": {
+        "level": "code",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/litellm_agent.md",
+        "last_validated": "2026-06-04"
+      }
+    },
+    {
       "id": "gemini_llm",
       "name": "GeminiLLMComponent",
       "category": "ai",
@@ -15947,6 +16003,33 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/penguins.md",
         "last_validated": "2026-05-06"
+      }
+    },
+    {
+      "id": "openai_agent",
+      "name": "OpenAI Agent",
+      "category": "ai",
+      "description": "Single-shot LLM agent with Model Context Protocol (MCP) tool support, using the OpenAI SDK directly (no LiteLLM dep). Also works with Azure OpenAI and OpenAI-compatible endpoints. Runs a tool-calling loop until the model returns a final answer or max_iterations.",
+      "path": "assets/ai/openai_agent",
+      "tags": [
+        "ai",
+        "llm",
+        "agent",
+        "mcp",
+        "tool-use",
+        "openai"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_agent/schema.json",
+      "component_type": "dagster_component_templates.OpenAIAgentComponent",
+      "icon": "si:openai",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_agent/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_agent/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/litellm_agent.md",
+        "last_validated": "2026-06-04"
       }
     },
     {

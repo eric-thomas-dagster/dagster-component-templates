@@ -55,15 +55,30 @@ Each entry in `mcp_servers` is one server connection:
     DEBUG: "1"
 ```
 
-**sse** — connects to a remote MCP server over HTTP:
+**http** — streamable-HTTP, the modern MCP transport (what `claude mcp add --transport http` uses):
+
+```yaml
+- name: dgp
+  type: http
+  url: https://mcp.agent.dagster.cloud/mcp/
+  headers:
+    Dagster-Cloud-Organization: my-org
+  headers_env:                # value read from env at materialization time
+    Authorization: DAGSTER_PLUS_BEARER    # env var must hold "Bearer xyz123"
+```
+
+Use `headers` for non-secret values, `headers_env` for any header carrying a secret.
+
+**sse** — legacy server-sent events (kept for compatibility):
 
 ```yaml
 - name: time
   type: sse
   url: "http://localhost:3030/sse"
+  headers: { X-Tenant: acme }
 ```
 
-Reference of public MCP servers: [github.com/modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers). Includes filesystem, git, GitHub, GitLab, Postgres, SQLite, Brave Search, Puppeteer, Slack, and more.
+Reference of public MCP servers: [github.com/modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers). Includes filesystem, git, GitHub, GitLab, Postgres, SQLite, Brave Search, Puppeteer, Slack, and more. The Dagster+ MCP at `mcp.agent.dagster.cloud/mcp/` exposes 34 tools across runs, assets, deployments, alerts, issues, and metrics.
 
 ---
 
@@ -75,4 +90,7 @@ Reference of public MCP servers: [github.com/modelcontextprotocol/servers](https
 | Per-row structured-output extraction with Pydantic | `litellm_structured_output` |
 | Per-row single tool call (no loop) | `litellm_function_calling` |
 | Embed a corpus + retrieve + generate | `rag_pipeline` |
-| **Single agent run that uses tools to answer one question** | **`litellm_agent` ← this component** |
+| **Single agent run that uses tools to answer one question, multi-vendor** | **`litellm_agent` ← this component** |
+| OpenAI-only agent (skip the LiteLLM dep) | `openai_agent` |
+| Anthropic-only agent (skip the LiteLLM dep) | `anthropic_agent` |
+| Gemini-only agent (skip the LiteLLM dep) | `gemini_agent` |

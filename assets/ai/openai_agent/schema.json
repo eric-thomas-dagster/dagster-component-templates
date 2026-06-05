@@ -1,0 +1,45 @@
+{
+  "component_type": "dagster_component_templates.OpenAIAgentComponent",
+  "description": "Single-shot LLM agent with Model Context Protocol (MCP) tool support, using the OpenAI SDK directly (no LiteLLM dependency). Runs a tool-calling loop until the model returns a final answer or max_iterations is hit.",
+  "category": "ai",
+  "icon": "si:openai",
+  "x-dagster-io": {
+    "inputs": {"type": "none"},
+    "outputs": {"type": "dict", "description": "Agent run dict: {final_answer, iterations, tool_calls_made, tool_call_details, transcript, stopped_reason, model, mcp_servers}"},
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "prompt": {"type": "string", "label": "User Prompt", "required": true},
+    "system_prompt": {"type": "string", "label": "System Prompt", "required": false},
+    "model": {"type": "string", "label": "Model", "description": "OpenAI model id (gpt-4o, gpt-4o-mini, gpt-4-turbo, o1-mini, …).", "required": false, "default": "gpt-4o-mini"},
+    "api_key_env_var": {"type": "string", "label": "API Key Env Var", "required": false, "default": "OPENAI_API_KEY"},
+    "base_url_env_var": {"type": "string", "label": "Base URL Env Var", "description": "Optional — for Azure OpenAI, proxies, OpenAI-compatible endpoints.", "required": false},
+    "organization_env_var": {"type": "string", "label": "Organization Env Var", "required": false},
+    "temperature": {"type": "number", "label": "Temperature", "required": false, "default": 0.0},
+    "max_tokens": {"type": "integer", "label": "Max Tokens", "required": false, "default": 2048},
+    "max_iterations": {"type": "integer", "label": "Max Iterations", "required": false, "default": 10},
+    "mcp_servers": {
+      "type": "array",
+      "label": "MCP Servers",
+      "required": false,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "type": {"type": "string", "enum": ["stdio", "http", "sse"], "default": "stdio"},
+          "command": {"type": "array", "items": {"type": "string"}},
+          "url": {"type": "string"},
+          "env": {"type": "object"},
+          "headers": {"type": "object"},
+          "headers_env": {"type": "object"}
+        }
+      }
+    },
+    "group_name": {"type": "string", "label": "Group", "required": false},
+    "description": {"type": "string", "label": "Description", "required": false},
+    "owners": {"type": "array", "label": "Owners", "required": false},
+    "asset_tags": {"type": "object", "label": "Tags", "required": false},
+    "deps": {"type": "array", "label": "Lineage-Only Deps", "required": false}
+  }
+}

@@ -1,0 +1,23 @@
+type: dagster_component_templates.OpenAIAgentComponent
+attributes:
+  asset_name: dagster_plus_agent_run
+  prompt: "List the 5 most recent runs in this Dagster Cloud deployment. Return their run_id and status."
+  system_prompt: "You are a Dagster Cloud operator assistant. Use the available tools precisely."
+
+  model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  max_iterations: 8
+
+  # MCP via streamable-HTTP — bearer token comes from env so it's never in YAML.
+  # `headers_env: {Authorization: DAGSTER_PLUS_BEARER}` expects the env var to
+  # hold the full header value, e.g. "Bearer user:..."
+  mcp_servers:
+    - name: dgp
+      type: http
+      url: https://mcp.agent.dagster.cloud/mcp/
+      headers:
+        Dagster-Cloud-Organization: my-org
+      headers_env:
+        Authorization: DAGSTER_PLUS_BEARER
+
+  group_name: ai

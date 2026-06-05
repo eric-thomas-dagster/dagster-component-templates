@@ -13154,8 +13154,8 @@
       "icon": "ArrowRightLeft",
       "validation": {
         "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lineage_catalogs.md",
-        "last_validated": "2026-05-06"
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lineage_to_datahub.md",
+        "last_validated": "2026-06-04"
       }
     },
     {

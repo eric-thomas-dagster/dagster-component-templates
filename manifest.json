@@ -13383,6 +13383,33 @@
       }
     },
     {
+      "id": "litellm_agent",
+      "name": "LiteLLM Agent",
+      "category": "ai",
+      "description": "Single-shot LLM agent with Model Context Protocol (MCP) tool support, via LiteLLM (100+ providers). Runs a tool-calling loop until the model returns a final answer or max_iterations is hit.",
+      "path": "assets/ai/litellm_agent",
+      "tags": [
+        "ai",
+        "llm",
+        "agent",
+        "mcp",
+        "tool-use",
+        "litellm"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_agent/schema.json",
+      "component_type": "dagster_component_templates.LiteLLMAgentComponent",
+      "icon": "Bot",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_agent/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_agent/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/litellm_agent.md",
+        "last_validated": "2026-06-04"
+      }
+    },
+    {
       "id": "litellm_audio_transcription",
       "name": "Litellm Audio Transcription",
       "category": "ai",

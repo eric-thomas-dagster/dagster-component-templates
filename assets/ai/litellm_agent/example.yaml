@@ -1,0 +1,32 @@
+type: dagster_component_templates.LiteLLMAgentComponent
+attributes:
+  asset_name: filesystem_agent_run
+  prompt: "List the three largest files in /tmp by size and return their paths."
+  system_prompt: "You are a helpful filesystem assistant. Use the available tools to answer questions about the local filesystem precisely."
+
+  # LiteLLM routes to 100+ providers — change `model` + `api_key_env_var` to switch:
+  #   model: gpt-4o-mini                          api_key_env_var: OPENAI_API_KEY
+  #   model: claude-haiku-4-5-20251001            api_key_env_var: ANTHROPIC_API_KEY
+  #   model: gemini/gemini-2.5-flash              api_key_env_var: GEMINI_API_KEY
+  model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+
+  max_iterations: 10
+  temperature: 0.0
+  max_tokens: 2048
+
+  mcp_servers:
+    - name: fs
+      type: stdio
+      command:
+        - npx
+        - -y
+        - "@modelcontextprotocol/server-filesystem"
+        - /tmp
+    # Multi-server example — uncomment to add a second MCP server.
+    # Tool names get prefixed by `name` so collisions across servers are impossible.
+    # - name: time
+    #   type: sse
+    #   url: "http://localhost:3030/sse"
+
+  group_name: ai

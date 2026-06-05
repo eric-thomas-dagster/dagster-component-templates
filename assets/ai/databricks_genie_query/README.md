@@ -1,0 +1,74 @@
+# Databricks Genie Query
+
+> **🔑 Databricks workspace required.** Needs a Databricks workspace with [AI/BI Genie](https://docs.databricks.com/en/genie/index.html) enabled and an existing Genie space. Set `DATABRICKS_HOST` + `DATABRICKS_TOKEN` (PAT or OAuth bearer).
+
+Natural-language → SQL → result via Databricks AI/BI Genie spaces. The component starts a Genie conversation, polls until the message completes, fetches the generated SQL + query result, and materializes the rows as a Dagster DataFrame asset.
+
+## Two modes
+
+| Mode | Config | Use case |
+|---|---|---|
+| **Single question** | `question: "..."` (no `upstream_asset_key`) | One Genie call per materialization. Pair with `partition_type: daily/weekly/monthly` and use `{partition_key}` in the question for scheduled summaries. |
+| **Per-row** | `upstream_asset_key: ...` + `question_column: ...` | For each row in upstream DataFrame, ask Genie that row's question. Output appends `sql`, `result`, `genie_message_id` columns. |
+
+## How it works
+
+1. `POST /api/2.0/genie/spaces/<space_id>/start-conversation` with the NL question.
+2. Poll `GET /api/2.0/genie/spaces/<space_id>/conversations/<conv_id>/messages/<msg_id>` every `poll_interval_seconds` until `status: COMPLETED` (or `FAILED` / timeout).
+3. Walk the message's `attachments`: pull `query.query_text` for the generated SQL, then `GET .../attachments/<id>/query-result` for the executed rows.
+4. Materialize the rows as a DataFrame; surface SQL + question + row count in materialization metadata.
+
+## Example: scheduled NL-driven analytics
+
+```yaml
+type: dagster_component_templates.DatabricksGenieQueryComponent
+attributes:
+  asset_name: weekly_revenue_by_region
+  host_env_var: DATABRICKS_HOST
+  token_env_var: DATABRICKS_TOKEN
+  space_id: 01ef2a4b8c9d4e7fa1b2c3d4e5f60718
+  question: "What was the total revenue last week ({partition_key}), broken down by region?"
+  partition_type: weekly
+  partition_start: "2026-01-01"
+  freshness_cron: "0 9 * * MON"     # by 9am every Monday
+  group_name: ai
+```
+
+## Example: per-row Q&A pipeline
+
+```yaml
+type: dagster_component_templates.DatabricksGenieQueryComponent
+attributes:
+  asset_name: customer_questions_answered
+  upstream_asset_key: customer_questions
+  question_column: question_text
+  host_env_var: DATABRICKS_HOST
+  token_env_var: DATABRICKS_TOKEN
+  space_id: 01ef2a4b8c9d4e7fa1b2c3d4e5f60718
+  group_name: ai
+```
+
+For each row of `customer_questions`, runs the `question_text` through Genie, appends the generated SQL + result.
+
+## Standard Dagster patterns supported
+
+| | |
+|---|---|
+| Partitions | full suite (daily/weekly/monthly/hourly/static/dynamic/multi) |
+| Freshness | `freshness_max_lag_minutes` + `freshness_cron` |
+| Retry | `retry_policy_max_retries` + delay + backoff |
+| Kinds | defaults to `['databricks', 'genie', 'sql']` |
+| Owners / Tags / Description / Deps | standard |
+
+## Validation
+
+**Code-validated** — loads cleanly + `dg check defs` passes. Needs a live Databricks workspace + Genie space to full-validate; the HTTP+JSON request/response shape follows the public Genie Conversation API docs.
+
+## When NOT to use this
+
+| Use case | Right component |
+|---|---|
+| LLM-as-judge eval against agent output | `llm_evaluator` |
+| Generic NL→SQL via OpenAI/Claude/Gemini (no Databricks dep) | `sql_generator` |
+| Databricks-native asset materialization (Delta tables) | `dataframe_to_delta_table` |
+| Run Databricks notebooks / jobs as Dagster assets | `databricks_*` integration components |

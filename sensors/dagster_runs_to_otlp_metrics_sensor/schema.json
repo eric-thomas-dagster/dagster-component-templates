@@ -1,0 +1,19 @@
+{
+  "component_type": "dagster_component_templates.DagsterRunsToOtlpMetricsSensorComponent",
+  "description": "Push Dagster run lifecycle events as OTLP/HTTP metrics (Sum + Gauge). Distinct from dagster_runs_to_otlp_sensor which emits OTel logs.",
+  "category": "sensor",
+  "icon": "Activity",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "sensor_name": {"type": "string", "label": "Sensor Name", "required": true},
+    "otlp_endpoint_env_var": {"type": "string", "label": "OTLP Endpoint Env Var", "description": "Env var with OTLP/HTTP base URL — /v1/metrics is appended.", "required": true},
+    "otlp_headers_env_var": {"type": "string", "label": "OTLP Headers Env Var", "description": "Env var with comma-separated k=v,k=v headers.", "required": false},
+    "service_name": {"type": "string", "label": "service.name", "default": "dagster", "required": false},
+    "location_label": {"type": "string", "label": "service.instance.id", "default": "default", "required": false},
+    "monitor_jobs": {"type": "array", "label": "Monitor Jobs", "required": false},
+    "default_status": {"type": "string", "label": "Default Status", "enum": ["RUNNING", "STOPPED"], "default": "STOPPED", "required": false},
+    "request_timeout_seconds": {"type": "integer", "label": "Request Timeout (sec)", "default": 15, "required": false}
+  }
+}

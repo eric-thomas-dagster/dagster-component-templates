@@ -1,0 +1,11 @@
+type: dagster_component_templates.DagsterRunsToStatsdSensorComponent
+attributes:
+  sensor_name: dagster_runs_to_statsd
+  statsd_host: 127.0.0.1
+  statsd_port: 8125
+  metric_prefix: dagster
+  dogstatsd_tags: true   # set false for plain statsd (no |# block)
+  extra_tags:
+    env: prod
+    team: data-platform
+  default_status: STOPPED

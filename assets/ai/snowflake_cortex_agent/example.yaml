@@ -1,0 +1,27 @@
+type: dagster_component_templates.SnowflakeCortexAgentComponent
+attributes:
+  asset_name: dagster_plus_cortex_agent
+  prompt: "Summarize the last 5 runs in this Dagster Cloud deployment."
+  system_prompt: "You are a Dagster Cloud operator. Use the available tools precisely."
+
+  # Snowflake Cortex COMPLETE — pick from the list at:
+  # https://docs.snowflake.com/en/user-guide/snowflake-cortex/llm-functions
+  model: claude-3-5-sonnet
+
+  # https://<account>.snowflakecomputing.com — read from env so it doesn't live in YAML.
+  account_url_env_var: SNOWFLAKE_ACCOUNT_URL
+  # Snowflake PAT or OAuth bearer token.
+  auth_token_env_var: SNOWFLAKE_PAT
+
+  max_iterations: 8
+
+  mcp_servers:
+    - name: dgp
+      type: http
+      url: https://mcp.agent.dagster.cloud/mcp/
+      headers:
+        Dagster-Cloud-Organization: my-org
+      headers_env:
+        Authorization: DAGSTER_PLUS_BEARER
+
+  group_name: ai

@@ -1,0 +1,19 @@
+{
+  "component_type": "dagster_component_templates.DagsterRunsToStatsdSensorComponent",
+  "description": "Push Dagster run lifecycle events (SUCCESS / FAILURE) as StatsD/DogStatsD UDP metrics. No external Python deps. Targets the Datadog Agent, local statsd, or any DogStatsD-compatible receiver.",
+  "category": "sensor",
+  "icon": "Activity",
+  "x-dagster-io": {
+    "supports_partitions": false
+  },
+  "attributes": {
+    "sensor_name": {"type": "string", "label": "Sensor Name", "required": true},
+    "statsd_host": {"type": "string", "label": "StatsD Host", "default": "127.0.0.1", "required": false},
+    "statsd_port": {"type": "integer", "label": "StatsD Port", "default": 8125, "required": false},
+    "metric_prefix": {"type": "string", "label": "Metric Prefix", "default": "dagster", "required": false},
+    "dogstatsd_tags": {"type": "boolean", "label": "DogStatsD Tags", "description": "When true, append |#k:v tag block (Datadog Agent, modern statsd). When false, omit tags (plain statsd protocol).", "default": true, "required": false},
+    "extra_tags": {"type": "object", "label": "Extra Tags", "description": "Static tags applied to every metric (e.g. {env: prod, team: data}).", "required": false},
+    "monitor_jobs": {"type": "array", "label": "Monitor Jobs", "description": "If set, only emit for these job names. None = all.", "required": false},
+    "default_status": {"type": "string", "label": "Default Status", "enum": ["RUNNING", "STOPPED"], "default": "STOPPED", "required": false}
+  }
+}

@@ -1,0 +1,1 @@
+# StatsD is plain UDP — no external Python deps.

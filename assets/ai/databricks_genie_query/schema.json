@@ -1,0 +1,43 @@
+{
+  "component_type": "dagster_component_templates.DatabricksGenieQueryComponent",
+  "description": "Natural-language → SQL → result via Databricks AI/BI Genie spaces. Two modes: single question (one Genie call per materialization, returns DataFrame) or per-row (each upstream row's question gets a Genie call, output adds sql + result + genie_message_id columns).",
+  "category": "ai",
+  "icon": "si:databricks",
+  "x-dagster-io": {
+    "supports_partitions": true
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "host_env_var": {"type": "string", "label": "Workspace URL Env Var", "default": "DATABRICKS_HOST", "required": false},
+    "token_env_var": {"type": "string", "label": "PAT / OAuth Token Env Var", "default": "DATABRICKS_TOKEN", "required": false},
+    "space_id": {"type": "string", "label": "Genie Space ID", "required": true},
+
+    "question": {"type": "string", "label": "Single Question", "description": "Mode A: one question per materialization. Supports {partition_key} / {run_id} substitution.", "required": false},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "description": "Mode B: per-row. Mutually exclusive with `question`.", "required": false},
+    "question_column": {"type": "string", "label": "Question Column", "description": "Mode B: column on upstream DataFrame holding NL questions.", "required": false},
+
+    "poll_interval_seconds": {"type": "number", "label": "Poll Interval (sec)", "default": 2.0, "required": false},
+    "timeout_seconds": {"type": "integer", "label": "Timeout (sec)", "default": 300, "required": false},
+    "request_timeout_seconds": {"type": "integer", "label": "Request Timeout (sec)", "default": 60, "required": false},
+
+    "group_name": {"type": "string", "required": false},
+    "description": {"type": "string", "required": false},
+    "owners": {"type": "array", "required": false},
+    "asset_tags": {"type": "object", "required": false},
+    "kinds": {"type": "array", "required": false},
+    "deps": {"type": "array", "required": false},
+
+    "partition_type": {"type": "string", "required": false},
+    "partition_start": {"type": "string", "required": false},
+    "partition_values": {"type": "string", "required": false},
+    "dynamic_partition_name": {"type": "string", "required": false},
+    "partition_dimensions": {"type": "array", "required": false},
+
+    "freshness_max_lag_minutes": {"type": "integer", "required": false},
+    "freshness_cron": {"type": "string", "required": false},
+
+    "retry_policy_max_retries": {"type": "integer", "required": false},
+    "retry_policy_delay_seconds": {"type": "integer", "required": false},
+    "retry_policy_backoff": {"type": "string", "enum": ["linear", "exponential"], "default": "exponential", "required": false}
+  }
+}

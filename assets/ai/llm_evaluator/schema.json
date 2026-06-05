@@ -1,0 +1,35 @@
+{
+  "component_type": "dagster_component_templates.LLMEvaluatorComponent",
+  "description": "LLM-as-judge evaluator. Pass-through asset that takes an upstream agent / LLM output and scores it on configurable feedbacks (answer_relevance, groundedness, context_relevance, harmfulness, helpfulness, coherence). Same conceptual model as TruLens — without the framework dep.",
+  "category": "ai",
+  "icon": "ClipboardCheck",
+  "x-dagster-io": {
+    "inputs": {"type": "any", "description": "Upstream payload — typically an *_agent dict."},
+    "outputs": {"type": "dict", "description": "Upstream payload + 'evaluations' field containing per-metric score (0.0-1.0) and reason."},
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true},
+    "evaluations": {
+      "type": "array",
+      "label": "Evaluations",
+      "description": "Which feedbacks to compute. Valid: answer_relevance, groundedness, context_relevance, harmfulness, helpfulness, coherence.",
+      "required": true,
+      "items": {"type": "string", "enum": ["answer_relevance", "groundedness", "context_relevance", "harmfulness", "helpfulness", "coherence"]}
+    },
+    "model": {"type": "string", "label": "Judge Model", "description": "LiteLLM model string (e.g. gpt-4o-mini, claude-haiku-4-5-20251001).", "default": "gpt-4o-mini", "required": false},
+    "api_key_env_var": {"type": "string", "label": "Judge API Key Env Var", "required": false},
+    "temperature": {"type": "number", "label": "Temperature", "default": 0.0, "required": false},
+    "max_tokens": {"type": "integer", "label": "Max Tokens", "default": 256, "required": false},
+    "answer_jsonpath": {"type": "string", "label": "Answer Path", "description": "Dot-path in upstream to the answer string. Default 'final_answer' (matches *_agent output).", "default": "final_answer", "required": false},
+    "question_jsonpath": {"type": "string", "label": "Question Path", "description": "Dot-path to the question. If unset, pulls first user message from upstream's transcript.", "required": false},
+    "context_jsonpath": {"type": "string", "label": "Context Path", "description": "Dot-path to retrieved context (for groundedness / context_relevance).", "required": false},
+    "group_name": {"type": "string", "required": false},
+    "description": {"type": "string", "required": false},
+    "owners": {"type": "array", "required": false},
+    "asset_tags": {"type": "object", "required": false},
+    "kinds": {"type": "array", "required": false},
+    "deps": {"type": "array", "required": false}
+  }
+}

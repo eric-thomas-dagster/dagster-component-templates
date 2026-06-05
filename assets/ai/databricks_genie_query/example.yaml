@@ -1,0 +1,16 @@
+type: dagster_component_templates.DatabricksGenieQueryComponent
+attributes:
+  asset_name: weekly_revenue_by_region
+  host_env_var: DATABRICKS_HOST          # https://<workspace>.cloud.databricks.com
+  token_env_var: DATABRICKS_TOKEN         # PAT or OAuth bearer
+  space_id: 01ef2a4b8c9d4e7fa1b2c3d4e5f60718
+
+  # Single-question mode. {partition_key} gets substituted at materialization time.
+  question: "What was the total revenue last week ({partition_key}), broken down by region?"
+
+  partition_type: weekly
+  partition_start: "2026-01-01"
+  poll_interval_seconds: 2
+  timeout_seconds: 300
+
+  group_name: ai

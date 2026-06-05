@@ -4501,6 +4501,59 @@
       }
     },
     {
+      "id": "dagster_runs_to_otlp_metrics_sensor",
+      "name": "Dagster Runs \u2192 OTLP Metrics Sensor",
+      "category": "sensor",
+      "description": "Push Dagster run lifecycle events as OpenTelemetry metrics (Sum + Gauge) via OTLP/HTTP. Targets Datadog OTel ingest, Grafana OTel, Honeycomb metrics, Splunk OTel Collector metrics receiver, etc. Distinct from dagster_runs_to_otlp_sensor which emits OTel logs.",
+      "path": "sensors/dagster_runs_to_otlp_metrics_sensor",
+      "tags": [
+        "sensor",
+        "observability",
+        "otel",
+        "opentelemetry",
+        "metrics"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_otlp_metrics_sensor/schema.json",
+      "component_type": "dagster_component_templates.DagsterRunsToOtlpMetricsSensorComponent",
+      "icon": "Activity",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_otlp_metrics_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_otlp_metrics_sensor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_otlp_metrics_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_otlp_metrics_sensor/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "Validated against otel/opentelemetry-collector-contrib in Docker \u2014 4 envelopes received with correct Sum/Gauge data points and resource attrs.",
+        "last_validated": "2026-06-04"
+      }
+    },
+    {
+      "id": "dagster_runs_to_statsd_sensor",
+      "name": "Dagster Runs \u2192 StatsD Sensor",
+      "category": "sensor",
+      "description": "Push Dagster run lifecycle events as StatsD/DogStatsD UDP metrics. No external Python deps \u2014 raw datagrams. Targets the Datadog Agent, local statsd, graphite-statsd, etcd-statsd, Telegraf, Grafana statsd_exporter, etc.",
+      "path": "sensors/dagster_runs_to_statsd_sensor",
+      "tags": [
+        "sensor",
+        "observability",
+        "statsd",
+        "dogstatsd",
+        "datadog",
+        "metrics"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_statsd_sensor/schema.json",
+      "component_type": "dagster_component_templates.DagsterRunsToStatsdSensorComponent",
+      "icon": "Activity",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_statsd_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_statsd_sensor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_statsd_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_statsd_sensor/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "Validated against graphiteapp/graphite-statsd in Docker \u2014 tagged metrics (env/job/status/step) confirmed via graphite tag index.",
+        "last_validated": "2026-06-04"
+      }
+    },
+    {
       "id": "dagster_runs_to_otlp_sensor",
       "name": "Dagster Runs \u2192 OTLP Sensor",
       "category": "sensor",
@@ -4992,6 +5045,31 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_migration.md",
         "last_validated": "2026-05-15"
+      }
+    },
+    {
+      "id": "databricks_genie_query",
+      "name": "Databricks Genie Query",
+      "category": "ai",
+      "description": "NL → SQL → result via Databricks AI/BI Genie spaces. Single-question or per-row over an upstream DataFrame. Full Dagster pattern (partitions, freshness, retry, kinds).",
+      "path": "assets/ai/databricks_genie_query",
+      "tags": [
+        "ai",
+        "databricks",
+        "genie",
+        "sql",
+        "nl-to-sql"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/databricks_genie_query/schema.json",
+      "component_type": "dagster_component_templates.DatabricksGenieQueryComponent",
+      "icon": "si:databricks",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/databricks_genie_query/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/databricks_genie_query/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/databricks_genie_query/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/databricks_genie_query/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-04"
       }
     },
     {
@@ -13706,6 +13784,32 @@
       }
     },
     {
+      "id": "llm_evaluator",
+      "name": "LLM Evaluator (LLM-as-Judge)",
+      "category": "ai",
+      "description": "LLM-as-judge evaluator. Pass-through asset that takes an upstream agent / LLM output and scores it on configurable feedbacks (answer_relevance, groundedness, context_relevance, harmfulness, helpfulness, coherence). Same conceptual model as TruLens — without the framework dep.",
+      "path": "assets/ai/llm_evaluator",
+      "tags": [
+        "ai",
+        "llm",
+        "evaluation",
+        "llm-as-judge",
+        "trulens-pattern"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_evaluator/schema.json",
+      "component_type": "dagster_component_templates.LLMEvaluatorComponent",
+      "icon": "ClipboardCheck",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_evaluator/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_evaluator/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_evaluator/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_evaluator/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "Live-validated against the dagster_plus_agent_run output — all 4 evaluations (answer_relevance, helpfulness, harmfulness, coherence) scored with sensible 0.0-1.0 values + reasons.",
+        "last_validated": "2026-06-04"
+      }
+    },
+    {
       "id": "llm_chain_executor",
       "name": "LLM Chain",
       "category": "ai",
@@ -20590,6 +20694,32 @@
         "last_validated": "2026-05-20"
       },
       "vendor": "Snowflake"
+    },
+    {
+      "id": "snowflake_cortex_agent",
+      "name": "Snowflake Cortex Agent",
+      "category": "ai",
+      "description": "Single-shot LLM agent backed by Snowflake Cortex COMPLETE REST API + MCP tools. Same tool-calling loop as openai_agent / anthropic_agent / gemini_agent, routed through Snowflake's inference endpoint. Full Dagster pattern.",
+      "path": "assets/ai/snowflake_cortex_agent",
+      "tags": [
+        "ai",
+        "llm",
+        "agent",
+        "mcp",
+        "snowflake",
+        "cortex"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/snowflake_cortex_agent/schema.json",
+      "component_type": "dagster_component_templates.SnowflakeCortexAgentComponent",
+      "icon": "si:snowflake",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/snowflake_cortex_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/snowflake_cortex_agent/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/snowflake_cortex_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/snowflake_cortex_agent/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-04"
+      }
     },
     {
       "id": "snowflake_cortex_asset",

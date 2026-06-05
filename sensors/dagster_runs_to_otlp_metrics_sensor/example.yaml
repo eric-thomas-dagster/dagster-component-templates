@@ -1,0 +1,14 @@
+type: dagster_component_templates.DagsterRunsToOtlpMetricsSensorComponent
+attributes:
+  sensor_name: dagster_runs_to_otel_metrics
+
+  # Set OTLP_METRICS_ENDPOINT to your collector's base URL (e.g. http://localhost:4318).
+  # /v1/metrics is appended automatically.
+  otlp_endpoint_env_var: OTLP_METRICS_ENDPOINT
+
+  # Optional headers (k=v,k=v). Use this for Datadog API keys, Grafana auth, etc.
+  otlp_headers_env_var: OTLP_METRICS_HEADERS
+
+  service_name: dagster
+  location_label: prod
+  default_status: STOPPED

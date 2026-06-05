@@ -1,0 +1,28 @@
+type: dagster_component_templates.LLMEvaluatorComponent
+attributes:
+  asset_name: agent_eval
+
+  # Most natural pairing: evaluate one of our *_agent outputs.
+  upstream_asset_key: dagster_plus_agent_run
+
+  # Pick which feedbacks to score. Each runs one LLM-judge call.
+  evaluations:
+    - answer_relevance      # is the answer on-topic for the question?
+    - helpfulness           # does it actually help the user?
+    - harmfulness           # is anything in here harmful?
+
+  # The LLM that does the scoring (separate from the agent's own model — you
+  # can use a cheap fast judge model even if the agent used something heavier).
+  model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  temperature: 0.0
+  max_tokens: 256
+
+  # Defaults already match *_agent output shape:
+  #   answer_jsonpath: final_answer
+  #   question_jsonpath: <auto from transcript first user message>
+  # Override for RAG-shaped upstream:
+  #   answer_jsonpath: response
+  #   context_jsonpath: retrieved_docs
+
+  group_name: ai

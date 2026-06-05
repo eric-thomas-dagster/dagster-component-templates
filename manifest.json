@@ -13439,6 +13439,31 @@
       }
     },
     {
+      "id": "mcp_tool_call",
+      "name": "MCP Tool Call",
+      "category": "source",
+      "description": "Deterministic single-shot call to one MCP tool — no LLM in the loop. Args templating supports {partition_key} / {partition_keys.<dim>} / {run_id}, and the asset supports full Dagster pattern (partitions, kinds, FreshnessPolicy, RetryPolicy).",
+      "path": "assets/sources/mcp_tool_call",
+      "tags": [
+        "source",
+        "mcp",
+        "tool-call",
+        "deterministic"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mcp_tool_call/schema.json",
+      "component_type": "dagster_component_templates.MCPToolCallComponent",
+      "icon": "Network",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mcp_tool_call/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mcp_tool_call/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mcp_tool_call/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mcp_tool_call/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/litellm_agent.md",
+        "last_validated": "2026-06-04"
+      }
+    },
+    {
       "id": "litellm_agent",
       "name": "LiteLLM Agent",
       "category": "ai",

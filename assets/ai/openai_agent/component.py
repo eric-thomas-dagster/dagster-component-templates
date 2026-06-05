@@ -128,10 +128,28 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
     description: Optional[str] = Field(default=None, description="Asset description.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
     asset_tags: Optional[Dict[str, str]] = Field(default=None, description="Extra asset tags.")
+    kinds: Optional[List[str]] = Field(
+        default=None,
+        description="Asset kinds for the Dagster catalog. Defaults to ['llm', 'agent', 'openai'].",
+    )
     deps: Optional[List[str]] = Field(
         default=None,
         description="Lineage-only upstream asset keys (no data passed at runtime).",
     )
+
+    # Partitions (prompt + system_prompt support {partition_key} / {partition_keys.<dim>} / {run_id}).
+    partition_type: Optional[str] = Field(default=None, description="'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'multi' | 'dynamic'.")
+    partition_start: Optional[str] = Field(default=None, description="ISO date for time-based partitions.")
+    partition_values: Optional[str] = Field(default=None, description="Comma-separated values for static/multi.")
+    dynamic_partition_name: Optional[str] = Field(default=None, description="Name for DynamicPartitionsDefinition.")
+    partition_dimensions: Optional[List[Dict[str, Any]]] = Field(default=None, description="Multi-axis partition spec.")
+
+    freshness_max_lag_minutes: Optional[int] = Field(default=None, description="FreshnessPolicy max lag in minutes.")
+    freshness_cron: Optional[str] = Field(default=None, description="FreshnessPolicy deadline cron schedule.")
+
+    retry_policy_max_retries: Optional[int] = Field(default=None, description="Max retries on failure.")
+    retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries.")
+    retry_policy_backoff: str = Field(default="exponential", description="'linear' or 'exponential'.")
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
@@ -149,26 +167,66 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
         description = self.description
         owners = self.owners or []
 
+        partitions_def = _build_partitions_def(
+            self.partition_type, self.partition_start, self.partition_values,
+            self.dynamic_partition_name, self.partition_dimensions,
+        )
+        _inferred_kinds = list(self.kinds or ["llm", "agent", "openai"])
         _all_tags = dict(self.asset_tags or {})
-        _all_tags["dagster/kind/openai"] = ""
-        _all_tags["dagster/kind/agent"] = ""
+        for _kind in _inferred_kinds:
+            _all_tags[f"dagster/kind/{_kind}"] = ""
+
+        _freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from datetime import timedelta
+            from dagster import FreshnessPolicy
+            _lag = timedelta(minutes=int(self.freshness_max_lag_minutes))
+            _freshness_policy = (
+                FreshnessPolicy.cron(deadline_cron=self.freshness_cron, lower_bound_delta=_lag)
+                if self.freshness_cron
+                else FreshnessPolicy.time_window(fail_window=_lag)
+            )
+
+        _retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
 
         @asset(
             name=asset_name,
+            partitions_def=partitions_def,
             group_name=group_name,
             description=description,
             owners=owners,
             tags=_all_tags,
+            freshness_policy=_freshness_policy,
+            retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def _agent_asset(context: AssetExecutionContext) -> Dict[str, Any]:
             import asyncio
 
+            substitutions = {"run_id": context.run_id}
+            if context.has_partition_key:
+                pk = context.partition_key
+                if hasattr(pk, "keys_by_dimension"):
+                    substitutions["partition_key"] = str(pk)
+                    substitutions["partition_keys"] = dict(pk.keys_by_dimension)
+                else:
+                    substitutions["partition_key"] = str(pk)
+                    substitutions["partition_keys"] = {}
+            resolved_prompt = _substitute(prompt, substitutions)
+            resolved_system = _substitute(system_prompt, substitutions) if system_prompt else None
+
             result = asyncio.run(
                 _run_agent(
                     log=context.log,
-                    prompt=prompt,
-                    system_prompt=system_prompt,
+                    prompt=resolved_prompt,
+                    system_prompt=resolved_system,
                     model=model,
                     api_key_env_var=api_key_env_var,
                     base_url_env_var=base_url_env_var,
@@ -193,6 +251,106 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
             return result
 
         return Definitions(assets=[_agent_asset])
+
+
+def _substitute(s: str, substitutions: Dict[str, Any]) -> str:
+    """Substitute `{partition_key}` / `{partition_keys.<dim>}` / `{run_id}` in a string."""
+    if "{" not in s:
+        return s
+    out = s
+    out = out.replace("{run_id}", str(substitutions.get("run_id", "")))
+    out = out.replace("{partition_key}", str(substitutions.get("partition_key", "")))
+    for dim, val in (substitutions.get("partition_keys") or {}).items():
+        out = out.replace("{partition_keys." + dim + "}", str(val))
+    return out
+
+
+def _build_partitions_def(
+    partition_type,
+    partition_start,
+    partition_values,
+    dynamic_partition_name,
+    partition_dimensions,
+):
+    """Construct a partitions_def from the canonical fields. Strict combinations only."""
+    from dagster import (
+        DailyPartitionsDefinition,
+        WeeklyPartitionsDefinition,
+        MonthlyPartitionsDefinition,
+        HourlyPartitionsDefinition,
+        StaticPartitionsDefinition,
+        MultiPartitionsDefinition,
+        DynamicPartitionsDefinition,
+    )
+
+    if partition_dimensions and partition_type:
+        raise ValueError(
+            "Set either partition_type or partition_dimensions, not both."
+        )
+
+    def _axis(spec):
+        t = spec.get("type")
+        if t in ("daily", "weekly", "monthly", "hourly") and not spec.get("start"):
+            raise ValueError(f"partition dimension type={t!r} requires 'start'")
+        if t == "daily":
+            return DailyPartitionsDefinition(start_date=spec["start"])
+        if t == "weekly":
+            return WeeklyPartitionsDefinition(start_date=spec["start"])
+        if t == "monthly":
+            return MonthlyPartitionsDefinition(start_date=spec["start"])
+        if t == "hourly":
+            return HourlyPartitionsDefinition(start_date=spec["start"])
+        if t == "static":
+            vals = spec.get("values") or []
+            if isinstance(vals, str):
+                vals = [v.strip() for v in vals.split(",") if v.strip()]
+            if not vals:
+                raise ValueError("dimension type='static' requires non-empty 'values'")
+            return StaticPartitionsDefinition(list(vals))
+        if t == "dynamic":
+            name = spec.get("dynamic_partition_name") or spec.get("name")
+            if not name:
+                raise ValueError("dimension type='dynamic' requires a name")
+            return DynamicPartitionsDefinition(name=name)
+        raise ValueError(f"unknown partition type: {t!r}")
+
+    if partition_dimensions:
+        if len(partition_dimensions) == 1:
+            return _axis(partition_dimensions[0])
+        return MultiPartitionsDefinition({d["name"]: _axis(d) for d in partition_dimensions})
+
+    if not partition_type:
+        return None
+    if isinstance(partition_values, (list, tuple)):
+        _vals = [str(v).strip() for v in partition_values if str(v).strip()]
+    else:
+        _vals = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
+    if partition_type in ("daily", "weekly", "monthly", "hourly") and not partition_start:
+        raise ValueError(f"partition_type={partition_type!r} requires partition_start.")
+    if partition_type == "daily":
+        return DailyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "weekly":
+        return WeeklyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "monthly":
+        return MonthlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "hourly":
+        return HourlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "static":
+        if not _vals:
+            raise ValueError("partition_type='static' requires partition_values.")
+        return StaticPartitionsDefinition(_vals)
+    if partition_type == "dynamic":
+        if not dynamic_partition_name:
+            raise ValueError("partition_type='dynamic' requires dynamic_partition_name.")
+        return DynamicPartitionsDefinition(name=dynamic_partition_name)
+    if partition_type == "multi":
+        if not _vals or not partition_start:
+            raise ValueError("partition_type='multi' requires partition_values and partition_start.")
+        return MultiPartitionsDefinition({
+            "date": DailyPartitionsDefinition(start_date=partition_start),
+            "static_dim": StaticPartitionsDefinition(_vals),
+        })
+    raise ValueError(f"unknown partition_type: {partition_type!r}")
 
 
 def _resolve_headers(cfg: Dict[str, Any], server_name: str) -> Dict[str, str]:

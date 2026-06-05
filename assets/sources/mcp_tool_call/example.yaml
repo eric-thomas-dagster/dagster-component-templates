@@ -1,0 +1,31 @@
+type: dagster_component_templates.MCPToolCallComponent
+attributes:
+  asset_name: dagster_plus_runs_daily
+  server:
+    name: dgp
+    type: http
+    url: https://mcp.agent.dagster.cloud/mcp/
+    headers:
+      Dagster-Cloud-Organization: my-org
+    headers_env:
+      Authorization: DAGSTER_PLUS_BEARER
+  tool_name: list_runs
+  tool_args:
+    limit: 100
+    deployment_name: prod
+    # `{partition_key}` is substituted at materialization time — partition the
+    # asset daily and you get one run-list snapshot per day for free.
+    created_after: "{partition_key}T00:00:00Z"
+  parse_as: json
+
+  # Standard Dagster knobs — partitions, kinds, freshness, retry, owners.
+  partition_type: daily
+  partition_start: "2026-01-01"
+  freshness_max_lag_minutes: 1440        # 24h
+  freshness_cron: "0 6 * * *"            # by 6am each day
+  retry_policy_max_retries: 3
+  retry_policy_delay_seconds: 5
+  retry_policy_backoff: exponential
+  kinds: [mcp, dagster]
+  owners: ["team:platform"]
+  group_name: ops

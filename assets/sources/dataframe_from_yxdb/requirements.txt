@@ -1,0 +1,3 @@
+pandas>=1.3
+yxdb>=0.1
+import-yxdb>=0.1

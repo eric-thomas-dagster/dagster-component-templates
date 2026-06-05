@@ -5371,6 +5371,31 @@
       }
     },
     {
+      "id": "dataframe_from_yxdb",
+      "name": "DataFrame from Alteryx .yxdb",
+      "category": "source",
+      "description": "Read an Alteryx native binary file (.yxdb) and materialize it as a pandas DataFrame asset. Wraps the import-yxdb PyPI package (whole-file → DataFrame) with a fallback to the lower-level yxdb row iterator. Pairs with the alteryx-to-dagster migrator (which auto-routes Alteryx Input Data tools pointing at .yxdb files to this component).",
+      "path": "assets/sources/dataframe_from_yxdb",
+      "tags": [
+        "source",
+        "alteryx",
+        "yxdb",
+        "migration",
+        "dataframe"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/schema.json",
+      "component_type": "dagster_component_templates.DataframeFromYxdbComponent",
+      "icon": "Database",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
+      }
+    },
+    {
       "id": "dataframe_from_csv",
       "name": "DataFrame from CSV",
       "category": "source",

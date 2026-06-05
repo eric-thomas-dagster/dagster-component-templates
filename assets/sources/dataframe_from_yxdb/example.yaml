@@ -1,0 +1,7 @@
+type: dagster_component_templates.DataframeFromYxdbComponent
+attributes:
+  asset_name: customer_master_from_alteryx
+  file_path: ${ALTERYX_DATA_DIR}/customers.yxdb
+  group_name: ingestion
+  freshness_max_lag_minutes: 1440        # 24h
+  retry_policy_max_retries: 2

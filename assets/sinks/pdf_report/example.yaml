@@ -1,0 +1,10 @@
+type: dagster_community_components.PdfReportComponent
+attributes:
+  asset_name: weekly_sales_report
+  upstream_asset_key: weekly_sales_summary
+  file_path: /reports/weekly_sales.pdf
+  title: Weekly Sales Summary
+  template: table
+  rows_per_page: 40
+  page_size: LETTER
+  group_name: reports

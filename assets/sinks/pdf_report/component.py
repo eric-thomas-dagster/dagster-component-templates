@@ -1,0 +1,205 @@
+"""PdfReport.
+
+Render an upstream DataFrame to a PDF report file. Drop-in for Alteryx's
+**Render** / **Portfolio Composer** reporting tools.
+
+Two modes via `template`:
+
+- `table` (default) — a plain tabular dump of the DataFrame using
+  `reportlab`'s `Table` flowable. Good for "send me the rows as a PDF".
+- `template_html` — render an HTML template (Jinja2) against the
+  DataFrame and convert to PDF via `weasyprint`. Use for branded /
+  multi-section reports.
+
+The file is written to `file_path` (local or any fsspec URL — `s3://`,
+`gs://`, `abfs://`). Set the path to an object-storage URL for
+Dagster+ Cloud deployments.
+"""
+import os
+from typing import Dict, List, Optional
+
+import pandas as pd
+from dagster import (
+    AssetExecutionContext,
+    AssetIn,
+    AssetKey,
+    Component,
+    ComponentLoadContext,
+    Definitions,
+    MetadataValue,
+    Model,
+    Resolvable,
+    asset,
+)
+from pydantic import Field
+
+
+class PdfReportComponent(Component, Model, Resolvable):
+    """Render an upstream DataFrame to a PDF report file."""
+
+    asset_name: str = Field(description="Output Dagster asset name")
+    upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
+    file_path: str = Field(description="Output PDF path (local or fsspec URL: s3://, gs://, abfs://, etc.)")
+    title: str = Field(default="Report", description="Report title shown at the top of the first page")
+    template: str = Field(
+        default="table",
+        description=(
+            "Rendering mode: 'table' (DataFrame as a tabular PDF via reportlab) or "
+            "'template_html' (render a Jinja2 HTML template + convert via weasyprint). "
+            "When template_html, set `html_template` to a path / inline string."
+        ),
+    )
+    html_template: Optional[str] = Field(
+        default=None,
+        description="Jinja2 HTML template (file path OR inline string). Required when template='template_html'.",
+    )
+    rows_per_page: int = Field(
+        default=40,
+        description="For template='table': max rows per page (chunked into multiple Table flowables).",
+    )
+    columns: Optional[List[str]] = Field(
+        default=None,
+        description="Subset of columns to include. None = all columns.",
+    )
+    page_size: str = Field(
+        default="LETTER",
+        description="Page size: 'LETTER' (default), 'A4', 'LEGAL', 'TABLOID'.",
+    )
+
+    group_name: Optional[str] = Field(default=None)
+    description: Optional[str] = Field(default=None)
+    owners: Optional[List[str]] = Field(default=None)
+    asset_tags: Optional[Dict[str, str]] = Field(default=None)
+    kinds: Optional[List[str]] = Field(default=None)
+    deps: Optional[List[str]] = Field(default=None)
+
+    def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        _self = self
+        asset_name = self.asset_name
+
+        tags = dict(self.asset_tags or {})
+        for k in (self.kinds or ["python", "report", "pdf"]):
+            tags[f"dagster/kind/{k}"] = ""
+
+        @asset(
+            name=asset_name,
+            ins={"upstream": AssetIn(key=AssetKey.from_user_string(self.upstream_asset_key))},
+            group_name=self.group_name,
+            description=self.description or f"Render {self.upstream_asset_key} to PDF at {self.file_path}.",
+            tags=tags,
+            owners=self.owners or [],
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+        )
+        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> str:
+            df = upstream if _self.columns is None else upstream[
+                [c for c in _self.columns if c in upstream.columns]
+            ]
+
+            file_path = os.path.expanduser(_self.file_path)
+
+            if _self.template == "template_html":
+                _write_html_pdf(df, file_path, _self.title, _self.html_template, _self.page_size)
+            else:
+                _write_table_pdf(df, file_path, _self.title, _self.rows_per_page, _self.page_size)
+
+            context.log.info(f"pdf_report: wrote {len(df)} rows × {len(df.columns)} cols to {file_path}")
+            context.add_output_metadata({
+                "dagster/row_count": MetadataValue.int(len(df)),
+                "file_path": MetadataValue.text(file_path),
+                "template": MetadataValue.text(_self.template),
+                "title": MetadataValue.text(_self.title),
+            })
+            return file_path
+
+        return Definitions(assets=[_asset])
+
+    @classmethod
+    def get_description(cls) -> str:
+        return cls.__doc__ or ""
+
+
+def _write_table_pdf(df: "pd.DataFrame", file_path: str, title: str, rows_per_page: int, page_size: str) -> None:
+    try:
+        from reportlab.lib.pagesizes import LETTER, A4, LEGAL, TABLOID
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.platypus import (
+            SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak,
+        )
+        from reportlab.lib import colors
+    except ImportError as exc:
+        raise ImportError(
+            "reportlab is required for pdf_report (template='table'): pip install reportlab"
+        ) from exc
+
+    page = {"LETTER": LETTER, "A4": A4, "LEGAL": LEGAL, "TABLOID": TABLOID}.get(
+        page_size.upper(), LETTER,
+    )
+    # fsspec for cloud paths
+    if "://" in file_path:
+        import io
+        import fsspec
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(buf, pagesize=page)
+        _build_table_story(doc, df, title, rows_per_page)
+        with fsspec.open(file_path, "wb") as f:
+            f.write(buf.getvalue())
+    else:
+        os.makedirs(os.path.dirname(os.path.abspath(file_path)) or ".", exist_ok=True)
+        doc = SimpleDocTemplate(file_path, pagesize=page)
+        _build_table_story(doc, df, title, rows_per_page)
+
+
+def _build_table_story(doc, df: "pd.DataFrame", title: str, rows_per_page: int) -> None:
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import Table, TableStyle, Paragraph, Spacer, PageBreak
+    from reportlab.lib import colors
+
+    styles = getSampleStyleSheet()
+    story = [Paragraph(title, styles["Title"]), Spacer(1, 12)]
+    header = [str(c) for c in df.columns]
+    rows = df.astype(str).values.tolist()
+    for i in range(0, max(len(rows), 1), rows_per_page):
+        chunk = rows[i: i + rows_per_page]
+        data = [header] + chunk
+        tbl = Table(data, repeatRows=1)
+        tbl.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
+        ]))
+        story.append(tbl)
+        if i + rows_per_page < len(rows):
+            story.append(PageBreak())
+    doc.build(story)
+
+
+def _write_html_pdf(df: "pd.DataFrame", file_path: str, title: str, html_template: Optional[str], page_size: str) -> None:
+    try:
+        from jinja2 import Template
+        from weasyprint import HTML
+    except ImportError as exc:
+        raise ImportError(
+            "jinja2 and weasyprint are required for pdf_report (template='template_html'): "
+            "pip install jinja2 weasyprint"
+        ) from exc
+
+    if html_template is None:
+        raise ValueError("html_template is required when template='template_html'.")
+
+    # If it's a path, read; else use inline.
+    if os.path.isfile(html_template):
+        tmpl_text = open(html_template, encoding="utf-8").read()
+    else:
+        tmpl_text = html_template
+
+    html = Template(tmpl_text).render(title=title, df=df, rows=df.to_dict(orient="records"), columns=list(df.columns))
+    if "://" in file_path:
+        import io
+        import fsspec
+        with fsspec.open(file_path, "wb") as f:
+            HTML(string=html).write_pdf(f)
+    else:
+        os.makedirs(os.path.dirname(os.path.abspath(file_path)) or ".", exist_ok=True)
+        HTML(string=html).write_pdf(file_path)

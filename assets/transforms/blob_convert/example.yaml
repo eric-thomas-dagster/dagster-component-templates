@@ -1,0 +1,8 @@
+type: dagster_community_components.BlobConvertComponent
+attributes:
+  asset_name: api_payloads_base64
+  upstream_asset_key: api_responses
+  input_column: payload_bytes
+  operation: to_base64
+  output_column: payload_b64
+  group_name: ingestion

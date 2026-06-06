@@ -1,0 +1,6 @@
+# `regex` provider needs no extras.
+# For other providers, install the matching extras:
+#   libpostal: brew install libpostal (or apt-get install libpostal-dev) + pip install pypostal
+#   geoapify:  pip install requests
+#   nominatim: pip install requests
+requests>=2.31

@@ -1,0 +1,36 @@
+{
+  "component_type": "dagster_community_components.AddressStandardizeComponent",
+  "description": "Parse messy address strings into structured components (street, city, state, ZIP, ZIP+4, country) using libpostal / Geoapify / Nominatim / regex. Free / open-source drop-in for Alteryx CASS.",
+  "category": "transformation",
+  "icon": "MapPin",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame with one address per row in `address_column`"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Same rows with addr_house_number / addr_road / addr_city / addr_state / addr_postcode / addr_postcode_plus4 / addr_country (prefix configurable)"
+    }
+  },
+  "attributes": {
+    "asset_name": { "type": "string", "label": "Asset Name", "required": true },
+    "upstream_asset_key": { "type": "string", "label": "Upstream Asset Key", "required": true },
+    "address_column": { "type": "string", "label": "Address Column", "required": true },
+    "provider": {
+      "type": "string",
+      "enum": ["libpostal", "geoapify", "nominatim", "regex"],
+      "default": "regex",
+      "label": "Provider",
+      "required": true
+    },
+    "api_key_env_var": { "type": "string", "default": "GEOAPIFY_API_KEY", "label": "API Key Env Var (geoapify)" },
+    "user_agent": { "type": "string", "default": "dagster-address-standardize", "label": "User-Agent (nominatim)" },
+    "output_prefix": { "type": "string", "default": "addr_", "label": "Output Column Prefix" },
+    "keep_original": { "type": "boolean", "default": true, "label": "Keep Original Address Column" },
+    "rate_limit_seconds": { "type": "number", "default": 1.0, "label": "Per-Row Rate Limit (seconds)" },
+    "timeout_seconds": { "type": "integer", "default": 10, "label": "HTTP Timeout (seconds)" },
+    "group_name": { "type": "string", "label": "Group Name" }
+  }
+}

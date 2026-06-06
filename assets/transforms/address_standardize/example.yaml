@@ -1,0 +1,40 @@
+# Default: pure-Python regex fallback (no dependency, no network).
+# Handles a useful subset of US-style addresses + ZIP+4.
+type: dagster_community_components.AddressStandardizeComponent
+attributes:
+  asset_name: customer_addresses_parsed
+  upstream_asset_key: raw_customers
+  address_column: full_address
+  provider: regex
+  group_name: data_quality
+
+# libpostal: best parser quality (offline, MIT). Needs `brew install libpostal`
+# (or apt) and `pip install pypostal` first.
+# type: dagster_community_components.AddressStandardizeComponent
+# attributes:
+#   asset_name: customer_addresses_parsed
+#   upstream_asset_key: raw_customers
+#   address_column: full_address
+#   provider: libpostal
+#   group_name: data_quality
+
+# Geoapify: commercial batch API, ~3k requests/day free tier.
+# type: dagster_community_components.AddressStandardizeComponent
+# attributes:
+#   asset_name: customer_addresses_parsed
+#   upstream_asset_key: raw_customers
+#   address_column: full_address
+#   provider: geoapify
+#   api_key_env_var: GEOAPIFY_API_KEY
+#   group_name: data_quality
+
+# Nominatim: OSM free service, ~1 req/sec rate limit. Best for small batches.
+# type: dagster_community_components.AddressStandardizeComponent
+# attributes:
+#   asset_name: customer_addresses_parsed
+#   upstream_asset_key: raw_customers
+#   address_column: full_address
+#   provider: nominatim
+#   user_agent: my-app-name/1.0
+#   rate_limit_seconds: 1.0
+#   group_name: data_quality

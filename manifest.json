@@ -25152,6 +25152,31 @@
         "level": "code",
         "last_validated": "2026-06-06"
       }
+    },
+    {
+      "id": "address_standardize",
+      "name": "Address Standardize",
+      "category": "transformation",
+      "description": "Parse messy address strings into structured components (street, city, state, ZIP, ZIP+4, country) using libpostal / Geoapify / Nominatim / regex. Free / open-source drop-in for Alteryx CASS.",
+      "path": "assets/transforms/address_standardize",
+      "tags": [
+        "transformation",
+        "address",
+        "geocoding",
+        "data-quality",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardize/schema.json",
+      "component_type": "dagster_community_components.AddressStandardizeComponent",
+      "icon": "MapPin",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardize/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardize/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardize/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardize/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

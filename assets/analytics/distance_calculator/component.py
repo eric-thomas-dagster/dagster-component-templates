@@ -407,6 +407,13 @@ group_name=group_name,
 
             df = upstream.copy()
 
+            # Coerce object-dtype lat/lng cols to numeric — common when
+            # upstream came from a CSV without dtype hints; the math functions
+            # below crash with 'must be real number, not str' otherwise.
+            for _c in (lat1_column, lng1_column, lat2_column, lng2_column):
+                if _c in df.columns and df[_c].dtype == "object":
+                    df[_c] = pd.to_numeric(df[_c], errors="coerce")
+
             if formula == "vincenty":
                 try:
                     from geopy.distance import geodesic

@@ -372,6 +372,17 @@ group_name=group_name,
             out_col = output_column or f"running_{value_column}"
             df = upstream.copy()
 
+            # Coerce value_column to numeric for sum/mean. Without this, an
+            # object-dtype column (common when upstream came from a stub /
+            # CSV without dtypes) crashes with 'unsupported operand type(s)
+            # for +: int and str'.
+            if value_column in df.columns and df[value_column].dtype == "object" and agg_function in ("sum", "mean"):
+                df[value_column] = pd.to_numeric(df[value_column], errors="coerce")
+                context.log.warning(
+                    f"running_total: coerced {value_column!r} to numeric "
+                    f"(was object dtype) before {agg_function}."
+                )
+
             if sort_by:
                 df = df.sort_values(sort_by, ascending=sort_ascending).reset_index(drop=True)
 

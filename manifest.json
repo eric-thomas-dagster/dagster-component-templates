@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-06-04",
+  "last_updated": "2026-06-06",
   "components": [
     {
       "id": "ab_controls",
@@ -25018,6 +25018,116 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-05"
+      }
+    },
+    {
+      "id": "poly_build",
+      "name": "Poly Build",
+      "category": "transformation",
+      "description": "Construct polygon (or polyline) geometries from a points DataFrame by grouping rows into rings and ordering them by a sequence column. Drop-in for Alteryx's Poly-Build tool. Accepts either lat/lng coords OR an existing Shapely Point column.",
+      "path": "assets/transforms/poly_build",
+      "tags": [
+        "transformation",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/poly_build/schema.json",
+      "component_type": "dagster_component_templates.PolyBuildComponent",
+      "icon": "Hexagon",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/poly_build/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/poly_build/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/poly_build/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/poly_build/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
+      }
+    },
+    {
+      "id": "spatial_info",
+      "name": "Spatial Info",
+      "category": "transformation",
+      "description": "Append geometry metadata columns (area, length, centroid, bounds, geom type) to a (Geo)DataFrame. Drop-in for Alteryx's Spatial Info tool.",
+      "path": "assets/transforms/spatial_info",
+      "tags": [
+        "transformation",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_info/schema.json",
+      "component_type": "dagster_component_templates.SpatialInfoComponent",
+      "icon": "Info",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_info/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_info/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_info/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_info/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
+      }
+    },
+    {
+      "id": "pdf_report",
+      "name": "Pdf Report",
+      "category": "sink",
+      "description": "Render an upstream DataFrame to a PDF report (reportlab table mode or Jinja2/weasyprint HTML mode). Drop-in for Alteryx Render / Portfolio Composer.",
+      "path": "assets/sinks/pdf_report",
+      "tags": [
+        "sink",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pdf_report/schema.json",
+      "component_type": "dagster_component_templates.PdfReportComponent",
+      "icon": "FileText",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pdf_report/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pdf_report/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pdf_report/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pdf_report/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
+      }
+    },
+    {
+      "id": "blob_convert",
+      "name": "Blob Convert",
+      "category": "transformation",
+      "description": "Convert a bytes/text column between common encodings: base64 (encode/decode), hex (encode/decode), text/bytes (utf-8). Drop-in for Alteryx Blob Convert tool.",
+      "path": "assets/transforms/blob_convert",
+      "tags": [
+        "transformation",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/blob_convert/schema.json",
+      "component_type": "dagster_component_templates.BlobConvertComponent",
+      "icon": "Binary",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/blob_convert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/blob_convert/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/blob_convert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/blob_convert/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
+      }
+    },
+    {
+      "id": "dynamic_rename",
+      "name": "Dynamic Rename",
+      "category": "transformation",
+      "description": "Pattern-based column renaming with several modes (first_row / add_prefix / add_suffix / replace / mapping / mapping_from_column). Drop-in for Alteryx Dynamic Rename.",
+      "path": "assets/transforms/dynamic_rename",
+      "tags": [
+        "transformation",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_rename/schema.json",
+      "component_type": "dagster_component_templates.DynamicRenameComponent",
+      "icon": "Edit",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_rename/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_rename/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_rename/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_rename/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
       }
     }
   ],

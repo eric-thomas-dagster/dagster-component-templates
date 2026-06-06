@@ -436,6 +436,41 @@ class DataframeJoin(Component, Model, Resolvable):
                     merged_pl = merged_pl.join(nxt_pl, **({"how": pl_how, "suffix": suffixes[1] if len(suffixes) > 1 else "_right"} | ({"on": on} if on else {})))
                 return merged_pl
             else:
+                # If join-key columns have mismatched dtypes between left
+                # and right (e.g. Int64 vs str — common when one input was
+                # auto-typed from a CSV and the other from inline-typed
+                # DataFrame), pandas .merge raises ValueError. Coerce both
+                # sides' join keys to a common type via the union dtype of
+                # each pair before merging.
+                def _align_join_dtypes(l_df, r_df, l_keys, r_keys):
+                    for lk, rk in zip(l_keys, r_keys):
+                        if lk not in l_df.columns or rk not in r_df.columns:
+                            continue
+                        ld = str(l_df[lk].dtype)
+                        rd = str(r_df[rk].dtype)
+                        if ld == rd:
+                            continue
+                        # If either side is object/string, cast both to str —
+                        # always-safe + matches pandas's default mixed-type
+                        # behavior under `errors='ignore'`. Numeric-numeric
+                        # mismatches (Int64 vs float) coerce to float.
+                        if "object" in (ld, rd) or "string" in (ld, rd):
+                            l_df[lk] = l_df[lk].astype(str)
+                            r_df[rk] = r_df[rk].astype(str)
+                        else:
+                            try:
+                                l_df[lk] = l_df[lk].astype(float)
+                                r_df[rk] = r_df[rk].astype(float)
+                            except (ValueError, TypeError):
+                                l_df[lk] = l_df[lk].astype(str)
+                                r_df[rk] = r_df[rk].astype(str)
+                    return l_df, r_df
+
+                if on:
+                    left, right = _align_join_dtypes(left, right, on, on)
+                elif left_on and right_on:
+                    left, right = _align_join_dtypes(left, right, left_on, right_on)
+
                 merged = left.merge(
                     right,
                     how=how,
@@ -448,6 +483,8 @@ class DataframeJoin(Component, Model, Resolvable):
                     nxt = extras.get(slot)
                     if nxt is None:
                         continue
+                    if on:
+                        merged, nxt = _align_join_dtypes(merged, nxt, on, on)
                     merged = merged.merge(
                         nxt,
                         how=how,

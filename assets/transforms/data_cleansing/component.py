@@ -383,12 +383,20 @@ group_name=group_name,
                 # Drop rows with nulls only in the listed columns (or all columns if unset)
                 df = df.dropna(subset=str_cols if columns else None)
             elif null_handling == "fill":
-                # Only fill the listed string columns — applying a string fill_value
-                # to the whole frame would corrupt numeric columns (e.g. Age=22.0
-                # becomes Age='unknown' if NaN). Scope to str_cols only.
+                # String columns get null_fill_value (default "" — matches
+                # Alteryx's "Replace Nulls in String fields" default).
+                # Numeric columns get 0 IF null_fill_value isn't explicitly
+                # set (matches Alteryx's "Replace Nulls in Numeric fields"
+                # default). If the user passed a literal null_fill_value,
+                # respect it on strings only — numeric cols are left alone.
+                _str_fill = null_fill_value if null_fill_value is not None else ""
                 for _col in str_cols:
                     if _col in df.columns:
-                        df[_col] = df[_col].fillna(null_fill_value)
+                        df[_col] = df[_col].fillna(_str_fill)
+                if null_fill_value is None:
+                    # Auto-default behavior: also fill numeric cols with 0.
+                    for _col in df.select_dtypes(include="number").columns:
+                        df[_col] = df[_col].fillna(0)
 
             for col in str_cols:
                 if col not in df.columns:

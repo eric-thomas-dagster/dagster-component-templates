@@ -394,13 +394,45 @@ group_name=group_name,
             #   named:  {out_col: {col: c, agg: f}} → produce named out_col from (c, f)
             # Named form lets you produce multiple aggregations from the same
             # source column (avg_rating + num_ratings both off `rating`).
+            # Alteryx (and other ETL tools) use slightly different aggregate
+            # names than pandas. Translate at config-resolve time so the
+            # rest of the asset's agg pipeline doesn't care which dialect
+            # the user / importer wrote. Identity entries (sum / mean /
+            # min / max / count / median / first / last / std / var) pass
+            # through unchanged.
+            _ALTERYX_TO_PANDAS_AGG = {
+                "avg": "mean",
+                "average": "mean",
+                "countdistinct": "nunique",
+                "count_distinct": "nunique",
+                "distinct_count": "nunique",
+                "nuniq": "nunique",
+                "stddev": "std",
+                "variance": "var",
+                "concat": "concat",          # handled by registry resolver, leave as-is
+                "concat_unique": "concat_unique",
+                "groupconcat": "concat",
+                "list": "list",
+                "mode": "mode",
+                # Alteryx GroupBy / Sort markers — non-aggregating, drop.
+                "groupby": None,
+                "sort": None,
+            }
+            def _translate_agg(f: Any) -> Any:
+                if not isinstance(f, str):
+                    return f
+                key = f.strip().lower()
+                if key in _ALTERYX_TO_PANDAS_AGG:
+                    return _ALTERYX_TO_PANDAS_AGG[key] or f  # None falls back to original
+                return f
+
             _named: Dict[str, Any] = {}
             _simple: Dict[str, Any] = {}
             for _out, _spec in aggregations.items():
                 if isinstance(_spec, dict) and "col" in _spec and "agg" in _spec:
-                    _named[_out] = (_spec["col"], _spec["agg"])
+                    _named[_out] = (_spec["col"], _translate_agg(_spec["agg"]))
                 else:
-                    _simple[_out] = _spec
+                    _simple[_out] = _translate_agg(_spec)
 
             if backend == "polars":
                 if pl is None:
@@ -432,15 +464,55 @@ group_name=group_name,
                 result = pl_df.group_by(group_by).agg(_aggs).sort(group_by)
                 _result_for_metadata = result.to_pandas()
             else:
-                _grouped = upstream.groupby(group_by)
-                if _named and _simple:
-                    _simple_df = _grouped.agg(_simple).reset_index()
-                    _named_df = _grouped.agg(**_named).reset_index()
-                    result = _simple_df.merge(_named_df, on=group_by)
-                elif _named:
-                    result = _grouped.agg(**_named).reset_index()
+                # Some Alteryx-style aggs aren't native pandas — convert to
+                # callables here so `groupby().agg()` accepts them. Keeps the
+                # exposed names ('concat', 'concat_unique', 'mode', 'list')
+                # working in both _simple and _named forms.
+                def _to_callable(f: Any) -> Any:
+                    if not isinstance(f, str):
+                        return f
+                    key = f.lower()
+                    if key == "concat":
+                        return lambda s: ", ".join(str(v) for v in s.dropna())
+                    if key == "concat_unique":
+                        return lambda s: ", ".join(sorted({str(v) for v in s.dropna()}))
+                    if key == "mode":
+                        return lambda s: (s.mode().iloc[0] if not s.mode().empty else None)
+                    if key == "list":
+                        return lambda s: list(s.dropna())
+                    return f
+                _simple = {k: _to_callable(v) for k, v in _simple.items()}
+                _named = {k: (src, _to_callable(fn)) for k, (src, fn) in _named.items()}
+
+                # Empty group_by → aggregate the whole frame as a single
+                # row. `df.groupby([])` raises 'No group keys passed', so
+                # take the df.agg() path instead which returns a Series
+                # per simple aggregation or a DataFrame per named.
+                if not group_by:
+                    import pandas as _pd
+                    rows: Dict[str, Any] = {}
+                    for _out, _spec in _simple.items():
+                        # Whole-frame agg: apply func to the matching source column.
+                        # `_simple` keys are the output column name AND source.
+                        rows[_out] = upstream[_out].agg(_spec)
+                    for _out, (_src, _func) in _named.items():
+                        rows[_out] = upstream[_src].agg(_func)
+                    result = _pd.DataFrame([rows])
+                    _result_for_metadata = result
+                    context.log.info(
+                        f"Summarized {len(upstream)} rows into 1 row "
+                        f"(no group_by, whole-frame aggregation)."
+                    )
                 else:
-                    result = _grouped.agg(_simple).reset_index()
+                    _grouped = upstream.groupby(group_by)
+                    if _named and _simple:
+                        _simple_df = _grouped.agg(_simple).reset_index()
+                        _named_df = _grouped.agg(**_named).reset_index()
+                        result = _simple_df.merge(_named_df, on=group_by)
+                    elif _named:
+                        result = _grouped.agg(**_named).reset_index()
+                    else:
+                        result = _grouped.agg(_simple).reset_index()
                 _row_count = len(result)
                 _result_for_metadata = result
             context.log.info(

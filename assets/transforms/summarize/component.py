@@ -512,6 +512,16 @@ group_name=group_name,
                         return lambda s: (s.mode().iloc[0] if not s.mode().empty else None)
                     if key == "list":
                         return lambda s: list(s.dropna())
+                    if key in ("countnull", "count_null", "null_count", "countnulls"):
+                        return lambda s: int(s.isna().sum())
+                    if key in ("countnonnull", "count_non_null", "non_null_count"):
+                        return lambda s: int(s.notna().sum())
+                    if key in ("countdistinct", "count_distinct", "nunique"):
+                        return "nunique"
+                    if key in ("first",):
+                        return "first"
+                    if key in ("last",):
+                        return "last"
                     if key in ("spatialobjcombine", "spatial_obj_combine", "spatial_union"):
                         # Aggregate Shapely geometries by unary union.
                         def _spatial_combine(s):

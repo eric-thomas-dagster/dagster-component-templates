@@ -139,6 +139,15 @@ class SummarizeComponent(Component, Model, Resolvable):
         ),
     )
     group_by: List[str] = Field(description="Columns to group by")
+    group_by_rename: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Post-aggregation rename map applied to group_by columns. "
+            "Useful when the source column name should be presented under a "
+            "different label in the output (e.g. group_by=['Value'], "
+            "group_by_rename={'Value': 'Team'}). Missing keys ignored."
+        ),
+    )
     aggregations: Dict = Field(
         description=(
             "Mapping of output column name to aggregation. Two forms:\n"
@@ -566,6 +575,16 @@ group_name=group_name,
                         result = _grouped.agg(**_named).reset_index()
                     else:
                         result = _grouped.agg(_simple).reset_index()
+                # Apply group_by_rename if provided — renames the group-by
+                # output columns post-aggregation so downstream tools can
+                # reference the friendly name.
+                _gbr = self.group_by_rename
+                if _gbr:
+                    _map = {k: v for k, v in _gbr.items() if k in (
+                        result.columns if hasattr(result, "columns") else list(result.columns)
+                    )}
+                    if _map:
+                        result = result.rename(columns=_map)
                 _row_count = len(result)
                 _result_for_metadata = result
             context.log.info(

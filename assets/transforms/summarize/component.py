@@ -507,6 +507,36 @@ group_name=group_name,
                 _simple = {k: _to_callable(v) for k, v in _simple.items()}
                 _named = {k: (src, _to_callable(fn)) for k, (src, fn) in _named.items()}
 
+                # Coerce object-dtype source columns to numeric for arithmetic
+                # aggregations (sum/mean/avg/min/max/std/var/median). Otherwise
+                # pandas raises "agg function failed [how->mean,dtype->object]"
+                # whenever the upstream column came in as strings (CSV reads,
+                # passthrough from a tool that didn't infer dtype, etc.).
+                _NUMERIC_AGG_NAMES = {
+                    "sum", "mean", "avg", "average", "min", "max",
+                    "std", "stddev", "var", "variance", "median",
+                }
+                def _needs_numeric(fn) -> bool:
+                    if isinstance(fn, str):
+                        return fn.lower() in _NUMERIC_AGG_NAMES
+                    return getattr(fn, "__name__", "").lower() in _NUMERIC_AGG_NAMES
+                _to_coerce: set = set()
+                for _out, _spec in _simple.items():
+                    if _needs_numeric(_spec) and _out in upstream.columns and upstream[_out].dtype == "object":
+                        _to_coerce.add(_out)
+                for _out, (_src, _func) in _named.items():
+                    if _needs_numeric(_func) and _src in upstream.columns and upstream[_src].dtype == "object":
+                        _to_coerce.add(_src)
+                if _to_coerce:
+                    import pandas as _pd
+                    upstream = upstream.copy()
+                    for _c in _to_coerce:
+                        upstream[_c] = _pd.to_numeric(upstream[_c], errors="coerce")
+                    context.log.warning(
+                        f"Summarize: coerced object-dtype source columns to "
+                        f"numeric for arithmetic aggregations: {sorted(_to_coerce)}"
+                    )
+
                 # Empty group_by → aggregate the whole frame as a single
                 # row. `df.groupby([])` raises 'No group keys passed', so
                 # take the df.agg() path instead which returns a Series

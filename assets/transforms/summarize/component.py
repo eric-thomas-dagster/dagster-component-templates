@@ -464,6 +464,29 @@ group_name=group_name,
                 result = pl_df.group_by(group_by).agg(_aggs).sort(group_by)
                 _result_for_metadata = result.to_pandas()
             else:
+                # Empty aggregations + non-empty group_by = "deduplicate by
+                # these columns" semantically (matches Alteryx Summarize with
+                # only GroupBy actions). pandas groupby().agg({}) raises
+                # "No objects to concatenate" — short-circuit to drop_duplicates.
+                if not _named and not _simple and group_by:
+                    result = upstream[group_by].drop_duplicates().reset_index(drop=True)
+                    _result_for_metadata = result
+                    context.log.info(
+                        f"Summarize on tool returned {len(result)} unique "
+                        f"groups of {group_by} (no aggregations configured)."
+                    )
+                    return result
+                # Empty aggregations + empty group_by = degenerate config.
+                # Alteryx fallback: emit a single row with the total record count.
+                if not _named and not _simple and not group_by:
+                    import pandas as _pd
+                    result = _pd.DataFrame([{"row_count": len(upstream)}])
+                    _result_for_metadata = result
+                    context.log.warning(
+                        "Summarize with no group_by AND no aggregations — "
+                        "returning a single-row {row_count: N} DataFrame."
+                    )
+                    return result
                 # Some Alteryx-style aggs aren't native pandas — convert to
                 # callables here so `groupby().agg()` accepts them. Keeps the
                 # exposed names ('concat', 'concat_unique', 'mode', 'list')

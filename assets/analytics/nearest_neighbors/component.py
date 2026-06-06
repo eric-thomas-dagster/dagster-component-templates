@@ -384,7 +384,22 @@ group_name=group_name,
                 raise ImportError("scikit-learn is required: pip install scikit-learn") from e
 
             df = upstream.copy()
-            X = df[feature_columns].fillna(0).values
+            # Auto-explode Shapely Point columns to numeric x/y so KNN can
+            # consume a geometry feature column directly (matches Alteryx
+            # FindNearest's <Field> referring to a spatial obj).
+            _resolved_features: List[str] = []
+            for _fc in feature_columns:
+                if _fc not in df.columns:
+                    _resolved_features.append(_fc)
+                    continue
+                _first = next((v for v in df[_fc] if v is not None and not (isinstance(v, float) and pd.isna(v))), None)
+                if _first is not None and hasattr(_first, "x") and hasattr(_first, "y"):
+                    df[f"{_fc}__x"] = df[_fc].map(lambda g: getattr(g, "x", None))
+                    df[f"{_fc}__y"] = df[_fc].map(lambda g: getattr(g, "y", None))
+                    _resolved_features.extend([f"{_fc}__x", f"{_fc}__y"])
+                else:
+                    _resolved_features.append(_fc)
+            X = df[_resolved_features].fillna(0).values
 
             if normalize:
                 X = StandardScaler().fit_transform(X)

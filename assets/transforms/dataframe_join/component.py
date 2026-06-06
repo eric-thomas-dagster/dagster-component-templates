@@ -145,6 +145,29 @@ class DataframeJoin(Component, Model, Resolvable):
     left_on: Optional[List[str]] = Field(default=None, description="Left join columns (when column names differ)")
     right_on: Optional[List[str]] = Field(default=None, description="Right join columns (when column names differ)")
     suffixes: List[str] = Field(default=["_x", "_y"], description="Suffixes for overlapping column names")
+    right_prefix: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, the post-merge `rename` and `drop_columns` will fuzzy-match "
+            "keys that start with this prefix against the actual merged column "
+            "names: try `prefix + col`, then `col`, then `col + suffixes[1]`. "
+            "Useful when the rename map was authored against a tool that "
+            "prefixes right-side columns (e.g. 'Right_') but pandas only "
+            "suffixes on collision."
+        ),
+    )
+    rename: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Post-merge rename map, e.g. {'Right_Age': 'Age At Win'}. Missing keys are ignored.",
+    )
+    drop_columns: Optional[List[str]] = Field(
+        default=None,
+        description="Post-merge columns to drop (applied AFTER `rename`). Missing columns are ignored.",
+    )
+    keep_only_columns: Optional[List[str]] = Field(
+        default=None,
+        description="If set, keep only these columns post-merge (applied AFTER `rename` and `drop_columns`). Missing columns are ignored.",
+    )
     include_preview_metadata: bool = Field(
         default=False,
         description="Include a preview of the output DataFrame in metadata (for builder UIs).",
@@ -347,6 +370,67 @@ class DataframeJoin(Component, Model, Resolvable):
         if backend not in ("pandas", "polars"):
             raise ValueError(f"backend must be 'pandas' or 'polars', got {self.backend!r}")
 
+        right_prefix = self.right_prefix
+        post_rename = dict(self.rename or {})
+        post_drop = list(self.drop_columns or [])
+        post_keep_only = list(self.keep_only_columns or [])
+        _left_suffix = suffixes[0] if len(suffixes) > 0 else "_x"
+        _right_suffix = suffixes[1] if len(suffixes) > 1 else "_y"
+        # Join-key column names — never strip-and-touch these even when a
+        # `Right_<key>` drop is requested, because pandas already collapses
+        # same-name join keys into a single column.
+        _join_keys = set((on or []) + (left_on or []) + (right_on or []))
+
+        def _resolve(key, cols):
+            """Resolve a `rename`/`drop` key against the actual post-merge cols.
+            Honors common left/right prefix conventions: tries exact match,
+            then strips Right_ / Left_ prefix and looks for the bare column
+            (no-collision case) or the bare + side-suffix (collision case).
+            Returns None if the bare column resolves to a join key (which
+            doesn't have a separate right-side copy in pandas)."""
+            if key in cols:
+                return key
+            for pref, suf in (("Right_", _right_suffix), ("Left_", _left_suffix)):
+                if key.startswith(pref):
+                    bare = key[len(pref):]
+                    if bare in _join_keys:
+                        return None  # join keys are collapsed; no right-side copy
+                    if bare in cols:
+                        return bare
+                    if (bare + suf) in cols:
+                        return bare + suf
+                    break
+            if right_prefix and key.startswith(right_prefix):
+                bare = key[len(right_prefix):]
+                if bare in _join_keys:
+                    return None
+                if bare in cols:
+                    return bare
+                if (bare + _right_suffix) in cols:
+                    return bare + _right_suffix
+            return None
+
+        def _apply_post_merge(df):
+            cols = set(df.columns)
+            if post_rename:
+                _map = {}
+                for k, v in post_rename.items():
+                    resolved = _resolve(k, cols)
+                    if resolved is not None:
+                        _map[resolved] = v
+                if _map:
+                    df = df.rename(columns=_map)
+                    cols = set(df.columns)
+            if post_drop:
+                _to_drop = [c for c in (_resolve(k, cols) for k in post_drop) if c is not None]
+                if _to_drop:
+                    df = df.drop(columns=_to_drop)
+                    cols = set(df.columns)
+            if post_keep_only:
+                _keep = [c for c in post_keep_only if c in cols]
+                if _keep:
+                    df = df[_keep]
+            return df
 
         extra_slots = list(_extra_slots)
 
@@ -434,6 +518,8 @@ class DataframeJoin(Component, Model, Resolvable):
                         continue
                     nxt_pl = pl.from_pandas(nxt)
                     merged_pl = merged_pl.join(nxt_pl, **({"how": pl_how, "suffix": suffixes[1] if len(suffixes) > 1 else "_right"} | ({"on": on} if on else {})))
+                if post_rename or post_drop or post_keep_only:
+                    merged_pl = pl.from_pandas(_apply_post_merge(merged_pl.to_pandas()))
                 return merged_pl
             else:
                 # If join-key columns have mismatched dtypes between left
@@ -491,6 +577,7 @@ class DataframeJoin(Component, Model, Resolvable):
                         on=on,
                         suffixes=tuple(suffixes),
                     )
+                merged = _apply_post_merge(merged)
                 return merged
 
         from dagster import build_column_schema_change_checks

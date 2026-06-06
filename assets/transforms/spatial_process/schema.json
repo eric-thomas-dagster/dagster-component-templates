@@ -1,0 +1,34 @@
+{
+  "component_type": "dagster_community_components.SpatialProcessComponent",
+  "description": "Apply a single geometry op (centroid, boundary, convex_hull, envelope, simplify, buffer, polygon↔points/lines, set_precision) to a column of Shapely geometries. Drop-in for Alteryx Spatial Process tool.",
+  "category": "transformation",
+  "icon": "Compass",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame with a Shapely geometry column (or WKT/GeoJSON strings)"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Same DataFrame; the geometry column (or output_column) carries the result of `method`"
+    }
+  },
+  "attributes": {
+    "asset_name": { "type": "string", "label": "Asset Name", "required": true },
+    "upstream_asset_key": { "type": "string", "label": "Upstream Asset Key", "required": true },
+    "method": {
+      "type": "string",
+      "enum": ["centroid", "boundary", "polygon_to_lines", "polygon_to_points", "line_to_polygon", "convex_hull", "envelope", "simplify", "buffer", "set_precision"],
+      "default": "centroid",
+      "label": "Method",
+      "required": true
+    },
+    "geometry_column": { "type": "string", "default": "geometry", "label": "Input Geometry Column" },
+    "output_column": { "type": "string", "label": "Output Column (defaults to in-place)" },
+    "tolerance": { "type": "number", "default": 0.0001, "label": "Simplify Tolerance" },
+    "buffer_distance": { "type": "number", "default": 0.0, "label": "Buffer Distance (CRS units)" },
+    "precision_decimals": { "type": "integer", "default": 6, "label": "Set-precision Decimals" },
+    "group_name": { "type": "string", "label": "Group Name" }
+  }
+}

@@ -1,0 +1,26 @@
+# Replace each polygon with its centroid point:
+type: dagster_community_components.SpatialProcessComponent
+attributes:
+  asset_name: store_centroids
+  upstream_asset_key: store_polygons
+  method: centroid
+  geometry_column: geometry
+  group_name: geospatial
+
+# Simplify a polygon (Douglas-Peucker):
+# type: dagster_community_components.SpatialProcessComponent
+# attributes:
+#   asset_name: simplified_regions
+#   upstream_asset_key: raw_regions
+#   method: simplify
+#   tolerance: 0.001
+#   group_name: geospatial
+
+# Buffer points by 100 meters:
+# type: dagster_community_components.SpatialProcessComponent
+# attributes:
+#   asset_name: store_service_areas
+#   upstream_asset_key: stores
+#   method: buffer
+#   buffer_distance: 100   # CRS units (meters for EPSG:3857)
+#   group_name: geospatial

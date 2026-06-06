@@ -25129,6 +25129,29 @@
         "level": "code",
         "last_validated": "2026-06-06"
       }
+    },
+    {
+      "id": "spatial_process",
+      "name": "Spatial Process",
+      "category": "transformation",
+      "description": "Apply a single geometry op (centroid, boundary, convex_hull, envelope, simplify, buffer, polygon\u2194points/lines, set_precision) to a column of Shapely geometries. Drop-in for Alteryx Spatial Process tool.",
+      "path": "assets/transforms/spatial_process",
+      "tags": [
+        "transformation",
+        "alteryx",
+        "spatial"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_process/schema.json",
+      "component_type": "dagster_community_components.SpatialProcessComponent",
+      "icon": "Compass",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_process/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_process/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_process/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_process/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

@@ -1,0 +1,61 @@
+{
+  "component_type": "dagster_community_components.GeoOverlayComponent",
+  "description": "Set-theoretic overlay of two (Geo)DataFrames — intersection / union / difference / symmetric_difference / identity. Drop-in for Alteryx's Spatial Process tool.",
+  "category": "transformation",
+  "icon": "Layers",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Two (Geo)DataFrames with geometry columns"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Overlay-result features carrying attributes from both inputs"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "left_asset_key": {
+      "type": "string",
+      "label": "Left Asset Key",
+      "description": "Upstream asset key — first geometry source",
+      "required": true
+    },
+    "right_asset_key": {
+      "type": "string",
+      "label": "Right Asset Key",
+      "description": "Upstream asset key — second geometry source",
+      "required": true
+    },
+    "how": {
+      "type": "string",
+      "enum": ["intersection", "union", "difference", "symmetric_difference", "identity"],
+      "default": "intersection",
+      "label": "How",
+      "description": "Set operation to apply"
+    },
+    "keep_geom_type": {
+      "type": "boolean",
+      "default": true,
+      "label": "Keep Geom Type",
+      "description": "Only keep result features whose geometry type matches the left input"
+    },
+    "geometry_column": {
+      "type": "string",
+      "default": "geometry",
+      "label": "Geometry Column",
+      "description": "Geometry column name on both inputs"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name"
+    }
+  }
+}

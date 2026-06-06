@@ -1,0 +1,13 @@
+type: dagster_community_components.PearsonCorrelationComponent
+attributes:
+  asset_name: feature_correlations
+  upstream_asset_key: training_features
+  columns:
+    - age
+    - income
+    - tenure_months
+    - monthly_charges
+  output_shape: long
+  method: pearson
+  min_periods: 30
+  group_name: feature_engineering

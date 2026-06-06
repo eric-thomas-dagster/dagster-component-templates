@@ -1,0 +1,54 @@
+{
+  "component_type": "dagster_community_components.GeoSimplifyComponent",
+  "description": "Douglas-Peucker simplification of a geometry column — reduce vertex count for plotting / tiling / faster joins. Drop-in for Alteryx's Generalize tool.",
+  "category": "transformation",
+  "icon": "Minimize2",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Upstream (Geo)DataFrame with a geometry column"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Same columns; geometry is simplified in place"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a (Geo)DataFrame with a geometry column",
+      "required": true
+    },
+    "tolerance": {
+      "type": "number",
+      "label": "Tolerance",
+      "description": "Simplification tolerance, in the CRS's units",
+      "required": true
+    },
+    "preserve_topology": {
+      "type": "boolean",
+      "default": true,
+      "label": "Preserve Topology",
+      "description": "Keep the simplified geometry valid (no self-intersections)"
+    },
+    "geometry_column": {
+      "type": "string",
+      "default": "geometry",
+      "label": "Geometry Column",
+      "description": "Input + output geometry column name"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name"
+    }
+  }
+}

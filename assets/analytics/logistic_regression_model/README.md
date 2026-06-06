@@ -58,6 +58,7 @@ Fit a logistic regression classifier and append predicted class labels and/or pe
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `model_path` | `str` | — | If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://). Downstream `model_score` component loads this path to predict on new data — closes the Alteryx 'train once, score later' loop. |
 | `output_predictions` | `bool` | `true` | Add predicted_class column to output |
 | `output_probabilities` | `bool` | `true` | Add predicted_proba_<class> columns per class |
 

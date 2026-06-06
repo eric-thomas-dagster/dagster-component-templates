@@ -1,0 +1,10 @@
+type: dagster_community_components.PointsFromLatLonComponent
+attributes:
+  asset_name: customer_locations_geo
+  upstream_asset_key: customer_locations
+  longitude_column: lng
+  latitude_column: lat
+  geometry_column: geometry
+  crs: EPSG:4326
+  drop_invalid: true
+  group_name: geospatial

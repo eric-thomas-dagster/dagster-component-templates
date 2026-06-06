@@ -1,0 +1,68 @@
+{
+  "component_type": "dagster_community_components.GeoBufferComponent",
+  "description": "Expand each geometry by a distance, producing a polygon buffer. Drop-in for Alteryx's Buffer / Trade Area tools.",
+  "category": "transformation",
+  "icon": "Maximize2",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Upstream (Geo)DataFrame with a geometry column"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Same columns; geometry_column is replaced with polygon buffers"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a (Geo)DataFrame with a geometry column",
+      "required": true
+    },
+    "distance": {
+      "type": "number",
+      "label": "Distance",
+      "description": "Buffer distance, in `units`",
+      "required": true
+    },
+    "units": {
+      "type": "string",
+      "enum": ["meters", "km", "miles", "feet", "yards"],
+      "default": "meters",
+      "label": "Units",
+      "description": "Unit for `distance`"
+    },
+    "geometry_column": {
+      "type": "string",
+      "default": "geometry",
+      "label": "Geometry Column",
+      "description": "Input + output geometry column name"
+    },
+    "projected_crs": {
+      "type": "string",
+      "default": "EPSG:3857",
+      "label": "Projected CRS",
+      "description": "Projected CRS used for the buffer math. Default is Web Mercator (EPSG:3857)."
+    },
+    "resolution": {
+      "type": "integer",
+      "default": 16,
+      "minimum": 1,
+      "label": "Resolution",
+      "description": "Number of segments per quarter-circle in the resulting buffer polygon"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name"
+    }
+  }
+}

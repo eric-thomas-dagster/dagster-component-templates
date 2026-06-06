@@ -1,0 +1,66 @@
+{
+  "component_type": "dagster_community_components.PointsFromLatLonComponent",
+  "description": "Build Shapely Point geometries from lat/lon columns. Drop-in for Alteryx's Create Points tool.",
+  "category": "transformation",
+  "icon": "MapPin",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Upstream DataFrame containing the lat/lon columns"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Original columns plus geometry_column of Shapely Points"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
+    "longitude_column": {
+      "type": "string",
+      "label": "Longitude Column",
+      "description": "Column containing longitude (X / east-west) values",
+      "required": true
+    },
+    "latitude_column": {
+      "type": "string",
+      "label": "Latitude Column",
+      "description": "Column containing latitude (Y / north-south) values",
+      "required": true
+    },
+    "geometry_column": {
+      "type": "string",
+      "default": "geometry",
+      "label": "Geometry Column",
+      "description": "Output column name for the Shapely Point geometries"
+    },
+    "crs": {
+      "type": "string",
+      "default": "EPSG:4326",
+      "label": "CRS",
+      "description": "Coordinate reference system the lat/lon values are in. Defaults to WGS84."
+    },
+    "drop_invalid": {
+      "type": "boolean",
+      "default": true,
+      "label": "Drop Invalid",
+      "description": "Drop rows where lat or lon is NaN / non-numeric"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+type: dagster_community_components.GeoBufferComponent
+attributes:
+  asset_name: store_trade_areas
+  upstream_asset_key: store_locations_geo
+  distance: 5
+  units: miles
+  geometry_column: geometry
+  projected_crs: EPSG:3857
+  resolution: 16
+  group_name: geospatial

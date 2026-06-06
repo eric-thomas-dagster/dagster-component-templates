@@ -53,6 +53,12 @@ Fits a Support Vector Classifier or Regressor (sklearn). Configurable kernel, re
 | `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
 | `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `model_path` | `str` | — | If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://). Downstream `model_score` component loads this path to predict on new data — closes the Alteryx 'train once, score later' loop. |
+
 ### Other
 
 | Field | Type | Default | Description |

@@ -58,6 +58,7 @@ Fits a Poisson generalized linear model for count outcomes (events per unit, cli
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `output_mode` | `str` | `"predictions"` | 'predictions' or 'coefficients' |
+| `model_path` | `str` | — | If set, save the fitted statsmodels GLM result to this path. Uses statsmodels' native `.save()` (pickle-based, preserves the full model state). Supports local paths only — fsspec URLs need you to set up a tempfile + upload. Downstream `model_score` loads it by setting `deserializer: pickle`. |
 
 ### Other
 

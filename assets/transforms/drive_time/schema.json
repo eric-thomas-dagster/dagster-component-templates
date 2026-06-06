@@ -1,0 +1,83 @@
+{
+  "component_type": "dagster_community_components.DriveTimeComponent",
+  "description": "Drive-time isochrone polygons per row via openrouteservice / google / mapbox / OSRM. Drop-in for Alteryx's Drive Time / Trade Area tools.",
+  "category": "transformation",
+  "icon": "Clock",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Upstream DataFrame with Shapely Point in geometry_column OR latitude/longitude columns"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Same columns; geometry_column replaced with isochrone Polygon per row"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a (Geo)DataFrame",
+      "required": true
+    },
+    "drive_minutes": {
+      "type": "number",
+      "label": "Drive Minutes",
+      "description": "Isochrone size in minutes (e.g. 15 = polygon reachable within 15 min drive)",
+      "required": true
+    },
+    "provider": {
+      "type": "string",
+      "enum": ["openrouteservice", "google", "mapbox", "osrm"],
+      "default": "openrouteservice",
+      "label": "Provider",
+      "description": "Routing provider"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "default": "OPENROUTESERVICE_API_KEY",
+      "label": "API Key Env Var",
+      "description": "Env var holding the routing provider's API key. Not needed for `provider=osrm`."
+    },
+    "osrm_base_url": {
+      "type": "string",
+      "label": "OSRM Base URL",
+      "description": "Required when `provider=osrm`. e.g. `http://localhost:5000`."
+    },
+    "profile": {
+      "type": "string",
+      "enum": ["driving-car", "foot-walking", "cycling-regular"],
+      "default": "driving-car",
+      "label": "Profile",
+      "description": "Travel mode"
+    },
+    "geometry_column": {
+      "type": "string",
+      "default": "geometry",
+      "label": "Geometry Column",
+      "description": "Input + output geometry column name"
+    },
+    "latitude_column": {
+      "type": "string",
+      "label": "Latitude Column",
+      "description": "If the input has no geometry column yet, name the lat column here + longitude_column"
+    },
+    "longitude_column": {
+      "type": "string",
+      "label": "Longitude Column",
+      "description": "Pair with latitude_column when input has no geometry"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name"
+    }
+  }
+}

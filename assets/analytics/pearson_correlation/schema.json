@@ -1,0 +1,64 @@
+{
+  "component_type": "dagster_community_components.PearsonCorrelationComponent",
+  "description": "Pearson / Spearman / Kendall correlation matrix across numeric columns, emitted as a long-form or wide-form DataFrame asset.",
+  "category": "analytics",
+  "icon": "BarChart",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Upstream DataFrame containing the numeric columns to correlate"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Long-form (field1, field2, correlation) or wide-form correlation matrix"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
+    "columns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Columns",
+      "description": "Numeric columns to correlate. If omitted, all numeric columns are used.",
+      "required": false
+    },
+    "output_shape": {
+      "type": "string",
+      "enum": ["long", "wide"],
+      "default": "long",
+      "label": "Output Shape",
+      "description": "'long' (one row per pair) or 'wide' (square matrix)"
+    },
+    "method": {
+      "type": "string",
+      "enum": ["pearson", "spearman", "kendall"],
+      "default": "pearson",
+      "label": "Method",
+      "description": "Correlation method passed to pd.DataFrame.corr()"
+    },
+    "min_periods": {
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "label": "Min Periods",
+      "description": "Minimum number of observations required per pair of columns"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name"
+    }
+  }
+}

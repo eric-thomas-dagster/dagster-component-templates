@@ -64,6 +64,7 @@ Loads a pickled scikit-learn estimator from disk and runs `predict` (and `predic
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `include_proba` | `bool` | `false` | For classifiers: also emit predict_proba columns. |
+| `framework` | `str` | `"auto"` | How the model was serialized. 'auto' (default) tries joblib then pickle; 'sklearn' forces joblib; 'statsmodels' uses sm.load() and prepends a constant column (statsmodels' GLM.predict expects the design matrix with intercept). Set explicitly when scoring count_regression / gamma_regression / other statsmodels-fit components. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output DataFrame in metadata (for builder UIs). |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. |
 

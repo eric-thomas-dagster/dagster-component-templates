@@ -57,6 +57,7 @@ For each record in the DataFrame, find the K nearest neighbors by feature simila
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `model_path` | `str` | — | If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://). Downstream `model_score` component loads this path to predict on new data — closes the Alteryx 'train once, score later' loop. |
 | `output_distances` | `bool` | `true` | Add neighbor_N_dist columns with distances |
 | `output_indices` | `bool` | `true` | Add neighbor_N_idx columns with row indices |
 

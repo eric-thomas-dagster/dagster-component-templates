@@ -1,0 +1,15 @@
+type: dagster_community_components.PerRowHttpFetcherComponent
+attributes:
+  asset_name: enriched_product_pages
+  upstream_asset_key: product_urls
+  url_column: url
+  method: GET
+  headers:
+    User-Agent: dagster-data-pipeline/1.0
+    Accept: application/json
+  timeout_seconds: 30
+  max_workers: 20
+  retries: 2
+  output_prefix: response
+  parse_json: true
+  group_name: web_enrichment

@@ -1,0 +1,8 @@
+type: dagster_community_components.GeoSimplifyComponent
+attributes:
+  asset_name: simplified_districts
+  upstream_asset_key: school_districts_geo
+  tolerance: 0.001
+  preserve_topology: true
+  geometry_column: geometry
+  group_name: geospatial

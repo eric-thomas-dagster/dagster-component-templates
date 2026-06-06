@@ -1,0 +1,9 @@
+type: dagster_community_components.GeoOverlayComponent
+attributes:
+  asset_name: customers_in_trade_areas
+  left_asset_key: store_trade_areas
+  right_asset_key: customer_locations_geo
+  how: intersection
+  keep_geom_type: true
+  geometry_column: geometry
+  group_name: geospatial

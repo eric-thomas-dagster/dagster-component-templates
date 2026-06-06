@@ -12,8 +12,8 @@ Fit a Naive Bayes classifier using scikit-learn. Supports Gaussian (continuous f
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `target_column` | `str` | Target column to predict |
-| `feature_columns` | `List[str]` | Feature columns to use |
+| `target_column` | `str` | Column name of the target variable |
+| `feature_columns` | `List[str]` | List of column names to use as features |
 
 ### Catalog metadata
 
@@ -58,19 +58,22 @@ Fit a Naive Bayes classifier using scikit-learn. Supports Gaussian (continuous f
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `output_predictions` | `bool` | `true` | Append predicted_class column to output |
-| `output_probabilities` | `bool` | `true` | Append per-class probability columns to output |
+| `model_path` | `str` | — | If set, joblib-dump the trained model to this path after fit. Supports local paths and any fsspec URL (s3://, gs://, abfs://). Downstream `model_score` component loads this path to predict on new data — closes the Alteryx 'train once, score later' loop. |
+| `output_mode` | `str` | `"predictions"` | Output mode: 'predictions' or 'feature_importance' |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `variant` | `str` | `"gaussian"` | Naive Bayes variant: 'gaussian' (continuous), 'multinomial' (counts), 'bernoulli' (binary) |
+| `task_type` | `str` | `"classification"` | Task type: 'classification' or 'regression' |
+| `n_estimators` | `int` | `100` | Number of trees in the forest |
+| `max_depth` | `int` | — | Maximum depth of each tree (None = unlimited) |
 | `test_size` | `float` | `0.2` | Fraction of data to hold out for evaluation |
 | `random_state` | `int` | `42` | Random seed for reproducibility |
+| `n_jobs` | `int` | `-1` | Number of parallel jobs (-1 = use all CPUs) |
+| `include_preview_metadata` | `bool` | `false` | Include a preview of the output DataFrame in metadata (for builder UIs). |
+| `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
-| `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 25 rows or a sample) for builder UIs. |
-| `preview_rows` | `int` | `25` | Rows to include in the preview metadata. For long DataFrames (>10x preview_rows), a random sample is used; otherwise head(). |
 
 [//]: # (FIELDS:END)
 

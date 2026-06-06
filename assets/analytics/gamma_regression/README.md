@@ -58,6 +58,7 @@ Fits a Gamma GLM (log link) for strictly-positive continuous outcomes like dolla
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `output_mode` | `str` | `"predictions"` | 'predictions' or 'coefficients' |
+| `model_path` | `str` | — | If set, save the fitted statsmodels GLM result to this path via statsmodels' native `.save()` (pickle-based). Downstream `model_score` loads it with `deserializer: pickle`. |
 
 ### Other
 

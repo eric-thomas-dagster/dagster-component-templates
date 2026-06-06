@@ -1,0 +1,10 @@
+type: dagster_community_components.DriveTimeComponent
+attributes:
+  asset_name: store_drive_15min
+  upstream_asset_key: store_locations_geo
+  drive_minutes: 15
+  provider: openrouteservice
+  api_key_env_var: OPENROUTESERVICE_API_KEY
+  profile: driving-car
+  geometry_column: geometry
+  group_name: geospatial

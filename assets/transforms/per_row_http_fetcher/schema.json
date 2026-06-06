@@ -1,0 +1,88 @@
+{
+  "component_type": "dagster_community_components.PerRowHttpFetcherComponent",
+  "description": "Per-row HTTP request whose URL comes from a column; appends body / status / parsed JSON. Drop-in for Alteryx's Download tool.",
+  "category": "transformation",
+  "icon": "Globe",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Upstream DataFrame whose `url_column` holds the per-row URL"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Original columns plus <output_prefix>_body / _status / _json"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame",
+      "required": true
+    },
+    "url_column": {
+      "type": "string",
+      "label": "URL Column",
+      "description": "Column whose value is the URL to fetch for each row",
+      "required": true
+    },
+    "method": {
+      "type": "string",
+      "enum": ["GET", "POST", "PUT", "DELETE", "HEAD"],
+      "default": "GET",
+      "label": "Method",
+      "description": "HTTP method"
+    },
+    "headers": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "label": "Headers",
+      "description": "Static headers sent with every request (e.g. Authorization)"
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "default": 30,
+      "minimum": 1,
+      "label": "Timeout (seconds)",
+      "description": "Per-request timeout in seconds"
+    },
+    "max_workers": {
+      "type": "integer",
+      "default": 10,
+      "minimum": 1,
+      "label": "Max Workers",
+      "description": "Max concurrent requests (ThreadPoolExecutor workers)"
+    },
+    "retries": {
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "label": "Retries",
+      "description": "Retry count per request on 5xx / connection errors (with exponential backoff)"
+    },
+    "output_prefix": {
+      "type": "string",
+      "default": "response",
+      "label": "Output Prefix",
+      "description": "Prefix for the three output columns: <prefix>_body, <prefix>_status, <prefix>_json"
+    },
+    "parse_json": {
+      "type": "boolean",
+      "default": true,
+      "label": "Parse JSON",
+      "description": "Parse the response body as JSON when content-type looks like JSON"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name"
+    }
+  }
+}

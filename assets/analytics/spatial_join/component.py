@@ -152,6 +152,15 @@ class SpatialJoinComponent(Component, Model, Resolvable):
     regions_asset_key: str = Field(description="Regions asset key providing a DataFrame with a GeoJSON geometry column")
     lat_column: str = Field(default="latitude", description="Column name in the points DataFrame for latitude")
     lng_column: str = Field(default="longitude", description="Column name in the points DataFrame for longitude")
+    points_geometry_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, use this column from the points DataFrame as already-built "
+            "Shapely geometries (Point/LineString/Polygon) instead of building "
+            "from lat_column + lng_column. Useful when the upstream emits "
+            "geometries directly (e.g. CreatePoints, PolyBuild, geocoder)."
+        ),
+    )
     geometry_column: str = Field(
         default="geometry",
         description="Column in the regions DataFrame containing GeoJSON geometry dicts or strings"
@@ -289,6 +298,7 @@ class SpatialJoinComponent(Component, Model, Resolvable):
         regions_asset_key = self.regions_asset_key
         lat_column = self.lat_column
         lng_column = self.lng_column
+        points_geometry_column = self.points_geometry_column
         geometry_column = self.geometry_column
         how = self.how
         group_name = self.group_name
@@ -411,15 +421,40 @@ group_name=group_name,
                 f"Spatial join: {len(upstream)} points against {len(regions_df)} regions (how={how})"
             )
 
-            gdf_points = gpd.GeoDataFrame(
-                upstream,
-                geometry=gpd.points_from_xy(upstream[lng_column], upstream[lat_column]),
-                crs="EPSG:4326",
-            )
+            # Build the points GeoDataFrame from either a pre-built geometry
+            # column (Point/Polygon/etc., either Shapely objects or WKT/GeoJSON
+            # strings) or from lat/lng numeric columns.
+            from shapely.geometry.base import BaseGeometry
+            from shapely import wkt as _wkt
+            def _parse_points_geom(g):
+                if isinstance(g, BaseGeometry):
+                    return g
+                if isinstance(g, dict):
+                    return shape(g)
+                s = str(g).strip()
+                if s.startswith("{"):
+                    return shape(json.loads(s))
+                return _wkt.loads(s)
+
+            if points_geometry_column and points_geometry_column in upstream.columns:
+                gdf_points = gpd.GeoDataFrame(
+                    upstream,
+                    geometry=upstream[points_geometry_column].apply(_parse_points_geom),
+                    crs="EPSG:4326",
+                )
+            else:
+                gdf_points = gpd.GeoDataFrame(
+                    upstream,
+                    geometry=gpd.points_from_xy(upstream[lng_column], upstream[lat_column]),
+                    crs="EPSG:4326",
+                )
 
             regions = regions_df.copy()
             from shapely import wkt as _wkt
+            from shapely.geometry.base import BaseGeometry
             def _parse_geom(g):
+                if isinstance(g, BaseGeometry):
+                    return g
                 if isinstance(g, dict):
                     return shape(g)
                 s = str(g).strip()
@@ -427,7 +462,16 @@ group_name=group_name,
                 if s.startswith("{"):
                     return shape(json.loads(s))
                 return _wkt.loads(s)
-            regions["geometry"] = regions[geometry_column].apply(_parse_geom)
+            _geom_col = geometry_column
+            if _geom_col not in regions.columns:
+                # Fall back to any existing geometry-typed column; common when
+                # upstream is geocoder/CreatePoints/PolyBuild output where the
+                # geom column is named "Centroid" or similar.
+                for _alt in ("geometry", "Centroid", "geom", "shape"):
+                    if _alt in regions.columns:
+                        _geom_col = _alt
+                        break
+            regions["geometry"] = regions[_geom_col].apply(_parse_geom)
             gdf_regions = gpd.GeoDataFrame(regions, geometry="geometry", crs="EPSG:4326")
 
             result = gpd.sjoin(gdf_points, gdf_regions, how=how, predicate="within")

@@ -136,11 +136,45 @@ class UnpivotComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def _asset(context: dg.AssetExecutionContext, df: pd.DataFrame) -> pd.DataFrame:
             self = _self
+            # pd.melt() raises if any id_vars / value_vars column is missing
+            # from the input. Drop missing columns from each list and log
+            # a warning — preferable to crashing on a partial-shape upstream.
+            id_present = [c for c in (self.id_columns or []) if c in df.columns]
+            id_missing = [c for c in (self.id_columns or []) if c not in df.columns]
+            val_present = None
+            val_missing: list = []
+            if self.value_columns is not None:
+                val_present = [c for c in self.value_columns if c in df.columns]
+                val_missing = [c for c in self.value_columns if c not in df.columns]
+            if id_missing or val_missing:
+                context.log.warning(
+                    f"Unpivot upstream is missing columns; melting what's available. "
+                    f"Missing id_columns: {id_missing!r}; missing value_columns: {val_missing!r}"
+                )
+            # pd.melt rejects var_name / value_name that match an existing
+            # column. Auto-bump to `<name>_1`, `<name>_2`, ... if the
+            # configured name collides — preserves the user-supplied default
+            # in the common case, only kicks in when needed.
+            def _unique_name(base: str) -> str:
+                if base not in df.columns:
+                    return base
+                i = 1
+                while f"{base}_{i}" in df.columns:
+                    i += 1
+                return f"{base}_{i}"
+            var_name_final = _unique_name(self.var_name)
+            value_name_final = _unique_name(self.value_name)
+            if var_name_final != self.var_name or value_name_final != self.value_name:
+                context.log.warning(
+                    f"Unpivot output column-name collision with upstream — "
+                    f"renamed var_name {self.var_name!r}->{var_name_final!r}, "
+                    f"value_name {self.value_name!r}->{value_name_final!r}."
+                )
             out = df.melt(
-                id_vars=self.id_columns,
-                value_vars=self.value_columns,
-                var_name=self.var_name,
-                value_name=self.value_name,
+                id_vars=id_present,
+                value_vars=val_present,
+                var_name=var_name_final,
+                value_name=value_name_final,
             )
             if self.drop_null_values:
                 out = out.dropna(subset=[self.value_name])

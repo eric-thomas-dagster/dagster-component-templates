@@ -360,6 +360,14 @@ group_name=group_name,
             df = upstream.copy()
 
             for col, expr in expressions.items():
+                # Some Alteryx workflows self-reference the output column
+                # (e.g. `Year: np.where(df["Year"]=="1", "20", "19")`).
+                # Pre-create the column as NaN so the expression can read it
+                # without KeyError. The original value (if any) is preserved
+                # by upstream's df.copy() above, so this only kicks in when
+                # the column truly doesn't exist yet.
+                if col not in df.columns:
+                    df[col] = pd.NA
                 try:
                     df[col] = df.eval(expr)
                     context.log.info(f"Applied expression for '{col}': {expr}")

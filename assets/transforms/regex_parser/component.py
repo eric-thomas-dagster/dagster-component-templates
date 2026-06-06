@@ -362,7 +362,18 @@ group_name=group_name,
             out_col = output_column if output_column else column
 
             if mode == "extract":
-                extracted = df[column].str.extract(pattern, flags=re_flags)
+                # str.extract requires the pattern to contain at least one
+                # capture group. If the user wrote a flat pattern (no
+                # parentheses), auto-wrap the whole thing as a single group
+                # — matches Alteryx ParseSimple's "extract the whole match"
+                # default semantic.
+                _xpat = pattern
+                try:
+                    if re.compile(pattern).groups == 0:
+                        _xpat = f"({pattern})"
+                except re.error:
+                    pass
+                extracted = df[column].str.extract(_xpat, flags=re_flags)
                 if output_columns:
                     extracted.columns = output_columns[: len(extracted.columns)]
                 else:

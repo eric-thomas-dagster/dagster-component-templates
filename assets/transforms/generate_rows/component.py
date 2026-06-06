@@ -132,7 +132,10 @@ class GenerateRowsComponent(Component, Model, Resolvable):
         description=(
             "Expansion mode: 'repeat' (duplicate each row N times), "
             "'cross_join' (cross product with new_rows), "
-            "'append' (append fixed new rows)"
+            "'append' (append fixed new rows), "
+            "'loop_expression' (per-row range-loop driven by init/condition/loop "
+            "Python expressions evaluated against each upstream row — emits one "
+            "row per loop iteration, with the loop variable in `create_column`)"
         ),
     )
     n: int = Field(
@@ -142,6 +145,26 @@ class GenerateRowsComponent(Component, Model, Resolvable):
     new_rows: Optional[List[Dict]] = Field(
         default=None,
         description="For mode='append' or 'cross_join': list of row dicts to use",
+    )
+    create_column: Optional[str] = Field(
+        default=None,
+        description="For mode='loop_expression': name of the column to populate with each loop value",
+    )
+    init_expression: Optional[str] = Field(
+        default=None,
+        description="For mode='loop_expression': Python expression for the initial value (evaluated against each upstream row dict). Example: \"row['Start']\" or \"row['Range-1']\".",
+    )
+    condition_expression: Optional[str] = Field(
+        default=None,
+        description="For mode='loop_expression': Python expression returning bool; loop continues while True. The loop variable is in scope as `value`. Example: \"value <= row['Range-2']\".",
+    )
+    loop_expression: Optional[str] = Field(
+        default=None,
+        description="For mode='loop_expression': Python expression returning the next value. Example: \"value + 1\" or \"value + pd.Timedelta(days=1)\".",
+    )
+    loop_max_iterations: int = Field(
+        default=100000,
+        description="For mode='loop_expression': safety limit per row to prevent infinite loops.",
     )
     reset_index: bool = Field(default=True, description="Reset the index after expansion")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
@@ -377,6 +400,55 @@ group_name=group_name,
                     result = result.reset_index(drop=True)
                 context.log.info(
                     f"Cross-joined {len(df)} x {len(new_df)} = {len(result)} rows"
+                )
+
+            elif mode == "loop_expression":
+                # Per-row range expansion driven by init/condition/loop exprs.
+                # For each upstream row, set `value = eval(init)`, then while
+                # eval(cond) is truthy, append a copy of the row with
+                # create_column=value, then set value = eval(loop). Caps at
+                # loop_max_iterations per row.
+                _create = self.create_column
+                _init = self.init_expression
+                _cond = self.condition_expression
+                _loop = self.loop_expression
+                _max_iter = self.loop_max_iterations
+                if not (_create and _init and _cond and _loop):
+                    raise ValueError(
+                        "generate_rows mode='loop_expression' requires "
+                        "create_column, init_expression, condition_expression, "
+                        "and loop_expression to all be set."
+                    )
+                import numpy as np
+                _scope = {"pd": pd, "np": np}
+                out_rows: list = []
+                for _row_dict in df.to_dict(orient="records"):
+                    _scope_row = {**_scope, "row": _row_dict}
+                    try:
+                        value = eval(_init, _scope_row)
+                    except Exception as e:
+                        context.log.warning(f"loop_expression init failed: {e}; skipping row.")
+                        continue
+                    _iter = 0
+                    while _iter < _max_iter:
+                        _scope_iter = {**_scope_row, "value": value, _create: value}
+                        try:
+                            if not eval(_cond, _scope_iter):
+                                break
+                        except Exception:
+                            break
+                        out_rows.append({**_row_dict, _create: value})
+                        try:
+                            value = eval(_loop, _scope_iter)
+                        except Exception as e:
+                            context.log.warning(f"loop_expression loop failed: {e}; ending row.")
+                            break
+                        _iter += 1
+                result = pd.DataFrame(out_rows) if out_rows else df.head(0).assign(**{_create: pd.Series(dtype="object")})
+                if do_reset_index:
+                    result = result.reset_index(drop=True)
+                context.log.info(
+                    f"loop_expression expanded {len(df)} input rows → {len(result)} output rows"
                 )
 
             else:

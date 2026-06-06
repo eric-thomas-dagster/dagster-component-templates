@@ -393,17 +393,42 @@ group_name=group_name,
 
             df = upstream.copy()
             # Auto-explode Shapely Point columns to numeric x/y so KNN can
-            # consume a geometry feature column directly (matches Alteryx
-            # FindNearest's <Field> referring to a spatial obj).
+            # consume a geometry feature column directly. Also accepts
+            # WKT / GeoJSON string-typed geometry columns — parse via
+            # shapely first, then explode.
+            def _to_point(v):
+                if v is None:
+                    return None
+                if hasattr(v, "x") and hasattr(v, "y"):
+                    return v
+                # Try parsing as WKT / GeoJSON string
+                s = str(v).strip()
+                if not s or s.lower() == "nan":
+                    return None
+                try:
+                    if s.startswith("{"):
+                        import json
+                        from shapely.geometry import shape
+                        return shape(json.loads(s))
+                    from shapely import wkt as _wkt
+                    return _wkt.loads(s)
+                except Exception:
+                    return None
+
             _resolved_features: List[str] = []
             for _fc in feature_columns:
                 if _fc not in df.columns:
                     _resolved_features.append(_fc)
                     continue
                 _first = next((v for v in df[_fc] if v is not None and not (isinstance(v, float) and pd.isna(v))), None)
-                if _first is not None and hasattr(_first, "x") and hasattr(_first, "y"):
-                    df[f"{_fc}__x"] = df[_fc].map(lambda g: getattr(g, "x", None))
-                    df[f"{_fc}__y"] = df[_fc].map(lambda g: getattr(g, "y", None))
+                _looks_geo = _first is not None and (
+                    hasattr(_first, "x") and hasattr(_first, "y")
+                    or (isinstance(_first, str) and (_first.strip().startswith("{") or _first.strip().upper().startswith(("POINT", "POLYGON", "LINESTRING"))))
+                )
+                if _looks_geo:
+                    _geoms = df[_fc].map(_to_point)
+                    df[f"{_fc}__x"] = _geoms.map(lambda g: getattr(g, "x", None) if g is not None else None)
+                    df[f"{_fc}__y"] = _geoms.map(lambda g: getattr(g, "y", None) if g is not None else None)
                     _resolved_features.extend([f"{_fc}__x", f"{_fc}__y"])
                 else:
                     _resolved_features.append(_fc)

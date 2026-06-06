@@ -1,0 +1,6 @@
+type: dagster_community_components.DynamicRenameComponent
+attributes:
+  asset_name: properly_headed_table
+  upstream_asset_key: csv_no_header
+  mode: first_row
+  group_name: ingestion

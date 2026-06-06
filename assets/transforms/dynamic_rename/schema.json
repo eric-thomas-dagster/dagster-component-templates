@@ -1,0 +1,30 @@
+{
+  "component_type": "dagster_community_components.DynamicRenameComponent",
+  "description": "Pattern-based column renaming with several modes (first_row / add_prefix / add_suffix / replace / mapping / mapping_from_column). Drop-in for Alteryx Dynamic Rename.",
+  "category": "transformation",
+  "icon": "Edit",
+  "x-dagster-io": {
+    "inputs": { "type": "dataframe", "required": true, "description": "DataFrame to rename columns on" },
+    "outputs": { "type": "dataframe", "description": "Same data, renamed columns (and one fewer row in first_row mode)" }
+  },
+  "attributes": {
+    "asset_name": { "type": "string", "label": "Asset Name", "required": true },
+    "upstream_asset_key": { "type": "string", "label": "Upstream Asset Key", "required": true },
+    "mode": {
+      "type": "string",
+      "enum": ["first_row", "add_prefix", "add_suffix", "replace", "mapping", "mapping_from_column"],
+      "label": "Mode",
+      "required": true
+    },
+    "columns": { "type": "array", "items": { "type": "string" }, "label": "Columns", "description": "Restrict renaming to these columns. None = all columns." },
+    "prefix": { "type": "string", "label": "Prefix" },
+    "suffix": { "type": "string", "label": "Suffix" },
+    "pattern": { "type": "string", "label": "Pattern (regex)" },
+    "replacement": { "type": "string", "default": "", "label": "Replacement" },
+    "mapping": { "type": "object", "additionalProperties": { "type": "string" }, "label": "Mapping" },
+    "mapping_asset_key": { "type": "string", "label": "Mapping Asset Key" },
+    "mapping_key_column": { "type": "string", "label": "Mapping Key Column" },
+    "mapping_value_column": { "type": "string", "label": "Mapping Value Column" },
+    "group_name": { "type": "string", "label": "Group Name" }
+  }
+}

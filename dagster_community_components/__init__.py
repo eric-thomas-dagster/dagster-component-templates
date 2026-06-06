@@ -301,6 +301,7 @@ _CLASS_PATHS: dict[str, str] = {
     "DuckDBResourceComponent": "resources/duckdb_resource/component.py",
     "DuckDBTableWriterComponent": "assets/sinks/duckdb_table_writer/component.py",
     "DynamicFanoutJobComponent": "jobs/dynamic_fanout_job/component.py",
+    "DynamicRenameComponent": "assets/transforms/dynamic_rename/component.py",
     "DynamoDBResource": "resources/dynamodb_resource/component.py",
     "DynamoDBResourceComponent": "resources/dynamodb_resource/component.py",
     "DynamodbReaderComponent": "assets/sources/dynamodb_reader/component.py",

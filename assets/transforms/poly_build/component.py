@@ -38,9 +38,35 @@ class PolyBuildComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key — DataFrame with one row per vertex")
     group_column: str = Field(description="Column identifying which polygon each vertex belongs to")
-    sequence_column: str = Field(description="Column ordering vertices within each polygon")
-    latitude_column: str = Field(description="Column with vertex latitude values")
-    longitude_column: str = Field(description="Column with vertex longitude values")
+    sequence_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "Column ordering vertices within each polygon. If None, the "
+            "upstream's natural row order within each group is used (matches "
+            "Alteryx PolyBuild's behavior when SequenceField is left blank)."
+        ),
+    )
+    # Two input modes — exactly ONE must be provided:
+    #   1. latitude_column + longitude_column → build Points from coords
+    #   2. geometry_column                    → use existing Shapely Points
+    #      (matches Alteryx PolyBuild's <SpatialObj field=X/>)
+    latitude_column: Optional[str] = Field(
+        default=None,
+        description="Column with vertex latitude values (lat/lng mode)",
+    )
+    longitude_column: Optional[str] = Field(
+        default=None,
+        description="Column with vertex longitude values (lat/lng mode)",
+    )
+    input_geometry_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "Column with existing Shapely Point geometries (geometry mode). "
+            "Use this instead of latitude_column + longitude_column when your "
+            "upstream already has point geometries (e.g. from a CreatePoints "
+            "or PointsFromLatLon component upstream)."
+        ),
+    )
     output_type: str = Field(
         default="polygon",
         description="'polygon' (closed ring; auto-closes) or 'line' (open polyline)",
@@ -93,22 +119,56 @@ class PolyBuildComponent(Component, Model, Resolvable):
                 ) from exc
 
             df = upstream.copy()
-            for required in (_self.group_column, _self.sequence_column,
-                             _self.latitude_column, _self.longitude_column):
-                if required not in df.columns:
+
+            # Mode selection: geometry-column OR lat/lng coords.
+            use_geom_col = bool(_self.input_geometry_column)
+            required_cols = [_self.group_column]
+            if _self.sequence_column:
+                required_cols.append(_self.sequence_column)
+            if use_geom_col:
+                required_cols.append(_self.input_geometry_column)
+            else:
+                if not (_self.latitude_column and _self.longitude_column):
+                    raise ValueError(
+                        "poly_build: must set either `input_geometry_column` OR "
+                        "both `latitude_column` + `longitude_column`."
+                    )
+                required_cols += [_self.latitude_column, _self.longitude_column]
+            for required in required_cols:
+                if required and required not in df.columns:
                     raise KeyError(
                         f"poly_build: required column {required!r} not in upstream "
                         f"DataFrame. Available: {list(df.columns)}"
                     )
 
-            # Sort by group then sequence so each group's vertices come in ring order.
-            df = df.sort_values([_self.group_column, _self.sequence_column])
+            # Sort by group then sequence so each group's vertices come in ring
+            # order. If no sequence_column, preserve upstream's natural row order
+            # within each group (matches Alteryx's <SequenceField field=""/> behavior).
+            sort_cols = [_self.group_column] + ([_self.sequence_column] if _self.sequence_column else [])
+            df = df.sort_values(sort_cols, kind="stable")
+
+            def _coords_of(group_df):
+                """Yield (x, y) tuples per vertex, regardless of input mode."""
+                if use_geom_col:
+                    for geom in group_df[_self.input_geometry_column]:
+                        if geom is None or pd.isna(geom):
+                            continue
+                        if hasattr(geom, "x") and hasattr(geom, "y"):
+                            yield (geom.x, geom.y)
+                        elif hasattr(geom, "coords"):
+                            yield from list(geom.coords)
+                else:
+                    for x, y in zip(group_df[_self.longitude_column], group_df[_self.latitude_column]):
+                        if pd.notna(x) and pd.notna(y):
+                            yield (x, y)
 
             output_rows: List[Dict] = []
+            skip_cols = {_self.group_column, _self.geometry_column,
+                         _self.sequence_column, _self.latitude_column,
+                         _self.longitude_column, _self.input_geometry_column}
+            skip_cols.discard(None)
             for group_key, group_df in df.groupby(_self.group_column, sort=False):
-                coords = list(zip(group_df[_self.longitude_column], group_df[_self.latitude_column]))
-                # Drop NaN coords.
-                coords = [(x, y) for x, y in coords if pd.notna(x) and pd.notna(y)]
+                coords = list(_coords_of(group_df))
                 if len(coords) < 2:
                     continue   # not enough vertices for even a LineString
                 geom = None
@@ -121,11 +181,8 @@ class PolyBuildComponent(Component, Model, Resolvable):
                 row: Dict = {_self.group_column: group_key, _self.geometry_column: geom}
                 if _self.keep_first_attributes:
                     first = group_df.iloc[0].to_dict()
-                    # Don't overwrite group_column or geometry_column we just set.
                     for k, v in first.items():
-                        if k in (_self.group_column, _self.geometry_column,
-                                 _self.sequence_column, _self.latitude_column,
-                                 _self.longitude_column):
+                        if k in skip_cols:
                             continue
                         row[k] = v
                 output_rows.append(row)

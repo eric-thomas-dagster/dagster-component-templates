@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.PolyBuildComponent",
-  "description": "Construct polygon (or polyline) geometries from a points DataFrame by grouping rows into rings and ordering them by a sequence column. Drop-in for Alteryx's Poly-Build tool.",
+  "description": "Construct polygon (or polyline) geometries from a points DataFrame by grouping rows into rings and ordering them by a sequence column. Drop-in for Alteryx's Poly-Build tool. Accepts either lat/lng coords OR an existing Shapely Point column.",
   "category": "transformation",
   "icon": "Hexagon",
   "x-dagster-io": {
@@ -18,16 +18,17 @@
     "asset_name": { "type": "string", "label": "Asset Name", "required": true },
     "upstream_asset_key": { "type": "string", "label": "Upstream Asset Key", "required": true },
     "group_column": { "type": "string", "label": "Group Column", "required": true, "description": "Column identifying which polygon each vertex belongs to" },
-    "sequence_column": { "type": "string", "label": "Sequence Column", "required": true, "description": "Column ordering vertices within each polygon" },
-    "latitude_column": { "type": "string", "label": "Latitude Column", "required": true },
-    "longitude_column": { "type": "string", "label": "Longitude Column", "required": true },
+    "sequence_column": { "type": "string", "label": "Sequence Column", "description": "Column ordering vertices within each polygon. Leave blank to use the upstream's natural row order within each group (matches Alteryx PolyBuild when SequenceField is empty)." },
+    "latitude_column": { "type": "string", "label": "Latitude Column", "description": "Vertex latitude (lat/lng mode). Pair with longitude_column." },
+    "longitude_column": { "type": "string", "label": "Longitude Column", "description": "Vertex longitude (lat/lng mode). Pair with latitude_column." },
+    "input_geometry_column": { "type": "string", "label": "Input Geometry Column", "description": "Column with existing Shapely Point geometries (geometry mode). Use this INSTEAD of latitude/longitude when the upstream already has points (e.g. from a CreatePoints component)." },
     "output_type": {
       "type": "string",
       "enum": ["polygon", "line"],
       "default": "polygon",
       "label": "Output Type"
     },
-    "geometry_column": { "type": "string", "default": "geometry", "label": "Geometry Column" },
+    "geometry_column": { "type": "string", "default": "geometry", "label": "Output Geometry Column" },
     "crs": { "type": "string", "default": "EPSG:4326", "label": "CRS" },
     "keep_first_attributes": { "type": "boolean", "default": true, "label": "Keep First Attributes" },
     "group_name": { "type": "string", "label": "Group Name" }

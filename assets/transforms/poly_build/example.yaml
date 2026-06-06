@@ -1,3 +1,4 @@
+# Mode 1 — lat/lng coords directly:
 type: dagster_community_components.PolyBuildComponent
 attributes:
   asset_name: store_trade_polygons
@@ -10,3 +11,14 @@ attributes:
   geometry_column: geometry
   crs: EPSG:4326
   group_name: geospatial
+
+# Mode 2 — already-built Shapely Points (matches Alteryx PolyBuild <SpatialObj/>):
+# type: dagster_community_components.PolyBuildComponent
+# attributes:
+#   asset_name: store_trade_polygons
+#   upstream_asset_key: store_vertex_points
+#   group_column: store_id
+#   sequence_column: vertex_order
+#   input_geometry_column: Centroid   # column with Point geoms from CreatePoints
+#   output_type: polygon
+#   group_name: geospatial

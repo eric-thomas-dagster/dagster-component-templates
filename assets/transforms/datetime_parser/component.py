@@ -355,7 +355,13 @@ group_name=group_name,
             df = upstream.copy()
             out_col = output_column if output_column else date_column
 
-            df[out_col] = pd.to_datetime(df[date_column], format=input_format)
+            # Trim leading/trailing whitespace from string inputs — strptime
+            # is whitespace-sensitive (" january 4" doesn't match "%B %d" but
+            # "january 4" does). Cheap pre-clean, safe on numeric/datetime.
+            _src = df[date_column]
+            if _src.dtype == "object":
+                _src = _src.astype(str).str.strip()
+            df[out_col] = pd.to_datetime(_src, format=input_format)
 
             if timezone:
                 if df[out_col].dt.tz is None:
@@ -367,7 +373,10 @@ group_name=group_name,
                 df[out_col] = df[out_col].dt.strftime(output_format)
 
             if extract_components:
-                parsed = pd.to_datetime(df[date_column], format=input_format)
+                _src = df[date_column]
+                if _src.dtype == "object":
+                    _src = _src.astype(str).str.strip()
+                parsed = pd.to_datetime(_src, format=input_format)
                 df[f"{date_column}_year"] = parsed.dt.year
                 df[f"{date_column}_month"] = parsed.dt.month
                 df[f"{date_column}_day"] = parsed.dt.day

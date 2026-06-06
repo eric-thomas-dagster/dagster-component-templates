@@ -143,6 +143,14 @@ class NearestNeighborsComponent(Component, Model, Resolvable):
     normalize: bool = Field(default=True, description="Standardize features with StandardScaler before computing distances")
     output_distances: bool = Field(default=True, description="Add neighbor_N_dist columns with distances")
     output_indices: bool = Field(default=True, description="Add neighbor_N_idx columns with row indices")
+    distance_column_template: str = Field(
+        default="neighbor_{i}_dist",
+        description="Format string for distance column names. `{i}` is the 1-based neighbor index. Use e.g. 'DistanceMiles' for a single-neighbor result.",
+    )
+    index_column_template: str = Field(
+        default="neighbor_{i}_idx",
+        description="Format string for index column names. `{i}` is the 1-based neighbor index.",
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -414,11 +422,13 @@ group_name=group_name,
             distances, indices = nn.kneighbors(X)
 
             # Skip self (index 0)
+            _dist_tmpl = self.distance_column_template
+            _idx_tmpl = self.index_column_template
             for i in range(n_neighbors):
                 if output_indices:
-                    df[f"neighbor_{i + 1}_idx"] = indices[:, i + 1]
+                    df[_idx_tmpl.format(i=i + 1)] = indices[:, i + 1]
                 if output_distances:
-                    df[f"neighbor_{i + 1}_dist"] = distances[:, i + 1]
+                    df[_dist_tmpl.format(i=i + 1)] = distances[:, i + 1]
 
 
             # Build column schema metadata

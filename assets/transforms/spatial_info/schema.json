@@ -1,0 +1,24 @@
+{
+  "component_type": "dagster_community_components.SpatialInfoComponent",
+  "description": "Append geometry metadata columns (area, length, centroid, bounds, geom type) to a (Geo)DataFrame. Drop-in for Alteryx's Spatial Info tool.",
+  "category": "transformation",
+  "icon": "Info",
+  "x-dagster-io": {
+    "inputs": { "type": "dataframe", "required": true, "description": "(Geo)DataFrame with a geometry column" },
+    "outputs": { "type": "dataframe", "description": "Original columns plus selected metric columns" }
+  },
+  "attributes": {
+    "asset_name": { "type": "string", "label": "Asset Name", "required": true },
+    "upstream_asset_key": { "type": "string", "label": "Upstream Asset Key", "required": true },
+    "geometry_column": { "type": "string", "default": "geometry", "label": "Geometry Column" },
+    "metrics": {
+      "type": "array", "items": { "type": "string", "enum": ["area", "length", "centroid", "bounds", "geom_type", "num_points", "is_valid"] },
+      "default": ["area", "length", "centroid", "bounds", "geom_type"],
+      "label": "Metrics"
+    },
+    "projected_crs": { "type": "string", "default": "EPSG:3857", "label": "Projected CRS" },
+    "area_unit": { "type": "string", "enum": ["sq_meters", "sq_km", "sq_miles", "sq_feet"], "default": "sq_meters", "label": "Area Unit" },
+    "length_unit": { "type": "string", "enum": ["meters", "km", "miles", "feet"], "default": "meters", "label": "Length Unit" },
+    "group_name": { "type": "string", "label": "Group Name" }
+  }
+}

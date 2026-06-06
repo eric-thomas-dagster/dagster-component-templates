@@ -1,0 +1,35 @@
+{
+  "component_type": "dagster_community_components.PolyBuildComponent",
+  "description": "Construct polygon (or polyline) geometries from a points DataFrame by grouping rows into rings and ordering them by a sequence column. Drop-in for Alteryx's Poly-Build tool.",
+  "category": "transformation",
+  "icon": "Hexagon",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame with one row per vertex"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "One row per built polygon / polyline, with geometry in geometry_column"
+    }
+  },
+  "attributes": {
+    "asset_name": { "type": "string", "label": "Asset Name", "required": true },
+    "upstream_asset_key": { "type": "string", "label": "Upstream Asset Key", "required": true },
+    "group_column": { "type": "string", "label": "Group Column", "required": true, "description": "Column identifying which polygon each vertex belongs to" },
+    "sequence_column": { "type": "string", "label": "Sequence Column", "required": true, "description": "Column ordering vertices within each polygon" },
+    "latitude_column": { "type": "string", "label": "Latitude Column", "required": true },
+    "longitude_column": { "type": "string", "label": "Longitude Column", "required": true },
+    "output_type": {
+      "type": "string",
+      "enum": ["polygon", "line"],
+      "default": "polygon",
+      "label": "Output Type"
+    },
+    "geometry_column": { "type": "string", "default": "geometry", "label": "Geometry Column" },
+    "crs": { "type": "string", "default": "EPSG:4326", "label": "CRS" },
+    "keep_first_attributes": { "type": "boolean", "default": true, "label": "Keep First Attributes" },
+    "group_name": { "type": "string", "label": "Group Name" }
+  }
+}

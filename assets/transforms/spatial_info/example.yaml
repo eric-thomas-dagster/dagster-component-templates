@@ -1,0 +1,15 @@
+type: dagster_community_components.SpatialInfoComponent
+attributes:
+  asset_name: store_trade_area_metrics
+  upstream_asset_key: store_trade_areas
+  geometry_column: geometry
+  metrics:
+    - area
+    - length
+    - centroid
+    - bounds
+    - geom_type
+  projected_crs: EPSG:3857
+  area_unit: sq_miles
+  length_unit: miles
+  group_name: geospatial

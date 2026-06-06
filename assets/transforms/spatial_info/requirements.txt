@@ -1,0 +1,4 @@
+dagster>=1.8.0
+pandas>=2.0.0
+geopandas>=0.14.0
+shapely>=2.0.0

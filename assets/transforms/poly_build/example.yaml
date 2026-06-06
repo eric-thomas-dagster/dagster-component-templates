@@ -1,0 +1,12 @@
+type: dagster_community_components.PolyBuildComponent
+attributes:
+  asset_name: store_trade_polygons
+  upstream_asset_key: store_vertex_rows
+  group_column: store_id
+  sequence_column: vertex_order
+  latitude_column: lat
+  longitude_column: lng
+  output_type: polygon
+  geometry_column: geometry
+  crs: EPSG:4326
+  group_name: geospatial

@@ -1,0 +1,27 @@
+# Subprocess (Rscript) backend — most portable.
+type: dagster_community_components.RScriptComponent
+attributes:
+  asset_name: clean_transactions
+  upstream_asset_key: raw_transactions
+  backend: rscript
+  script: |
+    library(dplyr)
+    out_df <- df %>%
+      filter(amount > 100) %>%
+      mutate(amount_log = log(amount))
+  r_packages: [dplyr]
+  intermediate_format: parquet
+  timeout_seconds: 120
+  group_name: data_quality
+
+# rpy2 backend — in-process, faster for small data.
+# type: dagster_community_components.RScriptComponent
+# attributes:
+#   asset_name: clean_transactions
+#   upstream_asset_key: raw_transactions
+#   backend: rpy2
+#   script: |
+#     library(dplyr)
+#     out_df <- df %>% filter(amount > 100)
+#   r_packages: [dplyr]
+#   group_name: data_quality

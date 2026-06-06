@@ -1,0 +1,7 @@
+# For backend='rpy2' (optional):
+#   pip install rpy2
+# Plus an installed R runtime (https://cran.r-project.org/).
+# For backend='rscript', only an installed R runtime is required;
+# parquet handoff also needs the R `arrow` package (auto-installed
+# on first run if not present).
+pyarrow>=14.0

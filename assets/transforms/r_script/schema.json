@@ -1,0 +1,38 @@
+{
+  "component_type": "dagster_community_components.RScriptComponent",
+  "description": "Run an R script against an upstream DataFrame. Two backends: rpy2 (in-process) or Rscript (subprocess + parquet/csv handoff).",
+  "category": "transformation",
+  "icon": "Code",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Upstream DataFrame; available to the R script as `df`"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "The R script must assign its result to `out_df`. Returned to Dagster as pandas DataFrame."
+    }
+  },
+  "attributes": {
+    "asset_name": { "type": "string", "label": "Asset Name", "required": true },
+    "upstream_asset_key": { "type": "string", "label": "Upstream Asset Key", "required": true },
+    "script": { "type": "string", "label": "R Script", "required": true, "description": "R script body. Reads `df`, must assign `out_df`." },
+    "backend": {
+      "type": "string",
+      "enum": ["rpy2", "rscript"],
+      "default": "rscript",
+      "label": "Backend"
+    },
+    "rscript_executable": { "type": "string", "default": "Rscript", "label": "Rscript Binary Path" },
+    "intermediate_format": {
+      "type": "string",
+      "enum": ["parquet", "csv"],
+      "default": "parquet",
+      "label": "Handoff Format (rscript backend)"
+    },
+    "r_packages": { "type": "array", "items": {"type": "string"}, "label": "R Packages To Install" },
+    "timeout_seconds": { "type": "integer", "default": 300, "label": "Rscript Timeout (seconds)" },
+    "group_name": { "type": "string", "label": "Group Name" }
+  }
+}

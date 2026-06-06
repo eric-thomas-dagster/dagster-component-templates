@@ -1,8 +1,7 @@
 """SpatialProcess.
 
 Apply a single geometry operation to a column of Shapely geometries.
-Drop-in for Alteryx's **Spatial Process** tool, which covers a small
-grab-bag of conversions / extractions:
+Covers the common grab-bag of conversions / extractions:
 
   - centroid           polygon → point
   - boundary           polygon → linestring (its outer ring)
@@ -158,7 +157,6 @@ class SpatialProcessComponent(Component, Model, Resolvable):
                 if method == "boundary":
                     return g.boundary
                 if method == "polygon_to_lines":
-                    # MultiLineString of the boundary ring(s)
                     return g.boundary
                 if method == "polygon_to_points":
                     from shapely.geometry import MultiPoint

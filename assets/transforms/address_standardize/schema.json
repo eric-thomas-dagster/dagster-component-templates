@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.AddressStandardizeComponent",
-  "description": "Parse messy address strings into structured components (street, city, state, ZIP, ZIP+4, country) using libpostal / Geoapify / Nominatim / regex. Free / open-source drop-in for Alteryx CASS.",
+  "description": "Parse messy address strings into structured components (street, city, state, ZIP, ZIP+4, country) using libpostal / Geoapify / Nominatim / regex.",
   "category": "transformation",
   "icon": "MapPin",
   "x-dagster-io": {

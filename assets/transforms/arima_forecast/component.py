@@ -359,8 +359,31 @@ group_name=group_name,
                 raise ImportError("statsmodels is required: pip install statsmodels") from e
 
             df = upstream.copy()
-            df[date_column] = pd.to_datetime(df[date_column])
-            series = df.set_index(date_column)[value_column].sort_index()
+            # Forgive missing date_column / value_column by trying common
+            # alternates. Useful for imports that emit slightly different
+            # naming conventions.
+            _date_col = date_column
+            _value_col = value_column
+            if _date_col not in df.columns:
+                for _alt in ("Date", "DATE", "datetime", "timestamp", "ts", "ds", "Year", "year"):
+                    if _alt in df.columns:
+                        context.log.warning(
+                            f"arima_forecast: date_column {_date_col!r} not found; "
+                            f"falling back to {_alt!r}"
+                        )
+                        _date_col = _alt
+                        break
+            if _value_col not in df.columns:
+                for _alt in ("Value", "VALUE", "y", "target", "amount", "count"):
+                    if _alt in df.columns:
+                        context.log.warning(
+                            f"arima_forecast: value_column {_value_col!r} not found; "
+                            f"falling back to {_alt!r}"
+                        )
+                        _value_col = _alt
+                        break
+            df[_date_col] = pd.to_datetime(df[_date_col], errors="coerce")
+            series = df.set_index(_date_col)[_value_col].sort_index()
 
             arima_order = tuple(order)
             sarima_order = tuple(seasonal_order) if seasonal_order else None

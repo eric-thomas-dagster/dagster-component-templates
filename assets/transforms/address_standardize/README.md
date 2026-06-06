@@ -1,9 +1,8 @@
 # AddressStandardizeComponent
 
-Parse messy address strings into structured components (street number,
-road, city, state, postcode, ZIP+4, country) — a free / open-source
-drop-in for Alteryx's **CASS** (Coding Accuracy Support System)
-address-cleansing tool.
+Parse messy address strings into structured components (house number,
+road, city, state, postcode, ZIP+4, country) using free / open-source
+providers.
 
 ## Providers
 

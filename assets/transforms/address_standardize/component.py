@@ -1,27 +1,23 @@
 """AddressStandardize.
 
-Parse a column of messy address strings into structured components
-(street_number, street, city, state, postcode, country, ...) — a free /
-open-source drop-in for Alteryx's **CASS** (Coding Accuracy Support
-System) address-cleansing tool.
+Parse messy address strings into structured components (house_number,
+road, unit, city, state, postcode, postcode_plus4, country) — a free /
+open-source address parser.
 
-Three providers:
+Providers:
 
-  - `libpostal` — local, offline, ~MIT license. Best parser quality.
-                   Requires the libpostal binary (homebrew / apt) +
-                   `pypostal` Python bindings.
+  - `libpostal` — local, offline, MIT license. Best parser quality.
+                   Requires the libpostal C library + `pypostal` Python bindings.
   - `geoapify`  — commercial API (free tier ~3k requests/day).
                    Set GEOAPIFY_API_KEY.
-  - `nominatim` — OSM/Nominatim free geocode + parse. Slower (1 req/sec
-                   rate limit). Set NOMINATIM_USER_AGENT to identify your app.
-  - `regex`     — naive split (US street-address-style). Pure-Python
-                   fallback when no provider is available; ZIP+4-aware.
+  - `nominatim` — OSM / Nominatim free geocode + parse. Slower (1 req/sec
+                   rate limit). Set NOMINATIM_USER_AGENT.
+  - `regex`     — naive US street-address regex (no dep, no network).
+                   ZIP+4-aware.
 
-USPS CASS-certification is a paid licensed product — none of the free
-providers above offer it. For DPV/CASS use the commercial Geoapify
-batch tier or a licensed vendor.
+For USPS CASS-certified DPV / ZIP+4 validation, use a licensed commercial
+vendor — none of the free providers above are CASS-certified.
 """
-import json
 import os
 import re
 from typing import Any, Dict, List, Optional
@@ -44,7 +40,6 @@ from pydantic import Field
 
 _VALID_PROVIDERS = ("libpostal", "geoapify", "nominatim", "regex")
 
-# Standard component fields surfaced from parsers.
 _FIELDS = (
     "house_number",
     "road",
@@ -57,16 +52,14 @@ _FIELDS = (
 )
 
 
-# Naive US-style regex fallback. Catches a useful 70-80% of US street addresses
-# without requiring any external dependency.
 _REGEX_PATTERN = re.compile(
-    r"^\s*(?P<house_number>\d+[A-Z]?)\s+"          # house number (optional letter)
-    r"(?P<road>[^,]+?)"                               # street name (lazy)
-    r"(?:,\s*(?P<unit>(?:apt|unit|suite|ste|#)\s*\S+))?"  # unit / apt / suite
-    r"\s*,?\s*(?P<city>[A-Za-z\.\s]+?)\s*,\s*"      # city
-    r"(?P<state>[A-Z]{2})\s*"                         # 2-letter state
-    r"(?P<postcode>\d{5})"                            # ZIP5
-    r"(?:-(?P<postcode_plus4>\d{4}))?\s*$",          # optional +4
+    r"^\s*(?P<house_number>\d+[A-Z]?)\s+"
+    r"(?P<road>[^,]+?)"
+    r"(?:,\s*(?P<unit>(?:apt|unit|suite|ste|#)\s*\S+))?"
+    r"\s*,?\s*(?P<city>[A-Za-z\.\s]+?)\s*,\s*"
+    r"(?P<state>[A-Z]{2})\s*"
+    r"(?P<postcode>\d{5})"
+    r"(?:-(?P<postcode_plus4>\d{4}))?\s*$",
     re.IGNORECASE,
 )
 
@@ -74,8 +67,8 @@ _REGEX_PATTERN = re.compile(
 class AddressStandardizeComponent(Component, Model, Resolvable):
     """Parse messy address strings into structured components (street, city, state, postcode, +4).
 
-    Free/open-source drop-in for Alteryx's CASS tool. Supports libpostal,
-    Geoapify, Nominatim, or a built-in US regex fallback.
+    Free / open-source address parsing via libpostal, Geoapify, Nominatim,
+    or a built-in US regex fallback.
     """
 
     asset_name: str = Field(description="Output Dagster asset name")
@@ -89,7 +82,7 @@ class AddressStandardizeComponent(Component, Model, Resolvable):
     )
     api_key_env_var: str = Field(
         default="GEOAPIFY_API_KEY",
-        description="Env var for the provider's API key (geoapify). Ignored for libpostal/regex.",
+        description="Env var for the provider's API key (geoapify). Ignored for libpostal / regex.",
     )
     user_agent: str = Field(
         default="dagster-address-standardize",
@@ -150,8 +143,6 @@ class AddressStandardizeComponent(Component, Model, Resolvable):
                     f"Available: {list(df.columns)}"
                 )
 
-            # Initialize all output columns to None so the schema is stable
-            # even when individual rows fail.
             for fld in _FIELDS:
                 df[f"{prefix}{fld}"] = None
 
@@ -194,9 +185,7 @@ class AddressStandardizeComponent(Component, Model, Resolvable):
 
         return Definitions(assets=[_asset])
 
-    # ---------------------------------------------------------------- parsers
-
-    def _build_parser(self, context: AssetExecutionContext):
+    def _build_parser(self, context):
         """Return a `parser(raw_address) -> dict` callable for the configured provider."""
         provider = self.provider
 
@@ -210,8 +199,6 @@ class AddressStandardizeComponent(Component, Model, Resolvable):
                     "install libpostal-dev) + `pip install pypostal`."
                 ) from e
 
-            # libpostal returns [("123", "house_number"), ("main st", "road"), ...]
-            # — map its label names to ours (mostly 1:1, plus postcode_plus4).
             _LP_MAP = {
                 "house_number": "house_number",
                 "road": "road",
@@ -233,7 +220,6 @@ class AddressStandardizeComponent(Component, Model, Resolvable):
                     key = _LP_MAP.get(label)
                     if key and key not in out:
                         out[key] = value
-                # Split ZIP+4 if libpostal returned ZIP-XXXX
                 pc = out.get("postcode")
                 if pc and "-" in pc:
                     z, p4 = pc.split("-", 1)
@@ -302,7 +288,6 @@ class AddressStandardizeComponent(Component, Model, Resolvable):
                 )
                 resp.raise_for_status()
                 results = resp.json() or []
-                # Respect Nominatim's 1 req/sec rate limit.
                 time.sleep(max(self.rate_limit_seconds, 0.0))
                 if not results:
                     return {}
@@ -323,7 +308,6 @@ class AddressStandardizeComponent(Component, Model, Resolvable):
 
             return _parse
 
-        # `regex` fallback — pure Python, no external dep, no network.
         def _parse(raw: str) -> Dict[str, Any]:
             m = _REGEX_PATTERN.match(raw)
             if not m:

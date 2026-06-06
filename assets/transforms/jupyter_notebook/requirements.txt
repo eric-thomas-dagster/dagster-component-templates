@@ -1,0 +1,2 @@
+pyarrow>=14.0   # for papermill backend's parquet handoff
+papermill>=2.5  # only required when backend='papermill'

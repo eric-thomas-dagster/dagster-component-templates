@@ -837,6 +837,8 @@ _CLASS_PATHS: dict[str, str] = {
     "SpannerQueryAssetComponent": "assets/source/spanner_query_asset/component.py",
     "SpatialClusterComponent": "assets/analytics/spatial_cluster/component.py",
     "AddressStandardizeComponent": "assets/transforms/address_standardize/component.py",
+    "JupyterNotebookComponent": "assets/transforms/jupyter_notebook/component.py",
+    "RScriptComponent": "assets/transforms/r_script/component.py",
     "SpatialInfoComponent": "assets/transforms/spatial_info/component.py",
     "SpatialJoinComponent": "assets/analytics/spatial_join/component.py",
     "SpatialProcessComponent": "assets/transforms/spatial_process/component.py",

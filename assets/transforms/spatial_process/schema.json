@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.SpatialProcessComponent",
-  "description": "Apply a single geometry op (centroid, boundary, convex_hull, envelope, simplify, buffer, polygon↔points/lines, set_precision) to a column of Shapely geometries. Drop-in for Alteryx Spatial Process tool.",
+  "description": "Apply a single geometry op (centroid, boundary, convex_hull, envelope, simplify, buffer, polygon↔points/lines, set_precision) to a column of Shapely geometries.",
   "category": "transformation",
   "icon": "Compass",
   "x-dagster-io": {

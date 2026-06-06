@@ -25177,6 +25177,54 @@
         "level": "code",
         "last_validated": "2026-06-06"
       }
+    },
+    {
+      "id": "r_script",
+      "name": "R Script",
+      "category": "transformation",
+      "description": "Run an R script against an upstream DataFrame. Drop-in for Alteryx's R Tool. Two backends: rpy2 (in-process) or Rscript (subprocess + parquet/csv handoff).",
+      "path": "assets/transforms/r_script",
+      "tags": [
+        "transformation",
+        "r",
+        "alteryx",
+        "ml"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/r_script/schema.json",
+      "component_type": "dagster_community_components.RScriptComponent",
+      "icon": "Code",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/r_script/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/r_script/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/r_script/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/r_script/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
+      }
+    },
+    {
+      "id": "jupyter_notebook",
+      "name": "Jupyter Notebook",
+      "category": "transformation",
+      "description": "Execute a Jupyter notebook (.ipynb) or inline Python code against an upstream DataFrame. Drop-in for Alteryx's Jupyter Code tool.",
+      "path": "assets/transforms/jupyter_notebook",
+      "tags": [
+        "transformation",
+        "jupyter",
+        "python",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/jupyter_notebook/schema.json",
+      "component_type": "dagster_community_components.JupyterNotebookComponent",
+      "icon": "Notebook",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/jupyter_notebook/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/jupyter_notebook/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/jupyter_notebook/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/jupyter_notebook/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

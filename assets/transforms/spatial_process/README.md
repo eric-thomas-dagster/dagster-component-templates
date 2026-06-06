@@ -1,7 +1,6 @@
 # SpatialProcessComponent
 
 Apply a single geometry operation to a column of Shapely geometries.
-Drop-in for Alteryx's **Spatial Process** tool.
 
 ## Supported Methods
 
@@ -9,7 +8,7 @@ Drop-in for Alteryx's **Spatial Process** tool.
 |---|---|---|
 | `centroid` | Replaces each polygon with its centroid point | Store-area polygons → store-center points |
 | `boundary` | Returns the outer ring (a LineString) | Polygon → outline |
-| `polygon_to_lines` | Same as `boundary` — explicit name match for Alteryx | |
+| `polygon_to_lines` | Same as `boundary` — explicit alias | |
 | `polygon_to_points` | Explodes the exterior ring vertices to a MultiPoint | Building corners |
 | `line_to_polygon` | Closes a polyline into a polygon (auto-closes the ring) | |
 | `convex_hull` | Smallest convex polygon containing the geometry | Service-territory shape |
@@ -47,7 +46,7 @@ attributes:
 ## Notes
 
 - WKT / GeoJSON strings are auto-parsed via `shapely.wkt.loads` / `shapely.geometry.shape`.
-- For real-world units in `buffer`, project to a metric CRS first (e.g., EPSG:3857 for Web Mercator meters or a UTM zone for survey accuracy).
+- For real-world units in `buffer`, project to a metric CRS first (EPSG:3857 for Web Mercator meters or a UTM zone for survey accuracy).
 - `set_precision` rounds coordinates in place — useful before writing GeoJSON.
 - All ops short-circuit on `None` / empty geometries to keep the row count stable.
 

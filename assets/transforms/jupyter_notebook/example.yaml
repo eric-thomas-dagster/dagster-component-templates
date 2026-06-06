@@ -1,0 +1,26 @@
+# Inline code (`exec` backend) — no .ipynb file needed.
+type: dagster_community_components.JupyterNotebookComponent
+attributes:
+  asset_name: enriched_orders
+  upstream_asset_key: raw_orders
+  backend: exec
+  code: |
+    out_df = df.copy()
+    out_df["order_total"] = out_df["price"] * out_df["quantity"]
+    out_df = out_df[out_df["order_total"] > 50]
+  group_name: ml_pipeline
+
+# Papermill backend — point at a .ipynb on disk.
+# Notebook must read `input_dataframe_path` (a parquet file path injected
+# as a papermill parameter) and write the result to `output_dataframe_path`.
+# type: dagster_community_components.JupyterNotebookComponent
+# attributes:
+#   asset_name: enriched_orders
+#   upstream_asset_key: raw_orders
+#   backend: papermill
+#   notebook_path: notebooks/enrich_orders.ipynb
+#   output_notebook_path: notebooks/_executed/enrich_orders.ipynb
+#   parameters:
+#     filter_threshold: 50
+#   timeout_seconds: 600
+#   group_name: ml_pipeline

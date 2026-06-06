@@ -344,6 +344,19 @@ class AppendFields(Component, Model, Resolvable):
             # Take only the first row of source for broadcast
             source_df = source_df.iloc[0:1].copy()
 
+            # Drop any source columns that already exist in df. Chained
+            # AppendFields can accumulate dozens of overlapping cols across
+            # steps; without this dedupe, pandas merge raises 'suffixes
+            # which cause duplicate columns' on the next chain step.
+            _existing = set(df.columns)
+            _dups = [c for c in source_df.columns if c in _existing]
+            if _dups:
+                source_df = source_df.drop(columns=_dups)
+                context.log.info(
+                    f"append_fields: dropped {len(_dups)} source columns already present "
+                    f"in upstream to avoid merge-suffix collision."
+                )
+
             df["_merge_key"] = 1
             source_df["_merge_key"] = 1
 

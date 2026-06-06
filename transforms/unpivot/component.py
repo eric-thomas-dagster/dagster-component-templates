@@ -151,10 +151,37 @@ class UnpivotComponent(dg.Component, dg.Model, dg.Resolvable):
                     f"Unpivot upstream is missing columns; melting what's available. "
                     f"Missing id_columns: {id_missing!r}; missing value_columns: {val_missing!r}"
                 )
-            # pd.melt rejects var_name / value_name that match an existing
-            # column. Auto-bump to `<name>_1`, `<name>_2`, ... if the
-            # configured name collides — preserves the user-supplied default
-            # in the common case, only kicks in when needed.
+            # pd.melt rejects var_name / value_name that match ANY existing
+            # column (even ones being melted). When the colliding column is
+            # being melted (not in id_columns / not a survivor), pre-rename
+            # it to a unique sentinel before melt so the user-supplied var/
+            # value name stays. After melt, the sentinel is gone anyway
+            # (it was a melted column). When the colliding column IS a
+            # survivor (in id_columns), auto-bump var/value name with _1, _2
+            # to avoid stomping it.
+            _surviving = set(id_present)
+            if val_present is not None:
+                _surviving = set(df.columns) - set(val_present)
+            _melt_cols = set(df.columns) - _surviving
+
+            for _name in (self.var_name, self.value_name):
+                if _name in _melt_cols:
+                    # Pre-rename to a sentinel so melt accepts; the sentinel
+                    # column gets melted into the value column anyway.
+                    i = 1
+                    sentinel = f"{_name}__melted_{i}"
+                    while sentinel in df.columns:
+                        i += 1
+                        sentinel = f"{_name}__melted_{i}"
+                    df = df.rename(columns={_name: sentinel})
+                    _melt_cols.discard(_name)
+                    _melt_cols.add(sentinel)
+                    context.log.info(
+                        f"Unpivot: pre-renamed colliding melted column "
+                        f"{_name!r} → {sentinel!r} so var_name/value_name can "
+                        f"keep their configured value."
+                    )
+
             def _unique_name(base: str) -> str:
                 if base not in df.columns:
                     return base
@@ -166,10 +193,16 @@ class UnpivotComponent(dg.Component, dg.Model, dg.Resolvable):
             value_name_final = _unique_name(self.value_name)
             if var_name_final != self.var_name or value_name_final != self.value_name:
                 context.log.warning(
-                    f"Unpivot output column-name collision with upstream — "
-                    f"renamed var_name {self.var_name!r}->{var_name_final!r}, "
-                    f"value_name {self.value_name!r}->{value_name_final!r}."
+                    f"Unpivot output column-name collision with surviving "
+                    f"upstream column — renamed var_name {self.var_name!r}->"
+                    f"{var_name_final!r}, value_name {self.value_name!r}->"
+                    f"{value_name_final!r}."
                 )
+            # Also refresh id_present / val_present after the pre-rename to
+            # avoid passing a stale column name to melt.
+            id_present = [c for c in (self.id_columns or []) if c in df.columns]
+            if val_present is not None:
+                val_present = [c for c in self.value_columns if c in df.columns]
             out = df.melt(
                 id_vars=id_present,
                 value_vars=val_present,

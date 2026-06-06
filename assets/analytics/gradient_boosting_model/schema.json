@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.GradientBoostingModelComponent",
-  "description": "Fit a gradient boosting model and output predictions or feature importance.",
+  "description": "Fit a gradient boosting ensemble model for classification or regression.",
   "category": "analytics",
   "icon": "BarChart2",
   "x-dagster-io": {
@@ -30,7 +30,7 @@
     "target_column": {
       "type": "string",
       "label": "Target Column",
-      "description": "Target column to predict",
+      "description": "Column name of the target variable",
       "required": true
     },
     "feature_columns": {
@@ -39,37 +39,30 @@
         "type": "string"
       },
       "label": "Feature Columns",
-      "description": "Feature columns to use",
+      "description": "List of column names to use as features",
       "required": true,
       "ui:widget": "list"
     },
     "task_type": {
       "type": "string",
       "label": "Task Type",
-      "description": "Task Type",
+      "description": "Task type: ",
       "required": false,
       "default": "classification"
     },
     "n_estimators": {
       "type": "integer",
       "label": "N Estimators",
-      "description": "Number of boosting stages",
+      "description": "Number of trees in the forest",
       "required": false,
       "default": 100
-    },
-    "learning_rate": {
-      "type": "number",
-      "label": "Learning Rate",
-      "description": "Learning rate shrinks the contribution of each tree",
-      "required": false,
-      "default": 0.1
     },
     "max_depth": {
       "type": "integer",
       "label": "Max Depth",
-      "description": "Maximum depth of individual regression estimators",
+      "description": "Max Depth",
       "required": false,
-      "default": 3
+      "default": null
     },
     "test_size": {
       "type": "number",
@@ -88,9 +81,16 @@
     "output_mode": {
       "type": "string",
       "label": "Output Mode",
-      "description": "Output Mode",
+      "description": "Output mode: ",
       "required": false,
       "default": "predictions"
+    },
+    "n_jobs": {
+      "type": "integer",
+      "label": "N Jobs",
+      "description": "N Jobs",
+      "required": false,
+      "default": -1
     },
     "group_name": {
       "type": "string",
@@ -259,9 +259,9 @@
   },
   "tags": [
     "analytics",
-    "gradient",
-    "boosting",
+    "random",
+    "forest",
     "model"
   ],
-  "name": "Gradient Boosting Model"
+  "name": "Random Forest"
 }

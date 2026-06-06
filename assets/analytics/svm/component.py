@@ -33,6 +33,15 @@ class SVMComponent(Component, Model, Resolvable):
     gamma: str = Field(default="scale", description="'scale', 'auto', or a float")
     test_size: float = Field(default=0.2, description="Holdout fraction for evaluation.")
     random_state: int = Field(default=42, description="Random seed.")
+    model_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, joblib-dump the trained model to this path after fit. "
+            "Supports local paths and any fsspec URL (s3://, gs://, abfs://). "
+            "Downstream `model_score` component loads this path to predict on "
+            "new data — closes the Alteryx 'train once, score later' loop."
+        ),
+    )
 
     include_preview_metadata: bool = Field(
         default=False,
@@ -133,6 +142,7 @@ class SVMComponent(Component, Model, Resolvable):
         for _k in (self.kinds or []):
             _all_tags[f"dagster/kind/{_k}"] = ""
         asset_name = self.asset_name
+        model_path = self.model_path
         upstream_asset_key = self.upstream_asset_key
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
@@ -171,6 +181,14 @@ class SVMComponent(Component, Model, Resolvable):
                 from sklearn.svm import SVC
                 m = SVC(kernel=_self.kernel, C=_self.C, gamma=gamma, probability=True, random_state=_self.random_state)
                 m.fit(X_train, y_train)
+                if model_path is not None:
+                    import fsspec, joblib
+                    with fsspec.open(model_path, "wb") as _fh:
+                        joblib.dump(m, _fh)
+                if model_path is not None:
+                    import fsspec, joblib
+                    with fsspec.open(model_path, "wb") as _fh:
+                        joblib.dump(m, _fh)
                 df = df.copy()
                 df["predicted"] = m.predict(X)
                 out_df = df
@@ -183,6 +201,10 @@ class SVMComponent(Component, Model, Resolvable):
                 from sklearn.svm import SVR
                 m = SVR(kernel=_self.kernel, C=_self.C, gamma=gamma)
                 m.fit(X_train, y_train.astype(float))
+                if model_path is not None:
+                    import fsspec, joblib
+                    with fsspec.open(model_path, "wb") as _fh:
+                        joblib.dump(m, _fh)
                 df = df.copy()
                 df["predicted"] = m.predict(X)
                 out_df = df

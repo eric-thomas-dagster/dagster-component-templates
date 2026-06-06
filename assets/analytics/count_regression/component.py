@@ -28,6 +28,16 @@ class CountRegressionComponent(Component, Model, Resolvable):
     target_column: str = Field(description="Count target column.")
     feature_columns: List[str] = Field(description="Feature columns.")
     output_mode: str = Field(default="predictions", description="'predictions' or 'coefficients'")
+    model_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, save the fitted statsmodels GLM result to this path. "
+            "Uses statsmodels' native `.save()` (pickle-based, preserves the "
+            "full model state). Supports local paths only — fsspec URLs need "
+            "you to set up a tempfile + upload. Downstream `model_score` "
+            "loads it by setting `deserializer: pickle`."
+        ),
+    )
 
     include_preview_metadata: bool = Field(
         default=False,
@@ -157,6 +167,10 @@ class CountRegressionComponent(Component, Model, Resolvable):
             y = df[_self.target_column].astype(float)
             Xc = sm.add_constant(X)
             res = sm.GLM(y, Xc, family=sm.families.Poisson()).fit()
+            if _self.model_path is not None:
+                # statsmodels has its own .save() — pickle-based, preserves
+                # the full result wrapper (better than joblib for sm objects).
+                res.save(_self.model_path)
             if _self.output_mode == "coefficients":
                 rows = []
                 for name, coef, se, p in zip(res.params.index, res.params.values, res.bse.values, res.pvalues.values):

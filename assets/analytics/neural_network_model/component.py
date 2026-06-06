@@ -1,6 +1,6 @@
 """Neural Network Model.
 
-Fit a multi-layer perceptron (MLP) neural network for classification or regression.
+Fit a multi-layer perceptron (sklearn `MLPClassifier` / `MLPRegressor`) for classification or regression. Drop-in for Alteryx's **Neural Network** tool. The `n_estimators` field maps to the hidden-layer width (min 8); `max_depth` maps to `max_iter` (default 200). Features are auto-scaled with `StandardScaler` (MLP needs it).
 """
 from typing import Any, Dict, List, Optional
 
@@ -123,27 +123,40 @@ def _build_partitions_def(
 
 
 class NeuralNetworkModelComponent(Component, Model, Resolvable):
-    """Fit a multi-layer perceptron (MLP) neural network for classification or regression."""
+    """Fit a multi-layer perceptron neural network for classification or regression."""
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    target_column: str = Field(description="Target column to predict")
-    feature_columns: List[str] = Field(description="Feature columns to use")
-    task_type: str = Field(default="classification", description="'classification' or 'regression'")
-    hidden_layer_sizes: List[int] = Field(
-        default_factory=lambda: [100],
-        description="Neurons per hidden layer, e.g. [128, 64] for two hidden layers",
-    )
-    activation: str = Field(default="relu", description="Activation function: 'relu', 'tanh', or 'logistic'")
-    max_iter: int = Field(default=500, description="Maximum number of training iterations")
-    learning_rate_init: float = Field(default=0.001, description="Initial learning rate")
-    normalize: bool = Field(default=True, description="Apply StandardScaler to features before training")
+    target_column: str = Field(description="Column name of the target variable")
+    feature_columns: List[str] = Field(description="List of column names to use as features")
+    task_type: str = Field(default="classification", description="Task type: 'classification' or 'regression'")
+    n_estimators: int = Field(default=100, description="Number of trees in the forest")
+    max_depth: Optional[int] = Field(default=None, description="Maximum depth of each tree (None = unlimited)")
     test_size: float = Field(default=0.2, description="Fraction of data to hold out for evaluation")
     random_state: int = Field(default=42, description="Random seed for reproducibility")
-    output_mode: str = Field(
-        default="predictions",
-        description="'predictions' or 'probabilities' (probabilities only for classification)",
+    model_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, joblib-dump the trained model to this path after fit. "
+            "Supports local paths and any fsspec URL (s3://, gs://, abfs://). "
+            "Downstream `model_score` component loads this path to predict on "
+            "new data — closes the Alteryx 'train once, score later' loop."
+        ),
     )
+    output_mode: str = Field(default="predictions", description="Output mode: 'predictions' or 'feature_importance'")
+    n_jobs: int = Field(default=-1, description="Number of parallel jobs (-1 = use all CPUs)")
+    include_preview_metadata: bool = Field(
+        default=False,
+        description="Include a preview of the output DataFrame in metadata (for builder UIs).",
+    )
+
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description="Rows in the preview when include_preview_metadata=True.",
+    )
+
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -204,24 +217,6 @@ class NeuralNetworkModelComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
-    include_preview_metadata: bool = Field(
-        default=False,
-        description=(
-            "Include a preview of the output data in metadata (first 25 "
-            "rows or a sample) for builder UIs."
-        ),
-    )
-
-    preview_rows: int = Field(
-        default=25,
-        ge=1,
-        le=500,
-        description=(
-            "Rows to include in the preview metadata. For long DataFrames "
-            "(>10x preview_rows), a random sample is used; otherwise head()."
-        ),
-    )
-
 
     description: Optional[str] = Field(
         default=None,
@@ -235,7 +230,7 @@ class NeuralNetworkModelComponent(Component, Model, Resolvable):
 
     @classmethod
     def get_description(cls) -> str:
-        return "Fit a multi-layer perceptron (MLP) neural network for classification or regression."
+        return "Fit a multi-layer perceptron neural network for classification or regression."
 
     retry_policy_max_retries: Optional[int] = Field(
 
@@ -264,20 +259,17 @@ class NeuralNetworkModelComponent(Component, Model, Resolvable):
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        include_preview = self.include_preview_metadata
-        preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         target_column = self.target_column
         feature_columns = self.feature_columns
+        model_path = self.model_path
         task_type = self.task_type
-        hidden_layer_sizes = self.hidden_layer_sizes
-        activation = self.activation
-        max_iter = self.max_iter
-        learning_rate_init = self.learning_rate_init
-        normalize = self.normalize
+        n_estimators = self.n_estimators
+        max_depth = self.max_depth
         test_size = self.test_size
         random_state = self.random_state
         output_mode = self.output_mode
+        n_jobs = self.n_jobs
         group_name = self.group_name
 
         partitions_def = _build_partitions_def(
@@ -383,106 +375,73 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
             try:
                 from sklearn.neural_network import MLPClassifier, MLPRegressor
-                from sklearn.preprocessing import StandardScaler
                 from sklearn.model_selection import train_test_split
-                from sklearn.metrics import accuracy_score, r2_score
+                from sklearn.preprocessing import StandardScaler
             except ImportError as e:
                 raise ImportError("scikit-learn is required: pip install scikit-learn") from e
 
-            X = upstream[feature_columns].fillna(0).values
-            y = upstream[target_column].values
+            df = upstream.copy()
+            X = df[feature_columns].fillna(0)
+            y = df[target_column]
 
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=test_size, random_state=random_state
             )
-
-            if normalize:
-                scaler = StandardScaler()
-                X_train = scaler.fit_transform(X_train)
-                X_test = scaler.transform(X_test)
-                X_all = scaler.transform(X)
-            else:
-                X_all = X
+            _scaler = StandardScaler()
+            X_train = _scaler.fit_transform(X_train)
+            X_test = _scaler.transform(X_test)
 
             if task_type == "classification":
+                from sklearn.metrics import accuracy_score, classification_report
                 model = MLPClassifier(
-                    hidden_layer_sizes=tuple(hidden_layer_sizes),
-                    activation=activation,
-                    max_iter=max_iter,
-                    learning_rate_init=learning_rate_init,
+                    hidden_layer_sizes=(max(n_estimators, 8),),
+                    max_iter=max_depth if max_depth is not None else 200,
                     random_state=random_state,
                 )
-            else:
+                model.fit(X_train, y_train)
+                if model_path is not None:
+                    import fsspec, joblib
+                    with fsspec.open(model_path, "wb") as _fh:
+                        joblib.dump(model, _fh)
+                y_pred = model.predict(X_test)
+                accuracy = accuracy_score(y_test, y_pred)
+                report = classification_report(y_test, y_pred)
+
+            elif task_type == "regression":
+                from sklearn.metrics import mean_absolute_error, r2_score
                 model = MLPRegressor(
-                    hidden_layer_sizes=tuple(hidden_layer_sizes),
-                    activation=activation,
-                    max_iter=max_iter,
-                    learning_rate_init=learning_rate_init,
+                    hidden_layer_sizes=(max(n_estimators, 8),),
+                    max_iter=max_depth if max_depth is not None else 200,
                     random_state=random_state,
                 )
-
-            model.fit(X_train, y_train)
-
-            df = upstream.copy()
-            df["predicted"] = model.predict(X_all)
-
-            if output_mode == "probabilities" and task_type == "classification":
-                for i, cls in enumerate(model.classes_):
-                    df[f"proba_{cls}"] = model.predict_proba(X_all)[:, i]
-
-            if task_type == "classification":
-                score = accuracy_score(y_test, model.predict(X_test))
-            else:
-                score = r2_score(y_test, model.predict(X_test))
+                model.fit(X_train, y_train)
+                if model_path is not None:
+                    import fsspec, joblib
+                    with fsspec.open(model_path, "wb") as _fh:
+                        joblib.dump(model, _fh)
+                y_pred = model.predict(X_test)
+                r2 = r2_score(y_test, y_pred)
+                mae = mean_absolute_error(y_test, y_pred)
                 context.add_output_metadata({
-                    "r2_score": MetadataValue.float(float(score)),
-                    "n_iter": MetadataValue.int(model.n_iter_),
+                    "r2_score": MetadataValue.float(float(r2)),
+                    "mean_absolute_error": MetadataValue.float(float(mae)),
+                    "n_estimators": MetadataValue.int(n_estimators),
                     "train_rows": MetadataValue.int(len(X_train)),
                     "test_rows": MetadataValue.int(len(X_test)),
                 })
+            else:
+                raise ValueError(f"Unknown task_type: {task_type}. Use 'classification' or 'regression'.")
 
-            # Build column schema metadata
-            from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
-            _col_schema = TableSchema(columns=[
-                TableColumn(name=str(col), type=str(df.dtypes[col]))
-                for col in df.columns
-            ])
-            _metadata = {
-                "dagster/row_count": MetadataValue.int(len(df)),
-                "dagster/column_schema": MetadataValue.table_schema(_col_schema),
-            }
-            # Use explicit lineage, or auto-infer passthrough columns at runtime
-            _effective_lineage = column_lineage
-            if not _effective_lineage:
-                try:
-                    _upstream_cols = set(upstream.columns)
-                    _effective_lineage = {
-                        col: [col] for col in _col_schema.columns_by_name
-                        if col in _upstream_cols
-                    }
-                except Exception:
-                    pass
-            if _effective_lineage:
-                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
-                if _upstream_key:
-                    _lineage_deps = {}
-                    for out_col, in_cols in _effective_lineage.items():
-                        _lineage_deps[out_col] = [
-                            TableColumnDep(asset_key=_upstream_key, column_name=ic)
-                            for ic in in_cols
-                        ]
-                    _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
-                        TableColumnLineage(_lineage_deps)
-                    )
-            if include_preview and len(df) > 0:
-                try:
-                    _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
-                    _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            context.add_output_metadata(_metadata)
-
-            return df
+            if output_mode == "feature_importance":
+                return pd.DataFrame({
+                    "feature": feature_columns,
+                    "importance": model.feature_importances_,
+                }).sort_values("importance", ascending=False).reset_index(drop=True)
+            elif output_mode == "predictions":
+                df["predicted"] = model.predict(_scaler.transform(X))
+                return df
+            else:
+                raise ValueError(f"Unknown output_mode: {output_mode}. Use 'predictions' or 'feature_importance'.")
 
         from dagster import build_column_schema_change_checks
 

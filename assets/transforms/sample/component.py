@@ -123,23 +123,44 @@ def _build_partitions_def(
 
 
 class SampleComponent(Component, Model, Resolvable):
-    """Sample rows from a DataFrame by count or fraction."""
+    """Sample rows from a DataFrame by count, fraction, or deterministic position.
+
+    The `method` field selects the strategy — `random` (default), `head` (first N),
+    `tail` (last N), `every_nth` (keep every Nth row), `skip_head` (drop first N).
+    `random` honors `sample_size`/`frac`/`weights`/`replace`/`random_state`. The
+    deterministic methods only use `sample_size` (interpreted per-method).
+    """
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
+    method: str = Field(
+        default="random",
+        description=(
+            "Sampling method: 'random' (default — uses sample_size/frac), "
+            "'head' (first N), 'tail' (last N), 'every_nth' (keep every Nth row, "
+            "starting at index 0), 'skip_head' (drop the first N rows, return the rest). "
+            "For non-random methods, only sample_size is used."
+        ),
+    )
     sample_size: Optional[int] = Field(
         default=None,
-        description="Number of rows to sample. Mutually exclusive with frac.",
+        description=(
+            "Number of rows (random/head/tail/skip_head) or step value (every_nth). "
+            "Mutually exclusive with frac for method='random'."
+        ),
     )
     frac: Optional[float] = Field(
         default=None,
-        description="Fraction of rows to sample, e.g. 0.1 for 10%. Mutually exclusive with sample_size.",
+        description=(
+            "Fraction of rows to sample, e.g. 0.1 for 10%. Random method only. "
+            "Mutually exclusive with sample_size."
+        ),
     )
-    random_state: int = Field(default=42, description="Random seed for reproducibility")
-    replace: bool = Field(default=False, description="Sample with replacement")
+    random_state: int = Field(default=42, description="Random seed for reproducibility (random method only)")
+    replace: bool = Field(default=False, description="Sample with replacement (random method only)")
     weights: Optional[str] = Field(
         default=None,
-        description="Column name to use as sampling weights",
+        description="Column name to use as sampling weights (random method only)",
     )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
@@ -281,6 +302,12 @@ class SampleComponent(Component, Model, Resolvable):
         random_state = self.random_state
         replace = self.replace
         weights = self.weights
+        method = (self.method or "random").lower()
+        if method not in {"random", "head", "tail", "every_nth", "skip_head"}:
+            raise ValueError(
+                f"Unknown sample method {method!r}. "
+                "Expected one of: random, head, tail, every_nth, skip_head."
+            )
         group_name = self.group_name
 
         partitions_def = _build_partitions_def(
@@ -358,20 +385,40 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-            if n is not None and frac is not None:
-                raise ValueError("Specify either 'n' or 'frac', not both.")
-            if n is None and frac is None:
-                raise ValueError("One of 'n' or 'frac' must be set.")
+            if method == "random":
+                if n is not None and frac is not None:
+                    raise ValueError("Specify either 'sample_size' or 'frac', not both.")
+                if n is None and frac is None:
+                    raise ValueError("Method 'random' requires one of 'sample_size' or 'frac'.")
+                result = upstream.sample(
+                    n=n,
+                    frac=frac,
+                    random_state=random_state,
+                    replace=replace,
+                    weights=weights,
+                ).reset_index(drop=True)
+            else:
+                if n is None or n < 1:
+                    raise ValueError(
+                        f"Method {method!r} requires 'sample_size' >= 1 "
+                        f"(got {n!r})."
+                    )
+                if method == "head":
+                    result = upstream.head(n).reset_index(drop=True)
+                elif method == "tail":
+                    result = upstream.tail(n).reset_index(drop=True)
+                elif method == "every_nth":
+                    # Step value: keep rows at positions 0, n, 2n, ...
+                    result = upstream.iloc[::n].reset_index(drop=True)
+                elif method == "skip_head":
+                    result = upstream.iloc[n:].reset_index(drop=True)
+                else:  # safety net — method validation happens at build time
+                    raise ValueError(f"Unhandled method {method!r}")
 
-            result = upstream.sample(
-                n=n,
-                frac=frac,
-                random_state=random_state,
-                replace=replace,
-                weights=weights,
-            ).reset_index(drop=True)
-
-            context.log.info(f"Sampled {len(result)} rows from {len(upstream)}")
+            context.log.info(
+                f"Sampled {len(result)} rows from {len(upstream)} "
+                f"(method={method!r})"
+            )
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
             _col_schema = TableSchema(columns=[

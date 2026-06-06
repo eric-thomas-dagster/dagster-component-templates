@@ -131,6 +131,15 @@ class LogisticRegressionModelComponent(Component, Model, Resolvable):
     feature_columns: List[str] = Field(description="List of column names to use as features")
     test_size: float = Field(default=0.2, description="Fraction of data to hold out for evaluation")
     random_state: int = Field(default=42, description="Random seed for reproducibility")
+    model_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, joblib-dump the trained model to this path after fit. "
+            "Supports local paths and any fsspec URL (s3://, gs://, abfs://). "
+            "Downstream `model_score` component loads this path to predict on "
+            "new data — closes the Alteryx 'train once, score later' loop."
+        ),
+    )
     max_iter: int = Field(default=1000, description="Maximum number of solver iterations")
     output_predictions: bool = Field(default=True, description="Add predicted_class column to output")
     output_probabilities: bool = Field(default=True, description="Add predicted_proba_<class> columns per class")
@@ -252,6 +261,7 @@ class LogisticRegressionModelComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         target_column = self.target_column
         feature_columns = self.feature_columns
+        model_path = self.model_path
         test_size = self.test_size
         random_state = self.random_state
         max_iter = self.max_iter
@@ -386,6 +396,10 @@ group_name=group_name,
             model = LogisticRegression(max_iter=max_iter, random_state=random_state)
             model.fit(X_train, y_train)
 
+            if model_path is not None:
+                import fsspec, joblib
+                with fsspec.open(model_path, "wb") as _fh:
+                    joblib.dump(model, _fh)
             y_pred_test = model.predict(X_test)
             accuracy = accuracy_score(y_test, y_pred_test)
             report = classification_report(y_test, y_pred_test)

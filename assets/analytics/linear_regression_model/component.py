@@ -131,6 +131,15 @@ class LinearRegressionModelComponent(Component, Model, Resolvable):
     feature_columns: List[str] = Field(description="List of column names to use as features")
     test_size: float = Field(default=0.2, description="Fraction of data to hold out for evaluation")
     random_state: int = Field(default=42, description="Random seed for train/test split reproducibility")
+    model_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, joblib-dump the trained model to this path after fit. "
+            "Supports local paths and any fsspec URL (s3://, gs://, abfs://). "
+            "Downstream `model_score` component loads this path to predict on "
+            "new data — closes the Alteryx 'train once, score later' loop."
+        ),
+    )
     output_mode: str = Field(
         default="predictions",
         description="Output mode: 'predictions' (add prediction column), 'coefficients' (feature importance table), 'both' (predictions + eval metrics in metadata)",
@@ -262,6 +271,7 @@ class LinearRegressionModelComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         target_column = self.target_column
         feature_columns = self.feature_columns
+        model_path = self.model_path
         test_size = self.test_size
         random_state = self.random_state
         output_mode = self.output_mode
@@ -395,6 +405,10 @@ group_name=group_name,
             model = LinearRegression()
             model.fit(X_train, y_train)
 
+            if model_path is not None:
+                import fsspec, joblib
+                with fsspec.open(model_path, "wb") as _fh:
+                    joblib.dump(model, _fh)
             y_pred_test = model.predict(X_test)
             r2 = r2_score(y_test, y_pred_test)
             mae = mean_absolute_error(y_test, y_pred_test)

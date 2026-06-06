@@ -1,6 +1,6 @@
 """Naive Bayes Model.
 
-Fit a Naive Bayes classifier and output predictions and/or class probabilities.
+Fit a Gaussian Naive Bayes classifier (sklearn `GaussianNB`). Drop-in for Alteryx's **Naive Bayes Classifier** tool. **Classification only** — sklearn doesn't ship a Gaussian-NB regressor; setting `task_type=regression` raises.
 """
 from typing import Any, Dict, List, Optional
 
@@ -123,20 +123,40 @@ def _build_partitions_def(
 
 
 class NaiveBayesModelComponent(Component, Model, Resolvable):
-    """Fit a Naive Bayes classifier and output predictions and/or class probabilities."""
+    """Fit a Gaussian Naive Bayes classifier. Classification only (no regression variant)."""
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    target_column: str = Field(description="Target column to predict")
-    feature_columns: List[str] = Field(description="Feature columns to use")
-    variant: str = Field(
-        default="gaussian",
-        description="Naive Bayes variant: 'gaussian' (continuous), 'multinomial' (counts), 'bernoulli' (binary)",
-    )
+    target_column: str = Field(description="Column name of the target variable")
+    feature_columns: List[str] = Field(description="List of column names to use as features")
+    task_type: str = Field(default="classification", description="Task type: 'classification' or 'regression'")
+    n_estimators: int = Field(default=100, description="Number of trees in the forest")
+    max_depth: Optional[int] = Field(default=None, description="Maximum depth of each tree (None = unlimited)")
     test_size: float = Field(default=0.2, description="Fraction of data to hold out for evaluation")
     random_state: int = Field(default=42, description="Random seed for reproducibility")
-    output_predictions: bool = Field(default=True, description="Append predicted_class column to output")
-    output_probabilities: bool = Field(default=True, description="Append per-class probability columns to output")
+    model_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, joblib-dump the trained model to this path after fit. "
+            "Supports local paths and any fsspec URL (s3://, gs://, abfs://). "
+            "Downstream `model_score` component loads this path to predict on "
+            "new data — closes the Alteryx 'train once, score later' loop."
+        ),
+    )
+    output_mode: str = Field(default="predictions", description="Output mode: 'predictions' or 'feature_importance'")
+    n_jobs: int = Field(default=-1, description="Number of parallel jobs (-1 = use all CPUs)")
+    include_preview_metadata: bool = Field(
+        default=False,
+        description="Include a preview of the output DataFrame in metadata (for builder UIs).",
+    )
+
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description="Rows in the preview when include_preview_metadata=True.",
+    )
+
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -197,24 +217,6 @@ class NaiveBayesModelComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
-    include_preview_metadata: bool = Field(
-        default=False,
-        description=(
-            "Include a preview of the output data in metadata (first 25 "
-            "rows or a sample) for builder UIs."
-        ),
-    )
-
-    preview_rows: int = Field(
-        default=25,
-        ge=1,
-        le=500,
-        description=(
-            "Rows to include in the preview metadata. For long DataFrames "
-            "(>10x preview_rows), a random sample is used; otherwise head()."
-        ),
-    )
-
 
     description: Optional[str] = Field(
         default=None,
@@ -228,7 +230,7 @@ class NaiveBayesModelComponent(Component, Model, Resolvable):
 
     @classmethod
     def get_description(cls) -> str:
-        return "Fit a Naive Bayes classifier and output predictions and/or class probabilities."
+        return "Fit a Gaussian Naive Bayes classifier. Classification only (no regression variant)."
 
     retry_policy_max_retries: Optional[int] = Field(
 
@@ -257,16 +259,17 @@ class NaiveBayesModelComponent(Component, Model, Resolvable):
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        include_preview = self.include_preview_metadata
-        preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         target_column = self.target_column
         feature_columns = self.feature_columns
-        variant = self.variant
+        model_path = self.model_path
+        task_type = self.task_type
+        n_estimators = self.n_estimators
+        max_depth = self.max_depth
         test_size = self.test_size
         random_state = self.random_state
-        output_predictions = self.output_predictions
-        output_probabilities = self.output_probabilities
+        output_mode = self.output_mode
+        n_jobs = self.n_jobs
         group_name = self.group_name
 
         partitions_def = _build_partitions_def(
@@ -371,82 +374,66 @@ group_name=group_name,
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
             try:
-                from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB
+                from sklearn.naive_bayes import GaussianNB
                 from sklearn.model_selection import train_test_split
-                from sklearn.metrics import accuracy_score
             except ImportError as e:
                 raise ImportError("scikit-learn is required: pip install scikit-learn") from e
 
-            nb_map = {
-                "gaussian": GaussianNB,
-                "multinomial": MultinomialNB,
-                "bernoulli": BernoulliNB,
-            }
-            if variant not in nb_map:
-                raise ValueError(f"Unknown variant: {variant}. Use 'gaussian', 'multinomial', or 'bernoulli'.")
-
-            X = upstream[feature_columns].fillna(0)
-            y = upstream[target_column]
+            df = upstream.copy()
+            X = df[feature_columns].fillna(0)
+            y = df[target_column]
 
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=test_size, random_state=random_state
             )
 
-            model = nb_map[variant]()
-            model.fit(X_train, y_train)
+            if task_type == "classification":
+                from sklearn.metrics import accuracy_score, classification_report
+                model = GaussianNB()
+                model.fit(X_train, y_train)
+                if model_path is not None:
+                    import fsspec, joblib
+                    with fsspec.open(model_path, "wb") as _fh:
+                        joblib.dump(model, _fh)
+                y_pred = model.predict(X_test)
+                accuracy = accuracy_score(y_test, y_pred)
+                report = classification_report(y_test, y_pred)
 
-            df = upstream.copy()
-            if output_predictions:
-                df["predicted_class"] = model.predict(X)
-            if output_probabilities:
-                proba = model.predict_proba(X)
-                for i, cls in enumerate(model.classes_):
-                    df[f"proba_{cls}"] = proba[:, i]
+            elif task_type == "regression":
+                from sklearn.metrics import mean_absolute_error, r2_score
+                raise ValueError(
+                    'naive_bayes_model only supports classification — '
+                    'Gaussian Naive Bayes has no regression variant in sklearn. '
+                    'Set task_type="classification".'
+                )
+                model.fit(X_train, y_train)
+                if model_path is not None:
+                    import fsspec, joblib
+                    with fsspec.open(model_path, "wb") as _fh:
+                        joblib.dump(model, _fh)
+                y_pred = model.predict(X_test)
+                r2 = r2_score(y_test, y_pred)
+                mae = mean_absolute_error(y_test, y_pred)
+                context.add_output_metadata({
+                    "r2_score": MetadataValue.float(float(r2)),
+                    "mean_absolute_error": MetadataValue.float(float(mae)),
+                    "n_estimators": MetadataValue.int(n_estimators),
+                    "train_rows": MetadataValue.int(len(X_train)),
+                    "test_rows": MetadataValue.int(len(X_test)),
+                })
+            else:
+                raise ValueError(f"Unknown task_type: {task_type}. Use 'classification' or 'regression'.")
 
-            acc = accuracy_score(y_test, model.predict(X_test))
-
-            # Build column schema metadata
-            from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
-            _col_schema = TableSchema(columns=[
-                TableColumn(name=str(col), type=str(df.dtypes[col]))
-                for col in df.columns
-            ])
-            _metadata = {
-                "dagster/row_count": MetadataValue.int(len(df)),
-                "dagster/column_schema": MetadataValue.table_schema(_col_schema),
-            }
-            # Use explicit lineage, or auto-infer passthrough columns at runtime
-            _effective_lineage = column_lineage
-            if not _effective_lineage:
-                try:
-                    _upstream_cols = set(upstream.columns)
-                    _effective_lineage = {
-                        col: [col] for col in _col_schema.columns_by_name
-                        if col in _upstream_cols
-                    }
-                except Exception:
-                    pass
-            if _effective_lineage:
-                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
-                if _upstream_key:
-                    _lineage_deps = {}
-                    for out_col, in_cols in _effective_lineage.items():
-                        _lineage_deps[out_col] = [
-                            TableColumnDep(asset_key=_upstream_key, column_name=ic)
-                            for ic in in_cols
-                        ]
-                    _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
-                        TableColumnLineage(_lineage_deps)
-                    )
-            if include_preview and len(df) > 0:
-                try:
-                    _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
-                    _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            context.add_output_metadata(_metadata)
-
-            return df
+            if output_mode == "feature_importance":
+                return pd.DataFrame({
+                    "feature": feature_columns,
+                    "importance": model.feature_importances_,
+                }).sort_values("importance", ascending=False).reset_index(drop=True)
+            elif output_mode == "predictions":
+                df["predicted"] = model.predict(X)
+                return df
+            else:
+                raise ValueError(f"Unknown output_mode: {output_mode}. Use 'predictions' or 'feature_importance'.")
 
         from dagster import build_column_schema_change_checks
 

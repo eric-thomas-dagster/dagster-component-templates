@@ -1,0 +1,24 @@
+{
+  "component_type": "dagster_component_templates.InlineDataframeComponent",
+  "description": "Materialize a small literal DataFrame from inline YAML rows + optional per-column dtypes. For reference tables, fixtures, or Alteryx Text Input ports — where bundling a CSV is overkill.",
+  "category": "source",
+  "icon": "Table",
+  "x-dagster-io": {
+    "outputs": {"type": "dataframe"},
+    "supports_partitions": false
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "columns": {"type": "array", "items": {"type": "string"}, "label": "Columns", "required": true},
+    "rows": {"type": "array", "label": "Rows", "description": "Each row is a list of values matching `columns` length.", "required": false},
+    "dtypes": {"type": "object", "label": "Dtypes", "description": "Per-column dtype overrides (e.g. {quantity: Int64, unit_price: float64}). Numeric dtypes route through pd.to_numeric.", "required": false},
+    "group_name": {"type": "string", "required": false},
+    "description": {"type": "string", "required": false},
+    "owners": {"type": "array", "required": false},
+    "asset_tags": {"type": "object", "required": false},
+    "kinds": {"type": "array", "description": "Defaults to ['inline', 'reference'].", "required": false},
+    "deps": {"type": "array", "required": false},
+    "freshness_max_lag_minutes": {"type": "integer", "required": false},
+    "freshness_cron": {"type": "string", "required": false}
+  }
+}

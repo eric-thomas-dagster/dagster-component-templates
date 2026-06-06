@@ -128,6 +128,15 @@ class NearestNeighborsComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     feature_columns: List[str] = Field(description="List of column names to use for distance computation")
+    model_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, joblib-dump the trained model to this path after fit. "
+            "Supports local paths and any fsspec URL (s3://, gs://, abfs://). "
+            "Downstream `model_score` component loads this path to predict on "
+            "new data — closes the Alteryx 'train once, score later' loop."
+        ),
+    )
     n_neighbors: int = Field(default=5, description="Number of nearest neighbors to find per record")
     algorithm: str = Field(default="auto", description="Algorithm: 'auto', 'ball_tree', 'kd_tree', 'brute'")
     metric: str = Field(default="euclidean", description="Distance metric (e.g. 'euclidean', 'manhattan', 'cosine')")
@@ -258,6 +267,7 @@ class NearestNeighborsComponent(Component, Model, Resolvable):
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
         feature_columns = self.feature_columns
+        model_path = self.model_path
         n_neighbors = self.n_neighbors
         algorithm = self.algorithm
         metric = self.metric
@@ -382,6 +392,10 @@ group_name=group_name,
             # +1 to skip self
             nn = NearestNeighbors(n_neighbors=n_neighbors + 1, algorithm=algorithm, metric=metric)
             nn.fit(X)
+            if model_path is not None:
+                import fsspec, joblib
+                with fsspec.open(model_path, "wb") as _fh:
+                    joblib.dump(nn, _fh)
             distances, indices = nn.kneighbors(X)
 
             # Skip self (index 0)

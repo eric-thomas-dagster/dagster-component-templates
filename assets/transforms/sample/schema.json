@@ -27,10 +27,25 @@
       "description": "Upstream asset key providing a DataFrame",
       "required": true
     },
+    "method": {
+      "type": "string",
+      "label": "Method",
+      "description": "Sampling method. 'random' uses sample_size/frac/weights/replace. 'head' (first N), 'tail' (last N), 'every_nth' (keep rows at positions 0, N, 2N, ...), and 'skip_head' (drop first N) only use sample_size.",
+      "required": false,
+      "default": "random",
+      "enum": [
+        "random",
+        "head",
+        "tail",
+        "every_nth",
+        "skip_head"
+      ],
+      "ui:widget": "select"
+    },
     "sample_size": {
       "type": "integer",
       "label": "Sample Size",
-      "description": "Number of rows to sample. Mutually exclusive with frac.",
+      "description": "Number of rows (random/head/tail/skip_head) or step value (every_nth). For method='random', mutually exclusive with frac.",
       "required": false,
       "default": null
     },

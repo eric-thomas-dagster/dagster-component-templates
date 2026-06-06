@@ -367,10 +367,29 @@ group_name=group_name,
                     context.log.warning(
                         f"pandas eval failed for '{col}' ({e}), trying fallback eval."
                     )
+                    # Fallback path: full Python eval with df, pd, np, and each
+                    # column-name shortcut in scope. Lets the expression use
+                    # `np.where(df["x"] > 10, "a", "b")`,
+                    # `df["s"].str.contains(...)`, `df["d"].dt.year`, etc. —
+                    # the things pandas.eval can't compile. Same shape an
+                    # Alteryx-to-Dagster import emits for Formula PYTHON-path
+                    # translations of IIF / Switch / Contains / DateTimeAdd etc.
                     try:
+                        import numpy as np    # noqa: F401  — exposed to eval scope
+                        # Strip embedded newlines + collapse whitespace —
+                        # Python `eval()` only accepts single-expression
+                        # input, and YAML literal scalars sometimes
+                        # interpolate line breaks into otherwise-one-line
+                        # expressions (Alteryx multi-line formula bodies).
+                        flat_expr = " ".join(expr.split())
                         df[col] = eval(
-                            expr,
-                            {"df": df, "pd": pd, **{c: df[c] for c in df.columns}},
+                            flat_expr,
+                            {
+                                "df": df,
+                                "pd": pd,
+                                "np": np,
+                                **{c: df[c] for c in df.columns},
+                            },
                         )
                     except Exception as e2:
                         context.log.error(f"Fallback eval also failed for '{col}': {e2}")

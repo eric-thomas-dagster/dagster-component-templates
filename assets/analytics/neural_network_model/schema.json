@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.NeuralNetworkModelComponent",
-  "description": "Fit a multi-layer perceptron (MLP) neural network for classification or regression.",
+  "description": "Fit a multi-layer perceptron neural network for classification or regression.",
   "category": "analytics",
   "icon": "BarChart2",
   "x-dagster-io": {
@@ -30,7 +30,7 @@
     "target_column": {
       "type": "string",
       "label": "Target Column",
-      "description": "Target column to predict",
+      "description": "Column name of the target variable",
       "required": true
     },
     "feature_columns": {
@@ -39,55 +39,30 @@
         "type": "string"
       },
       "label": "Feature Columns",
-      "description": "Feature columns to use",
+      "description": "List of column names to use as features",
       "required": true,
       "ui:widget": "list"
     },
     "task_type": {
       "type": "string",
       "label": "Task Type",
-      "description": "Task Type",
+      "description": "Task type: ",
       "required": false,
       "default": "classification"
     },
-    "hidden_layer_sizes": {
-      "type": "array",
-      "items": {
-        "type": "integer"
-      },
-      "label": "Hidden Layer Sizes",
-      "description": "Neurons per hidden layer, e.g. [128, 64] for two hidden layers",
-      "required": true,
-      "ui:widget": "list"
-    },
-    "activation": {
-      "type": "string",
-      "label": "Activation",
-      "description": "Activation function: ",
-      "required": false,
-      "default": "relu"
-    },
-    "max_iter": {
+    "n_estimators": {
       "type": "integer",
-      "label": "Max Iter",
-      "description": "Maximum number of training iterations",
+      "label": "N Estimators",
+      "description": "Number of trees in the forest",
       "required": false,
-      "default": 500
+      "default": 100
     },
-    "learning_rate_init": {
-      "type": "number",
-      "label": "Learning Rate Init",
-      "description": "Initial learning rate",
+    "max_depth": {
+      "type": "integer",
+      "label": "Max Depth",
+      "description": "Max Depth",
       "required": false,
-      "default": 0.001
-    },
-    "normalize": {
-      "type": "boolean",
-      "label": "Normalize",
-      "description": "Apply StandardScaler to features before training",
-      "required": false,
-      "default": true,
-      "ui:widget": "checkbox"
+      "default": null
     },
     "test_size": {
       "type": "number",
@@ -106,9 +81,16 @@
     "output_mode": {
       "type": "string",
       "label": "Output Mode",
-      "description": "Output Mode",
+      "description": "Output mode: ",
       "required": false,
       "default": "predictions"
+    },
+    "n_jobs": {
+      "type": "integer",
+      "label": "N Jobs",
+      "description": "N Jobs",
+      "required": false,
+      "default": -1
     },
     "group_name": {
       "type": "string",
@@ -277,9 +259,9 @@
   },
   "tags": [
     "analytics",
-    "neural",
-    "network",
+    "random",
+    "forest",
     "model"
   ],
-  "name": "Neural Network Model"
+  "name": "Random Forest"
 }

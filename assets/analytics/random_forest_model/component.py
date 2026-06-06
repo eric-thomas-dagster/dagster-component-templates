@@ -134,6 +134,15 @@ class RandomForestModelComponent(Component, Model, Resolvable):
     max_depth: Optional[int] = Field(default=None, description="Maximum depth of each tree (None = unlimited)")
     test_size: float = Field(default=0.2, description="Fraction of data to hold out for evaluation")
     random_state: int = Field(default=42, description="Random seed for reproducibility")
+    model_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, joblib-dump the trained model to this path after fit. "
+            "Supports local paths and any fsspec URL (s3://, gs://, abfs://). "
+            "Downstream `model_score` component loads this path to predict on "
+            "new data — closes the Alteryx 'train once, score later' loop."
+        ),
+    )
     output_mode: str = Field(default="predictions", description="Output mode: 'predictions' or 'feature_importance'")
     n_jobs: int = Field(default=-1, description="Number of parallel jobs (-1 = use all CPUs)")
     include_preview_metadata: bool = Field(
@@ -253,6 +262,7 @@ class RandomForestModelComponent(Component, Model, Resolvable):
         upstream_asset_key = self.upstream_asset_key
         target_column = self.target_column
         feature_columns = self.feature_columns
+        model_path = self.model_path
         task_type = self.task_type
         n_estimators = self.n_estimators
         max_depth = self.max_depth
@@ -386,6 +396,10 @@ group_name=group_name,
                     n_jobs=n_jobs,
                 )
                 model.fit(X_train, y_train)
+                if model_path is not None:
+                    import fsspec, joblib
+                    with fsspec.open(model_path, "wb") as _fh:
+                        joblib.dump(model, _fh)
                 y_pred = model.predict(X_test)
                 accuracy = accuracy_score(y_test, y_pred)
                 report = classification_report(y_test, y_pred)
@@ -399,6 +413,10 @@ group_name=group_name,
                     n_jobs=n_jobs,
                 )
                 model.fit(X_train, y_train)
+                if model_path is not None:
+                    import fsspec, joblib
+                    with fsspec.open(model_path, "wb") as _fh:
+                        joblib.dump(model, _fh)
                 y_pred = model.predict(X_test)
                 r2 = r2_score(y_test, y_pred)
                 mae = mean_absolute_error(y_test, y_pred)

@@ -370,7 +370,36 @@ group_name=group_name,
                 _meta_df = result.to_pandas()
             else:
                 query_expr = f"not ({condition})" if negate else condition
-                result = upstream.query(query_expr)
+                try:
+                    result = upstream.query(query_expr)
+                except Exception as e:
+                    context.log.warning(
+                        f"pandas.query failed for {query_expr!r} ({e}), trying fallback "
+                        "eval — supports `np.where`, `df['x'].str.contains(...)`, "
+                        "`df['d'].dt.*`, etc. that pandas-eval can't compile."
+                    )
+                    import numpy as np   # noqa: F401  — exposed to eval scope
+                    # Collapse embedded newlines + extra whitespace so
+                    # multi-line YAML scalar conditions parse as a single
+                    # Python expression. Same fix as the formula fallback.
+                    flat_condition = " ".join(condition.split())
+                    mask = eval(
+                        flat_condition,
+                        {
+                            "df": upstream,
+                            "pd": pd,
+                            "np": np,
+                            **{c: upstream[c] for c in upstream.columns},
+                        },
+                    )
+                    # Broadcast scalar masks (e.g. `True` / `False` from
+                    # an empty Alteryx Filter Expression) to a per-row
+                    # Series — pandas .loc rejects scalar booleans.
+                    if isinstance(mask, (bool, int)):
+                        mask = pd.Series([bool(mask)] * len(upstream), index=upstream.index)
+                    if negate:
+                        mask = ~mask
+                    result = upstream.loc[mask].copy()
                 kept = len(result)
                 _meta_df = result
             pct = (kept / total * 100) if total > 0 else 0.0

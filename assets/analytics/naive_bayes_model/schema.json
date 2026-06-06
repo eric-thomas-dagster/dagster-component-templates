@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.NaiveBayesModelComponent",
-  "description": "Fit a Naive Bayes classifier and output predictions and/or class probabilities.",
+  "description": "Fit a Gaussian Naive Bayes classifier (classification only).",
   "category": "analytics",
   "icon": "BarChart2",
   "x-dagster-io": {
@@ -30,7 +30,7 @@
     "target_column": {
       "type": "string",
       "label": "Target Column",
-      "description": "Target column to predict",
+      "description": "Column name of the target variable",
       "required": true
     },
     "feature_columns": {
@@ -39,16 +39,30 @@
         "type": "string"
       },
       "label": "Feature Columns",
-      "description": "Feature columns to use",
+      "description": "List of column names to use as features",
       "required": true,
       "ui:widget": "list"
     },
-    "variant": {
+    "task_type": {
       "type": "string",
-      "label": "Variant",
-      "description": "Naive Bayes variant: ",
+      "label": "Task Type",
+      "description": "Task type: ",
       "required": false,
-      "default": "gaussian"
+      "default": "classification"
+    },
+    "n_estimators": {
+      "type": "integer",
+      "label": "N Estimators",
+      "description": "Number of trees in the forest",
+      "required": false,
+      "default": 100
+    },
+    "max_depth": {
+      "type": "integer",
+      "label": "Max Depth",
+      "description": "Max Depth",
+      "required": false,
+      "default": null
     },
     "test_size": {
       "type": "number",
@@ -64,21 +78,19 @@
       "required": false,
       "default": 42
     },
-    "output_predictions": {
-      "type": "boolean",
-      "label": "Output Predictions",
-      "description": "Append predicted_class column to output",
+    "output_mode": {
+      "type": "string",
+      "label": "Output Mode",
+      "description": "Output mode: ",
       "required": false,
-      "default": true,
-      "ui:widget": "checkbox"
+      "default": "predictions"
     },
-    "output_probabilities": {
-      "type": "boolean",
-      "label": "Output Probabilities",
-      "description": "Append per-class probability columns to output",
+    "n_jobs": {
+      "type": "integer",
+      "label": "N Jobs",
+      "description": "N Jobs",
       "required": false,
-      "default": true,
-      "ui:widget": "checkbox"
+      "default": -1
     },
     "group_name": {
       "type": "string",
@@ -247,9 +259,9 @@
   },
   "tags": [
     "analytics",
-    "naive",
-    "bayes",
+    "random",
+    "forest",
     "model"
   ],
-  "name": "Naive Bayes Model"
+  "name": "Random Forest"
 }

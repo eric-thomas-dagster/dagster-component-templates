@@ -1,0 +1,11 @@
+type: dagster_component_templates.InlineDataframeComponent
+attributes:
+  asset_name: region_codes
+  columns: [region_code, region_name]
+  rows:
+    - [N, North]
+    - [S, South]
+    - [E, East]
+    - [W, West]
+  group_name: reference
+  description: Static region lookup table (was an Alteryx Text Input).

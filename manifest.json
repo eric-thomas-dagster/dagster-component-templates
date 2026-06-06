@@ -5051,7 +5051,7 @@
       "id": "databricks_genie_query",
       "name": "Databricks Genie Query",
       "category": "ai",
-      "description": "NL → SQL → result via Databricks AI/BI Genie spaces. Single-question or per-row over an upstream DataFrame. Full Dagster pattern (partitions, freshness, retry, kinds).",
+      "description": "NL \u2192 SQL \u2192 result via Databricks AI/BI Genie spaces. Single-question or per-row over an upstream DataFrame. Full Dagster pattern (partitions, freshness, retry, kinds).",
       "path": "assets/ai/databricks_genie_query",
       "tags": [
         "ai",
@@ -5374,7 +5374,7 @@
       "id": "dataframe_from_yxdb",
       "name": "DataFrame from Alteryx .yxdb",
       "category": "source",
-      "description": "Read an Alteryx native binary file (.yxdb) and materialize it as a pandas DataFrame asset. Wraps the import-yxdb PyPI package (whole-file → DataFrame) with a fallback to the lower-level yxdb row iterator. Pairs with the alteryx-to-dagster migrator (which auto-routes Alteryx Input Data tools pointing at .yxdb files to this component).",
+      "description": "Read an Alteryx native binary file (.yxdb) and materialize it as a pandas DataFrame asset. Wraps the import-yxdb PyPI package (whole-file \u2192 DataFrame) with a fallback to the lower-level yxdb row iterator. Pairs with the alteryx-to-dagster migrator (which auto-routes Alteryx Input Data tools pointing at .yxdb files to this component).",
       "path": "assets/sources/dataframe_from_yxdb",
       "tags": [
         "source",
@@ -5390,6 +5390,32 @@
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/component.py",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
+      }
+    },
+    {
+      "id": "inline_dataframe",
+      "name": "Inline DataFrame",
+      "category": "source",
+      "description": "Materialize a small literal DataFrame from inline YAML rows + optional per-column dtypes. For reference tables, fixtures, or Alteryx Text Input ports \u2014 where bundling a CSV alongside the project is overkill. Pairs with the alteryx-to-dagster migrator (auto-routes Text Input tools to this component instead of emitting a custom .py asset).",
+      "path": "assets/sources/inline_dataframe",
+      "tags": [
+        "source",
+        "dataframe",
+        "inline",
+        "reference",
+        "alteryx",
+        "fixture"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/inline_dataframe/schema.json",
+      "component_type": "dagster_component_templates.InlineDataframeComponent",
+      "icon": "Table",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/inline_dataframe/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/inline_dataframe/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/inline_dataframe/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/inline_dataframe/requirements.txt",
       "validation": {
         "level": "code",
         "last_validated": "2026-06-05"
@@ -13545,7 +13571,7 @@
       "id": "mcp_tool_call",
       "name": "MCP Tool Call",
       "category": "source",
-      "description": "Deterministic single-shot call to one MCP tool — no LLM in the loop. Args templating supports {partition_key} / {partition_keys.<dim>} / {run_id}, and the asset supports full Dagster pattern (partitions, kinds, FreshnessPolicy, RetryPolicy).",
+      "description": "Deterministic single-shot call to one MCP tool \u2014 no LLM in the loop. Args templating supports {partition_key} / {partition_keys.<dim>} / {run_id}, and the asset supports full Dagster pattern (partitions, kinds, FreshnessPolicy, RetryPolicy).",
       "path": "assets/sources/mcp_tool_call",
       "tags": [
         "source",
@@ -13812,7 +13838,7 @@
       "id": "llm_evaluator",
       "name": "LLM Evaluator (LLM-as-Judge)",
       "category": "ai",
-      "description": "LLM-as-judge evaluator. Pass-through asset that takes an upstream agent / LLM output and scores it on configurable feedbacks (answer_relevance, groundedness, context_relevance, harmfulness, helpfulness, coherence). Same conceptual model as TruLens — without the framework dep.",
+      "description": "LLM-as-judge evaluator. Pass-through asset that takes an upstream agent / LLM output and scores it on configurable feedbacks (answer_relevance, groundedness, context_relevance, harmfulness, helpfulness, coherence). Same conceptual model as TruLens \u2014 without the framework dep.",
       "path": "assets/ai/llm_evaluator",
       "tags": [
         "ai",
@@ -13830,7 +13856,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_evaluator/requirements.txt",
       "validation": {
         "level": "live",
-        "evidence": "Live-validated against the dagster_plus_agent_run output — all 4 evaluations (answer_relevance, helpfulness, harmfulness, coherence) scored with sensible 0.0-1.0 values + reasons.",
+        "evidence": "Live-validated against the dagster_plus_agent_run output \u2014 all 4 evaluations (answer_relevance, helpfulness, harmfulness, coherence) scored with sensible 0.0-1.0 values + reasons.",
         "last_validated": "2026-06-04"
       }
     },
@@ -24809,6 +24835,189 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_nlp.md",
         "last_validated": "2026-05-08"
+      }
+    },
+    {
+      "id": "points_from_latlon",
+      "name": "Points from Lat/Lon",
+      "category": "transformation",
+      "description": "Build Shapely Point geometries from a DataFrame's latitude / longitude columns and add them as a `geometry` column. Drop-in for Alteryx's Create Points tool.",
+      "path": "assets/transforms/points_from_latlon",
+      "tags": [
+        "spatial",
+        "geo",
+        "geopandas",
+        "create_points",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/points_from_latlon/schema.json",
+      "component_type": "dagster_component_templates.PointsFromLatLonComponent",
+      "icon": "MapPin",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/points_from_latlon/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/points_from_latlon/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/points_from_latlon/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/points_from_latlon/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
+      }
+    },
+    {
+      "id": "geo_buffer",
+      "name": "Geo Buffer",
+      "category": "transformation",
+      "description": "Expand each geometry by a distance, producing a polygon buffer. Drop-in for Alteryx's Buffer and Trade Area tools. Projects to Web Mercator before buffering so distance units are meters / km / miles, not degrees.",
+      "path": "assets/transforms/geo_buffer",
+      "tags": [
+        "spatial",
+        "geo",
+        "geopandas",
+        "shapely",
+        "buffer",
+        "trade_area",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_buffer/schema.json",
+      "component_type": "dagster_component_templates.GeoBufferComponent",
+      "icon": "Circle",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_buffer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_buffer/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_buffer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_buffer/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
+      }
+    },
+    {
+      "id": "geo_simplify",
+      "name": "Geo Simplify",
+      "category": "transformation",
+      "description": "Reduce vertex count of each geometry via Shapely Douglas-Peucker simplification. Drop-in for Alteryx's Generalize tool. Useful for shrinking tile sizes or speeding up downstream spatial joins.",
+      "path": "assets/transforms/geo_simplify",
+      "tags": [
+        "spatial",
+        "geo",
+        "shapely",
+        "simplify",
+        "generalize",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_simplify/schema.json",
+      "component_type": "dagster_component_templates.GeoSimplifyComponent",
+      "icon": "Minimize2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_simplify/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_simplify/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_simplify/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_simplify/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
+      }
+    },
+    {
+      "id": "geo_overlay",
+      "name": "Geo Overlay",
+      "category": "transformation",
+      "description": "Combine two geometry DataFrames using set-theoretic spatial operations (intersection / union / difference / symmetric_difference / identity). Drop-in for Alteryx's Spatial Process tool.",
+      "path": "assets/transforms/geo_overlay",
+      "tags": [
+        "spatial",
+        "geo",
+        "geopandas",
+        "overlay",
+        "intersection",
+        "union",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_overlay/schema.json",
+      "component_type": "dagster_component_templates.GeoOverlayComponent",
+      "icon": "Layers",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_overlay/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_overlay/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_overlay/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_overlay/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
+      }
+    },
+    {
+      "id": "drive_time",
+      "name": "Drive Time",
+      "category": "transformation",
+      "description": "Compute drive-time isochrone polygons (where can I drive in N minutes?) for each input point via a routing API. Drop-in for Alteryx's Drive Time and Trade Area tools. v1 ships openrouteservice (free tier with API key); google / mapbox / OSRM are stubbed with same component shape.",
+      "path": "assets/transforms/drive_time",
+      "tags": [
+        "spatial",
+        "geo",
+        "routing",
+        "isochrone",
+        "openrouteservice",
+        "drive_time",
+        "trade_area",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/drive_time/schema.json",
+      "component_type": "dagster_component_templates.DriveTimeComponent",
+      "icon": "Navigation",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/drive_time/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/drive_time/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/drive_time/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/drive_time/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
+      }
+    },
+    {
+      "id": "pearson_correlation",
+      "name": "Pearson Correlation",
+      "category": "analytics",
+      "description": "Compute the Pearson / Spearman / Kendall correlation matrix across numeric columns. Output in long form (one row per pair) or wide (square matrix). Drop-in for Alteryx's Pearson Correlation tool.",
+      "path": "assets/analytics/pearson_correlation",
+      "tags": [
+        "analytics",
+        "statistics",
+        "correlation",
+        "pearson",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pearson_correlation/schema.json",
+      "component_type": "dagster_component_templates.PearsonCorrelationComponent",
+      "icon": "Activity",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pearson_correlation/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pearson_correlation/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pearson_correlation/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pearson_correlation/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
+      }
+    },
+    {
+      "id": "per_row_http_fetcher",
+      "name": "Per-Row HTTP Fetcher",
+      "category": "transformation",
+      "description": "For each row in an upstream DataFrame, fetch the URL in `url_column` via HTTP and append response body / status / optional parsed JSON. Concurrent via ThreadPoolExecutor. Drop-in for Alteryx's Download tool (per-row HTTP) \u2014 different shape from `rest_api_fetcher` which does one URL per asset.",
+      "path": "assets/transforms/per_row_http_fetcher",
+      "tags": [
+        "transformation",
+        "http",
+        "api",
+        "download",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/per_row_http_fetcher/schema.json",
+      "component_type": "dagster_component_templates.PerRowHttpFetcherComponent",
+      "icon": "Globe",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/per_row_http_fetcher/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/per_row_http_fetcher/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/per_row_http_fetcher/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/per_row_http_fetcher/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
       }
     }
   ],

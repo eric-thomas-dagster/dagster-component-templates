@@ -556,6 +556,19 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
     )
     include_preview_metadata: bool = Field(default=False)
     preview_rows: int = Field(default=25, ge=1, le=200)
+    return_dataframe: bool = Field(
+        default=False,
+        description=(
+            "When true, after running the CTAS the asset SELECTs from the "
+            "primary sink table and returns the result as a pandas DataFrame "
+            "so downstream pandas-consuming assets can read it via Dagster's "
+            "IO manager. Equivalent to Alteryx's In-DB Stream Out tool — the "
+            "boundary where data leaves the warehouse and lands in memory. "
+            "Leave false (default) for pure SQL chains that end at a final "
+            "warehouse table; flip on when this is the bridge step between "
+            "warehouse-side SQL and downstream pandas work."
+        ),
+    )
 
     @classmethod
     def get_description(cls) -> str:
@@ -612,6 +625,7 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
+        return_dataframe = self.return_dataframe
         kinds = list(self.kinds or []) or [dialect, "sql"]
         all_tags = dict(self.asset_tags or {})
         for k in kinds:
@@ -713,6 +727,20 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
                             )
                     except Exception as e:
                         context.log.warning(f"preview emission failed: {e}")
+
+                if return_dataframe:
+                    # Bridge: pull the primary sink back into pandas so
+                    # downstream non-warehouse assets can consume it via the
+                    # IO manager. Equivalent to Alteryx's In-DB Stream Out
+                    # tool — same connection, no extra round-trip.
+                    import pandas as pd
+                    primary_table = sinks[0]["table"]
+                    df = pd.read_sql(
+                        f"SELECT * FROM {_quote(primary_table, dialect)}", conn
+                    )
+                    metadata["dagster/row_count"] = MetadataValue.int(len(df))
+                    context.add_output_metadata(metadata)
+                    return df
             return dg.MaterializeResult(metadata=metadata)
 
         return Definitions(assets=[_warehouse_pipeline_asset])

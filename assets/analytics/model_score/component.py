@@ -29,6 +29,17 @@ class ModelScoreComponent(Component, Model, Resolvable):
     feature_columns: List[str] = Field(description="Feature columns to feed the model.")
     output_column: str = Field(default="predicted", description="Output column for predictions.")
     include_proba: bool = Field(default=False, description="For classifiers: also emit predict_proba columns.")
+    framework: str = Field(
+        default="auto",
+        description=(
+            "How the model was serialized. 'auto' (default) tries joblib then "
+            "pickle; 'sklearn' forces joblib; 'statsmodels' uses sm.load() and "
+            "prepends a constant column (statsmodels' GLM.predict expects "
+            "the design matrix with intercept). Set explicitly when scoring "
+            "count_regression / gamma_regression / other statsmodels-fit "
+            "components."
+        ),
+    )
 
     include_preview_metadata: bool = Field(
         default=False,
@@ -160,22 +171,41 @@ class ModelScoreComponent(Component, Model, Resolvable):
             except ImportError:
                 joblib = None
             path = os.path.expanduser(_self.model_path)
-            if joblib is not None and path.endswith((".joblib", ".pkl")):
-                try:
-                    model = joblib.load(path)
-                except Exception:
+            framework = (_self.framework or "auto").lower()
+
+            if framework == "statsmodels":
+                import statsmodels.api as sm
+                model = sm.load(path)
+            elif framework == "sklearn" and joblib is not None:
+                model = joblib.load(path)
+            else:
+                # auto: try joblib first (most sklearn) then pickle
+                if joblib is not None and path.endswith((".joblib", ".pkl")):
+                    try:
+                        model = joblib.load(path)
+                    except Exception:
+                        with open(path, "rb") as f:
+                            model = pickle.load(f)
+                else:
                     with open(path, "rb") as f:
                         model = pickle.load(f)
-            else:
-                with open(path, "rb") as f:
-                    model = pickle.load(f)
+
             X = df[_self.feature_columns].astype(float)
             df = df.copy()
-            df[_self.output_column] = model.predict(X)
-            if _self.include_proba and hasattr(model, "predict_proba"):
-                proba = model.predict_proba(X)
-                for i, cls in enumerate(getattr(model, "classes_", range(proba.shape[1]))):
-                    df[f"proba_{cls}"] = proba[:, i]
+            if framework == "statsmodels":
+                # statsmodels GLM expects the design matrix WITH intercept.
+                # Add it ourselves so the caller's feature_columns matches
+                # what they trained on (the upstream component adds the
+                # constant internally too).
+                import statsmodels.api as sm
+                Xc = sm.add_constant(X, has_constant="add")
+                df[_self.output_column] = model.predict(Xc).values
+            else:
+                df[_self.output_column] = model.predict(X)
+                if _self.include_proba and hasattr(model, "predict_proba"):
+                    proba = model.predict_proba(X)
+                    for i, cls in enumerate(getattr(model, "classes_", range(proba.shape[1]))):
+                        df[f"proba_{cls}"] = proba[:, i]
             out_df = df
 
             if include_preview and len(out_df) > 0:

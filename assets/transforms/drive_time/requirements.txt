@@ -1,0 +1,10 @@
+dagster
+pandas
+geopandas
+shapely
+openrouteservice
+requests
+# Optional per-provider extras (install only what you use):
+#   provider=google → googlemaps
+#   provider=mapbox → (requests covers it)
+#   provider=osrm   → (requests covers it)

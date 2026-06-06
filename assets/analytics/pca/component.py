@@ -128,6 +128,15 @@ class PcaComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     feature_columns: List[str] = Field(description="List of column names to use as input features for PCA")
+    model_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, joblib-dump the trained model to this path after fit. "
+            "Supports local paths and any fsspec URL (s3://, gs://, abfs://). "
+            "Downstream `model_score` component loads this path to predict on "
+            "new data — closes the Alteryx 'train once, score later' loop."
+        ),
+    )
     n_components: int = Field(default=2, description="Number of principal components to retain")
     output_prefix: str = Field(default="pc_", description="Prefix for output PC column names (e.g. pc_1, pc_2)")
     normalize: bool = Field(default=True, description="Standardize features with StandardScaler before PCA")
@@ -379,6 +388,10 @@ group_name=group_name,
 
             pca = PCA(n_components=n_components)
             components = pca.fit_transform(X)
+            if model_path is not None:
+                import fsspec, joblib
+                with fsspec.open(model_path, "wb") as _fh:
+                    joblib.dump(pca, _fh)
 
             pc_cols = [f"{output_prefix}{i + 1}" for i in range(n_components)]
             pc_df = pd.DataFrame(components, columns=pc_cols, index=df.index)

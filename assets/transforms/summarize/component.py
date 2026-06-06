@@ -512,6 +512,28 @@ group_name=group_name,
                         return lambda s: (s.mode().iloc[0] if not s.mode().empty else None)
                     if key == "list":
                         return lambda s: list(s.dropna())
+                    if key in ("spatialobjcombine", "spatial_obj_combine", "spatial_union"):
+                        # Aggregate Shapely geometries by unary union.
+                        def _spatial_combine(s):
+                            try:
+                                from shapely.ops import unary_union
+                                from shapely import wkt as _wkt
+                                from shapely.geometry.base import BaseGeometry
+                            except ImportError as e:
+                                raise ImportError("shapely required for spatial agg: pip install shapely") from e
+                            geoms = []
+                            for v in s.dropna():
+                                if isinstance(v, BaseGeometry):
+                                    geoms.append(v)
+                                else:
+                                    try:
+                                        geoms.append(_wkt.loads(str(v)))
+                                    except Exception:
+                                        continue
+                            if not geoms:
+                                return None
+                            return unary_union(geoms)
+                        return _spatial_combine
                     return f
                 _simple = {k: _to_callable(v) for k, v in _simple.items()}
                 _named = {k: (src, _to_callable(fn)) for k, (src, fn) in _named.items()}

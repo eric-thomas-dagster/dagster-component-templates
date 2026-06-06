@@ -129,6 +129,10 @@ class DatetimeParser(Component, Model, Resolvable):
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     date_column: str = Field(description="Column containing date/datetime values")
     input_format: Optional[str] = Field(default=None, description="strptime format string (None = auto-detect)")
+    on_parse_error: str = Field(
+        default="coerce",
+        description="How to handle rows that don't match input_format: 'coerce' (set to NaT, default), 'raise' (fail loudly), 'ignore' (leave the original value untouched).",
+    )
     output_format: Optional[str] = Field(default=None, description="strftime format for string output (None = keep as datetime)")
     output_column: Optional[str] = Field(default=None, description="Output column name (defaults to overwriting date_column)")
     timezone: Optional[str] = Field(default=None, description="Convert to this timezone (e.g. 'UTC', 'America/New_York')")
@@ -361,7 +365,8 @@ group_name=group_name,
             _src = df[date_column]
             if _src.dtype == "object":
                 _src = _src.astype(str).str.strip()
-            df[out_col] = pd.to_datetime(_src, format=input_format)
+            _errors_kw = "coerce" if self.on_parse_error == "coerce" else ("raise" if self.on_parse_error == "raise" else "ignore")
+            df[out_col] = pd.to_datetime(_src, format=input_format, errors=_errors_kw)
 
             if timezone:
                 if df[out_col].dt.tz is None:
@@ -376,7 +381,7 @@ group_name=group_name,
                 _src = df[date_column]
                 if _src.dtype == "object":
                     _src = _src.astype(str).str.strip()
-                parsed = pd.to_datetime(_src, format=input_format)
+                parsed = pd.to_datetime(_src, format=input_format, errors=_errors_kw)
                 df[f"{date_column}_year"] = parsed.dt.year
                 df[f"{date_column}_month"] = parsed.dt.month
                 df[f"{date_column}_day"] = parsed.dt.day

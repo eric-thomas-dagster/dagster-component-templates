@@ -487,6 +487,18 @@ group_name=group_name,
                 if output_distances:
                     df[_dist_tmpl.format(i=i + 1)] = distances[:, _col]
 
+            # For nearest-1 (single match per source row), also append the
+            # matched target row's columns under a `Universe_` prefix —
+            # the common ETL convention for "find nearest target and bring
+            # the target's attributes onto the source row". Downstream
+            # summarize / formula tools reference `Universe_<col>` directly.
+            if _n_neighbors_effective >= 1 and indices.shape[1] >= 2:
+                _nearest_idx = indices[:, 1]
+                _target_rows = upstream.iloc[_nearest_idx].reset_index(drop=True)
+                _target_rows.index = df.index
+                for _c in _target_rows.columns:
+                    df[f"Universe_{_c}"] = _target_rows[_c].values
+
 
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

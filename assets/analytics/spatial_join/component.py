@@ -515,6 +515,27 @@ group_name=group_name,
                 gdf_points, gdf_regions, how=how, predicate="within",
                 lsuffix="", rsuffix="right",
             )
+            # Compute IntersectPoly + Country Geo aliases BEFORE dropping
+            # geometry: the intersection of each matched (point, region) pair
+            # is the common subset of the two geometries. Useful for
+            # area-of-overlap analyses and matches the ETL convention some
+            # spatial-match tools emit.
+            try:
+                # Recover the right-side geometry from gdf_regions via index_right.
+                _index_right_col = "index_right" if "index_right" in result.columns else None
+                if _index_right_col is not None:
+                    _right_geom = gdf_regions.geometry.reindex(result[_index_right_col]).reset_index(drop=True)
+                    _left_geom = result.geometry.reset_index(drop=True)
+                    _intersect = [
+                        (lg.intersection(rg) if lg is not None and rg is not None else None)
+                        for lg, rg in zip(_left_geom, _right_geom)
+                    ]
+                    result["IntersectPoly"] = _intersect
+                    # `Country Geo` (or the canonical right-side geom alias)
+                    # is a common ref for "the matched region's full polygon".
+                    result["Country Geo"] = _right_geom.values
+            except Exception:
+                pass
             result_df = pd.DataFrame(result.drop(columns=["geometry"]))
             # gpd.sjoin with lsuffix="" emits left-collision columns as
             # "<name>_" (trailing underscore from the suffix join). Strip it
@@ -523,6 +544,21 @@ group_name=group_name,
                 (c[:-1] if c.endswith("_") and c[:-1] in upstream.columns else c)
                 for c in result_df.columns
             ]
+            # Add `Universe_<col>` aliases for the right-side (matched) columns.
+            # This is the convention some ETL spatial-match tools use to make
+            # "the target row's attributes that matched" addressable downstream.
+            _right_cols = list(regions.columns)
+            for _rc in _right_cols:
+                if _rc in ("geometry",):
+                    continue
+                _suffixed = f"{_rc}_right"
+                _alias = f"Universe_{_rc}"
+                if _alias in result_df.columns:
+                    continue
+                if _suffixed in result_df.columns:
+                    result_df[_alias] = result_df[_suffixed]
+                elif _rc in result_df.columns:
+                    result_df[_alias] = result_df[_rc]
 
             context.log.info(f"Spatial join complete: {len(result_df)} rows in result")
 

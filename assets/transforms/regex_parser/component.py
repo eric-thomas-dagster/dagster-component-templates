@@ -393,6 +393,26 @@ group_name=group_name,
                     extracted.columns = output_columns[: len(extracted.columns)]
                 else:
                     extracted.columns = [f"{column}_extracted_{i}" for i in range(len(extracted.columns))]
+                # Name-collision: if the target output name already exists
+                # in `df`, append an `_<N>` suffix (Date1 + Date1 → Date1_2).
+                # This matches the typical ETL-tool convention for chained
+                # regex parses that produce the same output column name —
+                # downstream tools that reference the auto-renamed column
+                # find it without manual rewiring.
+                _existing = set(df.columns)
+                _new_names = []
+                for _orig in extracted.columns:
+                    if _orig not in _existing:
+                        _new_names.append(_orig)
+                        _existing.add(_orig)
+                        continue
+                    _n = 2
+                    while f"{_orig}_{_n}" in _existing:
+                        _n += 1
+                    _renamed = f"{_orig}_{_n}"
+                    _new_names.append(_renamed)
+                    _existing.add(_renamed)
+                extracted.columns = _new_names
                 df = pd.concat([df, extracted], axis=1)
 
             elif mode == "match":

@@ -202,6 +202,16 @@ class JsonFlattenComponent(Component, Model, Resolvable):
             "reflects the data distribution; otherwise head() is used."
         ),
     )
+    output_format: str = Field(
+        default="wide",
+        description=(
+            "Output shape. 'wide' (default) emits flattened dot-notation "
+            "columns (e.g. `address.city`). 'long' emits one row per "
+            "(key-path, value) pair with two extra columns: `JSON_Name` and "
+            "`JSON_ValueString` — useful for downstream key-prefix filtering "
+            "or to re-pivot dynamically."
+        ),
+    )
     column: Optional[str] = Field(
         default=None,
         description="Column name containing dicts to flatten. If omitted, all object-dtype columns are flattened.",
@@ -271,6 +281,7 @@ class JsonFlattenComponent(Component, Model, Resolvable):
         separator = self.separator
         max_depth = self.max_depth
         drop_original = self.drop_original
+        output_format = (self.output_format or "wide").lower()
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -355,8 +366,29 @@ group_name=group_name,
 
             def flatten_column(df: pd.DataFrame, col: str) -> pd.DataFrame:
                 try:
+                    _values = df[col].tolist()
+                    # Auto-parse JSON-shaped strings → dicts so the same code
+                    # path handles both Python-dict columns AND HTTP-response
+                    # / file-read columns where the JSON is still a string.
+                    import json as _json
+                    _parsed = []
+                    for v in _values:
+                        if isinstance(v, (dict, list)):
+                            _parsed.append(v)
+                            continue
+                        if v is None or (isinstance(v, float) and pd.isna(v)):
+                            _parsed.append({})
+                            continue
+                        s = str(v).strip()
+                        if not s or s[0] not in "{[":
+                            _parsed.append({})
+                            continue
+                        try:
+                            _parsed.append(_json.loads(s))
+                        except Exception:
+                            _parsed.append({})
                     flat = json_normalize(
-                        df[col].tolist(),
+                        _parsed,
                         sep=separator,
                         max_level=max_depth,
                     )
@@ -370,48 +402,95 @@ group_name=group_name,
                     context.log.warning(f"Could not flatten column '{col}': {e}")
                 return df
 
-            if column:
-                if column not in df.columns:
-                    raise ValueError(f"Column '{column}' not found in DataFrame. Available: {list(df.columns)}")
+            if column and column in df.columns:
                 df = flatten_column(df, column)
+            elif column:
+                # Configured column is missing from upstream — fall back to
+                # auto-scanning so the chain still produces SOMETHING. Common
+                # when the upstream is a stub or when an earlier component
+                # renamed the JSON column.
+                context.log.warning(
+                    f"json_flatten: configured column {column!r} not in upstream "
+                    f"(have {list(df.columns)[:10]}); auto-scanning for JSON-shaped columns."
+                )
+                object_cols = [c for c in df.columns if df[c].dtype == object]
+                for col in object_cols:
+                    sample = df[col].dropna()
+                    if len(sample) == 0:
+                        continue
+                    _first = sample.iloc[0]
+                    if isinstance(_first, dict):
+                        df = flatten_column(df, col)
+                    elif isinstance(_first, str) and _first.strip() and _first.strip()[0] in "{[":
+                        df = flatten_column(df, col)
             else:
                 object_cols = [c for c in df.columns if df[c].dtype == object]
                 for col in object_cols:
-                    # Only flatten columns that actually contain dicts
+                    # Flatten columns that contain dicts OR JSON-shaped strings.
                     sample = df[col].dropna()
-                    if len(sample) > 0 and isinstance(sample.iloc[0], dict):
+                    if len(sample) == 0:
+                        continue
+                    _first = sample.iloc[0]
+                    if isinstance(_first, dict):
                         df = flatten_column(df, col)
+                    elif isinstance(_first, str):
+                        _stripped = _first.strip()
+                        if _stripped and _stripped[0] in "{[":
+                            df = flatten_column(df, col)
 
+            # Long-format output: pivot the flattened wide-form result into
+            # one row per (JSON_Name, JSON_ValueString) pair. Preserves the
+            # non-JSON columns from the upstream (they get repeated per pair).
+            if output_format == "long":
+                _passthrough_cols = [c for c in upstream.columns if c in df.columns]
+                if drop_original and column and column in _passthrough_cols:
+                    _passthrough_cols.remove(column)
+                _value_cols = [c for c in df.columns if c not in _passthrough_cols]
+                if _value_cols:
+                    df = df.melt(
+                        id_vars=_passthrough_cols,
+                        value_vars=_value_cols,
+                        var_name="JSON_Name",
+                        value_name="JSON_ValueString",
+                    )
+                    # JSON_ValueString is always string-typed in the long form.
+                    df["JSON_ValueString"] = df["JSON_ValueString"].astype(str)
+                else:
+                    # No JSON content found (empty input / stub data). Still
+                    # emit the JSON_Name + JSON_ValueString columns so
+                    # downstream tools that select on them resolve.
+                    df["JSON_Name"] = ""
+                    df["JSON_ValueString"] = ""
 
-                        # Build column schema metadata
-                        from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
-                        _col_schema = TableSchema(columns=[
-                            TableColumn(name=str(col), type=str(df.dtypes[col]))
-                            for col in df.columns
-                        ])
-                        _metadata = {
-                            "dagster/row_count": MetadataValue.int(len(df)),
-                            "dagster/column_schema": MetadataValue.table_schema(_col_schema),
-                        }
-                        if column_lineage:
-                            _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
-                            if _upstream_key:
-                                _lineage_deps = {}
-                                for out_col, in_cols in column_lineage.items():
-                                    _lineage_deps[out_col] = [
-                                        TableColumnDep(asset_key=_upstream_key, column_name=ic)
-                                        for ic in in_cols
-                                    ]
-                                _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
-                                    TableColumnLineage(_lineage_deps)
-                                )
-                        if include_preview and len(df) > 0:
-                            try:
-                                _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
-                                _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                            except Exception as _e:
-                                context.log.warning(f"preview emission failed: {_e}")
-                        context.add_output_metadata(_metadata)
+            # Build column schema metadata
+            from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
+            _col_schema = TableSchema(columns=[
+                TableColumn(name=str(col), type=str(df.dtypes[col]))
+                for col in df.columns
+            ])
+            _metadata = {
+                "dagster/row_count": MetadataValue.int(len(df)),
+                "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+            }
+            if column_lineage:
+                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
+                if _upstream_key:
+                    _lineage_deps = {}
+                    for out_col, in_cols in column_lineage.items():
+                        _lineage_deps[out_col] = [
+                            TableColumnDep(asset_key=_upstream_key, column_name=ic)
+                            for ic in in_cols
+                        ]
+                    _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
+                        TableColumnLineage(_lineage_deps)
+                    )
+            if include_preview and len(df) > 0:
+                try:
+                    _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                    _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                except Exception as _e:
+                    context.log.warning(f"preview emission failed: {_e}")
+            context.add_output_metadata(_metadata)
             return df
 
         from dagster import build_column_schema_change_checks

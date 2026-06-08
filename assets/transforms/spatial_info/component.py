@@ -100,10 +100,23 @@ class SpatialInfoComponent(Component, Model, Resolvable):
                 # `geometry` (or `Centroid` / `SpatialObj`) column. Fall back
                 # to whichever common geom name actually exists so the chain
                 # doesn't die just because of a column-naming convention drift.
-                for _alt in ("geometry", "Centroid", "SpatialObj", "geom", "shape", "centroid"):
+                _CANDIDATES = ("geometry", "Centroid", "SpatialObj", "SpatialObject",
+                               "geom", "shape", "centroid")
+                for _alt in _CANDIDATES:
                     if _alt in df.columns:
                         _geom_col = _alt
                         break
+                # Last resort: a join may have prefixed the geometry with
+                # `Right_` / `Left_` / `<group>_`. Match any column whose
+                # SUFFIX is a known geometry name.
+                if _geom_col not in df.columns:
+                    for _c in df.columns:
+                        if not isinstance(_c, str):
+                            continue
+                        _tail = _c.split("_")[-1] if "_" in _c else _c
+                        if _tail in _CANDIDATES:
+                            _geom_col = _c
+                            break
             if _geom_col not in df.columns:
                 context.log.warning(
                     f"spatial_info: geometry_column {_self.geometry_column!r} not in upstream "

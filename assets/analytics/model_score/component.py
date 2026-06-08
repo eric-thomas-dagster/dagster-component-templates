@@ -29,6 +29,17 @@ class ModelScoreComponent(Component, Model, Resolvable):
     feature_columns: List[str] = Field(description="Feature columns to feed the model.")
     output_column: str = Field(default="predicted", description="Output column for predictions.")
     include_proba: bool = Field(default=False, description="For classifiers: also emit predict_proba columns.")
+    score_classes: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Optional list of class labels to emit `Score_<class>` "
+            "probability columns for. Used when the model can't be loaded "
+            "(stub / demo runs) so downstream chains that reference a "
+            "specific Score_<Yes>/Score_<Lost>/etc. still resolve. When the "
+            "model loads successfully, this field is ignored — real classes "
+            "come from `model.classes_`."
+        ),
+    )
     framework: str = Field(
         default="auto",
         description=(
@@ -176,10 +187,23 @@ class ModelScoreComponent(Component, Model, Resolvable):
             if not os.path.exists(path):
                 context.log.warning(
                     f"model_score: model_path {path!r} does not exist. "
-                    "Returning upstream unchanged (typical for stub/demo data — "
-                    "set model_path to a real serialized model to enable scoring)."
+                    "Emitting empty prediction columns so downstream tools "
+                    "that reference them resolve (set model_path to a real "
+                    "serialized model to enable real scoring)."
                 )
-                return df.copy()
+                _out = df.copy()
+                _out[_self.output_column] = None
+                # Emit `Score_<class>` columns for any caller-supplied class
+                # labels (via `score_classes`) PLUS the common default class
+                # labels (True/False/Yes/No/1/0). Lets downstream chains that
+                # filter on a specific Score_<X> still resolve even without
+                # a real model loaded.
+                _classes = list(_self.score_classes or []) + ["True", "False", "Yes", "No", "1", "0"]
+                for _cls in _classes:
+                    _col = f"Score_{_cls}"
+                    if _col not in _out.columns:
+                        _out[_col] = 0.0
+                return _out
 
             if framework == "statsmodels":
                 import statsmodels.api as sm

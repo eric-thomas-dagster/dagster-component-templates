@@ -427,14 +427,23 @@ group_name=group_name,
             from shapely.geometry.base import BaseGeometry
             from shapely import wkt as _wkt
             def _parse_points_geom(g):
+                if g is None:
+                    return None
+                if isinstance(g, float) and pd.isna(g):
+                    return None
                 if isinstance(g, BaseGeometry):
                     return g
                 if isinstance(g, dict):
                     return shape(g)
                 s = str(g).strip()
-                if s.startswith("{"):
-                    return shape(json.loads(s))
-                return _wkt.loads(s)
+                if not s or s.upper() in ("NONE", "NAN", "NULL"):
+                    return None
+                try:
+                    if s.startswith("{"):
+                        return shape(json.loads(s))
+                    return _wkt.loads(s)
+                except Exception:
+                    return None
 
             if points_geometry_column and points_geometry_column in upstream.columns:
                 gdf_points = gpd.GeoDataFrame(
@@ -442,40 +451,78 @@ group_name=group_name,
                     geometry=upstream[points_geometry_column].apply(_parse_points_geom),
                     crs="EPSG:4326",
                 )
-            else:
+            elif lng_column in upstream.columns and lat_column in upstream.columns:
                 gdf_points = gpd.GeoDataFrame(
                     upstream,
                     geometry=gpd.points_from_xy(upstream[lng_column], upstream[lat_column]),
                     crs="EPSG:4326",
                 )
+            else:
+                context.log.warning(
+                    f"spatial_join: neither points_geometry_column={points_geometry_column!r} nor "
+                    f"lat/lng columns ({lat_column!r}/{lng_column!r}) present in upstream "
+                    f"(have {list(upstream.columns)[:10]}). Returning upstream unchanged."
+                )
+                return upstream.copy()
 
             regions = regions_df.copy()
             from shapely import wkt as _wkt
             from shapely.geometry.base import BaseGeometry
             def _parse_geom(g):
+                # None / NaN / "NONE" / empty → None (skipped by sjoin)
+                if g is None:
+                    return None
+                if isinstance(g, float) and pd.isna(g):
+                    return None
                 if isinstance(g, BaseGeometry):
                     return g
                 if isinstance(g, dict):
                     return shape(g)
                 s = str(g).strip()
+                if not s or s.upper() in ("NONE", "NAN", "NULL"):
+                    return None
                 # GeoJSON starts with `{`; WKT with POINT / POLYGON / etc.
-                if s.startswith("{"):
-                    return shape(json.loads(s))
-                return _wkt.loads(s)
+                try:
+                    if s.startswith("{"):
+                        return shape(json.loads(s))
+                    return _wkt.loads(s)
+                except Exception:
+                    return None
             _geom_col = geometry_column
             if _geom_col not in regions.columns:
                 # Fall back to any existing geometry-typed column; common when
                 # upstream is geocoder/CreatePoints/PolyBuild output where the
                 # geom column is named "Centroid" or similar.
-                for _alt in ("geometry", "Centroid", "geom", "shape"):
+                for _alt in ("geometry", "Centroid", "geom", "shape", "SpatialObj"):
                     if _alt in regions.columns:
                         _geom_col = _alt
                         break
+            if _geom_col not in regions.columns:
+                context.log.warning(
+                    f"spatial_join: geometry_column {geometry_column!r} not found in "
+                    f"regions (have {list(regions.columns)[:10]}). Returning upstream "
+                    "points unchanged."
+                )
+                return upstream.copy()
             regions["geometry"] = regions[_geom_col].apply(_parse_geom)
             gdf_regions = gpd.GeoDataFrame(regions, geometry="geometry", crs="EPSG:4326")
 
-            result = gpd.sjoin(gdf_points, gdf_regions, how=how, predicate="within")
+            # lsuffix="" keeps left-side column names unchanged; only the right's
+            # colliding columns get suffixed. Aligns with how SQL / pandas merges
+            # preserve the left frame's column identity for downstream
+            # group_by / filter references.
+            result = gpd.sjoin(
+                gdf_points, gdf_regions, how=how, predicate="within",
+                lsuffix="", rsuffix="right",
+            )
             result_df = pd.DataFrame(result.drop(columns=["geometry"]))
+            # gpd.sjoin with lsuffix="" emits left-collision columns as
+            # "<name>_" (trailing underscore from the suffix join). Strip it
+            # so callers see the original column name.
+            result_df.columns = [
+                (c[:-1] if c.endswith("_") and c[:-1] in upstream.columns else c)
+                for c in result_df.columns
+            ]
 
             context.log.info(f"Spatial join complete: {len(result_df)} rows in result")
 

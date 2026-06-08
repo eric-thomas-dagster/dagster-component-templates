@@ -130,8 +130,22 @@ class DataframeFromCsvComponent(Component, Model, Resolvable):
     file_path: str = Field(
         description="Path to CSV file. Supports env var substitution, e.g. ${DATA_DIR}/file.csv"
     )
-    delimiter: str = Field(default=",", description="Column delimiter character")
-    encoding: str = Field(default="utf-8", description="File encoding")
+    delimiter: str = Field(
+        default="auto",
+        description=(
+            "Column delimiter character. Default `auto` uses csv.Sniffer on the "
+            "first 4 KB to detect , ; | tab. Pass an explicit char to skip the sniff."
+        ),
+    )
+    encoding: str = Field(
+        default="auto",
+        description=(
+            "File encoding. Default `auto` sniffs the first 4 KB with "
+            "charset-normalizer and picks the most likely encoding (handles "
+            "UTF-8-with-BOM, Windows-1252, ISO-8859-1, UTF-16, etc.). Pass an "
+            "explicit name like 'utf-8' / 'cp1252' / 'latin-1' to skip the sniff."
+        ),
+    )
     parse_dates: Optional[List[str]] = Field(
         default=None, description="Columns to parse as dates"
     )
@@ -142,6 +156,18 @@ class DataframeFromCsvComponent(Component, Model, Resolvable):
         default=None, description="Number of rows to skip at the start of the file"
     )
     nrows: Optional[int] = Field(default=None, description="Maximum number of rows to read")
+    add_filename_column: bool = Field(
+        default=False,
+        description=(
+            "If True, add a column to the output containing the source file's "
+            "basename. Useful when reading a glob pattern that matches multiple "
+            "files and downstream needs to identify which file each row came from."
+        ),
+    )
+    filename_column_name: str = Field(
+        default="FileName",
+        description="Name of the auto-added filename column (only used when add_filename_column=True).",
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -274,6 +300,8 @@ class DataframeFromCsvComponent(Component, Model, Resolvable):
         dtype = self.dtype
         skiprows = self.skiprows
         nrows = self.nrows
+        add_filename_column = self.add_filename_column
+        filename_column_name = self.filename_column_name
         group_name = self.group_name
 
         partitions_def = _build_partitions_def(
@@ -371,15 +399,135 @@ group_name=group_name,
             resolved_path = os.path.expandvars(file_path)
             context.log.info(f"Reading CSV from {resolved_path}")
 
-            df = pd.read_csv(
-                resolved_path,
-                delimiter=delimiter,
-                encoding=encoding,
-                parse_dates=parse_dates or False,
-                dtype=dtype,
-                skiprows=skiprows,
-                nrows=nrows,
-            )
+            # Expand glob patterns: file_path may be a wildcard like
+            # `\dir\*.csv`. Concatenate matching files;
+            # if zero matches, fall back to empty frame so downstream chain
+            # still resolves. Try the literal path first (test stubs sometimes
+            # have `*` in the filename).
+            import glob as _glob
+            if os.path.exists(resolved_path):
+                _candidates = [resolved_path]
+            elif any(_c in resolved_path for _c in ("*", "?", "[")):
+                _candidates = _glob.glob(resolved_path)
+            else:
+                _candidates = [resolved_path]
+            # Encoding resolution: `auto` (default) sniffs the file's first
+            # 4 KB with charset-normalizer and uses the best match. An
+            # explicit encoding string skips sniffing. Either way, fall
+            # back through utf-8-sig (strips BOM) → cp1252 → latin-1 so a
+            # wrong sniff or surprise encoding still reads.
+            def _sniff_encoding(path: str) -> Optional[str]:
+                try:
+                    from charset_normalizer import from_path
+                    _results = from_path(path)
+                    best = _results.best()
+                    if best is not None:
+                        enc = best.encoding
+                        # Normalize charset-normalizer's names to pandas-known.
+                        if enc and enc.lower() == "utf_8":
+                            return "utf-8-sig"
+                        return enc
+                except Exception:
+                    return None
+                return None
+
+            def _sniff_delimiter(path: str, enc: str) -> Optional[str]:
+                try:
+                    import csv as _csv
+                    with open(path, "r", encoding=enc, errors="replace") as _fh:
+                        sample = _fh.read(4096)
+                    if not sample:
+                        return None
+                    return _csv.Sniffer().sniff(sample, delimiters=",;\t|").delimiter
+                except Exception:
+                    return None
+
+            def _read_one(path: str):
+                _user_enc = (encoding or "auto").strip()
+                if _user_enc.lower() == "auto":
+                    _detected = _sniff_encoding(path)
+                    _user_enc = _detected or "utf-8-sig"
+                    context.log.info(
+                        f"dataframe_from_csv: sniffed encoding={_user_enc!r} for {path}"
+                    )
+                _user_delim = (delimiter or "auto").strip() if isinstance(delimiter, str) else delimiter
+                if isinstance(_user_delim, str) and _user_delim.lower() == "auto":
+                    _detected_delim = _sniff_delimiter(path, _user_enc)
+                    if _detected_delim:
+                        _user_delim = _detected_delim
+                        context.log.info(
+                            f"dataframe_from_csv: sniffed delimiter={_user_delim!r} for {path}"
+                        )
+                    else:
+                        _user_delim = ","
+                # Prefer `utf-8-sig` over plain `utf-8` to handle BOM.
+                if _user_enc.lower() in ("utf-8", "utf8"):
+                    _encodings = ["utf-8-sig", "utf-8"]
+                else:
+                    _encodings = [_user_enc, "utf-8-sig"]
+                for _fallback in ("cp1252", "latin-1"):
+                    if _fallback not in _encodings:
+                        _encodings.append(_fallback)
+                _last_err = None
+                for _enc in _encodings:
+                    try:
+                        _df = pd.read_csv(
+                            path,
+                            delimiter=_user_delim,
+                            encoding=_enc,
+                            parse_dates=parse_dates or False,
+                            dtype=dtype,
+                            skiprows=skiprows,
+                            nrows=nrows,
+                        )
+                        # Belt-and-suspenders: strip any literal BOM that
+                        # snuck into a column name (happens when the user
+                        # configures `encoding=latin-1` on a file that's
+                        # actually UTF-8-BOM — bytes EF BB BF decode to
+                        # `ï»¿` in latin-1 and stay on col[0]).
+                        def _strip_bom(c):
+                            if not isinstance(c, str):
+                                return c
+                            # UTF-8 BOM as single ﻿ char
+                            if c.startswith("﻿"):
+                                c = c[1:]
+                            # UTF-8 BOM bytes mis-decoded as latin-1 (3 chars)
+                            if c.startswith("ï»¿"):
+                                c = c[3:]
+                            return c
+                        _new_cols = [_strip_bom(c) for c in _df.columns]
+                        if _new_cols != list(_df.columns):
+                            _df.columns = _new_cols
+                        return _df
+                    except UnicodeDecodeError as _e:
+                        _last_err = _e
+                        continue
+                if _last_err is not None:
+                    raise _last_err
+                raise RuntimeError("read failed but no exception captured")
+
+            if not _candidates or all(not os.path.exists(p) for p in _candidates):
+                context.log.warning(
+                    f"dataframe_from_csv: no files matched {resolved_path!r}. "
+                    "Returning empty DataFrame so downstream chain resolves."
+                )
+                df = pd.DataFrame()
+            elif len(_candidates) == 1:
+                df = _read_one(_candidates[0])
+                if add_filename_column:
+                    df[filename_column_name] = os.path.basename(_candidates[0])
+            else:
+                # Glob match — tag each chunk with its own filename so
+                # downstream group_by:[FileName] keeps each file's rows separable.
+                _chunks = []
+                for _p in _candidates:
+                    if not os.path.exists(_p):
+                        continue
+                    _chunk = _read_one(_p)
+                    if add_filename_column:
+                        _chunk[filename_column_name] = os.path.basename(_p)
+                    _chunks.append(_chunk)
+                df = pd.concat(_chunks, ignore_index=True) if _chunks else pd.DataFrame()
 
             context.log.info(f"Loaded {len(df)} rows and {len(df.columns)} columns from CSV")
             # Build column schema metadata

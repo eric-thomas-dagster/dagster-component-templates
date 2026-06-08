@@ -7,8 +7,6 @@ Convert a column of binary blobs (bytes) between common encodings:
   - `from_hex` — hex string → bytes
   - `to_text` — bytes → decoded string (utf-8 by default)
   - `to_bytes` — text → bytes (utf-8 by default)
-
-Drop-in for Alteryx's **Blob Convert** tool.
 """
 import base64
 from typing import Dict, List, Optional
@@ -89,10 +87,11 @@ class BlobConvertComponent(Component, Model, Resolvable):
         def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
             df = upstream.copy()
             if _self.input_column not in df.columns:
-                raise KeyError(
+                context.log.warning(
                     f"BlobConvert: input_column {_self.input_column!r} not in upstream. "
-                    f"Available: {list(df.columns)}"
+                    f"Available: {list(df.columns)[:10]}. Returning upstream unchanged."
                 )
+                return df
             out_col = _self.output_column or _self.input_column
 
             def _convert(v):

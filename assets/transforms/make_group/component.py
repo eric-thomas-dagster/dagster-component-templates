@@ -1,6 +1,6 @@
 """MakeGroupComponent.
 
-For each unique combination of `key_columns`, assigns a sequential integer group ID and writes it as a new column. Equivalent to Alteryx's Make Group tool — useful for joining at a higher granularity or making compact identifiers.
+For each unique combination of `key_columns`, assigns a sequential integer group ID and writes it as a new column. Equivalent to the Make Group step — useful for joining at a higher granularity or making compact identifiers.
 """
 from typing import Dict, List, Optional
 

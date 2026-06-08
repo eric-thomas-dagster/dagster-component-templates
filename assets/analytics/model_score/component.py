@@ -173,6 +173,14 @@ class ModelScoreComponent(Component, Model, Resolvable):
             path = os.path.expanduser(_self.model_path)
             framework = (_self.framework or "auto").lower()
 
+            if not os.path.exists(path):
+                context.log.warning(
+                    f"model_score: model_path {path!r} does not exist. "
+                    "Returning upstream unchanged (typical for stub/demo data — "
+                    "set model_path to a real serialized model to enable scoring)."
+                )
+                return df.copy()
+
             if framework == "statsmodels":
                 import statsmodels.api as sm
                 model = sm.load(path)
@@ -190,7 +198,14 @@ class ModelScoreComponent(Component, Model, Resolvable):
                     with open(path, "rb") as f:
                         model = pickle.load(f)
 
-            X = df[_self.feature_columns].astype(float)
+            _missing_score_feats = [c for c in _self.feature_columns if c not in df.columns]
+            if _missing_score_feats:
+                context.log.warning(
+                    f"model_score: feature_columns {_missing_score_feats} not in upstream. "
+                    "Returning upstream unchanged."
+                )
+                return df.copy()
+            X = df[_self.feature_columns].apply(pd.to_numeric, errors="coerce").fillna(0).astype(float)
             df = df.copy()
             if framework == "statsmodels":
                 # statsmodels GLM expects the design matrix WITH intercept.

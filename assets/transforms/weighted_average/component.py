@@ -350,14 +350,21 @@ group_name=group_name,
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
             if group_by:
-                result = (
-                    upstream.groupby(group_by)
-                    .apply(
-                        lambda g: (g[value_column] * g[weight_column]).sum()
-                        / g[weight_column].sum()
-                    )
-                    .reset_index(name=output_column)
-                )
+                # Compute Σ(value × weight) / Σ(weight) per group via two
+                # aggregations + a column division. Avoids the
+                # `groupby.apply → reset_index(name=…)` pattern, which
+                # broke in newer pandas where apply now returns a DataFrame
+                # (with the groupby keys as columns), making the `name=`
+                # kwarg invalid.
+                _val_num = pd.to_numeric(upstream[value_column], errors="coerce")
+                _wt_num = pd.to_numeric(upstream[weight_column], errors="coerce")
+                _prod = (_val_num * _wt_num).rename("__wprod")
+                _df = upstream[group_by].copy()
+                _df["__wprod"] = _prod
+                _df["__wt"] = _wt_num
+                _agg = _df.groupby(group_by, dropna=False)[["__wprod", "__wt"]].sum()
+                _agg[output_column] = _agg["__wprod"] / _agg["__wt"]
+                result = _agg[[output_column]].reset_index()
                 context.log.info(
                     f"Computed weighted average of '{value_column}' "
                     f"grouped by {group_by} into {len(result)} rows"

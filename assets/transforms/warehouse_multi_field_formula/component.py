@@ -1,6 +1,6 @@
 """WarehouseMultiFieldFormulaComponent — apply ONE formula template to N columns.
 
-Alteryx "Multi-Field Formula" equivalent. When you want to apply the SAME
+the Multi-Field Formula transform. When you want to apply the SAME
 transformation to a SET of columns (e.g., `UPPER(TRIM(...))` to every
 string column, or `ROUND(..., 2)` to every numeric column), this saves
 having to write the same expression N times.
@@ -106,7 +106,7 @@ def _ctas_multi_field(output_table: str, upstream_table: str, expression: str,
 
 
 class WarehouseMultiFieldFormulaComponent(Component, Model, Resolvable):
-    """Apply ONE formula template to N columns via CTAS — Alteryx Multi-Field equivalent.
+    """Apply ONE formula template to N columns via CTAS — the Multi-Field transform.
 
     The `expression:` template uses `{col}` as the placeholder.
 
@@ -163,7 +163,7 @@ class WarehouseMultiFieldFormulaComponent(Component, Model, Resolvable):
 
     @classmethod
     def get_description(cls) -> str:
-        return "Apply one formula template to N columns via CTAS. Alteryx Multi-Field Formula equivalent."
+        return "Apply one formula template to N columns via CTAS. the Multi-Field Formula transform."
 
     def _resolve_url(self) -> str:
         import os

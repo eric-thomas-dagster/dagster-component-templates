@@ -133,6 +133,16 @@ class DataframeUnion(Component, Model, Resolvable):
     )
     ignore_index: bool = Field(default=True, description="Reset row index after concat (pandas only — polars has no index)")
     join: str = Field(default="outer", description="'outer' (keep all columns) or 'inner' (only common columns)")
+    mode: str = Field(
+        default="by_name",
+        description=(
+            "'by_name' (default): match columns by name across inputs (pandas concat default). "
+            "'by_position': take column names from the FIRST input and force all subsequent "
+            "inputs to use those names positionally. Use when sources share row shape but "
+            "differ in column names (e.g. drivers.csv has 'Driver' as first col, "
+            "tires.csv has 'Tire')."
+        ),
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -270,6 +280,7 @@ class DataframeUnion(Component, Model, Resolvable):
         upstream_asset_keys = self.upstream_asset_keys
         ignore_index = self.ignore_index
         join = self.join
+        mode = self.mode
         group_name = self.group_name
 
         ins = {
@@ -340,6 +351,31 @@ class DataframeUnion(Component, Model, Resolvable):
             # Normalize all inputs to pandas first (covers mixed inputs)
             if pl is not None:
                 dfs = [d.to_pandas() if isinstance(d, pl.DataFrame) else d for d in dfs]
+            # Drop duplicate column names within each frame (keep first) —
+            # pd.concat on frames with non-unique indices raises
+            # `Reindexing only valid with uniquely valued Index objects`.
+            dfs = [
+                (d.loc[:, ~d.columns.duplicated()] if d.columns.has_duplicates else d)
+                for d in dfs
+            ]
+            # By-position mode: take col names from FIRST input, force all
+            # others to match positionally (truncating/padding column lists
+            # as needed).
+            if mode == "by_position" and dfs:
+                _first = dfs[0]
+                _hdr = list(_first.columns)
+                _aligned = [_first]
+                for _d in dfs[1:]:
+                    _n_use = min(len(_hdr), len(_d.columns))
+                    _d2 = _d.iloc[:, :_n_use].copy()
+                    _d2.columns = _hdr[:_n_use]
+                    if _n_use < len(_hdr):
+                        # Pad with NA columns so concat aligns names cleanly.
+                        for _missing in _hdr[_n_use:]:
+                            _d2[_missing] = pd.NA
+                        _d2 = _d2[_hdr]
+                    _aligned.append(_d2)
+                dfs = _aligned
             # Union runs in pandas regardless of backend (cheap op + uniform metadata path).
             # If backend=polars, convert at the end to preserve type for downstream chains.
             result = pd.concat(dfs, ignore_index=ignore_index, join=join)

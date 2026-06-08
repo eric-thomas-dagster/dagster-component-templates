@@ -1,7 +1,7 @@
 """PerRowHttpFetcher.
 
 For each row in an input DataFrame, fetch the URL in `url_column` via HTTP
-and append the response. Drop-in for Alteryx's **Download** tool (which
+and append the response. (which
 also does per-row HTTP).
 
 Adds three output columns:
@@ -132,12 +132,31 @@ class PerRowHttpFetcherComponent(Component, Model, Resolvable):
                         break
                 return f"ERROR: {last_exc}", -1, None
 
+            if url_column not in upstream.columns:
+                context.log.warning(
+                    f"per_row_http_fetcher: url_column {url_column!r} not present in upstream "
+                    f"(have {list(upstream.columns)[:10]}). Skipping HTTP requests; "
+                    f"emitting empty {prefix} / {prefix}_body / {prefix}_status columns."
+                )
+                _df = upstream.copy()
+                _df[prefix] = ""
+                _df[f"{prefix}_body"] = ""
+                _df[f"{prefix}_status"] = -1
+                if parse_json:
+                    _df[f"{prefix}_json"] = None
+                return _df
             urls = upstream[url_column].astype(str).tolist()
             with ThreadPoolExecutor(max_workers=max_workers) as pool:
                 results = list(pool.map(_one, urls))
 
             df = upstream.copy().reset_index(drop=True)
-            df[f"{prefix}_body"] = [r[0] for r in results]
+            _bodies = [r[0] for r in results]
+            # Emit the body twice: once under the bare prefix (matches # Download tool's single `DownloadData` column so downstream
+            # workflows that reference the prefix-only name still work), and
+            # once with `_body` suffix (preserves the dagster naming
+            # convention for multi-output side-channel cols).
+            df[prefix] = _bodies
+            df[f"{prefix}_body"] = _bodies
             df[f"{prefix}_status"] = [r[1] for r in results]
             if parse_json:
                 df[f"{prefix}_json"] = [r[2] for r in results]

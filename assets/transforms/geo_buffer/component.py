@@ -1,7 +1,7 @@
 """GeoBuffer.
 
-Expand each geometry by a distance, producing a polygon "buffer." Drop-in
-for Alteryx's **Buffer** and **Trade Area** tools.
+Expand each geometry by a distance, producing a polygon "buffer." Useful
+for trade-area / radius-coverage analysis.
 
 Important: meaningful buffers in real-world units (meters / miles) require
 projecting from a geographic CRS (EPSG:4326, lat/lon in degrees) to a

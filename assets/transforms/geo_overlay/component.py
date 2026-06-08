@@ -2,7 +2,6 @@
 
 Combine two geometry DataFrames using a set-theoretic spatial operation
 (intersection / union / difference / symmetric_difference / identity).
-Drop-in for Alteryx's **Spatial Process** tool.
 
 Both inputs must have a geometry column. The output is one row per
 overlay-result feature, carrying attributes from both inputs (column names

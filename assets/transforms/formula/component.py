@@ -360,7 +360,7 @@ group_name=group_name,
             df = upstream.copy()
 
             for col, expr in expressions.items():
-                # Some Alteryx workflows self-reference the output column
+                # Some upstream tools self-reference the output column
                 # (e.g. `Year: np.where(df["Year"]=="1", "20", "19")`).
                 # Pre-create the column as NaN so the expression can read it
                 # without KeyError. The original value (if any) is preserved
@@ -380,7 +380,7 @@ group_name=group_name,
                     # `np.where(df["x"] > 10, "a", "b")`,
                     # `df["s"].str.contains(...)`, `df["d"].dt.year`, etc. —
                     # the things pandas.eval can't compile. Same shape an
-                    # Alteryx-to-Dagster import emits for Formula PYTHON-path
+                    # the importer emits for Formula PYTHON-path
                     # translations of IIF / Switch / Contains / DateTimeAdd etc.
                     try:
                         import numpy as np    # noqa: F401  — exposed to eval scope
@@ -388,7 +388,7 @@ group_name=group_name,
                         # Python `eval()` only accepts single-expression
                         # input, and YAML literal scalars sometimes
                         # interpolate line breaks into otherwise-one-line
-                        # expressions (Alteryx multi-line formula bodies).
+                        # expressions (multi-line formula bodies).
                         flat_expr = " ".join(expr.split())
                         df[col] = eval(
                             flat_expr,
@@ -399,6 +399,20 @@ group_name=group_name,
                                 **{c: df[c] for c in df.columns},
                             },
                         )
+                    except (KeyError, NameError, ValueError, TypeError, AttributeError) as e2:
+                        # Permissive path: when a formula references a column
+                        # that doesn't exist (upstream dropped it, fuzzy join
+                        # renamed it, etc.), can't coerce ('x' stub data
+                        # → float), or uses a non-datetime .dt accessor on a
+                        # string column, assign NaN rather than crashing the
+                        # whole graph. Lets downstream tools at least decide
+                        # what to do with the missing column.
+                        context.log.error(
+                            f"Fallback eval also failed for '{col}': {e2}. "
+                            "Assigning NaN and continuing."
+                        )
+                        import numpy as np   # noqa: F401
+                        df[col] = float("nan")
                     except Exception as e2:
                         context.log.error(f"Fallback eval also failed for '{col}': {e2}")
                         raise

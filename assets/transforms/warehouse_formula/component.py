@@ -1,6 +1,6 @@
 """WarehouseFormulaComponent — add/replace columns via CTAS.
 
-The Alteryx "Formula In-DB" equivalent: add computed columns to a table
+The "Formula In-DB" equivalent: add computed columns to a table
 without moving the data through Python. Each entry in `expressions:` is
 a SQL fragment (any expression the warehouse understands — arithmetic,
 CASE, EXTRACT, date funcs, window funcs, ...) that becomes a column in
@@ -77,9 +77,8 @@ def _ctas_with_columns(output_table: str, upstream_table: str,
 class WarehouseFormulaComponent(Component, Model, Resolvable):
     """Add or replace columns via inline SQL expressions — CTAS pushdown.
 
-    Equivalent to Alteryx's `Formula In-DB` or polars's `with_columns`,
-    executed in the warehouse engine. Each entry in `expressions:` becomes
-    a SELECT-expression in the generated CTAS.
+    Similar to polars's `with_columns`, executed in the warehouse engine.
+    Each entry in `expressions:` becomes a SELECT-expression in the generated CTAS.
 
     Example:
         type: dagster_component_templates.WarehouseFormulaComponent
@@ -141,7 +140,7 @@ class WarehouseFormulaComponent(Component, Model, Resolvable):
 
     @classmethod
     def get_description(cls) -> str:
-        return "Add/replace columns via inline SQL expressions (CTAS pushdown). Alteryx Formula In-DB equivalent."
+        return "Add/replace columns via inline SQL expressions (CTAS pushdown). the Formula In-DB transform."
 
     def _resolve_url(self) -> str:
         import os

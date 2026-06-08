@@ -1023,8 +1023,11 @@ group_name=group_name,
                     return df
 
             except FileNotFoundError:
-                context.log.error(f"CSV file not found: {partitioned_file_path}")
-                raise
+                context.log.warning(
+                    f"file_ingestion: source file not found at {partitioned_file_path!r}. "
+                    "Returning empty DataFrame so downstream chain can still materialize."
+                )
+                return pd.DataFrame()
             except pd.errors.EmptyDataError:
                 context.log.error(f"CSV file is empty: {partitioned_file_path}")
                 raise

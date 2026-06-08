@@ -1,6 +1,6 @@
 """WarehouseMultiRowFormulaComponent — row-relative formulas via window functions.
 
-Alteryx "Multi-Row Formula" equivalent. Adds columns whose values depend
+the Multi-Row Formula transform. Adds columns whose values depend
 on OTHER ROWS in the same window — running totals, LAG/LEAD, ranks,
 moving averages, percentiles. Compiles to SQL window functions.
 
@@ -190,7 +190,7 @@ class WarehouseMultiRowFormulaComponent(Component, Model, Resolvable):
 
     @classmethod
     def get_description(cls) -> str:
-        return "Row-relative formulas (running totals / LAG/LEAD / ranks) via SQL window functions. Alteryx Multi-Row Formula equivalent."
+        return "Row-relative formulas (running totals / LAG/LEAD / ranks) via SQL window functions. the Multi-Row Formula transform."
 
     def _resolve_url(self) -> str:
         import os

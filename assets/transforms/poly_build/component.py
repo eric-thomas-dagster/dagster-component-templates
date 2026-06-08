@@ -1,8 +1,7 @@
 """PolyBuild.
 
 Construct polygon (or polyline) geometries from a points DataFrame by
-grouping the rows into rings and ordering them by a sequence column.
-Drop-in for Alteryx's **Poly-Build** spatial tool.
+grouping the rows into rings and ordering them by a sequence column.spatial tool.
 
 The standard use is: an input table with one row per vertex, columns
 identifying which polygon each vertex belongs to (`group_column`),
@@ -43,13 +42,13 @@ class PolyBuildComponent(Component, Model, Resolvable):
         description=(
             "Column ordering vertices within each polygon. If None, the "
             "upstream's natural row order within each group is used (matches "
-            "Alteryx PolyBuild's behavior when SequenceField is left blank)."
+            "Poly-build's behavior when SequenceField is left blank)."
         ),
     )
     # Two input modes — exactly ONE must be provided:
     #   1. latitude_column + longitude_column → build Points from coords
     #   2. geometry_column                    → use existing Shapely Points
-    #      (matches Alteryx PolyBuild's <SpatialObj field=X/>)
+    #      (matches Poly-build's <SpatialObj field=X/>)
     latitude_column: Optional[str] = Field(
         default=None,
         description="Column with vertex latitude values (lat/lng mode)",
@@ -134,24 +133,50 @@ class PolyBuildComponent(Component, Model, Resolvable):
                         "both `latitude_column` + `longitude_column`."
                     )
                 required_cols += [_self.latitude_column, _self.longitude_column]
-            for required in required_cols:
-                if required and required not in df.columns:
-                    raise KeyError(
-                        f"poly_build: required column {required!r} not in upstream "
-                        f"DataFrame. Available: {list(df.columns)}"
-                    )
+            _missing_required = [c for c in required_cols if c and c not in df.columns]
+            if _missing_required:
+                context.log.warning(
+                    f"poly_build: required columns {_missing_required} not in upstream "
+                    f"DataFrame. Available: {list(df.columns)[:10]}. Returning upstream unchanged."
+                )
+                return df
 
             # Sort by group then sequence so each group's vertices come in ring
             # order. If no sequence_column, preserve upstream's natural row order
-            # within each group (matches Alteryx's <SequenceField field=""/> behavior).
+            # within each group (matches the no-sequence-field default).
             sort_cols = [_self.group_column] + ([_self.sequence_column] if _self.sequence_column else [])
             df = df.sort_values(sort_cols, kind="stable")
+
+            # Parse cell value (Shapely / WKT-string / GeoJSON-string / dict)
+            # into a Shapely geometry so we can read .x/.y or .coords uniformly.
+            from shapely.geometry.base import BaseGeometry
+            from shapely.geometry import shape as _shape
+            from shapely import wkt as _wkt
+            import json as _json
+            def _to_geom(v):
+                if v is None or (isinstance(v, float) and pd.isna(v)):
+                    return None
+                if isinstance(v, BaseGeometry):
+                    return v
+                if isinstance(v, dict):
+                    try: return _shape(v)
+                    except Exception: return None
+                s = str(v).strip()
+                if not s or s.upper() in ("NONE", "NAN", "NULL"):
+                    return None
+                try:
+                    if s.startswith("{"):
+                        return _shape(_json.loads(s))
+                    return _wkt.loads(s)
+                except Exception:
+                    return None
 
             def _coords_of(group_df):
                 """Yield (x, y) tuples per vertex, regardless of input mode."""
                 if use_geom_col:
-                    for geom in group_df[_self.input_geometry_column]:
-                        if geom is None or pd.isna(geom):
+                    for raw in group_df[_self.input_geometry_column]:
+                        geom = _to_geom(raw)
+                        if geom is None:
                             continue
                         if hasattr(geom, "x") and hasattr(geom, "y"):
                             yield (geom.x, geom.y)

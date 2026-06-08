@@ -157,8 +157,20 @@ class CreatePointsComponent(Component, Model, Resolvable):
             import geopandas as gpd
             from shapely.geometry import Point
             df = df.copy()
+            if _self.lat_column not in df.columns or _self.lng_column not in df.columns:
+                context.log.warning(
+                    f"create_points: lat_column={_self.lat_column!r} or "
+                    f"lng_column={_self.lng_column!r} not present in upstream "
+                    f"(have {list(df.columns)[:10]}). Returning upstream unchanged."
+                )
+                return df
             if _self.drop_invalid:
                 df = df.dropna(subset=[_self.lat_column, _self.lng_column]).copy()
+            # Drop pre-existing geometry column to avoid GeoDataFrame init
+            # crashing with "Column named X already exists" — upstream geo tools
+            # often already has a column named Centroid / geometry.
+            if _self.output_column in df.columns:
+                df = df.drop(columns=[_self.output_column])
             df[_self.output_column] = [Point(lng, lat) for lat, lng in zip(df[_self.lat_column], df[_self.lng_column])]
             gdf = gpd.GeoDataFrame(df, geometry=_self.output_column, crs=_self.crs)
             # Convert back to a DataFrame with WKT for downstream pandas-only consumers.

@@ -384,10 +384,10 @@ group_name=group_name,
                 df = df.dropna(subset=str_cols if columns else None)
             elif null_handling == "fill":
                 # String columns get null_fill_value (default "" — matches
-                # Alteryx's "Replace Nulls in String fields" default).
+                # the common "replace nulls in string fields" default).
                 # Numeric columns get 0 IF null_fill_value isn't explicitly
-                # set (matches Alteryx's "Replace Nulls in Numeric fields"
-                # default). If the user passed a literal null_fill_value,
+                # set (matches the "replace nulls in numeric fields" default).
+                # If the user passed a literal null_fill_value,
                 # respect it on strings only — numeric cols are left alone.
                 _str_fill = null_fill_value if null_fill_value is not None else ""
                 for _col in str_cols:

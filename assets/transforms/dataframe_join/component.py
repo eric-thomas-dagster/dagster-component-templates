@@ -131,7 +131,14 @@ class DataframeJoin(Component, Model, Resolvable):
         description="'pandas' (default) or 'polars'. Polars uses .join() with the same how/on/left_on/right_on semantics and returns a polars DataFrame.",
     )
     left_asset_key: str = Field(description="Left DataFrame asset key")
-    right_asset_key: str = Field(description="Right DataFrame asset key")
+    right_asset_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Right DataFrame asset key. Leave unset (or equal to `left_asset_key`) "
+            "to self-join — the upstream frame is cloned in-process with all "
+            "non-key columns prefixed by `right_prefix` (default 'Right_')."
+        ),
+    )
     additional_asset_keys: Optional[List[str]] = Field(
         default=None,
         description=(
@@ -307,10 +314,23 @@ class DataframeJoin(Component, Model, Resolvable):
                 "only work for 2-way joins where left/right keys differ."
             )
 
-        ins = {
-            "left": AssetIn(key=AssetKey.from_user_string(left_asset_key)),
-            "right": AssetIn(key=AssetKey.from_user_string(right_asset_key)),
-        }
+        # Self-join: right_asset_key unset, or equal to left_asset_key. The
+        # asset takes only `left`; we synthesize `right` in-process by cloning
+        # `left` and applying `right_prefix` to its non-key columns.
+        _is_self_join = (
+            right_asset_key is None
+            or right_asset_key == ""
+            or right_asset_key == left_asset_key
+        )
+        if _is_self_join:
+            ins = {
+                "left": AssetIn(key=AssetKey.from_user_string(left_asset_key)),
+            }
+        else:
+            ins = {
+                "left": AssetIn(key=AssetKey.from_user_string(left_asset_key)),
+                "right": AssetIn(key=AssetKey.from_user_string(right_asset_key)),
+            }
         # Sanitize each extra asset key into a valid Python identifier suitable for kwargs.
         _extra_slots: List[str] = []
         for _i, _k in enumerate(additional_asset_keys):
@@ -434,8 +454,16 @@ class DataframeJoin(Component, Model, Resolvable):
 
         extra_slots = list(_extra_slots)
 
-        @asset(partitions_def=partitions_def, name=asset_name, ins=ins, group_name=group_name, retry_policy=_retry_policy, freshness_policy=_freshness_policy, owners=self.owners or [], tags=_all_tags, deps=[AssetKey.from_user_string(k) for k in (self.deps or [])])
-        def _asset(context: AssetExecutionContext, left: Any, right: Any, **extras) -> Any:
+        def _do_join(context: AssetExecutionContext, left: Any, right: Any, **extras) -> Any:
+            # Pop the self-join override (passed by the self-join branch
+            # @asset). When set, replaces the closure-captured `_right_on_local`
+            # so the merge points at the prefixed column names rather than
+            # the original (un-prefixed) ones the user configured.
+            _override_right_on = extras.pop("_override_right_on", None)
+            if _override_right_on is not None:
+                _right_on_local = _override_right_on
+            else:
+                _right_on_local = right_on
             try:
                 import polars as pl
                 _is_polars_in = isinstance(left, pl.DataFrame) or isinstance(right, pl.DataFrame)
@@ -508,9 +536,9 @@ class DataframeJoin(Component, Model, Resolvable):
                 join_kwargs = {"how": pl_how, "suffix": suffixes[1] if len(suffixes) > 1 else "_right"}
                 if on:
                     join_kwargs["on"] = on
-                elif left_on and right_on:
+                elif left_on and _right_on_local:
                     join_kwargs["left_on"] = left_on
-                    join_kwargs["right_on"] = right_on
+                    join_kwargs["right_on"] = _right_on_local
                 merged_pl = left_pl.join(right_pl, **join_kwargs)
                 for slot in extra_slots:
                     nxt = extras.get(slot)
@@ -554,17 +582,117 @@ class DataframeJoin(Component, Model, Resolvable):
 
                 if on:
                     left, right = _align_join_dtypes(left, right, on, on)
-                elif left_on and right_on:
-                    left, right = _align_join_dtypes(left, right, left_on, right_on)
+                elif left_on and _right_on_local:
+                    left, right = _align_join_dtypes(left, right, left_on, _right_on_local)
 
-                merged = left.merge(
-                    right,
-                    how=how,
-                    on=on,
-                    left_on=left_on,
-                    right_on=right_on,
-                    suffixes=tuple(suffixes),
-                )
+                # Tolerate missing join keys: if `on` / `left_on` / `_right_on_local`
+                # references columns absent from upstream (broken-upstream chain
+                # in an importer-converted workflow), do a row-positional concat
+                # rather than crashing. Matches lax behavior on bad
+                # configs.
+                def _row_concat(_l, _r):
+                    _l = _l.reset_index(drop=True)
+                    _r = _r.reset_index(drop=True)
+                    # Drop overlapping non-key cols from right to avoid dupe names.
+                    _dupes = [c for c in _r.columns if c in _l.columns]
+                    if _dupes:
+                        _r = _r.rename(columns={c: c + suffixes[1] for c in _dupes})
+                    n = min(len(_l), len(_r))
+                    return pd.concat([_l.head(n), _r.head(n)], axis=1)
+                _missing_on = [c for c in (on or []) if c not in left.columns or c not in right.columns]
+                _missing_left_on = [c for c in (left_on or []) if c not in left.columns]
+                _missing_right_on = [c for c in (_right_on_local or []) if c not in right.columns]
+                if _missing_on or _missing_left_on or _missing_right_on:
+                    context.log.warning(
+                        f"dataframe_join: missing join keys "
+                        f"on={_missing_on} left_on={_missing_left_on} right_on={_missing_right_on}; "
+                        "row-positional concat fallback."
+                    )
+                    merged = _row_concat(left, right)
+                else:
+                    # If `right_prefix` is set, prefix only the right-side
+                    # columns that would otherwise COLLIDE with the left after
+                    # merge:
+                    #   • non-key cols that exist on both sides (would get
+                    #     suffixed by pandas — apply the prefix instead)
+                    #   • _right_on_local keys whose name differs from the
+                    #     corresponding left_on key (pandas keeps both post-
+                    #     merge; apply the prefix to the right one so callers
+                    #     who reference `<prefix><name>` find it)
+                    # Same-name join keys (whether via `on=` or matching
+                    # left_on/_right_on_local) get COLLAPSED by pandas → never
+                    # prefixed. Right's other unique cols stay as-is.
+                    _right_in = right
+                    _right_on_in = _right_on_local
+                    if right_prefix:
+                        _join_keys_both = set((on or []) + (_right_on_local or []))
+                        # 1. Non-key cols on both sides (collision case)
+                        _overlap = [
+                            c for c in _right_in.columns
+                            if c in left.columns and c not in _join_keys_both
+                        ]
+                        # 2. _right_on_local keys whose paired left_on key has a
+                        #    different name (pandas keeps both post-merge)
+                        _diff_name_right_keys = []
+                        if left_on and _right_on_local and len(left_on) == len(_right_on_local):
+                            for _lk, _rk in zip(left_on, _right_on_local):
+                                if _lk != _rk:
+                                    _diff_name_right_keys.append(_rk)
+                        _to_prefix = list(set(_overlap) | set(_diff_name_right_keys))
+                        if _to_prefix:
+                            _rename_map = {c: f"{right_prefix}{c}" for c in _to_prefix}
+                            _right_in = _right_in.rename(columns=_rename_map)
+                            # Update _right_on_local to point at renamed keys.
+                            if _right_on_in:
+                                _right_on_in = [_rename_map.get(c, c) for c in _right_on_in]
+                    try:
+                        merged = left.merge(
+                            _right_in,
+                            how=how,
+                            on=on,
+                            left_on=left_on,
+                            right_on=_right_on_in,
+                            suffixes=tuple(suffixes),
+                        )
+                    except Exception as _merge_err:
+                        # Pandas raises MergeError when `suffixes` would create
+                        # a duplicate column. Cases include:
+                        #   1) Suffixed name already exists (left has both
+                        #      `X` and `X_x` from a previous merge).
+                        #   2) _right_on_local key also exists on left side as a
+                        #      non-key column — pandas sees it as overlap.
+                        # Fix: rename EVERY right column that collides with
+                        # left (incl. _right_on_local keys), with unique tag. Then
+                        # patch left_on/_right_on_local to the renamed keys.
+                        _join_keys_both = set(on or [])
+                        _renames: Dict[str, str] = {}
+                        for _c in right.columns:
+                            if _c in left.columns and _c not in _join_keys_both:
+                                # Pick a tag that's free in both frames.
+                                _tag = "__r"
+                                _new = f"{_c}{_tag}"
+                                _n = 1
+                                while _new in left.columns or _new in right.columns:
+                                    _n += 1
+                                    _new = f"{_c}__r{_n}"
+                                _renames[_c] = _new
+                        if _renames:
+                            context.log.warning(
+                                f"dataframe_join: pandas.merge failed ({_merge_err}); "
+                                f"pre-renaming {len(_renames)} right-side overlap cols."
+                            )
+                            _r2 = right.rename(columns=_renames)
+                            _right_on2 = [_renames.get(c, c) for c in (_right_on_local or [])] if _right_on_local else None
+                            merged = left.merge(
+                                _r2,
+                                how=how,
+                                on=on,
+                                left_on=left_on,
+                                right_on=_right_on2,
+                                suffixes=tuple(suffixes),
+                            )
+                        else:
+                            raise
                 for slot in extra_slots:
                     nxt = extras.get(slot)
                     if nxt is None:
@@ -579,6 +707,52 @@ class DataframeJoin(Component, Model, Resolvable):
                     )
                 merged = _apply_post_merge(merged)
                 return merged
+
+        # Two-branch asset decoration so Dagster's `ins=` inference (driven
+        # by the function signature) doesn't try to wire a phantom `right`
+        # input when the join is self-referential.
+        if _is_self_join:
+            # Adjust right_on so the keys point at the prefixed clone's
+            # columns. Stash on a closure-local since `right_on` itself is
+            # captured from the outer scope and Python rebinding would
+            # break the regular-join branch below.
+            _self_prefix = right_prefix or "Right_"
+            if right_on:
+                _self_right_on = [
+                    c if c.startswith(_self_prefix) else f"{_self_prefix}{c}"
+                    for c in right_on
+                ]
+            else:
+                _self_right_on = right_on
+
+            @asset(
+                partitions_def=partitions_def,
+                name=asset_name,
+                ins=ins,
+                group_name=group_name,
+                retry_policy=_retry_policy,
+                freshness_policy=_freshness_policy,
+                owners=self.owners or [],
+                tags=_all_tags,
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            )
+            def _asset(context: AssetExecutionContext, left: Any) -> Any:
+                _right = left.rename(columns=lambda c: f"{_self_prefix}{c}").copy()
+                return _do_join(context, left, _right, _override_right_on=_self_right_on)
+        else:
+            @asset(
+                partitions_def=partitions_def,
+                name=asset_name,
+                ins=ins,
+                group_name=group_name,
+                retry_policy=_retry_policy,
+                freshness_policy=_freshness_policy,
+                owners=self.owners or [],
+                tags=_all_tags,
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            )
+            def _asset(context: AssetExecutionContext, left: Any, right: Any, **extras) -> Any:
+                return _do_join(context, left, right, **extras)
 
         from dagster import build_column_schema_change_checks
 

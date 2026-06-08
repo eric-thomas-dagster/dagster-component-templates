@@ -359,6 +359,13 @@ group_name=group_name,
             df = upstream.copy()
             out_col = output_column if output_column else date_column
 
+            if date_column not in df.columns:
+                context.log.warning(
+                    f"datetime_parser: date_column {date_column!r} not in upstream "
+                    f"(have {list(df.columns)[:10]}). Returning upstream unchanged."
+                )
+                return df
+
             # Trim leading/trailing whitespace from string inputs — strptime
             # is whitespace-sensitive (" january 4" doesn't match "%B %d" but
             # "january 4" does). Cheap pre-clean, safe on numeric/datetime.

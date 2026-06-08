@@ -39,7 +39,7 @@ class SVMComponent(Component, Model, Resolvable):
             "If set, joblib-dump the trained model to this path after fit. "
             "Supports local paths and any fsspec URL (s3://, gs://, abfs://). "
             "Downstream `model_score` component loads this path to predict on "
-            "new data — closes the Alteryx 'train once, score later' loop."
+            "new data — closes the train-once / score-later loop."
         ),
     )
 

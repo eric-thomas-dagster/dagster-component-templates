@@ -4,10 +4,8 @@ Compute the Pearson correlation matrix across selected numeric columns and
 emit the result as a DataFrame. Two output shapes:
 
 - `long` (default) — one row per (field1, field2) pair with the correlation.
-  Matches Alteryx's Pearson Correlation tool's typical output.
+  Matches the Pearson Correlation step's typical output.
 - `wide` — the correlation matrix as a square DataFrame.
-
-Drop-in for Alteryx's **Pearson Correlation** tool.
 """
 from typing import Dict, List, Optional
 

@@ -562,7 +562,7 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
             "When true, after running the CTAS the asset SELECTs from the "
             "primary sink table and returns the result as a pandas DataFrame "
             "so downstream pandas-consuming assets can read it via Dagster's "
-            "IO manager. Equivalent to Alteryx's In-DB Stream Out tool — the "
+            "IO manager. the "
             "boundary where data leaves the warehouse and lands in memory. "
             "Leave false (default) for pure SQL chains that end at a final "
             "warehouse table; flip on when this is the bridge step between "
@@ -731,8 +731,7 @@ class WarehousePipelineComponent(Component, Model, Resolvable):
                 if return_dataframe:
                     # Bridge: pull the primary sink back into pandas so
                     # downstream non-warehouse assets can consume it via the
-                    # IO manager. Equivalent to Alteryx's In-DB Stream Out
-                    # tool — same connection, no extra round-trip.
+                    # IO manager. Same connection, no extra round-trip.
                     import pandas as pd
                     primary_table = sinks[0]["table"]
                     df = pd.read_sql(

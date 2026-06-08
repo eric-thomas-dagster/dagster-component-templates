@@ -1,12 +1,12 @@
 """Materialize a literal DataFrame from YAML.
 
-For small reference tables (region codes, fixture data, Alteryx Text Input
+For small reference tables (region codes, fixture data, an inline-table source
 ports), where carrying a CSV file alongside the project is overkill.
 Rows and column dtypes live entirely in the defs.yaml — the asset has no
 external dependency at runtime.
 
 This component exists primarily so the `alteryx-to-dagster` migrator can
-emit Alteryx Text Input tools as a `defs.yaml` instead of a custom .py
+emit an inline-table source tools as a `defs.yaml` instead of a custom .py
 asset, but it's useful on its own for any inline-data scenario.
 """
 from typing import Any, Dict, List, Optional
@@ -44,7 +44,7 @@ class InlineDataframeComponent(Component, Model, Resolvable):
         ```
 
     With explicit dtypes (handy when row values arrive as strings — e.g.
-    from an Alteryx Text Input tool's XML — but downstream filters expect
+    from an an ETL tool's inline-table XML — but downstream filters expect
     numeric comparisons):
 
         ```yaml
@@ -122,17 +122,30 @@ class InlineDataframeComponent(Component, Model, Resolvable):
         def _inline_asset(context: AssetExecutionContext):
             import pandas as pd
 
+            # Preserve the column schema as declared. an inline-table source often
+            # stores a CSV-shaped blob in a single `Field1` column on purpose
+            # (downstream TextToColumns does the splitting). Auto-splitting
+            # here breaks workflows that reference the single source column.
             df = pd.DataFrame(rows, columns=columns)
             # Coerce dtypes — numeric columns via to_numeric (handles "" / None
-            # gracefully); everything else via astype.
+            # gracefully); everything else via astype. Catch overflow/cast
+            # failures and fall back to string so a single bad value doesn't
+            # take down the whole asset.
             for col, dtype in dtypes.items():
                 if col not in df.columns:
                     context.log.warning(f"dtype set for unknown column {col!r}; ignoring.")
                     continue
-                if dtype in ("Int64", "Int32", "Int16", "Int8", "float64", "float32"):
-                    df[col] = pd.to_numeric(df[col], errors="coerce").astype(dtype)
-                else:
-                    df[col] = df[col].astype(dtype)
+                try:
+                    if dtype in ("Int64", "Int32", "Int16", "Int8", "float64", "float32"):
+                        df[col] = pd.to_numeric(df[col], errors="coerce").astype(dtype)
+                    else:
+                        df[col] = df[col].astype(dtype)
+                except (ValueError, TypeError, OverflowError) as _cast_err:
+                    context.log.warning(
+                        f"inline_dataframe: failed to cast {col!r} to {dtype!r} "
+                        f"({_cast_err}); leaving as object/string."
+                    )
+                    df[col] = df[col].astype(str)
 
             context.add_output_metadata({
                 "dagster/row_count": MetadataValue.int(len(df)),

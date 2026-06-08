@@ -1,7 +1,7 @@
 """Summarize Component.
 
 Group and aggregate a DataFrame by one or more columns. Equivalent to SQL GROUP BY
-or the Alteryx Summarize tool.
+or the Summarize tool.
 """
 from typing import Any, Dict, List, Optional
 
@@ -121,6 +121,60 @@ def _build_partitions_def(
             "static_dim": StaticPartitionsDefinition(_values),
         })
     raise ValueError(f"unknown partition_type: {partition_type!r}")
+
+
+def _spatial_agg(series, mode: str):
+    """Spatial aggregations: collect geometries in a group, then
+    return convex_hull / unary_union / centroid / envelope. Accepts shapely
+    objects or WKT/GeoJSON strings."""
+    try:
+        from shapely import wkt as _wkt
+        from shapely.geometry import shape as _shape
+        from shapely.geometry.base import BaseGeometry
+        from shapely.ops import unary_union
+        import json as _json
+    except ImportError:
+        # Without shapely we can't compute; return the first non-null val.
+        for _v in series:
+            if _v is not None:
+                return _v
+        return None
+
+    def _to_geom(v):
+        if v is None:
+            return None
+        if isinstance(v, BaseGeometry):
+            return v
+        if isinstance(v, dict):
+            return _shape(v)
+        s = str(v).strip()
+        if not s or s.lower() == "nan":
+            return None
+        try:
+            if s.startswith("{"):
+                return _shape(_json.loads(s))
+            return _wkt.loads(s)
+        except Exception:
+            return None
+
+    geoms = [g for g in (_to_geom(v) for v in series) if g is not None]
+    if not geoms:
+        return None
+    if mode == "intersect":
+        # Pairwise intersection across the whole group. Result is the geometry
+        # common to every input shape; empty geometry if any pair is disjoint.
+        from functools import reduce
+        return reduce(lambda a, b: a.intersection(b), geoms)
+    combined = unary_union(geoms)
+    if mode == "combine":
+        return combined
+    if mode == "convex_hull":
+        return combined.convex_hull
+    if mode == "center":
+        return combined.centroid
+    if mode == "envelope":
+        return combined.envelope
+    return combined
 
 
 class SummarizeComponent(Component, Model, Resolvable):
@@ -403,7 +457,7 @@ group_name=group_name,
             #   named:  {out_col: {col: c, agg: f}} → produce named out_col from (c, f)
             # Named form lets you produce multiple aggregations from the same
             # source column (avg_rating + num_ratings both off `rating`).
-            # Alteryx (and other ETL tools) use slightly different aggregate
+            # Some ETL tools use slightly different aggregate
             # names than pandas. Translate at config-resolve time so the
             # rest of the asset's agg pipeline doesn't care which dialect
             # the user / importer wrote. Identity entries (sum / mean /
@@ -423,7 +477,23 @@ group_name=group_name,
                 "groupconcat": "concat",
                 "list": "list",
                 "mode": "mode",
-                # Alteryx GroupBy / Sort markers — non-aggregating, drop.
+                # Reporting aggregations: stack values vertically /
+                # horizontally into a report cell. Pandas equivalent is
+                # newline-joined string for vertical, comma-joined for horizontal.
+                "rptvertical": lambda s: "\n".join(map(str, s)),
+                "rpthorizontal": lambda s: ", ".join(map(str, s)),
+                "rpttext": lambda s: "\n".join(map(str, s)),
+                # String aggregations: shortest / longest value in group.
+                "shortest": lambda s: min((str(v) for v in s if v is not None), key=len, default=None),
+                "longest": lambda s: max((str(v) for v in s if v is not None), key=len, default=None),
+                # Spatial aggregations: combine all geometries in
+                # the group then derive a shape. Returns shapely geometry.
+                "spatialobjconvexhull": lambda s: _spatial_agg(s, "convex_hull"),
+                "spatialobjcombine": lambda s: _spatial_agg(s, "combine"),
+                "spatialobjcenter": lambda s: _spatial_agg(s, "center"),
+                "spatialobjenvelope": lambda s: _spatial_agg(s, "envelope"),
+                "spatialobjintersect": lambda s: _spatial_agg(s, "intersect"),
+                # GroupBy / Sort markers — non-aggregating, drop.
                 "groupby": None,
                 "sort": None,
             }
@@ -442,6 +512,12 @@ group_name=group_name,
                     _named[_out] = (_spec["col"], _translate_agg(_spec["agg"]))
                 else:
                     _simple[_out] = _translate_agg(_spec)
+
+            # No tolerance for missing group_by / agg columns: a Summarize that
+            # silently drops columns produces wrong output. If the workflow
+            # references a column that doesn't exist, the user needs to see
+            # the failure to fix the configuration. Pandas's KeyError on the
+            # groupby/agg call surfaces a clear message at the right step.
 
             if backend == "polars":
                 if pl is None:
@@ -474,7 +550,7 @@ group_name=group_name,
                 _result_for_metadata = result.to_pandas()
             else:
                 # Empty aggregations + non-empty group_by = "deduplicate by
-                # these columns" semantically (matches Alteryx Summarize with
+                # these columns" semantically (matches the typical Summarize with
                 # only GroupBy actions). pandas groupby().agg({}) raises
                 # "No objects to concatenate" — short-circuit to drop_duplicates.
                 if not _named and not _simple and group_by:
@@ -486,7 +562,7 @@ group_name=group_name,
                     )
                     return result
                 # Empty aggregations + empty group_by = degenerate config.
-                # Alteryx fallback: emit a single row with the total record count.
+                # fallback: emit a single row with the total record count.
                 if not _named and not _simple and not group_by:
                     import pandas as _pd
                     result = _pd.DataFrame([{"row_count": len(upstream)}])
@@ -496,7 +572,7 @@ group_name=group_name,
                         "returning a single-row {row_count: N} DataFrame."
                     )
                     return result
-                # Some Alteryx-style aggs aren't native pandas — convert to
+                # Some vendor-specific aggs aren't native pandas — convert to
                 # callables here so `groupby().agg()` accepts them. Keeps the
                 # exposed names ('concat', 'concat_unique', 'mode', 'list')
                 # working in both _simple and _named forms.
@@ -586,10 +662,17 @@ group_name=group_name,
                     import pandas as _pd
                     rows: Dict[str, Any] = {}
                     for _out, _spec in _simple.items():
+                        # `size` is row-count of the whole frame, not a column op.
+                        if isinstance(_spec, str) and _spec == "size":
+                            rows[_out] = len(upstream)
+                            continue
                         # Whole-frame agg: apply func to the matching source column.
                         # `_simple` keys are the output column name AND source.
                         rows[_out] = upstream[_out].agg(_spec)
                     for _out, (_src, _func) in _named.items():
+                        if isinstance(_func, str) and _func == "size":
+                            rows[_out] = len(upstream)
+                            continue
                         rows[_out] = upstream[_src].agg(_func)
                     result = _pd.DataFrame([rows])
                     _result_for_metadata = result
@@ -599,14 +682,46 @@ group_name=group_name,
                     )
                 else:
                     _grouped = upstream.groupby(group_by)
+                    # `size` is a row-count-per-group transform — pandas
+                    # treats it specially (`groupby.size()` returns a Series
+                    # without per-column dispatch). Pop any `size` entries
+                    # from `_simple` / `_named` and compute them once outside
+                    # the agg-dict path.
+                    _size_outputs: list = []
+                    _new_simple: Dict[str, Any] = {}
+                    for _k, _v in _simple.items():
+                        if isinstance(_v, str) and _v == "size":
+                            _size_outputs.append(_k)
+                        else:
+                            _new_simple[_k] = _v
+                    _simple = _new_simple
+                    _named_size: list = []
+                    _new_named: Dict[str, Any] = {}
+                    for _k, _v in _named.items():
+                        if isinstance(_v, tuple) and len(_v) == 2 and _v[1] == "size":
+                            _named_size.append(_k)
+                        else:
+                            _new_named[_k] = _v
+                    _named = _new_named
                     if _named and _simple:
                         _simple_df = _grouped.agg(_simple).reset_index()
                         _named_df = _grouped.agg(**_named).reset_index()
                         result = _simple_df.merge(_named_df, on=group_by)
                     elif _named:
                         result = _grouped.agg(**_named).reset_index()
-                    else:
+                    elif _simple:
                         result = _grouped.agg(_simple).reset_index()
+                    else:
+                        # Only size aggregations — start from the group_by
+                        # frame with one row per group.
+                        result = upstream[group_by].drop_duplicates().reset_index(drop=True)
+                    # Layer the row-count columns on top.
+                    if _size_outputs or _named_size:
+                        _sizes = _grouped.size().rename("__size__").reset_index()
+                        result = result.merge(_sizes, on=group_by, how="left")
+                        for _out in _size_outputs + _named_size:
+                            result[_out] = result["__size__"]
+                        result = result.drop(columns=["__size__"])
                 # Apply group_by_rename if provided — renames the group-by
                 # output columns post-aggregation so downstream tools can
                 # reference the friendly name.

@@ -134,7 +134,7 @@ class NearestNeighborsComponent(Component, Model, Resolvable):
             "If set, joblib-dump the trained model to this path after fit. "
             "Supports local paths and any fsspec URL (s3://, gs://, abfs://). "
             "Downstream `model_score` component loads this path to predict on "
-            "new data — closes the Alteryx 'train once, score later' loop."
+            "new data — closes the train-once / score-later loop."
         ),
     )
     n_neighbors: int = Field(default=5, description="Number of nearest neighbors to find per record")
@@ -432,13 +432,39 @@ group_name=group_name,
                     _resolved_features.extend([f"{_fc}__x", f"{_fc}__y"])
                 else:
                     _resolved_features.append(_fc)
-            X = df[_resolved_features].fillna(0).values
+            # Coerce all feature columns to numeric — string stub data ('x')
+            # would otherwise crash sklearn's fit. Coerce-errors-to-NaN then
+            # fillna so the model can at least fit on the stubbed shape.
+            _present = [c for c in _resolved_features if c in df.columns]
+            _missing = [c for c in _resolved_features if c not in df.columns]
+            if _missing:
+                context.log.warning(
+                    f"nearest_neighbors: feature columns {_missing} not present in upstream; "
+                    f"using {_present or '(none)'} only."
+                )
+            if not _present:
+                context.log.warning(
+                    "nearest_neighbors: no feature columns present; returning upstream unchanged."
+                )
+                return df
+            _feat_df = df[_present].apply(pd.to_numeric, errors="coerce").fillna(0)
+            X = _feat_df.values
 
             if normalize:
                 X = StandardScaler().fit_transform(X)
 
-            # +1 to skip self
-            nn = NearestNeighbors(n_neighbors=n_neighbors + 1, algorithm=algorithm, metric=metric)
+            # Cap n_neighbors at sample count − 1 (the +1 below adds the self
+            # row, so the underlying request is n_neighbors + 1 ≤ len(X)).
+            # Avoids "n_neighbors > n_samples_fit" when stub data has 1 row.
+            _n_neighbors_effective = max(1, min(n_neighbors, len(X) - 1)) if len(X) > 1 else 1
+            if _n_neighbors_effective != n_neighbors:
+                context.log.warning(
+                    f"nearest_neighbors: requested n_neighbors={n_neighbors} but only "
+                    f"{len(X)} rows available; using {_n_neighbors_effective}."
+                )
+            # +1 to skip self, capped at len(X)
+            _ask = min(_n_neighbors_effective + 1, len(X))
+            nn = NearestNeighbors(n_neighbors=_ask, algorithm=algorithm, metric=metric)
             nn.fit(X)
             if model_path is not None:
                 import fsspec, joblib
@@ -449,11 +475,17 @@ group_name=group_name,
             # Skip self (index 0)
             _dist_tmpl = self.distance_column_template
             _idx_tmpl = self.index_column_template
-            for i in range(n_neighbors):
+            for i in range(_n_neighbors_effective):
+                # `indices`/`distances` have columns [self, 1st, 2nd, ...]; the
+                # j-th neighbor lives at column j+1. Guard the slice in case
+                # the caller asked for more neighbors than fit returned.
+                _col = i + 1
+                if _col >= indices.shape[1]:
+                    break
                 if output_indices:
-                    df[_idx_tmpl.format(i=i + 1)] = indices[:, i + 1]
+                    df[_idx_tmpl.format(i=i + 1)] = indices[:, _col]
                 if output_distances:
-                    df[_dist_tmpl.format(i=i + 1)] = distances[:, i + 1]
+                    df[_dist_tmpl.format(i=i + 1)] = distances[:, _col]
 
 
             # Build column schema metadata

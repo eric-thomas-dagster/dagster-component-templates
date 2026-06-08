@@ -372,6 +372,13 @@ group_name=group_name,
             out_col = output_column or f"running_{value_column}"
             df = upstream.copy()
 
+            if value_column not in df.columns:
+                context.log.warning(
+                    f"running_total: value_column {value_column!r} not present in upstream "
+                    f"(have {list(df.columns)[:10]}). Returning upstream unchanged."
+                )
+                return df
+
             # Coerce value_column to numeric for sum/mean. Without this, an
             # object-dtype column (common when upstream came from a stub /
             # CSV without dtypes) crashes with 'unsupported operand type(s)

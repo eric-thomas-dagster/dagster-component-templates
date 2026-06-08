@@ -140,7 +140,7 @@ class DecisionTreeModelComponent(Component, Model, Resolvable):
             "If set, joblib-dump the trained model to this path after fit. "
             "Supports local paths and any fsspec URL (s3://, gs://, abfs://). "
             "Downstream `model_score` component loads this path to predict on "
-            "new data — closes the Alteryx 'train once, score later' loop."
+            "new data — closes the train-once / score-later loop."
         ),
     )
     output_mode: str = Field(default="predictions", description="Output mode: 'predictions' or 'feature_importance'")
@@ -376,12 +376,34 @@ group_name=group_name,
                 raise ImportError("scikit-learn is required: pip install scikit-learn") from e
 
             df = upstream.copy()
-            X = df[feature_columns].fillna(0)
+            _present_feats = [c for c in feature_columns if c in df.columns]
+            _missing_feats = [c for c in feature_columns if c not in df.columns]
+            if _missing_feats:
+                context.log.warning(
+                    f"decision_tree: feature_columns {_missing_feats} not in upstream; "
+                    f"using {_present_feats or '(none)'} only."
+                )
+            if not _present_feats or target_column not in df.columns:
+                context.log.warning(
+                    "decision_tree: no usable features or target_column missing; "
+                    "returning upstream unchanged."
+                )
+                return df
+            feature_columns[:] = _present_feats
+            X = df[feature_columns].apply(pd.to_numeric, errors="coerce").fillna(0)
             y = df[target_column]
 
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=test_size, random_state=random_state
-            )
+            if len(X) < 5:
+                context.log.warning(
+                    f"decision_tree: only {len(X)} rows available; skipping "
+                    "train/test split (whole frame used for both fit and eval)."
+                )
+                X_train = X_test = X
+                y_train = y_test = y
+            else:
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y, test_size=test_size, random_state=random_state
+                )
 
             if task_type == "classification":
                 from sklearn.metrics import accuracy_score, classification_report

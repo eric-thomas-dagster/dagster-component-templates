@@ -352,12 +352,26 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+            _missing = [c for c in (index_column, pivot_column, value_column) if c not in upstream.columns]
+            if _missing:
+                context.log.warning(
+                    f"cross_tab: columns {_missing} not present in upstream "
+                    f"(have {list(upstream.columns)[:10]}). Returning upstream unchanged."
+                )
+                return upstream.copy()
+            # Translate / SQL-ish agg-func names → pandas vocabulary.
+            _AGG_ALIASES = {
+                "avg": "mean", "average": "mean", "stddev": "std", "variance": "var",
+                "countdistinct": "nunique", "distinct_count": "nunique",
+                "concat": "first",
+            }
+            _agg = _AGG_ALIASES.get(str(agg_func).lower(), agg_func)
             result = pd.pivot_table(
                 upstream,
                 index=index_column,
                 columns=pivot_column,
                 values=value_column,
-                aggfunc=agg_func,
+                aggfunc=_agg,
                 fill_value=fill_value,
             ).reset_index()
 

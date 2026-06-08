@@ -389,6 +389,18 @@ group_name=group_name,
 
             rows_before = len(df)
 
+            # Filter subset to only columns that exist; if none survive, fall
+            # back to all-columns dedup. Lets degraded stub-input chains still
+            # complete.
+            if subset:
+                _missing_subset = [c for c in subset if c not in df.columns]
+                if _missing_subset:
+                    context.log.warning(
+                        f"unique_dedup: subset columns {_missing_subset} not present "
+                        f"(have {list(df.columns)[:10]}); using only present columns."
+                    )
+                    subset[:] = [c for c in subset if c in df.columns]
+
             if backend == "polars":
                 if pl is None:
                     raise ImportError("polars backend requested but `polars` is not installed.")

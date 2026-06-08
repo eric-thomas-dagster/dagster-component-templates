@@ -349,6 +349,20 @@ class FindReplace(Component, Model, Resolvable):
             df = upstream.copy()
             out_col = output_column if output_column else target_column
 
+            if target_column not in df.columns:
+                context.log.warning(
+                    f"find_replace: target_column {target_column!r} not present in upstream "
+                    f"(have {list(df.columns)[:10]}{'...' if len(df.columns) > 10 else ''}). "
+                    "Returning upstream unchanged."
+                )
+                return df
+            if lookup_key_column not in lookup.columns or lookup_value_column not in lookup.columns:
+                context.log.warning(
+                    f"find_replace: lookup table missing {lookup_key_column!r}/{lookup_value_column!r}. "
+                    "Returning upstream unchanged."
+                )
+                return df
+
             mapping = dict(zip(lookup[lookup_key_column], lookup[lookup_value_column]))
 
             if default_value is not None:

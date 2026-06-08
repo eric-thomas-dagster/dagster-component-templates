@@ -1,7 +1,7 @@
 """GeoSimplify.
 
 Reduce the vertex count of each geometry using Shapely's
-Douglas-Peucker simplification. Drop-in for Alteryx's **Generalize** tool.
+Douglas-Peucker simplification.
 
 Use case: lighten complex polygons for plotting, shrink tile sizes,
 or speed up downstream spatial joins. Higher `tolerance` removes more

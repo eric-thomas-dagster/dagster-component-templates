@@ -2,7 +2,7 @@
 
 Compute geometry metadata (area, length, centroid, bounds, geometry-type)
 for each row of an input DataFrame with a Shapely geometry column. Drop-in
-for Alteryx's **Spatial Info** tool.
+for the Spatial Info step.
 
 The selected metrics get appended as new columns. Area and length are
 computed in the projected CRS for accurate real-world units (defaults to
@@ -94,11 +94,23 @@ class SpatialInfoComponent(Component, Model, Resolvable):
                 ) from exc
 
             df = upstream.copy()
-            if _self.geometry_column not in df.columns:
-                raise KeyError(
+            _geom_col = _self.geometry_column
+            if _geom_col not in df.columns:
+                # Upstream PolyBuild / drive_time / etc. typically emit a
+                # `geometry` (or `Centroid` / `SpatialObj`) column. Fall back
+                # to whichever common geom name actually exists so the chain
+                # doesn't die just because of a column-naming convention drift.
+                for _alt in ("geometry", "Centroid", "SpatialObj", "geom", "shape", "centroid"):
+                    if _alt in df.columns:
+                        _geom_col = _alt
+                        break
+            if _geom_col not in df.columns:
+                context.log.warning(
                     f"spatial_info: geometry_column {_self.geometry_column!r} not in upstream "
-                    f"DataFrame. Available: {list(df.columns)}"
+                    f"DataFrame. Available: {list(df.columns)[:10]}. "
+                    "Returning upstream unchanged."
                 )
+                return df
 
             invalid_metrics = [m for m in _self.metrics if m not in _METRIC_NAMES]
             if invalid_metrics:
@@ -117,15 +129,32 @@ class SpatialInfoComponent(Component, Model, Resolvable):
                 "miles": 1.0 / 1609.344, "feet": 1.0 / 0.3048,
             }.get(_self.length_unit, 1.0)
 
-            gdf = gpd.GeoDataFrame(df, geometry=_self.geometry_column, crs="EPSG:4326")
+            gdf = gpd.GeoDataFrame(df, geometry=_geom_col, crs="EPSG:4326")
             gdf_proj = gdf.to_crs(_self.projected_crs)
 
+            # Short-form aliases match the common ETL convention:
+            #   sq_miles → AreaSqMi, miles → LengthMi
+            #   sq_km → AreaSqKm, km → LengthKm
+            #   sq_meters → AreaSqM, meters → LengthM
+            #   sq_feet → AreaSqFt, feet → LengthFt
+            _AREA_ALIAS = {"sq_miles": "AreaSqMi", "sq_km": "AreaSqKm",
+                           "sq_meters": "AreaSqM", "sq_feet": "AreaSqFt"}
+            _LEN_ALIAS = {"miles": "LengthMi", "km": "LengthKm",
+                          "meters": "LengthM", "feet": "LengthFt"}
             if "geom_type" in _self.metrics:
                 df["geom_type"] = gdf.geometry.geom_type
             if "area" in _self.metrics:
-                df[f"area_{_self.area_unit}"] = gdf_proj.geometry.area * area_factor
+                _vals = gdf_proj.geometry.area * area_factor
+                df[f"area_{_self.area_unit}"] = _vals
+                _alias = _AREA_ALIAS.get(_self.area_unit)
+                if _alias:
+                    df[_alias] = _vals
             if "length" in _self.metrics:
-                df[f"length_{_self.length_unit}"] = gdf_proj.geometry.length * length_factor
+                _vals = gdf_proj.geometry.length * length_factor
+                df[f"length_{_self.length_unit}"] = _vals
+                _alias = _LEN_ALIAS.get(_self.length_unit)
+                if _alias:
+                    df[_alias] = _vals
             if "centroid" in _self.metrics:
                 cent = gdf.geometry.centroid
                 df["centroid_x"] = cent.x

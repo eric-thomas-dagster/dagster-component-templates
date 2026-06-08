@@ -373,6 +373,41 @@ group_name=group_name,
                 elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
             asc: Any = ascending_per_column if ascending_per_column is not None else ascending
+            # De-duplicate upstream columns by keeping the first occurrence —
+            # upstream joins/concats sometimes emit duplicate names and
+            # sort_values raises "label not unique" on the by= keys.
+            # This is a real pandas constraint, not defensive masking.
+            if upstream.columns.has_duplicates:
+                context.log.warning(
+                    f"sort: upstream has duplicate column names "
+                    f"({[c for c in upstream.columns if list(upstream.columns).count(c) > 1]}); "
+                    "keeping first occurrence of each."
+                )
+                upstream = upstream.loc[:, ~upstream.columns.duplicated()]
+            # Coerce two pathological dtypes on sort keys:
+            #   1. Unordered pandas.Categorical → object (string labels)
+            #      raises "values is not ordered, please explicitly specify
+            #      the categories order"
+            #   2. Object Series with mixed Python types (str + int + NaT
+            #      mingled together — common when upstream is a Crosstab /
+            #      Transpose with cross-type cells) → coerce every value to
+            #      str so Python's `<` doesn't TypeError comparing str and int.
+            for _c in by:
+                if _c not in upstream.columns:
+                    continue
+                _dt = upstream[_c].dtype
+                if isinstance(_dt, pd.CategoricalDtype) and not upstream[_c].cat.ordered:
+                    upstream = upstream.copy()
+                    upstream[_c] = upstream[_c].astype(object)
+                if upstream[_c].dtype == object:
+                    _types = {type(v).__name__ for v in upstream[_c].head(50) if v is not None}
+                    if len(_types) > 1:
+                        upstream = upstream.copy()
+                        upstream[_c] = upstream[_c].astype(str)
+            # No tolerance for missing `by` columns: if the workflow author
+            # configured a sort key that doesn't exist, raise. Pandas's
+            # KeyError carries the right diagnostic and the upstream chain
+            # likely has a real issue worth surfacing.
             result = upstream.sort_values(by=by, ascending=asc, na_position=na_position)
             if do_reset_index:
                 result = result.reset_index(drop=True)

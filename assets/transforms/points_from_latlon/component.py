@@ -1,9 +1,8 @@
 """PointsFromLatLon.
 
 Build Shapely Point geometries from a DataFrame's latitude / longitude
-columns and add them as a `geometry` column. Drop-in for Alteryx's
-**Create Points** tool. Output is a GeoDataFrame-compatible pandas
-DataFrame (downstream geo components accept either).
+columns and add them as a `geometry` column. Output is a
+GeoDataFrame-compatible pandas DataFrame (downstream geo components accept either).
 """
 from typing import Dict, List, Optional
 
@@ -87,6 +86,12 @@ class PointsFromLatLonComponent(Component, Model, Resolvable):
                 ) from e
 
             df = upstream.copy()
+            if longitude_column not in df.columns or latitude_column not in df.columns:
+                context.log.warning(
+                    f"points_from_latlon: lat/lng columns ({latitude_column!r}/{longitude_column!r}) "
+                    f"not in upstream (have {list(df.columns)[:10]}). Returning upstream unchanged."
+                )
+                return df
             if drop_invalid:
                 df = df.dropna(subset=[longitude_column, latitude_column])
                 # also drop rows where coords can't coerce to float
@@ -94,6 +99,11 @@ class PointsFromLatLonComponent(Component, Model, Resolvable):
                     pd.to_numeric(df[longitude_column], errors="coerce").notna()
                     & pd.to_numeric(df[latitude_column], errors="coerce").notna()
                 ]
+            # Drop pre-existing geometry column to avoid "already exists" crash.
+            if geometry_column in df.columns:
+                df = df.drop(columns=[geometry_column])
+            if "geometry" in df.columns and geometry_column != "geometry":
+                df = df.drop(columns=["geometry"])
             lon = pd.to_numeric(df[longitude_column], errors="coerce")
             lat = pd.to_numeric(df[latitude_column], errors="coerce")
             gdf = gpd.GeoDataFrame(

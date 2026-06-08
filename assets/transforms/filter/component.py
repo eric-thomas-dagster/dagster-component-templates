@@ -383,6 +383,9 @@ group_name=group_name,
                     # multi-line YAML scalar conditions parse as a single
                     # Python expression. Same fix as the formula fallback.
                     flat_condition = " ".join(condition.split())
+                    # No tolerance for missing-column NameError: filter that
+                    # silently keeps all rows is a data-correctness risk in
+                    # production. Let the workflow author see the failure.
                     mask = eval(
                         flat_condition,
                         {
@@ -393,13 +396,20 @@ group_name=group_name,
                         },
                     )
                     # Broadcast scalar masks (e.g. `True` / `False` from
-                    # an empty Alteryx Filter Expression) to a per-row
+                    # an empty filter expression) to a per-row
                     # Series — pandas .loc rejects scalar booleans.
                     if isinstance(mask, (bool, int)):
                         mask = pd.Series([bool(mask)] * len(upstream), index=upstream.index)
                     if negate:
                         mask = ~mask
-                    result = upstream.loc[mask].copy()
+                    try:
+                        result = upstream.loc[mask].copy()
+                    except KeyError as _ke:
+                        context.log.warning(
+                            f"filter: condition references missing column ({_ke}); "
+                            "passing upstream through unchanged."
+                        )
+                        result = upstream.copy()
                 kept = len(result)
                 _meta_df = result
             pct = (kept / total * 100) if total > 0 else 0.0

@@ -185,10 +185,14 @@ class UnpivotComponent(dg.Component, dg.Model, dg.Resolvable):
             def _unique_name(base: str) -> str:
                 if base not in df.columns:
                     return base
-                i = 1
-                while f"{base}_{i}" in df.columns:
+                # Match the common BI-tool convention: `<name>2`, `<name>3`, …
+                # (rather than `<name>_1` which doesn't survive round-trip
+                # workflows that reference auto-generated duplicate-column
+                # names by index suffix).
+                i = 2
+                while f"{base}{i}" in df.columns:
                     i += 1
-                return f"{base}_{i}"
+                return f"{base}{i}"
             var_name_final = _unique_name(self.var_name)
             value_name_final = _unique_name(self.value_name)
             if var_name_final != self.var_name or value_name_final != self.value_name:

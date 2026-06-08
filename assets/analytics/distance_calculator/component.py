@@ -407,6 +407,54 @@ group_name=group_name,
 
             df = upstream.copy()
 
+            # If lat/lng columns are named "<geom>_y"/"<geom>_x" but only the
+            # bare geometry column exists (Shapely Point, GeoJSON dict, or WKT
+            # string), synthesize the _x / _y columns from it. Lets the
+            # component accept geometry-shaped upstreams without forcing the
+            # caller to add a Formula step to split coords by hand.
+            from shapely.geometry.base import BaseGeometry
+            from shapely import wkt as _wkt
+            import json as _json
+            def _coord(g, axis):
+                if g is None or (isinstance(g, float) and pd.isna(g)):
+                    return None
+                if isinstance(g, BaseGeometry):
+                    return getattr(g, axis)
+                if isinstance(g, dict) and "coordinates" in g:
+                    coords = g["coordinates"]
+                    return coords[1] if axis == "y" else coords[0]
+                s = str(g).strip()
+                if not s or s.upper() in ("NONE", "NAN", "NULL"):
+                    return None
+                try:
+                    if s.startswith("{"):
+                        coords = _json.loads(s).get("coordinates")
+                        if coords:
+                            return coords[1] if axis == "y" else coords[0]
+                        return None
+                    pt = _wkt.loads(s)
+                    return getattr(pt, axis, None)
+                except Exception:
+                    return None
+            for _src, _suffix, _axis in (
+                (lat1_column, "_y", "y"), (lng1_column, "_x", "x"),
+                (lat2_column, "_y", "y"), (lng2_column, "_x", "x"),
+            ):
+                if _src in df.columns:
+                    continue
+                if _src.endswith(_suffix):
+                    base = _src[: -len(_suffix)]
+                    if base in df.columns:
+                        df[_src] = df[base].apply(lambda g, _a=_axis: _coord(g, _a))
+
+            _missing = [c for c in (lat1_column, lng1_column, lat2_column, lng2_column) if c not in df.columns]
+            if _missing:
+                context.log.warning(
+                    f"distance_calculator: lat/lng columns {_missing} not present in upstream "
+                    f"(have {list(df.columns)[:10]}). Returning upstream unchanged."
+                )
+                return df
+
             # Coerce object-dtype lat/lng cols to numeric — common when
             # upstream came from a CSV without dtype hints; the math functions
             # below crash with 'must be real number, not str' otherwise.

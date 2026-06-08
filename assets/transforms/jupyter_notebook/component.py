@@ -105,19 +105,40 @@ class JupyterNotebookComponent(Component, Model, Resolvable):
         for k in (self.kinds or ["python", "jupyter"]):
             tags[f"dagster/kind/{k}"] = ""
 
-        @asset(
-            name=self.asset_name,
-            ins={"upstream": AssetIn(key=AssetKey.from_user_string(self.upstream_asset_key))},
-            group_name=self.group_name,
-            description=self.description or f"Jupyter notebook / code run against {self.upstream_asset_key!r}",
-            tags=tags,
-            owners=self.owners or [],
-            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
-        )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        # Allow upstream_asset_key="" — standalone notebook with no DataFrame
+        # input. Two branches so Dagster's `ins` inference (from the function
+        # signature) doesn't try to wire a phantom 'upstream' input when there
+        # isn't a real upstream.
+        _has_upstream = bool(self.upstream_asset_key)
+
+        def _do_run(df: pd.DataFrame, context: AssetExecutionContext) -> pd.DataFrame:
             if _self.notebook_path:
-                return _self._run_notebook(upstream, context)
-            return _self._run_code(upstream, context)
+                return _self._run_notebook(df, context)
+            return _self._run_code(df, context)
+
+        if _has_upstream:
+            @asset(
+                name=self.asset_name,
+                ins={"upstream": AssetIn(key=AssetKey.from_user_string(self.upstream_asset_key))},
+                group_name=self.group_name,
+                description=self.description or f"Jupyter notebook / code run against {self.upstream_asset_key!r}",
+                tags=tags,
+                owners=self.owners or [],
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            )
+            def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+                return _do_run(upstream, context)
+        else:
+            @asset(
+                name=self.asset_name,
+                group_name=self.group_name,
+                description=self.description or "Jupyter notebook / code (no upstream)",
+                tags=tags,
+                owners=self.owners or [],
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            )
+            def _asset(context: AssetExecutionContext) -> pd.DataFrame:
+                return _do_run(pd.DataFrame(), context)
 
         return Definitions(assets=[_asset])
 

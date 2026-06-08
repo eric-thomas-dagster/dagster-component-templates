@@ -1,6 +1,6 @@
 """Naive Bayes Model.
 
-Fit a Gaussian Naive Bayes classifier (sklearn `GaussianNB`). Drop-in for Alteryx's **Naive Bayes Classifier** tool. **Classification only** — sklearn doesn't ship a Gaussian-NB regressor; setting `task_type=regression` raises.
+Fit a Gaussian Naive Bayes classifier (sklearn `GaussianNB`). **Classification only** — sklearn doesn't ship a Gaussian-NB regressor; setting `task_type=regression` raises.
 """
 from typing import Any, Dict, List, Optional
 
@@ -140,7 +140,7 @@ class NaiveBayesModelComponent(Component, Model, Resolvable):
             "If set, joblib-dump the trained model to this path after fit. "
             "Supports local paths and any fsspec URL (s3://, gs://, abfs://). "
             "Downstream `model_score` component loads this path to predict on "
-            "new data — closes the Alteryx 'train once, score later' loop."
+            "new data — closes the train-once / score-later loop."
         ),
     )
     output_mode: str = Field(default="predictions", description="Output mode: 'predictions' or 'feature_importance'")

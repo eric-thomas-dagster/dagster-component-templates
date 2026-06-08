@@ -382,8 +382,24 @@ group_name=group_name,
                         )
                         _value_col = _alt
                         break
+            if _date_col not in df.columns or _value_col not in df.columns:
+                context.log.warning(
+                    f"arima_forecast: required columns missing "
+                    f"(date={_date_col!r} present={_date_col in df.columns}, "
+                    f"value={_value_col!r} present={_value_col in df.columns}); "
+                    f"have {list(df.columns)[:10]}. Returning upstream unchanged."
+                )
+                return df.copy()
             df[_date_col] = pd.to_datetime(df[_date_col], errors="coerce")
             series = df.set_index(_date_col)[_value_col].sort_index()
+            # ARIMA needs ≥ 5-10 points typically; degenerate stub series with
+            # 0-1 rows would otherwise crash with cryptic statsmodels errors.
+            if len(series.dropna()) < 5:
+                context.log.warning(
+                    f"arima_forecast: only {len(series.dropna())} non-null points in "
+                    f"value series; too few to fit ARIMA. Returning upstream unchanged."
+                )
+                return df.copy()
 
             arima_order = tuple(order)
             sarima_order = tuple(seasonal_order) if seasonal_order else None

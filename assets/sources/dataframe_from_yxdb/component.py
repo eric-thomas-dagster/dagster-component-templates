@@ -1,6 +1,6 @@
-"""Read an Alteryx .yxdb file → pandas DataFrame.
+"""Read a .yxdb file → pandas DataFrame.
 
-.yxdb is Alteryx's native binary serialization format. Most Alteryx Designer
+.yxdb is the proprietary binary serialization format used by some ETL tools. Most the source ETL tool
 users export intermediate data into .yxdb (faster than CSV, preserves
 dtypes), so a real-world migration almost always hits one.
 
@@ -28,7 +28,7 @@ from pydantic import Field
 
 
 class DataframeFromYxdbComponent(Component, Model, Resolvable):
-    """Materialize an Alteryx .yxdb file as a pandas DataFrame asset.
+    """Materialize a .yxdb file as a pandas DataFrame asset.
 
     Example:
         ```yaml
@@ -143,11 +143,19 @@ def _read_yxdb(path: str, *, nrows: Optional[int], log):
     """
     import pandas as pd
 
-    # Preferred: import-yxdb's whole-file → DataFrame helper.
+    # Preferred: import-yxdb's whole-file → DataFrame helper. The package
+    # exposes the helper as `yxdb_to_pandas` (newer versions) or
+    # `to_dataframe` (older versions) — try both.
     try:
         import import_yxdb  # noqa: F401
-        log.info(f"Reading {path} via import_yxdb.to_dataframe")
-        df = import_yxdb.to_dataframe(path)
+        if hasattr(import_yxdb, "yxdb_to_pandas"):
+            log.info(f"Reading {path} via import_yxdb.yxdb_to_pandas")
+            df = import_yxdb.yxdb_to_pandas(path)
+        elif hasattr(import_yxdb, "to_dataframe"):
+            log.info(f"Reading {path} via import_yxdb.to_dataframe")
+            df = import_yxdb.to_dataframe(path)
+        else:
+            raise ImportError("import_yxdb has neither yxdb_to_pandas nor to_dataframe")
         if nrows is not None:
             df = df.head(nrows)
         return df

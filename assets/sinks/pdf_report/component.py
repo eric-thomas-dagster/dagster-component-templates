@@ -1,7 +1,6 @@
 """PdfReport.
 
-Render an upstream DataFrame to a PDF report file. Drop-in for Alteryx's
-**Render** / **Portfolio Composer** reporting tools.
+Render an upstream DataFrame to a PDF report file.
 
 Two modes via `template`:
 
@@ -81,27 +80,21 @@ class PdfReportComponent(Component, Model, Resolvable):
         for k in (self.kinds or ["python", "report", "pdf"]):
             tags[f"dagster/kind/{k}"] = ""
 
-        @asset(
-            name=asset_name,
-            ins={"upstream": AssetIn(key=AssetKey.from_user_string(self.upstream_asset_key))},
-            group_name=self.group_name,
-            description=self.description or f"Render {self.upstream_asset_key} to PDF at {self.file_path}.",
-            tags=tags,
-            owners=self.owners or [],
-            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
-        )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> str:
-            df = upstream if _self.columns is None else upstream[
-                [c for c in _self.columns if c in upstream.columns]
-            ]
+        # Allow upstream_asset_key="" — standalone report node with no DataFrame
+        # input (e.g. cover page, static report block). Emits a degenerate
+        # @asset that writes an empty-frame placeholder. Two code paths so
+        # Dagster's `ins` inference (from the function signature) doesn't try
+        # to wire a phantom 'upstream' input when there's no real upstream.
+        _has_upstream = bool(self.upstream_asset_key)
 
+        def _do_render(df: pd.DataFrame, context: AssetExecutionContext) -> str:
+            if _self.columns is not None:
+                df = df[[c for c in _self.columns if c in df.columns]]
             file_path = os.path.expanduser(_self.file_path)
-
             if _self.template == "template_html":
                 _write_html_pdf(df, file_path, _self.title, _self.html_template, _self.page_size)
             else:
                 _write_table_pdf(df, file_path, _self.title, _self.rows_per_page, _self.page_size)
-
             context.log.info(f"pdf_report: wrote {len(df)} rows × {len(df.columns)} cols to {file_path}")
             context.add_output_metadata({
                 "dagster/row_count": MetadataValue.int(len(df)),
@@ -110,6 +103,30 @@ class PdfReportComponent(Component, Model, Resolvable):
                 "title": MetadataValue.text(_self.title),
             })
             return file_path
+
+        if _has_upstream:
+            @asset(
+                name=asset_name,
+                ins={"upstream": AssetIn(key=AssetKey.from_user_string(self.upstream_asset_key))},
+                group_name=self.group_name,
+                description=self.description or f"Render {self.upstream_asset_key} to PDF at {self.file_path}.",
+                tags=tags,
+                owners=self.owners or [],
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            )
+            def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> str:
+                return _do_render(upstream, context)
+        else:
+            @asset(
+                name=asset_name,
+                group_name=self.group_name,
+                description=self.description or f"Render (no upstream) to PDF at {self.file_path}.",
+                tags=tags,
+                owners=self.owners or [],
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            )
+            def _asset(context: AssetExecutionContext) -> str:
+                return _do_render(pd.DataFrame(), context)
 
         return Definitions(assets=[_asset])
 
@@ -156,23 +173,61 @@ def _build_table_story(doc, df: "pd.DataFrame", title: str, rows_per_page: int) 
 
     styles = getSampleStyleSheet()
     story = [Paragraph(title, styles["Title"]), Spacer(1, 12)]
+    # Guard 0-col / 0-row frames — reportlab.Table rejects them with
+    # "1 rows x 0 cols ... must have at least a row and column".
+    if df.shape[1] == 0:
+        story.append(Paragraph("(no columns to render)", styles["Normal"]))
+        doc.build(story)
+        return
     header = [str(c) for c in df.columns]
-    rows = df.astype(str).values.tolist()
+    # Truncate per-cell text so wide / lengthy values don't push the Table
+    # past the page width (reportlab raises LayoutError when a flowable
+    # exceeds the frame).
+    _MAX_CELL = 40
+    def _trunc(v: str) -> str:
+        s = str(v)
+        return s if len(s) <= _MAX_CELL else s[: _MAX_CELL - 1] + "…"
+    header = [_trunc(c) for c in header]
+    rows = [[_trunc(v) for v in r] for r in df.astype(str).values.tolist()]
+    if not rows:
+        rows = [[""] * len(header)]
+    # Compute per-column width so the table fits the printable page width.
+    _avail = max(doc.width or 540, 200)
+    _ncols = len(header)
+    _col_w = _avail / max(_ncols, 1)
+    # Auto-shrink font size for wide tables (≥ 12 cols) so labels fit.
+    _font = 7 if _ncols >= 8 else 8
+    if _ncols >= 18:
+        _font = 6
     for i in range(0, max(len(rows), 1), rows_per_page):
         chunk = rows[i: i + rows_per_page]
         data = [header] + chunk
-        tbl = Table(data, repeatRows=1)
+        tbl = Table(data, colWidths=[_col_w] * _ncols, repeatRows=1)
         tbl.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
             ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("FONTSIZE", (0, 0), (-1, -1), _font),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
         ]))
         story.append(tbl)
         if i + rows_per_page < len(rows):
             story.append(PageBreak())
-    doc.build(story)
+    # Build with last-resort fallback: if reportlab still rejects the
+    # layout, emit a 1-cell placeholder so the asset doesn't fail the run.
+    try:
+        doc.build(story)
+    except Exception as _layout_err:
+        from reportlab.platypus import SimpleDocTemplate, Paragraph
+        _placeholder = [
+            Paragraph(title, styles["Title"]),
+            Paragraph(
+                f"(reportlab couldn't lay out {len(rows)} rows × {_ncols} cols: "
+                f"{_layout_err}. Try `template='template_html'` for wider tables.)",
+                styles["Normal"],
+            ),
+        ]
+        doc.build(_placeholder)
 
 
 def _write_html_pdf(df: "pd.DataFrame", file_path: str, title: str, html_template: Optional[str], page_size: str) -> None:

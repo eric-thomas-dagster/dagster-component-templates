@@ -1,6 +1,6 @@
 """Gradient Boosting Model.
 
-Fit a gradient boosting ensemble (sklearn `GradientBoosting*`) for classification or regression. Drop-in for Alteryx's **Boosted Model** tool — same `n_estimators` + `max_depth` shape.
+Fit a gradient boosting ensemble (sklearn `GradientBoosting*`) for classification or regression. — same `n_estimators` + `max_depth` shape.
 """
 from typing import Any, Dict, List, Optional
 
@@ -140,7 +140,7 @@ class GradientBoostingModelComponent(Component, Model, Resolvable):
             "If set, joblib-dump the trained model to this path after fit. "
             "Supports local paths and any fsspec URL (s3://, gs://, abfs://). "
             "Downstream `model_score` component loads this path to predict on "
-            "new data — closes the Alteryx 'train once, score later' loop."
+            "new data — closes the train-once / score-later loop."
         ),
     )
     output_mode: str = Field(default="predictions", description="Output mode: 'predictions' or 'feature_importance'")

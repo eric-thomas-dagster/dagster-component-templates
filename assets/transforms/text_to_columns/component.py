@@ -132,6 +132,15 @@ class TextToColumns(Component, Model, Resolvable):
     max_splits: Optional[int] = Field(default=None, description="Max number of splits")
     output_columns: Optional[List[str]] = Field(default=None, description="Names for resulting columns (auto-generated if None)")
     expand_to_rows: bool = Field(default=False, description="If True, split into rows instead of columns")
+    keep_source: bool = Field(
+        default=True,
+        description=(
+            "If True (default), keep the source column unchanged alongside the new "
+            "split columns — preserves the original reference so downstream tools "
+            "that re-split the same column still work. Set to False to drop the "
+            "source column after splitting."
+        ),
+    )
     strip_whitespace: bool = Field(default=True, description="Strip whitespace from each part")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
@@ -270,6 +279,7 @@ class TextToColumns(Component, Model, Resolvable):
         max_splits = self.max_splits
         output_columns = self.output_columns
         expand_to_rows = self.expand_to_rows
+        keep_source = self.keep_source
         strip_whitespace = self.strip_whitespace
         group_name = self.group_name
 
@@ -353,6 +363,13 @@ group_name=group_name,
                     upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
             df = upstream.copy()
 
+            # Text-to-columns operations implicitly stringify the source field
+            # (an ID column the user split by '-' might be int64 in pandas).
+            # Coerce to object/string so `.str.*` accessors work — without
+            # this, an int / datetime source column raises AttributeError.
+            if df[column].dtype != "object":
+                df[column] = df[column].astype(str)
+
             if expand_to_rows:
                 df[column] = df[column].str.split(separator)
                 if strip_whitespace:
@@ -380,8 +397,16 @@ group_name=group_name,
                 else:
                     split_df = split_df.rename(columns={i: f"{column}_{i}" for i in split_df.columns})
 
-                df = df.drop(columns=[column])
+                # Drop the source column only when explicitly opted-out (# default behavior). Default keeps it alongside the split parts
+                # so downstream tools that re-reference the original name still
+                # work. If a split-output column collides with the source name
+                # (e.g. user named output_columns=[<same_as_source>, ...]),
+                # the source still gets replaced.
+                if not keep_source or column in (output_columns or []):
+                    df = df.drop(columns=[column])
                 df = pd.concat([df, split_df], axis=1)
+                if df.columns.has_duplicates:
+                    df = df.loc[:, ~df.columns.duplicated()]
 
                 # Build column schema metadata
                 from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

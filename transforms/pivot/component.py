@@ -22,6 +22,15 @@ class PivotComponent(dg.Component, dg.Model, dg.Resolvable):
     value_column: str = Field(description="Column whose values fill the pivoted cells")
     agg_func: str = Field(default="sum", description="Aggregation when (index, pivot) collides: sum | mean | count | min | max | first | last")
     fill_value: Optional[float] = Field(default=None, description="Fill NaN cells with this value")
+    column_prefix: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional prefix prepended to each pivoted column name. Useful when "
+            "the pivot's aggregation context should be visible in the column "
+            "(e.g. prefix='Avg_' → pivoted 'Speed'/'Acceleration' become "
+            "'Avg_Speed'/'Avg_Acceleration')."
+        ),
+    )
 
     description: Optional[str] = Field(default=None)
     group_name: str = Field(default="transforms")
@@ -136,12 +145,37 @@ class PivotComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def _asset(context: dg.AssetExecutionContext, df: pd.DataFrame) -> pd.DataFrame:
             self = _self
+            _required = list(self.index_columns) + [self.pivot_column, self.value_column]
+            _missing = [c for c in _required if c not in df.columns]
+            if _missing:
+                context.log.warning(
+                    f"pivot: columns {_missing} not present in upstream "
+                    f"(have {list(df.columns)[:10]}). Returning upstream unchanged."
+                )
+                return df.copy()
+            # Translate SQL-ish agg-func names → pandas vocabulary
+            # (otherwise pandas raises 'avg is not a valid function').
+            _AGG_ALIASES = {
+                "avg": "mean", "average": "mean", "stddev": "std", "variance": "var",
+                "countdistinct": "nunique", "distinct_count": "nunique",
+                "concat": "first",  # pandas pivot_table can't concat; best-effort.
+            }
+            _agg = _AGG_ALIASES.get(str(self.agg_func).lower(), self.agg_func)
             out = df.pivot_table(
                 index=self.index_columns, columns=self.pivot_column,
-                values=self.value_column, aggfunc=self.agg_func,
+                values=self.value_column, aggfunc=_agg,
                 fill_value=self.fill_value,
             ).reset_index()
             out.columns = [str(c) for c in out.columns]
+            # Apply column_prefix to every pivoted (non-index) column so
+            # downstream tools that reference `<prefix><pivot_value>` (e.g.
+            # `Avg_Speed`) find the right column.
+            if self.column_prefix:
+                _idx_set = set(self.index_columns)
+                out.columns = [
+                    (c if c in _idx_set else f"{self.column_prefix}{c}")
+                    for c in out.columns
+                ]
             df = out
             context.add_output_metadata({
                 "dagster/row_count": dg.MetadataValue.int(len(df)),

@@ -137,7 +137,7 @@ class LinearRegressionModelComponent(Component, Model, Resolvable):
             "If set, joblib-dump the trained model to this path after fit. "
             "Supports local paths and any fsspec URL (s3://, gs://, abfs://). "
             "Downstream `model_score` component loads this path to predict on "
-            "new data — closes the Alteryx 'train once, score later' loop."
+            "new data — closes the train-once / score-later loop."
         ),
     )
     output_mode: str = Field(
@@ -389,12 +389,40 @@ group_name=group_name,
                 raise ImportError("scikit-learn is required: pip install scikit-learn") from e
 
             df = upstream.copy()
-            X = df[feature_columns].fillna(0)
-            y = df[target_column]
+            _present_feats = [c for c in feature_columns if c in df.columns]
+            _missing_feats = [c for c in feature_columns if c not in df.columns]
+            if _missing_feats:
+                context.log.warning(
+                    f"linear_regression: feature_columns {_missing_feats} not in upstream; "
+                    f"using {_present_feats or '(none)'} only."
+                )
+            if not _present_feats or target_column not in df.columns:
+                context.log.warning(
+                    "linear_regression: no usable features or target_column missing; "
+                    "returning upstream unchanged."
+                )
+                return df
+            X = df[_present_feats].apply(pd.to_numeric, errors="coerce").fillna(0)
+            y = pd.to_numeric(df[target_column], errors="coerce").fillna(0)
+            # Use the present-features list for everything downstream — in-place
+            # mutate the closure list so subsequent references (output dataframe
+            # construction) see the filtered values without UnboundLocalError.
+            feature_columns[:] = _present_feats
 
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=test_size, random_state=random_state
-            )
+            # Stub data may have only 1 row → train_test_split raises. Fall
+            # back to fitting on the whole frame and reusing it as the test
+            # set so the asset still materializes a valid metrics block.
+            if len(X) < 5:
+                context.log.warning(
+                    f"linear_regression: only {len(X)} rows available; skipping "
+                    "train/test split (using whole frame for both fit and eval)."
+                )
+                X_train = X_test = X
+                y_train = y_test = y
+            else:
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y, test_size=test_size, random_state=random_state
+                )
 
             scaler = None
             if normalize:

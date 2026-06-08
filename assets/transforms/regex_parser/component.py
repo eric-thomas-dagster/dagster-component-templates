@@ -361,11 +361,26 @@ group_name=group_name,
             re_flags = re.RegexFlag(flags)
             out_col = output_column if output_column else column
 
+            if column not in df.columns:
+                context.log.warning(
+                    f"regex_parser: source column {column!r} not present in upstream "
+                    f"(have {list(df.columns)[:10]}{'...' if len(df.columns) > 10 else ''}). "
+                    "Returning upstream unchanged."
+                )
+                return df
+
+            # Coerce non-string source col to string — `.str` accessor needs
+            # object dtype with string contents, and numeric / datetime cols
+            # cause AttributeError otherwise.
+            _src_col = df[column]
+            if _src_col.dtype != "object":
+                _src_col = _src_col.astype(str)
+
             if mode == "extract":
                 # str.extract requires the pattern to contain at least one
                 # capture group. If the user wrote a flat pattern (no
                 # parentheses), auto-wrap the whole thing as a single group
-                # — matches Alteryx ParseSimple's "extract the whole match"
+                # — matches "extract the whole match" semantics
                 # default semantic.
                 _xpat = pattern
                 try:
@@ -373,7 +388,7 @@ group_name=group_name,
                         _xpat = f"({pattern})"
                 except re.error:
                     pass
-                extracted = df[column].str.extract(_xpat, flags=re_flags)
+                extracted = _src_col.str.extract(_xpat, flags=re_flags)
                 if output_columns:
                     extracted.columns = output_columns[: len(extracted.columns)]
                 else:
@@ -381,14 +396,14 @@ group_name=group_name,
                 df = pd.concat([df, extracted], axis=1)
 
             elif mode == "match":
-                df[out_col] = df[column].str.match(pattern, flags=re_flags)
+                df[out_col] = _src_col.str.match(pattern, flags=re_flags)
 
             elif mode == "replace":
                 repl = replacement if replacement is not None else ""
-                df[out_col] = df[column].str.replace(pattern, repl, regex=True, flags=re_flags)
+                df[out_col] = _src_col.str.replace(pattern, repl, regex=True, flags=re_flags)
 
             elif mode == "split":
-                df = df.assign(**{column: df[column].str.split(pattern)}).explode(column)
+                df = df.assign(**{column: _src_col.str.split(pattern)}).explode(column)
                 df = df.reset_index(drop=True)
 
                 # Build column schema metadata

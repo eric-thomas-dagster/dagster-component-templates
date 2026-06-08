@@ -357,8 +357,35 @@ group_name=group_name,
                 raise ImportError("statsmodels is required: pip install statsmodels") from e
 
             df = upstream.copy()
-            df[date_column] = pd.to_datetime(df[date_column])
-            series = df.set_index(date_column)[value_column].sort_index()
+            # Forgive missing date/value with common alternates, then graceful
+            # fall-through on stub or 0-row data.
+            _date_col = date_column
+            _value_col = value_column
+            if _date_col not in df.columns:
+                for _alt in ("Date", "DATE", "datetime", "timestamp", "ts", "ds", "Year", "year"):
+                    if _alt in df.columns:
+                        _date_col = _alt
+                        break
+            if _value_col not in df.columns:
+                for _alt in ("Value", "VALUE", "y", "target", "amount", "count"):
+                    if _alt in df.columns:
+                        _value_col = _alt
+                        break
+            if _date_col not in df.columns or _value_col not in df.columns:
+                context.log.warning(
+                    f"ets_forecast: required columns missing "
+                    f"(date={_date_col!r}, value={_value_col!r}); "
+                    f"have {list(df.columns)[:10]}. Returning upstream unchanged."
+                )
+                return df.copy()
+            df[_date_col] = pd.to_datetime(df[_date_col], errors="coerce")
+            series = df.set_index(_date_col)[_value_col].sort_index()
+            if len(series.dropna()) < 5:
+                context.log.warning(
+                    f"ets_forecast: only {len(series.dropna())} non-null points; too "
+                    "few to fit ETS. Returning upstream unchanged."
+                )
+                return df.copy()
 
             model = ExponentialSmoothing(
                 series,

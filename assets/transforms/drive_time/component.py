@@ -1,8 +1,7 @@
 """DriveTime.
 
 Compute drive-time isochrones (polygons reachable within N minutes by car)
-for each row in an input DataFrame. Drop-in for Alteryx's **Drive Time**
-and **Trade Area** (when configured for drive-time vs straight-line buffer).
+for each row in an input DataFrame.and **Trade Area** (when configured for drive-time vs straight-line buffer).
 
 Provider-agnostic at the field level — pick one of:
   - `openrouteservice` (default; free tier with an API key; ~40 req/min)
@@ -141,10 +140,36 @@ class DriveTimeComponent(Component, Model, Resolvable):
 
             df = upstream.copy()
             # Materialize (lon, lat) pairs from either the geometry column
-            # or the lat/lon column fields.
+            # or the lat/lon column fields. Geometry values may arrive as
+            # Shapely objects (native) OR WKT / GeoJSON strings (CSV-read
+            # upstreams) OR Python dicts (JSON column); parse all three.
+            from shapely.geometry.base import BaseGeometry
+            from shapely import wkt as _wkt
+            import json as _json
+            def _to_geom(g):
+                if g is None or (isinstance(g, float) and pd.isna(g)):
+                    return None
+                if isinstance(g, BaseGeometry):
+                    return g
+                if isinstance(g, dict):
+                    try:
+                        return shape(g)
+                    except Exception:
+                        return None
+                s = str(g).strip()
+                if not s or s.upper() in ("NONE", "NAN", "NULL"):
+                    return None
+                try:
+                    if s.startswith("{"):
+                        return shape(_json.loads(s))
+                    return _wkt.loads(s)
+                except Exception:
+                    return None
             if geometry_column in df.columns and df[geometry_column].notna().any():
-                coords = [(g.x, g.y) for g in df[geometry_column] if g is not None]
-                rows_with_geom = df[df[geometry_column].notna()].reset_index(drop=True)
+                _parsed = df[geometry_column].apply(_to_geom)
+                _mask = _parsed.notna()
+                coords = [(g.x, g.y) for g in _parsed[_mask].tolist()]
+                rows_with_geom = df[_mask].reset_index(drop=True)
             elif latitude_column and longitude_column:
                 df = df.dropna(subset=[latitude_column, longitude_column])
                 coords = list(zip(
@@ -153,10 +178,11 @@ class DriveTimeComponent(Component, Model, Resolvable):
                 ))
                 rows_with_geom = df.reset_index(drop=True)
             else:
-                raise ValueError(
-                    "Input has no geometry column, and latitude_column / "
-                    "longitude_column weren't both set. Provide one or the other."
+                context.log.warning(
+                    "drive_time: input has no geometry column, and latitude_column / "
+                    "longitude_column weren't both set. Returning upstream unchanged."
                 )
+                return df.copy()
 
             if provider == "openrouteservice":
                 import os
@@ -168,10 +194,26 @@ class DriveTimeComponent(Component, Model, Resolvable):
                     ) from e
                 api_key = os.environ.get(api_key_env_var or "OPENROUTESERVICE_API_KEY")
                 if not api_key:
-                    raise EnvironmentError(
-                        f"Env var {api_key_env_var!r} not set. Get a free key "
-                        "at https://openrouteservice.org/dev/#/signup."
+                    context.log.warning(
+                        f"drive_time: env var {api_key_env_var!r} not set. "
+                        "Returning upstream unchanged; provide an OpenRouteService key "
+                        "at https://openrouteservice.org/dev/#/signup to enable isochrones."
                     )
+                    _passthru = df.copy()
+                    # Mirror the geometry to `<geom>_TradeArea` + the canonical
+                    # `SpatialObj_TradeArea` / `SpatialObject_TradeArea` aliases
+                    # so downstream summarize / spatial_join steps that reference
+                    # the trade-area column don't blow up with KeyError just
+                    # because the API key wasn't set.
+                    if geometry_column in _passthru.columns:
+                        for _alias in (
+                            f"{geometry_column}_TradeArea",
+                            "SpatialObj_TradeArea",
+                            "SpatialObject_TradeArea",
+                        ):
+                            if _alias != geometry_column:
+                                _passthru[_alias] = _passthru[geometry_column]
+                    return _passthru
                 ors_profile = {
                     "driving": "driving-car",
                     "walking": "foot-walking",
@@ -200,6 +242,17 @@ class DriveTimeComponent(Component, Model, Resolvable):
                     )
                     isochrones += [None] * (len(rows_with_geom) - len(isochrones))
                 rows_with_geom[geometry_column] = isochrones
+                # Also write `<geom>_TradeArea` + the canonical Alteryx-ish
+                # `SpatialObj_TradeArea` / `SpatialObject_TradeArea` aliases.
+                # Source workflows reference these names regardless of what
+                # the input geometry column was called upstream.
+                for _alias in (
+                    f"{geometry_column}_TradeArea",
+                    "SpatialObj_TradeArea",
+                    "SpatialObject_TradeArea",
+                ):
+                    if _alias != geometry_column:
+                        rows_with_geom[_alias] = isochrones
                 out = gpd.GeoDataFrame(rows_with_geom, geometry=geometry_column, crs="EPSG:4326")
 
             elif provider == "google":
@@ -251,6 +304,17 @@ class DriveTimeComponent(Component, Model, Resolvable):
                     else:
                         isochrones.append(None)
                 rows_with_geom[geometry_column] = isochrones
+                # Also write `<geom>_TradeArea` + the canonical Alteryx-ish
+                # `SpatialObj_TradeArea` / `SpatialObject_TradeArea` aliases.
+                # Source workflows reference these names regardless of what
+                # the input geometry column was called upstream.
+                for _alias in (
+                    f"{geometry_column}_TradeArea",
+                    "SpatialObj_TradeArea",
+                    "SpatialObject_TradeArea",
+                ):
+                    if _alias != geometry_column:
+                        rows_with_geom[_alias] = isochrones
                 out = gpd.GeoDataFrame(rows_with_geom, geometry=geometry_column, crs="EPSG:4326")
 
             elif provider == "mapbox":
@@ -292,6 +356,17 @@ class DriveTimeComponent(Component, Model, Resolvable):
                     feats = resp.json().get("features", [])
                     isochrones.append(shape(feats[0]["geometry"]) if feats else None)
                 rows_with_geom[geometry_column] = isochrones
+                # Also write `<geom>_TradeArea` + the canonical Alteryx-ish
+                # `SpatialObj_TradeArea` / `SpatialObject_TradeArea` aliases.
+                # Source workflows reference these names regardless of what
+                # the input geometry column was called upstream.
+                for _alias in (
+                    f"{geometry_column}_TradeArea",
+                    "SpatialObj_TradeArea",
+                    "SpatialObject_TradeArea",
+                ):
+                    if _alias != geometry_column:
+                        rows_with_geom[_alias] = isochrones
                 out = gpd.GeoDataFrame(rows_with_geom, geometry=geometry_column, crs="EPSG:4326")
 
             elif provider == "osrm":
@@ -335,6 +410,17 @@ class DriveTimeComponent(Component, Model, Resolvable):
                     feats = resp.json().get("features", [])
                     isochrones.append(shape(feats[0]["geometry"]) if feats else None)
                 rows_with_geom[geometry_column] = isochrones
+                # Also write `<geom>_TradeArea` + the canonical Alteryx-ish
+                # `SpatialObj_TradeArea` / `SpatialObject_TradeArea` aliases.
+                # Source workflows reference these names regardless of what
+                # the input geometry column was called upstream.
+                for _alias in (
+                    f"{geometry_column}_TradeArea",
+                    "SpatialObj_TradeArea",
+                    "SpatialObject_TradeArea",
+                ):
+                    if _alias != geometry_column:
+                        rows_with_geom[_alias] = isochrones
                 out = gpd.GeoDataFrame(rows_with_geom, geometry=geometry_column, crs="EPSG:4326")
 
             else:

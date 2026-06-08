@@ -124,10 +124,11 @@ class SpatialProcessComponent(Component, Model, Resolvable):
             geom_col = _self.geometry_column
             out_col = _self.output_column or geom_col
             if geom_col not in df.columns:
-                raise KeyError(
+                context.log.warning(
                     f"spatial_process: geometry_column {geom_col!r} not in upstream "
-                    f"DataFrame. Available: {list(df.columns)}"
+                    f"DataFrame. Available: {list(df.columns)[:10]}. Returning upstream unchanged."
                 )
+                return df
 
             def _to_geom(v):
                 if v is None or (isinstance(v, float) and pd.isna(v)):

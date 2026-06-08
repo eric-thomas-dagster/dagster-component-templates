@@ -1,6 +1,6 @@
 """Neural Network Model.
 
-Fit a multi-layer perceptron (sklearn `MLPClassifier` / `MLPRegressor`) for classification or regression. Drop-in for Alteryx's **Neural Network** tool. The `n_estimators` field maps to the hidden-layer width (min 8); `max_depth` maps to `max_iter` (default 200). Features are auto-scaled with `StandardScaler` (MLP needs it).
+Fit a multi-layer perceptron (sklearn `MLPClassifier` / `MLPRegressor`) for classification or regression. The `n_estimators` field maps to the hidden-layer width (min 8); `max_depth` maps to `max_iter` (default 200). Features are auto-scaled with `StandardScaler` (MLP needs it).
 """
 from typing import Any, Dict, List, Optional
 
@@ -140,7 +140,7 @@ class NeuralNetworkModelComponent(Component, Model, Resolvable):
             "If set, joblib-dump the trained model to this path after fit. "
             "Supports local paths and any fsspec URL (s3://, gs://, abfs://). "
             "Downstream `model_score` component loads this path to predict on "
-            "new data — closes the Alteryx 'train once, score later' loop."
+            "new data — closes the train-once / score-later loop."
         ),
     )
     output_mode: str = Field(default="predictions", description="Output mode: 'predictions' or 'feature_importance'")

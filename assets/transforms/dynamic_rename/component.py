@@ -1,11 +1,11 @@
 """DynamicRename.
 
-Pattern-based column renaming. Drop-in for Alteryx's **Dynamic Rename** tool.
+Pattern-based column renaming.
 
 Supported `mode:` values:
 
 - `first_row` — use the values in the first data row as the new column
-  names; the first row is dropped from the output. Common Alteryx pattern
+  names; the first row is dropped from the output. Common pattern
   when reading a CSV/Excel whose true header is row 2+.
 - `add_prefix` — prefix every selected column name with `prefix`.
 - `add_suffix` — suffix every selected column name with `suffix`.

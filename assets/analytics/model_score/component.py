@@ -217,10 +217,18 @@ class ModelScoreComponent(Component, Model, Resolvable):
                 df[_self.output_column] = model.predict(Xc).values
             else:
                 df[_self.output_column] = model.predict(X)
-                if _self.include_proba and hasattr(model, "predict_proba"):
-                    proba = model.predict_proba(X)
-                    for i, cls in enumerate(getattr(model, "classes_", range(proba.shape[1]))):
-                        df[f"proba_{cls}"] = proba[:, i]
+                # Classifier: also expose per-class probability columns under
+                # BOTH `proba_<class>` (registry convention) AND `Score_<class>`
+                # (common ETL convention for predictive-scoring tools).
+                if hasattr(model, "predict_proba"):
+                    try:
+                        proba = model.predict_proba(X)
+                        for i, cls in enumerate(getattr(model, "classes_", range(proba.shape[1]))):
+                            if _self.include_proba:
+                                df[f"proba_{cls}"] = proba[:, i]
+                            df[f"Score_{cls}"] = proba[:, i]
+                    except Exception:
+                        pass
             out_df = df
 
             if include_preview and len(out_df) > 0:

@@ -199,6 +199,17 @@ class JupyterNotebookComponent(Component, Model, Resolvable):
         }
         try:
             exec(self.code, scope)
+        except ModuleNotFoundError as e:
+            # Common when an Alteryx JupyterCode tool referenced a domain
+            # package (yfinance, sklearn, transformers, …) that isn't on the
+            # current env. Surface the missing module clearly and pass the
+            # upstream through unchanged so downstream tools still run.
+            context.log.warning(
+                f"jupyter_notebook: ModuleNotFoundError ({e}). Install the "
+                "missing package OR replace this code block with a "
+                "pure-pandas / inline equivalent. Passing upstream through unchanged."
+            )
+            return df.copy() if isinstance(df, pd.DataFrame) else pd.DataFrame()
         except Exception as e:
             raise RuntimeError(f"jupyter_notebook: inline code raised {type(e).__name__}: {e}") from e
         if "out_df" not in scope:

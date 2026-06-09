@@ -133,6 +133,18 @@ class SampleComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
+    range_start: Optional[int] = Field(
+        default=None,
+        description=(
+            "1-indexed inclusive start row for method='range'. e.g. 3 keeps "
+            "rows 3, 4, 5, ... `Ranges=3-21` in some ETL tools maps to "
+            "`range_start=3, range_end=21`."
+        ),
+    )
+    range_end: Optional[int] = Field(
+        default=None,
+        description="1-indexed inclusive end row for method='range'.",
+    )
     method: str = Field(
         default="random",
         description=(
@@ -303,7 +315,7 @@ class SampleComponent(Component, Model, Resolvable):
         replace = self.replace
         weights = self.weights
         method = (self.method or "random").lower()
-        if method not in {"random", "head", "tail", "every_nth", "skip_head"}:
+        if method not in {"random", "head", "tail", "every_nth", "skip_head", "range"}:
             raise ValueError(
                 f"Unknown sample method {method!r}. "
                 "Expected one of: random, head, tail, every_nth, skip_head."
@@ -397,6 +409,12 @@ group_name=group_name,
                     replace=replace,
                     weights=weights,
                 ).reset_index(drop=True)
+            elif method == "range":
+                _start = (self.range_start or 1) - 1   # iloc is 0-indexed
+                _end = self.range_end if self.range_end is not None else len(upstream)
+                if _start < 0:
+                    _start = 0
+                result = upstream.iloc[_start:_end].reset_index(drop=True)
             else:
                 if n is None or n < 1:
                     raise ValueError(

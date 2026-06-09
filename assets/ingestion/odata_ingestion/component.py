@@ -338,7 +338,7 @@ class ODataIngestionComponent(Component, Model, Resolvable):
             )
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=description,
             owners=self.owners or [],
             tags=all_tags,

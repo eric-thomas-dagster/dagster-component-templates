@@ -4,6 +4,8 @@ Import AWS SageMaker training jobs, batch transform jobs, processing jobs, and p
 as Dagster assets for orchestrating machine learning workflows.
 """
 
+from dagster import AssetKey  # auto-added for hierarchical keys
+
 import re
 import time
 from typing import Optional, List, Dict, Any
@@ -268,7 +270,7 @@ class AWSSageMakerComponent(Component, Model, Resolvable):
             asset_key = f"training_job_{job_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "job_name": job_name,
@@ -320,7 +322,7 @@ class AWSSageMakerComponent(Component, Model, Resolvable):
             asset_key = f"transform_job_{job_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "job_name": job_name,
@@ -367,7 +369,7 @@ class AWSSageMakerComponent(Component, Model, Resolvable):
             asset_key = f"processing_job_{job_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "job_name": job_name,
@@ -414,7 +416,7 @@ class AWSSageMakerComponent(Component, Model, Resolvable):
             asset_key = f"pipeline_{pipeline_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "pipeline_name": pipeline_name,

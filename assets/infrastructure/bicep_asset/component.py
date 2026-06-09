@@ -47,7 +47,7 @@ class BicepAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Deploy a Bicep template as a Dagster asset (compiles via `az bicep build` then deploys via ARM).",
             group_name=self.group_name,
             kinds=set(self.kinds or ['azure', 'bicep']),

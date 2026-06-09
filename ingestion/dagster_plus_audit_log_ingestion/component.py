@@ -189,7 +189,7 @@ class DagsterPlusAuditLogIngestionComponent(dg.Component, dg.Model, dg.Resolvabl
             )
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Dagster+ audit-log events",
             group_name=self.group_name,
             kinds=set(self.kinds or ["dagster-plus", "audit", "security"]),

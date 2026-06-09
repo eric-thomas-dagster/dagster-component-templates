@@ -283,7 +283,7 @@ class HrisNormalizerComponent(Component, Model, Resolvable):
         case_insensitive_map = self.case_insensitive_map
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Canonical HRIS schema mapped from {self.upstream_asset_key}.",
             group_name=self.group_name,
             kinds={"hris", "pandas"},

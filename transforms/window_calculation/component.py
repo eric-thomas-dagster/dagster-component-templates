@@ -120,7 +120,7 @@ class WindowCalculationComponent(dg.Component, dg.Model, dg.Resolvable):
         _self = self
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Window functions — PARTITION BY + ORDER BY + (lag, lead, rank, dense_rank, row_number, cumulative sum, moving avg). The full SQL window-function shape, in pandas.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['window', 'analytic']),

@@ -104,7 +104,7 @@ class SnowflakeAccessHistoryIngestionComponent(dg.Component, dg.Model, dg.Resolv
             )
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Pull Snowflake access history (every query, every column accessed) from the ACCOUNT_USAGE views.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['snowflake', 'audit', 'warehouse']),

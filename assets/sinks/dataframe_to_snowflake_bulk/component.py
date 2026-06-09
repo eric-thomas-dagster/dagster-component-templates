@@ -123,7 +123,7 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
             )
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             owners=self.owners or [],
             tags=all_tags,

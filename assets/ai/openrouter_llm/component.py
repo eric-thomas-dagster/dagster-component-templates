@@ -249,7 +249,7 @@ class OpenRouterLLMComponent(Component, Model, Resolvable):
         deps_keys = [AssetKey.from_user_string(k) for k in (self.deps or [])]
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"OpenRouter inference per row from {self.upstream_asset_key} ({model}).",
             group_name=self.group_name,
             kinds={"openrouter", "llm"},

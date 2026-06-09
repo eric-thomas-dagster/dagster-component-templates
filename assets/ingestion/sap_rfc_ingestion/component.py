@@ -234,7 +234,7 @@ class SapRFCIngestionComponent(Component, Model, Resolvable):
         rk = self.sap_rfc_resource_key
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=description,
             owners=self.owners or [],
             tags=all_tags,

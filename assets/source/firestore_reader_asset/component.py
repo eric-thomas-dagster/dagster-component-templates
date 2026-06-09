@@ -167,7 +167,7 @@ class FirestoreReaderAssetComponent(Component, Model, Resolvable):
         limit = self.limit
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Firestore read: {collection} in {project_id}/{database}.",
             group_name=self.group_name,
             kinds={"google", "firestore"},

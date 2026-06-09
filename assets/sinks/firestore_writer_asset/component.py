@@ -173,7 +173,7 @@ class FirestoreWriterAssetComponent(Component, Model, Resolvable):
         batch_size = self.batch_size
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Firestore write to {collection} in {project_id}/{database}.",
             group_name=self.group_name,
             kinds={"google", "firestore"},

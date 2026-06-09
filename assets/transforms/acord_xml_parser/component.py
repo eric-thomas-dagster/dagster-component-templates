@@ -336,7 +336,7 @@ class AcordXmlParserComponent(Component, Model, Resolvable):
         xml_column = self.xml_column
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or "Parse ACORD XML → one row per Policy/Claim/Quote.",
             group_name=self.group_name,
             kinds={"acord", "insurance", "pandas"},

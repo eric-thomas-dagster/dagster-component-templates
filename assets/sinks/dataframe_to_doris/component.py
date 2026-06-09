@@ -102,7 +102,7 @@ class DataframeToDorisComponent(dg.Component, dg.Model, dg.Resolvable):
             raise ValueError("mode='replace' requires replace_predicate (a SQL WHERE clause).")
 
         @dg.asset(
-            name=_self.asset_name,
+            key=dg.AssetKey.from_user_string(_self.asset_name),
             ins={"upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(_self.upstream_asset_key))},
             group_name=_self.group_name,
             kinds=kinds,

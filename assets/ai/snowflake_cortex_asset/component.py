@@ -319,7 +319,7 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
 
         @dg.asset(retry_policy=_retry_policy, 
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             group_name=self.group_name or "ai_enrichment",
             kinds={"snowflake", "ai", "sql"},
             deps=dep_keys,

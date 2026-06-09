@@ -187,7 +187,7 @@ class LitellmTextToSpeechComponent(Component, Model, Resolvable):
         max_retries = self.max_retries
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"LiteLLM TTS via {model}.",
             group_name=self.group_name,
             kinds={"litellm", "text-to-speech", "ai"},

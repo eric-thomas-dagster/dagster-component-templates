@@ -176,7 +176,7 @@ class TranslationApiAssetComponent(Component, Model, Resolvable):
         max_retries = self.max_retries
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Translate {text_column} → {', '.join(target_languages)}.",
             group_name=self.group_name,
             kinds={"google", "translation", "ai"},

@@ -195,7 +195,7 @@ class LineageToPurviewComponent(dg.Component, dg.Model, dg.Resolvable):
         description = self.description or "Push the upstream lineage_graph to purview."
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             ins={"upstream": dg.AssetIn(key=upstream_key)},
             group_name=self.group_name,
             description=description,

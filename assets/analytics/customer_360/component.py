@@ -428,7 +428,7 @@ class Customer360Component(Component, Model, Resolvable):
 
 
         @asset(retry_policy=_retry_policy, 
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=description,
             partitions_def=partitions_def,
                         owners=owners,

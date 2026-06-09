@@ -106,7 +106,7 @@ class PdfReportComponent(Component, Model, Resolvable):
 
         if _has_upstream:
             @asset(
-                name=asset_name,
+                key=AssetKey.from_user_string(asset_name),
                 ins={"upstream": AssetIn(key=AssetKey.from_user_string(self.upstream_asset_key))},
                 group_name=self.group_name,
                 description=self.description or f"Render {self.upstream_asset_key} to PDF at {self.file_path}.",
@@ -118,7 +118,7 @@ class PdfReportComponent(Component, Model, Resolvable):
                 return _do_render(upstream, context)
         else:
             @asset(
-                name=asset_name,
+                key=AssetKey.from_user_string(asset_name),
                 group_name=self.group_name,
                 description=self.description or f"Render (no upstream) to PDF at {self.file_path}.",
                 tags=tags,

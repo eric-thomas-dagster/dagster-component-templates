@@ -202,7 +202,7 @@ class CloudDlpInspectAssetComponent(Component, Model, Resolvable):
         output_prefix = self.output_prefix
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Cloud DLP inspect of {text_columns} in {project_id}.",
             group_name=self.group_name,
             kinds={"google", "cloud-dlp", "ai", "security"},

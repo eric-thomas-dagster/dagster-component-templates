@@ -176,7 +176,7 @@ class DataplexDqScanResultsAssetComponent(Component, Model, Resolvable):
         max_jobs = self.max_jobs
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Dataplex DQ scan results: {project_id}/{location}/{scan_id}.",
             group_name=self.group_name,
             kinds={"google", "dataplex", "data-quality"},

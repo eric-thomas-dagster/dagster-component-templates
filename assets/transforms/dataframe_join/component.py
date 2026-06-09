@@ -727,7 +727,7 @@ class DataframeJoin(Component, Model, Resolvable):
 
             @asset(
                 partitions_def=partitions_def,
-                name=asset_name,
+                key=AssetKey.from_user_string(asset_name),
                 ins=ins,
                 group_name=group_name,
                 retry_policy=_retry_policy,
@@ -742,7 +742,7 @@ class DataframeJoin(Component, Model, Resolvable):
         else:
             @asset(
                 partitions_def=partitions_def,
-                name=asset_name,
+                key=AssetKey.from_user_string(asset_name),
                 ins=ins,
                 group_name=group_name,
                 retry_policy=_retry_policy,

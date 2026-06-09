@@ -102,7 +102,7 @@ class OktaSystemLogIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Pull Okta System Log events (every authentication, MFA challenge, admin action) via /api/v1/logs.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['okta', 'audit', 'iam']),

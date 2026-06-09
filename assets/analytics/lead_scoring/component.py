@@ -717,7 +717,7 @@ class LeadScoringComponent(Component, Model, Resolvable):
 
 
         @asset(retry_policy=_retry_policy, 
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             ins=asset_ins,
             description=self.description or "Lead scores with qualification flags (MQL/SQL) and temperature classification",
             partitions_def=partitions_def,

@@ -116,7 +116,7 @@ class PolarsScanParquetComponent(Component, Model, Resolvable):
             all_tags[f"dagster/kind/{k}"] = ""
 
         @asset(
-            name=asset_name,
+            key=dg.AssetKey.from_user_string(asset_name),
             description=self.description or self.get_description(),
             owners=self.owners or [],
             tags=all_tags,

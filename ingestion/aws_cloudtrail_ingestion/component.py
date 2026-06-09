@@ -102,7 +102,7 @@ class AwsCloudTrailIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Pull AWS CloudTrail events via the LookupEvents API. Returns a DataFrame per asset materialization.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['aws', 'cloudtrail', 'audit']),

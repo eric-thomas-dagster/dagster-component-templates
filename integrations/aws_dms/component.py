@@ -4,6 +4,8 @@ Import AWS DMS replication tasks and Zero ETL integrations as Dagster assets
 for database migrations, CDC, and continuous replication.
 """
 
+from dagster import AssetKey  # auto-added for hierarchical keys
+
 import re
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
@@ -181,7 +183,7 @@ class AWSDMSComponent(Component, Model, Resolvable):
             asset_key = f"dms_task_{task_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "task_name": task_name,
@@ -404,7 +406,7 @@ class AWSDMSComponent(Component, Model, Resolvable):
             asset_key = f"zero_etl_{integration_id}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "integration_id": integration_id,

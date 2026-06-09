@@ -192,7 +192,7 @@ class BigQueryMLTrainAssetComponent(Component, Model, Resolvable):
             )
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"BigQuery ML model: {destination_model_id}",
             group_name=self.group_name,
             kinds={"bigquery", "bqml", "ml"},

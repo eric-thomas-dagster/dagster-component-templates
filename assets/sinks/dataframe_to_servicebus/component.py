@@ -188,7 +188,7 @@ class DataframeToServiceBusComponent(Component, Model, Resolvable):
             tags[f"dagster/kind/{k}"] = ""
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream))},
             group_name=self.group_name,
             description=self.description or (

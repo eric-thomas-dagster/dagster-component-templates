@@ -229,7 +229,7 @@ class FabricWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
 
         def _make(_item_id=item_id, _item_type=item_type, _name=name, _asset_key=asset_key):
             @dg.asset(
-                name=_asset_key,
+                key=dg.AssetKey.from_user_string(_asset_key),
                 group_name=gn,
                 deps=upstream_keys,
                 metadata={

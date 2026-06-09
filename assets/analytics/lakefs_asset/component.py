@@ -218,7 +218,7 @@ class LakeFSAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
 
         @dg.asset(retry_policy=_retry_policy, 
-            name=asset_name,
+            key=dg.AssetKey.from_user_string(asset_name),
             group_name=group_name,
             deps=dep_keys,
             kinds={"lakefs", "storage"},

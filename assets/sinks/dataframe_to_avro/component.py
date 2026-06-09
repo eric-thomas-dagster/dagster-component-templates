@@ -249,7 +249,7 @@ class DataframeToAvroComponent(dg.Component, dg.Model, dg.Resolvable):
         )
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=description,
             group_name=group_name,
             partitions_def=partitions_def,

@@ -48,7 +48,7 @@ class ArmTemplateAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Deploy an Azure Resource Manager (ARM) template as a Dagster asset.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['azure', 'arm']),

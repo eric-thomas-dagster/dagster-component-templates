@@ -219,7 +219,7 @@ class DocumentAiExtractorComponent(Component, Model, Resolvable):
         max_retries = self.max_retries
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Document AI extraction via processor {processor_id}.",
             group_name=self.group_name,
             kinds={"google", "document-ai", "ai"},

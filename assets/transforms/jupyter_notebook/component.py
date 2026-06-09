@@ -118,7 +118,7 @@ class JupyterNotebookComponent(Component, Model, Resolvable):
 
         if _has_upstream:
             @asset(
-                name=self.asset_name,
+                key=AssetKey.from_user_string(self.asset_name),
                 ins={"upstream": AssetIn(key=AssetKey.from_user_string(self.upstream_asset_key))},
                 group_name=self.group_name,
                 description=self.description or f"Jupyter notebook / code run against {self.upstream_asset_key!r}",
@@ -130,7 +130,7 @@ class JupyterNotebookComponent(Component, Model, Resolvable):
                 return _do_run(upstream, context)
         else:
             @asset(
-                name=self.asset_name,
+                key=AssetKey.from_user_string(self.asset_name),
                 group_name=self.group_name,
                 description=self.description or "Jupyter notebook / code (no upstream)",
                 tags=tags,

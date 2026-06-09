@@ -20,6 +20,8 @@ Body decoding handles multipart/alternative (prefers text/plain over
 text/html), 7-bit, quoted-printable, base64. Falls back to raw bytes
 when decoding fails.
 """
+
+from dagster import AssetKey  # auto-added for hierarchical keys
 import email
 import imaplib
 import re
@@ -278,7 +280,7 @@ class ImapInboxSourceComponent(Component, Model, Resolvable):
         fallback = self.fallback_html_to_text
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"IMAP inbox source: {host}/{mailbox} ({criteria}).",
             group_name=self.group_name,
             kinds={"imap", "email", "pandas"},

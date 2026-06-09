@@ -210,7 +210,7 @@ class VideoMetadataExtractorComponent(Component, Model, Resolvable):
         ffprobe_binary = self.ffprobe_binary
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or "Extract container + stream metadata via ffprobe.",
             group_name=self.group_name,
             kinds={"ffmpeg", "video"},

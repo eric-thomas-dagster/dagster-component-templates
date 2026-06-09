@@ -119,7 +119,7 @@ class CloudFunctionsInvokeAssetComponent(Component, Model, Resolvable):
             ins_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Invoke Cloud Function {function_url}.",
             group_name=self.group_name,
             kinds={"google", "cloud-functions"},

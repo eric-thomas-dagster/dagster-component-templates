@@ -4,6 +4,8 @@ Import Google Cloud Pub/Sub topics and subscriptions as Dagster assets
 for monitoring message queue status and throughput.
 """
 
+from dagster import AssetKey  # auto-added for hierarchical keys
+
 import re
 from typing import Optional, List, Dict, Any
 
@@ -159,7 +161,7 @@ class GooglePubSubComponent(Component, Model, Resolvable):
             asset_key = f"topic_{topic_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={"topic_name": topic_name, "project": self.project_id},
             )
@@ -185,7 +187,7 @@ class GooglePubSubComponent(Component, Model, Resolvable):
             asset_key = f"subscription_{sub_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={"subscription_name": sub_name, "project": self.project_id},
             )

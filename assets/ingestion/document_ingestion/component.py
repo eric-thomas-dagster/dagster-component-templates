@@ -362,7 +362,7 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
 
 
         @asset(retry_policy=_retry_policy, partitions_def=partitions_def, 
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=description,
             group_name="knowledge_base",
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],

@@ -312,7 +312,7 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
         upstream_arg_names = {k: f"upstream_{j}" for j, k in enumerate(upstream_keys)}
 
         @asset(
-            name=asset_name,
+            key=dg.AssetKey.from_user_string(asset_name),
             description=self.description or self.get_description(),
             owners=self.owners or [],
             tags=all_tags,

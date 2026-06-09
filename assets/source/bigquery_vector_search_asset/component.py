@@ -229,7 +229,7 @@ class BigqueryVectorSearchAssetComponent(Component, Model, Resolvable):
             ins["upstream"] = AssetIn(key=AssetKey.from_user_string(upstream_key_str))
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"BQ VECTOR_SEARCH against {base_table}.{base_column} (top-{top_k}, {distance_type}).",
             group_name=self.group_name,
             kinds={"google", "bigquery", "vector-search"},

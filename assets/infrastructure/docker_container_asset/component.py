@@ -25,7 +25,7 @@ class DockerContainerAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         image = self.image; cmd = self.command; env_vars = self.env_vars; network = self.network
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             group_name=self.group_name,
             description=f"Docker container: {image}",
             deps=deps_keys,

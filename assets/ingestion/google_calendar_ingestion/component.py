@@ -257,7 +257,7 @@ class GoogleCalendarIngestionComponent(Component, Model, Resolvable):
         show_deleted = self.show_deleted
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Google Calendar events from {calendar_id}.",
             group_name=self.group_name,
             kinds={"google", "calendar"},

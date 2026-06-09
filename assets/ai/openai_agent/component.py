@@ -197,7 +197,7 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
             )
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             partitions_def=partitions_def,
             group_name=group_name,
             description=description,

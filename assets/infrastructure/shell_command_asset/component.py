@@ -27,7 +27,7 @@ class ShellCommandAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         deps_keys = [dg.AssetKey.from_user_string(k) for k in (self.deps or [])]
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or f"Run shell: {cmd[:60]}...",
             group_name=self.group_name,
             deps=deps_keys,

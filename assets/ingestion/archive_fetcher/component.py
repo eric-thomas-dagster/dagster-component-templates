@@ -35,6 +35,8 @@ attributes:
 ```
 """
 
+from dagster import AssetKey  # auto-added for hierarchical keys
+
 import os
 import gzip
 import bz2
@@ -447,7 +449,7 @@ class ArchiveFetcherComponent(Component, Model, Resolvable):
         deps_keys = self.deps
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Archive fetched + extracted from {url}",
             group_name=self.group_name,
             kinds=set(self.kinds) if self.kinds else {"http", "archive"},

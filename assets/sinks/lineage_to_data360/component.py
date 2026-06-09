@@ -182,7 +182,7 @@ class LineageToData360Component(dg.Component, dg.Model, dg.Resolvable):
             tags[f"dagster/kind/{k}"] = ""
 
         @dg.asset(
-            name=_self.asset_name,
+            key=dg.AssetKey.from_user_string(_self.asset_name),
             ins={"upstream": dg.AssetIn(key=upstream_key)},
             group_name=_self.group_name,
             description=_self.description or "Push Dagster lineage_graph to Precisely Data360 Govern.",

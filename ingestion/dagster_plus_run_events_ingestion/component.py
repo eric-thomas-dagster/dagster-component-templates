@@ -140,7 +140,7 @@ class DagsterPlusRunEventsIngestionComponent(dg.Component, dg.Model, dg.Resolvab
             )
 
         @dg.asset(
-            name=self.asset_name,
+            key=AssetKey.from_user_string(self.asset_name),
             description=self.description or "Pull Dagster+ run records (every job run, status, duration, tags) via the Dagster+ GraphQL API.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['dagster-plus', 'runs']),

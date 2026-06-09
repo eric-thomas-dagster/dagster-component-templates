@@ -268,7 +268,7 @@ class OAuthRestIngestionComponent(Component, Model, Resolvable):
         required_resource_keys = component._build_resource_keys()
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=description,
             owners=self.owners or [],
             tags=all_tags,

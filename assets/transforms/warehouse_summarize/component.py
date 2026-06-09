@@ -204,7 +204,7 @@ class WarehouseSummarizeComponent(Component, Model, Resolvable):
         resolve_url = self._resolve_url
 
         @asset(
-            name=asset_name,
+            key=dg.AssetKey.from_user_string(asset_name),
             description=self.description or self.get_description(),
             owners=self.owners or [],
             tags=all_tags,

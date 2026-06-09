@@ -452,7 +452,7 @@ class Hl7V2ParserComponent(Component, Model, Resolvable):
         keep_segments: List[str] = [str(s) for s in self.keep_segments]
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Parse HL7 v2 → DataFrame (segments={keep_segments}).",
             group_name=self.group_name,
             kinds={"hl7", "healthcare", "pandas"},

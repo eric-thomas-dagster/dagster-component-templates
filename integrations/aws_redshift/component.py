@@ -4,6 +4,8 @@ Import AWS Redshift scheduled queries, stored procedures, and materialized views
 as Dagster assets for orchestrating data warehouse operations.
 """
 
+from dagster import AssetKey  # auto-added for hierarchical keys
+
 import re
 import time
 from typing import Optional, List, Dict, Any
@@ -333,7 +335,7 @@ class AWSRedshiftComponent(Component, Model, Resolvable):
             asset_key = f"procedure_{proc_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "procedure_name": proc_name,
@@ -372,7 +374,7 @@ class AWSRedshiftComponent(Component, Model, Resolvable):
             asset_key = f"matview_{simple_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "view_name": view_name,

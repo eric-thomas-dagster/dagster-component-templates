@@ -89,7 +89,7 @@ class DorisQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         kinds.add("doris")
 
         @dg.asset(
-            name=_self.asset_name,
+            key=dg.AssetKey.from_user_string(_self.asset_name),
             group_name=_self.group_name,
             kinds=kinds,
             owners=_self.owners,

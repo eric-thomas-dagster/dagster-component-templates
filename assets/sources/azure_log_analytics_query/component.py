@@ -167,7 +167,7 @@ class AzureLogAnalyticsQueryComponent(Component, Model, Resolvable):
             tags[f"dagster/kind/{k}"] = ""
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             group_name=self.group_name,
             description=self.description or f"Materialize KQL query against Log Analytics workspace {workspace_id}.",
             owners=self.owners or [],

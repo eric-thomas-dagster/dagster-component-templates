@@ -181,7 +181,7 @@ class BigtableReaderAssetComponent(Component, Model, Resolvable):
         decode_as = self.decode_values_as
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Bigtable read: {project_id}/{instance_id}/{table_id}.",
             group_name=self.group_name,
             kinds={"google", "bigtable"},

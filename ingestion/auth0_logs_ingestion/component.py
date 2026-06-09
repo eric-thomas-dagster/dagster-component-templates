@@ -102,7 +102,7 @@ class Auth0LogsIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Pull Auth0 tenant logs via the Management API /api/v2/logs endpoint.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['auth0', 'audit', 'iam']),

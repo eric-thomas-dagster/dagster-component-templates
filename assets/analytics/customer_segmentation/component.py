@@ -528,7 +528,7 @@ class CustomerSegmentationComponent(Component, Model, Resolvable):
 
 
         @asset(retry_policy=_retry_policy, 
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             ins=asset_ins,
             description=self.description or "Customer segmentation using RFM analysis",
             partitions_def=partitions_def,

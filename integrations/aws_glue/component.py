@@ -356,7 +356,7 @@ def _build_glue_defs(
 
 
         @dg.asset(retry_policy=_retry_policy, 
-            name=asset_key,
+            key=dg.AssetKey.from_user_string(asset_key),
             group_name=group_name,
             description=crawler.get("description") or f"AWS Glue crawler: {crawler_name}",
             metadata={
@@ -402,7 +402,7 @@ def _build_glue_defs(
         workflow_metadata[asset_key] = {"workflow_name": workflow_name}
 
         @dg.asset(
-            name=asset_key,
+            key=dg.AssetKey.from_user_string(asset_key),
             group_name=group_name,
             description=workflow.get("description") or f"AWS Glue workflow: {workflow_name}",
             metadata={
@@ -443,7 +443,7 @@ def _build_glue_defs(
             asset_key = f"{_sanitize(key_prefix)}_{asset_key}"
 
         @dg.asset(
-            name=asset_key,
+            key=dg.AssetKey.from_user_string(asset_key),
             group_name=group_name,
             description=databrew_job.get("description") or f"AWS Glue DataBrew job: {databrew_job_name}",
             metadata={

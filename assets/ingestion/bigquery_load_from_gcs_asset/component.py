@@ -158,7 +158,7 @@ class BigQueryLoadFromGcsAssetComponent(Component, Model, Resolvable):
         cluster_fields = self.cluster_fields
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"GCS → BQ load: {destination_table_id}",
             group_name=self.group_name,
             kinds={"bigquery", "gcs", "load"},

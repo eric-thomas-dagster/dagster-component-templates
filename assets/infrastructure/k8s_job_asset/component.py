@@ -32,7 +32,7 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         image = self.image
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             group_name=self.group_name,
             description=f"Kubernetes Job: {image}",
             deps=deps_keys,

@@ -4,6 +4,8 @@ Import Google Cloud Dataflow jobs as Dagster assets for orchestrating
 Apache Beam batch and streaming data pipelines.
 """
 
+from dagster import AssetKey  # auto-added for hierarchical keys
+
 import re
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
@@ -180,7 +182,7 @@ class GoogleDataflowComponent(Component, Model, Resolvable):
             asset_key = f"batch_job_{safe_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "job_name": job_name,
@@ -223,7 +225,7 @@ class GoogleDataflowComponent(Component, Model, Resolvable):
             asset_key = f"streaming_job_{safe_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "job_name": job_name,

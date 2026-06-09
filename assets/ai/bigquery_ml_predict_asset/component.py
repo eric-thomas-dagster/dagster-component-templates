@@ -201,7 +201,7 @@ class BigQueryMLPredictAssetComponent(Component, Model, Resolvable):
             ins_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(self.upstream_asset_key))}
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"BQML {operation} against {model_id}.",
             group_name=self.group_name,
             kinds={"bigquery", "bqml", "ml"},

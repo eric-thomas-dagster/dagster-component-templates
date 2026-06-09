@@ -174,7 +174,7 @@ class DatabricksGenieQueryComponent(Component, Model, Resolvable):
         if upstream_asset_key:
             # ---------- mode B: per-row ----------
             @asset(
-                name=asset_name,
+                key=AssetKey.from_user_string(asset_name),
                 ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
                 partitions_def=partitions_def,
                 group_name=group_name,
@@ -224,7 +224,7 @@ class DatabricksGenieQueryComponent(Component, Model, Resolvable):
 
         # ---------- mode A: single question ----------
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             partitions_def=partitions_def,
             group_name=group_name,
             description=description,

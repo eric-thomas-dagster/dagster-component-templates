@@ -267,7 +267,7 @@ class GeminiImageGenerationComponent(Component, Model, Resolvable):
         max_retries_local = self.max_retries
 
         @asset(
-            name=self.asset_name,
+            key=AssetKey.from_user_string(self.asset_name),
             description=self.description or f"Gemini image generation per row from {self.upstream_asset_key}.",
             group_name=self.group_name,
             kinds={"gemini", "image"},

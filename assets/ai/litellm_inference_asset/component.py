@@ -338,7 +338,7 @@ class LiteLLMInferenceAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
 
         @dg.asset(retry_policy=_retry_policy, partitions_def=partitions_def, 
-            name=_self.asset_name,
+            key=dg.AssetKey.from_user_string(_self.asset_name),
             description=_self.description or f"LiteLLM inference: {_self.prompt_template[:60]}...",
             group_name=_self.group_name,
             kinds={"ai", "llm"},

@@ -173,7 +173,7 @@ class DataframeExtractFieldComponent(Component, Model, Resolvable):
         drop_source = self.drop_source
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Extract {source_column}[{idx}].{field or '_value'} → {target_column}.",
             group_name=self.group_name,
             kinds={"pandas"},

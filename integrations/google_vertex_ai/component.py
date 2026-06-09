@@ -4,6 +4,8 @@ Import Google Vertex AI training jobs, batch prediction jobs, custom jobs, and p
 as Dagster assets for orchestrating machine learning workflows.
 """
 
+from dagster import AssetKey  # auto-added for hierarchical keys
+
 import re
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
@@ -258,7 +260,7 @@ class GoogleVertexAIComponent(Component, Model, Resolvable):
             asset_key = f"training_job_{safe_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "display_name": display_name,
@@ -298,7 +300,7 @@ class GoogleVertexAIComponent(Component, Model, Resolvable):
             asset_key = f"batch_prediction_{safe_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "display_name": display_name,
@@ -337,7 +339,7 @@ class GoogleVertexAIComponent(Component, Model, Resolvable):
             asset_key = f"pipeline_{safe_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "display_name": display_name,

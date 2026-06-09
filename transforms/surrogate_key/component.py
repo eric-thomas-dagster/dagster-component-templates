@@ -122,7 +122,7 @@ class SurrogateKeyComponent(dg.Component, dg.Model, dg.Resolvable):
         _self = self
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Generate stable surrogate keys — deterministic SHA-256 hash of business-key columns, or sequential integers.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['surrogate-key', 'hash']),

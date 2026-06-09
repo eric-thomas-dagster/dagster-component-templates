@@ -213,7 +213,7 @@ class ModerationScorerComponent(Component, Model, Resolvable):
 
 
         @asset(retry_policy=_retry_policy, 
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=description,
             group_name="content_moderation",
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},

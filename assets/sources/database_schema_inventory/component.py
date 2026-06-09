@@ -232,7 +232,7 @@ class DatabaseSchemaInventoryComponent(dg.Component, dg.Model, dg.Resolvable):
             all_tags[f"dagster/kind/{k}"] = ""
 
         @dg.asset(
-            name=asset_name,
+            key=dg.AssetKey.from_user_string(asset_name),
             group_name=self.group_name,
             description=self.description or self.get_description(),
             owners=self.owners or [],

@@ -218,7 +218,7 @@ class CloudTextToSpeechAssetComponent(Component, Model, Resolvable):
         _ext_map = {"MP3": ".mp3", "LINEAR16": ".wav", "OGG_OPUS": ".ogg", "MULAW": ".mulaw", "ALAW": ".alaw"}
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Cloud TTS ({language_code}, {voice_name or 'default voice'}).",
             group_name=self.group_name,
             kinds={"google", "text-to-speech", "ai"},

@@ -111,7 +111,7 @@ class InlineDataframeComponent(Component, Model, Resolvable):
             )
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             group_name=group_name,
             description=description,
             owners=owners,

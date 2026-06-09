@@ -190,7 +190,7 @@ class CloudLoggingQueryAssetComponent(Component, Model, Resolvable):
         resource_names = self.resource_names or [f"projects/{project_id}"]
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Cloud Logging query in {project_id}.",
             group_name=self.group_name,
             kinds={"google", "cloud-logging"},

@@ -188,7 +188,7 @@ class SyntheticAudioGeneratorComponent(Component, Model, Resolvable):
             clips = list(_DEFAULT_TONES)
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Synthetic WAV audio ({len(clips)} clips, {sample_rate} Hz).",
             group_name=self.group_name,
             kinds={"wave", "audio"},

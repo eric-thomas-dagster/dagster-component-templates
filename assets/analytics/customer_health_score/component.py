@@ -699,7 +699,7 @@ class CustomerHealthScoreComponent(Component, Model, Resolvable):
 
 
         @asset(retry_policy=_retry_policy, 
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             ins=asset_ins,
             description=self.description or "Customer health scores with churn risk and expansion opportunity flags",
             partitions_def=partitions_def,

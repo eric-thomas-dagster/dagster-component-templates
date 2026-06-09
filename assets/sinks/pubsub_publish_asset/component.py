@@ -177,7 +177,7 @@ class PubSubPublishAssetComponent(Component, Model, Resolvable):
         flush_batch_size = self.flush_batch_size
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Publish to Pub/Sub topic {project_id}/{topic}.",
             group_name=self.group_name,
             kinds={"google", "pubsub"},

@@ -3,6 +3,8 @@
 Import Google Cloud Run Jobs as Dagster assets for executing containerized batch workloads.
 """
 
+from dagster import AssetKey  # auto-added for hierarchical keys
+
 import re
 from typing import Optional, List, Dict, Any
 
@@ -124,7 +126,7 @@ class GoogleCloudRunJobsComponent(Component, Model, Resolvable):
             asset_key = f"cloud_run_job_{safe_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "job_name": job_name,

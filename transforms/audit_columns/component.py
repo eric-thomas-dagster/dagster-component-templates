@@ -124,7 +124,7 @@ class AuditColumnsComponent(dg.Component, dg.Model, dg.Resolvable):
         _self = self
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Add system-audit columns to every row — run_id, dagster_run_id, asset_key, materialization_time, optional username/git_sha.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['audit', 'system-metadata']),

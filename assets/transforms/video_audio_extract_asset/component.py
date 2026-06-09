@@ -178,7 +178,7 @@ class VideoAudioExtractAssetComponent(Component, Model, Resolvable):
         ffmpeg_binary = self.ffmpeg_binary
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Video → audio track ({target_format}) via ffmpeg.",
             group_name=self.group_name,
             kinds={"ffmpeg", "video", "audio"},

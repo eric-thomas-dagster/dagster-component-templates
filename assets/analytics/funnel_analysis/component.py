@@ -705,7 +705,7 @@ class FunnelAnalysisComponent(Component, Model, Resolvable):
 
 
         @asset(retry_policy=_retry_policy, 
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             ins=asset_ins,
             description=self.description or "Funnel analysis with conversion rates and drop-off identification",
             partitions_def=partitions_def,

@@ -382,7 +382,7 @@ class SpatialJoinComponent(Component, Model, Resolvable):
 
 
         @asset(retry_policy=_retry_policy, 
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             ins={
                 "upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key)),
                 "regions_df": AssetIn(key=AssetKey.from_user_string(regions_asset_key)),

@@ -195,7 +195,7 @@ class SyntheticPdfGeneratorComponent(Component, Model, Resolvable):
             docs = _DEFAULT_DOCS
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Synthetic PDFs ({len(docs)}) for OCR / Document AI demos.",
             group_name=self.group_name,
             kinds={"reportlab"},

@@ -299,7 +299,7 @@ class LineageGraphExtractorComponent(dg.Component, dg.Model, dg.Resolvable):
         }
 
         @dg.asset(
-            name=self.asset_name,
+            key=AssetKey.from_user_string(self.asset_name),
             group_name=self.group_name,
             description=self.description or "Canonical Dagster asset lineage graph; downstream sinks fan out to data catalogs.",
             kinds={"lineage", "python"},

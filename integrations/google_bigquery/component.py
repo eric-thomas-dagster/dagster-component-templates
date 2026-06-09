@@ -4,6 +4,8 @@ Import BigQuery scheduled queries, stored procedures, materialized views, transf
 and routines as Dagster assets with automatic observation and orchestration.
 """
 
+from dagster import AssetKey  # auto-added for hierarchical keys
+
 import re
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
@@ -249,7 +251,7 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
                         )
 
                     @asset(retry_policy=_retry_policy, 
-                        name=asset_key,
+                        key=AssetKey.from_user_string(asset_key),
                         group_name=self.group_name,
                         description=f"BigQuery scheduled query: {query_name}",
                         metadata={
@@ -318,7 +320,7 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
 
                         # Stored procedures are materializable
                         @asset(
-                            name=asset_key,
+                            key=AssetKey.from_user_string(asset_key),
                             group_name=self.group_name,
                             description=f"BigQuery stored procedure: {routine_name}",
                             metadata={
@@ -380,7 +382,7 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
 
                         # Materialized views are materializable
                         @asset(
-                            name=asset_key,
+                            key=AssetKey.from_user_string(asset_key),
                             group_name=self.group_name,
                             description=f"BigQuery materialized view: {mv_name}",
                             metadata={
@@ -445,7 +447,7 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
 
                     # Transfer jobs are materializable
                     @asset(
-                        name=asset_key,
+                        key=AssetKey.from_user_string(asset_key),
                         group_name=self.group_name,
                         description=f"BigQuery transfer job: {job_name}",
                         metadata={

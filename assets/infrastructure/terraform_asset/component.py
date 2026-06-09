@@ -216,7 +216,7 @@ class TerraformAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         _self = self
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or f"Provision infrastructure via Terraform in {self.working_dir}",
             group_name=self.group_name,
             kinds={"terraform"},

@@ -123,7 +123,7 @@ class DatabaseMigrationAssessmentComponent(dg.Component, dg.Model, dg.Resolvable
         assess_constraints = self.assess_constraints
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             group_name=self.group_name,
             description=self.description or self.get_description(),
             owners=self.owners or [],

@@ -141,7 +141,7 @@ class BufferComponent(Component, Model, Resolvable):
             tags_dict[f"dagster/kind/{k}"] = ""
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             ins=ins,
             group_name=group_name,
             description=self.description or "Buffer (expand) point or polygon geometries by a fixed radius.",

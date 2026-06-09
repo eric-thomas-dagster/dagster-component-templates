@@ -108,7 +108,7 @@ class AuditLogsToSentinelComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Ship audit-log DataFrame to Microsoft Sentinel via the Log Analytics Data Collector API.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['sentinel', 'azure', 'siem']),

@@ -3,6 +3,8 @@
 Import Google Cloud Functions as Dagster assets for invoking serverless functions.
 """
 
+from dagster import AssetKey  # auto-added for hierarchical keys
+
 import re
 from typing import Optional, List, Dict, Any
 
@@ -125,7 +127,7 @@ class GoogleCloudFunctionsComponent(Component, Model, Resolvable):
             asset_key = f"cloud_function_{safe_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "function_name": func_name,

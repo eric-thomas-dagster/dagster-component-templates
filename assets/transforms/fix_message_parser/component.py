@@ -282,7 +282,7 @@ class FixMessageParserComponent(Component, Model, Resolvable):
         msg_type_filter = {str(x) for x in self.msg_type_filter} if self.msg_type_filter else None
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or "Parse FIX trading messages → flat DataFrame.",
             group_name=self.group_name,
             kinds={"fix", "fintech", "pandas"},

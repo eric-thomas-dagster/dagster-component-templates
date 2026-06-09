@@ -344,7 +344,7 @@ class PySparkPipelineComponent(Component, Model, Resolvable):
         kinds_set = set(kinds)
 
         @asset(
-            name=asset_name, description=description, owners=owners,
+            key=dg.AssetKey.from_user_string(asset_name), description=description, owners=owners,
             tags=all_tags, group_name=group_name, deps=deps, kinds=kinds_set,
             ins=ins,
         )

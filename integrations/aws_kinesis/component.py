@@ -4,6 +4,8 @@ Import AWS Kinesis Firehose delivery streams and Data Analytics applications
 as Dagster assets for orchestrating real-time data delivery and analytics.
 """
 
+from dagster import AssetKey  # auto-added for hierarchical keys
+
 import re
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
@@ -189,7 +191,7 @@ class AWSKinesisComponent(Component, Model, Resolvable):
             asset_key = f"firehose_stream_{stream_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "stream_name": stream_name,
@@ -264,7 +266,7 @@ class AWSKinesisComponent(Component, Model, Resolvable):
             asset_key = f"analytics_app_{app_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "application_name": app_name,

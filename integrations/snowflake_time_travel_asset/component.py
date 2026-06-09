@@ -145,7 +145,7 @@ class SnowflakeTimeTravelAssetComponent(Component, Model, Resolvable):
 
         @asset(
             retry_policy=_retry_policy,
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or self.get_description(),
             owners=self.owners or [],
             tags=tags,

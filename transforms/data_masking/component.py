@@ -120,7 +120,7 @@ class DataMaskingComponent(dg.Component, dg.Model, dg.Resolvable):
         _self = self
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Rule-based PII masking — hash, partial-mask (last 4 only), full-redact, or character-substitute. Per-column policies.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['pii', 'masking', 'anonymize']),

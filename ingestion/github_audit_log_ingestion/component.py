@@ -102,7 +102,7 @@ class GithubAuditLogIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Pull GitHub Enterprise / Org audit log via /orgs/:org/audit-log.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['github', 'audit', 'vcs']),

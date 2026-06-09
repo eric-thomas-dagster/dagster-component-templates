@@ -262,7 +262,7 @@ class HelmDeployComponent(dg.Component, dg.Model, dg.Resolvable):
         _self = self
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or f"Deploy Helm release {self.release_name} ({self.chart})",
             group_name=self.group_name,
             kinds={"helm", "kubernetes"},

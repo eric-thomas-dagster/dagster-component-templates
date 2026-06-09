@@ -130,7 +130,7 @@ class AwsCloudwatchMetricsQueryComponent(Component, Model, Resolvable):
             tags[f"dagster/kind/{k}"] = ""
 
         @asset(
-            name=self.asset_name,
+            key=AssetKey.from_user_string(self.asset_name),
             group_name=self.group_name,
             description=self.description or f"CloudWatch {cfg.namespace}/{cfg.metric_name} ({cfg.statistic})",
             owners=self.owners or [],

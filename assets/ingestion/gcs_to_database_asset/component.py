@@ -163,7 +163,7 @@ class GCSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
 
         @dg.asset(retry_policy=_retry_policy, 
-            name=_self.asset_name,
+            key=dg.AssetKey.from_user_string(_self.asset_name),
             description=_self.description or f"GCS → {_self.table_name}",
             group_name=_self.group_name,
             kinds={"gcs", "sql"},

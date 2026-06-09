@@ -102,7 +102,7 @@ class O365AuditLogIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Pull Microsoft 365 / Office 365 Unified Audit Log entries via the Management Activity API.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['o365', 'audit', 'microsoft']),

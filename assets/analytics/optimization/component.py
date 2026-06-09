@@ -397,7 +397,7 @@ class OptimizationComponent(Component, Model, Resolvable):
 
 
         @asset(retry_policy=_retry_policy, 
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=f"Optimization results ({method})",
             partitions_def=partitions_def,
                         owners=owners,

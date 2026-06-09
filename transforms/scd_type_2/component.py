@@ -125,7 +125,7 @@ class ScdType2Component(dg.Component, dg.Model, dg.Resolvable):
         _self = self
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Slowly Changing Dimension Type 2 — keep history. Detect changed rows, expire prior versions, insert new versions with effective_from / effective_to / is_current.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['scd', 'scd-2', 'dimension', 'history']),

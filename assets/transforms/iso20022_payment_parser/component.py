@@ -298,7 +298,7 @@ class Iso20022PaymentParserComponent(Component, Model, Resolvable):
         xml_column = self.xml_column
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or "Parse ISO 20022 XML → flat transactions DataFrame.",
             group_name=self.group_name,
             kinds={"iso20022", "fintech", "pandas"},

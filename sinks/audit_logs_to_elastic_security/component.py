@@ -110,7 +110,7 @@ class AuditLogsToElasticSecurityComponent(dg.Component, dg.Model, dg.Resolvable)
             )
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Ship audit-log DataFrame to Elastic Security via the bulk indexing API.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['elastic', 'elasticsearch', 'siem']),

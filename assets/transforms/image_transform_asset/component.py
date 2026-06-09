@@ -193,7 +193,7 @@ class ImageTransformAssetComponent(Component, Model, Resolvable):
         grayscale = self.grayscale
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or "Image transform (resize/crop/convert/grayscale).",
             group_name=self.group_name,
             kinds={"pillow", "image"},

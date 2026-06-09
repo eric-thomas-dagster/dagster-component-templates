@@ -239,7 +239,7 @@ class CloudMonitoringMetricsAssetComponent(Component, Model, Resolvable):
         view = self.view
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Cloud Monitoring time-series in {project_id}.",
             group_name=self.group_name,
             kinds={"google", "cloud-monitoring"},

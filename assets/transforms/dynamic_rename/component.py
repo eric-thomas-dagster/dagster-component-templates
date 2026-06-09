@@ -108,7 +108,7 @@ class DynamicRenameComponent(Component, Model, Resolvable):
             ins["mapping"] = AssetIn(key=AssetKey.from_user_string(self.mapping_asset_key))
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             ins=ins,
             group_name=self.group_name,
             description=self.description or f"DynamicRename ({self.mode}) on {self.upstream_asset_key}",

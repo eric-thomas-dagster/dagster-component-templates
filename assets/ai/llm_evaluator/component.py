@@ -211,7 +211,7 @@ class LLMEvaluatorComponent(Component, Model, Resolvable):
             _all_tags[f"dagster/kind/{_kind}"] = ""
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             group_name=group_name,
             description=description,

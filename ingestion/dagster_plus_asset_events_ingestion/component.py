@@ -133,7 +133,7 @@ class DagsterPlusAssetEventsIngestionComponent(dg.Component, dg.Model, dg.Resolv
             )
 
         @dg.asset(
-            name=self.asset_name,
+            key=AssetKey.from_user_string(self.asset_name),
             description=self.description or "Pull Dagster+ asset materialization / observation events via the GraphQL API.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['dagster-plus', 'assets', 'events']),

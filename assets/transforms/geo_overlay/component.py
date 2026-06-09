@@ -75,7 +75,7 @@ class GeoOverlayComponent(Component, Model, Resolvable):
             tags[f"dagster/kind/{k}"] = ""
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             ins={
                 "left": AssetIn(key=AssetKey.from_user_string(left_asset_key)),
                 "right": AssetIn(key=AssetKey.from_user_string(right_asset_key)),

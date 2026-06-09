@@ -132,7 +132,7 @@ class SiemEventNormalizerComponent(dg.Component, dg.Model, dg.Resolvable):
         _self = self
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Normalize heterogeneous audit-log events to a common schema (OCSF or ECS) before shipping to a SIEM.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['security', 'ocsf', 'ecs']),

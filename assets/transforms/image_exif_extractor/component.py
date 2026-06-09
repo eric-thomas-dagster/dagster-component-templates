@@ -257,7 +257,7 @@ class ImageExifExtractorComponent(Component, Model, Resolvable):
         image_path_column = self.image_path_column
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or "Extract EXIF metadata from image files.",
             group_name=self.group_name,
             kinds={"pillow", "image"},

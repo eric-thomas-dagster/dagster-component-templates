@@ -61,6 +61,8 @@ Column types:
 Modifiers on any column:
   - `null_ratio: 0.1` — 10%% of values get set to null
 """
+
+from dagster import AssetKey  # auto-added for hierarchical keys
 import random
 import re
 import string
@@ -367,7 +369,7 @@ class ParametricDataGeneratorComponent(Component, Model, Resolvable):
         columns = self.columns
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Parametric synthetic data ({row_count} rows, {len(columns)} cols).",
             group_name=self.group_name,
             kinds=set(self.kinds) if self.kinds else {"synthetic", "pandas"},

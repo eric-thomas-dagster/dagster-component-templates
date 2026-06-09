@@ -4,6 +4,8 @@ Import Azure Synapse pipelines, SQL pools, Spark jobs, and notebooks
 as Dagster assets with automatic observation and orchestration.
 """
 
+from dagster import AssetKey  # auto-added for hierarchical keys
+
 import re
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
@@ -210,7 +212,7 @@ class AzureSynapseComponent(Component, Model, Resolvable):
 
             def _make_pipeline_asset(_pipeline_name=pipeline_name, _asset_key=asset_key):
                 @asset(
-                    name=_asset_key,
+                    key=AssetKey.from_user_string(_asset_key),
                     group_name=component_self.group_name,
                     metadata={
                         "pipeline_name": _pipeline_name,
@@ -271,7 +273,7 @@ class AzureSynapseComponent(Component, Model, Resolvable):
 
             def _make_spark_asset(_job_name=job_name, _asset_key=asset_key):
                 @asset(
-                    name=_asset_key,
+                    key=AssetKey.from_user_string(_asset_key),
                     group_name=component_self.group_name,
                     metadata={
                         "job_name": _job_name,
@@ -340,7 +342,7 @@ class AzureSynapseComponent(Component, Model, Resolvable):
 
             def _make_notebook_asset(_notebook_name=notebook_name, _asset_key=asset_key):
                 @asset(
-                    name=_asset_key,
+                    key=AssetKey.from_user_string(_asset_key),
                     group_name=component_self.group_name,
                     metadata={
                         "notebook_name": _notebook_name,

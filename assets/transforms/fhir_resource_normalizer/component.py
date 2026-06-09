@@ -421,7 +421,7 @@ class FhirResourceNormalizerComponent(Component, Model, Resolvable):
             prepared_maps = {col: dict(m) for col, m in value_maps.items()}
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or "Flatten FHIR resources to a canonical DataFrame.",
             group_name=self.group_name,
             kinds={"fhir", "healthcare", "pandas"},

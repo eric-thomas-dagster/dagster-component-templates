@@ -342,7 +342,7 @@ class DataframeFromSqlComponent(Component, Model, Resolvable):
 
 
         @asset(retry_policy=_retry_policy, 
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             deps=[AssetKey.from_user_string(d) for d in (deps or [])],
             partitions_def=partitions_def,
                         owners=owners,

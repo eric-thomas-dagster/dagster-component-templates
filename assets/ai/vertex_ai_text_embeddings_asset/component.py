@@ -189,7 +189,7 @@ class VertexAITextEmbeddingsAssetComponent(Component, Model, Resolvable):
         max_retries = self.max_retries
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Vertex AI text embeddings ({model_name}).",
             group_name=self.group_name,
             kinds={"vertex-ai", "embeddings"},

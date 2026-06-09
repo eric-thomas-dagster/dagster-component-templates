@@ -122,7 +122,7 @@ class HashComponent(dg.Component, dg.Model, dg.Resolvable):
         _self = self
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Compute MD5/SHA-1/SHA-256 of one or more columns (or the whole row) — useful for change detection, anonymization, surrogate keys.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['hash', 'checksum']),

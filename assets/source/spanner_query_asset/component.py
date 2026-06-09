@@ -168,7 +168,7 @@ class SpannerQueryAssetComponent(Component, Model, Resolvable):
         param_types_in = self.param_types or {}
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Spanner query: {project_id}/{instance_id}/{database_id}.",
             group_name=self.group_name,
             kinds={"google", "spanner"},

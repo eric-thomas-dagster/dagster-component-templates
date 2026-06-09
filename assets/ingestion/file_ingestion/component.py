@@ -791,7 +791,7 @@ class FileIngestionComponent(Component, Model, Resolvable):
             @asset(
                 retry_policy=_retry_policy,
                 partitions_def=partitions_def,
-                name=asset_name,
+                key=AssetKey.from_user_string(asset_name),
                 description=description or f"CSV data from runtime URI (template: {run_config_uri_template})",
                 owners=owners,
                 tags=_all_tags,
@@ -854,7 +854,7 @@ class FileIngestionComponent(Component, Model, Resolvable):
             @asset(
                 retry_policy=_retry_policy,
                 partitions_def=partitions_def,
-                name=asset_name,
+                key=AssetKey.from_user_string(asset_name),
                 description=description or f"CSV data from upstream {upstream_asset_key}",
                 owners=owners,
                 tags=_all_tags,
@@ -914,7 +914,7 @@ class FileIngestionComponent(Component, Model, Resolvable):
         # --- Branch B: file_path — fixed path on disk (existing behavior) ---
         assert file_path is not None  # validated above
         @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=description or f"CSV data from {file_path}",
                         owners=owners,
             tags=_all_tags,

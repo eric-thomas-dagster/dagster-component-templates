@@ -230,7 +230,7 @@ class AWSCDKAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         effective_outputs_file = outputs_file or f"/tmp/{asset_name}_outputs.json"
 
         @dg.asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             group_name=group_name,
             description=description,
             deps=deps or [],

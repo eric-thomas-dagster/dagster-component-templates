@@ -274,7 +274,7 @@ class GeminiLLMComponent(Component, Model, Resolvable):
         thinking_budget_local = self.thinking_budget
 
         @asset(
-            name=self.asset_name,
+            key=AssetKey.from_user_string(self.asset_name),
             description=self.description or f"Gemini text generation per row from {self.upstream_asset_key}.",
             group_name=self.group_name,
             kinds={"gemini", "llm"},

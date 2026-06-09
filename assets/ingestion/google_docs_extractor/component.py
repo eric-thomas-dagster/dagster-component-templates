@@ -279,7 +279,7 @@ class GoogleDocsExtractorComponent(Component, Model, Resolvable):
             ins_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Google Docs text extraction.",
             group_name=self.group_name,
             kinds={"google", "docs"},

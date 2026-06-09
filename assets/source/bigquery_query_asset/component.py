@@ -235,7 +235,7 @@ class BigQueryQueryAssetComponent(Component, Model, Resolvable):
         max_rows = self.max_rows
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"BigQuery query result from project {project_id}.",
             group_name=self.group_name,
             kinds={"bigquery", "sql"},

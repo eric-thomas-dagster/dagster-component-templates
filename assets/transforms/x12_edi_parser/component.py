@@ -357,7 +357,7 @@ class X12EdiParserComponent(Component, Model, Resolvable):
         message_column = self.message_column
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or "Parse ASC X12 EDI → one row per ST/SE transaction.",
             group_name=self.group_name,
             kinds={"x12", "edi", "pandas"},

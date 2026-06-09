@@ -176,7 +176,7 @@ class VideoFrameExtractAssetComponent(Component, Model, Resolvable):
         ffmpeg_binary = self.ffmpeg_binary
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Extract frames via ffmpeg ({mode}).",
             group_name=self.group_name,
             kinds={"ffmpeg", "video", "image"},

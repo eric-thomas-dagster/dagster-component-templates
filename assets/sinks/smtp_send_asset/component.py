@@ -247,7 +247,7 @@ class SmtpSendAssetComponent(Component, Model, Resolvable):
         cap = self.max_send
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"SMTP send via {host}:{port} (mode={mode}).",
             group_name=self.group_name,
             kinds={"smtp", "email"},

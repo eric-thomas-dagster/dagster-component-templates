@@ -216,7 +216,7 @@ class PulumiAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         _self = self
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or f"Deploy Pulumi stack {self.stack_name}",
             group_name=self.group_name,
             kinds={"pulumi"},

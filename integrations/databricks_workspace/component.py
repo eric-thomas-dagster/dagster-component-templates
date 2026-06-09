@@ -337,7 +337,7 @@ class DatabricksWorkspaceComponent(Component, Model, Resolvable):
                             )
 
                         @asset(retry_policy=_retry_policy, 
-                            name=asset_key,
+                            key=dg.AssetKey.from_user_string(asset_key),
                             group_name=self.group_name,
                             description=f"Databricks job: {job_name}",
                             metadata={
@@ -425,7 +425,7 @@ class DatabricksWorkspaceComponent(Component, Model, Resolvable):
 
                     # DLT pipelines are materializable - they can be triggered via API
                     @asset(
-                        name=asset_key,
+                        key=dg.AssetKey.from_user_string(asset_key),
                         group_name=self.group_name,
                         description=f"Delta Live Tables pipeline: {pipeline_name}",
                         metadata={

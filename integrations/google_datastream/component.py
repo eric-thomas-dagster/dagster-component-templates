@@ -4,6 +4,8 @@ Import Google Cloud Datastream streams and connection profiles as Dagster assets
 for monitoring CDC replication from databases to BigQuery and Cloud Storage.
 """
 
+from dagster import AssetKey  # auto-added for hierarchical keys
+
 import re
 from typing import Optional, List, Dict, Any
 
@@ -199,7 +201,7 @@ class GoogleDatastreamComponent(Component, Model, Resolvable):
             asset_key = f"datastream_{stream_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "stream_name": stream_name,
@@ -253,7 +255,7 @@ class GoogleDatastreamComponent(Component, Model, Resolvable):
             asset_key = f"connection_profile_{profile_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "profile_name": profile_name,

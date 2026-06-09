@@ -158,7 +158,7 @@ class DataframeToKustoComponent(Component, Model, Resolvable):
             tags[f"dagster/kind/{k}"] = ""
 
         @asset(
-            name=self.asset_name,
+            key=AssetKey.from_user_string(self.asset_name),
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(self.upstream_asset_key))},
             group_name=self.group_name,
             description=self.description or f"Ingest DataFrame into Kusto table '{cfg.database}.{cfg.table}'",

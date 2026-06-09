@@ -251,7 +251,7 @@ def _build_reporting_defs(
 ) -> dg.Definitions:
     """Build a single reporting asset that surfaces install state in the catalog."""
     @dg.asset(
-        name=asset_name,
+        key=AssetKey.from_user_string(asset_name),
         group_name=group_name,
         kinds={"installer", "registry"},
     )

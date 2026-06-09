@@ -209,7 +209,7 @@ class SyntheticImageGeneratorComponent(Component, Model, Resolvable):
         exif_lat, exif_lon = self.exif_gps_lat, self.exif_gps_lon
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Synthetic PNGs ({len(images)}) for Vision / image demos.",
             group_name=self.group_name,
             kinds={"pillow"},

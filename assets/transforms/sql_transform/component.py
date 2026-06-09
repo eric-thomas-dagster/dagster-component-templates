@@ -240,7 +240,7 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         @dg.asset(
-            name=asset_name,
+            key=dg.AssetKey.from_user_string(asset_name),
             group_name=self.group_name or "warehouse_transforms",
             description=self.description or f"SQL pushdown → {destination_table}",
             tags=tags,

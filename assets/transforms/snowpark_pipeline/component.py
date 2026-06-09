@@ -393,7 +393,7 @@ class SnowparkPipelineComponent(Component, Model, Resolvable):
         @asset(
             retry_policy=_retry_policy,
             partitions_def=partitions_def,
-            name=asset_name,
+            key=dg.AssetKey.from_user_string(asset_name),
             description=self.description or self.get_description(),
             owners=self.owners or [],
             tags=all_tags,

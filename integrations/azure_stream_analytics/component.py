@@ -3,6 +3,8 @@
 Import Azure Stream Analytics jobs as Dagster assets with automatic observation and orchestration.
 """
 
+from dagster import AssetKey  # auto-added for hierarchical keys
+
 import re
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
@@ -169,7 +171,7 @@ class AzureStreamAnalyticsComponent(Component, Model, Resolvable):
             asset_key = f"asa_job_{job_name}"
 
             @asset(
-                name=asset_key,
+                key=AssetKey.from_user_string(asset_key),
                 group_name=self.group_name,
                 metadata={
                     "job_name": job_name,

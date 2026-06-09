@@ -121,7 +121,7 @@ class CrossJoinComponent(dg.Component, dg.Model, dg.Resolvable):
         _self = self
 
         @dg.asset(
-            name=self.asset_name,
+            key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Cartesian product of two DataFrames. Optional row-count guard to prevent memory blowups.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['cross-join', 'cartesian']),

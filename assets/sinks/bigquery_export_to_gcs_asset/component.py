@@ -201,7 +201,7 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
         overwrite = self.overwrite
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"BQ → GCS export ({out_format}) → {destination_uri}",
             group_name=self.group_name,
             kinds={"bigquery", "gcs", "export"},

@@ -199,7 +199,7 @@ class CloudTasksEnqueueAssetComponent(Component, Model, Resolvable):
         dispatch_deadline_seconds = self.dispatch_deadline_seconds
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Cloud Tasks → {location}/{queue_id}",
             group_name=self.group_name,
             kinds={"google", "cloud-tasks"},

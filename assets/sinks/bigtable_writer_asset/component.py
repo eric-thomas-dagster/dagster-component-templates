@@ -177,7 +177,7 @@ class BigtableWriterAssetComponent(Component, Model, Resolvable):
         batch_size = self.batch_size
 
         @asset(
-            name=asset_name,
+            key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Bigtable write: {project_id}/{instance_id}/{table_id}.",
             group_name=self.group_name,
             kinds={"google", "bigtable"},

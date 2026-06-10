@@ -160,6 +160,40 @@ class PivotComponent(dg.Component, dg.Model, dg.Resolvable):
                     f"(have {list(df.columns)[:10]}). Returning upstream unchanged."
                 )
                 return df.copy()
+            # Stability guards — pivot output is only as predictable as
+            # its `pivot_column` values. Surface the surprises loudly so
+            # downstream KeyErrors on missing pivoted columns are
+            # diagnosable from the run logs.
+            if len(df) == 0:
+                context.log.warning(
+                    f"pivot: upstream has 0 rows — output will have no "
+                    f"pivoted columns. Downstream tools referencing "
+                    f"`<column_prefix><value>` columns (e.g. Avg_Speed) "
+                    "will hit KeyError. Check upstream chain for empty "
+                    "filters / failed joins."
+                )
+            else:
+                _pivot_values = df[self.pivot_column].dropna().unique()
+                if len(_pivot_values) == 0:
+                    context.log.warning(
+                        f"pivot: `{self.pivot_column}` column has 0 distinct "
+                        "non-null values — no pivoted columns will be emitted."
+                    )
+                elif len(_pivot_values) <= 1:
+                    context.log.info(
+                        f"pivot: `{self.pivot_column}` has only "
+                        f"{len(_pivot_values)} distinct value(s) "
+                        f"({list(_pivot_values)}); output will have "
+                        "just that one pivoted column. Downstream tools "
+                        "expecting multiple pivoted columns will fail."
+                    )
+                else:
+                    context.log.info(
+                        f"pivot: pivoting on `{self.pivot_column}` with "
+                        f"{len(_pivot_values)} distinct values: "
+                        f"{list(_pivot_values)[:10]}"
+                        + ("..." if len(_pivot_values) > 10 else "")
+                    )
             # Translate SQL-ish agg-func names → pandas vocabulary
             # (otherwise pandas raises 'avg is not a valid function').
             _AGG_ALIASES = {

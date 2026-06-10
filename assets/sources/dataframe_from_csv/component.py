@@ -168,6 +168,15 @@ class DataframeFromCsvComponent(Component, Model, Resolvable):
         default="FileName",
         description="Name of the auto-added filename column (only used when add_filename_column=True).",
     )
+    filename_strip_extension: bool = Field(
+        default=False,
+        description=(
+            "If True, the auto-added filename column contains the basename "
+            "WITHOUT extension (e.g. `bodies_karts` instead of `bodies_karts.csv`). "
+            "Matches Alteryx's Input Data 'Output File Name as Field' semantics. "
+            "Only meaningful when add_filename_column=True."
+        ),
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -506,6 +515,10 @@ group_name=group_name,
                     raise _last_err
                 raise RuntimeError("read failed but no exception captured")
 
+            def _fn_value(p):
+                bn = os.path.basename(p)
+                return os.path.splitext(bn)[0] if self.filename_strip_extension else bn
+
             if not _candidates or all(not os.path.exists(p) for p in _candidates):
                 context.log.warning(
                     f"dataframe_from_csv: no files matched {resolved_path!r}. "
@@ -515,7 +528,7 @@ group_name=group_name,
             elif len(_candidates) == 1:
                 df = _read_one(_candidates[0])
                 if add_filename_column:
-                    df[filename_column_name] = os.path.basename(_candidates[0])
+                    df[filename_column_name] = _fn_value(_candidates[0])
             else:
                 # Glob match — tag each chunk with its own filename so
                 # downstream group_by:[FileName] keeps each file's rows separable.
@@ -525,7 +538,7 @@ group_name=group_name,
                         continue
                     _chunk = _read_one(_p)
                     if add_filename_column:
-                        _chunk[filename_column_name] = os.path.basename(_p)
+                        _chunk[filename_column_name] = _fn_value(_p)
                     _chunks.append(_chunk)
                 df = pd.concat(_chunks, ignore_index=True) if _chunks else pd.DataFrame()
 

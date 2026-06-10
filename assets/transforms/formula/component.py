@@ -396,6 +396,11 @@ group_name=group_name,
                                 "df": df,
                                 "pd": pd,
                                 "np": np,
+                                # `context` exposes context.partition_key so
+                                # partitioned formulas can use the current
+                                # iteration value (e.g. for Alteryx batch-
+                                # macro ControlParam substitution).
+                                "context": context,
                                 **{c: df[c] for c in df.columns},
                             },
                         )

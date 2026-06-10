@@ -392,6 +392,12 @@ group_name=group_name,
                             "df": upstream,
                             "pd": pd,
                             "np": np,
+                            # `context` lets static-partitioned filters
+                            # reference `context.partition_key` — needed by
+                            # workflows imported from Alteryx batch macros
+                            # (where the ControlParam value selects the
+                            # current iteration's slice).
+                            "context": context,
                             **{c: upstream[c] for c in upstream.columns},
                         },
                     )

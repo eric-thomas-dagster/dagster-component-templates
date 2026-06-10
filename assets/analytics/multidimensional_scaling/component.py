@@ -2,7 +2,7 @@
 
 Applies Multidimensional Scaling (sklearn.manifold.MDS) to compress a high-dimensional feature space into 2 or 3 components, preserving pairwise distances as much as possible. Output keeps the original rows with new MDS columns appended.
 """
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from dagster import (
@@ -151,7 +151,14 @@ class MultidimensionalScalingComponent(Component, Model, Resolvable):
             retry_policy=_retry_policy,
             freshness_policy=_freshness_policy,
         )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(upstream, dict):
+                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             df = upstream
             from sklearn.manifold import MDS
             X = df[_self.feature_columns].astype(float).to_numpy()

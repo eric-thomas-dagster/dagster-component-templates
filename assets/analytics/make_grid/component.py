@@ -2,7 +2,7 @@
 
 Tile the bounding box of the input geometries (or an explicit bbox) into a regular grid of squares with a configurable cell size. Outputs one row per cell with cell_id, row, col, and a polygon geometry — useful for heatmap-style aggregation by spatial bucket.
 """
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from dagster import (
@@ -152,7 +152,14 @@ class MakeGridComponent(Component, Model, Resolvable):
             retry_policy=_retry_policy,
             freshness_policy=_freshness_policy,
         )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(upstream, dict):
+                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             df = upstream
             import geopandas as gpd
             import numpy as np

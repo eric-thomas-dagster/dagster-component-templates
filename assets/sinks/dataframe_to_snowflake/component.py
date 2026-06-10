@@ -391,7 +391,14 @@ group_name=group_name,
             description=DataframeToSnowflakeComponent.get_description(),
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> MaterializeResult:
+        def _asset(context: AssetExecutionContext, upstream: Any) -> MaterializeResult:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(upstream, dict):
+                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key

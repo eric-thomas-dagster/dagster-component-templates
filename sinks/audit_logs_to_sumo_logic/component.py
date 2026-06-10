@@ -7,7 +7,7 @@ Authentication: reads credentials from environment variables. See README.
 
 import json
 import os
-from typing import Optional
+from typing import Any, Optional
 
 import dagster as dg
 import pandas as pd
@@ -121,7 +121,14 @@ class AuditLogsToSumoLogicComponent(dg.Component, dg.Model, dg.Resolvable):
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
-        def _asset(context: dg.AssetExecutionContext, df: pd.DataFrame) -> dg.MaterializeResult:
+        def _asset(context: dg.AssetExecutionContext, df: Any) -> dg.MaterializeResult:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(df, dict):
+                _frames = [v for v in df.values() if isinstance(v, pd.DataFrame)]
+                df = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             import requests
             url = os.environ[_self.collector_url_env]
             headers = {"Content-Type": "application/json"}

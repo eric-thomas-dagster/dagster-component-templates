@@ -2,7 +2,7 @@
 
 Takes a DataFrame of users and assigns each to a variant using a stable hash of (user_id, experiment_id). The split is deterministic — re-running on the same input gives the same assignments — so you can rebuild the asset without reshuffling users mid-experiment.
 """
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from dagster import (
@@ -152,7 +152,14 @@ class ABTreatmentsComponent(Component, Model, Resolvable):
             retry_policy=_retry_policy,
             freshness_policy=_freshness_policy,
         )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(upstream, dict):
+                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             df = upstream
             import hashlib
             variants = _self.variants

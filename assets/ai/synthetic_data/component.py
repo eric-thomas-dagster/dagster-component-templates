@@ -312,8 +312,15 @@ class SyntheticDataComponent(Component, Model, Resolvable):
             @asset(retry_policy=_retry_policy, partitions_def=partitions_def, key=AssetKey.from_user_string(asset_name), ins=ins, group_name=group_name, deps=[AssetKey.from_user_string(k) for k in (self.deps or [])])
             def _asset(
                 context: AssetExecutionContext,
-                seed_data: pd.DataFrame,
+                seed_data: Any,
             ) -> pd.DataFrame:
+                # partition bridge dict-concat: when an unpartitioned
+                # asset consumes a partitioned upstream, Dagster's IO
+                # manager loads ALL partitions as a dict; concat to
+                # a single DataFrame before any DataFrame ops.
+                if isinstance(seed_data, dict):
+                    _frames = [v for v in seed_data.values() if isinstance(v, pd.DataFrame)]
+                    seed_data = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
                 return _generate_data(
                     context=context,
                     schema=schema,

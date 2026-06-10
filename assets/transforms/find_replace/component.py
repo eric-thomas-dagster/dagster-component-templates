@@ -333,7 +333,14 @@ class FindReplace(Component, Model, Resolvable):
             column_lineage = {self.column: [self.column]}
 
         @asset(partitions_def=partitions_def, key=AssetKey.from_user_string(asset_name), ins=ins, group_name=group_name, retry_policy=_retry_policy, freshness_policy=_freshness_policy, owners=self.owners or [], tags=_all_tags, deps=[AssetKey.from_user_string(k) for k in (self.deps or [])])
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame, lookup: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, upstream: Any, lookup: pd.DataFrame) -> pd.DataFrame:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(upstream, dict):
+                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key

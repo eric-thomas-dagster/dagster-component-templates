@@ -86,7 +86,14 @@ class DataframeToStarRocksComponent(dg.Component, dg.Model, dg.Resolvable):
                 f"Bulk-load DataFrame into StarRocks table {_self.database}.{_self.table} via Stream Load."
             ),
         )
-        def _asset(context: dg.AssetExecutionContext, upstream: pd.DataFrame) -> dg.MaterializeResult:
+        def _asset(context: dg.AssetExecutionContext, upstream: Any) -> dg.MaterializeResult:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(upstream, dict):
+                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             try:
                 import requests
             except ImportError:

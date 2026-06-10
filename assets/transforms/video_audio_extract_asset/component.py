@@ -189,7 +189,14 @@ class VideoAudioExtractAssetComponent(Component, Model, Resolvable):
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> Output:
+        def _asset(context: AssetExecutionContext, upstream: Any) -> Output:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(upstream, dict):
+                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             if shutil.which(ffmpeg_binary) is None:
                 raise RuntimeError(f"ffmpeg binary {ffmpeg_binary!r} not in PATH.")
             if video_path_column not in upstream.columns:

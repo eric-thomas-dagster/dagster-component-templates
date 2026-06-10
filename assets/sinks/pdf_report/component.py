@@ -15,7 +15,7 @@ The file is written to `file_path` (local or any fsspec URL — `s3://`,
 Dagster+ Cloud deployments.
 """
 import os
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from dagster import (
@@ -114,7 +114,14 @@ class PdfReportComponent(Component, Model, Resolvable):
                 owners=self.owners or [],
                 deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             )
-            def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> str:
+            def _asset(context: AssetExecutionContext, upstream: Any) -> str:
+                # partition bridge dict-concat: when an unpartitioned
+                # asset consumes a partitioned upstream, Dagster's IO
+                # manager loads ALL partitions as a dict; concat to
+                # a single DataFrame before any DataFrame ops.
+                if isinstance(upstream, dict):
+                    _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                    upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
                 return _do_render(upstream, context)
         else:
             @asset(

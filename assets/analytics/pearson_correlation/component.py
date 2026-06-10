@@ -7,7 +7,7 @@ emit the result as a DataFrame. Two output shapes:
   Matches the Pearson Correlation step's typical output.
 - `wide` — the correlation matrix as a square DataFrame.
 """
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from dagster import (
@@ -89,7 +89,14 @@ class PearsonCorrelationComponent(Component, Model, Resolvable):
             owners=self.owners or [],
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(upstream, dict):
+                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             cols = cols_filter or list(upstream.select_dtypes(include="number").columns)
             if not cols:
                 raise ValueError("No numeric columns to correlate.")

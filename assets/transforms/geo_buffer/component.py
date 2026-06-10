@@ -10,7 +10,7 @@ projects to EPSG:3857 (Web Mercator) before buffering and projects back —
 accurate enough for most analytics use; for survey-grade accuracy specify
 the right UTM zone via `projected_crs`.
 """
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from dagster import (
@@ -96,7 +96,14 @@ class GeoBufferComponent(Component, Model, Resolvable):
             owners=self.owners or [],
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(upstream, dict):
+                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             try:
                 import geopandas as gpd
             except ImportError as e:

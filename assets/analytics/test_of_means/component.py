@@ -2,7 +2,7 @@
 
 Two-sample t-test (independent or paired) using scipy.stats. Returns a single-row DataFrame with mean of each group, t-statistic, p-value, degrees of freedom, and significance flag. Useful as a stat-test gate downstream of an experiment exposure asset.
 """
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from dagster import (
@@ -154,7 +154,14 @@ class TestOfMeansComponent(Component, Model, Resolvable):
             retry_policy=_retry_policy,
             freshness_policy=_freshness_policy,
         )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(upstream, dict):
+                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             df = upstream
             from scipy import stats
             value_col = _self.value_column

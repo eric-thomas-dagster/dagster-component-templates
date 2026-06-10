@@ -4,7 +4,7 @@ Pivot a DataFrame from long to wide — rotate row values into column headers wi
 """
 
 import os
-from typing import Optional
+from typing import Any, Optional
 
 import dagster as dg
 import pandas as pd
@@ -143,7 +143,14 @@ class PivotComponent(dg.Component, dg.Model, dg.Resolvable):
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
-        def _asset(context: dg.AssetExecutionContext, df: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: dg.AssetExecutionContext, df: Any) -> pd.DataFrame:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(df, dict):
+                _frames = [v for v in df.values() if isinstance(v, pd.DataFrame)]
+                df = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             self = _self
             _required = list(self.index_columns) + [self.pivot_column, self.value_column]
             _missing = [c for c in _required if c not in df.columns]

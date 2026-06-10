@@ -2,7 +2,7 @@
 
 Reads a WKT `geometry` column and replaces each geometry with its buffer at the given radius — e.g. a 5km circle around each store. Useful for service-area / catchment analyses paired with `spatial_join`.
 """
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from dagster import (
@@ -151,7 +151,14 @@ class BufferComponent(Component, Model, Resolvable):
             retry_policy=_retry_policy,
             freshness_policy=_freshness_policy,
         )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(upstream, dict):
+                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             df = upstream
             import geopandas as gpd
             from shapely import wkt

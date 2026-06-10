@@ -7,7 +7,7 @@ Both inputs must have a geometry column. The output is one row per
 overlay-result feature, carrying attributes from both inputs (column names
 suffixed `_1` / `_2` on collisions, like GeoPandas does by default).
 """
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from dagster import (
@@ -86,7 +86,14 @@ class GeoOverlayComponent(Component, Model, Resolvable):
             owners=self.owners or [],
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def _asset(context: AssetExecutionContext, left: pd.DataFrame, right: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, left: Any, right: pd.DataFrame) -> pd.DataFrame:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(left, dict):
+                _frames = [v for v in left.values() if isinstance(v, pd.DataFrame)]
+                left = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             try:
                 import geopandas as gpd
             except ImportError as e:

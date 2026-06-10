@@ -340,9 +340,16 @@ group_name=group_name,
         )
         def _asset(
             context: AssetExecutionContext,
-            left: pd.DataFrame,
+            left: Any,
             right: pd.DataFrame,
         ) -> pd.DataFrame:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(left, dict):
+                _frames = [v for v in left.values() if isinstance(v, pd.DataFrame)]
+                left = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             # Filter to current partition if partitioned
             if context.has_partition_key:
                 _pk = context.partition_key

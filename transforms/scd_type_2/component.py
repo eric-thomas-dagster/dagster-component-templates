@@ -4,7 +4,7 @@ Slowly Changing Dimension Type 2 — keep history. Detect changed rows, expire p
 """
 
 import os
-from typing import Optional
+from typing import Any, Optional
 
 import dagster as dg
 import pandas as pd
@@ -137,7 +137,14 @@ class ScdType2Component(dg.Component, dg.Model, dg.Resolvable):
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
-        def _asset(context: dg.AssetExecutionContext, df: pd.DataFrame, target_df: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: dg.AssetExecutionContext, df: Any, target_df: pd.DataFrame) -> pd.DataFrame:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(df, dict):
+                _frames = [v for v in df.values() if isinstance(v, pd.DataFrame)]
+                df = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             self = _self
             target = target_df
             import datetime as dt

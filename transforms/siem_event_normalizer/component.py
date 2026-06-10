@@ -5,7 +5,7 @@ Normalize heterogeneous audit-log events to a common schema (OCSF or ECS) before
 
 import json
 import os
-from typing import Optional
+from typing import Any, Optional
 
 import dagster as dg
 import pandas as pd
@@ -144,7 +144,14 @@ class SiemEventNormalizerComponent(dg.Component, dg.Model, dg.Resolvable):
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
-        def _asset(context: dg.AssetExecutionContext, df: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: dg.AssetExecutionContext, df: Any) -> pd.DataFrame:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(df, dict):
+                _frames = [v for v in df.values() if isinstance(v, pd.DataFrame)]
+                df = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             # If event_column is set, parse JSON payloads out into individual columns first.
             if _self.event_column and _self.event_column in df.columns:
                 parsed = df[_self.event_column].apply(

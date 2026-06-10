@@ -5,7 +5,7 @@ robust (median/IQR), or max-abs scaling. Each strategy mirrors the
 corresponding scikit-learn scaler but is implemented directly in pandas/numpy
 so the component has no extra runtime dependency.
 """
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -227,7 +227,14 @@ class FeatureScalerComponent(Component, Model, Resolvable):
             retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(upstream, dict):
+                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             if context.has_partition_key:
                 _pk = context.partition_key
                 _is_multi = hasattr(_pk, "keys_by_dimension")

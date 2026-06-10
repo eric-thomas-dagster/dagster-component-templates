@@ -4,7 +4,7 @@ Cartesian product of two DataFrames. Optional row-count guard to prevent memory 
 """
 
 import os
-from typing import Optional
+from typing import Any, Optional
 
 import dagster as dg
 import pandas as pd
@@ -133,7 +133,14 @@ class CrossJoinComponent(dg.Component, dg.Model, dg.Resolvable):
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
-        def _asset(context: dg.AssetExecutionContext, df: pd.DataFrame, right_df: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: dg.AssetExecutionContext, df: Any, right_df: pd.DataFrame) -> pd.DataFrame:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(df, dict):
+                _frames = [v for v in df.values() if isinstance(v, pd.DataFrame)]
+                df = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             self = _self
             result_rows = len(df) * len(right_df)
             if self.max_result_rows and result_rows > self.max_result_rows:

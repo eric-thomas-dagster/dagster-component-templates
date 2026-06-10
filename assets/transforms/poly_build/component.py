@@ -13,7 +13,7 @@ Open polygons (start vertex != end vertex) auto-close. Polygons with
 fewer than 3 distinct vertices fall back to `LineString` regardless of
 the configured output_type.
 """
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from dagster import (
@@ -109,7 +109,14 @@ class PolyBuildComponent(Component, Model, Resolvable):
             owners=self.owners or [],
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def _asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+            # partition bridge dict-concat: when an unpartitioned
+            # asset consumes a partitioned upstream, Dagster's IO
+            # manager loads ALL partitions as a dict; concat to
+            # a single DataFrame before any DataFrame ops.
+            if isinstance(upstream, dict):
+                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             try:
                 from shapely.geometry import Polygon, LineString, Point  # noqa: F401
             except ImportError as exc:

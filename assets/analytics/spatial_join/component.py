@@ -261,6 +261,25 @@ class SpatialJoinComponent(Component, Model, Resolvable):
         description="Lineage-only upstream asset keys (no data passed at runtime).",
     )
 
+    rename: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Post-join column renames applied to the joined DataFrame. Maps "
+            "current column name → new column name. Use this when an upstream "
+            "ETL tool's embedded select-and-rename block produced colliding "
+            "left/right columns that need to land under specific names "
+            "downstream (e.g. Target_address → NewAddress)."
+        ),
+    )
+    drop_columns: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Post-join column drops applied to the joined DataFrame. Lists "
+            "column names to remove. Use this when an upstream ETL tool's "
+            "embedded select block opted columns OUT."
+        ),
+    )
+
     @classmethod
     def get_description(cls) -> str:
         return "Spatially join a points DataFrame against a regions DataFrame using GeoPandas."
@@ -566,6 +585,28 @@ group_name=group_name,
                     result_df[_alias] = result_df[_suffixed]
                 elif _rc in result_df.columns:
                     result_df[_alias] = result_df[_rc]
+
+            # Apply post-join renames + drops (from upstream ETL tool's
+            # embedded select-and-rename block). Permissive: if a rename
+            # key isn't a current column but its `Target_<key>` form is,
+            # rename that instead — keeps the mapper independent of how
+            # we suffix collision columns internally.
+            _rename = dict(self.rename or {})
+            if _rename:
+                _cols = set(result_df.columns)
+                _eff_rename: Dict[str, str] = {}
+                for k, v in _rename.items():
+                    if k in _cols:
+                        _eff_rename[k] = v
+                    elif f"Target_{k}" in _cols:
+                        _eff_rename[f"Target_{k}"] = v
+                if _eff_rename:
+                    result_df = result_df.rename(columns=_eff_rename)
+            _drops = list(self.drop_columns or [])
+            if _drops:
+                _eff_drops = [c for c in _drops if c in result_df.columns]
+                if _eff_drops:
+                    result_df = result_df.drop(columns=_eff_drops)
 
             context.log.info(f"Spatial join complete: {len(result_df)} rows in result")
 

@@ -409,6 +409,16 @@ group_name=group_name,
                     raise ValueError("Specify either 'sample_size' or 'frac', not both.")
                 if n is None and frac is None:
                     raise ValueError("Method 'random' requires one of 'sample_size' or 'frac'.")
+                # Clip n to len(upstream) when replace=False — pandas raises
+                # "Cannot take a larger sample than population" otherwise.
+                # Common when an importer-generated stub seeds only 1-2 rows
+                # but the original Alteryx config asks for hundreds.
+                if n is not None and not replace and n > len(upstream):
+                    context.log.warning(
+                        f"sample(method='random'): clipping sample_size from "
+                        f"{n} to len(upstream)={len(upstream)} (replace=False)."
+                    )
+                    n = len(upstream)
                 result = upstream.sample(
                     n=n,
                     frac=frac,

@@ -403,8 +403,8 @@ class FindReplace(Component, Model, Resolvable):
                 if _upstream_key:
                     _lineage_deps = {}
                     for out_col, in_cols in _effective_lineage.items():
-                        _lineage_deps[out_col] = [
-                            TableColumnDep(asset_key=_upstream_key, column_name=ic)
+                        _lineage_deps[str(out_col)] = [
+                            TableColumnDep(asset_key=_upstream_key, column_name=str(ic))
                             for ic in in_cols
                         ]
                     _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(

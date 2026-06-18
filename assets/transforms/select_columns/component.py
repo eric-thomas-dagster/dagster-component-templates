@@ -405,8 +405,12 @@ group_name=group_name,
                 if _upstream_key:
                     _lineage_deps = {}
                     for out_col, in_cols in column_lineage.items():
-                        _lineage_deps[out_col] = [
-                            TableColumnDep(asset_key=_upstream_key, column_name=ic)
+                        # Force str on both keys + col_names — Dagster's
+                        # TableColumnLineage runtime check rejects int keys
+                        # (which sneak through when Alteryx uses numeric
+                        # column names like '1' / '2').
+                        _lineage_deps[str(out_col)] = [
+                            TableColumnDep(asset_key=_upstream_key, column_name=str(ic))
                             for ic in in_cols
                         ]
                     _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(

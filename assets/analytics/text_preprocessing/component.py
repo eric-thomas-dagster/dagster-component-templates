@@ -2,7 +2,7 @@
 
 Clean and normalize text data for NLP tasks.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -127,8 +127,8 @@ class TextPreprocessingComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    text_column: str = Field(description="Column name containing the raw text to process")
-    output_column: Optional[str] = Field(default=None, description="Output column name (defaults to overwriting text_column)")
+    text_column: Union[str, int] = Field(description="Column name containing the raw text to process")
+    output_column: Optional[Union[str, int]] = Field(default=None, description="Output column name (defaults to overwriting text_column)")
     normalize_case: bool = Field(default=True, description="Convert text to lowercase")
     remove_punctuation: bool = Field(default=True, description="Remove punctuation characters")
     remove_numbers: bool = Field(default=False, description="Remove numeric characters")
@@ -147,7 +147,7 @@ class TextPreprocessingComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -169,7 +169,7 @@ class TextPreprocessingComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

@@ -2,7 +2,7 @@
 
 Expand a DataFrame by repeating rows, appending new rows, or cross-joining with new rows.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -146,7 +146,7 @@ class GenerateRowsComponent(Component, Model, Resolvable):
         default=None,
         description="For mode='append' or 'cross_join': list of row dicts to use",
     )
-    create_column: Optional[str] = Field(
+    create_column: Optional[Union[str, int]] = Field(
         default=None,
         description="For mode='loop_expression': name of the column to populate with each loop value",
     )
@@ -176,7 +176,7 @@ class GenerateRowsComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -198,7 +198,7 @@ class GenerateRowsComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

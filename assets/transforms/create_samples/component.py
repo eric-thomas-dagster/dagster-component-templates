@@ -2,7 +2,7 @@
 
 Split a DataFrame into train/test/validation sets using sklearn's train_test_split.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -133,11 +133,11 @@ class CreateSamplesComponent(Component, Model, Resolvable):
         description="Fraction for validation set (0 = no validation split)",
     )
     random_state: int = Field(default=42, description="Random seed for reproducibility")
-    stratify_column: Optional[str] = Field(
+    stratify_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column to use for stratified splitting",
     )
-    output_split_column: str = Field(
+    output_split_column: Union[str, int] = Field(
         default="split",
         description="Name of column added with values 'train'/'test'/'validation'",
     )
@@ -150,7 +150,7 @@ class CreateSamplesComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -172,7 +172,7 @@ class CreateSamplesComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

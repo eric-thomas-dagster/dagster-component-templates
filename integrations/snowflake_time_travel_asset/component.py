@@ -21,7 +21,7 @@ The asset value is a pandas DataFrame.
 Reference:
   https://docs.snowflake.com/en/user-guide/data-time-travel
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 from dagster import (
@@ -54,7 +54,7 @@ class SnowflakeTimeTravelAssetComponent(Component, Model, Resolvable):
 
     # ── Time travel target ──
     source_table: str = Field(description="Table to time-travel against (unqualified; resolved against database.schema_name).")
-    columns: Optional[List[str]] = Field(default=None,
+    columns: Optional[List[Union[str, int]]] = Field(default=None,
         description="Columns to SELECT (defaults to *). E.g. ['ID', 'NAME', 'AMOUNT'].")
     where_clause: Optional[str] = Field(default=None,
         description="Optional WHERE predicate (without the WHERE keyword). E.g. 'AMOUNT > 100'.")

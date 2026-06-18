@@ -24,7 +24,7 @@ Glob patterns, local paths, and cloud URIs (s3://, gs://, az://) all
 work — polars's `scan_parquet` handles them natively. For cloud paths,
 pass storage_options the way polars expects.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 from dagster import (
@@ -51,7 +51,7 @@ class PolarsScanParquetComponent(Component, Model, Resolvable):
             "GCS: 'gs://bucket/...'. ADLS: 'az://container@account.dfs.core.windows.net/...'."
         ),
     )
-    columns: Optional[List[str]] = Field(
+    columns: Optional[List[Union[str, int]]] = Field(
         default=None,
         description="Subset of columns to read. None = read all. Pushed down: unread columns never come off disk.",
     )

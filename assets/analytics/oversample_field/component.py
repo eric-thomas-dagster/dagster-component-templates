@@ -127,14 +127,14 @@ class OversampleFieldComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    target_column: str = Field(description="Binary or categorical target column to balance")
+    target_column: Union[str, int] = Field(description="Binary or categorical target column to balance")
     method: str = Field(default="smote", description="Oversampling method: 'smote', 'random', or 'adasyn'")
     sampling_strategy: Union[str, float] = Field(
         default="auto",
         description="Sampling strategy: 'auto', 'minority', 'majority', or a float ratio",
     )
     random_state: int = Field(default=42, description="Random seed for reproducibility")
-    feature_columns: Optional[List[str]] = Field(
+    feature_columns: Optional[List[Union[str, int]]] = Field(
         default=None,
         description="Feature columns to use for resampling (None = all columns except target)",
     )
@@ -147,7 +147,7 @@ class OversampleFieldComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -169,7 +169,7 @@ class OversampleFieldComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

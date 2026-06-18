@@ -2,7 +2,7 @@
 
 Group rows into baskets (e.g. by transaction_id), one-hot encode item presence per basket, run apriori to find frequent itemsets, then derive association rules with support, confidence, lift. Output is one row per rule.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -25,8 +25,8 @@ class MarketBasketRulesComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    basket_column: str = Field(description="Column that identifies a basket (e.g. transaction_id).")
-    item_column: str = Field(description="Column with item names.")
+    basket_column: Union[str, int] = Field(description="Column that identifies a basket (e.g. transaction_id).")
+    item_column: Union[str, int] = Field(description="Column with item names.")
     min_support: float = Field(default=0.01, description="Minimum support threshold.")
     min_confidence: float = Field(default=0.3, description="Minimum confidence for rules.")
     metric: str = Field(default="confidence", description="Sort metric: confidence, lift, support, etc.")
@@ -74,7 +74,7 @@ class MarketBasketRulesComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -89,7 +89,7 @@ class MarketBasketRulesComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

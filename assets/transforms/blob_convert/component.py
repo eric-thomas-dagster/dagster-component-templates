@@ -9,7 +9,7 @@ Convert a column of binary blobs (bytes) between common encodings:
   - `to_bytes` — text → bytes (utf-8 by default)
 """
 import base64
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -35,11 +35,11 @@ class BlobConvertComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    input_column: str = Field(description="Column containing the input bytes / text")
+    input_column: Union[str, int] = Field(description="Column containing the input bytes / text")
     operation: str = Field(
         description="One of: to_base64, from_base64, to_hex, from_hex, to_text, to_bytes",
     )
-    output_column: Optional[str] = Field(
+    output_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Output column name (defaults to overwriting input_column)",
     )

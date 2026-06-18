@@ -2,7 +2,7 @@
 
 Estimate survival functions using Kaplan-Meier or Cox proportional hazards model.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -127,9 +127,9 @@ class SurvivalAnalysisComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    duration_column: str = Field(description="Time-to-event column")
-    event_column: str = Field(description="Binary event indicator (1=event occurred, 0=censored)")
-    group_column: Optional[str] = Field(default=None, description="Column for grouped Kaplan-Meier analysis")
+    duration_column: Union[str, int] = Field(description="Time-to-event column")
+    event_column: Union[str, int] = Field(description="Binary event indicator (1=event occurred, 0=censored)")
+    group_column: Optional[Union[str, int]] = Field(default=None, description="Column for grouped Kaplan-Meier analysis")
     method: str = Field(default="kaplan_meier", description="'kaplan_meier' or 'cox'")
     covariate_columns: Optional[List[str]] = Field(
         default=None,
@@ -148,7 +148,7 @@ class SurvivalAnalysisComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -170,7 +170,7 @@ class SurvivalAnalysisComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

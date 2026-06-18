@@ -3,7 +3,7 @@
 YAML/Component wrapper around `TrinoIOManager`. Use `resource_key:
 io_manager` to make this the default IO manager for the project.
 """
-from typing import Optional
+from typing import Optional, Union
 
 import dagster as dg
 from pydantic import Field
@@ -37,7 +37,7 @@ class TrinoIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Environment variable holding the Trino password (omit for no auth)",
     )
-    partition_column: str = Field(
+    partition_column: Union[str, int] = Field(
         default="partition_key",
         description="Column name used to scope per-partition DELETE+INSERT writes",
     )

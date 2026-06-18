@@ -23,7 +23,7 @@ underneath: standard fsspec storage credentials.
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from dagster import (
     AssetExecutionContext,
@@ -167,7 +167,7 @@ class IcebergIngestionComponent(Component, Model, Resolvable):
 
     # --- Read options -------------------------------------------------------
 
-    select_columns: Optional[List[str]] = Field(
+    select_columns: Optional[List[Union[str, int]]] = Field(
         default=None, description="Projection. If unset, reads all columns."
     )
     row_filter: Optional[str] = Field(

@@ -7,7 +7,7 @@ the result to a new table.
 For N-way joins, chain multiple `warehouse_join` assets in sequence;
 each output_table becomes the next left_table.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 from dagster import (
@@ -119,8 +119,8 @@ class WarehouseJoinComponent(Component, Model, Resolvable):
             "a boolean (True), breaking schema validation."
         ),
     )
-    left_on: Optional[List[str]] = Field(default=None, description="Left join columns (when names differ)")
-    right_on: Optional[List[str]] = Field(default=None, description="Right join columns (when names differ)")
+    left_on: Optional[List[Union[str, int]]] = Field(default=None, description="Left join columns (when names differ)")
+    right_on: Optional[List[Union[str, int]]] = Field(default=None, description="Right join columns (when names differ)")
     select_cols: Optional[List[str]] = Field(
         default=None,
         description=(

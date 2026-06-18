@@ -17,7 +17,7 @@ Requires `ffmpeg` in PATH.
 import os
 import shutil
 import subprocess
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 
@@ -43,8 +43,8 @@ class VideoFrameExtractAssetComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output asset name.")
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key (video paths).")
 
-    video_path_column: str = Field(default="file_path", description="Column of video file paths.")
-    video_id_column: Optional[str] = Field(
+    video_path_column: Union[str, int] = Field(default="file_path", description="Column of video file paths.")
+    video_id_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Optional column to carry forward as `video_id` on each frame row. Default: row index.",
     )

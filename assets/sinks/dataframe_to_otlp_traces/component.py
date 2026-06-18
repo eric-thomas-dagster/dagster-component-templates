@@ -13,7 +13,7 @@ attributes.
 import os
 import time
 import uuid
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -41,24 +41,24 @@ class DataframeToOtlpTracesComponent(Component, Model, Resolvable):
     endpoint: str = Field(description="OTLP/HTTP endpoint base URL")
     service_name: str = Field(default="dagster")
 
-    span_name_column: str = Field(description="Column whose value becomes the span name")
-    start_time_column: Optional[str] = Field(
+    span_name_column: Union[str, int] = Field(description="Column whose value becomes the span name")
+    start_time_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column with span start (epoch seconds or datetime). Default: now()",
     )
-    end_time_column: Optional[str] = Field(
+    end_time_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column with span end. Default: start + duration_ms_column or 1ms after start",
     )
-    duration_ms_column: Optional[str] = Field(
+    duration_ms_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column with duration in ms (used if end_time_column is unset)",
     )
-    trace_id_column: Optional[str] = Field(
+    trace_id_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column to derive trace IDs (rows with same value share a trace). Default: one trace per push.",
     )
-    parent_span_id_column: Optional[str] = Field(
+    parent_span_id_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column with parent span IDs to build the span tree",
     )

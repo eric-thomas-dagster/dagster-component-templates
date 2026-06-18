@@ -3,7 +3,7 @@
 Process a DataFrame column row-by-row through any LLM using LiteLLM.
 Supports routing, fallbacks, cost tracking, and parallel processing via threads.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
@@ -144,8 +144,8 @@ class LitellmBatchCompletionComponent(Component, Model, Resolvable):
     model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    text_column: str = Field(description="Column containing input text")
-    output_column: str = Field(default="llm_response", description="Column to write LLM responses to")
+    text_column: Union[str, int] = Field(description="Column containing input text")
+    output_column: Union[str, int] = Field(default="llm_response", description="Column to write LLM responses to")
     model_id: str = Field(
         alias="model",
         default="gpt-4o-mini", description='LiteLLM model string (e.g. "gpt-4o", "claude-3-haiku-20240307", "ollama/llama3")')
@@ -165,7 +165,7 @@ class LitellmBatchCompletionComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -187,7 +187,7 @@ class LitellmBatchCompletionComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

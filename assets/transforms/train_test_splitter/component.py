@@ -5,7 +5,7 @@ using either a deterministic random split or a chronological cutoff. Supports
 stratified sampling on a label column and group-aware splitting (so all rows
 sharing a group key land in the same split — important for leakage prevention).
 """
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -45,15 +45,15 @@ class TrainTestSplitterComponent(Component, Model, Resolvable):
     test_size: float = Field(default=0.2, description="Fraction allocated to the test set (0.0–1.0).")
     val_size: float = Field(default=0.0, description="Fraction allocated to a validation set. 0.0 = no validation asset emitted.")
     random_state: int = Field(default=42, description="Random seed for 'random' strategy. (sklearn-compatible name)")
-    stratify_column: Optional[str] = Field(
+    stratify_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column to stratify the random split on (preserves class balance). Mutually exclusive with group_column.",
     )
-    group_column: Optional[str] = Field(
+    group_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column whose values define groups; all rows in a group land in the same split (prevents leakage on related rows).",
     )
-    time_column: Optional[str] = Field(
+    time_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Required for strategy='time'. Column to sort by; oldest rows go to train.",
     )
@@ -98,7 +98,7 @@ class TrainTestSplitterComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -113,7 +113,7 @@ class TrainTestSplitterComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

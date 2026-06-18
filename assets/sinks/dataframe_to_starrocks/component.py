@@ -17,7 +17,7 @@ Docs: https://docs.starrocks.io/en-us/main/loading/StreamLoad
 """
 import io
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 import pandas as pd
@@ -56,9 +56,9 @@ class DataframeToStarRocksComponent(dg.Component, dg.Model, dg.Resolvable):
     ssl: bool = Field(default=False, description="Use https for the Stream Load endpoint.")
 
     format: str = Field(default="csv", description="'csv' or 'json'.")
-    column_separator: str = Field(default=",", description="CSV column separator.")
+    column_separator: Union[str, int] = Field(default=",", description="CSV column separator.")
     line_delimiter: str = Field(default="\\n", description="CSV line delimiter.")
-    columns: Optional[List[str]] = Field(
+    columns: Optional[List[Union[str, int]]] = Field(
         default=None,
         description="Optional explicit column list (defaults to DataFrame column order).",
     )

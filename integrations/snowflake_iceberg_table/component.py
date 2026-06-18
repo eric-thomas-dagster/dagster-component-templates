@@ -14,7 +14,7 @@ separately in Snowflake worksheets.
 
 Reference: https://docs.snowflake.com/en/user-guide/tables-iceberg
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 from dagster import (
@@ -53,7 +53,7 @@ class SnowflakeIcebergTableComponent(Component, Model, Resolvable):
     base_location: str = Field(description="Object-storage prefix under the external_volume's root, e.g. 'iceberg/my_table/'.")
     sql: Optional[str] = Field(default=None,
         description="Optional SELECT body that defines the table data. If unset, the table is created empty (you populate it via INSERT INTO / external writes / Spark).")
-    columns: Optional[List[str]] = Field(default=None,
+    columns: Optional[List[Union[str, int]]] = Field(default=None,
         description="Optional explicit column declarations when sql is None, e.g. ['id INT', 'name STRING', 'created_at TIMESTAMP'].")
     cluster_by: Optional[List[str]] = Field(default=None, description="Columns to CLUSTER BY for performance.")
 

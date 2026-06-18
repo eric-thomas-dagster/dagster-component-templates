@@ -4,7 +4,7 @@ Reproject coordinate columns in a DataFrame from one CRS (coordinate reference
 system) to another using pyproj. Supports any EPSG or PROJ string.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -149,15 +149,15 @@ class CoordinateTransformerComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame with coordinate columns")
-    x_column: str = Field(description="Input column name for X values (longitude in geographic CRS)")
-    y_column: str = Field(description="Input column name for Y values (latitude in geographic CRS)")
+    x_column: Union[str, int] = Field(description="Input column name for X values (longitude in geographic CRS)")
+    y_column: Union[str, int] = Field(description="Input column name for Y values (latitude in geographic CRS)")
     source_crs: str = Field(default="EPSG:4326", description="Source CRS as EPSG code or PROJ string (e.g. EPSG:4326)")
     target_crs: str = Field(
         default="EPSG:3857",
         description="Target CRS as EPSG code or PROJ string (e.g. EPSG:3857 for Web Mercator)"
     )
-    output_x_column: str = Field(default="x_transformed", description="Output column name for transformed X values")
-    output_y_column: str = Field(default="y_transformed", description="Output column name for transformed Y values")
+    output_x_column: Union[str, int] = Field(default="x_transformed", description="Output column name for transformed X values")
+    output_y_column: Union[str, int] = Field(default="y_transformed", description="Output column name for transformed Y values")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -167,7 +167,7 @@ class CoordinateTransformerComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -189,7 +189,7 @@ class CoordinateTransformerComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

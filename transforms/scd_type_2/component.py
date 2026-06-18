@@ -4,7 +4,7 @@ Slowly Changing Dimension Type 2 — keep history. Detect changed rows, expire p
 """
 
 import os
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import dagster as dg
 import pandas as pd
@@ -21,9 +21,9 @@ class ScdType2Component(dg.Component, dg.Model, dg.Resolvable):
     upstream_target_key: str = Field(description="Existing SCD2 dimension (target)")
     business_key_columns: list = Field(description="Natural-key columns")
     track_columns: list = Field(description="Columns whose changes trigger a new history row")
-    effective_from_column: str = Field(default="effective_from", description="Column for version start")
-    effective_to_column: str = Field(default="effective_to", description="Column for version end (NULL for current)")
-    is_current_column: str = Field(default="is_current")
+    effective_from_column: Union[str, int] = Field(default="effective_from", description="Column for version start")
+    effective_to_column: Union[str, int] = Field(default="effective_to", description="Column for version end (NULL for current)")
+    is_current_column: Union[str, int] = Field(default="is_current")
     as_of_timestamp: Optional[str] = Field(default=None, description="ISO timestamp for the new version's effective_from (default: now UTC)")
 
     description: Optional[str] = Field(default=None)

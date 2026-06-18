@@ -4,7 +4,7 @@ Parse and validate LLM outputs in a DataFrame column into structured formats.
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import re
 import pandas as pd
 
@@ -146,8 +146,8 @@ class LLMOutputParserComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame with LLM output to parse")
-    input_column: str = Field(default="llm_response", description="Column name containing LLM output text to parse")
-    output_column: str = Field(default="parsed_output", description="Column name for parsed results")
+    input_column: Union[str, int] = Field(default="llm_response", description="Column name containing LLM output text to parse")
+    output_column: Union[str, int] = Field(default="parsed_output", description="Column name for parsed results")
     parser_type: str = Field(description="Parser: 'json', 'csv', 'list', 'key_value', 'markdown_table', 'custom'")
     validation_schema: Optional[str] = Field(default=None, description="JSON schema for validation")
     custom_regex: Optional[str] = Field(default=None, description="Custom regex pattern")
@@ -164,7 +164,7 @@ class LLMOutputParserComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -186,7 +186,7 @@ class LLMOutputParserComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

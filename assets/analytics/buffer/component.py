@@ -2,7 +2,7 @@
 
 Reads a WKT `geometry` column and replaces each geometry with its buffer at the given radius — e.g. a 5km circle around each store. Useful for service-area / catchment analyses paired with `spatial_join`.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -25,7 +25,7 @@ class BufferComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    geometry_column: str = Field(default="geometry", description="WKT geometry column name.")
+    geometry_column: Union[str, int] = Field(default="geometry", description="WKT geometry column name.")
     radius_meters: float = Field(description="Buffer radius in meters. Geometries are reprojected to a metric CRS for the buffer.")
     metric_crs: str = Field(default="EPSG:3857", description="Metric projection used for the buffer (Web Mercator by default).")
     src_crs: str = Field(default="EPSG:4326", description="Source CRS of the input geometries.")
@@ -73,7 +73,7 @@ class BufferComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -88,7 +88,7 @@ class BufferComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

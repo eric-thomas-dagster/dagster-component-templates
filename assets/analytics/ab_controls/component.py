@@ -2,7 +2,7 @@
 
 Given a baseline conversion rate, minimum detectable effect (MDE), significance level, and statistical power, computes the required per-variant sample size for a proportions z-test. Output is a one-row DataFrame summarizing the calc — surface in the catalog before you run the experiment.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -74,7 +74,7 @@ class ABControlsComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -89,7 +89,7 @@ class ABControlsComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

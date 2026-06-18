@@ -14,7 +14,7 @@ defaults for tables that already match Azure Table conventions.
 """
 
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -52,10 +52,10 @@ class DataframeToAzureTableComponent(Component, Model, Resolvable):
         validation_alias=AliasChoices("table", "table_name"),
     )
 
-    partition_key_column: str = Field(
+    partition_key_column: Union[str, int] = Field(
         description="DataFrame column that maps to PartitionKey on each entity",
     )
-    row_key_column: str = Field(
+    row_key_column: Union[str, int] = Field(
         description="DataFrame column that maps to RowKey on each entity (unique within partition)",
     )
     create_if_missing: bool = Field(

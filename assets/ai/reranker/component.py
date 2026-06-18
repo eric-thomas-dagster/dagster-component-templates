@@ -6,7 +6,7 @@ cross-encoder models, and BM25 algorithms.
 
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 import numpy as np
 
@@ -191,22 +191,22 @@ class RerankerComponent(Component, Model, Resolvable):
         description="API key for Cohere. Use ${COHERE_API_KEY} for env vars."
     )
 
-    query_column: str = Field(
+    query_column: Union[str, int] = Field(
         default="query",
         description="Column name containing search queries"
     )
 
-    text_column: str = Field(
+    text_column: Union[str, int] = Field(
         default="text",
         description="Column name containing document text to rerank"
     )
 
-    score_column: Optional[str] = Field(
+    score_column: Optional[Union[str, int]] = Field(
         default="score",
         description="Column name for original scores (optional)"
     )
 
-    output_score_column: str = Field(
+    output_score_column: Union[str, int] = Field(
         default="rerank_score",
         description="Column name for reranking scores"
     )
@@ -278,7 +278,7 @@ class RerankerComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -300,7 +300,7 @@ class RerankerComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

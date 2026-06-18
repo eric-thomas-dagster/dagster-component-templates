@@ -17,7 +17,7 @@ component instead.
 import json
 import os
 import time
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 
@@ -61,7 +61,7 @@ class VisionApiAssetComponent(Component, Model, Resolvable):
     credentials: Optional[Dict[str, Any]] = Field(default=None)
     credentials_path: Optional[str] = Field(default=None, description="Falls back to GOOGLE_APPLICATION_CREDENTIALS.")
 
-    image_column: str = Field(description="Column with image references (file path, gs:// URI, or http(s) URL).")
+    image_column: Union[str, int] = Field(description="Column with image references (file path, gs:// URI, or http(s) URL).")
     image_source: Literal["path", "gcs", "url", "auto"] = Field(
         default="auto",
         description="`path` reads + base64-encodes; `gcs` / `url` use Vision's source URI input; `auto` picks based on the value's prefix.",

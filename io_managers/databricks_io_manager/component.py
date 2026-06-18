@@ -3,7 +3,7 @@
 YAML/Component wrapper around `DatabricksIOManager`. Use `resource_key:
 io_manager` to make this the default IO manager for the project.
 """
-from typing import Optional
+from typing import Optional, Union
 
 import dagster as dg
 from pydantic import Field
@@ -39,7 +39,7 @@ class DatabricksIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Cloud storage URI for staging data, e.g. 's3://bucket/staging' or 'abfss://container@account.dfs.core.windows.net/staging'",
     )
-    partition_column: str = Field(
+    partition_column: Union[str, int] = Field(
         default="partition_key",
         description="Column name used to scope per-partition DELETE+INSERT writes",
     )

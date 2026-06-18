@@ -3,7 +3,7 @@
 Run a compiled DSPy program against a DataFrame column.
 DSPy optimizes prompts automatically using signature-based programming.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
@@ -145,8 +145,8 @@ class DspyProgramComponent(Component, Model, Resolvable):
     model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    text_column: str = Field(description="Column containing input text")
-    output_column: str = Field(default="dspy_output", description="Primary output column (first output field)")
+    text_column: Union[str, int] = Field(description="Column containing input text")
+    output_column: Union[str, int] = Field(default="dspy_output", description="Primary output column (first output field)")
     program_type: str = Field(default="chain_of_thought", description="DSPy program type: predict, chain_of_thought, react, or multi_chain_comparison")
     signature: str = Field(description='DSPy signature string e.g. "question -> answer" or "document -> summary, key_points"')
     model_id: str = Field(
@@ -162,7 +162,7 @@ class DspyProgramComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -184,7 +184,7 @@ class DspyProgramComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

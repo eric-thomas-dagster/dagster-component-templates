@@ -2,7 +2,7 @@
 
 Fit a linear regression model and output predictions and/or model coefficients.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -127,8 +127,8 @@ class LinearRegressionModelComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    target_column: str = Field(description="Column name of the target variable to predict")
-    feature_columns: List[str] = Field(description="List of column names to use as features")
+    target_column: Union[str, int] = Field(description="Column name of the target variable to predict")
+    feature_columns: List[Union[str, int]] = Field(description="List of column names to use as features")
     test_size: float = Field(default=0.2, description="Fraction of data to hold out for evaluation")
     random_state: int = Field(default=42, description="Random seed for train/test split reproducibility")
     model_path: Optional[str] = Field(
@@ -144,7 +144,7 @@ class LinearRegressionModelComponent(Component, Model, Resolvable):
         default="predictions",
         description="Output mode: 'predictions' (add prediction column), 'coefficients' (feature importance table), 'both' (predictions + eval metrics in metadata)",
     )
-    prediction_column: str = Field(default="predicted", description="Column name for predictions when output_mode is 'predictions' or 'both'")
+    prediction_column: Union[str, int] = Field(default="predicted", description="Column name for predictions when output_mode is 'predictions' or 'both'")
     normalize: bool = Field(default=False, description="Standardize features before fitting using StandardScaler")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
@@ -155,7 +155,7 @@ class LinearRegressionModelComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -177,7 +177,7 @@ class LinearRegressionModelComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

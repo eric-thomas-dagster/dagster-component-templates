@@ -19,7 +19,7 @@ throughput (>1M samples/sec sustained), remote-write is more efficient
 Docs: https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format
 """
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 import pandas as pd
@@ -52,8 +52,8 @@ class DataframeToVictoriaMetricsComponent(dg.Component, dg.Model, dg.Resolvable)
     asset_name: str = Field(description="Output Dagster asset name.")
     upstream_asset_key: str = Field(description="Upstream asset providing the DataFrame.")
     metric_name: str = Field(description="Prometheus metric name (e.g. 'orders_throughput').")
-    timestamp_column: str = Field(default="timestamp", description="Column with datetime timestamps.")
-    value_column: str = Field(default="value", description="Column with numeric metric values.")
+    timestamp_column: Union[str, int] = Field(default="timestamp", description="Column with datetime timestamps.")
+    value_column: Union[str, int] = Field(default="value", description="Column with numeric metric values.")
     label_columns: Optional[List[str]] = Field(
         default=None,
         description=(

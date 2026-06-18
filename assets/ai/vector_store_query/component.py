@@ -4,7 +4,7 @@ Query vector databases for semantic search using embeddings.
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from dagster import (
@@ -150,8 +150,8 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
     api_key: Optional[str] = Field(default=None, description="API key (use ${VAR_NAME} for environment variable)")
     filter_metadata: Optional[str] = Field(default=None, description="JSON filter for metadata")
     include_distances: bool = Field(default=True, description="Include similarity distances")
-    embedding_column: str = Field(default="embedding", description="Column name containing query embeddings in the upstream DataFrame")
-    query_text_column: Optional[str] = Field(default=None, description="Column with query text to copy into output rows (helps downstream rerankers correlate query+document)")
+    embedding_column: Union[str, int] = Field(default="embedding", description="Column name containing query embeddings in the upstream DataFrame")
+    query_text_column: Optional[Union[str, int]] = Field(default=None, description="Column with query text to copy into output rows (helps downstream rerankers correlate query+document)")
     description: Optional[str] = Field(default=None, description="Asset description")
     group_name: Optional[str] = Field(default=None, description="Asset group")
     partition_type: Optional[str] = Field(
@@ -162,7 +162,7 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -184,7 +184,7 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

@@ -20,7 +20,7 @@ Pure Pillow; no external services.
 """
 
 import os
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -46,7 +46,7 @@ class ImageTransformAssetComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output asset name.")
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key.")
 
-    image_path_column: str = Field(
+    image_path_column: Union[str, int] = Field(
         default="file_path",
         description="Column containing local image file paths.",
     )
@@ -61,7 +61,7 @@ class ImageTransformAssetComponent(Component, Model, Resolvable):
             "Default: <input_basename>_t.<ext>."
         ),
     )
-    output_path_column: str = Field(
+    output_path_column: Union[str, int] = Field(
         default="transformed_path",
         description="New column to write the transformed file path into.",
     )

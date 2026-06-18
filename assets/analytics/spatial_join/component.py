@@ -5,7 +5,7 @@ enriching each point with attributes from the region it falls within.
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -150,9 +150,9 @@ class SpatialJoinComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Points asset key providing a DataFrame with lat/lng columns")
     regions_asset_key: str = Field(description="Regions asset key providing a DataFrame with a GeoJSON geometry column")
-    lat_column: str = Field(default="latitude", description="Column name in the points DataFrame for latitude")
-    lng_column: str = Field(default="longitude", description="Column name in the points DataFrame for longitude")
-    points_geometry_column: Optional[str] = Field(
+    lat_column: Union[str, int] = Field(default="latitude", description="Column name in the points DataFrame for latitude")
+    lng_column: Union[str, int] = Field(default="longitude", description="Column name in the points DataFrame for longitude")
+    points_geometry_column: Optional[Union[str, int]] = Field(
         default=None,
         description=(
             "If set, use this column from the points DataFrame as already-built "
@@ -161,7 +161,7 @@ class SpatialJoinComponent(Component, Model, Resolvable):
             "geometries directly (e.g. CreatePoints, PolyBuild, geocoder)."
         ),
     )
-    geometry_column: str = Field(
+    geometry_column: Union[str, int] = Field(
         default="geometry",
         description="Column in the regions DataFrame containing GeoJSON geometry dicts or strings"
     )
@@ -178,7 +178,7 @@ class SpatialJoinComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -200,7 +200,7 @@ class SpatialJoinComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
@@ -261,7 +261,7 @@ class SpatialJoinComponent(Component, Model, Resolvable):
         description="Lineage-only upstream asset keys (no data passed at runtime).",
     )
 
-    rename: Optional[Dict[str, str]] = Field(
+    rename: Optional[Dict[str, Union[str, int]]] = Field(
         default=None,
         description=(
             "Post-join column renames applied to the joined DataFrame. Maps "
@@ -271,7 +271,7 @@ class SpatialJoinComponent(Component, Model, Resolvable):
             "downstream (e.g. Target_address → NewAddress)."
         ),
     )
-    drop_columns: Optional[List[str]] = Field(
+    drop_columns: Optional[List[Union[str, int]]] = Field(
         default=None,
         description=(
             "Post-join column drops applied to the joined DataFrame. Lists "

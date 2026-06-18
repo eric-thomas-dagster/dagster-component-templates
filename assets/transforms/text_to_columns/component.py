@@ -2,7 +2,7 @@
 
 Split a text column into multiple columns or rows by a separator.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -127,10 +127,10 @@ class TextToColumns(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    column: str = Field(description="Column to split")
+    column: Union[str, int] = Field(description="Column to split")
     separator: str = Field(default=",", description="Delimiter string")
     max_splits: Optional[int] = Field(default=None, description="Max number of splits")
-    output_columns: Optional[List[str]] = Field(default=None, description="Names for resulting columns (auto-generated if None)")
+    output_columns: Optional[List[Union[str, int]]] = Field(default=None, description="Names for resulting columns (auto-generated if None). Numeric values get stringified at use.")
     expand_to_rows: bool = Field(default=False, description="If True, split into rows instead of columns")
     keep_source: bool = Field(
         default=True,
@@ -151,7 +151,7 @@ class TextToColumns(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -173,7 +173,7 @@ class TextToColumns(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
@@ -277,7 +277,9 @@ class TextToColumns(Component, Model, Resolvable):
         column = self.column
         separator = self.separator
         max_splits = self.max_splits
-        output_columns = self.output_columns
+        # Stringify so pandas always sees str labels (YAML numeric-looking
+        # entries arrive as int via Dagster's Resolvable templating).
+        output_columns = [str(c) for c in self.output_columns] if self.output_columns else None
         expand_to_rows = self.expand_to_rows
         keep_source = self.keep_source
         strip_whitespace = self.strip_whitespace

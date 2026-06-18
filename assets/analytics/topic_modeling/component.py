@@ -2,7 +2,7 @@
 
 Discover topics in a text column using Latent Dirichlet Allocation (LDA).
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -127,7 +127,7 @@ class TopicModelingComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    text_column: str = Field(description="Column name containing text to model")
+    text_column: Union[str, int] = Field(description="Column name containing text to model")
     n_topics: int = Field(default=10, description="Number of topics to discover")
     n_top_words: int = Field(default=10, description="Number of top words per topic to log to metadata")
     max_features: int = Field(default=1000, description="Maximum vocabulary size for CountVectorizer")
@@ -147,7 +147,7 @@ class TopicModelingComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -169,7 +169,7 @@ class TopicModelingComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

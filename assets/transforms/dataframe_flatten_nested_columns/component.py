@@ -15,7 +15,7 @@ Configurable scopes:
   - `exclude_columns`: skip these even if they contain dicts/lists.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import json
 import pandas as pd
@@ -42,7 +42,7 @@ class DataframeFlattenNestedColumnsComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output asset name.")
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key.")
 
-    columns: Optional[List[str]] = Field(
+    columns: Optional[List[Union[str, int]]] = Field(
         default=None,
         description="Explicit columns to flatten. Default: every column with at least one dict/list value.",
     )

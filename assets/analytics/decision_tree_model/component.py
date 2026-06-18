@@ -2,7 +2,7 @@
 
 Fit a decision tree for classification or regression tasks.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -127,8 +127,8 @@ class DecisionTreeModelComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    target_column: str = Field(description="Column name of the target variable")
-    feature_columns: List[str] = Field(description="List of column names to use as features")
+    target_column: Union[str, int] = Field(description="Column name of the target variable")
+    feature_columns: List[Union[str, int]] = Field(description="List of column names to use as features")
     task_type: str = Field(default="classification", description="Task type: 'classification' or 'regression'")
     max_depth: Optional[int] = Field(default=None, description="Maximum depth of the tree (None = unlimited)")
     min_samples_split: int = Field(default=2, description="Minimum samples required to split a node")
@@ -163,7 +163,7 @@ class DecisionTreeModelComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -185,7 +185,7 @@ class DecisionTreeModelComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

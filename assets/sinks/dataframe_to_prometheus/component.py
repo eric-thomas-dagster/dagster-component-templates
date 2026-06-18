@@ -17,7 +17,7 @@ Pattern:
 """
 
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -57,7 +57,7 @@ class DataframeToPrometheusComponent(Component, Model, Resolvable):
         default=None,
         description="Metric HELP text (description shown in Prometheus UI)",
     )
-    value_column: str = Field(
+    value_column: Union[str, int] = Field(
         description="DataFrame column containing the metric value (must be numeric)"
     )
     label_columns: List[str] = Field(

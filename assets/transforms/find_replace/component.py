@@ -2,7 +2,7 @@
 
 Look up values in one column against a reference DataFrame and replace with mapped values.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -128,10 +128,10 @@ class FindReplace(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Main DataFrame asset key")
     lookup_asset_key: str = Field(description="Reference/lookup DataFrame asset key")
-    lookup_key_column: str = Field(description="Column in lookup table to match against")
-    lookup_value_column: str = Field(description="Column in lookup table with replacement values")
-    target_column: str = Field(description="Column in main DataFrame to look up")
-    output_column: Optional[str] = Field(default=None, description="Output column name (defaults to overwriting target_column)")
+    lookup_key_column: Union[str, int] = Field(description="Column in lookup table to match against")
+    lookup_value_column: Union[str, int] = Field(description="Column in lookup table with replacement values")
+    target_column: Union[str, int] = Field(description="Column in main DataFrame to look up")
+    output_column: Optional[Union[str, int]] = Field(default=None, description="Output column name (defaults to overwriting target_column)")
     default_value: Optional[str] = Field(default=None, description="Value when no match found (defaults to original value)")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
@@ -142,7 +142,7 @@ class FindReplace(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -164,7 +164,7 @@ class FindReplace(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

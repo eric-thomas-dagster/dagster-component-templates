@@ -3,7 +3,7 @@
 Calculate a running/cumulative total on a column. Supports optional grouping to
 reset the running total per group, and optional sorting before computation.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -128,12 +128,12 @@ class RunningTotalComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    value_column: str = Field(description="Column to accumulate")
-    output_column: Optional[str] = Field(
+    value_column: Union[str, int] = Field(description="Column to accumulate")
+    output_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Name for the cumulative column. Defaults to running_{value_column}",
     )
-    group_by: Optional[List[str]] = Field(
+    group_by: Optional[List[Union[str, int]]] = Field(
         default=None, description="Reset running total per group"
     )
     sort_by: Optional[str] = Field(
@@ -155,7 +155,7 @@ class RunningTotalComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -177,7 +177,7 @@ class RunningTotalComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

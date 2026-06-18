@@ -19,7 +19,7 @@ vendor differences.
 
 import datetime as _dt
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -98,7 +98,7 @@ class HrisNormalizerComponent(Component, Model, Resolvable):
         description="Upstream DataFrame asset — the raw HRIS data.",
     )
 
-    column_map: Dict[str, str] = Field(
+    column_map: Dict[str, Union[str, int]] = Field(
         description=(
             "{canonical_field: source_column}. Canonical fields: "
             "employee_id, email, first_name, last_name, full_name, "

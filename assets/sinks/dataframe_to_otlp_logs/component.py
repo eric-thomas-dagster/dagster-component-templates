@@ -9,7 +9,7 @@ attributes (labels) per log.
 """
 
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -42,18 +42,18 @@ class DataframeToOtlpLogsComponent(Component, Model, Resolvable):
     endpoint: str = Field(description="OTLP/HTTP endpoint base URL")
     service_name: str = Field(default="dagster")
 
-    body_column: Optional[str] = Field(
+    body_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column whose value becomes the log body. If unset, JSON-serializes the row.",
     )
-    severity_column: Optional[str] = Field(
+    severity_column: Optional[Union[str, int]] = Field(
         default=None,
         description=(
             "Column with severity strings (TRACE/DEBUG/INFO/WARN/ERROR/FATAL). "
             "Defaults to INFO for every row."
         ),
     )
-    timestamp_column: Optional[str] = Field(
+    timestamp_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column with epoch-seconds (or pandas datetime). Default: now() per row.",
     )

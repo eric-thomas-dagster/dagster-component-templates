@@ -4,7 +4,7 @@ Cluster geographic points using DBSCAN (density-based, handles noise and
 arbitrary shapes) or K-means (fixed number of spherical clusters).
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -149,8 +149,8 @@ class SpatialClusterComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame with lat/lng columns")
-    lat_column: str = Field(default="latitude", description="Column name containing latitude values")
-    lng_column: str = Field(default="longitude", description="Column name containing longitude values")
+    lat_column: Union[str, int] = Field(default="latitude", description="Column name containing latitude values")
+    lng_column: Union[str, int] = Field(default="longitude", description="Column name containing longitude values")
     algorithm: str = Field(
         default="dbscan",
         description="Clustering algorithm: 'dbscan' (density-based, finds noise) or 'kmeans' (fixed k clusters)"
@@ -167,7 +167,7 @@ class SpatialClusterComponent(Component, Model, Resolvable):
         default=5,
         description="K-means only: number of clusters to form"
     )
-    output_column: str = Field(
+    output_column: Union[str, int] = Field(
         default="spatial_cluster",
         description="Column name for cluster labels (-1 indicates noise in DBSCAN)"
     )
@@ -184,7 +184,7 @@ class SpatialClusterComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -206,7 +206,7 @@ class SpatialClusterComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

@@ -8,7 +8,7 @@ import os
 import json
 import time
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from dagster import (
@@ -198,7 +198,7 @@ class TextModeratorComponent(Component, Model, Resolvable):
         description="API key for OpenAI, Anthropic, or Perspective API"
     )
 
-    input_column: str = Field(
+    input_column: Union[str, int] = Field(
         default="text",
         description="Column name containing text to moderate"
     )
@@ -223,7 +223,7 @@ class TextModeratorComponent(Component, Model, Resolvable):
         description="Include confidence scores for each category"
     )
 
-    flag_column: str = Field(
+    flag_column: Union[str, int] = Field(
         default="flagged",
         description="Column name for overall flag (true if any category exceeds threshold)"
     )
@@ -280,7 +280,7 @@ class TextModeratorComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -302,7 +302,7 @@ class TextModeratorComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

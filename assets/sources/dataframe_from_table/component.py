@@ -4,7 +4,7 @@ Read a database table and output a DataFrame. Bridge from DB-centric ingestion a
 into the DataFrame pipeline.
 """
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -136,7 +136,7 @@ class DataframeFromTableComponent(Component, Model, Resolvable):
     schema_name: Optional[str] = Field(
         alias="schema",
         default=None, description="Database schema")
-    columns: Optional[List[str]] = Field(
+    columns: Optional[List[Union[str, int]]] = Field(
         default=None, description="Columns to select (None = all)"
     )
     where_clause: Optional[str] = Field(
@@ -154,7 +154,7 @@ class DataframeFromTableComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -176,7 +176,7 @@ class DataframeFromTableComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

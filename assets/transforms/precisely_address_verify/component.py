@@ -29,7 +29,7 @@ Output columns (added to the right of the source DataFrame):
   - {output_prefix}longitude             optional lng (if returned by tier)
 """
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 import pandas as pd
@@ -60,7 +60,7 @@ class PreciselyAddressVerifyComponent(dg.Component, dg.Model, dg.Resolvable):
     upstream_asset_key: str = Field(
         description="Upstream asset key providing a DataFrame with the address column.",
     )
-    address_column: str = Field(
+    address_column: Union[str, int] = Field(
         description=(
             "Source column with the single-line address string "
             "('123 Main St, Springfield, MA 01103'). The API can also "
@@ -77,7 +77,7 @@ class PreciselyAddressVerifyComponent(dg.Component, dg.Model, dg.Resolvable):
             "address_column is ignored."
         ),
     )
-    country_column: Optional[str] = Field(
+    country_column: Optional[Union[str, int]] = Field(
         default=None,
         description=(
             "Optional column with ISO 3166-1 alpha-3 country code per row. "

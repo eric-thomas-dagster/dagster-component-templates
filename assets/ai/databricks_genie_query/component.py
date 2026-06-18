@@ -20,7 +20,7 @@ We poll every `poll_interval_seconds` until completed/failed/timeout.
 Auth: Databricks PAT or OAuth bearer token, read from `host_env_var`
 (e.g. `https://my-workspace.cloud.databricks.com`) + `token_env_var`.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import dagster as dg
 from dagster import (
     AssetExecutionContext,
@@ -90,7 +90,7 @@ class DatabricksGenieQueryComponent(Component, Model, Resolvable):
         default=None,
         description="Upstream DataFrame asset. For each row, the value in `question_column` is sent to Genie.",
     )
-    question_column: Optional[str] = Field(
+    question_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column on the upstream DataFrame that contains the NL question (mode B).",
     )

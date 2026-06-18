@@ -7,7 +7,7 @@ object detection, visual question answering, and content moderation.
 import os
 import time
 import base64
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from pathlib import Path
 import pandas as pd
 
@@ -197,12 +197,12 @@ class VisionModelComponent(Component, Model, Resolvable):
         description="Analysis prompt/instructions for the vision model"
     )
 
-    image_column: str = Field(
+    image_column: Union[str, int] = Field(
         default="image_url",
         description="Column name containing image URLs or file paths"
     )
 
-    output_column: str = Field(
+    output_column: Union[str, int] = Field(
         default="vision_analysis",
         description="Column name for analysis results"
     )
@@ -274,7 +274,7 @@ class VisionModelComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -296,7 +296,7 @@ class VisionModelComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

@@ -6,7 +6,7 @@ passing context between steps and returning the enriched DataFrame.
 
 import os
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from dagster import (
@@ -150,8 +150,8 @@ class LLMChainExecutorComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    input_column: str = Field(default="text", description="Column name containing the initial input text for the chain")
-    output_column: str = Field(default="chain_result", description="Column name to store chain result (JSON string)")
+    input_column: Union[str, int] = Field(default="text", description="Column name containing the initial input text for the chain")
+    output_column: Union[str, int] = Field(default="chain_result", description="Column name to store chain result (JSON string)")
     provider: str = Field(description="LLM provider")
     model: str = Field(description="Model name")
     chain_steps: List[Dict[str, Any]] = Field(description="List of chain steps, each with 'prompt' and 'output_key'")
@@ -167,7 +167,7 @@ class LLMChainExecutorComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -189,7 +189,7 @@ class LLMChainExecutorComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

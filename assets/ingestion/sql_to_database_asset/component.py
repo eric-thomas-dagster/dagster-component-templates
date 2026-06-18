@@ -6,7 +6,7 @@ database table via SQLAlchemy. Designed to be triggered by sql_monitor or a sche
 Supports any SQLAlchemy-compatible source and destination (Postgres, MySQL, MSSQL,
 SQLite, Snowflake, BigQuery, Redshift, DuckDB, etc.).
 """
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 import dagster as dg
 from dagster import AssetExecutionContext, Config
 from pydantic import Field
@@ -41,7 +41,7 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     destination_table: str = Field(description="Destination table name")
     destination_schema: Optional[str] = Field(default=None, description="Destination schema name")
     if_exists: str = Field(default="append", description="fail, replace, or append")
-    watermark_column: Optional[str] = Field(default=None, description="Incremental watermark column (e.g. updated_at, id)")
+    watermark_column: Optional[Union[str, int]] = Field(default=None, description="Incremental watermark column (e.g. updated_at, id)")
     watermark_env_var: Optional[str] = Field(default=None, description="Env var storing the last watermark value")
     chunksize: int = Field(default=10000, description="Rows to read/write per chunk")
     column_mapping: Optional[dict] = Field(default=None, description="Rename columns: {old: new}")
@@ -112,7 +112,7 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -127,7 +127,7 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

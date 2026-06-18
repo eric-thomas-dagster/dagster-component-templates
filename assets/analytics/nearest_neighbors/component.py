@@ -2,7 +2,7 @@
 
 For each record, find the K nearest neighbors by feature similarity.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -127,7 +127,7 @@ class NearestNeighborsComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    feature_columns: List[str] = Field(description="List of column names to use for distance computation")
+    feature_columns: List[Union[str, int]] = Field(description="List of column names to use for distance computation")
     model_path: Optional[str] = Field(
         default=None,
         description=(
@@ -143,11 +143,11 @@ class NearestNeighborsComponent(Component, Model, Resolvable):
     normalize: bool = Field(default=True, description="Standardize features with StandardScaler before computing distances")
     output_distances: bool = Field(default=True, description="Add neighbor_N_dist columns with distances")
     output_indices: bool = Field(default=True, description="Add neighbor_N_idx columns with row indices")
-    distance_column_template: str = Field(
+    distance_column_template: Union[str, int] = Field(
         default="neighbor_{i}_dist",
         description="Format string for distance column names. `{i}` is the 1-based neighbor index. Use e.g. 'DistanceMiles' for a single-neighbor result.",
     )
-    index_column_template: str = Field(
+    index_column_template: Union[str, int] = Field(
         default="neighbor_{i}_idx",
         description="Format string for index column names. `{i}` is the 1-based neighbor index.",
     )
@@ -160,7 +160,7 @@ class NearestNeighborsComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -182,7 +182,7 @@ class NearestNeighborsComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

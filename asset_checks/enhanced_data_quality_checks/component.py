@@ -1430,7 +1430,7 @@ class RowCountCheckConfig(BaseCheckConfig):
 
 class NullCheckConfig(BaseCheckConfig):
     """Configuration for null value checks."""
-    columns: List[str] = Field(..., description="Columns to check for null values")
+    columns: List[Union[str, int]] = Field(..., description="Columns to check for null values")
 
 
 class StaticThresholdConfig(BaseCheckConfig):
@@ -1442,7 +1442,7 @@ class StaticThresholdConfig(BaseCheckConfig):
 
 class BenfordLawConfig(BaseCheckConfig):
     """Configuration for Benford's Law checks."""
-    column: str = Field(..., description="Column to analyze for Benford's Law")
+    column: Union[str, int] = Field(..., description="Column to analyze for Benford's Law")
     threshold: float = Field(0.05, description="Significance threshold for the test")
     digit_position: int = Field(1, description="Digit position to analyze (1=first, 2=second, 12=first two)")
     min_samples: int = Field(100, description="Minimum samples required for reliable test")
@@ -1450,15 +1450,15 @@ class BenfordLawConfig(BaseCheckConfig):
 
 class EntropyAnalysisConfig(BaseCheckConfig):
     """Configuration for entropy analysis checks."""
-    column: str = Field(..., description="Column to analyze for entropy")
+    column: Union[str, int] = Field(..., description="Column to analyze for entropy")
     min_entropy: Optional[float] = Field(None, description="Minimum expected entropy")
     max_entropy: Optional[float] = Field(None, description="Maximum expected entropy")
 
 
 class CorrelationCheckConfig(BaseCheckConfig):
     """Configuration for correlation checks."""
-    column_x: str = Field(..., description="First column for correlation analysis")
-    column_y: str = Field(..., description="Second column for correlation analysis")
+    column_x: Union[str, int] = Field(..., description="First column for correlation analysis")
+    column_y: Union[str, int] = Field(..., description="Second column for correlation analysis")
     min_correlation: Optional[float] = Field(None, description="Minimum expected correlation")
     max_correlation: Optional[float] = Field(None, description="Maximum expected correlation")
     method: CorrelationMethod = Field(CorrelationMethod.PEARSON, description="Correlation method")
@@ -1466,14 +1466,14 @@ class CorrelationCheckConfig(BaseCheckConfig):
 
 class ValueSetValidationConfig(BaseCheckConfig):
     """Configuration for value set validation checks."""
-    column: str = Field(..., description="Column to validate")
+    column: Union[str, int] = Field(..., description="Column to validate")
     allowed_values: List[str] = Field(..., description="Allowed values for the column")
     min_pct: float = Field(95.0, description="Minimum percentage of values that should be in allowed set")
 
 
 class PatternMatchingConfig(BaseCheckConfig):
     """Configuration for pattern matching checks."""
-    column: str = Field(..., description="Column to check for patterns")
+    column: Union[str, int] = Field(..., description="Column to check for patterns")
     regex_pattern: Optional[str] = Field(None, description="Custom regex pattern")
     preset: Optional[str] = Field(None, description="Preset pattern (email, phone, etc.)")
     match_percentage: float = Field(95.0, description="Minimum percentage of values that should match")
@@ -1528,9 +1528,9 @@ class CrossTableValidationConfig(BaseCheckConfig):
     """Configuration for cross-table validation checks."""
     source_table: str = Field(..., description="Source table name")
     source_database: Optional[str] = Field(None, description="Source database resource key")
-    join_columns: List[str] = Field(..., description="Columns to join on between source and destination")
+    join_columns: List[Union[str, int]] = Field(..., description="Columns to join on between source and destination")
     validation_type: ValidationType = Field(ValidationType.ROW_COUNT, description="Type of validation")
-    aggregate_column: Optional[str] = Field(None, description="Column to aggregate (for aggregate validation)")
+    aggregate_column: Optional[Union[str, int]] = Field(None, description="Column to aggregate (for aggregate validation)")
     aggregate_function: AggregateFunction = Field(AggregateFunction.SUM, description="Aggregate function")
 
 
@@ -1628,7 +1628,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
     # WHERE CLAUSE FILTERING (Applied to all checks when possible)
     # ═══════════════════════════════════════════════════════════════
     where_clause: Optional[str] = Field(None, description="Custom SQL WHERE clause to filter data before analysis")
-    time_filter_column: Optional[str] = Field(None, description="Column name for time-based filtering (used with hours_back/days_back)")
+    time_filter_column: Optional[Union[str, int]] = Field(None, description="Column name for time-based filtering (used with hours_back/days_back)")
     hours_back: Optional[int] = Field(None, description="Filter data to last N hours (requires time_filter_column)")
     days_back: Optional[int] = Field(None, description="Filter data to last N days (requires time_filter_column)")
 

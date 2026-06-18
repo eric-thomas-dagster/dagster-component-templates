@@ -15,7 +15,7 @@ The file is written to `file_path` (local or any fsspec URL — `s3://`,
 Dagster+ Cloud deployments.
 """
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -56,7 +56,7 @@ class PdfReportComponent(Component, Model, Resolvable):
         default=40,
         description="For template='table': max rows per page (chunked into multiple Table flowables).",
     )
-    columns: Optional[List[str]] = Field(
+    columns: Optional[List[Union[str, int]]] = Field(
         default=None,
         description="Subset of columns to include. None = all columns.",
     )

@@ -10,7 +10,7 @@ projects to EPSG:3857 (Web Mercator) before buffering and projects back —
 accurate enough for most analytics use; for survey-grade accuracy specify
 the right UTM zone via `projected_crs`.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -47,7 +47,7 @@ class GeoBufferComponent(Component, Model, Resolvable):
         default="meters",
         description="Unit for `distance`: meters / km / miles / feet / yards.",
     )
-    geometry_column: str = Field(default="geometry", description="Input + output geometry column name.")
+    geometry_column: Union[str, int] = Field(default="geometry", description="Input + output geometry column name.")
     projected_crs: str = Field(
         default="EPSG:3857",
         description=(

@@ -7,7 +7,7 @@ Both inputs must have a geometry column. The output is one row per
 overlay-result feature, carrying attributes from both inputs (column names
 suffixed `_1` / `_2` on collisions, like GeoPandas does by default).
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -51,7 +51,7 @@ class GeoOverlayComponent(Component, Model, Resolvable):
             "leave behind stray points / lines from polygon ops."
         ),
     )
-    geometry_column: str = Field(default="geometry")
+    geometry_column: Union[str, int] = Field(default="geometry")
 
     group_name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)

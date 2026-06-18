@@ -9,7 +9,7 @@ Use for tables too big to fit in a pandas DataFrame, or when you want native
 streaming SQL→SQL replication (Postgres / MySQL / MSSQL / Oracle / Db2 /
 Snowflake / BigQuery / Redshift / Databricks).
 """
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import dagster as dg
 from pydantic import Field
@@ -74,7 +74,7 @@ class DatabaseReplicationComponent(dg.Component, dg.Model, dg.Resolvable):
         default="full_refresh",
         description="Replication mode: full_refresh (drop+reload), incremental (append/upsert new rows), snapshot (timestamped reload), truncate (truncate+insert)",
     )
-    incremental_column: Optional[str] = Field(
+    incremental_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column to track for incremental loads (e.g. 'updated_at', 'id'). Required when mode='incremental'.",
     )
@@ -83,7 +83,7 @@ class DatabaseReplicationComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Primary key column(s) for upsert behavior in incremental mode",
     )
 
-    select_columns: Optional[List[str]] = Field(
+    select_columns: Optional[List[Union[str, int]]] = Field(
         default=None,
         description="Columns to replicate. If unset, all columns are replicated.",
     )

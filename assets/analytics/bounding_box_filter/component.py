@@ -4,7 +4,7 @@ Filter a DataFrame of geographic points to keep only those inside (or outside)
 a rectangular bounding box defined by min/max latitude and longitude bounds.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -150,8 +150,8 @@ class BoundingBoxFilterComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame with lat/lng columns")
-    lat_column: str = Field(default="latitude", description="Column name containing latitude values")
-    lng_column: str = Field(default="longitude", description="Column name containing longitude values")
+    lat_column: Union[str, int] = Field(default="latitude", description="Column name containing latitude values")
+    lng_column: Union[str, int] = Field(default="longitude", description="Column name containing longitude values")
     min_lat: float = Field(description="Southern boundary (minimum latitude)")
     max_lat: float = Field(description="Northern boundary (maximum latitude)")
     min_lng: float = Field(description="Western boundary (minimum longitude)")
@@ -169,7 +169,7 @@ class BoundingBoxFilterComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -191,7 +191,7 @@ class BoundingBoxFilterComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

@@ -9,7 +9,7 @@ This component exists primarily so the `alteryx-to-dagster` migrator can
 emit an inline-table source tools as a `defs.yaml` instead of a custom .py
 asset, but it's useful on its own for any inline-data scenario.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 from dagster import (
@@ -59,7 +59,13 @@ class InlineDataframeComponent(Component, Model, Resolvable):
     """
 
     asset_name: str = Field(description="Output Dagster asset name.")
-    columns: List[str] = Field(description="Column names, in order.")
+    # `List[Union[str, int]]` rather than `List[str]` because Alteryx
+    # workflows sometimes use literal numeric column names ('1', '2', '3',
+    # ...). YAML parses these as int and Dagster's Resolvable templating
+    # coerces quoted '1' back to int 1 at resolve time, so a stricter
+    # `List[str]` would reject them. We `str()` the values at use sites
+    # so the DataFrame columns are always strings regardless of input type.
+    columns: List[Union[str, int]] = Field(description="Column names, in order.")
     rows: List[List[Any]] = Field(
         default_factory=list,
         description="Each row is a list of values matching `columns` length.",
@@ -87,7 +93,9 @@ class InlineDataframeComponent(Component, Model, Resolvable):
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        columns = list(self.columns)
+        # Stringify column names — accept int (template-coerced from YAML
+        # numeric-looking strings) but ensure pandas always sees str labels.
+        columns = [str(c) for c in self.columns]
         rows = [list(r) for r in self.rows]
         dtypes = dict(self.dtypes or {})
         group_name = self.group_name

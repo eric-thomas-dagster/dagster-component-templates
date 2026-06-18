@@ -6,7 +6,7 @@ and returns the enriched DataFrame.
 
 Supports any LangChain-compatible LLM: OpenAI, Anthropic, Azure, Ollama, etc.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 import dagster as dg
 from dagster import AssetExecutionContext, AssetIn, AssetKey
@@ -155,7 +155,7 @@ class LangChainChainAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     # Chain configuration
     prompt_template: str = Field(description="LangChain prompt template string with {column_name} placeholders")
     system_message: Optional[str] = Field(default=None, description="System message for chat models")
-    response_column: str = Field(default="chain_output", description="Column name to store chain output")
+    response_column: Union[str, int] = Field(default="chain_output", description="Column name to store chain output")
     parse_json: bool = Field(default=False, description="Attempt to parse LLM response as JSON and expand into columns")
 
     # Processing
@@ -172,7 +172,7 @@ class LangChainChainAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -194,7 +194,7 @@ class LangChainChainAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

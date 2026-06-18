@@ -3,7 +3,7 @@
 Rank records by a column value, with optional group-level ranking and
 support for percentile normalization.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -134,7 +134,7 @@ class RankComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    column: str = Field(description="Column to rank by")
+    column: Union[str, int] = Field(description="Column to rank by")
     method: str = Field(
         default="average",
         description="Tie-breaking method: 'average', 'min', 'max', 'first', or 'dense'",
@@ -143,11 +143,11 @@ class RankComponent(Component, Model, Resolvable):
         default=True,
         description="Rank in ascending order (True) or descending order (False)",
     )
-    group_by: Optional[List[str]] = Field(
+    group_by: Optional[List[Union[str, int]]] = Field(
         default=None,
         description="Rank within these groups independently",
     )
-    output_column: Optional[str] = Field(
+    output_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Name for rank column (defaults to '{column}_rank')",
     )
@@ -164,7 +164,7 @@ class RankComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -186,7 +186,7 @@ class RankComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

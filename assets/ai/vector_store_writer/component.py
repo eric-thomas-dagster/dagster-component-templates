@@ -5,7 +5,7 @@ Supports batch writing and metadata attachment.
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 import numpy as np
 
@@ -145,8 +145,8 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Name of the asset")
     provider: str = Field(description="Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant'")
     collection_name: str = Field(description="Collection/index name")
-    embedding_column: str = Field(default="embedding", description="Column with embeddings")
-    text_column: str = Field(default="text", description="Column with text")
+    embedding_column: Union[str, int] = Field(default="embedding", description="Column with embeddings")
+    text_column: Union[str, int] = Field(default="text", description="Column with text")
     metadata_columns: Optional[List[str]] = Field(default=None, description="Additional metadata columns")
     connection_string: Optional[str] = Field(default=None, description="Connection string or path")
     api_key: Optional[str] = Field(default=None, description="API key (use ${VAR_NAME} for environment variable)")
@@ -162,7 +162,7 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -184,7 +184,7 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

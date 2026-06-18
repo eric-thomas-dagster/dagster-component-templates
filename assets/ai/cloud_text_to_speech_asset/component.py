@@ -22,7 +22,7 @@ speech-to-speech translation pipeline:
 
 import json
 import os
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 
@@ -54,7 +54,7 @@ class CloudTextToSpeechAssetComponent(Component, Model, Resolvable):
         description="Falls back to GOOGLE_APPLICATION_CREDENTIALS.",
     )
 
-    text_column: str = Field(description="Column containing text to speak.")
+    text_column: Union[str, int] = Field(description="Column containing text to speak.")
     output_dir: str = Field(
         default="/tmp/tts_audio",
         description="Filesystem dir to write audio files into (created if missing).",
@@ -66,7 +66,7 @@ class CloudTextToSpeechAssetComponent(Component, Model, Resolvable):
             "`{<column>}_{row_index}.mp3`. Default appends row_index → `0.mp3`, `1.mp3`."
         ),
     )
-    output_path_column: str = Field(
+    output_path_column: Union[str, int] = Field(
         default="audio_path",
         description="New column to write the file path into.",
     )

@@ -6,7 +6,7 @@ Supports batch processing, custom sentiment categories, aspect-based sentiment, 
 
 import os
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from dagster import (
@@ -189,17 +189,17 @@ class SentimentAnalyzerComponent(Component, Model, Resolvable):
         description="LLM provider: openai, anthropic (only for method=llm)"
     )
 
-    input_column: str = Field(
+    input_column: Union[str, int] = Field(
         default="text",
         description="Column name containing text to analyze"
     )
 
-    sentiment_label_column: str = Field(
+    sentiment_label_column: Union[str, int] = Field(
         default="sentiment_label",
         description="Column name for sentiment label (e.g., positive, negative)"
     )
 
-    sentiment_score_column: str = Field(
+    sentiment_score_column: Union[str, int] = Field(
         default="sentiment_score",
         description="Column name for sentiment confidence score (0.0-1.0)"
     )
@@ -271,7 +271,7 @@ class SentimentAnalyzerComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -293,7 +293,7 @@ class SentimentAnalyzerComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

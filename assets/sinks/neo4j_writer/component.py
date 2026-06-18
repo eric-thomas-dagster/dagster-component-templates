@@ -5,7 +5,7 @@ Each DataFrame row becomes a node with the specified label.
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
@@ -155,7 +155,7 @@ class Neo4jWriterComponent(Component, Model, Resolvable):
     password: Optional[str] = Field(default=None, description="Neo4j password. Set this OR password_env_var.")
     password_env_var: Optional[str] = Field(default="NEO4J_PASSWORD", description="Env var with Neo4j password. Set this OR password.")
     node_label: str = Field(description="Neo4j node label to assign to created nodes")
-    id_column: str = Field(
+    id_column: Union[str, int] = Field(
         description="DataFrame column to use as the node identity property for MERGE"
     )
     merge: bool = Field(
@@ -197,7 +197,7 @@ class Neo4jWriterComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -219,7 +219,7 @@ class Neo4jWriterComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

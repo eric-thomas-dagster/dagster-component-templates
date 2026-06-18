@@ -3,7 +3,7 @@
 Transcribe audio files using Whisper via LiteLLM.
 Processes a column of audio file paths and writes transcriptions back.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
@@ -144,8 +144,8 @@ class LitellmAudioTranscriptionComponent(Component, Model, Resolvable):
     model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    audio_path_column: str = Field(description="Column containing local audio file paths")
-    output_column: str = Field(default="transcription", description="Column to write transcribed text")
+    audio_path_column: Union[str, int] = Field(description="Column containing local audio file paths")
+    output_column: Union[str, int] = Field(default="transcription", description="Column to write transcribed text")
     model_id: str = Field(
         alias="model",
         default="whisper-1", description="Transcription model (e.g. whisper-1)")
@@ -160,7 +160,7 @@ class LitellmAudioTranscriptionComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -182,7 +182,7 @@ class LitellmAudioTranscriptionComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

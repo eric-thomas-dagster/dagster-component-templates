@@ -25,7 +25,7 @@ Auto-detects namespaces. Common ACORD root namespace:
 """
 import re
 import xml.etree.ElementTree as ET
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -234,7 +234,7 @@ class AcordXmlParserComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output asset name.")
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key.")
 
-    xml_column: str = Field(
+    xml_column: Union[str, int] = Field(
         default="xml",
         description="Column holding the ACORD XML message text (or bytes — decoded as utf-8).",
     )

@@ -201,12 +201,12 @@ class EntityExtractorComponent(Component, Model, Resolvable):
         description="API key for LLM method. Use ${OPENAI_API_KEY} or ${ANTHROPIC_API_KEY}"
     )
 
-    input_column: str = Field(
+    input_column: Union[str, int] = Field(
         default="text",
         description="Column name containing text to extract entities from"
     )
 
-    output_column: str = Field(
+    output_column: Union[str, int] = Field(
         default="entities",
         description="Column name for the extracted entities (used when output_format='structured')."
     )
@@ -293,7 +293,7 @@ class EntityExtractorComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -315,7 +315,7 @@ class EntityExtractorComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

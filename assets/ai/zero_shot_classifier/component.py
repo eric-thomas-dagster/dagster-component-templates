@@ -4,7 +4,7 @@ Classify text into arbitrary categories using HuggingFace zero-shot classificati
 No training data required.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from dagster import (
@@ -146,7 +146,7 @@ class ZeroShotClassifierComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    text_column: str = Field(description="Column containing text to classify")
+    text_column: Union[str, int] = Field(description="Column containing text to classify")
     candidate_labels: List[str] = Field(
         description="Categories to classify into e.g. ['positive', 'negative', 'neutral']"
     )
@@ -154,7 +154,7 @@ class ZeroShotClassifierComponent(Component, Model, Resolvable):
         default="facebook/bart-large-mnli",
         description="HuggingFace zero-shot classification model",
     )
-    output_column: str = Field(
+    output_column: Union[str, int] = Field(
         default="predicted_label", description="Column name for the top predicted label"
     )
     output_scores: bool = Field(
@@ -173,7 +173,7 @@ class ZeroShotClassifierComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -195,7 +195,7 @@ class ZeroShotClassifierComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

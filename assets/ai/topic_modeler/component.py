@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
@@ -131,7 +131,7 @@ class TopicModelerComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -153,7 +153,7 @@ class TopicModelerComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
@@ -202,9 +202,9 @@ class TopicModelerComponent(Component, Model, Resolvable):
             "reflects the data distribution; otherwise head() is used."
         ),
     )
-    text_column: str = Field(description="Column containing text to model topics from")
-    output_column: str = Field(default="topic_id", description="Column to write integer topic ID")
-    topic_label_column: str = Field(
+    text_column: Union[str, int] = Field(description="Column containing text to model topics from")
+    output_column: Union[str, int] = Field(default="topic_id", description="Column to write integer topic ID")
+    topic_label_column: Union[str, int] = Field(
         default="topic_keywords",
         description="Column to write top keywords string for the assigned topic",
     )

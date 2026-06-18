@@ -6,7 +6,7 @@ Accepts a DataFrame with message columns and updates conversation memory for eac
 
 import os
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from dagster import (
@@ -149,8 +149,8 @@ class ConversationMemoryComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Name of the asset")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame with message columns")
     memory_file: str = Field(description="Path to memory file")
-    user_message_column: str = Field(default="user_message", description="Column name containing user messages")
-    assistant_message_column: str = Field(default="assistant_message", description="Column name containing assistant messages")
+    user_message_column: Union[str, int] = Field(default="user_message", description="Column name containing user messages")
+    assistant_message_column: Union[str, int] = Field(default="assistant_message", description="Column name containing assistant messages")
     max_messages: int = Field(default=10, description="Max messages to keep")
     include_system_prompt: bool = Field(default=True, description="Include system prompt")
     system_prompt: str = Field(default="You are a helpful assistant.", description="System prompt")
@@ -164,7 +164,7 @@ class ConversationMemoryComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -186,7 +186,7 @@ class ConversationMemoryComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

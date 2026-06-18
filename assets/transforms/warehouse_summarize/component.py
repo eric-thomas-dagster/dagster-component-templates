@@ -8,7 +8,7 @@ table name (or via a sibling reader component) rather than by DataFrame.
 Composes with other `warehouse_*` components by chaining
 `upstream_table` → `output_table` across CTAS hops.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 from dagster import (
@@ -137,7 +137,7 @@ class WarehouseSummarizeComponent(Component, Model, Resolvable):
     )
     upstream_table: str = Field(description="Source table name (e.g. 'raw.orders').")
     output_table: str = Field(description="Destination table name (e.g. 'analytics.revenue_by_region').")
-    group_by: List[str] = Field(description="Columns to group by.")
+    group_by: List[Union[str, int]] = Field(description="Columns to group by.")
     aggregations: Dict = Field(
         description=(
             "Same shape as `summarize`: {out_col: agg_func} OR "

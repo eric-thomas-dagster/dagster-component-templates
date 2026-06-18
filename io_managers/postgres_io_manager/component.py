@@ -1,3 +1,4 @@
+from typing import Union
 """Postgres IO Manager component.
 
 YAML/Component wrapper around `PostgresIOManager`. Use `resource_key:
@@ -40,7 +41,7 @@ class PostgresIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         default="replace",
         description="Behavior for unpartitioned writes when table exists: 'replace', 'append', or 'fail'",
     )
-    partition_column: str = Field(
+    partition_column: Union[str, int] = Field(
         default="partition_key",
         description="Column name used to scope per-partition DELETE+INSERT writes",
     )

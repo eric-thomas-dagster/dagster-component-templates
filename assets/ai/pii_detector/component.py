@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
@@ -131,7 +131,7 @@ class PiiDetectorComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -153,7 +153,7 @@ class PiiDetectorComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
@@ -202,8 +202,8 @@ class PiiDetectorComponent(Component, Model, Resolvable):
             "reflects the data distribution; otherwise head() is used."
         ),
     )
-    input_column: str = Field(description="Column containing text to analyze for PII")
-    output_column: str = Field(
+    input_column: Union[str, int] = Field(description="Column containing text to analyze for PII")
+    output_column: Union[str, int] = Field(
         default="pii_entities",
         description="Column to write list of detected entity dicts [{'type', 'text', 'start', 'end', 'score'}]",
     )

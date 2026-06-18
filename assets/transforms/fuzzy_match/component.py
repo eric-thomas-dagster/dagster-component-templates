@@ -2,7 +2,7 @@
 
 Find and optionally deduplicate rows with similar string values using fuzzy matching.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -127,10 +127,10 @@ class FuzzyMatch(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    column: str = Field(description="Column to fuzzy match on")
+    column: Union[str, int] = Field(description="Column to fuzzy match on")
     threshold: float = Field(default=0.8, description="Similarity threshold 0-1")
     mode: str = Field(default="deduplicate", description="'deduplicate' (remove near-duplicates), 'score' (add similarity scores), 'group' (assign cluster IDs to similar values)")
-    output_column: str = Field(default="fuzzy_group", description="For mode='group', column name for group IDs")
+    output_column: Union[str, int] = Field(default="fuzzy_group", description="For mode='group', column name for group IDs")
     keep: str = Field(default="first", description="For mode='deduplicate': 'first' or 'last'")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
@@ -141,7 +141,7 @@ class FuzzyMatch(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -163,7 +163,7 @@ class FuzzyMatch(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

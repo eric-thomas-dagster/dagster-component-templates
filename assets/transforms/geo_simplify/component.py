@@ -7,7 +7,7 @@ Use case: lighten complex polygons for plotting, shrink tile sizes,
 or speed up downstream spatial joins. Higher `tolerance` removes more
 vertices (smoother shape, less fidelity to the original).
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -46,7 +46,7 @@ class GeoSimplifyComponent(Component, Model, Resolvable):
             "is faster but can produce invalid geometries."
         ),
     )
-    geometry_column: str = Field(default="geometry")
+    geometry_column: Union[str, int] = Field(default="geometry")
 
     group_name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)

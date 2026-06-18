@@ -13,7 +13,7 @@ import base64
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -149,7 +149,7 @@ class GeminiImageGenerationComponent(Component, Model, Resolvable):
         ),
     )
 
-    prompt_column: Optional[str] = Field(
+    prompt_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column with per-row prompt text. Mutually exclusive with prompt_template.",
     )
@@ -158,7 +158,7 @@ class GeminiImageGenerationComponent(Component, Model, Resolvable):
         description="Static prompt template; supports {column_name} placeholders. Mutually exclusive with prompt_column.",
     )
 
-    input_image_column: Optional[str] = Field(
+    input_image_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Optional column of source-image file paths for image-to-image edits.",
     )
@@ -167,7 +167,7 @@ class GeminiImageGenerationComponent(Component, Model, Resolvable):
         default="/tmp/gemini_image_generation",
         description="Directory for generated PNGs. One file per successful row.",
     )
-    output_path_column: str = Field(
+    output_path_column: Union[str, int] = Field(
         default="generated_image_path",
         description="Column added to the output DataFrame with the saved file path (None on failure).",
     )

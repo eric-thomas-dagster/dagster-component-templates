@@ -15,7 +15,7 @@ Set the matching `api_key_env_var` for whichever provider you're targeting.
 """
 
 import os
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 
@@ -51,13 +51,13 @@ class LitellmTextToSpeechComponent(Component, Model, Resolvable):
     )
     api_key_env_var: str = Field(description="Env var holding the API key for the selected provider.")
 
-    text_column: str = Field(description="Column containing text to speak.")
+    text_column: Union[str, int] = Field(description="Column containing text to speak.")
     output_dir: str = Field(default="/tmp/litellm_tts_audio")
     output_filename_template: str = Field(
         default="{row_index}.mp3",
         description="Filename template; supports `{<column>}` and `{row_index}`. Extension determines format.",
     )
-    output_path_column: str = Field(default="audio_path")
+    output_path_column: Union[str, int] = Field(default="audio_path")
 
     voice: Optional[str] = Field(
         default=None,

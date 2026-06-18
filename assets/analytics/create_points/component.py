@@ -2,7 +2,7 @@
 
 Takes a DataFrame with lat/lng columns and returns a GeoDataFrame with a `geometry` column of shapely Points (in EPSG:4326 by default). The starting block of any spatial pipeline — once you have geometry, buffer / spatial_join / make_grid all work.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -25,10 +25,10 @@ class CreatePointsComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    lat_column: str = Field(default="lat", description="Latitude column name.")
-    lng_column: str = Field(default="lng", description="Longitude column name.")
+    lat_column: Union[str, int] = Field(default="lat", description="Latitude column name.")
+    lng_column: Union[str, int] = Field(default="lng", description="Longitude column name.")
     crs: str = Field(default="EPSG:4326", description="Coordinate reference system.")
-    output_column: str = Field(default="geometry", description="Output geometry column name.")
+    output_column: Union[str, int] = Field(default="geometry", description="Output geometry column name.")
     drop_invalid: bool = Field(default=True, description="Drop rows where lat/lng is NaN/invalid.")
 
     include_preview_metadata: bool = Field(
@@ -74,7 +74,7 @@ class CreatePointsComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -89,7 +89,7 @@ class CreatePointsComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

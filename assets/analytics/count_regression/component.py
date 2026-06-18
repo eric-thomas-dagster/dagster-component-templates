@@ -2,7 +2,7 @@
 
 Fits a Poisson generalized linear model for count outcomes (events per unit, click counts, etc.) using statsmodels. Emits per-row predicted counts. Use when the target is a non-negative integer count.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -25,8 +25,8 @@ class CountRegressionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    target_column: str = Field(description="Count target column.")
-    feature_columns: List[str] = Field(description="Feature columns.")
+    target_column: Union[str, int] = Field(description="Count target column.")
+    feature_columns: List[Union[str, int]] = Field(description="Feature columns.")
     output_mode: str = Field(default="predictions", description="'predictions' or 'coefficients'")
     model_path: Optional[str] = Field(
         default=None,
@@ -82,7 +82,7 @@ class CountRegressionComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -97,7 +97,7 @@ class CountRegressionComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

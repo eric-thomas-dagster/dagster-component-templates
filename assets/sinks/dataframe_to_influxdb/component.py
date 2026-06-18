@@ -15,7 +15,7 @@ auto-classifies: numeric dtypes → fields, everything else → tags.
 Pairs with ``influxdb_resource``.
 """
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 import pandas as pd
@@ -46,7 +46,7 @@ class DataframeToInfluxDBComponent(dg.Component, dg.Model, dg.Resolvable):
     upstream_asset_key: str = Field(description="Upstream asset providing the DataFrame.")
     measurement: str = Field(description="InfluxDB measurement name.")
     bucket: str = Field(description="Destination bucket.")
-    timestamp_column: str = Field(default="timestamp", description="Column with datetime timestamps.")
+    timestamp_column: Union[str, int] = Field(default="timestamp", description="Column with datetime timestamps.")
     tag_columns: Optional[List[str]] = Field(
         default=None,
         description="Columns to use as tags (low-cardinality, indexed). Auto-derived if unset.",

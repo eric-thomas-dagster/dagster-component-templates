@@ -12,7 +12,7 @@ local-routing without the gateway, see litellm_inference_asset.
 
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -152,8 +152,8 @@ class OpenRouterLLMComponent(Component, Model, Resolvable):
 
     system_prompt: Optional[str] = Field(default=None)
     user_prompt_template: Optional[str] = Field(default=None)
-    input_column: Optional[str] = Field(default=None)
-    output_column: str = Field(default="openrouter_response")
+    input_column: Optional[Union[str, int]] = Field(default=None)
+    output_column: Union[str, int] = Field(default="openrouter_response")
 
     max_tokens: int = Field(default=1024)
     temperature: float = Field(default=0.0)

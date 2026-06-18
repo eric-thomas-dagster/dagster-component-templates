@@ -2,7 +2,7 @@
 
 Reshape a single column of values into a wide multi-column format.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -128,8 +128,8 @@ class MakeColumnsComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     n_columns: int = Field(default=2, description="Number of output columns to wrap data into")
-    value_column: str = Field(description="Column whose values to reshape into wide format")
-    pivot_column: Optional[str] = Field(
+    value_column: Union[str, int] = Field(description="Column whose values to reshape into wide format")
+    pivot_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column to use as row labels (index) in the output",
     )
@@ -146,7 +146,7 @@ class MakeColumnsComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -168,7 +168,7 @@ class MakeColumnsComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

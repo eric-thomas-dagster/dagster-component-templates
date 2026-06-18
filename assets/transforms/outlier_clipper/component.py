@@ -4,7 +4,7 @@ Detect and handle outliers in numeric columns using IQR, z-score, or
 quantile thresholds. Outliers can be clipped (winsorized) to the boundary
 or dropped from the DataFrame.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -46,7 +46,7 @@ class OutlierClipperComponent(Component, Model, Resolvable):
         default="clip",
         description="What to do with outliers: 'clip' (winsorize), 'drop' (remove rows), or 'flag' (add boolean column).",
     )
-    columns: Optional[List[str]] = Field(
+    columns: Optional[List[Union[str, int]]] = Field(
         default=None,
         description="Columns to check for outliers. None = all numeric columns.",
     )
@@ -81,10 +81,10 @@ class OutlierClipperComponent(Component, Model, Resolvable):
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(default=None, description="Partition type")
     partition_start: Optional[str] = Field(default=None, description="Partition start date in ISO format")
-    partition_date_column: Optional[str] = Field(default=None, description="Column used to filter to current date partition.")
+    partition_date_column: Optional[Union[str, int]] = Field(default=None, description="Column used to filter to current date partition.")
     partition_values: Optional[str] = Field(default=None, description="Comma-separated values for static/multi partitioning.")
     partition_static_dim: Optional[str] = Field(default=None, description="Static dimension name for multi-partitioning.")
-    partition_static_column: Optional[str] = Field(default=None, description="Column used to filter to the static partition value.")
+    partition_static_column: Optional[Union[str, int]] = Field(default=None, description="Column used to filter to the static partition value.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
     asset_tags: Optional[Dict[str, str]] = Field(default=None, description="Additional asset tags.")
     kinds: Optional[List[str]] = Field(default=None, description="Asset kinds for the catalog.")

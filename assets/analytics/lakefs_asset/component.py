@@ -4,7 +4,7 @@ A control-plane Dagster asset that runs git-like operations on a lakeFS
 repository: `commit`, `merge`, or `create_branch`. Does NOT read or write
 data — pair with `io_managers/lakefs_io_manager` for the data plane.
 """
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import dagster as dg
 from pydantic import Field
@@ -156,7 +156,7 @@ class LakeFSAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -171,7 +171,7 @@ class LakeFSAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

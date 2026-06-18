@@ -13,7 +13,7 @@ Concurrent fetches via `concurrent.futures.ThreadPoolExecutor` (good
 default for I/O-bound work). For very large URL lists (10k+) prefer
 async/httpx — out of scope for v1.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -36,7 +36,7 @@ class PerRowHttpFetcherComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    url_column: str = Field(description="Column whose value is the URL to fetch for each row.")
+    url_column: Union[str, int] = Field(description="Column whose value is the URL to fetch for each row.")
     method: str = Field(default="GET", description="HTTP method: GET / POST / PUT / DELETE / HEAD.")
     headers: Optional[Dict[str, str]] = Field(
         default=None,

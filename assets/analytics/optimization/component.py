@@ -5,7 +5,7 @@ reading problem definitions (coefficients, bounds, constraints) from a DataFrame
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
@@ -150,7 +150,7 @@ class OptimizationComponent(Component, Model, Resolvable):
         description="Upstream asset key providing a DataFrame defining the optimization problem"
     )
 
-    objective_column: str = Field(
+    objective_column: Union[str, int] = Field(
         description="Column with objective function coefficients"
     )
 
@@ -159,17 +159,17 @@ class OptimizationComponent(Component, Model, Resolvable):
         description="Columns for constraint coefficients (each column is one constraint row)"
     )
 
-    constraint_rhs_column: Optional[str] = Field(
+    constraint_rhs_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column with constraint right-hand side values"
     )
 
-    bounds_lower_column: Optional[str] = Field(
+    bounds_lower_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column with lower bounds per variable"
     )
 
-    bounds_upper_column: Optional[str] = Field(
+    bounds_upper_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column with upper bounds per variable"
     )
@@ -196,7 +196,7 @@ class OptimizationComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -218,7 +218,7 @@ class OptimizationComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

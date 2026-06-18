@@ -3,7 +3,7 @@
 Classify images using a pre-trained model (CLIP or torchvision models).
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from dagster import (
@@ -147,15 +147,15 @@ class ImageClassifierComponent(Component, Model, Resolvable):
     upstream_asset_key: str = Field(
         description="Upstream asset key providing a DataFrame"
     )
-    image_column: str = Field(description="Column with image file paths or URLs")
-    output_column: str = Field(
+    image_column: Union[str, int] = Field(description="Column with image file paths or URLs")
+    output_column: Union[str, int] = Field(
         default="predicted_class", description="Top predicted label column"
     )
-    score_column: str = Field(
+    score_column: Union[str, int] = Field(
         default="confidence_score", description="Confidence score for top prediction"
     )
     top_k: int = Field(default=3, description="Return top-k predictions")
-    all_predictions_column: Optional[str] = Field(
+    all_predictions_column: Optional[Union[str, int]] = Field(
         default=None,
         description="If set, write list of [{label, score}] dicts to this column",
     )
@@ -180,7 +180,7 @@ class ImageClassifierComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -202,7 +202,7 @@ class ImageClassifierComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

@@ -23,7 +23,7 @@ Requires `ffmpeg` in PATH. No Python audio deps; ffmpeg handles everything.
 import os
 import shutil
 import subprocess
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 
@@ -49,7 +49,7 @@ class AudioTransformAssetComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output asset name.")
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key.")
 
-    audio_path_column: str = Field(
+    audio_path_column: Union[str, int] = Field(
         default="file_path",
         description="Column containing local audio file paths.",
     )
@@ -64,7 +64,7 @@ class AudioTransformAssetComponent(Component, Model, Resolvable):
             "Default: <input_basename>_t.<target_format>."
         ),
     )
-    output_path_column: str = Field(default="transformed_path")
+    output_path_column: Union[str, int] = Field(default="transformed_path")
 
     target_format: Literal["mp3", "wav", "flac", "ogg", "aac", "opus"] = Field(
         default="wav",

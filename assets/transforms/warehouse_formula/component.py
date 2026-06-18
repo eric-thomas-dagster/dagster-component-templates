@@ -13,7 +13,7 @@ Sibling components:
 - snowpark:    `snowpark_pipeline` op `with_columns`
 - warehouse:   this component (one CTAS per asset)
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 from dagster import (
@@ -124,7 +124,7 @@ class WarehouseFormulaComponent(Component, Model, Resolvable):
             "plus the new columns. If false + keep_columns unset: ONLY the new columns."
         ),
     )
-    keep_columns: Optional[List[str]] = Field(
+    keep_columns: Optional[List[Union[str, int]]] = Field(
         default=None,
         description="Explicit projection of original columns to retain when keep_existing=false.",
     )

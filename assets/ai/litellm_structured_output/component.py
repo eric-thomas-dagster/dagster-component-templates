@@ -3,7 +3,7 @@
 Extract structured JSON data from text using LiteLLM's JSON mode.
 Expands extracted fields as new DataFrame columns.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
@@ -146,7 +146,7 @@ class LitellmStructuredOutputComponent(Component, Model, Resolvable):
     model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    text_column: str = Field(description="Column containing input text")
+    text_column: Union[str, int] = Field(description="Column containing input text")
     schema_definition: Dict[str, Any] = Field(description='JSON Schema describing the fields to extract e.g. {"name": {"type": "string"}, "age": {"type": "integer"}}')
     model_id: str = Field(
         alias="model",
@@ -164,7 +164,7 @@ class LitellmStructuredOutputComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -186,7 +186,7 @@ class LitellmStructuredOutputComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

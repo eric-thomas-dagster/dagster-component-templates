@@ -3,7 +3,7 @@
 Compare ARIMA vs ETS models on a hold-out test set using AIC, MAE, RMSE, and MAPE.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from dagster import (
@@ -143,8 +143,8 @@ class TsCompareComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    date_column: str = Field(description="Column containing dates or timestamps")
-    value_column: str = Field(description="Column containing numeric time series values")
+    date_column: Union[str, int] = Field(description="Column containing dates or timestamps")
+    value_column: Union[str, int] = Field(description="Column containing numeric time series values")
     arima_order: List[int] = Field(
         default=[1, 1, 1], description="ARIMA (p, d, q) order as a list of 3 integers"
     )
@@ -169,7 +169,7 @@ class TsCompareComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -191,7 +191,7 @@ class TsCompareComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

@@ -35,7 +35,7 @@ This is a deliberately simple parser — for full schema coverage, use the
 cover ~80% of real-world ingest needs.
 """
 
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 
@@ -339,7 +339,7 @@ class Hl7V2ParserComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output asset name.")
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key.")
 
-    message_column: str = Field(
+    message_column: Union[str, int] = Field(
         default="message",
         description="Column holding the raw HL7 v2 message (\\r-delimited segments).",
     )

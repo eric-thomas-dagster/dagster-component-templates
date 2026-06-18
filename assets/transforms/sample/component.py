@@ -2,7 +2,7 @@
 
 Sample rows from a DataFrame by count or fraction.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -183,7 +183,7 @@ class SampleComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -205,7 +205,7 @@ class SampleComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
@@ -411,16 +411,18 @@ group_name=group_name,
                     raise ValueError("Method 'random' requires one of 'sample_size' or 'frac'.")
                 # Clip n to len(upstream) when replace=False — pandas raises
                 # "Cannot take a larger sample than population" otherwise.
-                # Common when an importer-generated stub seeds only 1-2 rows
-                # but the original Alteryx config asks for hundreds.
-                if n is not None and not replace and n > len(upstream):
+                # Use a fresh local `effective_n` so the assignment doesn't
+                # trick Python into treating outer-scope `n` as local in
+                # the nested asset function (UnboundLocalError otherwise).
+                effective_n = n
+                if effective_n is not None and not replace and effective_n > len(upstream):
                     context.log.warning(
                         f"sample(method='random'): clipping sample_size from "
-                        f"{n} to len(upstream)={len(upstream)} (replace=False)."
+                        f"{effective_n} to len(upstream)={len(upstream)} (replace=False)."
                     )
-                    n = len(upstream)
+                    effective_n = len(upstream)
                 result = upstream.sample(
-                    n=n,
+                    n=effective_n,
                     frac=frac,
                     random_state=random_state,
                     replace=replace,

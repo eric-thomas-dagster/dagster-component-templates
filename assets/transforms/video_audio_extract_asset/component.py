@@ -16,7 +16,7 @@ Choose `target_format` based on what your STT expects (Whisper wants
 import os
 import shutil
 import subprocess
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 
@@ -42,7 +42,7 @@ class VideoAudioExtractAssetComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output asset name.")
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key (video paths).")
 
-    video_path_column: str = Field(default="file_path")
+    video_path_column: Union[str, int] = Field(default="file_path")
 
     output_dir: str = Field(default="/tmp/extracted_audio")
     output_filename_template: Optional[str] = Field(
@@ -52,7 +52,7 @@ class VideoAudioExtractAssetComponent(Component, Model, Resolvable):
             "Default: <video_basename>.<target_format>."
         ),
     )
-    output_path_column: str = Field(default="audio_path")
+    output_path_column: Union[str, int] = Field(default="audio_path")
 
     target_format: Literal["wav", "mp3", "flac", "ogg", "aac", "opus"] = Field(
         default="wav",

@@ -30,7 +30,7 @@ separator (`:` or `>`) are auto-detected from the ISA header per the
 X12 spec — no need to configure them.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -255,7 +255,7 @@ class X12EdiParserComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output asset name.")
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key.")
 
-    message_column: str = Field(
+    message_column: Union[str, int] = Field(
         default="message",
         description="Column holding the raw X12 message (segment-terminated text).",
     )

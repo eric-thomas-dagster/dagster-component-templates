@@ -3,7 +3,7 @@
 Evaluate and score LLM outputs against a rubric using another LLM as a judge.
 Useful for automated quality assessment and regression testing of AI pipelines.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
@@ -147,11 +147,11 @@ class LlmJudgeComponent(Component, Model, Resolvable):
     model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    response_column: str = Field(description="Column containing LLM responses to evaluate")
-    reference_column: Optional[str] = Field(default=None, description="Column containing reference/ground truth (if available)")
+    response_column: Union[str, int] = Field(description="Column containing LLM responses to evaluate")
+    reference_column: Optional[Union[str, int]] = Field(default=None, description="Column containing reference/ground truth (if available)")
     criteria: List[str] = Field(description='Evaluation criteria e.g. ["accuracy", "clarity", "completeness"]')
-    score_column: str = Field(default="judge_score", description="Column to write numeric score (0-10)")
-    reason_column: str = Field(default="judge_reason", description="Column to write explanation")
+    score_column: Union[str, int] = Field(default="judge_score", description="Column to write numeric score (0-10)")
+    reason_column: Union[str, int] = Field(default="judge_reason", description="Column to write explanation")
     model_id: str = Field(
         alias="model",
         default="gpt-4o", description="Judge model (use a strong model for reliable evaluation)")
@@ -166,7 +166,7 @@ class LlmJudgeComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -188,7 +188,7 @@ class LlmJudgeComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

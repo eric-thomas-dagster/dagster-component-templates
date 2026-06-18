@@ -2,7 +2,7 @@
 
 For each unique combination of `key_columns`, assigns a sequential integer group ID and writes it as a new column. Equivalent to the Make Group step — useful for joining at a higher granularity or making compact identifiers.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -25,8 +25,8 @@ class MakeGroupComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    key_columns: List[str] = Field(description="Columns whose unique combinations define a group.")
-    output_column: str = Field(default="group_id", description="Output column for the group ID.")
+    key_columns: List[Union[str, int]] = Field(description="Columns whose unique combinations define a group.")
+    output_column: Union[str, int] = Field(default="group_id", description="Output column for the group ID.")
     sort: bool = Field(default=True, description="Sort by key columns before assigning IDs (so IDs are deterministic).")
 
     include_preview_metadata: bool = Field(
@@ -72,7 +72,7 @@ class MakeGroupComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -87,7 +87,7 @@ class MakeGroupComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

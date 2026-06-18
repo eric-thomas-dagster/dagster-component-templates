@@ -4,7 +4,7 @@ Pivot a DataFrame from long to wide — rotate row values into column headers wi
 """
 
 import os
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import dagster as dg
 import pandas as pd
@@ -18,11 +18,11 @@ class PivotComponent(dg.Component, dg.Model, dg.Resolvable):
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key")
 
     index_columns: list = Field(description="Columns that stay as rows (group keys)")
-    pivot_column: str = Field(description="Column whose values become new column headers")
-    value_column: str = Field(description="Column whose values fill the pivoted cells")
+    pivot_column: Union[str, int] = Field(description="Column whose values become new column headers")
+    value_column: Union[str, int] = Field(description="Column whose values fill the pivoted cells")
     agg_func: str = Field(default="sum", description="Aggregation when (index, pivot) collides: sum | mean | count | min | max | first | last")
     fill_value: Optional[float] = Field(default=None, description="Fill NaN cells with this value")
-    column_prefix: Optional[str] = Field(
+    column_prefix: Optional[Union[str, int]] = Field(
         default=None,
         description=(
             "Optional prefix prepended to each pivoted column name. Useful when "

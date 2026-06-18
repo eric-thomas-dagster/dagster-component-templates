@@ -5,7 +5,7 @@ we use `ROW_NUMBER() OVER (PARTITION BY subset ORDER BY tiebreak) = 1`
 so the tie-breaker is explicit (which row to keep when subset values
 collide). When `subset:` is unset we use `SELECT DISTINCT *`.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 from dagster import (
@@ -92,7 +92,7 @@ class WarehouseDedupComponent(Component, Model, Resolvable):
     dialect: str = Field(description=f"SQL dialect: one of {sorted(_SUPPORTED_DIALECTS)}.")
     upstream_table: str = Field(description="Source table name")
     output_table: str = Field(description="Destination table name")
-    subset: Optional[List[str]] = Field(default=None, description="Columns to dedup by. If unset, uses SELECT DISTINCT *.")
+    subset: Optional[List[Union[str, int]]] = Field(default=None, description="Columns to dedup by. If unset, uses SELECT DISTINCT *.")
     order_by: Optional[List[str]] = Field(default=None, description="Tiebreaker columns. If unset, falls back to subset cols.")
     descending: bool = Field(default=False, description="If true, ORDER BY DESC (keep latest). Default false (keep first).")
     mode: str = Field(default="replace", description="'replace' or 'create_if_not_exists'")

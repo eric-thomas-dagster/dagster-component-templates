@@ -4,7 +4,7 @@ Replace values in a column according to a lookup dict — country code → count
 """
 
 import os
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import dagster as dg
 import pandas as pd
@@ -17,9 +17,9 @@ class MapValuesComponent(dg.Component, dg.Model, dg.Resolvable):
     asset_name: str = Field(description="Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key")
 
-    column: str = Field(description="Column whose values to remap")
+    column: Union[str, int] = Field(description="Column whose values to remap")
     mapping: dict = Field(description="{old: new} value mapping")
-    output_column: Optional[str] = Field(default=None, description="Write to a new column (None = overwrite)")
+    output_column: Optional[Union[str, int]] = Field(default=None, description="Write to a new column (None = overwrite)")
     default_value: Optional[str] = Field(default=None, description="Use this when no mapping match (None = keep original)")
 
     description: Optional[str] = Field(default=None)

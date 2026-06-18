@@ -1,6 +1,6 @@
 """CSV File Ingestion Asset Component."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
@@ -440,7 +440,7 @@ class FileIngestionComponent(Component, Model, Resolvable):
     )
 
     # Data Processing Options
-    columns_to_read: Optional[str] = Field(
+    columns_to_read: Optional[Union[str, int]] = Field(
         default="",
         description="Comma-separated list of column names to read (empty = all columns)"
     )
@@ -567,7 +567,7 @@ class FileIngestionComponent(Component, Model, Resolvable):
         description="Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -592,7 +592,7 @@ class FileIngestionComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

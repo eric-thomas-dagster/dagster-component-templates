@@ -19,7 +19,7 @@ any vendor's OTLP intake URL.
 """
 
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -56,12 +56,12 @@ class DataframeToOtlpMetricsComponent(Component, Model, Resolvable):
         description="'gauge' | 'sum' (counter/up-down). Histograms are advanced — use a custom op for those.",
     )
     metric_unit: Optional[str] = Field(default=None, description="UCUM unit, e.g. '1', 'ms', 'By'")
-    value_column: str = Field(description="DataFrame column with numeric metric values")
+    value_column: Union[str, int] = Field(description="DataFrame column with numeric metric values")
     attribute_columns: Optional[List[str]] = Field(
         default=None,
         description="Columns whose values become OTel attributes (labels) on each metric data point",
     )
-    timestamp_column: Optional[str] = Field(
+    timestamp_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column with epoch-seconds (or pandas datetime). Default: now() per row.",
     )

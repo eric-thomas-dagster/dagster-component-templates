@@ -4,7 +4,7 @@ Diff incoming DataFrame against a prior snapshot — emit rows with a change_typ
 """
 
 import os
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import dagster as dg
 import pandas as pd
@@ -22,7 +22,7 @@ class DetectChangesComponent(dg.Component, dg.Model, dg.Resolvable):
     business_key_columns: list = Field(description="Natural-key columns")
     compare_columns: Optional[list] = Field(default=None, description="Columns whose values are compared for 'update' (None = all non-key)")
     include_unchanged: bool = Field(default=False, description="Include unchanged rows in the output")
-    change_type_column: str = Field(default="change_type")
+    change_type_column: Union[str, int] = Field(default="change_type")
 
     description: Optional[str] = Field(default=None)
     group_name: str = Field(default="transforms")

@@ -13,7 +13,7 @@ Supported Cortex functions
 - ``TRANSLATE``       — Translates text to a target language.
 - ``EXTRACT_ANSWER``  — Extracts an answer to a question from the text.
 """
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import dagster as dg
 from pydantic import ConfigDict, Field
@@ -107,10 +107,10 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             "LLM model name for COMPLETE. Examples: claude-3-5-sonnet, mistral-large, llama3-70b."
         ),
     )
-    text_column: str = Field(
+    text_column: Union[str, int] = Field(
         description="Column passed as the text argument to the Cortex function."
     )
-    output_column: str = Field(
+    output_column: Union[str, int] = Field(
         default="cortex_result",
         description="Name of the output column added to the target table.",
     )
@@ -276,7 +276,7 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -291,7 +291,7 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

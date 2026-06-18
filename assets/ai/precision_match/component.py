@@ -2,7 +2,7 @@
 
 LLM-assisted fuzzy matching to standardize varied string representations to canonical forms.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -127,14 +127,14 @@ class PrecisionMatchComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame with values to standardize")
-    column: str = Field(description="Column with varied strings to standardize")
+    column: Union[str, int] = Field(description="Column with varied strings to standardize")
     reference_asset_key: Optional[str] = Field(default=None, description="Optional upstream asset key for a reference DataFrame containing canonical values")
-    reference_column: Optional[str] = Field(default=None, description="Column in the reference DataFrame containing canonical values")
+    reference_column: Optional[Union[str, int]] = Field(default=None, description="Column in the reference DataFrame containing canonical values")
     reference_values: Optional[List[str]] = Field(default=None, description="Explicit list of canonical values (alternative to reference_asset_key)")
     model: str = Field(default="gpt-4o-mini", description="LLM model identifier (passed to litellm)")
     api_key_env_var: str = Field(default="OPENAI_API_KEY", description="Environment variable name holding the API key")
-    output_column: str = Field(default="matched_value", description="Column name for the matched canonical value")
-    confidence_column: Optional[str] = Field(default="match_confidence", description="Column name for match confidence score (None to skip)")
+    output_column: Union[str, int] = Field(default="matched_value", description="Column name for the matched canonical value")
+    confidence_column: Optional[Union[str, int]] = Field(default="match_confidence", description="Column name for match confidence score (None to skip)")
     batch_size: int = Field(default=20, description="Number of unique values to match per LLM call")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
@@ -145,7 +145,7 @@ class PrecisionMatchComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -167,7 +167,7 @@ class PrecisionMatchComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

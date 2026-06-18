@@ -3,7 +3,7 @@
 Send images to a vision LLM and extract structured fields as new columns.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from dagster import (
@@ -149,7 +149,7 @@ class ImageLlmExtractorComponent(Component, Model, Resolvable):
     upstream_asset_key: str = Field(
         description="Upstream asset key providing a DataFrame"
     )
-    image_column: str = Field(description="Column with image file paths or URLs")
+    image_column: Union[str, int] = Field(description="Column with image file paths or URLs")
     extraction_fields: Dict[str, str] = Field(
         description=(
             "Mapping of column_name -> description, "
@@ -183,7 +183,7 @@ class ImageLlmExtractorComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -205,7 +205,7 @@ class ImageLlmExtractorComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

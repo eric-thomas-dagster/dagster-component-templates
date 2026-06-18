@@ -14,7 +14,7 @@ Two source modes:
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -62,7 +62,7 @@ class CloudFunctionsInvokeAssetComponent(Component, Model, Resolvable):
         default=None,
         description="Upstream DataFrame asset. One function call per row.",
     )
-    payload_column: Optional[str] = Field(
+    payload_column: Optional[Union[str, int]] = Field(
         default=None,
         description="When set, publish only this column's value as the body. dict → JSON, others → str.",
     )

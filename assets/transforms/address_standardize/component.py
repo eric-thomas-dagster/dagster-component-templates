@@ -20,7 +20,7 @@ vendor — none of the free providers above are CASS-certified.
 """
 import os
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -73,7 +73,7 @@ class AddressStandardizeComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key (DataFrame)")
-    address_column: str = Field(
+    address_column: Union[str, int] = Field(
         description="Column containing the raw address string (one address per row).",
     )
     provider: str = Field(

@@ -23,7 +23,7 @@ Use cases:
 
 import os
 from fractions import Fraction
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -155,7 +155,7 @@ class ImageExifExtractorComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output asset name.")
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key.")
 
-    image_path_column: str = Field(
+    image_path_column: Union[str, int] = Field(
         default="file_path",
         description="Column containing local image file paths.",
     )

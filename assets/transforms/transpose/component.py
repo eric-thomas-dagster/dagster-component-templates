@@ -2,7 +2,7 @@
 
 Transpose a DataFrame so that rows become columns and columns become rows.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -127,12 +127,12 @@ class TransposeComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    index_column: Optional[str] = Field(
+    index_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column to use as the index before transposing. "
         "Its values become the new column headers after transpose.",
     )
-    reset_column_name: str = Field(
+    reset_column_name: Union[str, int] = Field(
         default="field",
         description="Name for the new column containing original column names after transpose",
     )
@@ -145,7 +145,7 @@ class TransposeComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -167,7 +167,7 @@ class TransposeComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

@@ -28,7 +28,7 @@ Common use:
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -284,7 +284,7 @@ class FhirResourceNormalizerComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output asset name.")
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key.")
 
-    resource_column: str = Field(
+    resource_column: Union[str, int] = Field(
         default="resource",
         description="Column holding the FHIR resource. Values may be dicts OR JSON strings.",
     )

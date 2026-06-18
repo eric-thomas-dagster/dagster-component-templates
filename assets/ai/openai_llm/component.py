@@ -9,7 +9,7 @@ import os
 import json
 import time
 import hashlib
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from pathlib import Path
 import pandas as pd
 
@@ -196,12 +196,12 @@ class OpenAILLMComponent(Component, Model, Resolvable):
         description="User prompt template with {column_name} placeholders for DataFrame columns"
     )
 
-    input_column: Optional[str] = Field(
+    input_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column name containing input text (for batch processing)"
     )
 
-    output_column: str = Field(
+    output_column: Union[str, int] = Field(
         default="llm_response",
         description="Column name for LLM responses"
     )
@@ -298,7 +298,7 @@ class OpenAILLMComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -320,7 +320,7 @@ class OpenAILLMComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

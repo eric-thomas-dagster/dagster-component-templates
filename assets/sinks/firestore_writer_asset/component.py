@@ -10,7 +10,7 @@ denormalized views, dynamic config tables.
 
 import json
 import os
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 
@@ -43,7 +43,7 @@ class FirestoreWriterAssetComponent(Component, Model, Resolvable):
     database: str = Field(default="(default)")
     collection: str = Field(description="Collection path (e.g. 'customers' or 'tenants/acme/customers').")
 
-    id_column: Optional[str] = Field(
+    id_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column whose value becomes each document's id. If unset, Firestore auto-generates ids.",
     )

@@ -4,7 +4,7 @@ Mark each row with a CDC operation (insert / update / delete / upsert) based on 
 """
 
 import os
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import dagster as dg
 import pandas as pd
@@ -19,7 +19,7 @@ class AlterRowComponent(dg.Component, dg.Model, dg.Resolvable):
 
     rules: list = Field(description="Ordered list of {operation, condition} — first matching rule wins. operation: insert | update | delete | upsert")
     default_operation: str = Field(default="insert", description="Operation when no rule matches")
-    operation_column: str = Field(default="cdc_op", description="Output column holding the operation marker")
+    operation_column: Union[str, int] = Field(default="cdc_op", description="Output column holding the operation marker")
 
     description: Optional[str] = Field(default=None)
     group_name: str = Field(default="transforms")

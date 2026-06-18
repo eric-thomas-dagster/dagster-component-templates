@@ -23,7 +23,7 @@ Auth follows fsspec / object_store conventions: AWS env vars, AZURE_*, GCP ADC.
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from dagster import (
     AssetExecutionContext,
@@ -151,7 +151,7 @@ class DeltaIngestionComponent(Component, Model, Resolvable):
 
     # --- Read options ------------------------------------------------------
 
-    select_columns: Optional[List[str]] = Field(
+    select_columns: Optional[List[Union[str, int]]] = Field(
         default=None, description="Projection. If unset, reads all columns."
     )
     partition_filters: Optional[List[List[str]]] = Field(

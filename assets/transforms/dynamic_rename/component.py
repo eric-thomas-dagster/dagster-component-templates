@@ -19,7 +19,7 @@ Supported `mode:` values:
 `columns:` (optional) restricts the renaming to the listed columns.
 """
 import re as _re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -51,7 +51,7 @@ class DynamicRenameComponent(Component, Model, Resolvable):
             "mapping / mapping_from_column"
         ),
     )
-    columns: Optional[List[str]] = Field(
+    columns: Optional[List[Union[str, int]]] = Field(
         default=None,
         description="Restrict renaming to these columns. None = apply to all columns.",
     )
@@ -62,7 +62,7 @@ class DynamicRenameComponent(Component, Model, Resolvable):
         default="",
         description="For mode=replace (replacement string; backrefs supported)",
     )
-    mapping: Optional[Dict[str, str]] = Field(
+    mapping: Optional[Dict[str, Union[str, int]]] = Field(
         default=None,
         description="For mode=mapping: explicit {old: new} dict",
     )
@@ -70,11 +70,11 @@ class DynamicRenameComponent(Component, Model, Resolvable):
         default=None,
         description="For mode=mapping_from_column: secondary asset providing the rename pairs",
     )
-    mapping_key_column: Optional[str] = Field(
+    mapping_key_column: Optional[Union[str, int]] = Field(
         default=None,
         description="For mode=mapping_from_column: column in mapping_asset_key with the OLD names",
     )
-    mapping_value_column: Optional[str] = Field(
+    mapping_value_column: Optional[Union[str, int]] = Field(
         default=None,
         description="For mode=mapping_from_column: column in mapping_asset_key with the NEW names",
     )

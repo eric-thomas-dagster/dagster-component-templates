@@ -11,7 +11,7 @@ litellm_inference_asset.
 
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -130,11 +130,11 @@ class GroqLLMComponent(Component, Model, Resolvable):
         default=None,
         description="Template with {column} placeholders. Mutually exclusive with input_column.",
     )
-    input_column: Optional[str] = Field(
+    input_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column whose value becomes the per-row prompt. Mutually exclusive with user_prompt_template.",
     )
-    output_column: str = Field(default="groq_response")
+    output_column: Union[str, int] = Field(default="groq_response")
 
     max_tokens: int = Field(default=1024)
     temperature: float = Field(default=0.0)

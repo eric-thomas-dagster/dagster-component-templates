@@ -4,7 +4,7 @@ Build Shapely Point geometries from a DataFrame's latitude / longitude
 columns and add them as a `geometry` column. Output is a
 GeoDataFrame-compatible pandas DataFrame (downstream geo components accept either).
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -27,9 +27,9 @@ class PointsFromLatLonComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    longitude_column: str = Field(description="Column with longitude values (X / east-west).")
-    latitude_column: str = Field(description="Column with latitude values (Y / north-south).")
-    geometry_column: str = Field(
+    longitude_column: Union[str, int] = Field(description="Column with longitude values (X / east-west).")
+    latitude_column: Union[str, int] = Field(description="Column with latitude values (Y / north-south).")
+    geometry_column: Union[str, int] = Field(
         default="geometry",
         description="Output column name for the Shapely Point geometries.",
     )

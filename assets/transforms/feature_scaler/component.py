@@ -5,7 +5,7 @@ robust (median/IQR), or max-abs scaling. Each strategy mirrors the
 corresponding scikit-learn scaler but is implemented directly in pandas/numpy
 so the component has no extra runtime dependency.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -39,7 +39,7 @@ class FeatureScalerComponent(Component, Model, Resolvable):
         default="standard",
         description="Scaling strategy: 'standard', 'minmax', 'robust', or 'maxabs'.",
     )
-    columns: Optional[List[str]] = Field(
+    columns: Optional[List[Union[str, int]]] = Field(
         default=None,
         description="Columns to scale. None = all numeric columns in the upstream DataFrame.",
     )
@@ -61,10 +61,10 @@ class FeatureScalerComponent(Component, Model, Resolvable):
         description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned",
     )
     partition_start: Optional[str] = Field(default=None, description="Partition start date in ISO format")
-    partition_date_column: Optional[str] = Field(default=None, description="Column used to filter to the current date partition key.")
+    partition_date_column: Optional[Union[str, int]] = Field(default=None, description="Column used to filter to the current date partition key.")
     partition_values: Optional[str] = Field(default=None, description="Comma-separated values for static or multi partitioning.")
     partition_static_dim: Optional[str] = Field(default=None, description="Dimension name for the static axis in multi-partitioning.")
-    partition_static_column: Optional[str] = Field(default=None, description="Column used to filter to the current static partition dimension.")
+    partition_static_column: Optional[Union[str, int]] = Field(default=None, description="Column used to filter to the current static partition dimension.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners — team names or email addresses.")
     asset_tags: Optional[Dict[str, str]] = Field(default=None, description="Additional key-value tags applied to the asset.")
     kinds: Optional[List[str]] = Field(default=None, description="Asset kinds for the Dagster catalog. Auto-inferred from asset name if empty.")

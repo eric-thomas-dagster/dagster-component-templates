@@ -19,7 +19,7 @@ and roll a custom asset.
 import datetime as dt
 import json
 import os
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 
@@ -66,7 +66,7 @@ class CloudTasksEnqueueAssetComponent(Component, Model, Resolvable):
     )
     headers: Optional[Dict[str, str]] = Field(default=None)
 
-    schedule_time_column: Optional[str] = Field(
+    schedule_time_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Optional column of datetimes — when each task should fire (defaults to now).",
     )

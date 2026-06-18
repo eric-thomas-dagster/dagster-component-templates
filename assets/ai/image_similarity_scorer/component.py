@@ -3,7 +3,7 @@
 Score visual similarity between images using CLIP embeddings.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from dagster import (
@@ -146,8 +146,8 @@ class ImageSimilarityScorerComponent(Component, Model, Resolvable):
     upstream_asset_key: str = Field(
         description="Upstream asset key providing a DataFrame"
     )
-    image_column_a: str = Field(description="First image column (file paths or URLs)")
-    image_column_b: Optional[str] = Field(
+    image_column_a: Union[str, int] = Field(description="First image column (file paths or URLs)")
+    image_column_b: Optional[Union[str, int]] = Field(
         default=None,
         description="Second image column; if omitted, compare against reference_image",
     )
@@ -155,7 +155,7 @@ class ImageSimilarityScorerComponent(Component, Model, Resolvable):
         default=None,
         description="Fixed reference image path/URL to compare all rows against",
     )
-    output_column: str = Field(
+    output_column: Union[str, int] = Field(
         default="image_similarity",
         description="Column for cosine similarity score (0-1)",
     )
@@ -176,7 +176,7 @@ class ImageSimilarityScorerComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -198,7 +198,7 @@ class ImageSimilarityScorerComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

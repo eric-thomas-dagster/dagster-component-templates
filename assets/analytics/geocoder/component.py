@@ -7,7 +7,7 @@ Nominatim (free), Google Maps, or HERE geocoding APIs.
 import os
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
@@ -152,7 +152,7 @@ class GeocoderComponent(Component, Model, Resolvable):
         description="Upstream asset key providing a DataFrame with address data"
     )
 
-    address_column: str = Field(
+    address_column: Union[str, int] = Field(
         description="Column with full address strings to geocode"
     )
 
@@ -171,17 +171,17 @@ class GeocoderComponent(Component, Model, Resolvable):
         description="User agent string required for Nominatim"
     )
 
-    lat_column: str = Field(
+    lat_column: Union[str, int] = Field(
         default="latitude",
         description="Name of output latitude column"
     )
 
-    lng_column: str = Field(
+    lng_column: Union[str, int] = Field(
         default="longitude",
         description="Name of output longitude column"
     )
 
-    country_column: Optional[str] = Field(
+    country_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Optional column name to add normalized country name"
     )
@@ -208,7 +208,7 @@ class GeocoderComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -230,7 +230,7 @@ class GeocoderComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

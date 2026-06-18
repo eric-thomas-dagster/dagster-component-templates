@@ -131,7 +131,7 @@ class HtmlParserComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -153,7 +153,7 @@ class HtmlParserComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
@@ -202,7 +202,7 @@ class HtmlParserComponent(Component, Model, Resolvable):
             "reflects the data distribution; otherwise head() is used."
         ),
     )
-    columns: List[str] = Field(description="Columns to process")
+    columns: List[Union[str, int]] = Field(description="Columns to process")
     mode: str = Field(
         default="strip_tags",
         description="Processing mode: 'strip_tags', 'extract_text', 'extract_links', or 'extract_tables'.",
@@ -211,7 +211,7 @@ class HtmlParserComponent(Component, Model, Resolvable):
         default="html.parser",
         description="BeautifulSoup parser: 'html.parser', 'lxml', or 'html5lib'.",
     )
-    new_column_suffix: Optional[str] = Field(
+    new_column_suffix: Optional[Union[str, int]] = Field(
         default=None,
         description="If set, write results to new columns with this suffix instead of overwriting.",
     )

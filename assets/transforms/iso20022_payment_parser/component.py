@@ -24,7 +24,7 @@ Common use:
 """
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -196,7 +196,7 @@ class Iso20022PaymentParserComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output asset name.")
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key.")
 
-    xml_column: str = Field(
+    xml_column: Union[str, int] = Field(
         default="xml",
         description="Column holding the raw ISO 20022 XML message (string).",
     )

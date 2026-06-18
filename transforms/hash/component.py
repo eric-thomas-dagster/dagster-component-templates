@@ -4,7 +4,7 @@ Compute MD5/SHA-1/SHA-256 of one or more columns (or the whole row) — useful f
 """
 
 import os
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import dagster as dg
 import pandas as pd
@@ -18,7 +18,7 @@ class HashComponent(dg.Component, dg.Model, dg.Resolvable):
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key")
 
     columns: Optional[list] = Field(default=None, description="Columns to include in the hash (None = all)")
-    output_column: str = Field(default="row_hash", description="Output column name")
+    output_column: Union[str, int] = Field(default="row_hash", description="Output column name")
     algorithm: str = Field(default="sha256", description="md5 | sha1 | sha256")
     separator: str = Field(default="|", description="Joiner between column values")
     null_token: str = Field(default="\\N", description="Token substituted for NaN/None")

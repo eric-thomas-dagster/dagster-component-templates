@@ -10,7 +10,7 @@ Features
 - Bearer-token (or custom-header) authentication.
 - Configurable ``data_path`` to navigate nested responses, e.g. ``data.users``.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 from pydantic import Field
@@ -345,7 +345,7 @@ class GraphQLAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Lineage-only upstream asset keys (no data passed at runtime).",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -370,7 +370,7 @@ class GraphQLAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

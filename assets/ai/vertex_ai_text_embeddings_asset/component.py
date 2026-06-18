@@ -12,7 +12,7 @@ Useful for RAG pipelines, semantic search, vector store loaders.
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -44,8 +44,8 @@ class VertexAITextEmbeddingsAssetComponent(Component, Model, Resolvable):
     project_id: Optional[str] = Field(default=None, description="GCP project. Defaults to the SA's project.")
     location: str = Field(default="us-central1", description="Vertex AI region.")
 
-    text_column: str = Field(description="Column with the text to embed.")
-    output_column: str = Field(default="embedding", description="Column name for the resulting embedding vector.")
+    text_column: Union[str, int] = Field(description="Column with the text to embed.")
+    output_column: Union[str, int] = Field(default="embedding", description="Column name for the resulting embedding vector.")
 
     model_name: str = Field(
         default="text-embedding-004",

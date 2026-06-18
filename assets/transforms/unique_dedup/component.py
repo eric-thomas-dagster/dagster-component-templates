@@ -3,7 +3,7 @@
 Remove duplicate records from a DataFrame, with control over which columns
 define uniqueness, which copy to keep, and whether to flag or filter duplicates.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -137,7 +137,7 @@ class UniqueDedupComponent(Component, Model, Resolvable):
         default="pandas",
         description="'pandas' (default) or 'polars'. Polars runs `df.unique(...)`; pandas runs `df.drop_duplicates(...)`. Returns the same backend's DataFrame.",
     )
-    subset: Optional[List[str]] = Field(
+    subset: Optional[List[Union[str, int]]] = Field(
         default=None,
         description="Columns to consider for duplication (None = all columns)",
     )
@@ -153,7 +153,7 @@ class UniqueDedupComponent(Component, Model, Resolvable):
             "'all' (return all rows with is_duplicate bool column)"
         ),
     )
-    flag_column: str = Field(
+    flag_column: Union[str, int] = Field(
         default="is_duplicate",
         description="Column name for the duplicate flag when output_mode='all'",
     )
@@ -166,7 +166,7 @@ class UniqueDedupComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -188,7 +188,7 @@ class UniqueDedupComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

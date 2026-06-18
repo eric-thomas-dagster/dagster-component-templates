@@ -5,7 +5,7 @@ Normalize heterogeneous audit-log events to a common schema (OCSF or ECS) before
 
 import json
 import os
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import dagster as dg
 import pandas as pd
@@ -23,7 +23,7 @@ class SiemEventNormalizerComponent(dg.Component, dg.Model, dg.Resolvable):
         alias="schema",
         default="ocsf", description="Target schema: 'ocsf' (Open Cybersecurity Schema Framework) | 'ecs' (Elastic Common Schema)")
     source_kind: str = Field(default="generic", description="Source hint: 'cloudtrail' | 'okta' | 'github' | 'azure' | 'generic'")
-    event_column: Optional[str] = Field(
+    event_column: Optional[Union[str, int]] = Field(
         default=None,
         description=(
             "If set, treat this column as a JSON-encoded event payload and parse it into "
@@ -31,9 +31,9 @@ class SiemEventNormalizerComponent(dg.Component, dg.Model, dg.Resolvable):
             "events as JSON strings in a single column."
         ),
     )
-    timestamp_column: Optional[str] = Field(default=None, description="Source column to map to event timestamp (auto-detect if None)")
-    actor_column: Optional[str] = Field(default=None, description="Source column for actor/user (auto-detect if None)")
-    action_column: Optional[str] = Field(default=None, description="Source column for action/event name")
+    timestamp_column: Optional[Union[str, int]] = Field(default=None, description="Source column to map to event timestamp (auto-detect if None)")
+    actor_column: Optional[Union[str, int]] = Field(default=None, description="Source column for actor/user (auto-detect if None)")
+    action_column: Optional[Union[str, int]] = Field(default=None, description="Source column for action/event name")
     drop_extras: bool = Field(default=False, description="Drop source columns that don't map to the target schema")
 
     description: Optional[str] = Field(default=None)

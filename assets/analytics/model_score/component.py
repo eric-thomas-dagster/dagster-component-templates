@@ -2,7 +2,7 @@
 
 Loads a pickled scikit-learn estimator from disk and runs `predict` (and `predict_proba` for classifiers) on the input DataFrame. Lets you keep model fitting and scoring as separate Dagster assets — fit once, score many times.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -26,8 +26,8 @@ class ModelScoreComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
     model_path: str = Field(description="Path to a pickled sklearn estimator (joblib or pickle).")
-    feature_columns: List[str] = Field(description="Feature columns to feed the model.")
-    output_column: str = Field(default="predicted", description="Output column for predictions.")
+    feature_columns: List[Union[str, int]] = Field(description="Feature columns to feed the model.")
+    output_column: Union[str, int] = Field(default="predicted", description="Output column for predictions.")
     include_proba: bool = Field(default=False, description="For classifiers: also emit predict_proba columns.")
     score_classes: Optional[List[str]] = Field(
         default=None,
@@ -95,7 +95,7 @@ class ModelScoreComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -110,7 +110,7 @@ class ModelScoreComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

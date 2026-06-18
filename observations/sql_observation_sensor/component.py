@@ -1,5 +1,5 @@
 """SQL Observation Sensor Component."""
-from typing import Optional
+from typing import Optional, Union
 import dagster as dg
 from dagster import AssetKey, AssetObservation, SensorEvaluationContext, SensorResult, sensor
 from pydantic import Field
@@ -9,7 +9,7 @@ class SqlObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     asset_key: str = Field(description="Asset key of the ExternalSqlAsset to observe")
     table_name: str = Field(description="Table name to observe")
     connection_string_env_var: str = Field(description="Env var with SQLAlchemy connection string")
-    watermark_column: Optional[str] = Field(default=None, description="Column for latest value metric (e.g. updated_at)")
+    watermark_column: Optional[Union[str, int]] = Field(default=None, description="Column for latest value metric (e.g. updated_at)")
     check_interval_seconds: int = Field(default=300, description="Seconds between health checks")
     resource_key: Optional[str] = Field(default=None, description="Optional Dagster resource key.")
 

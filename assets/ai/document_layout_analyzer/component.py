@@ -3,7 +3,7 @@
 Analyze the layout of document images to detect regions: text blocks, tables, figures, headers.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from dagster import (
@@ -146,8 +146,8 @@ class DocumentLayoutAnalyzerComponent(Component, Model, Resolvable):
     upstream_asset_key: str = Field(
         description="Upstream asset key providing a DataFrame"
     )
-    image_column: str = Field(description="Column with document image file paths")
-    output_column: str = Field(
+    image_column: Union[str, int] = Field(description="Column with document image file paths")
+    output_column: Union[str, int] = Field(
         default="layout_regions",
         description="Column for list of {type, bbox, confidence} dicts",
     )
@@ -172,7 +172,7 @@ class DocumentLayoutAnalyzerComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -194,7 +194,7 @@ class DocumentLayoutAnalyzerComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

@@ -32,7 +32,7 @@ ship EBCDIC files daily — this is a real, common ingest pattern.
 
 import codecs
 import os
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 
@@ -83,11 +83,11 @@ class TextCodecConvertAssetComponent(Component, Model, Resolvable):
     )
 
     # mode='string' fields
-    source_column: Optional[str] = Field(
+    source_column: Optional[Union[str, int]] = Field(
         default=None,
         description="mode='string': column of str values to convert. Required for string mode.",
     )
-    target_column: Optional[str] = Field(
+    target_column: Optional[Union[str, int]] = Field(
         default=None,
         description=(
             "mode='string': new column to write the result into. "
@@ -97,7 +97,7 @@ class TextCodecConvertAssetComponent(Component, Model, Resolvable):
     )
 
     # mode='file' fields
-    source_path_column: Optional[str] = Field(
+    source_path_column: Optional[Union[str, int]] = Field(
         default=None,
         description="mode='file': column of input file paths. Required for file mode.",
     )
@@ -112,7 +112,7 @@ class TextCodecConvertAssetComponent(Component, Model, Resolvable):
             "Default: <basename>_<to_codec>.<orig_ext>."
         ),
     )
-    output_path_column: str = Field(
+    output_path_column: Union[str, int] = Field(
         default="converted_path",
         description="mode='file': column to write the output file path into.",
     )

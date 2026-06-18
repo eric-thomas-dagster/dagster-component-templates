@@ -2,7 +2,7 @@
 
 Variance Inflation Factor for each feature in a design matrix. VIF > 5 typically signals multicollinearity worth addressing before fitting a linear/logistic regression. Output is one row per feature with its VIF.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -25,7 +25,7 @@ class VifComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    feature_columns: List[str] = Field(description="Numeric feature columns to compute VIF for.")
+    feature_columns: List[Union[str, int]] = Field(description="Numeric feature columns to compute VIF for.")
 
     include_preview_metadata: bool = Field(
         default=False,
@@ -70,7 +70,7 @@ class VifComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -85,7 +85,7 @@ class VifComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

@@ -9,7 +9,7 @@ computed in the projected CRS for accurate real-world units (defaults to
 EPSG:3857 / Web Mercator) — square meters and meters respectively — then
 the output rows return in the original CRS.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -35,7 +35,7 @@ class SpatialInfoComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream (Geo)DataFrame with a geometry column")
-    geometry_column: str = Field(default="geometry", description="Geometry column to inspect")
+    geometry_column: Union[str, int] = Field(default="geometry", description="Geometry column to inspect")
     metrics: List[str] = Field(
         default_factory=lambda: ["area", "length", "centroid", "bounds", "geom_type"],
         description=(

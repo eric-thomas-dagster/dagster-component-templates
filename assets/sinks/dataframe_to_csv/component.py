@@ -3,7 +3,7 @@
 Write a DataFrame asset to a CSV file.
 """
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -149,7 +149,7 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
     delimiter: str = Field(default=",", description="Column delimiter")
     include_index: bool = Field(default=False, description="Include row index in output")
     encoding: str = Field(default="utf-8", description="File encoding")
-    columns: Optional[List[str]] = Field(
+    columns: Optional[List[Union[str, int]]] = Field(
         default=None, description="Subset of columns to write. If None, all columns are written."
     )
     include_preview_metadata: bool = Field(
@@ -180,7 +180,7 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -202,7 +202,7 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

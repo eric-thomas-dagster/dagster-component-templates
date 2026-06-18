@@ -10,7 +10,7 @@ Bigtable cells are bytes; values are utf-8-encoded by default. Use
 
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -43,9 +43,9 @@ class BigtableWriterAssetComponent(Component, Model, Resolvable):
     instance_id: str = Field(description="Bigtable instance id.")
     table_id: str = Field(description="Bigtable table id.")
 
-    row_key_column: str = Field(description="DataFrame column to use as the Bigtable row key.")
+    row_key_column: Union[str, int] = Field(description="DataFrame column to use as the Bigtable row key.")
 
-    column_family: str = Field(
+    column_family: Union[str, int] = Field(
         description="Default column family for all non-row-key columns (unless overridden in column_map).",
     )
 

@@ -5,7 +5,7 @@ database table via SQLAlchemy. Designed to be triggered by nats_monitor.
 
 Each message payload is expected to be JSON.
 """
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 import dagster as dg
 from dagster import AssetExecutionContext, Config
 from pydantic import Field
@@ -116,7 +116,7 @@ class NATSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -131,7 +131,7 @@ class NATSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

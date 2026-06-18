@@ -11,7 +11,7 @@ Auth: License Key OR User API Key in the `Api-Key` header.
 
 import json
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -43,11 +43,11 @@ class DataframeToNewRelicLogsComponent(Component, Model, Resolvable):
         default=None,
         description="Optional logtype field to set on every event (used for downstream parsing rules)",
     )
-    timestamp_column: Optional[str] = Field(
+    timestamp_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column with epoch-ms timestamps (default: now() per event)",
     )
-    message_column: Optional[str] = Field(
+    message_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column whose value becomes the log 'message' field. If unset, JSON-stringifies the whole row.",
     )

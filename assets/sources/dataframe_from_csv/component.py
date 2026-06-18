@@ -4,7 +4,7 @@ Read a CSV file and output a DataFrame. Supports environment variable substituti
 in the file path for flexible deployment configuration.
 """
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -164,7 +164,7 @@ class DataframeFromCsvComponent(Component, Model, Resolvable):
             "files and downstream needs to identify which file each row came from."
         ),
     )
-    filename_column_name: str = Field(
+    filename_column_name: Union[str, int] = Field(
         default="FileName",
         description="Name of the auto-added filename column (only used when add_filename_column=True).",
     )
@@ -186,7 +186,7 @@ class DataframeFromCsvComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -208,7 +208,7 @@ class DataframeFromCsvComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

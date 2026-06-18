@@ -3,7 +3,7 @@
 Extract structured data from insurance claim documents using an LLM via litellm.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from dagster import (
@@ -148,7 +148,7 @@ class InsuranceClaimExtractorComponent(Component, Model, Resolvable):
     upstream_asset_key: str = Field(
         description="Upstream asset key providing a DataFrame with insurance claim content"
     )
-    input_column: str = Field(
+    input_column: Union[str, int] = Field(
         default="text",
         description="Column with insurance claim content (text or file path)",
     )
@@ -189,7 +189,7 @@ class InsuranceClaimExtractorComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -211,7 +211,7 @@ class InsuranceClaimExtractorComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

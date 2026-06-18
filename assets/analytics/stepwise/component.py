@@ -2,7 +2,7 @@
 
 Performs sequential forward selection using sklearn's SequentialFeatureSelector. Returns the chosen subset of features along with each candidate's relative score, so a downstream model can fit on a smaller feature set.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -25,8 +25,8 @@ class StepwiseComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    target_column: str = Field(description="Target column.")
-    feature_columns: List[str] = Field(description="Candidate feature columns.")
+    target_column: Union[str, int] = Field(description="Target column.")
+    feature_columns: List[Union[str, int]] = Field(description="Candidate feature columns.")
     n_features_to_select: int = Field(default=5, description="Number of features to keep.")
     task_type: str = Field(default="classification", description="'classification' or 'regression'")
     direction: str = Field(default="forward", description="'forward' or 'backward'")
@@ -76,7 +76,7 @@ class StepwiseComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -91,7 +91,7 @@ class StepwiseComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

@@ -10,7 +10,7 @@ default the entire row is JSON-serialized as the message body. Use
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -46,7 +46,7 @@ class PubSubPublishAssetComponent(Component, Model, Resolvable):
         description="If True, create the topic if it doesn't exist (requires roles/pubsub.editor).",
     )
 
-    message_column: Optional[str] = Field(
+    message_column: Optional[Union[str, int]] = Field(
         default=None,
         description=(
             "If set, publish only this column's value per row. Default: JSON-serialize "
@@ -57,7 +57,7 @@ class PubSubPublishAssetComponent(Component, Model, Resolvable):
         default=None,
         description="Columns to attach as Pub/Sub message attributes (string-coerced). Useful for downstream filtering.",
     )
-    ordering_key_column: Optional[str] = Field(
+    ordering_key_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Optional column to use as Pub/Sub ordering_key (requires the topic to have message ordering enabled).",
     )

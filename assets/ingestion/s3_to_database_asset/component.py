@@ -1,6 +1,6 @@
 """S3 to Database Asset Component."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import boto3
 import pandas as pd
 from io import BytesIO
@@ -173,7 +173,7 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
     )
 
     # Data Processing
-    column_mapping: Optional[str] = Field(
+    column_mapping: Optional[Union[str, int]] = Field(
         default="",
         description="JSON string for renaming columns, e.g. {\"old_name\": \"new_name\"}"
     )
@@ -293,7 +293,7 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
         description="Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -318,7 +318,7 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

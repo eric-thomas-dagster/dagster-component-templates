@@ -2,7 +2,7 @@
 
 Fits a SARIMAX model (statsmodels) with optional exogenous covariates. Forecasts `n_periods` ahead and emits per-step predicted values + 95% CI. Use when you have known external drivers (price, marketing spend, holiday flag) that influence the series.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -25,8 +25,8 @@ class TSCovariateForecastComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    date_column: str = Field(description="Datetime column.")
-    value_column: str = Field(description="Numeric series to forecast.")
+    date_column: Union[str, int] = Field(description="Datetime column.")
+    value_column: Union[str, int] = Field(description="Numeric series to forecast.")
     covariate_columns: List[str] = Field(description="Exogenous regressor columns (must extend through the forecast window in the input).")
     n_periods: int = Field(default=12, description="Forecast horizon (number of future periods to predict).")
     order: List[int] = Field(default=[1, 1, 1], description="SARIMAX order (p,d,q).")
@@ -75,7 +75,7 @@ class TSCovariateForecastComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -90,7 +90,7 @@ class TSCovariateForecastComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

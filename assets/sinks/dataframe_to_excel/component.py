@@ -3,7 +3,7 @@
 Write a DataFrame asset to an Excel (.xlsx) file.
 """
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -140,7 +140,7 @@ class DataframeToExcelComponent(Component, Model, Resolvable):
     )
     sheet_name: str = Field(default="Sheet1", description="Target worksheet name")
     include_index: bool = Field(default=False, description="Include row index in output")
-    columns: Optional[List[str]] = Field(
+    columns: Optional[List[Union[str, int]]] = Field(
         default=None, description="Subset of columns to write. If None, all columns are written."
     )
     freeze_panes: Optional[List[int]] = Field(
@@ -178,7 +178,7 @@ class DataframeToExcelComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -200,7 +200,7 @@ class DataframeToExcelComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

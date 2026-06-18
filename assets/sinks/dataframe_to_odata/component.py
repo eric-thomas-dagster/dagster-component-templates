@@ -22,7 +22,7 @@ support it; default is off.
 import math
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import quote
 
 import pandas as pd
@@ -134,7 +134,7 @@ class DataframeToODataComponent(Component, Model, Resolvable):
         default="insert",
         description="'insert' (POST) | 'upsert' (PATCH per key) | 'delete' (DELETE per key)",
     )
-    key_column: Optional[str] = Field(
+    key_column: Optional[Union[str, int]] = Field(
         default=None,
         description="DataFrame column holding the entity key. Required for `upsert` and `delete`.",
     )

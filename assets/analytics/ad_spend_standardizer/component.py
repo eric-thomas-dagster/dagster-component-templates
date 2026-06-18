@@ -4,7 +4,7 @@ Unifies advertising spend data from multiple platforms (Google Ads, Facebook Ads
 into a standardized schema for cross-platform analysis and attribution.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 import numpy as np
 from dagster import (
@@ -189,7 +189,7 @@ class AdSpendStandardizerComponent(Component, Model, Resolvable):
         description="Normalize all spend to this currency (USD, EUR, GBP)"
     )
 
-    date_column_name: str = Field(
+    date_column_name: Union[str, int] = Field(
         default="date",
         description="Name of the date column in source data"
     )
@@ -226,7 +226,7 @@ class AdSpendStandardizerComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -248,7 +248,7 @@ class AdSpendStandardizerComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

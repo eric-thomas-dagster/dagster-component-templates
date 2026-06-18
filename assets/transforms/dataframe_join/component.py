@@ -2,7 +2,7 @@
 
 Join two DataFrame assets on common or specified columns.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -148,9 +148,9 @@ class DataframeJoin(Component, Model, Resolvable):
         ),
     )
     how: str = Field(default="inner", description="Join type: 'inner', 'left', 'right', 'outer', 'cross'")
-    on: Optional[List[str]] = Field(default=None, description="Column(s) to join on (same name in both DataFrames)")
-    left_on: Optional[List[str]] = Field(default=None, description="Left join columns (when column names differ)")
-    right_on: Optional[List[str]] = Field(default=None, description="Right join columns (when column names differ)")
+    on: Optional[List[Union[str, int]]] = Field(default=None, description="Column(s) to join on (same name in both DataFrames)")
+    left_on: Optional[List[Union[str, int]]] = Field(default=None, description="Left join columns (when column names differ)")
+    right_on: Optional[List[Union[str, int]]] = Field(default=None, description="Right join columns (when column names differ)")
     suffixes: List[str] = Field(default=["_x", "_y"], description="Suffixes for overlapping column names")
     right_prefix: Optional[str] = Field(
         default=None,
@@ -163,11 +163,11 @@ class DataframeJoin(Component, Model, Resolvable):
             "suffixes on collision."
         ),
     )
-    rename: Optional[Dict[str, str]] = Field(
+    rename: Optional[Dict[str, Union[str, int]]] = Field(
         default=None,
         description="Post-merge rename map, e.g. {'Right_Age': 'Age At Win'}. Missing keys are ignored.",
     )
-    drop_columns: Optional[List[str]] = Field(
+    drop_columns: Optional[List[Union[str, int]]] = Field(
         default=None,
         description="Post-merge columns to drop (applied AFTER `rename`). Missing columns are ignored.",
     )
@@ -196,7 +196,7 @@ class DataframeJoin(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -218,7 +218,7 @@ class DataframeJoin(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

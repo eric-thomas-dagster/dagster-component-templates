@@ -5,7 +5,7 @@ Accepts a DataFrame with a text column and returns the DataFrame enriched with s
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from dagster import (
@@ -148,8 +148,8 @@ class DocumentSummarizerComponent(Component, Model, Resolvable):
     model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Name of the asset")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame with documents to summarize")
-    input_column: str = Field(default="text", description="Column name containing document text to summarize")
-    output_column: str = Field(default="summary", description="Column name for generated summaries")
+    input_column: Union[str, int] = Field(default="text", description="Column name containing document text to summarize")
+    output_column: Union[str, int] = Field(default="summary", description="Column name for generated summaries")
     provider: str = Field(description="LLM provider")
     model_id: str = Field(
         alias="model",
@@ -170,7 +170,7 @@ class DocumentSummarizerComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -192,7 +192,7 @@ class DocumentSummarizerComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

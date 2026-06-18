@@ -2,7 +2,7 @@
 
 Takes A/B exposure rows and bucks them by date. Outputs one row per (date_bucket, variant) with sample size, conversion count, and conversion rate. Useful for spotting novelty effects or peeking-bias before final analysis.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -25,9 +25,9 @@ class ABTrendComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    variant_column: str = Field(description="Variant column (control/treatment).")
-    converted_column: str = Field(description="Binary conversion column (0/1).")
-    date_column: str = Field(description="Datetime column to bucket by.")
+    variant_column: Union[str, int] = Field(description="Variant column (control/treatment).")
+    converted_column: Union[str, int] = Field(description="Binary conversion column (0/1).")
+    date_column: Union[str, int] = Field(description="Datetime column to bucket by.")
     bucket: str = Field(default="day", description="'day', 'week', or 'month'")
 
     include_preview_metadata: bool = Field(
@@ -73,7 +73,7 @@ class ABTrendComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -88,7 +88,7 @@ class ABTrendComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

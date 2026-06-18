@@ -2,7 +2,7 @@
 
 Parse, convert, or extract components from datetime columns in a DataFrame.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -127,14 +127,14 @@ class DatetimeParser(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    date_column: str = Field(description="Column containing date/datetime values")
+    date_column: Union[str, int] = Field(description="Column containing date/datetime values")
     input_format: Optional[str] = Field(default=None, description="strptime format string (None = auto-detect)")
     on_parse_error: str = Field(
         default="coerce",
         description="How to handle rows that don't match input_format: 'coerce' (set to NaT, default), 'raise' (fail loudly), 'ignore' (leave the original value untouched).",
     )
     output_format: Optional[str] = Field(default=None, description="strftime format for string output (None = keep as datetime)")
-    output_column: Optional[str] = Field(default=None, description="Output column name (defaults to overwriting date_column)")
+    output_column: Optional[Union[str, int]] = Field(default=None, description="Output column name (defaults to overwriting date_column)")
     timezone: Optional[str] = Field(default=None, description="Convert to this timezone (e.g. 'UTC', 'America/New_York')")
     extract_components: bool = Field(default=False, description="If True, extract year/month/day/hour/weekday as separate columns")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
@@ -146,7 +146,7 @@ class DatetimeParser(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -168,7 +168,7 @@ class DatetimeParser(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

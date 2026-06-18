@@ -1,3 +1,4 @@
+from typing import Union
 """MinIO IO Manager component.
 
 YAML/Component wrapper around `MinIODeltaIOManager`. Use `resource_key:
@@ -45,7 +46,7 @@ class MinIOIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         default="MINIO_SECRET_KEY",
         description="Environment variable holding the MinIO secret key",
     )
-    partition_column: str = Field(
+    partition_column: Union[str, int] = Field(
         default="partition_key",
         description="Column name used to scope per-partition Delta overwrites",
     )

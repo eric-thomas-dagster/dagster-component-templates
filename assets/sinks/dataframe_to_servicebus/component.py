@@ -16,7 +16,7 @@ Use this for SB queues / topics; use dataframe_to_eventhub for EH.
 
 import json
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -52,18 +52,18 @@ class DataframeToServiceBusComponent(Component, Model, Resolvable):
         description="'queue' (point-to-point) | 'topic' (pub-sub)",
     )
 
-    session_id_column: Optional[str] = Field(
+    session_id_column: Optional[Union[str, int]] = Field(
         default=None,
         description=(
             "Optional column to use as Session ID. Required if the queue/topic has "
             "sessions enabled — guarantees per-session ordering."
         ),
     )
-    message_id_column: Optional[str] = Field(
+    message_id_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Optional column to use as Message ID for idempotency / dedup.",
     )
-    correlation_id_column: Optional[str] = Field(
+    correlation_id_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Optional column to use as Correlation ID (for request/reply patterns).",
     )

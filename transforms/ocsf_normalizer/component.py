@@ -11,7 +11,7 @@ github, azure_activity, slack, generic. Override `event_class_uid` and
 
 import json
 import os
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import dagster as dg
 import pandas as pd
@@ -161,10 +161,10 @@ class OcsfNormalizerComponent(dg.Component, dg.Model, dg.Resolvable):
     )
 
     # Field mappings — keep auto-detect defaults but allow override
-    event_type_column: Optional[str] = Field(default=None, description="Source column holding the event type string (auto-detected when None)")
-    timestamp_column: Optional[str] = Field(default=None, description="Source column for the event timestamp (auto-detected when None)")
-    actor_email_column: Optional[str] = Field(default=None, description="Source column for actor email (auto-detected when None)")
-    actor_name_column: Optional[str] = Field(default=None, description="Source column for actor display name (auto-detected when None)")
+    event_type_column: Optional[Union[str, int]] = Field(default=None, description="Source column holding the event type string (auto-detected when None)")
+    timestamp_column: Optional[Union[str, int]] = Field(default=None, description="Source column for the event timestamp (auto-detected when None)")
+    actor_email_column: Optional[Union[str, int]] = Field(default=None, description="Source column for actor email (auto-detected when None)")
+    actor_name_column: Optional[Union[str, int]] = Field(default=None, description="Source column for actor display name (auto-detected when None)")
 
     # Identity
     vendor_name: str = Field(default="Dagster", description="metadata.product.vendor_name")

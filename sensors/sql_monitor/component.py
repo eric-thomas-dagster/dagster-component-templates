@@ -7,7 +7,7 @@ to downstream assets.
 """
 
 import json
-from typing import Optional
+from typing import Optional, Union
 
 from dagster import (
     Component,
@@ -58,13 +58,13 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
         description="Name of the table to monitor. Use 'schema.table' for non-default schemas."
     )
 
-    watermark_column: str = Field(
+    watermark_column: Union[str, int] = Field(
         description="Column used to detect new/updated rows (e.g., 'updated_at', 'created_at', 'id')"
     )
 
     job_name: str = Field(description="Name of the job to trigger when new rows are detected")
 
-    id_column: Optional[str] = Field(
+    id_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Primary key column used as the run_key for deduplication. "
                     "Defaults to the watermark_column if not set."

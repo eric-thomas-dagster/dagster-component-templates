@@ -3,7 +3,7 @@
 Add a unique sequential identifier to each row in a DataFrame, with
 optional sorting, group-level numbering, and string prefixes.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -133,7 +133,7 @@ class RecordIdComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    output_column: str = Field(
+    output_column: Union[str, int] = Field(
         default="record_id",
         description="Name of the ID column to add",
     )
@@ -147,7 +147,7 @@ class RecordIdComponent(Component, Model, Resolvable):
         default=True,
         description="Sort direction when sort_by is specified",
     )
-    group_by: Optional[List[str]] = Field(
+    group_by: Optional[List[Union[str, int]]] = Field(
         default=None,
         description="Assign IDs within groups, restarting at 'start' per group",
     )
@@ -164,7 +164,7 @@ class RecordIdComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -186,7 +186,7 @@ class RecordIdComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

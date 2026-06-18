@@ -3,7 +3,7 @@
 Fit an ARIMA time series model and generate forecasts with optional confidence intervals.
 """
 from dataclasses import field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -128,8 +128,8 @@ class ArimaForecastComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a time series DataFrame")
-    date_column: str = Field(description="Column name containing datetime values")
-    value_column: str = Field(description="Column name containing the numeric values to forecast")
+    date_column: Union[str, int] = Field(description="Column name containing datetime values")
+    value_column: Union[str, int] = Field(description="Column name containing the numeric values to forecast")
     forecast_periods: int = Field(default=12, description="Number of periods to forecast ahead")
     order: List[int] = Field(default_factory=lambda: [1, 1, 1], description="ARIMA (p, d, q) order")
     seasonal_order: Optional[List[int]] = Field(default=None, description="Seasonal (P, D, Q, S) order")
@@ -147,7 +147,7 @@ class ArimaForecastComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -169,7 +169,7 @@ class ArimaForecastComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

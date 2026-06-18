@@ -6,7 +6,7 @@ that should annotate Dynatrace's timeline alongside operational metrics.
 """
 
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -38,7 +38,7 @@ class DataframeToDynatraceEventsComponent(Component, Model, Resolvable):
         default="CUSTOM_INFO",
         description="Dynatrace event type: 'CUSTOM_INFO' | 'CUSTOM_DEPLOYMENT' | 'CUSTOM_ANNOTATION' | 'AVAILABILITY_EVENT' | 'ERROR_EVENT' | 'PERFORMANCE_EVENT' | 'RESOURCE_CONTENTION_EVENT'",
     )
-    title_column: Optional[str] = Field(
+    title_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column whose value becomes the event title. Default: synthesized from row.",
     )

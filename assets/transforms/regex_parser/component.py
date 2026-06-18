@@ -2,7 +2,7 @@
 
 Use regular expressions to extract, match, or replace text in a column.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -127,12 +127,12 @@ class RegexParser(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    column: str = Field(description="Column to apply regex to")
+    column: Union[str, int] = Field(description="Column to apply regex to")
     pattern: str = Field(description="Regex pattern")
     mode: str = Field(default="extract", description="'extract' (capture groups -> new cols), 'match' (bool column), 'replace' (substitute), 'split' (split into multiple rows)")
     replacement: Optional[str] = Field(default=None, description="Replacement string for mode='replace'")
-    output_columns: Optional[List[str]] = Field(default=None, description="Names for extracted capture groups")
-    output_column: Optional[str] = Field(default=None, description="Name for match/replace result column")
+    output_columns: Optional[List[Union[str, int]]] = Field(default=None, description="Names for extracted capture groups")
+    output_column: Optional[Union[str, int]] = Field(default=None, description="Name for match/replace result column")
     flags: int = Field(default=0, description="Regex flags (0=none, 2=IGNORECASE)")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
@@ -143,7 +143,7 @@ class RegexParser(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -165,7 +165,7 @@ class RegexParser(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

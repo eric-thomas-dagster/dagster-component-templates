@@ -2,7 +2,7 @@
 
 Fits ordinary least squares using sklearn's SplineTransformer to allow smooth non-linear feature effects (alternative to a hand-engineered polynomial). Emits per-row predictions.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -25,8 +25,8 @@ class SplineModelComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    target_column: str = Field(description="Continuous target column.")
-    feature_columns: List[str] = Field(description="Numeric feature columns to transform via splines.")
+    target_column: Union[str, int] = Field(description="Continuous target column.")
+    feature_columns: List[Union[str, int]] = Field(description="Numeric feature columns to transform via splines.")
     n_knots: int = Field(default=5, description="Number of spline knots per feature.")
     degree: int = Field(default=3, description="Spline degree (3 = cubic).")
 
@@ -73,7 +73,7 @@ class SplineModelComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -88,7 +88,7 @@ class SplineModelComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

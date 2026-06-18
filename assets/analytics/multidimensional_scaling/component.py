@@ -2,7 +2,7 @@
 
 Applies Multidimensional Scaling (sklearn.manifold.MDS) to compress a high-dimensional feature space into 2 or 3 components, preserving pairwise distances as much as possible. Output keeps the original rows with new MDS columns appended.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -25,7 +25,7 @@ class MultidimensionalScalingComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    feature_columns: List[str] = Field(description="Numeric feature columns.")
+    feature_columns: List[Union[str, int]] = Field(description="Numeric feature columns.")
     n_components: int = Field(default=2, description="Output dimensions (2 or 3).")
     random_state: int = Field(default=42, description="Random seed.")
     metric: bool = Field(default=True, description="True = metric MDS, False = non-metric.")
@@ -73,7 +73,7 @@ class MultidimensionalScalingComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -88,7 +88,7 @@ class MultidimensionalScalingComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

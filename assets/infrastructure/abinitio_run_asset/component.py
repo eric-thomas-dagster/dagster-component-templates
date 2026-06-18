@@ -13,7 +13,7 @@ Shares AbInitioResource with abinitio_job_sensor for connection config.
 EME REST API: https://{host}/abinitio/eme-rest-api/v1
 """
 import time
-from typing import Dict, List, Optional, Type
+from typing import Dict, List, Optional, Type, Union
 import dagster as dg
 from dagster import AssetExecutionContext, ConfigurableResource, MaterializeResult
 from pydantic import Field
@@ -197,7 +197,7 @@ class AbInitioRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -212,7 +212,7 @@ class AbInitioRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

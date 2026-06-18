@@ -5,7 +5,7 @@ Supports batch processing, dimension reduction, and cosine similarity computatio
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 import numpy as np
 
@@ -182,12 +182,12 @@ class EmbeddingsGeneratorComponent(Component, Model, Resolvable):
         description="API key for OpenAI/Cohere. Use ${API_KEY_NAME} for env vars."
     )
 
-    input_column: str = Field(
+    input_column: Union[str, int] = Field(
         default="text",
         description="Column name containing text to embed"
     )
 
-    output_column: str = Field(
+    output_column: Union[str, int] = Field(
         default="embedding",
         description="Column name for embeddings (list of floats)"
     )
@@ -259,7 +259,7 @@ class EmbeddingsGeneratorComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -281,7 +281,7 @@ class EmbeddingsGeneratorComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

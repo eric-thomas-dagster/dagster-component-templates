@@ -156,17 +156,17 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
     )
 
     # Column operations
-    filter_columns: Optional[str] = Field(
+    filter_columns: Optional[Union[str, int]] = Field(
         default=None,
         description="Comma-separated list of columns to keep"
     )
 
-    drop_columns: Optional[str] = Field(
+    drop_columns: Optional[Union[str, int]] = Field(
         default=None,
         description="Comma-separated list of columns to drop"
     )
 
-    rename_columns: Optional[str] = Field(
+    rename_columns: Optional[Union[str, int]] = Field(
         default=None,
         description="JSON mapping of column renames: '{\"old_name\": \"new_name\"}'"
     )
@@ -238,7 +238,7 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -260,7 +260,7 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
@@ -301,7 +301,7 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
     )
 
     # Calculated columns
-    calculated_columns: Optional[str] = Field(
+    calculated_columns: Optional[Union[str, int]] = Field(
         default=None,
         description='JSON mapping of calculated columns: {"new_col": "price * quantity", "full_name": "first_name + \' \' + last_name"}'
     )

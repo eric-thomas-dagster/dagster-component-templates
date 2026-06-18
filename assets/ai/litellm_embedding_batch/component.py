@@ -3,7 +3,7 @@
 Generate embeddings for a text column using LiteLLM with automatic
 model routing and fallback. Processes rows in configurable batches.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
@@ -143,8 +143,8 @@ class LitellmEmbeddingBatchComponent(Component, Model, Resolvable):
     model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    text_column: str = Field(description="Column containing input text")
-    output_column: str = Field(default="embedding", description="Column to write embedding vectors (lists of floats)")
+    text_column: Union[str, int] = Field(description="Column containing input text")
+    output_column: Union[str, int] = Field(default="embedding", description="Column to write embedding vectors (lists of floats)")
     model_id: str = Field(
         alias="model",
         default="text-embedding-3-small", description='Embedding model (e.g. "text-embedding-3-small", "text-embedding-ada-002", "cohere/embed-english-v3.0")')
@@ -161,7 +161,7 @@ class LitellmEmbeddingBatchComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -183,7 +183,7 @@ class LitellmEmbeddingBatchComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

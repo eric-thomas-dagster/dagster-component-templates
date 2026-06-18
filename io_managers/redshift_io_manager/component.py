@@ -1,3 +1,4 @@
+from typing import Union
 """Redshift IO Manager component.
 
 YAML/Component wrapper around `RedshiftIOManager`. Use `resource_key:
@@ -39,7 +40,7 @@ class RedshiftIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         default="replace",
         description="Behavior for unpartitioned writes when table exists: 'replace', 'append', or 'fail'",
     )
-    partition_column: str = Field(
+    partition_column: Union[str, int] = Field(
         default="partition_key",
         description="Column name used to scope per-partition DELETE+INSERT writes",
     )

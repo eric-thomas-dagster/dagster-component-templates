@@ -3,7 +3,7 @@
 Group and aggregate a DataFrame by one or more columns. Equivalent to SQL GROUP BY
 or the Summarize tool.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -192,7 +192,7 @@ class SummarizeComponent(Component, Model, Resolvable):
             "is a polars DataFrame, otherwise pandas."
         ),
     )
-    group_by: List[str] = Field(description="Columns to group by")
+    group_by: List[Union[str, int]] = Field(description="Columns to group by")
     group_by_rename: Optional[Dict[str, str]] = Field(
         default=None,
         description=(
@@ -221,7 +221,7 @@ class SummarizeComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -243,7 +243,7 @@ class SummarizeComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

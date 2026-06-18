@@ -7,7 +7,7 @@ test events into a queue without writing custom asset code.
 
 import json
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -53,7 +53,7 @@ class DataframeToEventHubComponent(Component, Model, Resolvable):
         description="Env var holding the Event Hubs namespace or hub-scoped connection string"
     )
     eventhub_name: str = Field(description="Event Hub name (the entity inside the namespace)")
-    partition_key_column: Optional[str] = Field(
+    partition_key_column: Optional[Union[str, int]] = Field(
         default=None,
         description=(
             "Optional column to use as the partition key. Events with the same "

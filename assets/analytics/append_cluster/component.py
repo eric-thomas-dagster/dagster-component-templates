@@ -2,7 +2,7 @@
 
 Trains a k-means model in-place on the input DataFrame and appends a `cluster` column with the assigned cluster ID per row. Lighter alternative to `k_means_clustering` when you don't need the centroid distances and just want the label as a feature.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -25,9 +25,9 @@ class AppendClusterComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    feature_columns: List[str] = Field(description="Numeric feature columns to cluster on.")
+    feature_columns: List[Union[str, int]] = Field(description="Numeric feature columns to cluster on.")
     n_clusters: int = Field(default=4, description="Number of clusters.")
-    output_column: str = Field(default="cluster", description="Output column for cluster ID.")
+    output_column: Union[str, int] = Field(default="cluster", description="Output column for cluster ID.")
     random_state: int = Field(default=42, description="Random seed.")
     normalize: bool = Field(default=True, description="StandardScaler features before clustering.")
 
@@ -74,7 +74,7 @@ class AppendClusterComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -89,7 +89,7 @@ class AppendClusterComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

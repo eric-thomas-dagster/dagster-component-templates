@@ -18,7 +18,7 @@ Input: a (Geo)DataFrame with either (a) `geometry` Point column, or
 Output: same DataFrame + a `geometry` column whose value for each row is
 the drive-time isochrone polygon (a Shapely Polygon / MultiPolygon).
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -80,18 +80,18 @@ class DriveTimeComponent(Component, Model, Resolvable):
         ),
     )
 
-    geometry_column: str = Field(
+    geometry_column: Union[str, int] = Field(
         default="geometry",
         description="Input + output geometry column name. Output isochrone replaces input point.",
     )
-    latitude_column: Optional[str] = Field(
+    latitude_column: Optional[Union[str, int]] = Field(
         default=None,
         description=(
             "If the input has no geometry column yet, name the lat column here "
             "+ longitude_column. We'll build the Point ourselves."
         ),
     )
-    longitude_column: Optional[str] = Field(default=None)
+    longitude_column: Optional[Union[str, int]] = Field(default=None)
 
     group_name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)

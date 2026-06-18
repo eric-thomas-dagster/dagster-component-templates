@@ -11,7 +11,7 @@ For multi-vendor / model-switching workflows, see `litellm_inference_asset`.
 
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -158,11 +158,11 @@ class GeminiLLMComponent(Component, Model, Resolvable):
         default=None,
         description="Static template with {column_name} placeholders. Mutually exclusive with input_column.",
     )
-    input_column: Optional[str] = Field(
+    input_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column whose value becomes the per-row prompt. Mutually exclusive with user_prompt_template.",
     )
-    output_column: str = Field(
+    output_column: Union[str, int] = Field(
         default="gemini_response",
         description="Column for the model's text response.",
     )

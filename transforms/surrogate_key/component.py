@@ -4,7 +4,7 @@ Generate stable surrogate keys — deterministic SHA-256 hash of business-key co
 """
 
 import os
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import dagster as dg
 import pandas as pd
@@ -18,7 +18,7 @@ class SurrogateKeyComponent(dg.Component, dg.Model, dg.Resolvable):
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key")
 
     business_key_columns: list = Field(description="Columns that uniquely identify a record")
-    output_column: str = Field(default="sk_id", description="Name for the generated surrogate key column")
+    output_column: Union[str, int] = Field(default="sk_id", description="Name for the generated surrogate key column")
     method: str = Field(default="sha256", description="'sha256' (deterministic) | 'md5' | 'sequential' (1..N)")
     sequential_start: int = Field(default=1, description="Start value for sequential mode")
     truncate_chars: Optional[int] = Field(default=None, description="Truncate hash to this many hex chars (e.g. 16)")

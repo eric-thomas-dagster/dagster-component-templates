@@ -13,7 +13,7 @@ optional headings list, word count.
 
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -174,7 +174,7 @@ class GoogleDocsExtractorComponent(Component, Model, Resolvable):
         default=None,
         description="Upstream DataFrame asset key. Each row's id_column value is treated as a Doc ID.",
     )
-    id_column: str = Field(
+    id_column: Union[str, int] = Field(
         default="id",
         description="When upstream_asset_key is set, the column with the Doc IDs.",
     )

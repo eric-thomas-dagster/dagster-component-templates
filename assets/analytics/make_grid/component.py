@@ -2,7 +2,7 @@
 
 Tile the bounding box of the input geometries (or an explicit bbox) into a regular grid of squares with a configurable cell size. Outputs one row per cell with cell_id, row, col, and a polygon geometry — useful for heatmap-style aggregation by spatial bucket.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -25,7 +25,7 @@ class MakeGridComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    geometry_column: str = Field(default="geometry", description="WKT geometry column to derive bbox from.")
+    geometry_column: Union[str, int] = Field(default="geometry", description="WKT geometry column to derive bbox from.")
     cell_size_meters: float = Field(description="Grid cell size in meters.")
     metric_crs: str = Field(default="EPSG:3857", description="Metric projection used for cell generation.")
     src_crs: str = Field(default="EPSG:4326", description="Source CRS of input geometries.")
@@ -74,7 +74,7 @@ class MakeGridComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -89,7 +89,7 @@ class MakeGridComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

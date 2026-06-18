@@ -22,7 +22,7 @@ Docs: https://doris.apache.org/docs/data-operate/import/import-way/stream-load-m
 """
 import io
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 import pandas as pd
@@ -62,9 +62,9 @@ class DataframeToDorisComponent(dg.Component, dg.Model, dg.Resolvable):
     ssl: bool = Field(default=False, description="Use https for the Stream Load endpoint.")
 
     format: str = Field(default="csv", description="'csv' or 'json'. CSV is faster + smaller.")
-    column_separator: str = Field(default=",", description="CSV column separator (Doris default ','.)")
+    column_separator: Union[str, int] = Field(default=",", description="CSV column separator (Doris default ','.)")
     line_delimiter: str = Field(default="\\n", description="CSV line delimiter (Doris default '\\n').")
-    columns: Optional[List[str]] = Field(
+    columns: Optional[List[Union[str, int]]] = Field(
         default=None,
         description=(
             "Optional explicit column list (must match Doris table column order). "

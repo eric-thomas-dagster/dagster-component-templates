@@ -13,7 +13,7 @@ Open polygons (start vertex != end vertex) auto-close. Polygons with
 fewer than 3 distinct vertices fall back to `LineString` regardless of
 the configured output_type.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -36,8 +36,8 @@ class PolyBuildComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key — DataFrame with one row per vertex")
-    group_column: str = Field(description="Column identifying which polygon each vertex belongs to")
-    sequence_column: Optional[str] = Field(
+    group_column: Union[str, int] = Field(description="Column identifying which polygon each vertex belongs to")
+    sequence_column: Optional[Union[str, int]] = Field(
         default=None,
         description=(
             "Column ordering vertices within each polygon. If None, the "
@@ -49,15 +49,15 @@ class PolyBuildComponent(Component, Model, Resolvable):
     #   1. latitude_column + longitude_column → build Points from coords
     #   2. geometry_column                    → use existing Shapely Points
     #      (matches Poly-build's <SpatialObj field=X/>)
-    latitude_column: Optional[str] = Field(
+    latitude_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column with vertex latitude values (lat/lng mode)",
     )
-    longitude_column: Optional[str] = Field(
+    longitude_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column with vertex longitude values (lat/lng mode)",
     )
-    input_geometry_column: Optional[str] = Field(
+    input_geometry_column: Optional[Union[str, int]] = Field(
         default=None,
         description=(
             "Column with existing Shapely Point geometries (geometry mode). "
@@ -70,7 +70,7 @@ class PolyBuildComponent(Component, Model, Resolvable):
         default="polygon",
         description="'polygon' (closed ring; auto-closes) or 'line' (open polyline)",
     )
-    geometry_column: str = Field(
+    geometry_column: Union[str, int] = Field(
         default="geometry",
         description="Output column name for the built Shapely geometry",
     )

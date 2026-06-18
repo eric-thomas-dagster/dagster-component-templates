@@ -5,7 +5,7 @@ optionally grouped (e.g. per customer / region) and ordered by a time
 column. Right for week-over-week / month-over-month growth metrics
 without writing the lag-then-divide formula by hand.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 import pandas as pd
@@ -145,12 +145,12 @@ class PctChangeComponent(Component, Model, Resolvable):
         default="pandas",
         description="'pandas' (default) or 'polars'. Polars uses pl.col.pct_change() per group via .over(group_by) and returns a polars DataFrame.",
     )
-    value_column: str = Field(description="Column to compute period-over-period change on")
+    value_column: Union[str, int] = Field(description="Column to compute period-over-period change on")
     order_by: Optional[str] = Field(
         default=None,
         description="Column used to order rows before computing change. Usually a date/time column. If None, uses existing row order.",
     )
-    group_by: Optional[List[str]] = Field(
+    group_by: Optional[List[Union[str, int]]] = Field(
         default=None,
         description="Group columns. Change is computed *within* each group (e.g. growth per customer).",
     )
@@ -158,11 +158,11 @@ class PctChangeComponent(Component, Model, Resolvable):
         default=1,
         description="Lag periods: 1 = vs previous row (default), 7 = vs 7 rows back, etc.",
     )
-    diff_column: Optional[str] = Field(
+    diff_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Output column name for absolute diff. Default: '<value_column>_diff'.",
     )
-    pct_column: Optional[str] = Field(
+    pct_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Output column name for percent change. Default: '<value_column>_pct'.",
     )
@@ -183,7 +183,7 @@ class PctChangeComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -205,7 +205,7 @@ class PctChangeComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

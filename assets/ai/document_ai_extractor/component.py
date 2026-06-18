@@ -18,7 +18,7 @@ use the FORM_PARSER processor.
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -74,8 +74,8 @@ class DocumentAiExtractorComponent(Component, Model, Resolvable):
         description="Optional pinned processor version (e.g. 'pretrained-form-parser-v2.0-2022-11-10'). Default: rc / stable.",
     )
 
-    document_column: str = Field(description="Column with document file paths or `gs://` URIs.")
-    mime_type_column: Optional[str] = Field(
+    document_column: Union[str, int] = Field(description="Column with document file paths or `gs://` URIs.")
+    mime_type_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Optional column with explicit MIME type per row. Default: auto-detect from file extension.",
     )

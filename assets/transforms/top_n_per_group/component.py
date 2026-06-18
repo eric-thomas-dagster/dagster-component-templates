@@ -5,7 +5,7 @@ SQL's `ROW_NUMBER() OVER (PARTITION BY ... ORDER BY ... DESC) <= N`, or
 pandas's `df.groupby(...).head(N)` after sort. Right for "top 3 products
 per category", "5 most recent orders per customer", etc.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 import pandas as pd
@@ -140,14 +140,14 @@ class TopNPerGroupComponent(Component, Model, Resolvable):
         description="'pandas' (default) or 'polars'. Polars runs sort+head per group "
                     "with the polars engine and returns a polars DataFrame.",
     )
-    group_by: List[str] = Field(description="Columns to group by (e.g. ['category']).")
+    group_by: List[Union[str, int]] = Field(description="Columns to group by (e.g. ['category']).")
     sort_by: str = Field(description="Column to sort by within each group (the 'top' criterion).")
     n: int = Field(default=3, description="Number of rows to keep per group.", ge=1)
     ascending: bool = Field(
         default=False,
         description="If true, keep BOTTOM N per group (sort ascending). Default false (top N).",
     )
-    rank_column: Optional[str] = Field(
+    rank_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Optional output column name to add (1..N rank within group). If unset, no rank column.",
     )
@@ -164,7 +164,7 @@ class TopNPerGroupComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -186,7 +186,7 @@ class TopNPerGroupComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

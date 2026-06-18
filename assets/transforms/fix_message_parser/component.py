@@ -171,7 +171,7 @@ class FixMessageParserComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output asset name.")
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key.")
 
-    message_column: str = Field(
+    message_column: Union[str, int] = Field(
         default="message",
         description="Column holding the raw FIX message (tag=value pairs separated by SOH or `|`).",
     )

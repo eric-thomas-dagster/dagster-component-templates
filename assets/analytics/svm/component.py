@@ -2,7 +2,7 @@
 
 Fits a Support Vector Classifier or Regressor (sklearn). Configurable kernel, regularization (C), and gamma. Emits per-row predictions plus, for classification, predicted probabilities when the kernel supports them.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -25,8 +25,8 @@ class SVMComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    target_column: str = Field(description="Target column.")
-    feature_columns: List[str] = Field(description="Feature columns.")
+    target_column: Union[str, int] = Field(description="Target column.")
+    feature_columns: List[Union[str, int]] = Field(description="Feature columns.")
     task_type: str = Field(default="classification", description="'classification' or 'regression'")
     kernel: str = Field(default="rbf", description="'linear', 'poly', 'rbf', or 'sigmoid'")
     C: float = Field(default=1.0, description="Regularization parameter")
@@ -86,7 +86,7 @@ class SVMComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -101,7 +101,7 @@ class SVMComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

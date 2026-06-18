@@ -3,7 +3,7 @@
 Fit and forecast a separate time series model per group (e.g. product, store, region).
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from dagster import (
@@ -146,9 +146,9 @@ class TsModelFactoryComponent(Component, Model, Resolvable):
     model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    date_column: str = Field(description="Column containing dates or timestamps")
-    value_column: str = Field(description="Column containing numeric time series values")
-    group_column: str = Field(
+    date_column: Union[str, int] = Field(description="Column containing dates or timestamps")
+    value_column: Union[str, int] = Field(description="Column containing numeric time series values")
+    group_column: Union[str, int] = Field(
         description="Column identifying each group/entity (e.g. product_id, store_id)"
     )
     forecast_periods: int = Field(default=12, description="Number of future periods per group")
@@ -176,7 +176,7 @@ class TsModelFactoryComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -198,7 +198,7 @@ class TsModelFactoryComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

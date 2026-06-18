@@ -11,7 +11,7 @@ column name into the template.
 
 Sibling: `warehouse_formula` (general inline expressions, one per output column).
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 from dagster import (
@@ -140,7 +140,7 @@ class WarehouseMultiFieldFormulaComponent(Component, Model, Resolvable):
             "UPPER(TRIM(name)) and UPPER(TRIM(email))."
         ),
     )
-    columns: List[str] = Field(description="Columns to apply the expression to.")
+    columns: List[Union[str, int]] = Field(description="Columns to apply the expression to.")
     output_mode: str = Field(
         default="add_suffix",
         description=(

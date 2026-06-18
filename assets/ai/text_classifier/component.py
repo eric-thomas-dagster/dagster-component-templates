@@ -6,7 +6,7 @@ Accepts a DataFrame with a text column and returns the DataFrame enriched with c
 
 import os
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from dagster import (
@@ -153,9 +153,9 @@ class TextClassifierComponent(Component, Model, Resolvable):
     model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Name of the asset")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame with text to classify")
-    input_column: str = Field(default="text", description="Column name containing text to classify")
-    output_column: str = Field(default="category", description="Column name for classification result")
-    confidence_column: Optional[str] = Field(default="confidence", description="Column name for confidence score (None to skip)")
+    input_column: Union[str, int] = Field(default="text", description="Column name containing text to classify")
+    output_column: Union[str, int] = Field(default="category", description="Column name for classification result")
+    confidence_column: Optional[Union[str, int]] = Field(default="confidence", description="Column name for confidence score (None to skip)")
     provider: str = Field(description="LLM provider")
     model_id: str = Field(
         alias="model",
@@ -176,7 +176,7 @@ class TextClassifierComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -198,7 +198,7 @@ class TextClassifierComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

@@ -2,7 +2,7 @@
 
 Takes a DataFrame of users and assigns each to a variant using a stable hash of (user_id, experiment_id). The split is deterministic — re-running on the same input gives the same assignments — so you can rebuild the asset without reshuffling users mid-experiment.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -25,11 +25,11 @@ class ABTreatmentsComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    user_id_column: str = Field(description="Column with user IDs.")
+    user_id_column: Union[str, int] = Field(description="Column with user IDs.")
     experiment_id: str = Field(description="Experiment identifier (used in the hash so the same user can be in different splits across experiments).")
     variants: List[str] = Field(default=["control", "treatment"], description="Variant labels.")
     weights: Optional[List[float]] = Field(default=None, description="Per-variant weights (must sum to 1). Equal split if None.")
-    output_column: str = Field(default="variant", description="Output column for the variant label.")
+    output_column: Union[str, int] = Field(default="variant", description="Output column for the variant label.")
 
     include_preview_metadata: bool = Field(
         default=False,
@@ -74,7 +74,7 @@ class ABTreatmentsComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -89,7 +89,7 @@ class ABTreatmentsComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

@@ -2,7 +2,7 @@
 
 Fill gaps in a time series by resampling to a regular frequency.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -127,11 +127,11 @@ class TsFillerComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a time series DataFrame")
-    date_column: str = Field(description="Column name containing datetime values")
+    date_column: Union[str, int] = Field(description="Column name containing datetime values")
     frequency: str = Field(default="D", description="Pandas offset alias: 'D' (daily), 'W' (weekly), 'ME' (month-end), 'h' (hourly), 'min' (minute)")
     fill_method: str = Field(default="forward_fill", description="Fill method: 'forward_fill', 'backward_fill', 'interpolate', 'zero', 'mean'")
-    value_columns: Optional[List[str]] = Field(default=None, description="Columns to fill (None = all numeric columns)")
-    group_by: Optional[List[str]] = Field(default=None, description="Fill within groups (e.g. per product_id)")
+    value_columns: Optional[List[Union[str, int]]] = Field(default=None, description="Columns to fill (None = all numeric columns)")
+    group_by: Optional[List[Union[str, int]]] = Field(default=None, description="Fill within groups (e.g. per product_id)")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -141,7 +141,7 @@ class TsFillerComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -163,7 +163,7 @@ class TsFillerComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

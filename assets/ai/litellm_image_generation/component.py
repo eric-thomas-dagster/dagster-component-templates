@@ -3,7 +3,7 @@
 Generate images from text prompts in a DataFrame column using LiteLLM.
 Supports DALL-E, Stable Diffusion, and other image generation models.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
@@ -143,8 +143,8 @@ class LitellmImageGenerationComponent(Component, Model, Resolvable):
     model_config = ConfigDict(populate_by_name=True)
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    prompt_column: str = Field(description="Column containing image prompts")
-    output_column: str = Field(default="image_url", description="Column to write image URLs or base64 data")
+    prompt_column: Union[str, int] = Field(description="Column containing image prompts")
+    output_column: Union[str, int] = Field(default="image_url", description="Column to write image URLs or base64 data")
     model_id: str = Field(
         alias="model",
         default="dall-e-3", description='Model to use (e.g. "dall-e-3", "dall-e-2", "stability/stable-diffusion-xl-1024-v1-0")')
@@ -161,7 +161,7 @@ class LitellmImageGenerationComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -183,7 +183,7 @@ class LitellmImageGenerationComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

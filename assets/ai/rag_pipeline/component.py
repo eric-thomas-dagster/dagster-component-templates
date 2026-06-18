@@ -4,7 +4,7 @@ Complete Retrieval-Augmented Generation pipeline combining query, retrieval, and
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -157,9 +157,9 @@ class RAGPipelineComponent(Component, Model, Resolvable):
     embedding_api_key: Optional[str] = Field(default=None, description="Embedding API key with ${VAR_NAME} syntax")
     include_sources: bool = Field(default=True, description="Include source documents")
     temperature: float = Field(default=0.7, description="LLM temperature")
-    query_column: str = Field(default="query", description="Column name containing query text")
-    answer_column: str = Field(default="answer", description="Column name for generated answers")
-    sources_column: str = Field(default="sources", description="Column name for retrieved source documents")
+    query_column: Union[str, int] = Field(default="query", description="Column name containing query text")
+    answer_column: Union[str, int] = Field(default="answer", description="Column name for generated answers")
+    sources_column: Union[str, int] = Field(default="sources", description="Column name for retrieved source documents")
     description: Optional[str] = Field(default=None, description="Asset description")
     group_name: Optional[str] = Field(default=None, description="Asset group")
     partition_type: Optional[str] = Field(
@@ -170,7 +170,7 @@ class RAGPipelineComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -192,7 +192,7 @@ class RAGPipelineComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

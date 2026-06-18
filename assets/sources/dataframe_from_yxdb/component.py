@@ -51,6 +51,17 @@ class DataframeFromYxdbComponent(Component, Model, Resolvable):
         default=None,
         description="Optional row limit; defaults to all rows.",
     )
+    if_missing: str = Field(
+        default="raise",
+        description=(
+            "Behavior when the file_path doesn't exist: 'raise' (default — "
+            "fail loudly), 'empty' (return an empty DataFrame and log a "
+            "warning so downstream assets continue with empty inputs). "
+            "Useful for importer-generated demos where the original Alteryx "
+            "workflow referenced a Windows-only path that the customer "
+            "hasn't restored yet."
+        ),
+    )
 
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
@@ -73,6 +84,7 @@ class DataframeFromYxdbComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
         file_path = self.file_path
         nrows = self.nrows
+        if_missing = self.if_missing
         group_name = self.group_name
         description = self.description
         owners = self.owners or []
@@ -115,6 +127,14 @@ class DataframeFromYxdbComponent(Component, Model, Resolvable):
         def _yxdb_asset(context: AssetExecutionContext):
             resolved_path = os.path.expandvars(file_path)
             if not os.path.exists(resolved_path):
+                if if_missing == "empty":
+                    import pandas as pd
+                    context.log.warning(
+                        f"yxdb file not found: {resolved_path} — returning "
+                        "empty DataFrame (if_missing='empty'). Downstream "
+                        "assets will materialize with no rows."
+                    )
+                    return pd.DataFrame()
                 raise FileNotFoundError(f"yxdb file not found: {resolved_path}")
 
             df = _read_yxdb(resolved_path, nrows=nrows, log=context.log)

@@ -6,7 +6,7 @@ using Nominatim (free), Google Maps, or HERE geocoding APIs.
 
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -150,8 +150,8 @@ class ReverseGeocoderComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame with lat/lng columns")
-    lat_column: str = Field(default="latitude", description="Column name containing latitude values")
-    lng_column: str = Field(default="longitude", description="Column name containing longitude values")
+    lat_column: Union[str, int] = Field(default="latitude", description="Column name containing latitude values")
+    lng_column: Union[str, int] = Field(default="longitude", description="Column name containing longitude values")
     provider: str = Field(
         default="nominatim",
         description="Geocoding provider: 'nominatim' (free), 'google' (API key required), 'here' (API key required)"
@@ -164,9 +164,9 @@ class ReverseGeocoderComponent(Component, Model, Resolvable):
         default="dagster_reverse_geocoder",
         description="User agent string required for Nominatim requests"
     )
-    output_address_column: str = Field(default="address", description="Column name for the full resolved address")
-    output_city_column: Optional[str] = Field(default=None, description="Optional column name for the city name")
-    output_country_column: Optional[str] = Field(default=None, description="Optional column name for the country name")
+    output_address_column: Union[str, int] = Field(default="address", description="Column name for the full resolved address")
+    output_city_column: Optional[Union[str, int]] = Field(default=None, description="Optional column name for the city name")
+    output_country_column: Optional[Union[str, int]] = Field(default=None, description="Optional column name for the country name")
     timeout: int = Field(default=10, description="Request timeout in seconds")
     batch_delay: float = Field(default=1.0, description="Seconds to wait between requests to respect rate limits")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
@@ -178,7 +178,7 @@ class ReverseGeocoderComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -200,7 +200,7 @@ class ReverseGeocoderComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

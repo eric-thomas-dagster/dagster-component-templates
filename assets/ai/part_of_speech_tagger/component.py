@@ -3,7 +3,7 @@
 Tag parts of speech in text using spaCy. Supports tags_column, expanded, and counts output modes.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 
 from dagster import (
@@ -146,12 +146,12 @@ class PartOfSpeechTaggerComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    text_column: str = Field(description="Column containing text to tag")
+    text_column: Union[str, int] = Field(description="Column containing text to tag")
     output_mode: str = Field(
         default="tags_column",
         description="Output mode: 'tags_column' (add column with POS tag list), 'expanded' (one row per token with tag), 'counts' (count of each POS type per row)",
     )
-    output_column: str = Field(
+    output_column: Union[str, int] = Field(
         default="pos_tags",
         description="Output column name for mode='tags_column'",
     )
@@ -172,7 +172,7 @@ class PartOfSpeechTaggerComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -194,7 +194,7 @@ class PartOfSpeechTaggerComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

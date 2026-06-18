@@ -7,7 +7,7 @@ emit the result as a DataFrame. Two output shapes:
   Matches the Pearson Correlation step's typical output.
 - `wide` — the correlation matrix as a square DataFrame.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -30,7 +30,7 @@ class PearsonCorrelationComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    columns: Optional[List[str]] = Field(
+    columns: Optional[List[Union[str, int]]] = Field(
         default=None,
         description=(
             "Columns to correlate. If None, uses all numeric columns from "

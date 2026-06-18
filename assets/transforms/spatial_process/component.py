@@ -18,7 +18,7 @@ The output geometry replaces the input column (in place) by default, or
 lands in `output_column` when set. Accepts both Shapely objects and
 WKT / GeoJSON strings as inputs.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -59,11 +59,11 @@ class SpatialProcessComponent(Component, Model, Resolvable):
         default="centroid",
         description=f"Operation to apply per row. One of: {sorted(_VALID_METHODS)}.",
     )
-    geometry_column: str = Field(
+    geometry_column: Union[str, int] = Field(
         default="geometry",
         description="Input geometry column. Accepts Shapely objects or WKT/GeoJSON strings.",
     )
-    output_column: Optional[str] = Field(
+    output_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Output column name. Defaults to overwriting the input geometry column in place.",
     )

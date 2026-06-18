@@ -6,7 +6,7 @@ a configurable LLM prompt via LiteLLM, and returns the enriched DataFrame.
 LiteLLM supports 100+ providers: OpenAI, Anthropic, Azure, Bedrock, Gemini,
 Mistral, Cohere, and more — all through a unified API.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 import dagster as dg
 from dagster import AssetExecutionContext, AssetIn, AssetKey
@@ -190,7 +190,7 @@ class LiteLLMInferenceAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     litellm_resource_key: Optional[str] = Field(default=None, description="Key of a LiteLLMResource in resources dict")
     prompt_template: str = Field(description="Python format string using column names: 'Classify: {text_column}'")
     system_prompt: Optional[str] = Field(default=None, description="System prompt for chat completions")
-    response_column: str = Field(default="llm_response", description="Column name to store LLM responses")
+    response_column: Union[str, int] = Field(default="llm_response", description="Column name to store LLM responses")
     temperature: float = Field(default=0.0, description="Sampling temperature")
     max_tokens: int = Field(default=1024, description="Max tokens per completion")
     batch_size: int = Field(default=10, description="Rows to process per batch (for progress logging)")
@@ -204,7 +204,7 @@ class LiteLLMInferenceAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -226,7 +226,7 @@ class LiteLLMInferenceAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

@@ -2,7 +2,7 @@
 
 Apply the same binning logic to many columns in one shot. Each column gets a sibling `_bin` column (e.g. `age_bin`, `income_bin`) holding the bin label. Quantile bins use n equal-frequency tiles; width bins use equal-range cuts.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -25,7 +25,7 @@ class MultiFieldBinningComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    columns: List[str] = Field(description="Numeric columns to bin.")
+    columns: List[Union[str, int]] = Field(description="Numeric columns to bin.")
     n_bins: int = Field(default=4, description="Number of bins per column.")
     method: str = Field(default="quantile", description="'quantile' (qcut) or 'width' (cut)")
     suffix: str = Field(default="_bin", description="Suffix for the new bin columns.")
@@ -74,7 +74,7 @@ class MultiFieldBinningComponent(Component, Model, Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
@@ -89,7 +89,7 @@ class MultiFieldBinningComponent(Component, Model, Resolvable):
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
     )
 
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )

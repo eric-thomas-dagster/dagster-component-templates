@@ -6,7 +6,7 @@ row with the matching polygon's name (or null if no match).
 
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -152,16 +152,16 @@ class PointInPolygonComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame with lat/lng columns")
-    lat_column: str = Field(default="latitude", description="Column name containing latitude values")
-    lng_column: str = Field(default="longitude", description="Column name containing longitude values")
+    lat_column: Union[str, int] = Field(default="latitude", description="Column name containing latitude values")
+    lng_column: Union[str, int] = Field(default="longitude", description="Column name containing longitude values")
     geojson_path: Optional[str] = Field(default=None, description="Path to a local GeoJSON file with polygon features")
     geojson_url: Optional[str] = Field(default=None, description="URL to a GeoJSON file (alternative to geojson_path)")
     polygon_name_field: Optional[str] = Field(
         default=None,
         description="GeoJSON feature property key to use as the polygon name (e.g. 'NAME')"
     )
-    output_column: str = Field(default="region", description="Column name to add with the matched polygon name")
-    output_inside_column: Optional[str] = Field(
+    output_column: Union[str, int] = Field(default="region", description="Column name to add with the matched polygon name")
+    output_inside_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Optional boolean column name: True if the point is inside any polygon"
     )
@@ -174,7 +174,7 @@ class PointInPolygonComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -196,7 +196,7 @@ class PointInPolygonComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

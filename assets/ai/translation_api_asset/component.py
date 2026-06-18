@@ -12,7 +12,7 @@ component still works with the default model.
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -44,7 +44,7 @@ class TranslationApiAssetComponent(Component, Model, Resolvable):
     project_id: Optional[str] = Field(default=None)
     location: str = Field(default="global", description="Translation location ('global' or a region for custom models).")
 
-    text_column: str = Field(description="Column with text to translate.")
+    text_column: Union[str, int] = Field(description="Column with text to translate.")
     target_languages: List[str] = Field(
         description="ISO codes to translate INTO, e.g. ['es', 'fr', 'de']. One output column per target.",
     )

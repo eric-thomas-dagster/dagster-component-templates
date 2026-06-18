@@ -5,7 +5,7 @@ Works with file sensors via run_config to process files automatically.
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from pathlib import Path
 
 import pandas as pd
@@ -222,7 +222,7 @@ class FileTransformerComponent(Component, Model, Resolvable):
         description="Value to fill NaN values with (optional)"
     )
 
-    columns_to_keep: Optional[str] = Field(
+    columns_to_keep: Optional[Union[str, int]] = Field(
         default=None,
         description="Comma-separated list of columns to keep (optional)"
     )
@@ -244,7 +244,7 @@ class FileTransformerComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -266,7 +266,7 @@ class FileTransformerComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

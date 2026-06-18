@@ -27,7 +27,7 @@ Examples:
     field: info_type
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -53,8 +53,8 @@ class DataframeExtractFieldComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output asset name.")
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key.")
 
-    source_column: str = Field(description="Column to read from (values are lists or dicts).")
-    target_column: str = Field(description="New column to write the extracted scalar into.")
+    source_column: Union[str, int] = Field(description="Column to read from (values are lists or dicts).")
+    target_column: Union[str, int] = Field(description="New column to write the extracted scalar into.")
 
     index: int = Field(
         default=0,

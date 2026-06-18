@@ -23,7 +23,7 @@ import json
 import os
 import shutil
 import subprocess
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -106,7 +106,7 @@ class VideoMetadataExtractorComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output asset name.")
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key.")
 
-    video_path_column: str = Field(
+    video_path_column: Union[str, int] = Field(
         default="file_path",
         description="Column containing local video file paths.",
     )

@@ -13,7 +13,7 @@ Example output SQL:
       FROM raw.orders
     ) WHERE _rn <= 3
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 from dagster import (
@@ -92,11 +92,11 @@ class WarehouseTopNPerGroupComponent(Component, Model, Resolvable):
     dialect: str = Field(description=f"SQL dialect: one of {sorted(_SUPPORTED_DIALECTS)}.")
     upstream_table: str = Field(description="Source table name")
     output_table: str = Field(description="Destination table name")
-    group_by: List[str] = Field(description="Partition columns (e.g. ['category'])")
+    group_by: List[Union[str, int]] = Field(description="Partition columns (e.g. ['category'])")
     sort_by: str = Field(description="Column to sort by within each group (the 'top' criterion)")
     n: int = Field(default=3, description="Number of rows to keep per group", ge=1)
     ascending: bool = Field(default=False, description="If true, keep bottom N. Default false (top N).")
-    rank_column: Optional[str] = Field(default=None, description="Output column name for the 1..N rank. If unset, the helper column is hidden.")
+    rank_column: Optional[Union[str, int]] = Field(default=None, description="Output column name for the 1..N rank. If unset, the helper column is hidden.")
     mode: str = Field(default="replace", description="'replace' or 'create_if_not_exists'")
     group_name: Optional[str] = Field(default=None)
     deps: Optional[List[str]] = Field(default=None)

@@ -3,7 +3,7 @@
 Assign records to bins or buckets based on a numeric column's value range,
 using equal-width intervals, equal-frequency quantiles, or custom bin edges.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -133,7 +133,7 @@ class TileBinningComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Output Dagster asset name")
     upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
-    column: str = Field(description="Numeric column to bin")
+    column: Union[str, int] = Field(description="Numeric column to bin")
     n_bins: int = Field(default=10, description="Number of bins")
     method: str = Field(
         default="equal_width",
@@ -147,7 +147,7 @@ class TileBinningComponent(Component, Model, Resolvable):
         default=None,
         description="Labels for bins (length must equal n_bins or len(bin_edges) - 1)",
     )
-    output_column: Optional[str] = Field(
+    output_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Output column name (defaults to '{column}_bin')",
     )
@@ -164,7 +164,7 @@ class TileBinningComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -186,7 +186,7 @@ class TileBinningComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

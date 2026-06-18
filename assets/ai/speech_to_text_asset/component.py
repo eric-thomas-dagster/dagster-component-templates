@@ -11,7 +11,7 @@ Speech v2 API requirement); shorter clips use synchronous `recognize`.
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -43,8 +43,8 @@ class SpeechToTextAssetComponent(Component, Model, Resolvable):
     project_id: Optional[str] = Field(default=None)
     location: str = Field(default="global", description="Recognizer region — 'global' or a specific region (e.g. 'us-central1').")
 
-    audio_column: str = Field(description="Column with audio file paths or `gs://` URIs.")
-    output_column: str = Field(default="transcript", description="Column to write the transcript into.")
+    audio_column: Union[str, int] = Field(description="Column with audio file paths or `gs://` URIs.")
+    output_column: Union[str, int] = Field(default="transcript", description="Column to write the transcript into.")
 
     language_codes: List[str] = Field(
         default_factory=lambda: ["en-US"],

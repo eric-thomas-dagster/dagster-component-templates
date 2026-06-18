@@ -21,7 +21,7 @@ size; queries against unindexed columns work but scan the full table.
 
 import json
 import os
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 
@@ -54,10 +54,10 @@ class BigqueryVectorSearchAssetComponent(Component, Model, Resolvable):
     base_table: str = Field(
         description="Fully-qualified BQ table holding embeddings (`project.dataset.table`).",
     )
-    base_column: str = Field(
+    base_column: Union[str, int] = Field(
         description="Column in base_table containing the embedding (ARRAY<FLOAT64>).",
     )
-    select_columns: List[str] = Field(
+    select_columns: List[Union[str, int]] = Field(
         description="Columns to return alongside each match (id, text, metadata, etc.).",
     )
 
@@ -73,11 +73,11 @@ class BigqueryVectorSearchAssetComponent(Component, Model, Resolvable):
         default=None,
         description="From-upstream mode: asset key of an upstream DataFrame holding query vectors.",
     )
-    query_vector_column: Optional[str] = Field(
+    query_vector_column: Optional[Union[str, int]] = Field(
         default=None,
         description="From-upstream mode: column in upstream containing the embedding vector.",
     )
-    query_id_column: Optional[str] = Field(
+    query_id_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Optional column in upstream to carry forward as `query_id` in results.",
     )

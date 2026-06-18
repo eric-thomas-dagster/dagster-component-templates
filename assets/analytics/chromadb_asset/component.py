@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import dagster as dg
 from pydantic import Field
@@ -152,10 +152,10 @@ class ChromadbAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             "document text and optional metadata columns."
         )
     )
-    id_column: str = Field(
+    id_column: Union[str, int] = Field(
         description="Primary key column. Values are cast to strings and used as ChromaDB document IDs."
     )
-    text_column: str = Field(
+    text_column: Union[str, int] = Field(
         description="Column containing the document text to embed."
     )
     metadata_columns: Optional[list[str]] = Field(
@@ -205,7 +205,7 @@ class ChromadbAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -227,7 +227,7 @@ class ChromadbAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

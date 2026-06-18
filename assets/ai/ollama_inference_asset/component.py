@@ -6,7 +6,7 @@ a locally-running Ollama model, and returns the enriched DataFrame.
 Ollama runs open-source models locally: Llama 3, Mistral, Gemma, Phi-3, etc.
 No API key required — just a running Ollama server.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 import dagster as dg
 from dagster import AssetExecutionContext, AssetIn, AssetKey
@@ -178,7 +178,7 @@ class OllamaInferenceAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     model: str = Field(default="llama3.2", description="Ollama model name (e.g. llama3.2, mistral, gemma2, phi3)")
     prompt_template: str = Field(description="Python format string using column names: 'Classify: {text_column}'")
     system_prompt: Optional[str] = Field(default=None, description="System prompt for the model")
-    response_column: str = Field(default="llm_response", description="Column name to store model responses")
+    response_column: Union[str, int] = Field(default="llm_response", description="Column name to store model responses")
     temperature: float = Field(default=0.0, description="Sampling temperature")
     timeout_seconds: int = Field(default=120, description="Request timeout per row in seconds")
     batch_size: int = Field(default=10, description="Rows per batch for progress logging")
@@ -192,7 +192,7 @@ class OllamaInferenceAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -214,7 +214,7 @@ class OllamaInferenceAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )

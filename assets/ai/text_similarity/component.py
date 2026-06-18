@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
@@ -131,7 +131,7 @@ class TextSimilarityComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_date_column: Optional[str] = Field(
+    partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current date partition key.",
     )
@@ -153,7 +153,7 @@ class TextSimilarityComponent(Component, Model, Resolvable):
         default=None,
         description="Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
     )
-    partition_static_column: Optional[str] = Field(
+    partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
@@ -202,8 +202,8 @@ class TextSimilarityComponent(Component, Model, Resolvable):
             "reflects the data distribution; otherwise head() is used."
         ),
     )
-    text_column_a: str = Field(description="First text column for comparison")
-    text_column_b: Optional[str] = Field(
+    text_column_a: Union[str, int] = Field(description="First text column for comparison")
+    text_column_b: Optional[Union[str, int]] = Field(
         default=None,
         description="Second text column. If omitted, compare each row against `query`.",
     )
@@ -211,7 +211,7 @@ class TextSimilarityComponent(Component, Model, Resolvable):
         default=None,
         description="Fixed string to compare each row against (used when text_column_b is omitted)",
     )
-    output_column: str = Field(default="similarity_score", description="Column to write float similarity score (0-1)")
+    output_column: Union[str, int] = Field(default="similarity_score", description="Column to write float similarity score (0-1)")
     method: str = Field(
         default="cosine_tfidf",
         description="Similarity method: cosine_tfidf, jaccard, sequence_matcher, or semantic",

@@ -491,6 +491,8 @@ group_name=group_name,
                 "spatialobjconvexhull": lambda s: _spatial_agg(s, "convex_hull"),
                 "spatialobjcombine": lambda s: _spatial_agg(s, "combine"),
                 "spatialobjcenter": lambda s: _spatial_agg(s, "center"),
+                # `centroid` is Alteryx's name for the spatial centroid.
+                "spatialobjcentroid": lambda s: _spatial_agg(s, "center"),
                 "spatialobjenvelope": lambda s: _spatial_agg(s, "envelope"),
                 "spatialobjintersect": lambda s: _spatial_agg(s, "intersect"),
                 # GroupBy / Sort markers — non-aggregating, drop.

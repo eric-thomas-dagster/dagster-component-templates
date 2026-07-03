@@ -1,0 +1,25 @@
+{
+  "component_type": "dagster_community_components.TemporalSignalAssetComponent",
+  "description": "Send a Signal to a running Temporal workflow as a Dagster asset. For long-lived workflows that need Dagster-driven state pushes (flush, add, kick, shutdown).",
+  "category": "infrastructure",
+  "icon": "si:temporal",
+  "attributes": {
+    "asset_key": {"type": "string", "required": true},
+    "workflow_id": {"type": "string", "required": true},
+    "signal_name": {"type": "string", "required": true},
+    "signal_args": {"type": "array", "required": false},
+    "signal_arg": {"type": "object", "required": false},
+    "target_host": {"type": "string", "required": false, "default": "localhost:7233"},
+    "namespace": {"type": "string", "required": false, "default": "default"},
+    "api_key_env_var": {"type": "string", "required": false},
+    "tls_cert_env_var": {"type": "string", "required": false},
+    "tls_key_env_var": {"type": "string", "required": false},
+    "tls_server_root_ca_env_var": {"type": "string", "required": false},
+    "group_name": {"type": "string", "required": false, "default": "temporal"},
+    "description": {"type": "string", "required": false},
+    "owners": {"type": "array", "required": false},
+    "tags": {"type": "object", "required": false},
+    "kinds": {"type": "array", "required": false},
+    "deps": {"type": "array", "required": false}
+  }
+}

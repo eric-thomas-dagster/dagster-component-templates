@@ -1,0 +1,11 @@
+type: dagster_community_components.TemporalSignalAssetComponent
+attributes:
+  asset_key: temporal/batch/flush_signal
+  workflow_id: order-aggregator-v2
+  signal_name: flush_batch
+  signal_arg:
+    reason: nightly
+    requested_at: "{run_id}"
+  target_host: localhost:7233
+  namespace: default
+  group_name: temporal

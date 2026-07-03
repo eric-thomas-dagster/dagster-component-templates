@@ -1,0 +1,8 @@
+type: dagster_community_components.ExternalVercelDeploymentAsset
+attributes:
+  asset_key: vercel/website/production
+  project_name: my-marketing-site
+  target: production
+  vercel_dashboard_url: https://vercel.com/my-team/my-marketing-site
+  production_url: https://my-marketing-site.com
+  group_name: vercel

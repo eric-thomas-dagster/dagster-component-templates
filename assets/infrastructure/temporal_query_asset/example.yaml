@@ -1,0 +1,10 @@
+type: dagster_community_components.TemporalQueryAssetComponent
+attributes:
+  asset_key: temporal/approvals/pending
+  workflow_id: approval-router-v1
+  query_name: get_pending
+  query_arg:
+    since: "{run_id}"
+  target_host: localhost:7233
+  namespace: default
+  group_name: temporal

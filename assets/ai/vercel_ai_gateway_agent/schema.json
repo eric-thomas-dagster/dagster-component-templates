@@ -1,0 +1,26 @@
+{
+  "component_type": "dagster_community_components.VercelAIGatewayAgentComponent",
+  "description": "Single-shot LLM agent via Vercel AI Gateway — OpenAI-compatible proxy that routes to any provider with unified billing + automatic fallback + Vercel observability.",
+  "category": "ai",
+  "icon": "si:vercel",
+  "x-dagster-io": {"inputs": {"type": "none"}, "outputs": {"type": "dict"}},
+  "attributes": {
+    "asset_name": {"type": "string", "required": true},
+    "prompt": {"type": "string", "required": true},
+    "system_prompt": {"type": "string", "required": false},
+    "model": {"type": "string", "required": false, "default": "openai/gpt-4o-mini", "description": "Vercel AI Gateway model string, '<provider>/<model>' format."},
+    "fallback_models": {"type": "array", "required": false, "description": "Fallback chain on invocation error."},
+    "api_key_env_var": {"type": "string", "required": false, "default": "VERCEL_API_TOKEN"},
+    "api_base_url": {"type": "string", "required": false, "default": "https://ai-gateway.vercel.sh/v1"},
+    "temperature": {"type": "number", "required": false, "default": 0.0},
+    "max_tokens": {"type": "integer", "required": false, "default": 2048},
+    "max_iterations": {"type": "integer", "required": false, "default": 10},
+    "mcp_servers": {"type": "array", "required": false},
+    "group_name": {"type": "string", "required": false},
+    "description": {"type": "string", "required": false},
+    "owners": {"type": "array", "required": false},
+    "asset_tags": {"type": "object", "required": false},
+    "kinds": {"type": "array", "required": false},
+    "deps": {"type": "array", "required": false}
+  }
+}

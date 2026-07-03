@@ -1,0 +1,10 @@
+type: dagster_community_components.VercelDeploymentSensorComponent
+attributes:
+  sensor_name: vercel_prod_ready
+  project_id: prj_AbCdEfGh12345
+  target: production
+  api_token_env_var: VERCEL_API_TOKEN
+  job_name: post_deploy_smoke_tests_job
+  asset_key: vercel/website/production
+  asset_event_type: materialization
+  minimum_interval_seconds: 60

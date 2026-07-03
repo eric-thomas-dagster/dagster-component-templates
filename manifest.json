@@ -22717,6 +22717,139 @@
       }
     },
     {
+      "id": "temporal_signal_asset",
+      "name": "Temporal Signal Asset",
+      "category": "infrastructure",
+      "description": "Send a Signal to a running Temporal workflow as a Dagster asset. For long-lived workflows that need Dagster-driven state pushes (flush, add, kick, shutdown).",
+      "path": "assets/infrastructure/temporal_signal_asset",
+      "tags": [
+        "temporal",
+        "workflow",
+        "signal",
+        "infrastructure",
+        "long-lived"
+      ],
+      "icon": "si:temporal",
+      "type": "dagster_community_components.TemporalSignalAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_signal_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_signal_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_signal_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_signal_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_signal_asset/requirements.txt",
+      "component_type": "dagster_community_components.TemporalSignalAssetComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_signal_query.md",
+        "last_validated": "2026-07-02"
+      }
+    },
+    {
+      "id": "temporal_query_asset",
+      "name": "Temporal Query Asset",
+      "category": "infrastructure",
+      "description": "Materialize the live state of a running Temporal workflow via a Query (read-only). Great for long-lived workflows exposing accumulated state.",
+      "path": "assets/infrastructure/temporal_query_asset",
+      "tags": [
+        "temporal",
+        "workflow",
+        "query",
+        "infrastructure",
+        "long-lived"
+      ],
+      "icon": "si:temporal",
+      "type": "dagster_community_components.TemporalQueryAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_query_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_query_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_query_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_query_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_query_asset/requirements.txt",
+      "component_type": "dagster_community_components.TemporalQueryAssetComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_signal_query.md",
+        "last_validated": "2026-07-02"
+      }
+    },
+    {
+      "id": "vercel_deployment_sensor",
+      "name": "Vercel Deployment Sensor",
+      "category": "sensors",
+      "description": "Poll Vercel for deployment state, emit AssetMaterialization/Observation on READY, and fire a Dagster job. Optionally fire on ERROR for alert flows.",
+      "path": "sensors/vercel_deployment_sensor",
+      "tags": [
+        "vercel",
+        "deployment",
+        "sensor",
+        "observation"
+      ],
+      "icon": "si:vercel",
+      "type": "dagster_community_components.VercelDeploymentSensorComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/vercel_deployment_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/vercel_deployment_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/vercel_deployment_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/vercel_deployment_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/vercel_deployment_sensor/requirements.txt",
+      "component_type": "dagster_community_components.VercelDeploymentSensorComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vercel_deployment.md",
+        "last_validated": "2026-07-02"
+      }
+    },
+    {
+      "id": "external_vercel_deployment",
+      "name": "External Vercel Deployment",
+      "category": "external_assets",
+      "description": "Declare a Vercel project's deployment stream as an external Dagster asset. Pair with vercel_deployment_sensor.",
+      "path": "external_assets/external_vercel_deployment",
+      "tags": [
+        "vercel",
+        "deployment",
+        "external",
+        "catalog"
+      ],
+      "icon": "si:vercel",
+      "type": "dagster_community_components.ExternalVercelDeploymentAsset",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_vercel_deployment/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_vercel_deployment/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_vercel_deployment/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_vercel_deployment/example.yaml",
+      "component_type": "dagster_community_components.ExternalVercelDeploymentAsset",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vercel_deployment.md",
+        "last_validated": "2026-07-02"
+      }
+    },
+    {
+      "id": "vercel_ai_gateway_agent",
+      "name": "Vercel AI Gateway Agent",
+      "category": "ai",
+      "description": "Single-shot LLM agent via Vercel AI Gateway — OpenAI-compatible proxy that routes to any provider with unified billing + automatic fallback + Vercel observability.",
+      "path": "assets/ai/vercel_ai_gateway_agent",
+      "tags": [
+        "ai",
+        "agent",
+        "vercel",
+        "ai-gateway",
+        "llm",
+        "mcp"
+      ],
+      "icon": "si:vercel",
+      "type": "dagster_community_components.VercelAIGatewayAgentComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vercel_ai_gateway_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vercel_ai_gateway_agent/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vercel_ai_gateway_agent/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vercel_ai_gateway_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vercel_ai_gateway_agent/requirements.txt",
+      "component_type": "dagster_community_components.VercelAIGatewayAgentComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vercel_ai_gateway_agent.md",
+        "last_validated": "2026-07-02"
+      }
+    },
+    {
       "id": "temporal_workflow_trigger",
       "name": "Temporal Workflow Trigger",
       "category": "infrastructure",
@@ -25333,5 +25466,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 868
+  "total": 873
 }

@@ -1,0 +1,21 @@
+{
+  "component_type": "dagster_community_components.VercelDeploymentSensorComponent",
+  "description": "Poll Vercel for deployment state, emit AssetMaterialization/Observation on READY, and fire a Dagster job. Optionally fire on ERROR for alert flows.",
+  "category": "sensors",
+  "icon": "si:vercel",
+  "attributes": {
+    "sensor_name": {"type": "string", "required": true},
+    "project_id": {"type": "string", "required": false, "description": "Vercel project ID (prj_...). Set this OR project_name."},
+    "project_name": {"type": "string", "required": false, "description": "Vercel project slug (URL name)."},
+    "target": {"type": "string", "required": false, "default": "production", "enum": ["production", "preview", "development", "any"]},
+    "team_id": {"type": "string", "required": false, "description": "Vercel team ID (team_...). Required for team-scoped projects."},
+    "api_token_env_var": {"type": "string", "required": false, "default": "VERCEL_API_TOKEN"},
+    "api_base_url": {"type": "string", "required": false, "default": "https://api.vercel.com"},
+    "job_name": {"type": "string", "required": true},
+    "asset_key": {"type": "string", "required": false},
+    "asset_event_type": {"type": "string", "required": false, "default": "materialization", "enum": ["materialization", "observation"]},
+    "error_state_triggers_job": {"type": "boolean", "required": false, "default": false},
+    "minimum_interval_seconds": {"type": "integer", "required": false, "default": 60},
+    "default_status": {"type": "string", "required": false, "default": "running", "enum": ["running", "stopped"]}
+  }
+}

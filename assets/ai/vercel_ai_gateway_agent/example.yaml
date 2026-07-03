@@ -1,0 +1,25 @@
+type: dagster_community_components.VercelAIGatewayAgentComponent
+attributes:
+  asset_name: research_agent
+  prompt: "Summarize the top 3 news items from the last 24 hours."
+  system_prompt: "You are a concise news researcher. Use tools when available."
+
+  # Route through Vercel AI Gateway. Same API key works across providers.
+  model: anthropic/claude-sonnet-4-6
+  api_key_env_var: VERCEL_API_TOKEN
+  max_iterations: 6
+
+  # Automatic fallback across providers on rate-limit / outage.
+  fallback_models:
+    - openai/gpt-4o
+    - google/gemini-2.5-flash
+
+  # Optional MCP tools (same shape as anthropic_agent / openai_agent).
+  mcp_servers:
+    - name: dgp
+      type: http
+      url: https://mcp.agent.dagster.cloud/mcp/
+      headers_env:
+        Authorization: DAGSTER_PLUS_BEARER
+
+  group_name: ai

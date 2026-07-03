@@ -1,0 +1,21 @@
+{
+  "component_type": "dagster_community_components.ExternalVercelDeploymentAsset",
+  "description": "Declare a Vercel project's deployment stream as an external Dagster asset. Pair with vercel_deployment_sensor.",
+  "category": "external_assets",
+  "icon": "si:vercel",
+  "attributes": {
+    "asset_key": {"type": "string", "required": true},
+    "project_id": {"type": "string", "required": false},
+    "project_name": {"type": "string", "required": false},
+    "target": {"type": "string", "required": false, "default": "production", "enum": ["production", "preview", "development"]},
+    "team_id": {"type": "string", "required": false},
+    "vercel_dashboard_url": {"type": "string", "required": false},
+    "production_url": {"type": "string", "required": false},
+    "group_name": {"type": "string", "required": false, "default": "vercel"},
+    "description": {"type": "string", "required": false},
+    "owners": {"type": "array", "required": false},
+    "tags": {"type": "object", "required": false},
+    "kinds": {"type": "array", "required": false},
+    "deps": {"type": "array", "required": false}
+  }
+}

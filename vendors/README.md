@@ -27,8 +27,10 @@ Each vendor page has the same shape:
 | [Precisely](precisely.md) | 6 — Connect ETL (sensor, trigger, external asset), DIS DQ check, Address Verify, Data360 lineage sink |
 | [Snowflake](snowflake.md) | 29 — workspace + Snowpark + DT/MV/Iceberg/Cortex + tasks + procs + alerts + OpenFlow + Snowpipe |
 | [StarRocks](starrocks.md) | 3 — resource + dataframe sink (Stream Load) + external table (Doris fork; same wire protocol) |
+| [Temporal](temporal.md) | 5 — full four-mode Dagster ↔ Temporal integration: trigger, sensor, external, signal_asset (push), query_asset (pull) |
 | [TimescaleDB](timescaledb.md) | 1 — Postgres-extension resource with hypertable / compression / retention helpers |
 | [Trino + Starburst](trino_starburst.md) | 3 — Trino resource + IO manager + Starburst alias (subclass; same engine) |
+| [Vercel](vercel.md) | 3 — deployment sensor + external deployment asset + AI Gateway agent (OpenAI-compatible multi-provider LLM) |
 | [VictoriaMetrics](victoriametrics.md) | 3 — resource + dataframe sink (Prometheus text format) + PromQL query asset |
 
 More vendor pages land here as the registry grows.

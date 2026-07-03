@@ -22719,6 +22719,7 @@
     {
       "id": "temporal_signal_asset",
       "name": "Temporal Signal Asset",
+      "vendor": "Temporal",
       "category": "infrastructure",
       "description": "Send a Signal to a running Temporal workflow as a Dagster asset. For long-lived workflows that need Dagster-driven state pushes (flush, add, kick, shutdown).",
       "path": "assets/infrastructure/temporal_signal_asset",
@@ -22746,6 +22747,7 @@
     {
       "id": "temporal_query_asset",
       "name": "Temporal Query Asset",
+      "vendor": "Temporal",
       "category": "infrastructure",
       "description": "Materialize the live state of a running Temporal workflow via a Query (read-only). Great for long-lived workflows exposing accumulated state.",
       "path": "assets/infrastructure/temporal_query_asset",
@@ -22773,6 +22775,7 @@
     {
       "id": "vercel_deployment_sensor",
       "name": "Vercel Deployment Sensor",
+      "vendor": "Vercel",
       "category": "sensors",
       "description": "Poll Vercel for deployment state, emit AssetMaterialization/Observation on READY, and fire a Dagster job. Optionally fire on ERROR for alert flows.",
       "path": "sensors/vercel_deployment_sensor",
@@ -22799,6 +22802,7 @@
     {
       "id": "external_vercel_deployment",
       "name": "External Vercel Deployment",
+      "vendor": "Vercel",
       "category": "external_assets",
       "description": "Declare a Vercel project's deployment stream as an external Dagster asset. Pair with vercel_deployment_sensor.",
       "path": "external_assets/external_vercel_deployment",
@@ -22824,6 +22828,7 @@
     {
       "id": "vercel_ai_gateway_agent",
       "name": "Vercel AI Gateway Agent",
+      "vendor": "Vercel",
       "category": "ai",
       "description": "Single-shot LLM agent via Vercel AI Gateway — OpenAI-compatible proxy that routes to any provider with unified billing + automatic fallback + Vercel observability.",
       "path": "assets/ai/vercel_ai_gateway_agent",
@@ -22852,6 +22857,7 @@
     {
       "id": "temporal_workflow_trigger",
       "name": "Temporal Workflow Trigger",
+      "vendor": "Temporal",
       "category": "infrastructure",
       "description": "Start a Temporal Workflow via the temporalio SDK (gRPC). Works against local dev-server, self-hosted clusters, or Temporal Cloud. Captures result in asset metadata.",
       "path": "assets/infrastructure/temporal_workflow_trigger",
@@ -22878,6 +22884,7 @@
     {
       "id": "temporal_workflow_sensor",
       "name": "Temporal Workflow Sensor",
+      "vendor": "Temporal",
       "category": "sensors",
       "description": "Poll Temporal for terminal workflow status via the temporalio SDK and fire a Dagster job + optional AssetMaterialization/Observation. Pairs with external_temporal_workflow or temporal_workflow_trigger.",
       "path": "sensors/temporal_workflow_sensor",
@@ -22904,6 +22911,7 @@
     {
       "id": "external_temporal_workflow",
       "name": "External Temporal Workflow",
+      "vendor": "Temporal",
       "category": "external_assets",
       "description": "Declare a Temporal Workflow as an external Dagster asset. Pair with temporal_workflow_sensor when Temporal owns the schedule.",
       "path": "external_assets/external_temporal_workflow",

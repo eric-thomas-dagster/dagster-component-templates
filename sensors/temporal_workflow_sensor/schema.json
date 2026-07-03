@@ -1,0 +1,22 @@
+{
+  "component_type": "dagster_community_components.TemporalWorkflowSensorComponent",
+  "description": "Poll Temporal for terminal workflow status and fire a Dagster job + optional AssetMaterialization/Observation.",
+  "category": "sensors",
+  "icon": "si:temporal",
+  "attributes": {
+    "sensor_name": {"type": "string", "required": true},
+    "workflow_id": {"type": "string", "required": false, "description": "Specific Temporal Workflow ID. Set this OR list_filter."},
+    "list_filter": {"type": "string", "required": false, "description": "Temporal Visibility List filter. Sensor picks the most-recently-closed match."},
+    "job_name": {"type": "string", "required": true},
+    "asset_key": {"type": "string", "required": false, "description": "Optional Dagster asset key to materialize / observe on terminal success."},
+    "asset_event_type": {"type": "string", "required": false, "default": "materialization", "enum": ["materialization", "observation"]},
+    "target_host": {"type": "string", "required": false, "default": "localhost:7233"},
+    "namespace": {"type": "string", "required": false, "default": "default"},
+    "api_key_env_var": {"type": "string", "required": false},
+    "tls_cert_env_var": {"type": "string", "required": false},
+    "tls_key_env_var": {"type": "string", "required": false},
+    "tls_server_root_ca_env_var": {"type": "string", "required": false},
+    "minimum_interval_seconds": {"type": "integer", "required": false, "default": 60},
+    "default_status": {"type": "string", "required": false, "default": "running", "enum": ["running", "stopped"]}
+  }
+}

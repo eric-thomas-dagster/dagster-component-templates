@@ -513,6 +513,7 @@ _CLASS_PATHS: dict[str, str] = {
     "LakeFSIOManagerComponent": "io_managers/lakefs_io_manager/component.py",
     "LanceIOManagerComponent": "io_managers/lance_io_manager/component.py",
     "LangChainChainAssetComponent": "assets/ai/langchain_chain_asset/component.py",
+    "LangGraphAgentComponent": "assets/ai/langgraph_agent/component.py",
     "LanguageDetectorComponent": "assets/ai/language_detector/component.py",
     "LeadScoringComponent": "assets/analytics/lead_scoring/component.py",
     "LegalDocumentExtractorComponent": "assets/ai/legal_document_extractor/component.py",
@@ -878,6 +879,9 @@ _CLASS_PATHS: dict[str, str] = {
     "TectonAssetComponent": "assets/analytics/tecton_asset/component.py",
     "TerraformAssetComponent": "assets/infrastructure/terraform_asset/component.py",
     "TerraformCloudAssetComponent": "assets/infrastructure/terraform_cloud_asset/component.py",
+    "TemporalWorkflowSensorComponent": "sensors/temporal_workflow_sensor/component.py",
+    "TemporalWorkflowTriggerComponent": "assets/infrastructure/temporal_workflow_trigger/component.py",
+    "ExternalTemporalWorkflowAsset": "external_assets/external_temporal_workflow/component.py",
     "TestOfMeansComponent": "assets/analytics/test_of_means/component.py",
     "TextChunkerComponent": "assets/ai/text_chunker/component.py",
     "TextClassifierComponent": "assets/ai/text_classifier/component.py",
@@ -960,11 +964,37 @@ _CLASS_PATHS: dict[str, str] = {
     "ZeroShotClassifierComponent": "assets/ai/zero_shot_classifier/component.py",
 }
 
-_loaded: dict[str, type] = {}
+_loaded: dict[str, object] = {}
+
+
+class _MissingDepsPlaceholder:
+    """Returned by __getattr__ when a component's optional deps aren't installed.
+
+    Lacks PACKAGE_ENTRY_ATTR so dagster's plugin discovery skips it silently.
+    Raises on any real use so users see a clear error.
+    """
+
+    def __init__(self, component_name: str, cause: str) -> None:
+        self._component_name = component_name
+        self._cause = cause
+
+    def __call__(self, *args, **kwargs):
+        raise ImportError(
+            f"Component '{self._component_name}' cannot be used — missing "
+            f"optional dependency: {self._cause}"
+        )
+
+    def __repr__(self) -> str:
+        return f"<MissingDeps {self._component_name}: {self._cause}>"
 
 
 def __getattr__(name: str):
-    """Lazy-load a community component class on first access."""
+    """Lazy-load a community component class on first access.
+
+    Resolves the component's file path via _CLASS_PATHS, converts that path
+    to a dotted module name inside this package, and uses importlib.import_module
+    so that relative imports and @dataclass work correctly.
+    """
     if name in _loaded:
         return _loaded[name]
     if name in _CLASS_PATHS:
@@ -975,11 +1005,22 @@ def __getattr__(name: str):
                 f"Component file missing for '{name}' at {path}. "
                 f"The package may be incomplete — try reinstalling."
             )
-        spec = importlib.util.spec_from_file_location(f"_dcc_{name}", str(path))
-        if spec is None or spec.loader is None:
-            raise ImportError(f"Could not build import spec for '{name}' at {path}")
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
+        # Convert "assets/ai/foo/component.py" -> "dagster_community_components.assets.ai.foo.component"
+        # so relative imports (from .io_manager import X) and @dataclass work.
+        rel_no_ext = rel[:-3] if rel.endswith(".py") else rel
+        mod_name = "dagster_community_components." + rel_no_ext.replace("/", ".")
+        try:
+            mod = importlib.import_module(mod_name)
+        except ImportError as e:
+            # Optional dep missing — return an inert placeholder so dagster's
+            # plugin discovery (which iterates dir()) doesn't abort the whole
+            # scan. The placeholder is truthy-obvious in error messages, and
+            # dagster's discover_package_objects skips it because it lacks
+            # PACKAGE_ENTRY_ATTR. Users get a real error only when they try
+            # to actually use the class.
+            placeholder = _MissingDepsPlaceholder(name, str(e))
+            _loaded[name] = placeholder
+            return placeholder
         cls = getattr(mod, name, None)
         if cls is None:
             raise AttributeError(

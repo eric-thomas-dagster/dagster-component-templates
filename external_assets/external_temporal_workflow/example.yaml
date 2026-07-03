@@ -1,0 +1,8 @@
+type: dagster_community_components.ExternalTemporalWorkflowAsset
+attributes:
+  asset_key: temporal/etl/nightly_aggregation
+  workflow_type: NightlyAggregationWorkflow
+  namespace: default
+  task_queue: etl-tq
+  temporal_ui_url: http://localhost:8233
+  group_name: temporal

@@ -61,6 +61,14 @@ packages = ["dagster_community_components"]
 "integrations" = "dagster_community_components/integrations"
 "asset_checks" = "dagster_community_components/asset_checks"
 "compute_log_managers" = "dagster_community_components/compute_log_managers"
+"jobs" = "dagster_community_components/jobs"
+"sinks" = "dagster_community_components/sinks"
+"transforms" = "dagster_community_components/transforms"
+"pipelines" = "dagster_community_components/pipelines"
+"schedules" = "dagster_community_components/schedules"
+"vendors" = "dagster_community_components/vendors"
+"core" = "dagster_community_components/core"
+"ingestion" = "dagster_community_components/ingestion"
 "manifest.json" = "dagster_community_components/manifest.json"
 
 [tool.hatch.build.targets.sdist]

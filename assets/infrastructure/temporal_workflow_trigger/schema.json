@@ -1,0 +1,35 @@
+{
+  "component_type": "dagster_community_components.TemporalWorkflowTriggerComponent",
+  "description": "Start a Temporal Workflow via the temporalio SDK (gRPC). Works against local dev-server, self-hosted clusters, or Temporal Cloud.",
+  "category": "infrastructure",
+  "icon": "si:temporal",
+  "x-dagster-io": {
+    "inputs": {"type": "none"},
+    "outputs": {"type": "dict", "description": "workflow_id, run_id, result (when wait_for_result=true)"}
+  },
+  "attributes": {
+    "asset_key": {"type": "string", "label": "Asset Key", "required": true, "description": "Dagster asset key, '/'-separated."},
+    "workflow_type": {"type": "string", "label": "Workflow Type", "required": true, "description": "Registered Workflow class name on the worker."},
+    "task_queue": {"type": "string", "label": "Task Queue", "required": true},
+    "workflow_id": {"type": "string", "label": "Workflow ID", "required": true, "description": "Supports {run_id}, {partition_key}, {partition_keys.<dim>} substitution."},
+    "workflow_args": {"type": "array", "label": "Positional Workflow Args", "required": false},
+    "workflow_arg": {"type": "object", "label": "Single Workflow Arg", "required": false, "description": "Convenience for the common single-arg case."},
+    "task_timeout_seconds": {"type": "integer", "required": false},
+    "execution_timeout_seconds": {"type": "integer", "required": false},
+    "run_timeout_seconds": {"type": "integer", "required": false},
+    "target_host": {"type": "string", "required": false, "default": "localhost:7233"},
+    "namespace": {"type": "string", "required": false, "default": "default"},
+    "api_key_env_var": {"type": "string", "required": false, "description": "Temporal Cloud API key env var."},
+    "tls_cert_env_var": {"type": "string", "required": false, "description": "mTLS client cert env var (pair with tls_key_env_var)."},
+    "tls_key_env_var": {"type": "string", "required": false, "description": "mTLS client private key env var."},
+    "tls_server_root_ca_env_var": {"type": "string", "required": false},
+    "wait_for_result": {"type": "boolean", "required": false, "default": true},
+    "result_wait_timeout_seconds": {"type": "integer", "required": false},
+    "group_name": {"type": "string", "required": false, "default": "temporal"},
+    "description": {"type": "string", "required": false},
+    "owners": {"type": "array", "required": false},
+    "tags": {"type": "object", "required": false},
+    "kinds": {"type": "array", "required": false},
+    "deps": {"type": "array", "required": false}
+  }
+}

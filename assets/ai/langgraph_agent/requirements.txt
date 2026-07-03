@@ -1,0 +1,5 @@
+langgraph>=0.2.0
+langchain-core>=0.3.0
+langchain-openai>=0.2.0
+# Install extras for other providers as needed:
+# langchain-anthropic, langchain-google-genai, langchain-ollama

@@ -1,0 +1,12 @@
+type: dagster_community_components.TemporalWorkflowSensorComponent
+attributes:
+  sensor_name: temporal_nightly_done
+  # Either pick a specific workflow_id or use a List filter across many runs.
+  list_filter: "WorkflowType='NightlyAggregationWorkflow' AND ExecutionStatus!='Running'"
+  job_name: downstream_processing_job
+  asset_key: temporal/etl/nightly_aggregation
+  asset_event_type: materialization
+
+  target_host: localhost:7233
+  namespace: default
+  minimum_interval_seconds: 30

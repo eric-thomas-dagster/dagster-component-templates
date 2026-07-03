@@ -1,0 +1,40 @@
+type: dagster_component_templates.LangGraphAgentComponent
+attributes:
+  asset_name: research_report
+  input_prompt: "How do vector databases handle high-cardinality metadata filters efficiently?"
+  llm_provider: openai
+  model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  system_message: "You are a rigorous technical researcher. Be specific."
+  temperature: 0.2
+  max_tokens: 800
+
+  steps:
+    - name: plan
+      prompt: |
+        Break the question below into exactly 3 focused sub-questions.
+        Output ONLY a numbered list (no preamble).
+
+        Question: {input}
+      next: research
+
+    - name: research
+      prompt: |
+        Answer each sub-question below in 2-3 sentences. Cite specific
+        algorithms, papers, or techniques where relevant.
+
+        Sub-questions:
+        {outputs.plan}
+      next: synthesize
+
+    - name: synthesize
+      prompt: |
+        Combine the research findings below into ONE paragraph that
+        directly answers the original question.
+
+        Original question: {input}
+
+        Findings:
+        {outputs.research}
+
+  group_name: ai

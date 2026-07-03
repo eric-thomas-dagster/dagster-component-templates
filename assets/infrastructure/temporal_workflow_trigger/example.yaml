@@ -1,0 +1,21 @@
+type: dagster_community_components.TemporalWorkflowTriggerComponent
+attributes:
+  asset_key: temporal/etl/nightly_aggregation
+  workflow_type: NightlyAggregationWorkflow
+  task_queue: etl-tq
+  workflow_id: "nightly-agg-{run_id}"
+  workflow_arg:
+    date: "2026-05-27"
+    region: us-east-1
+
+  # Local dev-server defaults. For Temporal Cloud:
+  #   target_host: myns.abcde.tmprl.cloud:7233
+  #   api_key_env_var: TEMPORAL_API_KEY        # OR TLS pair below
+  #   tls_cert_env_var: TEMPORAL_TLS_CERT
+  #   tls_key_env_var:  TEMPORAL_TLS_KEY
+  target_host: localhost:7233
+  namespace: default
+
+  wait_for_result: true
+  execution_timeout_seconds: 3600
+  group_name: temporal

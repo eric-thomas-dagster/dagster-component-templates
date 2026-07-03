@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-06-06",
+  "last_updated": "2026-07-02",
   "components": [
     {
       "id": "ab_controls",
@@ -13097,6 +13097,33 @@
       }
     },
     {
+      "id": "langgraph_agent",
+      "name": "LangGraph Agent",
+      "category": "ai",
+      "description": "Multi-step LangGraph StateGraph as a Dagster asset. Each step is an LLM call over shared state; supports conditional routing.",
+      "path": "assets/ai/langgraph_agent",
+      "tags": [
+        "ai",
+        "langgraph",
+        "agent",
+        "graph",
+        "llm"
+      ],
+      "icon": "Sparkles",
+      "type": "dagster_community_components.LangGraphAgentComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/langgraph_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/langgraph_agent/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/langgraph_agent/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/langgraph_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/langgraph_agent/requirements.txt",
+      "component_type": "dagster_community_components.LangGraphAgentComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/langgraph_agent.md",
+        "last_validated": "2026-07-02"
+      }
+    },
+    {
       "id": "language_detector",
       "name": "Language Detector",
       "category": "ai",
@@ -22690,6 +22717,83 @@
       }
     },
     {
+      "id": "temporal_workflow_trigger",
+      "name": "Temporal Workflow Trigger",
+      "category": "infrastructure",
+      "description": "Start a Temporal Workflow via the temporalio SDK (gRPC). Works against local dev-server, self-hosted clusters, or Temporal Cloud. Captures result in asset metadata.",
+      "path": "assets/infrastructure/temporal_workflow_trigger",
+      "tags": [
+        "temporal",
+        "workflow",
+        "infrastructure",
+        "durable-execution"
+      ],
+      "icon": "si:temporal",
+      "type": "dagster_community_components.TemporalWorkflowTriggerComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_workflow_trigger/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_workflow_trigger/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_workflow_trigger/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_workflow_trigger/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_workflow_trigger/requirements.txt",
+      "component_type": "dagster_community_components.TemporalWorkflowTriggerComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_workflow.md",
+        "last_validated": "2026-07-02"
+      }
+    },
+    {
+      "id": "temporal_workflow_sensor",
+      "name": "Temporal Workflow Sensor",
+      "category": "sensors",
+      "description": "Poll Temporal for terminal workflow status via the temporalio SDK and fire a Dagster job + optional AssetMaterialization/Observation. Pairs with external_temporal_workflow or temporal_workflow_trigger.",
+      "path": "sensors/temporal_workflow_sensor",
+      "tags": [
+        "temporal",
+        "workflow",
+        "sensor",
+        "observation"
+      ],
+      "icon": "si:temporal",
+      "type": "dagster_community_components.TemporalWorkflowSensorComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/temporal_workflow_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/temporal_workflow_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/temporal_workflow_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/temporal_workflow_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/temporal_workflow_sensor/requirements.txt",
+      "component_type": "dagster_community_components.TemporalWorkflowSensorComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_workflow.md",
+        "last_validated": "2026-07-02"
+      }
+    },
+    {
+      "id": "external_temporal_workflow",
+      "name": "External Temporal Workflow",
+      "category": "external_assets",
+      "description": "Declare a Temporal Workflow as an external Dagster asset. Pair with temporal_workflow_sensor when Temporal owns the schedule.",
+      "path": "external_assets/external_temporal_workflow",
+      "tags": [
+        "temporal",
+        "workflow",
+        "external",
+        "catalog"
+      ],
+      "icon": "si:temporal",
+      "type": "dagster_community_components.ExternalTemporalWorkflowAsset",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_temporal_workflow/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_temporal_workflow/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_temporal_workflow/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_temporal_workflow/example.yaml",
+      "component_type": "dagster_community_components.ExternalTemporalWorkflowAsset",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_workflow.md",
+        "last_validated": "2026-07-02"
+      }
+    },
+    {
       "id": "test_of_means",
       "name": "TestOfMeans",
       "category": "analytics",
@@ -25229,5 +25333,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 836
+  "total": 868
 }

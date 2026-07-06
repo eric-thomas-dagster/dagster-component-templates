@@ -1,0 +1,20 @@
+type: dagster_community_components.CubeQueryAssetComponent
+attributes:
+  asset_name: cube_orders_by_status
+  api_url_env_var: CUBE_URL   # e.g. http://localhost:4000 for local dev
+  # api_token_env_var: CUBE_API_TOKEN   # uncomment for Cube Cloud / JWT auth
+
+  query:
+    measures:
+      - Orders.count
+      - Orders.totalAmount
+    dimensions:
+      - Orders.status
+    timeDimensions:
+      - dimension: Orders.createdAt
+        granularity: day
+        dateRange: ["2024-01-01", "2024-12-31"]
+    order:
+      Orders.createdAt: asc
+
+  group_name: cube

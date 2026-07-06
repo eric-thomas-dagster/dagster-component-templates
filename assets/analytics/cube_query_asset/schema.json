@@ -1,0 +1,23 @@
+{
+  "component_type": "dagster_community_components.CubeQueryAssetComponent",
+  "description": "Run a Cube semantic-layer query (REST /v1/load) and materialize as a Dagster asset (pandas DataFrame). Great for landing governed metrics in the warehouse or feeding downstream AI/reporting.",
+  "category": "analytics",
+  "icon": "si:cube",
+  "x-dagster-io": {
+    "inputs": {"type": "none"},
+    "outputs": {"type": "dataframe", "description": "Query result as pandas DataFrame"}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "label": "Asset Name", "required": true},
+    "query": {"type": "object", "label": "Cube Query", "required": true, "description": "Cube JSON query: {measures, dimensions, timeDimensions, filters, order, limit, offset}"},
+    "api_url_env_var": {"type": "string", "required": false, "default": "CUBE_URL"},
+    "api_token_env_var": {"type": "string", "required": false, "description": "JWT env var for Cube Cloud / production. Omit for local dev."},
+    "request_timeout_seconds": {"type": "integer", "required": false, "default": 60},
+    "group_name": {"type": "string", "required": false, "default": "cube"},
+    "description": {"type": "string", "required": false},
+    "owners": {"type": "array", "required": false},
+    "tags": {"type": "object", "required": false},
+    "kinds": {"type": "array", "required": false},
+    "deps": {"type": "array", "required": false}
+  }
+}

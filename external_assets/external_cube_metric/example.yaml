@@ -1,0 +1,8 @@
+type: dagster_community_components.ExternalCubeMetricAsset
+attributes:
+  asset_key: cube/orders/count
+  cube_name: Orders
+  measure_name: Orders.count
+  metric_type: count
+  cube_playground_url: http://localhost:4000/#/build
+  group_name: cube

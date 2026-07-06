@@ -1,0 +1,21 @@
+{
+  "component_type": "dagster_community_components.ExternalCubeMetricAsset",
+  "description": "Declare a Cube semantic-layer measure or dimension as an external Dagster asset. Pair with cube_query_asset.",
+  "category": "external_assets",
+  "icon": "si:cube",
+  "attributes": {
+    "asset_key": {"type": "string", "required": true},
+    "cube_name": {"type": "string", "required": true},
+    "measure_name": {"type": "string", "required": false},
+    "dimension_name": {"type": "string", "required": false},
+    "metric_type": {"type": "string", "required": false},
+    "cube_playground_url": {"type": "string", "required": false},
+    "cube_docs_url": {"type": "string", "required": false},
+    "group_name": {"type": "string", "required": false, "default": "cube"},
+    "description": {"type": "string", "required": false},
+    "owners": {"type": "array", "required": false},
+    "tags": {"type": "object", "required": false},
+    "kinds": {"type": "array", "required": false},
+    "deps": {"type": "array", "required": false}
+  }
+}

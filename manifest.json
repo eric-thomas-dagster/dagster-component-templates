@@ -4164,6 +4164,28 @@
       }
     },
     {
+      "id": "cube_query_asset",
+      "name": "Cube Query Asset",
+      "vendor": "Cube",
+      "category": "analytics",
+      "description": "Run a Cube semantic-layer query (REST /v1/load) and materialize as a Dagster asset (pandas DataFrame). Great for landing governed metrics in the warehouse or feeding downstream AI/reporting.",
+      "path": "assets/analytics/cube_query_asset",
+      "tags": ["cube", "semantic-layer", "analytics", "agentic", "metrics"],
+      "icon": "si:cube",
+      "type": "dagster_community_components.CubeQueryAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/cube_query_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/cube_query_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/cube_query_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/cube_query_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/cube_query_asset/requirements.txt",
+      "component_type": "dagster_community_components.CubeQueryAssetComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/cube_query.md",
+        "last_validated": "2026-07-06"
+      }
+    },
+    {
       "id": "customer_360",
       "name": "Customer 360",
       "category": "analytics",
@@ -8261,6 +8283,27 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/adls_round_trip.md",
         "last_validated": "2026-05-06"
+      }
+    },
+    {
+      "id": "external_cube_metric",
+      "name": "External Cube Metric",
+      "vendor": "Cube",
+      "category": "external_assets",
+      "description": "Declare a Cube semantic-layer measure or dimension as an external Dagster asset. Pair with cube_query_asset.",
+      "path": "external_assets/external_cube_metric",
+      "tags": ["cube", "semantic-layer", "external", "metrics"],
+      "icon": "si:cube",
+      "type": "dagster_community_components.ExternalCubeMetricAsset",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_cube_metric/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_cube_metric/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_cube_metric/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_cube_metric/example.yaml",
+      "component_type": "dagster_community_components.ExternalCubeMetricAsset",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/cube_query.md",
+        "last_validated": "2026-07-06"
       }
     },
     {

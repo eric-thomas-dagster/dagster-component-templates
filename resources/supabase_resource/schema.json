@@ -1,0 +1,49 @@
+{
+  "component_type": "dagster_component_templates.SupabaseResourceComponent",
+  "description": "Register a SupabaseResource wrapping the supabase-py client for use by other components",
+  "category": "resource",
+  "icon": "si:supabase",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "supabase_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "supabase_resource"
+    },
+    "url_env_var": {
+      "type": "string",
+      "label": "URL Env Var",
+      "description": "Env var holding the Supabase project URL (https://<project-ref>.supabase.co)",
+      "required": false,
+      "default": "SUPABASE_URL",
+      "ui:widget": "env_var"
+    },
+    "key_env_var": {
+      "type": "string",
+      "label": "Key Env Var",
+      "description": "Env var holding the Supabase API key (service-role for admin ops)",
+      "required": false,
+      "default": "SUPABASE_KEY",
+      "ui:widget": "env_var"
+    },
+    "use_service_role": {
+      "type": "boolean",
+      "label": "Use Service Role",
+      "description": "Whether the configured key is a service-role key (bypasses RLS). Set false when using an anon key.",
+      "required": false,
+      "default": true
+    }
+  },
+  "tags": [
+    "resource",
+    "supabase",
+    "postgres",
+    "backend"
+  ],
+  "name": "Supabase Resource"
+}

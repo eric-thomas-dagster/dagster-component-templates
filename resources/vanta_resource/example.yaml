@@ -1,0 +1,5 @@
+type: dagster_community_components.VantaResourceComponent
+attributes:
+  resource_key: vanta_resource
+  client_id_env_var: VANTA_CLIENT_ID
+  client_secret_env_var: VANTA_CLIENT_SECRET

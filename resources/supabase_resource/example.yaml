@@ -1,0 +1,6 @@
+type: dagster_component_templates.SupabaseResourceComponent
+attributes:
+  resource_key: supabase_resource
+  url_env_var: SUPABASE_URL
+  key_env_var: SUPABASE_KEY
+  use_service_role: true

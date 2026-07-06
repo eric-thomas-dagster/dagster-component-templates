@@ -1,0 +1,112 @@
+{
+  "component_type": "dagster_component_templates.FirestoreCollectionIngestionComponent",
+  "description": "Read a Firestore collection (or subcollection) into a pandas DataFrame.",
+  "category": "ingestion",
+  "icon": "si:firebase",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "DataFrame",
+      "description": "Documents from the Firestore collection with doc id in the `_id` column."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset to create.",
+      "required": true
+    },
+    "resource_name": {
+      "type": "string",
+      "label": "Resource Name",
+      "description": "Name of the FirebaseResource this asset uses.",
+      "required": false,
+      "default": "firebase_resource",
+      "ui:widget": "resource-picker"
+    },
+    "collection_path": {
+      "type": "string",
+      "label": "Collection Path",
+      "description": "Firestore path — e.g. 'users' or 'orders/{order_id}/items'.",
+      "required": true
+    },
+    "where_clauses": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Where Clauses",
+      "description": "List of {field, op, value} filter dicts. Ops: ==, !=, <, <=, >, >=, in, not-in, array-contains, array-contains-any.",
+      "required": false,
+      "default": null
+    },
+    "limit": {
+      "type": "integer",
+      "label": "Limit",
+      "description": "Optional maximum number of documents to read.",
+      "required": false,
+      "default": null
+    },
+    "order_by": {
+      "type": "object",
+      "label": "Order By",
+      "description": "Ordering: {field: <name>, direction: 'asc'|'desc'} (default 'asc').",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization.",
+      "required": false,
+      "default": "firebase"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners (team names or emails).",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Additional key-value tags for the asset.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include a sample preview in the run metadata.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows to include in the preview.",
+      "required": false,
+      "default": 25
+    }
+  },
+  "tags": [
+    "ingestion",
+    "firebase",
+    "firestore",
+    "nosql"
+  ],
+  "name": "Firestore Collection Ingestion"
+}

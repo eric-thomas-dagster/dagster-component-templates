@@ -1,0 +1,169 @@
+{
+  "component_type": "dagster_component_templates.GongCallSummaryAssetComponent",
+  "description": "Summarize Gong call transcripts into short summaries + action items using an OpenAI-compatible LLM.",
+  "category": "ai",
+  "icon": "si:gong",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "DataFrame",
+      "description": "Upstream DataFrame enriched with summary and action_items columns"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame with a transcript column",
+      "required": true
+    },
+    "llm_provider": {
+      "type": "string",
+      "label": "LLM Provider",
+      "description": "LLM provider. Currently supports 'openai' and OpenAI-compatible endpoints via base_url.",
+      "required": false,
+      "default": "openai"
+    },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "description": "Model identifier passed to the provider",
+      "required": false,
+      "default": "gpt-4o-mini"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding the LLM provider API key",
+      "required": false,
+      "default": "OPENAI_API_KEY",
+      "ui:widget": "env_var"
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "description": "Override the OpenAI-compatible base URL (Azure OpenAI, LiteLLM, local vLLM, etc.)",
+      "required": false,
+      "default": null
+    },
+    "transcript_column": {
+      "type": "string",
+      "label": "Transcript Column",
+      "description": "Name of the column containing the flattened transcript text",
+      "required": false,
+      "default": "transcript"
+    },
+    "summary_column": {
+      "type": "string",
+      "label": "Summary Column",
+      "description": "Name of the output column to write the summary text into",
+      "required": false,
+      "default": "call_summary"
+    },
+    "action_items_column": {
+      "type": "string",
+      "label": "Action Items Column",
+      "description": "Name of the output column to write the action items list into",
+      "required": false,
+      "default": "action_items"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "label": "Max Tokens",
+      "description": "Maximum tokens per completion",
+      "required": false,
+      "default": 500
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature",
+      "description": "Sampling temperature (lower = more deterministic)",
+      "required": false,
+      "default": 0.2
+    },
+    "skip_empty": {
+      "type": "boolean",
+      "label": "Skip Empty",
+      "description": "If true, rows with empty transcript are skipped (empty outputs).",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "gong"
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds. Defaults to ['gong', <provider>, 'python'].",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "required": false,
+      "default": 10
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "ai",
+    "gong",
+    "llm",
+    "summarization",
+    "sales",
+    "conversation-intelligence"
+  ],
+  "name": "Gong Call Summary Asset"
+}

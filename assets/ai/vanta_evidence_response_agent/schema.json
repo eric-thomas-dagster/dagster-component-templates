@@ -1,0 +1,89 @@
+{
+  "component_type": "dagster_community_components.VantaEvidenceResponseAgentComponent",
+  "description": "Draft SOC 2 / ISO 27001 evidence responses per Vanta control using an LLM.",
+  "category": "ai",
+  "icon": "Robot",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame of Vanta controls",
+      "required": true
+    },
+    "llm_provider": {
+      "type": "string",
+      "label": "LLM Provider",
+      "description": "'openai' or 'anthropic'",
+      "required": false,
+      "default": "openai",
+      "enum": ["openai", "anthropic"]
+    },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "description": "Model name, e.g. 'gpt-4o' or 'claude-3-5-sonnet-20241022'",
+      "required": false,
+      "default": "gpt-4o"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var containing the LLM provider API key",
+      "required": false,
+      "default": "OPENAI_API_KEY",
+      "ui:widget": "env_var"
+    },
+    "control_id_column": {
+      "type": "string",
+      "label": "Control ID Column",
+      "required": false,
+      "default": "control_id"
+    },
+    "control_description_column": {
+      "type": "string",
+      "label": "Control Description Column",
+      "required": false,
+      "default": "description"
+    },
+    "context_column": {
+      "type": "string",
+      "label": "Context Column",
+      "description": "Optional column with internal context (runbooks, tool inventories).",
+      "required": false
+    },
+    "response_column": {
+      "type": "string",
+      "label": "Response Column",
+      "required": false,
+      "default": "draft_response"
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature",
+      "required": false,
+      "default": 0.2
+    },
+    "max_tokens": {
+      "type": "integer",
+      "label": "Max Tokens",
+      "required": false,
+      "default": 800
+    }
+  },
+  "tags": [
+    "ai",
+    "llm",
+    "vanta",
+    "compliance",
+    "soc2",
+    "iso27001",
+    "grc"
+  ],
+  "name": "Vanta Evidence Response Agent"
+}

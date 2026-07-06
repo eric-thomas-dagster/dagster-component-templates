@@ -1,0 +1,50 @@
+{
+  "component_type": "dagster_component_templates.GongResourceComponent",
+  "description": "Register a GongResource wrapping Gong API v2 Basic Auth credentials for use by other components",
+  "category": "resource",
+  "icon": "si:gong",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "gong_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "gong_resource"
+    },
+    "access_key_env_var": {
+      "type": "string",
+      "label": "Access Key Env Var",
+      "description": "Env var holding the Gong API access key",
+      "required": false,
+      "default": "GONG_ACCESS_KEY",
+      "ui:widget": "env_var"
+    },
+    "access_key_secret_env_var": {
+      "type": "string",
+      "label": "Access Key Secret Env Var",
+      "description": "Env var holding the Gong API access key secret",
+      "required": false,
+      "default": "GONG_ACCESS_KEY_SECRET",
+      "ui:widget": "env_var"
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "description": "Gong API base URL. Override for regional endpoints (EU/APAC).",
+      "required": false,
+      "default": "https://api.gong.io/"
+    }
+  },
+  "tags": [
+    "resource",
+    "gong",
+    "sales",
+    "revenue",
+    "conversation-intelligence"
+  ],
+  "name": "Gong Resource"
+}

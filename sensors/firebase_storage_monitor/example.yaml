@@ -1,0 +1,10 @@
+type: dagster_component_templates.FirebaseStorageMonitorComponent
+attributes:
+  sensor_name: firebase_uploads_sensor
+  bucket_name: my-project.appspot.com
+  resource_name: firebase_resource
+  prefix: uploads/
+  blob_pattern: ".*\\.(png|jpg|jpeg|webp)$"
+  job_name: process_uploaded_images
+  minimum_interval_seconds: 60
+  default_status: stopped

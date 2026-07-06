@@ -1,0 +1,13 @@
+type: dagster_component_templates.FirestoreCollectionIngestionComponent
+attributes:
+  asset_name: active_users
+  resource_name: firebase_resource
+  collection_path: users
+  where_clauses:
+    - field: status
+      op: "=="
+      value: active
+  order_by:
+    field: created_at
+    direction: desc
+  limit: 1000

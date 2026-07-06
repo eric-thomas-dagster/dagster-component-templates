@@ -1,0 +1,12 @@
+type: dagster_component_templates.SupabaseVectorSearchAssetComponent
+attributes:
+  asset_name: doc_matches
+  resource_name: supabase_resource
+  table_name: documents
+  embedding_column: embedding
+  upstream_asset_key: query_embeddings
+  query_embedding_column: embedding
+  top_k: 10
+  metric: cosine
+  rpc_name: match_documents
+  group_name: rag

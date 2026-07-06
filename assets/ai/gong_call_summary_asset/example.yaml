@@ -1,0 +1,12 @@
+type: dagster_component_templates.GongCallSummaryAssetComponent
+attributes:
+  asset_name: gong_call_summaries
+  upstream_asset_key: gong_calls
+  llm_provider: openai
+  model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  transcript_column: transcript
+  summary_column: call_summary
+  action_items_column: action_items
+  max_tokens: 500
+  temperature: 0.2

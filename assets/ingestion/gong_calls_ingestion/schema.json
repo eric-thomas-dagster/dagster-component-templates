@@ -1,0 +1,129 @@
+{
+  "component_type": "dagster_component_templates.GongCallsIngestionComponent",
+  "description": "Ingest Gong call metadata and transcripts via Gong API v2 and return a pandas DataFrame.",
+  "category": "ingestion",
+  "icon": "si:gong",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "DataFrame",
+      "description": "DataFrame of call metadata with optional transcript column"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset to create",
+      "required": true
+    },
+    "resource_name": {
+      "type": "string",
+      "label": "Resource Name",
+      "description": "Key of the GongResource this asset depends on for authentication",
+      "required": false,
+      "default": "gong_resource"
+    },
+    "from_date_time": {
+      "type": "string",
+      "label": "From Date/Time",
+      "description": "Start of the call window (ISO-8601, e.g. '2026-06-01T00:00:00Z')",
+      "required": true
+    },
+    "to_date_time": {
+      "type": "string",
+      "label": "To Date/Time",
+      "description": "End of the call window (ISO-8601, e.g. '2026-07-01T00:00:00Z')",
+      "required": true
+    },
+    "include_transcript": {
+      "type": "boolean",
+      "label": "Include Transcript",
+      "description": "If true, fetch transcripts via POST /v2/calls/transcript and merge into the DataFrame",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "limit": {
+      "type": "integer",
+      "label": "Limit",
+      "description": "Maximum number of calls to fetch across all pages",
+      "required": false,
+      "default": 100
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "gong"
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners — team names (team:revops) or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Key-value tags applied to the asset in the Dagster catalog.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds shown in the Dagster catalog. Defaults to ['gong', 'python'].",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows to include in the preview metadata",
+      "required": false,
+      "default": 10
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys (no data passed at runtime)",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "ingestion",
+    "gong",
+    "sales",
+    "revenue",
+    "conversation-intelligence"
+  ],
+  "name": "Gong Calls Ingestion"
+}

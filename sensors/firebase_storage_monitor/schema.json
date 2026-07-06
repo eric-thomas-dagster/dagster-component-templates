@@ -1,0 +1,85 @@
+{
+  "component_type": "dagster_component_templates.FirebaseStorageMonitorComponent",
+  "description": "Watch a Firebase Storage bucket for new files; emit one RunRequest per new object.",
+  "category": "sensor",
+  "icon": "si:firebase",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "Sensor run requests, one per new blob detected."
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique name for this sensor.",
+      "required": true
+    },
+    "bucket_name": {
+      "type": "string",
+      "label": "Bucket Name",
+      "description": "Firebase Storage bucket name (e.g. '<project>.appspot.com'). Empty falls back to the FirebaseResource default.",
+      "required": true
+    },
+    "resource_name": {
+      "type": "string",
+      "label": "Resource Name",
+      "description": "Name of the FirebaseResource this sensor uses.",
+      "required": false,
+      "default": "firebase_resource",
+      "ui:widget": "resource-picker"
+    },
+    "prefix": {
+      "type": "string",
+      "label": "Prefix",
+      "description": "Object prefix to scope monitoring (e.g. 'uploads/').",
+      "required": false,
+      "default": ""
+    },
+    "blob_pattern": {
+      "type": "string",
+      "label": "Blob Pattern",
+      "description": "Regex matched against the blob name relative to the prefix.",
+      "required": false,
+      "default": ".*"
+    },
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Optional name of the job to trigger on detection.",
+      "required": false,
+      "default": null
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum interval between sensor evaluations.",
+      "required": false,
+      "default": 60
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "If set, register detected blob names as dynamic partitions under this name.",
+      "required": false,
+      "default": null
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Initial sensor status.",
+      "required": false,
+      "default": "stopped",
+      "enum": ["running", "stopped"]
+    }
+  },
+  "tags": [
+    "sensor",
+    "firebase",
+    "storage",
+    "gcs",
+    "monitor"
+  ],
+  "name": "Firebase Storage Monitor"
+}

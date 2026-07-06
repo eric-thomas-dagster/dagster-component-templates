@@ -1,0 +1,6 @@
+type: dagster_community_components.VantaControlsIngestionComponent
+attributes:
+  asset_name: vanta_soc2_controls
+  resource_name: vanta_resource
+  framework: soc2
+  limit: 1000

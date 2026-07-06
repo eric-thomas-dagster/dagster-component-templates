@@ -1,0 +1,5 @@
+type: dagster_component_templates.GongResourceComponent
+attributes:
+  resource_key: gong_resource
+  access_key_env_var: GONG_ACCESS_KEY
+  access_key_secret_env_var: GONG_ACCESS_KEY_SECRET

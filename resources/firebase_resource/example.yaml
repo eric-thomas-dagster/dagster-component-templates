@@ -1,0 +1,10 @@
+type: dagster_component_templates.FirebaseResourceComponent
+attributes:
+  resource_key: firebase_resource
+  project_id_env_var: FIREBASE_PROJECT_ID
+  # Auth: set exactly one of the following env-var names.
+  credentials_path_env_var: FIREBASE_CREDENTIALS_PATH
+  # credentials_json_env_var: FIREBASE_CREDENTIALS_JSON
+  # Optional:
+  # storage_bucket_env_var: FIREBASE_STORAGE_BUCKET
+  # database_url_env_var: FIREBASE_DATABASE_URL

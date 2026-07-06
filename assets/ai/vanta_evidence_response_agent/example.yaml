@@ -1,0 +1,10 @@
+type: dagster_community_components.VantaEvidenceResponseAgentComponent
+attributes:
+  asset_name: vanta_control_narratives
+  upstream_asset_key: vanta_soc2_controls
+  llm_provider: openai
+  model: gpt-4o
+  api_key_env_var: OPENAI_API_KEY
+  control_id_column: control_id
+  control_description_column: description
+  response_column: draft_response

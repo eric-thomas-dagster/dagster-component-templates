@@ -1,0 +1,140 @@
+{
+  "component_type": "dagster_component_templates.SupabaseVectorSearchAssetComponent",
+  "description": "pgvector similarity search against a Supabase table with a vector column.",
+  "category": "ai",
+  "icon": "si:supabase",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "asset",
+      "description": "Upstream DataFrame with a query-vector column (optional)"
+    },
+    "outputs": {
+      "type": "asset",
+      "description": "Matched rows with rank + query context"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output asset name.",
+      "required": true
+    },
+    "resource_name": {
+      "type": "string",
+      "label": "Resource Name",
+      "description": "Resource key of the SupabaseResource providing the client.",
+      "required": false,
+      "default": "supabase_resource",
+      "ui:widget": "resource-picker"
+    },
+    "table_name": {
+      "type": "string",
+      "label": "Table Name",
+      "description": "Supabase table containing the vector column.",
+      "required": true
+    },
+    "embedding_column": {
+      "type": "string",
+      "label": "Embedding Column",
+      "description": "Vector column (pgvector type) on the target table.",
+      "required": false,
+      "default": "embedding"
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream DataFrame asset providing query vectors (one search per row).",
+      "required": false,
+      "default": null
+    },
+    "query_embedding_column": {
+      "type": "string",
+      "label": "Query Embedding Column",
+      "description": "Column on upstream DataFrame holding the query vector.",
+      "required": false,
+      "default": null
+    },
+    "query_vector": {
+      "type": "array",
+      "label": "Query Vector",
+      "description": "Static query vector (list[float]). Alternative to upstream/query_embedding_column.",
+      "required": false,
+      "default": null
+    },
+    "top_k": {
+      "type": "integer",
+      "label": "Top K",
+      "description": "Number of nearest neighbors to return per query.",
+      "required": false,
+      "default": 10
+    },
+    "metric": {
+      "type": "string",
+      "label": "Metric",
+      "description": "Distance metric: 'cosine' (<=>), 'l2' (<->), or 'inner' (<#>).",
+      "required": false,
+      "default": "cosine",
+      "enum": ["cosine", "l2", "inner"]
+    },
+    "additional_columns": {
+      "type": "array",
+      "label": "Additional Columns",
+      "description": "Extra columns to return alongside the match (defaults to all).",
+      "required": false,
+      "default": null
+    },
+    "rpc_name": {
+      "type": "string",
+      "label": "RPC Name",
+      "description": "Postgres function callable via client.rpc(...) that runs the pgvector search.",
+      "required": false,
+      "default": null
+    },
+    "match_threshold": {
+      "type": "number",
+      "label": "Match Threshold",
+      "description": "Optional similarity threshold forwarded to the RPC.",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "default": null
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ai",
+    "supabase",
+    "pgvector",
+    "vector-search",
+    "embeddings"
+  ],
+  "name": "Supabase Vector Search"
+}

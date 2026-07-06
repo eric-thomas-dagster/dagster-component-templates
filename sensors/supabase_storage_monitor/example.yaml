@@ -1,0 +1,8 @@
+type: dagster_component_templates.SupabaseStorageMonitorComponent
+attributes:
+  sensor_name: supabase_incoming_files_sensor
+  bucket_name: incoming
+  prefix: raw/
+  resource_name: supabase_resource
+  minimum_interval_seconds: 60
+  default_status: stopped

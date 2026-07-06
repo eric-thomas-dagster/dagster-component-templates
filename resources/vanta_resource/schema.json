@@ -1,0 +1,50 @@
+{
+  "component_type": "dagster_community_components.VantaResourceComponent",
+  "description": "Register a Vanta API v1 resource (OAuth2 client-credentials, cached + auto-refreshed) for use by other components",
+  "category": "resource",
+  "icon": "Shield",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "vanta_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_name / resource_key.",
+      "required": false,
+      "default": "vanta_resource"
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client ID Env Var",
+      "description": "Env var holding Vanta OAuth client_id",
+      "required": false,
+      "default": "VANTA_CLIENT_ID",
+      "ui:widget": "env_var"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var holding Vanta OAuth client_secret",
+      "required": false,
+      "default": "VANTA_CLIENT_SECRET",
+      "ui:widget": "env_var"
+    },
+    "api_base_url": {
+      "type": "string",
+      "label": "API Base URL",
+      "description": "Vanta API base URL (override for staging / regional tenants)",
+      "required": false,
+      "default": "https://api.vanta.com"
+    }
+  },
+  "tags": [
+    "resource",
+    "vanta",
+    "compliance",
+    "soc2",
+    "grc"
+  ],
+  "name": "Vanta Resource"
+}

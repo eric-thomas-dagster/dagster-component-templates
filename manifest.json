@@ -731,7 +731,8 @@
         "mcp",
         "tool-use",
         "anthropic",
-        "claude"
+        "claude",
+        "agentic"
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_agent/schema.json",
       "component_type": "dagster_component_templates.AnthropicAgentComponent",
@@ -4170,7 +4171,13 @@
       "category": "analytics",
       "description": "Run a Cube semantic-layer query (REST /v1/load) and materialize as a Dagster asset (pandas DataFrame). Great for landing governed metrics in the warehouse or feeding downstream AI/reporting.",
       "path": "assets/analytics/cube_query_asset",
-      "tags": ["cube", "semantic-layer", "analytics", "agentic", "metrics"],
+      "tags": [
+        "cube",
+        "semantic-layer",
+        "analytics",
+        "agentic",
+        "metrics"
+      ],
       "icon": "si:cube",
       "type": "dagster_community_components.CubeQueryAssetComponent",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/cube_query_asset/README.md",
@@ -8292,7 +8299,12 @@
       "category": "external_assets",
       "description": "Declare a Cube semantic-layer measure or dimension as an external Dagster asset. Pair with cube_query_asset.",
       "path": "external_assets/external_cube_metric",
-      "tags": ["cube", "semantic-layer", "external", "metrics"],
+      "tags": [
+        "cube",
+        "semantic-layer",
+        "external",
+        "metrics"
+      ],
       "icon": "si:cube",
       "type": "dagster_community_components.ExternalCubeMetricAsset",
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_cube_metric/README.md",
@@ -9630,6 +9642,108 @@
       }
     },
     {
+      "id": "firebase_resource",
+      "name": "Firebase Resource",
+      "category": "resource",
+      "description": "Register a Firebase Admin SDK resource (Firestore + Cloud Storage + Realtime Database) for use by other components.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/firebase_resource",
+      "tags": [
+        "resource",
+        "firebase",
+        "firestore",
+        "storage",
+        "gcp"
+      ],
+      "vendor": "Firebase",
+      "dependencies": {
+        "pip": [
+          "firebase-admin>=6.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/firebase_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/firebase_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/firebase_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/firebase_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/firebase_resource/requirements.txt",
+      "component_type": "dagster_component_templates.FirebaseResourceComponent",
+      "icon": "si:firebase",
+      "x-dagster-provides": [
+        "firebase_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-06"
+      }
+    },
+    {
+      "id": "firebase_storage_monitor",
+      "name": "Firebase Storage Monitor",
+      "category": "sensor",
+      "description": "Watch a Firebase Storage bucket for new files; emit one RunRequest per new object.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/firebase_storage_monitor",
+      "tags": [
+        "sensor",
+        "firebase",
+        "storage",
+        "gcs",
+        "monitor"
+      ],
+      "vendor": "Firebase",
+      "dependencies": {
+        "pip": [
+          "firebase-admin>=6.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/firebase_storage_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/firebase_storage_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/firebase_storage_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/firebase_storage_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/firebase_storage_monitor/requirements.txt",
+      "component_type": "dagster_component_templates.FirebaseStorageMonitorComponent",
+      "icon": "si:firebase",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-06"
+      }
+    },
+    {
+      "id": "firestore_collection_ingestion",
+      "name": "Firestore Collection Ingestion",
+      "category": "ingestion",
+      "description": "Read a Firestore collection (or subcollection) into a pandas DataFrame; supports where filters, order_by, and limit.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/firestore_collection_ingestion",
+      "tags": [
+        "ingestion",
+        "firebase",
+        "firestore",
+        "nosql"
+      ],
+      "vendor": "Firebase",
+      "dependencies": {
+        "pip": [
+          "firebase-admin>=6.0.0",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/firestore_collection_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/firestore_collection_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/firestore_collection_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/firestore_collection_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/firestore_collection_ingestion/requirements.txt",
+      "component_type": "dagster_component_templates.FirestoreCollectionIngestionComponent",
+      "icon": "si:firebase",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-06"
+      }
+    },
+    {
       "id": "firestore_reader",
       "name": "Firestore Reader",
       "category": "source",
@@ -10405,7 +10519,8 @@
         "mcp",
         "tool-use",
         "gemini",
-        "google"
+        "google",
+        "agentic"
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_agent/schema.json",
       "component_type": "dagster_component_templates.GeminiAgentComponent",
@@ -10694,6 +10809,111 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "gong_call_summary_asset",
+      "name": "Gong Call Summary Asset",
+      "category": "ai",
+      "description": "Summarize Gong call transcripts into short summaries + action items using an OpenAI-compatible LLM.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/gong_call_summary_asset",
+      "vendor": "Gong",
+      "tags": [
+        "ai",
+        "gong",
+        "llm",
+        "summarization",
+        "sales",
+        "conversation-intelligence"
+      ],
+      "dependencies": {
+        "pip": [
+          "openai>=1.0.0",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gong_call_summary_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gong_call_summary_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gong_call_summary_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gong_call_summary_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gong_call_summary_asset/requirements.txt",
+      "component_type": "dagster_community_components.GongCallSummaryAssetComponent",
+      "icon": "si:gong",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-06"
+      }
+    },
+    {
+      "id": "gong_calls_ingestion",
+      "name": "Gong Calls Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Gong call metadata and transcripts via Gong API v2 and return a pandas DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/gong_calls_ingestion",
+      "vendor": "Gong",
+      "tags": [
+        "ingestion",
+        "gong",
+        "sales",
+        "revenue",
+        "conversation-intelligence"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gong_calls_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gong_calls_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gong_calls_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gong_calls_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/gong_calls_ingestion/requirements.txt",
+      "component_type": "dagster_community_components.GongCallsIngestionComponent",
+      "icon": "si:gong",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-06"
+      }
+    },
+    {
+      "id": "gong_resource",
+      "name": "Gong Resource",
+      "category": "resource",
+      "description": "Register a GongResource wrapping Gong API v2 Basic Auth credentials for use by other components.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/gong_resource",
+      "vendor": "Gong",
+      "tags": [
+        "resource",
+        "gong",
+        "sales",
+        "revenue",
+        "conversation-intelligence"
+      ],
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gong_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gong_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gong_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gong_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/gong_resource/requirements.txt",
+      "component_type": "dagster_community_components.GongResourceComponent",
+      "icon": "si:gong",
+      "x-dagster-provides": [
+        "gong_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-06"
       }
     },
     {
@@ -11241,7 +11461,8 @@
         "llama",
         "mixtral",
         "gemma",
-        "deepseek"
+        "deepseek",
+        "agentic"
       ],
       "dependencies": {
         "pip": [
@@ -12065,7 +12286,8 @@
         "image",
         "vision",
         "llm",
-        "extraction"
+        "extraction",
+        "agentic"
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/image_llm_extractor/schema.json",
       "component_type": "dagster_component_templates.ImageLlmExtractorComponent",
@@ -13123,7 +13345,8 @@
         "ai",
         "langchain",
         "chain",
-        "asset"
+        "asset",
+        "agentic"
       ],
       "icon": "Sparkles",
       "type": "dagster_component_templates.LangChainChainAssetComponent",
@@ -13150,7 +13373,8 @@
         "langgraph",
         "agent",
         "graph",
-        "llm"
+        "llm",
+        "agentic"
       ],
       "icon": "Sparkles",
       "type": "dagster_community_components.LangGraphAgentComponent",
@@ -13674,7 +13898,8 @@
         "agent",
         "mcp",
         "tool-use",
-        "litellm"
+        "litellm",
+        "agentic"
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_agent/schema.json",
       "component_type": "dagster_component_templates.LiteLLMAgentComponent",
@@ -13781,7 +14006,8 @@
         "litellm",
         "function-calling",
         "tool-use",
-        "routing"
+        "routing",
+        "agentic"
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_function_calling/schema.json",
       "component_type": "dagster_component_templates.LitellmFunctionCallingComponent",
@@ -13860,7 +14086,8 @@
         "litellm",
         "structured-output",
         "extraction",
-        "json"
+        "json",
+        "agentic"
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/litellm_structured_output/schema.json",
       "component_type": "dagster_component_templates.LitellmStructuredOutputComponent",
@@ -13915,7 +14142,8 @@
         "llm",
         "evaluation",
         "llm-as-judge",
-        "trulens-pattern"
+        "trulens-pattern",
+        "agentic"
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_evaluator/schema.json",
       "component_type": "dagster_component_templates.LLMEvaluatorComponent",
@@ -13942,7 +14170,8 @@
         "ai",
         "llm",
         "chain",
-        "executor"
+        "executor",
+        "agentic"
       ],
       "dependencies": {
         "pip": [
@@ -13974,7 +14203,8 @@
         "llm-judge",
         "quality-assessment",
         "litellm",
-        "testing"
+        "testing",
+        "agentic"
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_judge/schema.json",
       "component_type": "dagster_component_templates.LlmJudgeComponent",
@@ -14001,7 +14231,8 @@
         "ai",
         "llm",
         "output",
-        "parser"
+        "parser",
+        "agentic"
       ],
       "dependencies": {
         "pip": [
@@ -14033,7 +14264,8 @@
         "ai",
         "llm",
         "prompt",
-        "executor"
+        "executor",
+        "agentic"
       ],
       "dependencies": {
         "pip": [
@@ -16267,7 +16499,8 @@
         "agent",
         "mcp",
         "tool-use",
-        "openai"
+        "openai",
+        "agentic"
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_agent/schema.json",
       "component_type": "dagster_component_templates.OpenAIAgentComponent",
@@ -16448,7 +16681,8 @@
         "openrouter",
         "router",
         "multi-provider",
-        "fallback"
+        "fallback",
+        "agentic"
       ],
       "dependencies": {
         "pip": [
@@ -20828,7 +21062,8 @@
         "agent",
         "mcp",
         "snowflake",
-        "cortex"
+        "cortex",
+        "agentic"
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/snowflake_cortex_agent/schema.json",
       "component_type": "dagster_component_templates.SnowflakeCortexAgentComponent",
@@ -22278,6 +22513,138 @@
       }
     },
     {
+      "id": "supabase_edge_function_trigger",
+      "name": "Supabase Edge Function Trigger",
+      "category": "infrastructure",
+      "description": "Materializable asset that invokes a Supabase Edge Function via POST /functions/v1/<function-name>.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/infrastructure/supabase_edge_function_trigger",
+      "tags": [
+        "infrastructure",
+        "supabase",
+        "edge-function",
+        "trigger"
+      ],
+      "vendor": "Supabase",
+      "dependencies": {
+        "pip": [
+          "supabase>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/supabase_edge_function_trigger/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/supabase_edge_function_trigger/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/supabase_edge_function_trigger/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/supabase_edge_function_trigger/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/supabase_edge_function_trigger/requirements.txt",
+      "icon": "si:supabase",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-06"
+      }
+    },
+    {
+      "id": "supabase_resource",
+      "name": "Supabase Resource",
+      "category": "resource",
+      "description": "Register a SupabaseResource wrapping the supabase-py client for use by other components.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/supabase_resource",
+      "tags": [
+        "resource",
+        "supabase",
+        "postgres",
+        "backend"
+      ],
+      "vendor": "Supabase",
+      "dependencies": {
+        "pip": [
+          "supabase>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/supabase_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/supabase_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/supabase_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/supabase_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/supabase_resource/requirements.txt",
+      "icon": "si:supabase",
+      "x-dagster-provides": [
+        "supabase_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-06"
+      }
+    },
+    {
+      "id": "supabase_storage_monitor",
+      "name": "Supabase Storage Monitor",
+      "category": "sensor",
+      "description": "Monitor a Supabase Storage bucket for new files and emit a RunRequest per new object.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/supabase_storage_monitor",
+      "tags": [
+        "sensor",
+        "supabase",
+        "storage",
+        "monitor"
+      ],
+      "vendor": "Supabase",
+      "dependencies": {
+        "pip": [
+          "supabase>=2.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/supabase_storage_monitor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/supabase_storage_monitor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/supabase_storage_monitor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/supabase_storage_monitor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/supabase_storage_monitor/requirements.txt",
+      "icon": "si:supabase",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-06"
+      }
+    },
+    {
+      "id": "supabase_vector_search_asset",
+      "name": "Supabase Vector Search",
+      "category": "ai",
+      "description": "pgvector similarity search against a Supabase table with a vector column.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/supabase_vector_search_asset",
+      "tags": [
+        "ai",
+        "supabase",
+        "pgvector",
+        "vector-search",
+        "embeddings"
+      ],
+      "vendor": "Supabase",
+      "dependencies": {
+        "pip": [
+          "supabase>=2.0.0",
+          "pandas>=1.5.0",
+          "numpy>=1.20.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supabase_vector_search_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supabase_vector_search_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supabase_vector_search_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supabase_vector_search_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supabase_vector_search_asset/requirements.txt",
+      "icon": "si:supabase",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-06"
+      }
+    },
+    {
       "id": "support_ticket_ingestion",
       "name": "Support Ticket Ingestion",
       "category": "ingestion",
@@ -22873,7 +23240,7 @@
       "name": "Vercel AI Gateway Agent",
       "vendor": "Vercel",
       "category": "ai",
-      "description": "Single-shot LLM agent via Vercel AI Gateway — OpenAI-compatible proxy that routes to any provider with unified billing + automatic fallback + Vercel observability.",
+      "description": "Single-shot LLM agent via Vercel AI Gateway \u2014 OpenAI-compatible proxy that routes to any provider with unified billing + automatic fallback + Vercel observability.",
       "path": "assets/ai/vercel_ai_gateway_agent",
       "tags": [
         "ai",
@@ -22881,7 +23248,8 @@
         "vercel",
         "ai-gateway",
         "llm",
-        "mcp"
+        "mcp",
+        "agentic"
       ],
       "icon": "si:vercel",
       "type": "dagster_community_components.VercelAIGatewayAgentComponent",
@@ -23049,7 +23417,8 @@
       "tags": [
         "ai",
         "text",
-        "classifier"
+        "classifier",
+        "agentic"
       ],
       "dependencies": {
         "pip": [
@@ -23217,7 +23586,8 @@
       "tags": [
         "ai",
         "ticket",
-        "classifier"
+        "classifier",
+        "agentic"
       ],
       "dependencies": {
         "pip": [
@@ -25110,7 +25480,8 @@
         "ai",
         "zero",
         "shot",
-        "classifier"
+        "classifier",
+        "agentic"
       ],
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/zero_shot_classifier/schema.json",
       "component_type": "dagster_component_templates.ZeroShotClassifierComponent",
@@ -25513,9 +25884,121 @@
         "level": "code",
         "last_validated": "2026-06-06"
       }
+    },
+    {
+      "id": "vanta_resource",
+      "name": "Vanta Resource",
+      "category": "resource",
+      "description": "Vanta API v1 resource with OAuth2 client-credentials token minting, caching, and auto-refresh. Provides get_client() returning an auth'd requests.Session.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/vanta_resource",
+      "tags": [
+        "resource",
+        "vanta",
+        "compliance",
+        "soc2",
+        "iso27001",
+        "grc"
+      ],
+      "vendor": "Vanta",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vanta_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vanta_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vanta_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vanta_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vanta_resource/requirements.txt",
+      "component_type": "dagster_community_components.VantaResourceComponent",
+      "icon": "Shield",
+      "x-dagster-provides": [
+        "vanta_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-06"
+      }
+    },
+    {
+      "id": "vanta_controls_ingestion",
+      "name": "Vanta Controls Ingestion",
+      "category": "ingestion",
+      "description": "Fetches Vanta compliance controls (SOC 2, ISO 27001, HIPAA, PCI) plus status and evidence counts via GET /v1/controls. Returns a flattened pandas DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/vanta_controls_ingestion",
+      "tags": [
+        "ingestion",
+        "vanta",
+        "compliance",
+        "soc2",
+        "iso27001",
+        "grc",
+        "rest"
+      ],
+      "vendor": "Vanta",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vanta_controls_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vanta_controls_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vanta_controls_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vanta_controls_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vanta_controls_ingestion/requirements.txt",
+      "component_type": "dagster_community_components.VantaControlsIngestionComponent",
+      "icon": "Shield",
+      "x-dagster-consumes": [
+        "vanta_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-06"
+      }
+    },
+    {
+      "id": "vanta_evidence_response_agent",
+      "name": "Vanta Evidence Response Agent",
+      "category": "ai",
+      "description": "Reads a DataFrame of Vanta controls and uses an LLM (OpenAI / Anthropic) to draft SOC 2 / ISO 27001 evidence responses per row.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/vanta_evidence_response_agent",
+      "tags": [
+        "ai",
+        "llm",
+        "vanta",
+        "compliance",
+        "soc2",
+        "iso27001",
+        "grc"
+      ],
+      "vendor": "Vanta",
+      "dependencies": {
+        "pip": [
+          "openai>=1.0.0",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vanta_evidence_response_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vanta_evidence_response_agent/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vanta_evidence_response_agent/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vanta_evidence_response_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vanta_evidence_response_agent/requirements.txt",
+      "component_type": "dagster_community_components.VantaEvidenceResponseAgentComponent",
+      "icon": "Robot",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-06"
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 873
+  "total": 884
 }

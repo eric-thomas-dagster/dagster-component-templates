@@ -1,0 +1,67 @@
+{
+  "component_type": "dagster_component_templates.FirebaseResourceComponent",
+  "description": "Register a Firebase Admin SDK resource (Firestore + Cloud Storage + Realtime DB) for use by other components.",
+  "category": "resource",
+  "icon": "si:firebase",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "firebase_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "firebase_resource"
+    },
+    "project_id_env_var": {
+      "type": "string",
+      "label": "Project ID Env Var",
+      "description": "Environment variable holding the Firebase project id.",
+      "required": false,
+      "default": "FIREBASE_PROJECT_ID",
+      "ui:widget": "env_var"
+    },
+    "credentials_path_env_var": {
+      "type": "string",
+      "label": "Credentials Path Env Var",
+      "description": "Env var holding a path to a service account JSON file. Mutually exclusive with credentials_json_env_var.",
+      "required": false,
+      "default": "FIREBASE_CREDENTIALS_PATH",
+      "ui:widget": "env_var"
+    },
+    "credentials_json_env_var": {
+      "type": "string",
+      "label": "Credentials JSON Env Var",
+      "description": "Env var holding the raw service account JSON. Mutually exclusive with credentials_path_env_var.",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "storage_bucket_env_var": {
+      "type": "string",
+      "label": "Storage Bucket Env Var",
+      "description": "Optional env var holding the default Firebase Storage bucket name (e.g. '<project>.appspot.com').",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "database_url_env_var": {
+      "type": "string",
+      "label": "Database URL Env Var",
+      "description": "Optional env var holding the Realtime Database URL.",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "firebase",
+    "firestore",
+    "storage",
+    "gcp"
+  ],
+  "name": "Firebase Resource"
+}

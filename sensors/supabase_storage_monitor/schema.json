@@ -1,0 +1,84 @@
+{
+  "component_type": "dagster_component_templates.SupabaseStorageMonitorComponent",
+  "description": "Monitor a Supabase Storage bucket for new files and emit a RunRequest per new object.",
+  "category": "sensor",
+  "icon": "si:supabase",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "Sensor run requests, one per new Supabase Storage object"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique name for this sensor",
+      "required": true
+    },
+    "bucket_name": {
+      "type": "string",
+      "label": "Bucket Name",
+      "description": "Supabase Storage bucket to monitor",
+      "required": true
+    },
+    "prefix": {
+      "type": "string",
+      "label": "Prefix",
+      "description": "Object prefix (folder) to scope monitoring, e.g. 'incoming/'.",
+      "required": false,
+      "default": ""
+    },
+    "resource_name": {
+      "type": "string",
+      "label": "Resource Name",
+      "description": "Resource key of the SupabaseResource providing the client.",
+      "required": false,
+      "default": "supabase_resource",
+      "ui:widget": "resource-picker"
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum time (in seconds) between sensor evaluations.",
+      "required": false,
+      "default": 60
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "When set, register each new object path as a dynamic partition and key the RunRequest on the object path.",
+      "required": false,
+      "default": null
+    },
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Job to trigger. Leave unset when downstream assets are activated via auto-materialize.",
+      "required": false,
+      "default": null
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Default sensor status: 'running' or 'stopped'.",
+      "required": false,
+      "default": "stopped",
+      "enum": ["running", "stopped"]
+    },
+    "page_size": {
+      "type": "integer",
+      "label": "Page Size",
+      "description": "Page size for storage.list() calls. Supabase caps at 1000.",
+      "required": false,
+      "default": 1000
+    }
+  },
+  "tags": [
+    "sensor",
+    "supabase",
+    "storage",
+    "monitor"
+  ],
+  "name": "Supabase Storage Monitor"
+}

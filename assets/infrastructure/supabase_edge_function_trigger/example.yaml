@@ -1,0 +1,9 @@
+type: dagster_component_templates.SupabaseEdgeFunctionTriggerComponent
+attributes:
+  asset_key: supabase/send_welcome_email
+  function_name: send-welcome-email
+  resource_name: supabase_resource
+  payload:
+    user_id: "abc-123"
+    template: "welcome_v2"
+  wait_for_result: true

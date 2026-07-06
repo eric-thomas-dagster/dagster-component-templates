@@ -1,0 +1,99 @@
+{
+  "component_type": "dagster_component_templates.SupabaseEdgeFunctionTriggerComponent",
+  "description": "Materializable asset that invokes a Supabase Edge Function via POST /functions/v1/<function-name>.",
+  "category": "infrastructure",
+  "icon": "si:supabase",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "asset",
+      "description": "Edge function response body (JSON if parseable, else text)"
+    }
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Output asset key.",
+      "required": true
+    },
+    "function_name": {
+      "type": "string",
+      "label": "Function Name",
+      "description": "Edge Function name (slug deployed to /functions/v1/<function-name>).",
+      "required": true
+    },
+    "resource_name": {
+      "type": "string",
+      "label": "Resource Name",
+      "description": "Resource key of the SupabaseResource providing the client.",
+      "required": false,
+      "default": "supabase_resource",
+      "ui:widget": "resource-picker"
+    },
+    "payload": {
+      "type": "object",
+      "label": "Payload",
+      "description": "JSON body to POST to the edge function. Omit for empty body.",
+      "required": false,
+      "default": null
+    },
+    "wait_for_result": {
+      "type": "boolean",
+      "label": "Wait For Result",
+      "description": "Whether to capture the function's response body in asset metadata.",
+      "required": false,
+      "default": true
+    },
+    "headers": {
+      "type": "object",
+      "label": "Headers",
+      "description": "Extra HTTP headers forwarded to the edge function.",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "description": "Upstream asset keys",
+      "required": false,
+      "default": null
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "infrastructure",
+    "supabase",
+    "edge-function",
+    "trigger"
+  ],
+  "name": "Supabase Edge Function Trigger"
+}

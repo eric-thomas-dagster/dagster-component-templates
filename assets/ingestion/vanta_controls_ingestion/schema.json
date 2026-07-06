@@ -1,0 +1,67 @@
+{
+  "component_type": "dagster_community_components.VantaControlsIngestionComponent",
+  "description": "Ingest Vanta compliance controls (SOC 2, ISO 27001, HIPAA, PCI, etc.) into a pandas DataFrame via GET /v1/controls.",
+  "category": "ingestion",
+  "icon": "Shield",
+  "x-dagster-consumes": [
+    "vanta_resource"
+  ],
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the Dagster asset to create",
+      "required": true
+    },
+    "resource_name": {
+      "type": "string",
+      "label": "Vanta Resource",
+      "description": "Resource key of a registered vanta_resource",
+      "required": false,
+      "default": "vanta_resource"
+    },
+    "framework": {
+      "type": "string",
+      "label": "Framework",
+      "description": "Filter by compliance framework (soc2, iso27001, hipaa, pci). Omit for all.",
+      "required": false
+    },
+    "status": {
+      "type": "string",
+      "label": "Status",
+      "description": "Filter by control status (OK, NEEDS_ATTENTION, DEACTIVATED). Omit for all.",
+      "required": false
+    },
+    "limit": {
+      "type": "integer",
+      "label": "Limit",
+      "description": "Maximum number of controls to fetch",
+      "required": false,
+      "default": 1000
+    },
+    "page_size": {
+      "type": "integer",
+      "label": "Page Size",
+      "description": "Per-page size for pagination",
+      "required": false,
+      "default": 100
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "vanta"
+    }
+  },
+  "tags": [
+    "ingestion",
+    "vanta",
+    "compliance",
+    "soc2",
+    "iso27001",
+    "grc",
+    "rest"
+  ],
+  "name": "Vanta Controls Ingestion"
+}

@@ -52,10 +52,10 @@ Same one-owner rule as the Temporal / Argo patterns: don't try to "trigger" Verc
 - **Multi-provider agents in a broader DAG.** Vercel AI Gateway routes to any LLM; Dagster asset materializations wire the LLM calls into a full data pipeline (partitions, retries, freshness, checks, downstream `deps:`) that the gateway alone doesn't offer.
 - **Preview environment analytics.** Second sensor with `target: preview` + a different `asset_key` feeds a preview-analytics ETL for QA reporting.
 
-## Gotchas
+## Gotchas — most now handled by the components
 
-- **Deployments API version.** Vercel's stable Deployments API is `/v6`. `/v13/*` returns `400 Invalid API version`.
-- **Two credential classes.** A Vercel API token (`vcp_...`) does NOT grant AI Gateway access. AI Gateway needs a separate `vck_...` credit-backed token.
-- **AI Gateway credit balance.** Zero-balance accounts get `402 insufficient_funds` on every call — top up in the AI section of the Vercel dashboard.
-- **`max_output_tokens` minimum.** Vercel AI Gateway enforces a minimum of 16 output tokens per call. Setting lower produces a 400.
+- **~~Deployments API version.~~** The sensor uses `/v6` (stable). Fixed.
+- **Two credential classes.** A Vercel API token (`vcp_...`) does NOT grant AI Gateway access. AI Gateway needs a separate `vck_...` credit-backed token. **The components now detect the wrong prefix and fail fast with an actionable message** — no silent 401s.
+- **AI Gateway credit balance.** Zero-balance accounts get `402 insufficient_funds`. **`vercel_ai_gateway_agent` now catches this** and raises a friendly error pointing at the top-up URL.
+- **`max_output_tokens` minimum.** Vercel AI Gateway enforces a minimum of 16 output tokens per call. **`vercel_ai_gateway_agent` now auto-clamps** `max_tokens < 16` up to 16 with a warning log — silently-works instead of a cryptic 400.
 - **AI Gateway model strings.** Use `<provider>/<model>` format (e.g. `openai/gpt-4o-mini`, `anthropic/claude-sonnet-4-6`). See https://vercel.com/ai-gateway/models for the current catalog.

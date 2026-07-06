@@ -202,6 +202,13 @@ class VercelAIGatewayAgentComponent(Component, Model, Resolvable):
                         f"Trying next in fallback chain."
                     )
             else:
+                # Surface the specific "no credits" case with an actionable link.
+                err_str = str(last_error or "")
+                if "insufficient_funds" in err_str or "positive credit balance" in err_str:
+                    raise RuntimeError(
+                        "Vercel AI Gateway rejected every model call: credit balance is 0. "
+                        "Top up at https://vercel.com/dashboard → AI Gateway → Billing, then retry."
+                    ) from last_error
                 raise RuntimeError(
                     f"Every model in fallback chain {models_to_try} failed. Last error: {last_error}"
                 )
@@ -340,6 +347,26 @@ async def _run_agent(
     api_key = os.environ.get(api_key_env_var)
     if not api_key:
         raise RuntimeError(f"Vercel API token env var {api_key_env_var!r} is not set.")
+    if api_key.startswith("vcp_"):
+        # Common footgun: vcp_ is the Vercel *account* token (Deployments API);
+        # AI Gateway needs a vck_ credit-backed key.
+        raise RuntimeError(
+            f"Token in {api_key_env_var!r} looks like a Vercel API token (vcp_...) — "
+            f"this is the Deployments API token, not the AI Gateway. Create an AI "
+            f"Gateway key (vck_...) at your Vercel dashboard → AI Gateway → API Keys, "
+            f"then point api_key_env_var at that env var."
+        )
+
+    # Vercel AI Gateway rejects max_tokens < 16 with a 400. Clamp silently
+    # instead of failing — the caller usually doesn't care about the exact
+    # minimum, they just want the small model output.
+    _MIN_TOKENS = 16
+    if max_tokens < _MIN_TOKENS:
+        log.warning(
+            f"[vercel_ai_gateway] max_tokens={max_tokens} is below the gateway's "
+            f"minimum ({_MIN_TOKENS}); clamping."
+        )
+        max_tokens = _MIN_TOKENS
 
     client = AsyncOpenAI(api_key=api_key, base_url=api_base_url)
 

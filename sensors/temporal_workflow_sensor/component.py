@@ -41,6 +41,47 @@ TEMPORAL_SUCCESS = {"COMPLETED", "CONTINUED_AS_NEW"}
 TEMPORAL_FAIL = {"FAILED", "CANCELED", "TERMINATED", "TIMED_OUT"}
 
 
+def _validate_temporal_config(
+    target_host: str,
+    namespace: str,
+    api_key_env_var: Optional[str],
+    log,
+    minimum_interval_seconds: Optional[int] = None,
+) -> Optional[int]:
+    """Preflight validation for Temporal Cloud / API-key auth.
+
+    - Detects Temporal Cloud (`.tmprl.cloud` in host).
+    - Warns if Cloud namespace lacks `.<account_id>` suffix.
+    - Requires temporalio>=1.8.0 when api_key_env_var is set.
+    - Warns + clamps sub-60s poll interval on Cloud (Visibility rate limits).
+    """
+    is_cloud = ".tmprl.cloud" in (target_host or "").lower()
+    if is_cloud and "." not in (namespace or ""):
+        log.warning(
+            f"[temporal] namespace={namespace!r} looks incomplete for Temporal Cloud — "
+            f"Cloud namespaces are '<name>.<account_id>' (e.g. 'myns.abcde')."
+        )
+    if api_key_env_var:
+        try:
+            import temporalio
+            ver = getattr(temporalio, "__version__", "0")
+            major, minor, *_ = (int(x) for x in ver.split(".")[:2])
+            if (major, minor) < (1, 8):
+                raise RuntimeError(
+                    f"api_key_env_var is set but temporalio=={ver} doesn't support API-key auth. "
+                    f"Upgrade: pip install 'temporalio>=1.8.0'."
+                )
+        except (AttributeError, ValueError):
+            pass
+    if minimum_interval_seconds is not None and is_cloud and minimum_interval_seconds < 60:
+        log.warning(
+            f"[temporal] minimum_interval_seconds={minimum_interval_seconds} is aggressive for "
+            f"Temporal Cloud — Visibility API is rate-limited; clamping to 60."
+        )
+        return 60
+    return minimum_interval_seconds
+
+
 class TemporalWorkflowSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     """Fire a Dagster job when a Temporal Workflow reaches a terminal state.
 
@@ -149,6 +190,17 @@ class TemporalWorkflowSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 from temporalio.service import TLSConfig
             except ImportError:
                 return SensorResult(skip_reason="temporalio not installed")
+
+            try:
+                _validate_temporal_config(
+                    target_host=_self.target_host,
+                    namespace=_self.namespace,
+                    api_key_env_var=_self.api_key_env_var,
+                    log=context.log,
+                    minimum_interval_seconds=_self.minimum_interval_seconds,
+                )
+            except RuntimeError as e:
+                return SensorResult(skip_reason=str(e))
 
             async def _poll():
                 tls_cfg = None

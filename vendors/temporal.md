@@ -56,13 +56,13 @@ All 5 components accept the same auth fields — swap the pair to point at Cloud
 - **Materializations on live state.** A running Temporal workflow's `pending_orders` list becomes a Dagster asset with lineage, freshness policies, and downstream `deps:`. Temporal alone offers Query but doesn't surface it in a catalog.
 - **Signals from Dagster's world.** Long-lived Temporal workflows often need to react to *data-side* events (S3 landing, schedule tick, upstream asset materializing). Dagster is the natural source of those signals; `temporal_signal_asset` is the wire.
 
-## Gotchas
+## Gotchas — most now handled by the components
 
 - **Signals are addressed by `workflow_id`.** Whatever run is currently active receives them. If no run is active, the SDK raises — Temporal does NOT queue signals for non-existent workflows.
 - **Queries are read-only.** They cannot mutate workflow state. The Query handler runs inside the workflow's event loop, so a slow/blocked workflow will stall Query calls.
-- **`temporalio>=1.8.0` for Temporal Cloud API keys.** Earlier versions require mTLS.
-- **Rate limits on Temporal Cloud Visibility.** `temporal_workflow_sensor` with `list_filter` calls `list_workflows` — bump `minimum_interval_seconds` to 60+ on Cloud.
-- **Namespace format on Cloud.** Full namespace is `<name>.<account_id>`, not just `<name>` — easy footgun.
+- **`temporalio>=1.8.0` for Temporal Cloud API keys.** Earlier versions require mTLS. **All components now check this at runtime** and raise an actionable error if `api_key_env_var` is set with an old SDK.
+- **Rate limits on Temporal Cloud Visibility.** `temporal_workflow_sensor` with `list_filter` calls `list_workflows`. **The sensor now auto-detects Cloud** (via `.tmprl.cloud` in `target_host`) and clamps `minimum_interval_seconds` to a 60s floor, with a warning — set `>= 60` explicitly to silence.
+- **Namespace format on Cloud.** Full namespace is `<name>.<account_id>`, not just `<name>`. **All components now warn** when a Cloud host is paired with a `<name>`-only namespace.
 
 ## Compared to Argo
 

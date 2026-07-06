@@ -148,6 +148,17 @@ class VercelDeploymentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             token = os.environ.get(_self.api_token_env_var)
             if not token:
                 return SensorResult(skip_reason=f"{_self.api_token_env_var} not set")
+            if token.startswith("vck_"):
+                # AI Gateway keys don't grant Deployments API access — this
+                # component needs a vcp_ token from https://vercel.com/account/tokens.
+                return SensorResult(
+                    skip_reason=(
+                        f"Token in {_self.api_token_env_var!r} looks like an AI Gateway key "
+                        "(vck_...). Vercel Deployments API needs a personal / team API token "
+                        "(vcp_...). Create one at https://vercel.com/account/tokens with "
+                        "Read Access scope, then point api_token_env_var at that env var."
+                    )
+                )
 
             params: Dict[str, str] = {"limit": "10"}
             if _self.project_id:

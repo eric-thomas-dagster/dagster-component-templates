@@ -158,6 +158,13 @@ class TemporalWorkflowTriggerComponent(dg.Component, dg.Model, dg.Resolvable):
                     "pip install 'temporalio>=1.7.0'"
                 )
 
+            _validate_temporal_config(
+                target_host=_self.target_host,
+                namespace=_self.namespace,
+                api_key_env_var=_self.api_key_env_var,
+                log=context.log,
+            )
+
             # Resolve workflow_id via substitution.
             substitutions = {"run_id": context.run_id}
             if context.has_partition_key:
@@ -276,6 +283,56 @@ class TemporalWorkflowTriggerComponent(dg.Component, dg.Model, dg.Resolvable):
             return dg.MaterializeResult(metadata=md)
 
         return dg.Definitions(assets=[_asset])
+
+
+def _validate_temporal_config(
+    target_host: str,
+    namespace: str,
+    api_key_env_var: Optional[str],
+    log,
+    minimum_interval_seconds: Optional[int] = None,
+) -> Optional[int]:
+    """Preflight validation shared across Temporal components.
+
+    - Detects Temporal Cloud (via `.tmprl.cloud` in target_host).
+    - On Cloud, warns if namespace lacks `.<account_id>` suffix.
+    - Requires temporalio>=1.8.0 when api_key_env_var is set (older SDKs
+      only support mTLS).
+    - Returns a (possibly clamped) minimum_interval_seconds; the sensor
+      calls with a value, other components pass None.
+    """
+    is_cloud = ".tmprl.cloud" in (target_host or "").lower()
+
+    if is_cloud and "." not in (namespace or ""):
+        log.warning(
+            f"[temporal] namespace={namespace!r} looks incomplete for Temporal Cloud — "
+            f"Cloud namespaces are '<name>.<account_id>' (e.g. 'myns.abcde'). If your "
+            f"connection fails auth, this is the likely cause."
+        )
+
+    if api_key_env_var:
+        try:
+            import temporalio
+            ver = getattr(temporalio, "__version__", "0")
+            major, minor, *_ = (int(x) for x in ver.split(".")[:2])
+            if (major, minor) < (1, 8):
+                raise RuntimeError(
+                    f"api_key_env_var is set (Temporal Cloud API-key auth), but "
+                    f"temporalio=={ver} doesn't support it. Upgrade: "
+                    f"pip install 'temporalio>=1.8.0' — or switch to mTLS via "
+                    f"tls_cert_env_var + tls_key_env_var."
+                )
+        except (AttributeError, ValueError):
+            pass  # can't parse version — let the SDK complain at runtime
+
+    if minimum_interval_seconds is not None and is_cloud and minimum_interval_seconds < 60:
+        log.warning(
+            f"[temporal] minimum_interval_seconds={minimum_interval_seconds} is aggressive for "
+            f"Temporal Cloud — the Visibility API is rate-limited; clamping to 60. "
+            f"Set >=60 explicitly to silence this."
+        )
+        return 60
+    return minimum_interval_seconds
 
 
 def _substitute(s: str, substitutions: Dict[str, Any]) -> str:

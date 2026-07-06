@@ -269,6 +269,7 @@ _CLASS_PATHS: dict[str, str] = {
     "Db2ResourceComponent": "resources/db2_resource/component.py",
     "DbtCloudJobSensorComponent": "sensors/dbt_cloud_job_sensor/component.py",
     "DbtCloudResourceComponent": "resources/dbt_cloud_resource/component.py",
+    "DbtDocsEnrichedProjectComponent": "assets/dbt/dbt_docs_enriched_project/component.py",
     "DbtRunJobComponent": "jobs/dbt_run_job/component.py",
     "DecisionTreeModelComponent": "assets/analytics/decision_tree_model/component.py",
     "DeltaIngestionComponent": "assets/ingestion/delta_ingestion/component.py",

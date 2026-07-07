@@ -12725,6 +12725,43 @@
       }
     },
     {
+      "id": "iterative_supervisor_agent",
+      "name": "Iterative Supervisor Agent",
+      "category": "ai",
+      "description": "Iterative / chained supervisor agent — planner runs once per step, sees prior steps' tool outputs, and picks the NEXT tool call (or declares done). Each step is its own Dagster asset (ReAct loop with full lineage). Static DAG shape via pre-declared max_iterations, dynamic termination via short-circuit.",
+      "path": "assets/ai/iterative_supervisor_agent",
+      "tags": [
+        "ai",
+        "agent",
+        "agentic",
+        "supervisor",
+        "planner",
+        "iterative",
+        "react",
+        "chained",
+        "openai"
+      ],
+      "icon": "Sparkles",
+      "type": "dagster_community_components.IterativeSupervisorAgentComponent",
+      "component_type": "dagster_community_components.IterativeSupervisorAgentComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/iterative_supervisor_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/iterative_supervisor_agent/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/iterative_supervisor_agent/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/iterative_supervisor_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/iterative_supervisor_agent/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "openai>=1.0.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/iterative_supervisor_agent.md",
+        "last_validated": "2026-07-07"
+      }
+    },
+    {
       "id": "jira_ingestion",
       "name": "Jira Ingestion",
       "category": "ingestion",

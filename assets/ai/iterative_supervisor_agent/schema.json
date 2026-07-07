@@ -1,0 +1,27 @@
+{
+  "component_type": "dagster_community_components.IterativeSupervisorAgentComponent",
+  "description": "Iterative / chained supervisor agent. Planner runs once per step, sees prior steps' tool outputs, and picks the NEXT tool call — or declares done. Each step is its own Dagster asset (full ReAct-loop lineage). Static DAG shape via pre-declared max_iterations, dynamic termination via short-circuit.",
+  "category": "ai",
+  "icon": "Sparkles",
+  "x-dagster-io": {
+    "inputs": {"type": "none"},
+    "outputs": {"type": "multi_asset", "description": "Emits (max_iterations + 1) assets: N step assets + 1 synthesis."}
+  },
+  "attributes": {
+    "step_asset_prefix": {"type": "string", "required": false, "default": "agent_step"},
+    "synthesis_asset_name": {"type": "string", "required": true},
+    "task": {"type": "string", "required": true},
+    "tools": {"type": "array", "required": true},
+    "max_iterations": {"type": "integer", "required": false, "default": 5, "minimum": 1, "maximum": 15},
+    "model": {"type": "string", "required": false, "default": "gpt-4o-mini"},
+    "api_key_env_var": {"type": "string", "required": false, "default": "OPENAI_API_KEY"},
+    "api_base_env_var": {"type": "string", "required": false},
+    "temperature": {"type": "number", "required": false, "default": 0.1},
+    "planner_max_tokens": {"type": "integer", "required": false, "default": 400},
+    "tool_max_tokens": {"type": "integer", "required": false, "default": 500},
+    "synthesis_max_tokens": {"type": "integer", "required": false, "default": 600},
+    "synthesis_system_message": {"type": "string", "required": false},
+    "group_name": {"type": "string", "required": false},
+    "kinds": {"type": "array", "required": false}
+  }
+}

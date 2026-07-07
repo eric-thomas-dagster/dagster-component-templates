@@ -1,0 +1,22 @@
+type: dagster_community_components.IterativeSupervisorAgentComponent
+attributes:
+  step_asset_prefix: agent_step
+  synthesis_asset_name: agent_final_answer
+  task: |
+    Compute 149 euros × 12 months to find the annual cost. THEN
+    translate the answer to French. Return the French sentence.
+  model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  max_iterations: 5
+  tools:
+    - name: math_expert
+      description: "Do arithmetic. Args: a math expression as a string."
+      system_message: |
+        You are a calculator. Given a math expression, return the number and a
+        one-line explanation. Nothing else.
+    - name: translator
+      description: "Translate text. Args: JSON object with {text, target_language}."
+      system_message: |
+        You are a translator. Given a JSON object with text + target_language,
+        return ONLY the translated text.
+  group_name: iterative_agent_demo

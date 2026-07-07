@@ -33,6 +33,7 @@ _CLASS_PATHS: dict[str, str] = {
     "ABTrendComponent": "assets/analytics/ab_trend/component.py",
     "ADLSMonitorSensorComponent": "sensors/adls_monitor/component.py",
     "ADLSToDatabaseAssetComponent": "assets/ingestion/adls_to_database_asset/component.py",
+    "AdaptiveResearchBriefComponent": "assets/ai/adaptive_research_brief/component.py",
     "AWSCDKAssetComponent": "assets/infrastructure/aws_cdk_asset/component.py",
     "AWSDMSComponent": "integrations/aws_dms/component.py",
     "AWSGlueComponent": "integrations/aws_glue/component.py",

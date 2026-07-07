@@ -1,0 +1,12 @@
+type: dagster_community_components.AdaptiveResearchBriefComponent
+attributes:
+  plan_asset_name: research_plan
+  notes_asset_name: subtopic_notes
+  brief_asset_name: research_brief
+  topic: |
+    Prepare a competitive brief on Anthropic. Cover product, pricing,
+    safety approach, and recent research directions.
+  model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  max_subtopics: 8
+  group_name: research

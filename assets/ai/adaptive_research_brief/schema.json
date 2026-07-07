@@ -1,0 +1,28 @@
+{
+  "component_type": "dagster_community_components.AdaptiveResearchBriefComponent",
+  "description": "Adaptive research pipeline where the planner LLM decides N sub-topics at runtime. Row-wise researcher writes one note per subtopic; synthesizer combines into a markdown brief. Where DynamicOutput / dynamic partitions fits — N is truly runtime-decided.",
+  "category": "ai",
+  "icon": "Sparkles",
+  "x-dagster-io": {
+    "inputs": {"type": "none"},
+    "outputs": {"type": "multi_asset", "description": "Emits 3 assets: research_plan, subtopic_notes, research_brief."}
+  },
+  "attributes": {
+    "plan_asset_name": {"type": "string", "required": true},
+    "notes_asset_name": {"type": "string", "required": true},
+    "brief_asset_name": {"type": "string", "required": true},
+    "topic": {"type": "string", "required": true},
+    "model": {"type": "string", "required": false, "default": "gpt-4o-mini"},
+    "api_key_env_var": {"type": "string", "required": false, "default": "OPENAI_API_KEY"},
+    "api_base_env_var": {"type": "string", "required": false},
+    "temperature": {"type": "number", "required": false, "default": 0.3},
+    "planner_max_tokens": {"type": "integer", "required": false, "default": 500},
+    "researcher_max_tokens": {"type": "integer", "required": false, "default": 350},
+    "brief_max_tokens": {"type": "integer", "required": false, "default": 1200},
+    "max_subtopics": {"type": "integer", "required": false, "default": 8, "minimum": 1, "maximum": 30},
+    "researcher_system_message": {"type": "string", "required": false},
+    "brief_system_message": {"type": "string", "required": false},
+    "group_name": {"type": "string", "required": false},
+    "kinds": {"type": "array", "required": false}
+  }
+}

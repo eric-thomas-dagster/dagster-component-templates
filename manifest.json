@@ -125,6 +125,41 @@
       }
     },
     {
+      "id": "adaptive_research_brief",
+      "name": "Adaptive Research Brief",
+      "category": "ai",
+      "description": "Planner LLM decides N sub-topics at runtime for a given research topic. Row-wise researcher LLM writes a note per subtopic; synthesizer combines into a markdown brief. Where DynamicOutput / dynamic partitions fits — N is truly runtime-decided per run.",
+      "path": "assets/ai/adaptive_research_brief",
+      "tags": [
+        "ai",
+        "agent",
+        "agentic",
+        "planner",
+        "research",
+        "openai",
+        "dynamic-output"
+      ],
+      "icon": "Sparkles",
+      "type": "dagster_community_components.AdaptiveResearchBriefComponent",
+      "component_type": "dagster_community_components.AdaptiveResearchBriefComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/adaptive_research_brief/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/adaptive_research_brief/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/adaptive_research_brief/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/adaptive_research_brief/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/adaptive_research_brief/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "openai>=1.0.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/adaptive_research_brief.md",
+        "last_validated": "2026-07-07"
+      }
+    },
+    {
       "id": "abinitio_job_sensor",
       "name": "Ab Initio Job Sensor",
       "category": "sensor",

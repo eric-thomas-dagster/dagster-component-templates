@@ -89,10 +89,80 @@ class DataRemediationAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Asset kinds (auto-includes 'ai', 'dq').",
     )
 
+    # Standard fields — partitions / freshness / retries.
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic'",
+    )
+    partition_start: Optional[str] = Field(default=None, description="ISO date for time-based partitions.")
+    partition_values: Optional[str] = Field(default=None, description="Comma-separated values for static partitions.")
+    dynamic_partition_name: Optional[str] = Field(default=None, description="Name for DynamicPartitionsDefinition.")
+    freshness_max_lag_minutes: Optional[int] = Field(default=None, description="FreshnessPolicy max lag minutes.")
+    freshness_cron: Optional[str] = Field(default=None, description="FreshnessPolicy cron schedule.")
+    retry_policy_max_retries: Optional[int] = Field(default=None, description="RetryPolicy max retries.")
+    retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries.")
+    retry_policy_backoff: str = Field(default="exponential", description="'linear' or 'exponential'.")
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         _kinds = set(self.kinds or [])
         _kinds.update({"ai", "dq"})
+
+        # Build partitions / freshness / retry policies from the standard fields.
+        partitions_def = None
+        if self.partition_type:
+            from dagster import (
+                DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+                MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+                StaticPartitionsDefinition, DynamicPartitionsDefinition,
+            )
+            _pt = self.partition_type
+            _vals = [v.strip() for v in (self.partition_values or "").split(",") if v.strip()]
+            if _pt in ("daily", "weekly", "monthly", "hourly") and not self.partition_start:
+                raise ValueError(f"partition_type={_pt!r} requires partition_start (ISO date).")
+            if _pt == "daily":
+                partitions_def = DailyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "weekly":
+                partitions_def = WeeklyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "monthly":
+                partitions_def = MonthlyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "hourly":
+                partitions_def = HourlyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "static":
+                if not _vals:
+                    raise ValueError("partition_type='static' requires partition_values.")
+                partitions_def = StaticPartitionsDefinition(_vals)
+            elif _pt == "dynamic":
+                if not self.dynamic_partition_name:
+                    raise ValueError("partition_type='dynamic' requires dynamic_partition_name.")
+                partitions_def = DynamicPartitionsDefinition(name=self.dynamic_partition_name)
+        freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from datetime import timedelta
+            from dagster import FreshnessPolicy
+            if self.freshness_cron:
+                freshness_policy = FreshnessPolicy.cron(
+                    deadline_cron=self.freshness_cron,
+                    lower_bound_delta=timedelta(minutes=self.freshness_max_lag_minutes),
+                )
+            else:
+                freshness_policy = FreshnessPolicy.time_window(
+                    fail_window=timedelta(minutes=self.freshness_max_lag_minutes),
+                )
+        retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+        std_kwargs: Dict[str, Any] = {}
+        if partitions_def is not None: std_kwargs["partitions_def"] = partitions_def
+        if freshness_policy is not None: std_kwargs["freshness_policy"] = freshness_policy
+        if retry_policy is not None: std_kwargs["retry_policy"] = retry_policy
+        if self.owners: std_kwargs["owners"] = list(self.owners)
+        if self.tags: std_kwargs["tags"] = dict(self.tags)
 
         upstream_key = dg.AssetKey.from_user_string(_self.upstream_data_key)
         plan_key_ = dg.AssetKey.from_user_string(_self.plan_key)
@@ -101,8 +171,6 @@ class DataRemediationAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             key=dg.AssetKey.from_user_string(_self.asset_name),
             group_name=_self.group_name,
             kinds=_kinds,
-            owners=_self.owners,
-            tags=_self.tags,
             description=_self.description or (
                 f"Apply agent remediation plan from {_self.plan_key} to "
                 f"{_self.upstream_data_key}"
@@ -111,6 +179,7 @@ class DataRemediationAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 "upstream_data": dg.AssetIn(key=upstream_key),
                 "plan": dg.AssetIn(key=plan_key_),
             },
+            **std_kwargs,
         )
         def _asset(context: dg.AssetExecutionContext, upstream_data, plan):
             import json

@@ -135,6 +135,15 @@ class SupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
         default=600,
         description="Max tokens for the synthesizer's response.",
     )
+    max_picks: int = Field(
+        default=4,
+        ge=1,
+        description=(
+            "Upper bound on how many tools the planner may pick in one shot. "
+            "The prompt tells the LLM 'pick minimum 1, maximum N'. "
+            "Increase for larger tool sets."
+        ),
+    )
     synthesis_system_message: Optional[str] = Field(
         default=None,
         description=(
@@ -149,12 +158,84 @@ class SupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Asset kinds (auto-includes 'ai', 'agent').",
     )
+    owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
+    tags: Optional[Dict[str, str]] = Field(default=None, description="Asset tags.")
+
+    # Standard fields — partitions / freshness / retries.
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic'",
+    )
+    partition_start: Optional[str] = Field(default=None, description="ISO date for time-based partitions.")
+    partition_values: Optional[str] = Field(default=None, description="Comma-separated values for static partitions.")
+    dynamic_partition_name: Optional[str] = Field(default=None, description="Name for DynamicPartitionsDefinition.")
+    freshness_max_lag_minutes: Optional[int] = Field(default=None, description="FreshnessPolicy max lag minutes.")
+    freshness_cron: Optional[str] = Field(default=None, description="FreshnessPolicy cron schedule.")
+    retry_policy_max_retries: Optional[int] = Field(default=None, description="RetryPolicy max retries.")
+    retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries.")
+    retry_policy_backoff: str = Field(default="exponential", description="'linear' or 'exponential'.")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         _kinds = set(self.kinds or [])
         _kinds.update({"ai", "agent"})
         assets: list = []
+
+        # Build partitions / freshness / retry policies from the standard fields.
+        partitions_def = None
+        if self.partition_type:
+            from dagster import (
+                DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+                MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+                StaticPartitionsDefinition, DynamicPartitionsDefinition,
+            )
+            _pt = self.partition_type
+            _vals = [v.strip() for v in (self.partition_values or "").split(",") if v.strip()]
+            if _pt in ("daily", "weekly", "monthly", "hourly") and not self.partition_start:
+                raise ValueError(f"partition_type={_pt!r} requires partition_start (ISO date).")
+            if _pt == "daily":
+                partitions_def = DailyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "weekly":
+                partitions_def = WeeklyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "monthly":
+                partitions_def = MonthlyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "hourly":
+                partitions_def = HourlyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "static":
+                if not _vals:
+                    raise ValueError("partition_type='static' requires partition_values.")
+                partitions_def = StaticPartitionsDefinition(_vals)
+            elif _pt == "dynamic":
+                if not self.dynamic_partition_name:
+                    raise ValueError("partition_type='dynamic' requires dynamic_partition_name.")
+                partitions_def = DynamicPartitionsDefinition(name=self.dynamic_partition_name)
+        freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from datetime import timedelta
+            from dagster import FreshnessPolicy
+            if self.freshness_cron:
+                freshness_policy = FreshnessPolicy.cron(
+                    deadline_cron=self.freshness_cron,
+                    lower_bound_delta=timedelta(minutes=self.freshness_max_lag_minutes),
+                )
+            else:
+                freshness_policy = FreshnessPolicy.time_window(
+                    fail_window=timedelta(minutes=self.freshness_max_lag_minutes),
+                )
+        retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+        std_kwargs: Dict[str, Any] = {}
+        if partitions_def is not None: std_kwargs["partitions_def"] = partitions_def
+        if freshness_policy is not None: std_kwargs["freshness_policy"] = freshness_policy
+        if retry_policy is not None: std_kwargs["retry_policy"] = retry_policy
+        if self.owners: std_kwargs["owners"] = list(self.owners)
+        if self.tags: std_kwargs["tags"] = dict(self.tags)
 
         # ── Planner asset ──────────────────────────────────────────────
         @dg.asset(
@@ -165,6 +246,7 @@ class SupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 f"Planner picks from {len(_self.tools)} tools for task: "
                 f"{_self.task[:80]}"
             ),
+            **std_kwargs,
         )
         def _plan_asset(context: dg.AssetExecutionContext):
             import json
@@ -175,6 +257,26 @@ class SupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 from openai import OpenAI
             except ImportError as e:
                 raise ImportError("supervisor_agent requires openai>=1.0.0") from e
+
+            # Template substitution for {partition_key} / {run_id}.
+            _task = _self.task
+            if isinstance(_task, str) and "{" in _task:
+                _rid = getattr(context, "run_id", "") or ""
+                _task = _task.replace("{run_id}", str(_rid))
+                _has_pk = False
+                try: _has_pk = context.has_partition_key
+                except Exception: pass
+                if _has_pk:
+                    try: _pk = context.partition_key
+                    except Exception: _pk = ""
+                    if hasattr(_pk, "keys_by_dimension"):
+                        _task = _task.replace("{partition_key}", str(_pk))
+                        for dim, val in _pk.keys_by_dimension.items():
+                            _task = _task.replace("{partition_keys." + dim + "}", str(val))
+                    else:
+                        _task = _task.replace("{partition_key}", str(_pk or ""))
+                else:
+                    _task = _task.replace("{partition_key}", "")
 
             api_key = os.environ.get(_self.api_key_env_var)
             if not api_key:
@@ -191,11 +293,11 @@ class SupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
             )
             valid_names = ", ".join(f'"{t.name}"' for t in _self.tools)
             planner_prompt = (
-                "You are a supervisor agent. Given a task, pick a subset "
-                "(minimum 1, maximum 4) of these tools to invoke. For each, "
+                f"You are a supervisor agent. Given a task, pick a subset "
+                f"(minimum 1, maximum {_self.max_picks}) of these tools to invoke. For each, "
                 "pass the concrete tool_input the tool needs.\n\n"
                 f"Available tools:\n{tool_list}\n\n"
-                f"Task: {_self.task}\n\n"
+                f"Task: {_task}\n\n"
                 "Output ONLY a JSON array (no markdown fences). Each element:\n"
                 "  {\"tool\": \"<one of: " + valid_names + ">\","
                 " \"tool_input\": \"<what to send the tool>\","
@@ -246,7 +348,7 @@ class SupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
             context.log.info(f"[supervisor] planner picked {len(df)} tool call(s): {picked_names}")
 
             context.add_output_metadata({
-                "task": dg.MetadataValue.text(_self.task),
+                "task": dg.MetadataValue.text(_task),
                 "n_picks": dg.MetadataValue.int(len(df)),
                 "tools_picked": dg.MetadataValue.text(", ".join(picked_names) or "(none)"),
                 "plan": dg.MetadataValue.md(
@@ -269,6 +371,7 @@ class SupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 kinds=_kinds | {"tool"},
                 description=f"Tool {tool_spec.name}: {tool_spec.description}",
                 ins={"plan": dg.AssetIn(key=dg.AssetKey.from_user_string(_self.plan_asset_name))},
+                **std_kwargs,
             )
             def _tool_asset(context: dg.AssetExecutionContext, plan):
                 import os
@@ -355,6 +458,7 @@ class SupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
             kinds=_kinds | {"synthesizer"},
             description="Final synthesized answer grounded in tool outputs.",
             ins=_syn_ins,
+            **std_kwargs,
         )
         def _synthesis_asset(context: dg.AssetExecutionContext, **kwargs):
             import os
@@ -364,6 +468,26 @@ class SupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 from openai import OpenAI
             except ImportError as e:
                 raise ImportError("supervisor_agent requires openai>=1.0.0") from e
+
+            # Template substitution for {partition_key} / {run_id}.
+            _task = _self.task
+            if isinstance(_task, str) and "{" in _task:
+                _rid = getattr(context, "run_id", "") or ""
+                _task = _task.replace("{run_id}", str(_rid))
+                _has_pk = False
+                try: _has_pk = context.has_partition_key
+                except Exception: pass
+                if _has_pk:
+                    try: _pk = context.partition_key
+                    except Exception: _pk = ""
+                    if hasattr(_pk, "keys_by_dimension"):
+                        _task = _task.replace("{partition_key}", str(_pk))
+                        for dim, val in _pk.keys_by_dimension.items():
+                            _task = _task.replace("{partition_keys." + dim + "}", str(val))
+                    else:
+                        _task = _task.replace("{partition_key}", str(_pk or ""))
+                else:
+                    _task = _task.replace("{partition_key}", "")
 
             tool_sections: List[str] = []
             for _k in tool_result_keys:
@@ -391,7 +515,7 @@ class SupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 client = OpenAI(**client_kwargs)
 
                 user_msg = (
-                    f"Original task:\n{_self.task}\n\n"
+                    f"Original task:\n{_task}\n\n"
                     f"Tool outputs:\n\n" + "\n".join(tool_sections)
                 )
                 resp = client.chat.completions.create(
@@ -406,12 +530,12 @@ class SupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 answer = resp.choices[0].message.content or ""
 
             df = pd.DataFrame([{
-                "task": _self.task,
+                "task": _task,
                 "n_tools_invoked": len(tool_sections),
                 "answer": answer,
             }])
             context.add_output_metadata({
-                "task": dg.MetadataValue.text(_self.task),
+                "task": dg.MetadataValue.text(_task),
                 "n_tools_invoked": dg.MetadataValue.int(len(tool_sections)),
                 "answer": dg.MetadataValue.md(answer),
             })

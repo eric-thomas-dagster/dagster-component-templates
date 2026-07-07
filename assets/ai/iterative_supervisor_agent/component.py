@@ -101,11 +101,83 @@ class IterativeSupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
     synthesis_system_message: Optional[str] = Field(default=None)
     group_name: Optional[str] = Field(default=None)
     kinds: Optional[List[str]] = Field(default=None)
+    owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
+    tags: Optional[Dict[str, str]] = Field(default=None, description="Asset tags.")
+
+    # Standard fields — partitions / freshness / retries.
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic'",
+    )
+    partition_start: Optional[str] = Field(default=None, description="ISO date for time-based partitions.")
+    partition_values: Optional[str] = Field(default=None, description="Comma-separated values for static partitions.")
+    dynamic_partition_name: Optional[str] = Field(default=None, description="Name for DynamicPartitionsDefinition.")
+    freshness_max_lag_minutes: Optional[int] = Field(default=None, description="FreshnessPolicy max lag minutes.")
+    freshness_cron: Optional[str] = Field(default=None, description="FreshnessPolicy cron schedule.")
+    retry_policy_max_retries: Optional[int] = Field(default=None, description="RetryPolicy max retries.")
+    retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries.")
+    retry_policy_backoff: str = Field(default="exponential", description="'linear' or 'exponential'.")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         _kinds = set(self.kinds or [])
         _kinds.update({"ai", "agent", "iterative"})
+
+        # Build partitions / freshness / retry policies from the standard fields.
+        partitions_def = None
+        if self.partition_type:
+            from dagster import (
+                DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+                MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+                StaticPartitionsDefinition, DynamicPartitionsDefinition,
+            )
+            _pt = self.partition_type
+            _vals = [v.strip() for v in (self.partition_values or "").split(",") if v.strip()]
+            if _pt in ("daily", "weekly", "monthly", "hourly") and not self.partition_start:
+                raise ValueError(f"partition_type={_pt!r} requires partition_start (ISO date).")
+            if _pt == "daily":
+                partitions_def = DailyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "weekly":
+                partitions_def = WeeklyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "monthly":
+                partitions_def = MonthlyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "hourly":
+                partitions_def = HourlyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "static":
+                if not _vals:
+                    raise ValueError("partition_type='static' requires partition_values.")
+                partitions_def = StaticPartitionsDefinition(_vals)
+            elif _pt == "dynamic":
+                if not self.dynamic_partition_name:
+                    raise ValueError("partition_type='dynamic' requires dynamic_partition_name.")
+                partitions_def = DynamicPartitionsDefinition(name=self.dynamic_partition_name)
+        freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from datetime import timedelta
+            from dagster import FreshnessPolicy
+            if self.freshness_cron:
+                freshness_policy = FreshnessPolicy.cron(
+                    deadline_cron=self.freshness_cron,
+                    lower_bound_delta=timedelta(minutes=self.freshness_max_lag_minutes),
+                )
+            else:
+                freshness_policy = FreshnessPolicy.time_window(
+                    fail_window=timedelta(minutes=self.freshness_max_lag_minutes),
+                )
+        retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+        std_kwargs: Dict[str, Any] = {}
+        if partitions_def is not None: std_kwargs["partitions_def"] = partitions_def
+        if freshness_policy is not None: std_kwargs["freshness_policy"] = freshness_policy
+        if retry_policy is not None: std_kwargs["retry_policy"] = retry_policy
+        if self.owners: std_kwargs["owners"] = list(self.owners)
+        if self.tags: std_kwargs["tags"] = dict(self.tags)
 
         def _client():
             import os
@@ -126,6 +198,26 @@ class IterativeSupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
         def _plan_and_execute_step(context, iteration: int, prior_step_dfs: List[Any]):
             import json
             import pandas as pd
+
+            # Template substitution for {partition_key} / {run_id}.
+            _task = _self.task
+            if isinstance(_task, str) and "{" in _task:
+                _rid = getattr(context, "run_id", "") or ""
+                _task = _task.replace("{run_id}", str(_rid))
+                _has_pk = False
+                try: _has_pk = context.has_partition_key
+                except Exception: pass
+                if _has_pk:
+                    try: _pk = context.partition_key
+                    except Exception: _pk = ""
+                    if hasattr(_pk, "keys_by_dimension"):
+                        _task = _task.replace("{partition_key}", str(_pk))
+                        for dim, val in _pk.keys_by_dimension.items():
+                            _task = _task.replace("{partition_keys." + dim + "}", str(val))
+                    else:
+                        _task = _task.replace("{partition_key}", str(_pk or ""))
+                else:
+                    _task = _task.replace("{partition_key}", "")
 
             # Any prior step said done? → short-circuit
             for prior_df in prior_step_dfs:
@@ -176,7 +268,7 @@ class IterativeSupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 f"You are an iterative agent. You've already done the work "
                 f"below. Decide whether ONE MORE tool call is needed, or if "
                 f"the task is complete.\n\n"
-                f"Task:\n{_self.task}\n\n"
+                f"Task:\n{_task}\n\n"
                 f"Available tools:\n{tool_list_str}\n\n"
                 f"Prior steps:\n{prior_summary}\n\n"
                 f"Output ONLY a JSON object (no markdown fences). If more work "
@@ -290,6 +382,7 @@ class IterativeSupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 kinds=_kinds | {"step"},
                 description=f"Iterative agent step {iteration}/{_self.max_iterations}.",
                 ins=_ins if _ins else None,
+                **std_kwargs,
             )
             def _step_asset(context: dg.AssetExecutionContext, **kwargs):
                 # Preserve declared order in prior step outputs
@@ -319,9 +412,30 @@ class IterativeSupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
             kinds=_kinds | {"synthesizer"},
             description="Final answer synthesized from all step trajectories.",
             ins=_syn_ins,
+            **std_kwargs,
         )
         def _synthesis_asset(context: dg.AssetExecutionContext, **kwargs):
             import pandas as pd
+
+            # Template substitution for {partition_key} / {run_id}.
+            _task = _self.task
+            if isinstance(_task, str) and "{" in _task:
+                _rid = getattr(context, "run_id", "") or ""
+                _task = _task.replace("{run_id}", str(_rid))
+                _has_pk = False
+                try: _has_pk = context.has_partition_key
+                except Exception: pass
+                if _has_pk:
+                    try: _pk = context.partition_key
+                    except Exception: _pk = ""
+                    if hasattr(_pk, "keys_by_dimension"):
+                        _task = _task.replace("{partition_key}", str(_pk))
+                        for dim, val in _pk.keys_by_dimension.items():
+                            _task = _task.replace("{partition_keys." + dim + "}", str(val))
+                    else:
+                        _task = _task.replace("{partition_key}", str(_pk or ""))
+                else:
+                    _task = _task.replace("{partition_key}", "")
 
             steps = []
             for name in step_keys:
@@ -345,7 +459,7 @@ class IterativeSupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
             else:
                 client = _client()
                 user_msg = (
-                    f"Task:\n{_self.task}\n\n"
+                    f"Task:\n{_task}\n\n"
                     f"Iterative agent trajectory ({len(steps)} tool call(s)):\n\n"
                     + "\n".join(steps)
                 )
@@ -362,12 +476,12 @@ class IterativeSupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 n = len(steps)
 
             df = pd.DataFrame([{
-                "task": _self.task,
+                "task": _task,
                 "n_tool_calls": n,
                 "answer": answer,
             }])
             context.add_output_metadata({
-                "task": dg.MetadataValue.text(_self.task),
+                "task": dg.MetadataValue.text(_task),
                 "n_tool_calls": dg.MetadataValue.int(n),
                 "answer": dg.MetadataValue.md(answer),
             })

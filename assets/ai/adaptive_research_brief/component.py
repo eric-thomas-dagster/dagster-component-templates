@@ -76,11 +76,83 @@ class AdaptiveResearchBriefComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     group_name: Optional[str] = Field(default=None)
     kinds: Optional[List[str]] = Field(default=None)
+    owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
+    tags: Optional[Dict[str, str]] = Field(default=None, description="Asset tags.")
+
+    # Standard fields — partitions / freshness / retries.
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic'",
+    )
+    partition_start: Optional[str] = Field(default=None, description="ISO date for time-based partitions.")
+    partition_values: Optional[str] = Field(default=None, description="Comma-separated values for static partitions.")
+    dynamic_partition_name: Optional[str] = Field(default=None, description="Name for DynamicPartitionsDefinition.")
+    freshness_max_lag_minutes: Optional[int] = Field(default=None, description="FreshnessPolicy max lag minutes.")
+    freshness_cron: Optional[str] = Field(default=None, description="FreshnessPolicy cron schedule.")
+    retry_policy_max_retries: Optional[int] = Field(default=None, description="RetryPolicy max retries.")
+    retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries.")
+    retry_policy_backoff: str = Field(default="exponential", description="'linear' or 'exponential'.")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         _kinds = set(self.kinds or [])
         _kinds.update({"ai", "agent", "research"})
+
+        # Build partitions / freshness / retry policies from the standard fields.
+        partitions_def = None
+        if self.partition_type:
+            from dagster import (
+                DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+                MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+                StaticPartitionsDefinition, DynamicPartitionsDefinition,
+            )
+            _pt = self.partition_type
+            _vals = [v.strip() for v in (self.partition_values or "").split(",") if v.strip()]
+            if _pt in ("daily", "weekly", "monthly", "hourly") and not self.partition_start:
+                raise ValueError(f"partition_type={_pt!r} requires partition_start (ISO date).")
+            if _pt == "daily":
+                partitions_def = DailyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "weekly":
+                partitions_def = WeeklyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "monthly":
+                partitions_def = MonthlyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "hourly":
+                partitions_def = HourlyPartitionsDefinition(start_date=self.partition_start)
+            elif _pt == "static":
+                if not _vals:
+                    raise ValueError("partition_type='static' requires partition_values.")
+                partitions_def = StaticPartitionsDefinition(_vals)
+            elif _pt == "dynamic":
+                if not self.dynamic_partition_name:
+                    raise ValueError("partition_type='dynamic' requires dynamic_partition_name.")
+                partitions_def = DynamicPartitionsDefinition(name=self.dynamic_partition_name)
+        freshness_policy = None
+        if self.freshness_max_lag_minutes is not None:
+            from datetime import timedelta
+            from dagster import FreshnessPolicy
+            if self.freshness_cron:
+                freshness_policy = FreshnessPolicy.cron(
+                    deadline_cron=self.freshness_cron,
+                    lower_bound_delta=timedelta(minutes=self.freshness_max_lag_minutes),
+                )
+            else:
+                freshness_policy = FreshnessPolicy.time_window(
+                    fail_window=timedelta(minutes=self.freshness_max_lag_minutes),
+                )
+        retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+        std_kwargs: Dict[str, Any] = {}
+        if partitions_def is not None: std_kwargs["partitions_def"] = partitions_def
+        if freshness_policy is not None: std_kwargs["freshness_policy"] = freshness_policy
+        if retry_policy is not None: std_kwargs["retry_policy"] = retry_policy
+        if self.owners: std_kwargs["owners"] = list(self.owners)
+        if self.tags: std_kwargs["tags"] = dict(self.tags)
 
         def _client():
             import os
@@ -104,10 +176,31 @@ class AdaptiveResearchBriefComponent(dg.Component, dg.Model, dg.Resolvable):
             group_name=_self.group_name,
             kinds=_kinds | {"planner"},
             description=f"Adaptive research plan: {_self.topic[:80]}",
+            **std_kwargs,
         )
         def _plan_asset(context: dg.AssetExecutionContext):
             import json
             import pandas as pd
+
+            # Template substitution for {partition_key} / {run_id}.
+            _topic = _self.topic
+            if isinstance(_topic, str) and "{" in _topic:
+                _rid = getattr(context, "run_id", "") or ""
+                _topic = _topic.replace("{run_id}", str(_rid))
+                _has_pk = False
+                try: _has_pk = context.has_partition_key
+                except Exception: pass
+                if _has_pk:
+                    try: _pk = context.partition_key
+                    except Exception: _pk = ""
+                    if hasattr(_pk, "keys_by_dimension"):
+                        _topic = _topic.replace("{partition_key}", str(_pk))
+                        for dim, val in _pk.keys_by_dimension.items():
+                            _topic = _topic.replace("{partition_keys." + dim + "}", str(val))
+                    else:
+                        _topic = _topic.replace("{partition_key}", str(_pk or ""))
+                else:
+                    _topic = _topic.replace("{partition_key}", "")
 
             client = _client()
             prompt = (
@@ -115,12 +208,12 @@ class AdaptiveResearchBriefComponent(dg.Component, dg.Model, dg.Resolvable):
                 f"sub-topics to research (1 to {_self.max_subtopics}) and what "
                 f"each should focus on. Pick the N that best covers the topic — "
                 f"more is not always better.\n\n"
-                f"Topic: {_self.topic}\n\n"
+                f"Topic: {_topic}\n\n"
                 f"Output ONLY a JSON array (no markdown fences). Each element:\n"
                 f"  {{\"angle\": \"<short 3-5 word heading>\","
                 f" \"focus\": \"<one sentence describing what to research>\"}}"
             )
-            context.log.info(f"[planner] planning sub-topics for: {_self.topic[:80]}")
+            context.log.info(f"[planner] planning sub-topics for: {_topic[:80]}")
             resp = client.chat.completions.create(
                 model=_self.model,
                 temperature=_self.temperature,
@@ -155,7 +248,7 @@ class AdaptiveResearchBriefComponent(dg.Component, dg.Model, dg.Resolvable):
             df = pd.DataFrame(rows) if rows else pd.DataFrame(columns=["subtopic_id", "angle", "focus"])
             context.log.info(f"[planner] emitted {len(df)} subtopic(s)")
             context.add_output_metadata({
-                "topic": dg.MetadataValue.text(_self.topic),
+                "topic": dg.MetadataValue.text(_topic),
                 "n_subtopics": dg.MetadataValue.int(len(df)),
                 "plan": dg.MetadataValue.md(df.to_markdown(index=False) if not df.empty else "_no subtopics_"),
             })
@@ -177,9 +270,30 @@ class AdaptiveResearchBriefComponent(dg.Component, dg.Model, dg.Resolvable):
             kinds=_kinds | {"researcher"},
             description="One research note per planner-emitted subtopic.",
             ins={"plan": dg.AssetIn(key=dg.AssetKey.from_user_string(_self.plan_asset_name))},
+            **std_kwargs,
         )
         def _notes_asset(context: dg.AssetExecutionContext, plan):
             import pandas as pd
+
+            # Template substitution for {partition_key} / {run_id}.
+            _topic = _self.topic
+            if isinstance(_topic, str) and "{" in _topic:
+                _rid = getattr(context, "run_id", "") or ""
+                _topic = _topic.replace("{run_id}", str(_rid))
+                _has_pk = False
+                try: _has_pk = context.has_partition_key
+                except Exception: pass
+                if _has_pk:
+                    try: _pk = context.partition_key
+                    except Exception: _pk = ""
+                    if hasattr(_pk, "keys_by_dimension"):
+                        _topic = _topic.replace("{partition_key}", str(_pk))
+                        for dim, val in _pk.keys_by_dimension.items():
+                            _topic = _topic.replace("{partition_keys." + dim + "}", str(val))
+                    else:
+                        _topic = _topic.replace("{partition_key}", str(_pk or ""))
+                else:
+                    _topic = _topic.replace("{partition_key}", "")
 
             plan_df = plan if isinstance(plan, pd.DataFrame) else pd.DataFrame(plan)
             if plan_df.empty:
@@ -192,7 +306,7 @@ class AdaptiveResearchBriefComponent(dg.Component, dg.Model, dg.Resolvable):
             for _, row in plan_df.iterrows():
                 context.log.info(f"[researcher] researching #{row['subtopic_id']}: {row['angle']}")
                 user_msg = (
-                    f"Overall research topic:\n{_self.topic}\n\n"
+                    f"Overall research topic:\n{_topic}\n\n"
                     f"Subtopic angle: {row['angle']}\n"
                     f"Focus: {row['focus']}\n\n"
                     "Write the research note now (3-5 sentences)."
@@ -233,9 +347,30 @@ class AdaptiveResearchBriefComponent(dg.Component, dg.Model, dg.Resolvable):
             kinds=_kinds | {"synthesizer"},
             description="Final markdown research brief.",
             ins={"notes": dg.AssetIn(key=dg.AssetKey.from_user_string(_self.notes_asset_name))},
+            **std_kwargs,
         )
         def _brief_asset(context: dg.AssetExecutionContext, notes):
             import pandas as pd
+
+            # Template substitution for {partition_key} / {run_id}.
+            _topic = _self.topic
+            if isinstance(_topic, str) and "{" in _topic:
+                _rid = getattr(context, "run_id", "") or ""
+                _topic = _topic.replace("{run_id}", str(_rid))
+                _has_pk = False
+                try: _has_pk = context.has_partition_key
+                except Exception: pass
+                if _has_pk:
+                    try: _pk = context.partition_key
+                    except Exception: _pk = ""
+                    if hasattr(_pk, "keys_by_dimension"):
+                        _topic = _topic.replace("{partition_key}", str(_pk))
+                        for dim, val in _pk.keys_by_dimension.items():
+                            _topic = _topic.replace("{partition_keys." + dim + "}", str(val))
+                    else:
+                        _topic = _topic.replace("{partition_key}", str(_pk or ""))
+                else:
+                    _topic = _topic.replace("{partition_key}", "")
 
             notes_df = notes if isinstance(notes, pd.DataFrame) else pd.DataFrame(notes)
             if notes_df.empty:
@@ -247,7 +382,7 @@ class AdaptiveResearchBriefComponent(dg.Component, dg.Model, dg.Resolvable):
                     for _, row in notes_df.iterrows()
                 )
                 user_msg = (
-                    f"Topic:\n{_self.topic}\n\n"
+                    f"Topic:\n{_topic}\n\n"
                     f"Sub-topic notes ({len(notes_df)} total):\n\n{bundle}\n\n"
                     "Write the brief now."
                 )
@@ -263,12 +398,12 @@ class AdaptiveResearchBriefComponent(dg.Component, dg.Model, dg.Resolvable):
                 brief = resp.choices[0].message.content or ""
 
             df = pd.DataFrame([{
-                "topic": _self.topic,
+                "topic": _topic,
                 "n_subtopics": len(notes_df),
                 "brief": brief,
             }])
             context.add_output_metadata({
-                "topic": dg.MetadataValue.text(_self.topic),
+                "topic": dg.MetadataValue.text(_topic),
                 "n_subtopics": dg.MetadataValue.int(len(notes_df)),
                 "brief": dg.MetadataValue.md(brief),
             })

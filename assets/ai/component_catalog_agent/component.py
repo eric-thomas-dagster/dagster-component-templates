@@ -257,28 +257,25 @@ class ComponentCatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                         if not (ctags & set(_self.include_tags)):
                             continue
                     filtered.append(c)
-            # Resolve component_type (class name) for each entry:
-            #   • use the manifest's `component_type` field if set,
-            #   • else infer from `id` via snake_case → PascalCase + "Component".
-            # We verify the class actually exists by attempting to importlib
-            # resolve it — dropping entries that don't.
+            # Resolve component_type (class name) for each entry.
+            # Every actual class lives in `dagster_community_components` (the
+            # installed package). Some manifest entries use the legacy prefix
+            # `dagster_component_templates.` — we normalize to
+            # `dagster_community_components.` always. We verify each class is
+            # actually importable by attempting `getattr(dcc, ClassName)`.
             import importlib
             _dcc = importlib.import_module("dagster_community_components")
             resolved: List[Dict[str, Any]] = []
             for c in filtered:
-                ctype = c.get("component_type") or c.get("type")
-                if not ctype:
-                    # Infer from id — 'synthetic_data_generator' → 'SyntheticDataGeneratorComponent'
+                raw_type = c.get("component_type") or c.get("type") or ""
+                if raw_type:
+                    _cls_name = raw_type.rsplit(".", 1)[-1]
+                else:
+                    # Infer from id: 'synthetic_data_generator' → 'SyntheticDataGeneratorComponent'
                     _id = c.get("id") or ""
-                    _class = "".join(p.capitalize() for p in _id.split("_")) + "Component"
-                    ctype = f"dagster_community_components.{_class}"
-                # Verify importable
-                try:
-                    _cls_name = ctype.rsplit(".", 1)[-1]
-                    if hasattr(_dcc, _cls_name):
-                        resolved.append({**c, "component_type": ctype})
-                except Exception:
-                    continue
+                    _cls_name = "".join(p.capitalize() for p in _id.split("_")) + "Component"
+                if hasattr(_dcc, _cls_name):
+                    resolved.append({**c, "component_type": f"dagster_community_components.{_cls_name}"})
             return resolved[: _self.max_catalog_entries]
 
         # ── Planner asset ──────────────────────────────────────────────
@@ -299,19 +296,40 @@ class ComponentCatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 raise RuntimeError("Catalog filter returned zero components. Loosen include_categories / include_tags.")
             context.log.info(f"[catalog] filtered manifest → {len(catalog)} candidate components")
 
-            # Present catalog to planner with field names dynamically inspected
-            # from each component's Pydantic model. This lets the planner emit
-            # correct field names in config (avoiding "extra_forbidden" errors).
+            # Present catalog to planner with field names AND TYPES dynamically
+            # inspected from each component's Pydantic model. Type info matters —
+            # without it the planner emits `group_by: "x"` when the field is
+            # actually List[str], causing validation errors.
             import importlib
             _dcc = importlib.import_module("dagster_community_components")
+
+            def _short_type(annotation) -> str:
+                """Best-effort short type repr — 'str', 'List[str]', 'int', 'dict', etc."""
+                s = str(annotation)
+                # Strip typing. prefix and Optional[...] wrappers for readability
+                s = s.replace("typing.", "").replace("<class '", "").replace("'>", "")
+                if s.startswith("Optional["):
+                    s = s[len("Optional["):-1]
+                return s[:60]
+
             catalog_lines = []
             for c in catalog:
                 _cls_name = c["component_type"].rsplit(".", 1)[-1]
                 _cls = getattr(_dcc, _cls_name, None)
                 if _cls is not None and hasattr(_cls, "model_fields"):
-                    _req = [n for n, fld in _cls.model_fields.items() if fld.is_required()]
-                    _opt = [n for n in _cls.model_fields if n not in _req][:8]
-                    _fields_str = f"required={_req or '[]'}, optional_examples={_opt}"
+                    _req_lines = []
+                    _opt_lines = []
+                    for _name, _fld in _cls.model_fields.items():
+                        _type_str = _short_type(_fld.annotation) if _fld.annotation else "any"
+                        _line = f"{_name}: {_type_str}"
+                        if _fld.is_required():
+                            _req_lines.append(_line)
+                        else:
+                            _opt_lines.append(_line)
+                    _fields_str = (
+                        f"required=[{', '.join(_req_lines) or '(none)'}]"
+                        f"\n      optional=[{', '.join(_opt_lines[:8]) or '(none)'}]"
+                    )
                 else:
                     _fields_str = "fields=(unknown)"
                 catalog_lines.append(
@@ -321,24 +339,27 @@ class ComponentCatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
             valid_ids = ", ".join(f'"{c["id"]}"' for c in catalog)
 
             planner_prompt = (
-                f"You are a data-pipeline agent. You have access to the "
-                f"following {len(catalog)} real components. Pick UP TO "
-                f"{_self.max_picks} components to invoke — the ones best suited "
-                f"to accomplish the task. For each, provide a small config "
-                f"dict (the Pydantic fields the component expects).\n\n"
-                f"Available components:\n" + "\n".join(catalog_lines) + "\n\n"
+                f"You are a data-pipeline agent. Design a multi-step pipeline "
+                f"by picking UP TO {_self.max_picks} real components to chain "
+                f"together. Order matters: first pick is the source, later "
+                f"picks read from earlier picks via `upstream_asset_key`.\n\n"
+                f"Available components (with their Pydantic field names):\n"
+                + "\n".join(catalog_lines) + "\n\n"
                 f"Task:\n{_task}\n\n"
                 f"Output ONLY a JSON array (no markdown fences). Each element:\n"
-                f"  {{\"id\": \"<one of: {valid_ids}>\","
-                f" \"config\": <object; the Pydantic attributes for that component — "
-                f"MUST include asset_name (string, unique per pick) and any required fields>,"
-                f" \"reason\": \"<one sentence — why this component now>\"}}\n"
-                f"Requirements you MUST satisfy:\n"
-                f"  • Every picked component must produce its own asset_name — pick "
-                f"    distinct, snake_case names per row.\n"
-                f"  • Only pick components with NO upstream deps (source-style). "
-                f"    Anything requiring `upstream_asset_key` won't have an upstream "
-                f"    to read from in this demo.\n"
+                f'  {{"id": "<one of: {valid_ids}>",\n'
+                f'   "config": <object; the Pydantic attributes for that component — MUST include asset_name AND all required fields shown above>,\n'
+                f'   "reason": "<one sentence — why this step now>"}}\n\n'
+                f"CRITICAL rules for building the pipeline:\n"
+                f"  • Every pick must have a UNIQUE snake_case `asset_name`.\n"
+                f"  • If a component has `upstream_asset_key` as a required or "
+                f"    common optional field, set it to the `asset_name` of a "
+                f"    PRIOR pick in the same array. That's how you chain steps.\n"
+                f"  • The first pick(s) should be source-style (no "
+                f"    upstream_asset_key needed).\n"
+                f"  • Order the array from source → transforms → sinks. Dagster "
+                f"    will build the DAG from the asset_name / upstream_asset_key "
+                f"    linkage.\n"
                 f"  • For synthetic_data_generator, valid schema_type values: "
                 f"    customers / orders / products / transactions / events / "
                 f"    sensors / users / subscriptions / support_tickets."
@@ -414,18 +435,35 @@ class ComponentCatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
             if plan_df.empty:
                 context.log.warning("[catalog] executor: plan is empty")
                 context.add_output_metadata({"n_executed": dg.MetadataValue.int(0)})
-                return pd.DataFrame(columns=["component_id", "component_type", "config", "status", "output_repr", "error"])
+                return pd.DataFrame(columns=["component_id", "component_type", "config", "asset_names", "status", "output_repr", "error"])
 
-            outputs: List[Dict[str, Any]] = []
-            for _, row in plan_df.iterrows():
+            # ── PHASE 1: Instantiate every pick and collect its Definitions.
+            # We build all assets FIRST, then materialize the entire graph in
+            # ONE dg.materialize() call. That way Dagster resolves
+            # cross-pick dependencies via `upstream_asset_key` chaining
+            # automatically — the planner can build real multi-step
+            # pipelines (gen → filter → summarize → narrate) and each
+            # downstream pick reads the upstream pick's output.
+            per_pick: List[Dict[str, Any]] = []
+            all_assets = []
+            for i, (_, row) in enumerate(plan_df.iterrows()):
                 cid = row["component_id"]
                 ctype = row["component_type"]
                 cfg = json.loads(row["config_json"]) if isinstance(row["config_json"], str) else (row["config_json"] or {})
                 reason = row.get("reason", "")
-                context.log.info(f"[catalog] executing {cid} ({ctype}) with config keys={sorted(cfg.keys())}")
+                per_pick.append({
+                    "component_id": cid,
+                    "component_type": ctype,
+                    "config": json.dumps(cfg),
+                    "reason": reason,
+                    "asset_names": [],
+                    "status": "pending",
+                    "output_repr": "",
+                    "error": "",
+                })
+                context.log.info(f"[catalog] preparing pick {i+1}: {cid} ({ctype}) config keys={sorted(cfg.keys())}")
 
                 try:
-                    # `component_type` is like "dagster_community_components.SyntheticDataGeneratorComponent"
                     _mod_name, _cls_name = ctype.rsplit(".", 1)
                     _module = importlib.import_module(_mod_name)
                     _cls = getattr(_module, _cls_name, None)
@@ -438,64 +476,104 @@ class ComponentCatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                     if not _assets:
                         raise RuntimeError(f"component {cid} produced no assets")
 
-                    _mat_result = dg.materialize(_assets)
-                    if not _mat_result.success:
-                        raise RuntimeError(f"materialize returned success=false for {cid}")
-
-                    # Pull the last asset's output as the "result" — for multi-asset components,
-                    # this heuristic is imperfect but works for source-style single-asset picks.
-                    _val = None
+                    # Record the asset names this pick produces (for output lookup later).
+                    _my_names = []
                     for _a in _assets:
-                        for _key in _a.keys:
-                            _key_str = _key.to_user_string()
-                            try:
-                                _val = _mat_result.output_for_node(_key_str.replace("/", "__"))
-                                break
-                            except Exception:
-                                try:
-                                    _val = _mat_result.output_for_node(_key.path[-1])
-                                    break
-                                except Exception:
-                                    continue
-                        if _val is not None:
-                            break
-
-                    if hasattr(_val, "to_markdown"):
-                        _out_repr = _val.head(5).to_markdown(index=False)
-                    elif _val is not None:
-                        _out_repr = str(_val)[:1500]
-                    else:
-                        _out_repr = "(no output captured)"
-
-                    outputs.append({
-                        "component_id": cid,
-                        "component_type": ctype,
-                        "config": json.dumps(cfg),
-                        "reason": reason,
-                        "status": "success",
-                        "output_repr": _out_repr,
-                        "error": "",
-                    })
+                        for _k in _a.keys:
+                            _my_names.append(_k.to_user_string())
+                    per_pick[-1]["asset_names"] = _my_names
+                    all_assets.extend(_assets)
                 except Exception as e:  # noqa: BLE001
-                    context.log.warning(f"[catalog] execution failed for {cid}: {e}")
+                    context.log.warning(f"[catalog] pick {cid} instantiation failed: {e}")
+                    per_pick[-1]["status"] = "failed"
+                    per_pick[-1]["error"] = str(e)[:500]
                     if _self.fail_on_execution_error:
                         raise
-                    outputs.append({
-                        "component_id": cid,
-                        "component_type": ctype,
-                        "config": json.dumps(cfg),
-                        "reason": reason,
-                        "status": "failed",
-                        "output_repr": "",
-                        "error": str(e)[:500],
-                    })
 
-            df = pd.DataFrame(outputs)
+            if not all_assets:
+                context.log.warning("[catalog] no assets to materialize — all picks failed at instantiation")
+                return pd.DataFrame(per_pick)
+
+            # ── PHASE 2: Materialize the WHOLE graph together.
+            # Dagster resolves cross-pick dependencies via asset key matching.
+            # If a downstream pick has upstream_asset_key = "some_earlier_asset",
+            # and an earlier pick produced that asset key, Dagster wires them.
+            context.log.info(f"[catalog] materializing full graph: {len(all_assets)} asset(s) across {len([p for p in per_pick if p['status']!='failed'])} pick(s)")
+            try:
+                _mat_result = dg.materialize(all_assets, raise_on_error=False)
+            except Exception as e:  # noqa: BLE001
+                context.log.error(f"[catalog] graph materialize failed: {e}")
+                for p in per_pick:
+                    if p["status"] == "pending":
+                        p["status"] = "failed"
+                        p["error"] = str(e)[:500]
+                if _self.fail_on_execution_error:
+                    raise
+                return pd.DataFrame(per_pick)
+
+            # ── PHASE 3: For each pick, look up whether its assets materialized.
+            # Collect step failure messages so we can attribute the real
+            # Dagster error to each failed pick (rather than the generic
+            # "asset(s) did not materialize" placeholder).
+            _step_errors: Dict[str, str] = {}
+            try:
+                for _evt in _mat_result.all_events:
+                    _et = getattr(_evt, "event_type_value", "") or ""
+                    if "STEP_FAILURE" in _et or "FAILURE" in _et:
+                        _step_key = getattr(_evt, "step_key", "") or ""
+                        _msg = str(getattr(_evt, "message", "") or _evt)[:500]
+                        if _step_key:
+                            _step_errors[_step_key] = _msg
+                            _step_errors[_step_key.split("[")[0]] = _msg
+            except Exception:
+                pass
+
+            for p in per_pick:
+                if p["status"] == "failed":
+                    continue  # instantiation already failed
+                if not p["asset_names"]:
+                    p["status"] = "failed"
+                    p["error"] = "no assets produced"
+                    continue
+                # If any of this pick's assets materialized, count it as success.
+                _val = None
+                _got_any = False
+                for _name in p["asset_names"]:
+                    try:
+                        _val = _mat_result.output_for_node(_name)
+                        _got_any = True
+                        break
+                    except Exception:
+                        continue
+                if _got_any:
+                    p["status"] = "success"
+                    if hasattr(_val, "to_markdown"):
+                        p["output_repr"] = _val.head(5).to_markdown(index=False)
+                    elif _val is not None:
+                        p["output_repr"] = str(_val)[:1500]
+                    else:
+                        p["output_repr"] = "(materialized, no output captured)"
+                else:
+                    p["status"] = "failed"
+                    # Try to find the specific Dagster step failure message
+                    _real_err = ""
+                    for _name in p["asset_names"]:
+                        _real_err = _step_errors.get(_name, "") or _step_errors.get(_name.split("/")[-1], "")
+                        if _real_err:
+                            break
+                    p["error"] = _real_err or "asset(s) did not materialize successfully"
+
+            df = pd.DataFrame(per_pick)
             n_ok = int((df["status"] == "success").sum()) if not df.empty else 0
+            n_fail = int((df["status"] == "failed").sum()) if not df.empty else 0
             context.add_output_metadata({
-                "n_executed": dg.MetadataValue.int(len(df)),
+                "n_picks": dg.MetadataValue.int(len(df)),
                 "n_success": dg.MetadataValue.int(n_ok),
-                "results": dg.MetadataValue.md(df[["component_id", "status", "output_repr"]].to_markdown(index=False)[:4000]),
+                "n_failed": dg.MetadataValue.int(n_fail),
+                "graph_size": dg.MetadataValue.int(len(all_assets)),
+                "results": dg.MetadataValue.md(
+                    df[["component_id", "status", "output_repr", "error"]].to_markdown(index=False)[:4000]
+                ),
             })
             return df
 

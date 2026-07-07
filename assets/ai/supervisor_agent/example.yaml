@@ -1,0 +1,24 @@
+type: dagster_community_components.SupervisorAgentComponent
+attributes:
+  plan_asset_name: supervisor_plan
+  synthesis_asset_name: final_answer
+  task: "How does Dagster compare to Airflow for ML pipelines?"
+  model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  tools:
+    - name: web_search
+      description: "Search the current web for recent info and citations."
+      system_message: |
+        You are a web search agent. Return 2-3 relevant factual snippets
+        with source names for the given query.
+    - name: kb_expert
+      description: "Query internal docs / KB for authoritative product answers."
+      system_message: |
+        You are a docs-QA agent. Answer strictly from Dagster + Airflow
+        documentation. Cite the doc section by name. Say so if unsure.
+    - name: math_expert
+      description: "Do arithmetic on numbers cited in the task."
+      system_message: |
+        You are a calculation agent. Given a math request, return the
+        number and a one-line explanation.
+  group_name: supervisor_demo

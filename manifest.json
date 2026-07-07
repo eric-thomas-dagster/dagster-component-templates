@@ -22744,6 +22744,41 @@
       }
     },
     {
+      "id": "supervisor_agent",
+      "name": "Supervisor Agent",
+      "category": "ai",
+      "description": "Planner LLM reads a task and picks tools from a bounded YAML-declared set. Each pick fans out to its own per-tool Dagster asset (LLM persona). A synthesizer LLM reads all tool outputs + task and writes the grounded final answer. The 'agent of agents' pattern with full lineage.",
+      "path": "assets/ai/supervisor_agent",
+      "tags": [
+        "ai",
+        "agent",
+        "agentic",
+        "supervisor",
+        "planner",
+        "multi-agent",
+        "openai"
+      ],
+      "icon": "Sparkles",
+      "type": "dagster_community_components.SupervisorAgentComponent",
+      "component_type": "dagster_community_components.SupervisorAgentComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supervisor_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supervisor_agent/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supervisor_agent/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supervisor_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supervisor_agent/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "openai>=1.0.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/supervisor_agent.md",
+        "last_validated": "2026-07-07"
+      }
+    },
+    {
       "id": "surrogate_key",
       "name": "SurrogateKeyComponent",
       "category": "transformation",

@@ -1,0 +1,26 @@
+{
+  "component_type": "dagster_community_components.SupervisorAgentComponent",
+  "description": "Supervisor / planner agent — reads a task, picks tools from a bounded YAML-declared set, and fans out execution across per-tool Dagster assets. Ends with a synthesizer LLM that grounds the final answer in tool outputs. The 'agent of agents' pattern with full lineage.",
+  "category": "ai",
+  "icon": "Sparkles",
+  "x-dagster-io": {
+    "inputs": {"type": "none", "description": "Task is provided in YAML config."},
+    "outputs": {"type": "multi_asset", "description": "Emits (2 + N_tools) assets: plan, one per tool, and synthesis."}
+  },
+  "attributes": {
+    "plan_asset_name": {"type": "string", "required": true, "description": "Name of the planner's asset."},
+    "synthesis_asset_name": {"type": "string", "required": true, "description": "Name of the final synthesis asset."},
+    "task": {"type": "string", "required": true, "description": "The task / question the supervisor plans against."},
+    "tools": {"type": "array", "required": true, "description": "Bounded list of {name, description, system_message}."},
+    "model": {"type": "string", "required": false, "default": "gpt-4o-mini"},
+    "api_key_env_var": {"type": "string", "required": false, "default": "OPENAI_API_KEY"},
+    "api_base_env_var": {"type": "string", "required": false},
+    "temperature": {"type": "number", "required": false, "default": 0.2},
+    "planner_max_tokens": {"type": "integer", "required": false, "default": 400},
+    "tool_max_tokens": {"type": "integer", "required": false, "default": 400},
+    "synthesis_max_tokens": {"type": "integer", "required": false, "default": 600},
+    "synthesis_system_message": {"type": "string", "required": false},
+    "group_name": {"type": "string", "required": false},
+    "kinds": {"type": "array", "required": false}
+  }
+}

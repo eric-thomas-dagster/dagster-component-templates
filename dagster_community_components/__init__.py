@@ -882,6 +882,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SupabaseVectorSearchAssetComponent": "assets/ai/supabase_vector_search_asset/component.py",
     "SupportTicketIngestionComponent": "assets/ingestion/support_ticket_ingestion/component.py",
     "SupportTicketStandardizerComponent": "assets/analytics/support_ticket_standardizer/component.py",
+    "SupervisorAgentComponent": "assets/ai/supervisor_agent/component.py",
     "SurrogateKeyComponent": "transforms/surrogate_key/component.py",
     "SurvivalAnalysisComponent": "assets/analytics/survival_analysis/component.py",
     "SynapseSqlPoolAdminJobComponent": "jobs/synapse_sql_pool_admin_job/component.py",

@@ -287,11 +287,15 @@ class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
             import importlib
             import pandas as pd
 
+            _task_for_metadata = _resolve_task(context)
+
             # Short-circuit if any prior step said done.
             for prior in prior_step_outputs:
                 if isinstance(prior, dict) and prior.get("plan", {}).get("done"):
                     context.log.info(f"[step {iteration}] short-circuit — prior step done")
                     context.add_output_metadata({
+                        "task": dg.MetadataValue.text(_task_for_metadata),
+                        "iteration": dg.MetadataValue.int(iteration),
                         "skipped": dg.MetadataValue.bool(True),
                         "reason": dg.MetadataValue.text("prior step declared done"),
                     })
@@ -348,7 +352,7 @@ class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
 
             lines = _catalog_lines(catalog, _dcc)
             valid_ids = ", ".join(f'"{c["id"]}"' for c in catalog)
-            _task = _resolve_task(context)
+            _task = _task_for_metadata  # reuse the hoisted value from step-start
 
             planner_prompt = (
                 f"You are an iterative pipeline agent. You've done the work below; "
@@ -367,6 +371,9 @@ class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 f"If the task is complete:\n"
                 f'  {{"done": true, "reason": "<one sentence — why we\'re done>"}}\n\n'
                 f"CRITICAL rules:\n"
+                f"  • `asset_name` MUST be a NEW unique snake_case name that doesn't "
+                f"    match any prior step's asset_name. NEVER set asset_name equal to "
+                f"    any upstream_asset_key / left_asset_key / etc. — that's a self-dep.\n"
                 f"  • NEVER reference an asset name that hasn't been produced by a PRIOR "
                 f"    step in the Prior steps section above. Every upstream_asset_key / "
                 f"    left_asset_key / right_asset_key / etc. MUST point to a specific "
@@ -412,6 +419,8 @@ class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
             if done or not cid:
                 context.log.info(f"[step {iteration}] planner reports done: {reason}")
                 context.add_output_metadata({
+                    "task": dg.MetadataValue.text(_task_for_metadata),
+                    "iteration": dg.MetadataValue.int(iteration),
                     "done": dg.MetadataValue.bool(True),
                     "reason": dg.MetadataValue.text(reason),
                 })
@@ -447,23 +456,58 @@ class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
             # Validate upstream references BEFORE materializing. If the pick
             # references an asset that no prior step produced, it's a planning
             # error — mark the pick failed so the next step's planner sees
-            # the mistake and can course-correct.
+            # the mistake and can course-correct. Also catch self-dependency
+            # (asset_name == some upstream field's value).
             _dangling: List[str] = []
+            _self_dep: List[str] = []
             for _cfg_key, _cfg_val in cfg.items():
                 if _cfg_key.endswith("_asset_key") or _cfg_key == "asset_key":
-                    if isinstance(_cfg_val, str) and _cfg_val and _cfg_val not in prior_dfs:
-                        _dangling.append(f"{_cfg_key}={_cfg_val!r}")
+                    if isinstance(_cfg_val, str) and _cfg_val:
+                        if _cfg_val == asset_name:
+                            _self_dep.append(f"{_cfg_key}={_cfg_val!r} (same as asset_name)")
+                        elif _cfg_val not in prior_dfs:
+                            _dangling.append(f"{_cfg_key}={_cfg_val!r}")
                 elif _cfg_key.endswith("_asset_keys") or _cfg_key == "asset_keys":
                     if isinstance(_cfg_val, list):
                         for _v in _cfg_val:
-                            if isinstance(_v, str) and _v and _v not in prior_dfs:
-                                _dangling.append(f"{_cfg_key}={_v!r}")
+                            if isinstance(_v, str) and _v:
+                                if _v == asset_name:
+                                    _self_dep.append(f"{_cfg_key} contains {_v!r} (same as asset_name)")
+                                elif _v not in prior_dfs:
+                                    _dangling.append(f"{_cfg_key}={_v!r}")
+            if _self_dep:
+                _err = (
+                    f"self-dependency: {', '.join(_self_dep)}. "
+                    f"Pick a NEW distinct asset_name (e.g. append '_v2' or a step-specific suffix)."
+                )
+                context.log.warning(f"[step {iteration}] {_err}")
+                context.add_output_metadata({
+                    "task": dg.MetadataValue.text(_task_for_metadata),
+                    "iteration": dg.MetadataValue.int(iteration),
+                    "status": dg.MetadataValue.text("failed"),
+                    "error": dg.MetadataValue.text(_err[:400]),
+                })
+                return {
+                    "plan": {
+                        "iteration": iteration, "done": False, "component_id": cid,
+                        "component_type": ctype, "config": json.dumps(cfg), "reason": reason,
+                        "asset_name": asset_name, "output_columns": [], "output_preview": "",
+                        "status": "failed", "error": _err,
+                    },
+                    "df": None,
+                }
             if _dangling:
                 _err = (
                     f"pick references non-existent upstream(s): {', '.join(_dangling)}. "
                     f"Available prior asset_names: {sorted(prior_dfs.keys()) or '(none)'}"
                 )
                 context.log.warning(f"[step {iteration}] {_err}")
+                context.add_output_metadata({
+                    "task": dg.MetadataValue.text(_task_for_metadata),
+                    "iteration": dg.MetadataValue.int(iteration),
+                    "status": dg.MetadataValue.text("failed"),
+                    "error": dg.MetadataValue.text(_err[:400]),
+                })
                 return {
                     "plan": {
                         "iteration": iteration, "done": False, "component_id": cid,
@@ -561,6 +605,7 @@ class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                     _preview = "(no value)"
 
                 context.add_output_metadata({
+                    "task": dg.MetadataValue.text(_task_for_metadata),
                     "iteration": dg.MetadataValue.int(iteration),
                     "done": dg.MetadataValue.bool(False),
                     "component_id": dg.MetadataValue.text(cid),

@@ -12758,6 +12758,30 @@
       }
     },
     {
+      "id": "iterative_catalog_agent",
+      "name": "Iterative Catalog Agent",
+      "category": "ai",
+      "description": "Fusion of iterative supervisor + component catalog: per-step planner picks REAL components from the live 900-component manifest, sees the ACTUAL columns/preview of every prior step's materialization. Handles data with schemas unknown at pipeline-write time — schema is discovered from the real output at each step.",
+      "path": "assets/ai/iterative_catalog_agent",
+      "tags": [
+        "ai", "agent", "agentic", "iterative", "catalog", "meta-agent", "schema-discovery", "openai"
+      ],
+      "icon": "Sparkles",
+      "type": "dagster_community_components.IterativeCatalogAgentComponent",
+      "component_type": "dagster_community_components.IterativeCatalogAgentComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/iterative_catalog_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/iterative_catalog_agent/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/iterative_catalog_agent/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/iterative_catalog_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/iterative_catalog_agent/requirements.txt",
+      "dependencies": {"pip": ["pandas", "openai>=1.0.0"]},
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/iterative_catalog_agent.md",
+        "last_validated": "2026-07-07"
+      }
+    },
+    {
       "id": "iterative_supervisor_agent",
       "name": "Iterative Supervisor Agent",
       "category": "ai",

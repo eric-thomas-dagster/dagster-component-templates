@@ -1,0 +1,13 @@
+type: dagster_community_components.IterativeCatalogAgentComponent
+attributes:
+  step_asset_prefix: catalog_step
+  synthesis_asset_name: catalog_final_answer
+  task: |
+    Do a small analytics workflow. Pick a schema, generate data, then
+    filter and summarize using the real columns you discover from the
+    first step. Chain via upstream_asset_key.
+  model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  include_ids: [synthetic_data_generator, filter, summarize, dataframe_describe]
+  max_iterations: 5
+  group_name: iterative_catalog_demo

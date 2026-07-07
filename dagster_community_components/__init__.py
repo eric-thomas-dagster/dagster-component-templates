@@ -496,6 +496,7 @@ _CLASS_PATHS: dict[str, str] = {
     "IntervalScheduleComponent": "schedules/interval_schedule/component.py",
     "InvoiceExtractorComponent": "assets/ai/invoice_extractor/component.py",
     "Iso20022PaymentParserComponent": "assets/transforms/iso20022_payment_parser/component.py",
+    "IterativeCatalogAgentComponent": "assets/ai/iterative_catalog_agent/component.py",
     "IterativeSupervisorAgentComponent": "assets/ai/iterative_supervisor_agent/component.py",
     "JiraIngestionComponent": "assets/ingestion/jira_ingestion/component.py",
     "JiraIssueSensorComponent": "sensors/jira_issue_sensor/component.py",

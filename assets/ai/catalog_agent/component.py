@@ -245,7 +245,10 @@ class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                     _cls_name = raw_type.rsplit(".", 1)[-1]
                 else:
                     _id = c.get("id") or ""
-                    _cls_name = "".join(p.capitalize() for p in _id.split("_")) + "Component"
+                    _pascal = "".join(p.capitalize() for p in _id.split("_"))
+                    # Most classes end in Component, but a handful don't (e.g. DataframeJoin).
+                    # Try Component suffix first; fall back to bare PascalCase.
+                    _cls_name = _pascal + "Component" if hasattr(_dcc, _pascal + "Component") else _pascal
                 if hasattr(_dcc, _cls_name):
                     resolved.append({**c, "component_type": f"dagster_community_components.{_cls_name}"})
             return resolved[: _self.max_catalog_entries], _dcc
@@ -318,14 +321,25 @@ class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 _asn = _p.get("asset_name") or ""
                 _cols = _p.get("output_columns") or []
                 _prev = _p.get("output_preview") or ""
-                prior_summary_parts.append(
-                    f"Step {i}:\n"
-                    f"  picked: {_p['component_id']}\n"
-                    f"  config: {_p.get('config', '')}\n"
-                    f"  produced asset: {_asn}\n"
-                    f"  columns: {_cols}\n"
-                    f"  preview:\n{_prev[:500]}\n"
-                )
+                _status = _p.get("status") or "success"
+                _err = _p.get("error") or ""
+                if _status == "success":
+                    prior_summary_parts.append(
+                        f"Step {i}: [SUCCESS]\n"
+                        f"  picked: {_p['component_id']}\n"
+                        f"  config: {_p.get('config', '')}\n"
+                        f"  produced asset: {_asn}\n"
+                        f"  columns: {_cols}\n"
+                        f"  preview:\n{_prev[:500]}\n"
+                    )
+                else:
+                    prior_summary_parts.append(
+                        f"Step {i}: [FAILED — do not repeat this mistake]\n"
+                        f"  picked: {_p['component_id']}\n"
+                        f"  config: {_p.get('config', '')}\n"
+                        f"  error: {_err[:400]}\n"
+                        f"  NOTE: this step did NOT produce {_asn!r} — don't reference it.\n"
+                    )
                 _df = prior.get("df")
                 if _df is not None and _asn:
                     prior_dfs[_asn] = _df
@@ -348,13 +362,23 @@ class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 f'  {{"done": false,'
                 f' "id": "<one of: {valid_ids}>",'
                 f' "config": <object with asset_name (snake_case, unique) + all required fields;'
-                f' set upstream_asset_key to a PRIOR step\'s asset_name to chain>,'
+                f' wire ANY field ending in _asset_key (or _asset_keys for lists) to a PRIOR step\'s asset_name to chain>,'
                 f' "reason": "<one sentence — why this step now>"}}\n'
                 f"If the task is complete:\n"
                 f'  {{"done": true, "reason": "<one sentence — why we\'re done>"}}\n\n'
-                f"CRITICAL: use REAL column names from the prior steps' `columns` field. "
-                f"For summarize/filter, group_by must be List[str] and aggregations must be Dict[str, Any] "
-                f"like {{'row_count': {{'col': '<real_col>', 'agg': 'count'}}}}."
+                f"CRITICAL rules:\n"
+                f"  • NEVER reference an asset name that hasn't been produced by a PRIOR "
+                f"    step in the Prior steps section above. Every upstream_asset_key / "
+                f"    left_asset_key / right_asset_key / etc. MUST point to a specific "
+                f"    asset_name listed in Prior steps. If the upstream you need doesn't "
+                f"    exist yet, pick THAT component this step instead — don't skip ahead.\n"
+                f"  • Use REAL column names from prior steps\' `columns` field.\n"
+                f"  • For summarize/filter, group_by must be List[str] and aggregations must be Dict[str, Any] "
+                f"like {{'row_count': {{'col': '<real_col>', 'agg': 'count'}}}}.\n"
+                f"  • For MULTI-SOURCE components like dataframe_join, set BOTH `left_asset_key` and "
+                f"`right_asset_key` to PRIOR asset_names.\n"
+                f"  • Sources (like synthetic_data_generator) that produce independent inputs can be picked "
+                f"in EARLY steps back-to-back — each becomes its own asset that later steps reference by name."
             )
 
             context.log.info(f"[step {iteration}] planner deciding next action (catalog size={len(catalog)})")
@@ -404,10 +428,12 @@ class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
             # Look up the catalog entry for the picked id
             entry = next((c for c in catalog if c["id"] == cid), None)
             if entry is None:
-                context.log.warning(f"[step {iteration}] invalid id {cid!r}; forcing done")
+                # Recoverable — let the next step's planner retry with a
+                # different pick. `done: False` so we don't short-circuit.
+                context.log.warning(f"[step {iteration}] invalid id {cid!r}; letting next step retry")
                 return {
                     "plan": {
-                        "iteration": iteration, "done": True, "component_id": cid,
+                        "iteration": iteration, "done": False, "component_id": cid,
                         "component_type": None, "config": json.dumps(cfg), "reason": reason,
                         "asset_name": None, "output_columns": [], "output_preview": "",
                         "status": "invalid_pick", "error": f"unknown id {cid!r}",
@@ -417,6 +443,37 @@ class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
 
             ctype = entry["component_type"]
             asset_name = cfg.get("asset_name") or f"{cid}_step{iteration}"
+
+            # Validate upstream references BEFORE materializing. If the pick
+            # references an asset that no prior step produced, it's a planning
+            # error — mark the pick failed so the next step's planner sees
+            # the mistake and can course-correct.
+            _dangling: List[str] = []
+            for _cfg_key, _cfg_val in cfg.items():
+                if _cfg_key.endswith("_asset_key") or _cfg_key == "asset_key":
+                    if isinstance(_cfg_val, str) and _cfg_val and _cfg_val not in prior_dfs:
+                        _dangling.append(f"{_cfg_key}={_cfg_val!r}")
+                elif _cfg_key.endswith("_asset_keys") or _cfg_key == "asset_keys":
+                    if isinstance(_cfg_val, list):
+                        for _v in _cfg_val:
+                            if isinstance(_v, str) and _v and _v not in prior_dfs:
+                                _dangling.append(f"{_cfg_key}={_v!r}")
+            if _dangling:
+                _err = (
+                    f"pick references non-existent upstream(s): {', '.join(_dangling)}. "
+                    f"Available prior asset_names: {sorted(prior_dfs.keys()) or '(none)'}"
+                )
+                context.log.warning(f"[step {iteration}] {_err}")
+                return {
+                    "plan": {
+                        "iteration": iteration, "done": False, "component_id": cid,
+                        "component_type": ctype, "config": json.dumps(cfg), "reason": reason,
+                        "asset_name": asset_name, "output_columns": [], "output_preview": "",
+                        "status": "failed", "error": _err,
+                    },
+                    "df": None,
+                }
+
             context.log.info(f"[step {iteration}] running {cid} → asset {asset_name}, config keys={sorted(cfg.keys())}")
 
             try:
@@ -429,19 +486,40 @@ class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 if not _assets:
                     raise RuntimeError(f"component {cid} produced no assets")
 
-                # If the picked component references upstream_asset_key, wire it
-                # from a prior step's DataFrame via an ad-hoc source asset.
+                # Wire prior-step DataFrames as source assets for any field
+                # in the pick's config that looks like an upstream reference.
+                # Supports:
+                #   • single-upstream (e.g. `upstream_asset_key: "foo"`)
+                #   • multi-source (e.g. dataframe_join's `left_asset_key`
+                #     + `right_asset_key`)
+                #   • N-way (`additional_asset_keys: ["a", "b", ...]`)
+                # We match any config key ending in `_asset_key` (singular) or
+                # `_asset_keys` / `asset_keys` (list). Each matching VALUE
+                # that names a prior step's asset_name gets wired.
                 _extra_assets = []
-                _upstream_key = cfg.get("upstream_asset_key")
-                if _upstream_key and _upstream_key in prior_dfs:
-                    _upstream_df = prior_dfs[_upstream_key]
+                _wired: set = set()
 
-                    def _make_upstream_source(name, df_value):
-                        @dg.asset(key=dg.AssetKey.from_user_string(name))
-                        def _upstream_source():
-                            return df_value
-                        return _upstream_source
-                    _extra_assets.append(_make_upstream_source(_upstream_key, _upstream_df))
+                def _make_upstream_source(name, df_value):
+                    @dg.asset(key=dg.AssetKey.from_user_string(name))
+                    def _upstream_source():
+                        return df_value
+                    return _upstream_source
+
+                def _try_wire(candidate_name):
+                    if isinstance(candidate_name, str) and candidate_name in prior_dfs and candidate_name not in _wired:
+                        _extra_assets.append(_make_upstream_source(candidate_name, prior_dfs[candidate_name]))
+                        _wired.add(candidate_name)
+
+                for _cfg_key, _cfg_val in cfg.items():
+                    if _cfg_key.endswith("_asset_key") or _cfg_key == "asset_key":
+                        _try_wire(_cfg_val)
+                    elif _cfg_key.endswith("_asset_keys") or _cfg_key == "asset_keys":
+                        if isinstance(_cfg_val, list):
+                            for _v in _cfg_val:
+                                _try_wire(_v)
+
+                if _wired:
+                    context.log.info(f"[step {iteration}] wired upstream sources: {sorted(_wired)}")
 
                 _mat_result = dg.materialize(_extra_assets + _assets, raise_on_error=False)
                 if not _mat_result.success:

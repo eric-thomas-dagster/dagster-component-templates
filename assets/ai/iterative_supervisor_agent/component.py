@@ -244,6 +244,8 @@ class IterativeSupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 if not df.empty and bool(df.iloc[0].get("done", False)):
                     context.log.info(f"[step {iteration}] short-circuit — prior step reported done")
                     context.add_output_metadata({
+                        "task": dg.MetadataValue.text(_task),
+                        "iteration": dg.MetadataValue.int(iteration),
                         "skipped": dg.MetadataValue.bool(True),
                         "reason": dg.MetadataValue.text("prior step declared done"),
                     })
@@ -326,6 +328,8 @@ class IterativeSupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
             if done or not tool_name:
                 context.log.info(f"[step {iteration}] planner reports done: {reasoning}")
                 context.add_output_metadata({
+                    "task": dg.MetadataValue.text(_task),
+                    "iteration": dg.MetadataValue.int(iteration),
                     "done": dg.MetadataValue.bool(True),
                     "reasoning": dg.MetadataValue.text(reasoning),
                     "tool": dg.MetadataValue.text("(none)"),
@@ -341,13 +345,21 @@ class IterativeSupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
 
             valid_tool_names = {t.name for t in _self.tools}
             if tool_name not in valid_tool_names:
-                context.log.warning(f"[step {iteration}] planner picked invalid tool {tool_name!r}; forcing done")
+                # Recoverable — let the next step's planner retry with a valid tool.
+                _err = f"invalid tool picked: {tool_name!r} (valid: {sorted(valid_tool_names)})"
+                context.log.warning(f"[step {iteration}] {_err}")
+                context.add_output_metadata({
+                    "task": dg.MetadataValue.text(_task),
+                    "iteration": dg.MetadataValue.int(iteration),
+                    "done": dg.MetadataValue.bool(False),
+                    "error": dg.MetadataValue.text(_err),
+                })
                 return pd.DataFrame([{
                     "iteration": iteration,
-                    "done": True,
+                    "done": False,
                     "tool": None,
                     "args": None,
-                    "reasoning": f"planner picked invalid tool {tool_name!r}",
+                    "reasoning": _err,
                     "tool_output": None,
                 }])
 
@@ -391,6 +403,8 @@ class IterativeSupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
             tool_output = tool_resp.choices[0].message.content or ""
 
             context.add_output_metadata({
+                "task": dg.MetadataValue.text(_task),
+                "iteration": dg.MetadataValue.int(iteration),
                 "done": dg.MetadataValue.bool(False),
                 "tool": dg.MetadataValue.text(tool_name),
                 "args": dg.MetadataValue.text(args_str[:500]),

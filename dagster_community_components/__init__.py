@@ -908,6 +908,7 @@ _CLASS_PATHS: dict[str, str] = {
     "TextChunkerComponent": "assets/ai/text_chunker/component.py",
     "TextClassifierComponent": "assets/ai/text_classifier/component.py",
     "TextCodecConvertAssetComponent": "assets/transforms/text_codec_convert_asset/component.py",
+    "TextEmbeddingAssetComponent": "assets/ai/text_embedding_asset/component.py",
     "TextModeratorComponent": "assets/ai/text_moderator/component.py",
     "TextPreprocessingComponent": "assets/analytics/text_preprocessing/component.py",
     "TextSimilarityComponent": "assets/ai/text_similarity/component.py",

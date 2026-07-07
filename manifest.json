@@ -22575,8 +22575,9 @@
         "supabase_resource"
       ],
       "validation": {
-        "level": "code",
-        "last_validated": "2026-07-06"
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/supabase_rag.md",
+        "last_validated": "2026-07-07"
       }
     },
     {
@@ -22640,8 +22641,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supabase_vector_search_asset/requirements.txt",
       "icon": "si:supabase",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-07-06"
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/supabase_rag.md",
+        "last_validated": "2026-07-07"
       }
     },
     {
@@ -23180,6 +23182,34 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_signal_query.md",
         "last_validated": "2026-07-02"
+      }
+    },
+    {
+      "id": "text_embedding_asset",
+      "name": "Text Embedding Asset",
+      "category": "ai",
+      "description": "Embed literal text strings from config into a DataFrame \u2014 one row per text with an embedding column. Ideal for RAG query embeddings and intent-label pre-embedding.",
+      "path": "assets/ai/text_embedding_asset",
+      "tags": [
+        "ai",
+        "embedding",
+        "openai",
+        "rag",
+        "vector-search",
+        "agentic"
+      ],
+      "icon": "Sparkles",
+      "type": "dagster_community_components.TextEmbeddingAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_embedding_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_embedding_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_embedding_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_embedding_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_embedding_asset/requirements.txt",
+      "component_type": "dagster_community_components.TextEmbeddingAssetComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/supabase_rag.md",
+        "last_validated": "2026-07-07"
       }
     },
     {

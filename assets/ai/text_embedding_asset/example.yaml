@@ -1,0 +1,9 @@
+type: dagster_community_components.TextEmbeddingAssetComponent
+attributes:
+  asset_name: rag_query_embedding
+  texts:
+    - "How does Dagster orchestrate around long-running Temporal workflows?"
+  model: text-embedding-3-small
+  api_key_env_var: OPENAI_API_KEY
+  dimensions: 1536
+  group_name: rag

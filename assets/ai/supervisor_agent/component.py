@@ -54,6 +54,27 @@ class SupervisorAgentToolSpec(dg.Resolvable, dg.Model):
             "`tool_input` field as the user message."
         ),
     )
+    model: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional per-tool model override. When None (default), the "
+            "component-level `model` is used for this tool. Set this to use "
+            "a search-capable model (e.g., 'perplexity/sonar-pro' via Vercel "
+            "AI Gateway) for tools that need real web / retrieval, while "
+            "keeping cheap models for arithmetic-style tools."
+        ),
+    )
+    api_key_env_var: Optional[str] = Field(
+        default=None,
+        description="Per-tool API key env var override (defaults to component-level).",
+    )
+    api_base_env_var: Optional[str] = Field(
+        default=None,
+        description=(
+            "Per-tool base URL env var override — e.g., set to `VERCEL_AI_GATEWAY_URL` "
+            "for a search-capable route. Defaults to component-level."
+        ),
+    )
 
 
 class SupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -393,22 +414,31 @@ class SupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                     })
                     return pd.DataFrame(columns=["tool", "tool_input", "output"])
 
-                api_key = os.environ.get(_self.api_key_env_var)
+                # Per-tool overrides fall back to component-level values.
+                _tool_api_key_env = tool_spec.api_key_env_var or _self.api_key_env_var
+                _tool_api_base_env = tool_spec.api_base_env_var or _self.api_base_env_var
+                _tool_model = tool_spec.model or _self.model
+
+                api_key = os.environ.get(_tool_api_key_env)
                 if not api_key:
-                    raise RuntimeError(f"{_self.api_key_env_var!r} env var not set.")
+                    raise RuntimeError(f"{_tool_api_key_env!r} env var not set (for tool {tool_spec.name!r}).")
                 client_kwargs: Dict[str, Any] = {"api_key": api_key}
-                if _self.api_base_env_var:
-                    base_url = os.environ.get(_self.api_base_env_var)
+                if _tool_api_base_env:
+                    base_url = os.environ.get(_tool_api_base_env)
                     if base_url:
                         client_kwargs["base_url"] = base_url
                 client = OpenAI(**client_kwargs)
 
+                context.log.info(
+                    f"[tool:{tool_spec.name}] using model={_tool_model} "
+                    f"(api_base_env={_tool_api_base_env or 'default'})"
+                )
                 outputs = []
                 for _, row in my_rows.iterrows():
                     tool_input = row["tool_input"]
                     context.log.info(f"[tool:{tool_spec.name}] running with input: {str(tool_input)[:80]}")
                     resp = client.chat.completions.create(
-                        model=_self.model,
+                        model=_tool_model,
                         temperature=_self.temperature,
                         max_tokens=_self.tool_max_tokens,
                         messages=[

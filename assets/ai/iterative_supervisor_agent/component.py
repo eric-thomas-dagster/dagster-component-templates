@@ -44,6 +44,23 @@ class IterativeSupervisorAgentToolSpec(dg.Resolvable, dg.Model):
             "planner's `args` field (JSON-encoded) as the user message."
         ),
     )
+    model: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional per-tool model override. Falls back to component-level "
+            "model when None. Use a search-capable model (e.g. "
+            "'perplexity/sonar-pro' via Vercel AI Gateway) for tools that "
+            "genuinely need retrieval, cheap model for math."
+        ),
+    )
+    api_key_env_var: Optional[str] = Field(
+        default=None,
+        description="Per-tool API key env var (falls back to component-level).",
+    )
+    api_base_env_var: Optional[str] = Field(
+        default=None,
+        description="Per-tool base URL env var (e.g., VERCEL_AI_GATEWAY_URL).",
+    )
 
 
 class IterativeSupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -336,10 +353,34 @@ class IterativeSupervisorAgentComponent(dg.Component, dg.Model, dg.Resolvable):
 
             tool_spec = next(t for t in _self.tools if t.name == tool_name)
             args_str = args if isinstance(args, str) else json.dumps(args)
-            context.log.info(f"[step {iteration}] running tool {tool_name}({args_str[:80]}); reason: {reasoning}")
 
-            tool_resp = client.chat.completions.create(
-                model=_self.model,
+            # Per-tool overrides fall back to component-level values.
+            _tool_model = tool_spec.model or _self.model
+            _tool_api_key_env = tool_spec.api_key_env_var or _self.api_key_env_var
+            _tool_api_base_env = tool_spec.api_base_env_var or _self.api_base_env_var
+
+            # Build a tool-specific client if any override is set; else reuse the planner client.
+            if tool_spec.model or tool_spec.api_key_env_var or tool_spec.api_base_env_var:
+                import os as _os
+                from openai import OpenAI as _OpenAI
+                _tool_api_key = _os.environ.get(_tool_api_key_env)
+                if not _tool_api_key:
+                    raise RuntimeError(f"{_tool_api_key_env!r} env var not set (for tool {tool_name!r}).")
+                _tool_client_kwargs = {"api_key": _tool_api_key}
+                if _tool_api_base_env:
+                    _base = _os.environ.get(_tool_api_base_env)
+                    if _base:
+                        _tool_client_kwargs["base_url"] = _base
+                tool_client = _OpenAI(**_tool_client_kwargs)
+            else:
+                tool_client = client
+
+            context.log.info(
+                f"[step {iteration}] running tool {tool_name}({args_str[:80]}) "
+                f"model={_tool_model}; reason: {reasoning}"
+            )
+            tool_resp = tool_client.chat.completions.create(
+                model=_tool_model,
                 temperature=_self.temperature,
                 max_tokens=_self.tool_max_tokens,
                 messages=[

@@ -274,6 +274,17 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         description="Include a preview of the output data in metadata (first 5 rows as markdown table). Used by builder UIs to render asset shape without warehouse access."
     )
 
+    inject_dq_issues: bool = Field(
+        default=False,
+        description=(
+            "If True, seed intentional data-quality issues into the output "
+            "DataFrame — approximately 5% nulls per numeric column, ~3% duplicate "
+            "rows, ~2% outliers (10x-50x scale) on the first numeric column, and "
+            "~5% trailing-whitespace corruption on the first string column. "
+            "Used to demo agentic DQ pipelines (data_remediation_asset)."
+        ),
+    )
+
     preview_rows: int = Field(
         default=25,
         ge=1,
@@ -489,6 +500,36 @@ group_name=group_name,
                 raise ValueError(f"Unknown schema type: {schema_type}")
 
             context.log.info(f"Generated DataFrame with shape {df.shape}")
+
+            # Optional: seed intentional DQ issues for agentic-DQ demos.
+            if self.inject_dq_issues and len(df) > 10:
+                import numpy as _np
+                _rng = _np.random.default_rng(random_seed or 42)
+                # 5% nulls on each numeric column
+                for _c in df.select_dtypes(include="number").columns:
+                    _mask = _rng.random(len(df)) < 0.05
+                    df.loc[_mask, _c] = None
+                # 2% outliers on the first numeric column (30x its median)
+                _num = df.select_dtypes(include="number").columns.tolist()
+                if _num:
+                    _first = _num[0]
+                    _mask = _rng.random(len(df)) < 0.02
+                    _med = df[_first].median() or 1
+                    df.loc[_mask, _first] = float(_med) * 30
+                # 5% trailing whitespace on the first string column
+                _str = df.select_dtypes(include="object").columns.tolist()
+                if _str:
+                    _first_s = _str[0]
+                    _mask = _rng.random(len(df)) < 0.05
+                    df.loc[_mask, _first_s] = df.loc[_mask, _first_s].astype(str) + "  "
+                # 3% duplicate rows (append copies of random existing rows)
+                import pandas as _pd_local
+                _dup_n = max(1, int(len(df) * 0.03))
+                _dup_idx = _rng.choice(len(df), size=_dup_n, replace=False)
+                df = _pd_local.concat([df, df.iloc[_dup_idx]], ignore_index=True)
+                context.log.info(
+                    f"[inject_dq_issues] Seeded DQ issues; new shape {df.shape}"
+                )
 
             # Build column schema metadata
             from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep

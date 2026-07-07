@@ -1,0 +1,6 @@
+type: dagster_community_components.DataRemediationAssetComponent
+attributes:
+  asset_name: cleaned_transactions
+  upstream_data_key: raw_transactions
+  plan_key: remediation_plan
+  group_name: agentic_dq

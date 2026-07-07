@@ -1,0 +1,21 @@
+{
+  "component_type": "dagster_community_components.DataRemediationAssetComponent",
+  "description": "Apply an agent-produced remediation plan to an upstream DataFrame. Bounded action set (drop_nulls, fill_nulls, dedup, cast_type, clip_outliers, filter_range, strip_whitespace, ...) — the LLM picks by name, this component executes safely. Full audit trail in asset metadata.",
+  "category": "ai",
+  "icon": "Wand",
+  "x-dagster-io": {
+    "inputs": {"type": "dataframe", "description": "Two upstream assets: the raw DataFrame and the plan DataFrame."},
+    "outputs": {"type": "dataframe", "description": "Remediated DataFrame with actions applied."}
+  },
+  "attributes": {
+    "asset_name": {"type": "string", "required": true},
+    "upstream_data_key": {"type": "string", "required": true, "description": "Asset key producing the DataFrame to remediate."},
+    "plan_key": {"type": "string", "required": true, "description": "Asset key producing the plan DataFrame (columns: column, action, params, reason)."},
+    "fail_on_unknown_action": {"type": "boolean", "required": false, "default": false, "description": "If True, raise on unrecognized action names."},
+    "group_name": {"type": "string", "required": false},
+    "description": {"type": "string", "required": false},
+    "owners": {"type": "array", "required": false},
+    "tags": {"type": "object", "required": false},
+    "kinds": {"type": "array", "required": false}
+  }
+}

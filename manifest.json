@@ -4794,6 +4794,39 @@
       }
     },
     {
+      "id": "data_remediation_asset",
+      "name": "Data Remediation Asset",
+      "category": "ai",
+      "description": "Apply an agent-produced remediation plan to a DataFrame. Bounded action set (drop_nulls, fill_nulls, dedup, cast_type, clip_outliers, filter_range, strip_whitespace) — the LLM picks by name, this component executes safely with a full audit trail.",
+      "path": "assets/ai/data_remediation_asset",
+      "tags": [
+        "ai",
+        "agentic",
+        "dq",
+        "remediation",
+        "data-quality",
+        "audit"
+      ],
+      "icon": "Wand",
+      "type": "dagster_community_components.DataRemediationAssetComponent",
+      "component_type": "dagster_community_components.DataRemediationAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/data_remediation_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/data_remediation_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/data_remediation_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/data_remediation_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/data_remediation_asset/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/data_doctor.md",
+        "last_validated": "2026-07-07"
+      }
+    },
+    {
       "id": "database_constraints_migration",
       "name": "Database Constraints Migration",
       "component_type": "dagster_component_templates.DatabaseConstraintsMigrationComponent",

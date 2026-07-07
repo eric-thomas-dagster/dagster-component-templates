@@ -200,6 +200,7 @@ _CLASS_PATHS: dict[str, str] = {
     "DataEnricherComponent": "assets/ai/data_enricher/component.py",
     "DataFrameTransformerComponent": "assets/transforms/dataframe_transformer/component.py",
     "DataMaskingComponent": "transforms/data_masking/component.py",
+    "DataRemediationAssetComponent": "assets/ai/data_remediation_asset/component.py",
     "DatabaseConstraintsMigrationComponent": "assets/ingestion/database_constraints_migration/component.py",
     "DatabaseMigrationAssessmentComponent": "assets/sources/database_migration_assessment/component.py",
     "DatabaseQueryComponent": "assets/sources/database_query/component.py",

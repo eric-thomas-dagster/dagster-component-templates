@@ -1,15 +1,16 @@
-"""Iterative Catalog Agent — planner iterates over the LIVE registry, seeing real output schemas.
+"""Catalog Agent — planner picks real components from the live registry, iteratively, with schema discovery.
 
-Fusion of the two most sophisticated primitives:
-  • IterativeSupervisorAgentComponent — per-step planner, sees prior tool outputs, N pre-declared step assets, short-circuit termination.
-  • ComponentCatalogAgentComponent — planner picks REAL components from the live 900-component manifest via reflection + in-process materialize.
+The most sophisticated agentic primitive. At each step, the planner sees the
+ACTUAL columns + preview of every prior step's real materialized output — so
+it picks the next component from the live 900-component manifest with real
+schema knowledge. Works on customer data with schemas unknown at pipeline-
+write time (Snowflake tables, uploaded CSVs, anything). Step 1 executes → we
+inspect the real DataFrame → step 2's planner sees the real column names →
+picks the next component with real knowledge.
 
-This one goes further than either alone: at each step, the planner sees the
-ACTUAL columns + preview of every prior step's real materialized output. That
-means the agent can chain against customer-built data (Snowflake tables,
-uploaded CSVs — anything with a schema unknown at pipeline-write time). Step
-1 executes → we inspect the real DataFrame → step 2's planner sees the real
-column names → picks the next component with real knowledge.
+Combines two primitives that used to be separate: per-step iteration (like
+IterativeSupervisorAgentComponent) with live-registry component picking
+(reflection-based, real in-process materialization).
 
 Assets emitted (`max_iterations + 1` per YAML block):
   1. `<step_asset_prefix>_1` … `<step_asset_prefix>_<max_iterations>`
@@ -40,13 +41,13 @@ import dagster as dg
 from pydantic import Field
 
 
-class IterativeCatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Iterative catalog agent — per-step planner + real component materialization, with schema discovery.
+class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
+    """Catalog agent — per-step planner + real component materialization from the live registry, with schema discovery.
 
     Example — schema-agnostic pipeline (planner discovers real columns after step 1):
 
         ```yaml
-        type: dagster_community_components.IterativeCatalogAgentComponent
+        type: dagster_community_components.CatalogAgentComponent
         attributes:
           step_asset_prefix: catalog_step
           synthesis_asset_name: catalog_final_answer
@@ -179,7 +180,7 @@ class IterativeCatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
             try:
                 from openai import OpenAI
             except ImportError as e:
-                raise ImportError("iterative_catalog_agent requires openai>=1.0.0") from e
+                raise ImportError("catalog_agent requires openai>=1.0.0") from e
             api_key = os.environ.get(_self.api_key_env_var)
             if not api_key:
                 raise RuntimeError(f"{_self.api_key_env_var!r} env var not set.")

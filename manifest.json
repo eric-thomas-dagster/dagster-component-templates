@@ -3644,35 +3644,27 @@
       }
     },
     {
-      "id": "component_catalog_agent",
-      "name": "Component Catalog Agent",
+      "id": "catalog_agent",
+      "name": "Catalog Agent",
       "category": "ai",
-      "description": "Meta-agent that reads the LIVE component manifest, presents a filtered slice to a planner LLM, and executes real picked components via reflection + in-process materialize. Truly dynamic — the manifest IS the catalog, filtered by category/tags/ids as the bounded action space.",
-      "path": "assets/ai/component_catalog_agent",
+      "description": "Meta-agent that reads the LIVE component manifest, presents a filtered slice to a planner LLM, and executes REAL picked components via reflection + in-process materialize. Per-step iteration — planner sees actual output columns/preview after each step so it picks the next component with real schema knowledge. Works on customer data with schemas unknown at pipeline-write time.",
+      "path": "assets/ai/catalog_agent",
       "tags": [
-        "ai",
-        "agent",
-        "agentic",
-        "supervisor",
-        "meta-agent",
-        "catalog",
-        "reflection",
-        "openai"
+        "ai", "agent", "agentic", "iterative", "catalog", "meta-agent",
+        "schema-discovery", "reflection", "openai"
       ],
       "icon": "Sparkles",
-      "type": "dagster_community_components.ComponentCatalogAgentComponent",
-      "component_type": "dagster_community_components.ComponentCatalogAgentComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/component_catalog_agent/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/component_catalog_agent/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/component_catalog_agent/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/component_catalog_agent/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/component_catalog_agent/requirements.txt",
-      "dependencies": {
-        "pip": ["pandas", "openai>=1.0.0"]
-      },
+      "type": "dagster_community_components.CatalogAgentComponent",
+      "component_type": "dagster_community_components.CatalogAgentComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/requirements.txt",
+      "dependencies": {"pip": ["pandas", "openai>=1.0.0"]},
       "validation": {
         "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/component_catalog_agent.md",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/catalog_agent.md",
         "last_validated": "2026-07-07"
       }
     },
@@ -12755,30 +12747,6 @@
         "level": "live",
         "evidence": "",
         "last_validated": "2026-05-11"
-      }
-    },
-    {
-      "id": "iterative_catalog_agent",
-      "name": "Iterative Catalog Agent",
-      "category": "ai",
-      "description": "Fusion of iterative supervisor + component catalog: per-step planner picks REAL components from the live 900-component manifest, sees the ACTUAL columns/preview of every prior step's materialization. Handles data with schemas unknown at pipeline-write time — schema is discovered from the real output at each step.",
-      "path": "assets/ai/iterative_catalog_agent",
-      "tags": [
-        "ai", "agent", "agentic", "iterative", "catalog", "meta-agent", "schema-discovery", "openai"
-      ],
-      "icon": "Sparkles",
-      "type": "dagster_community_components.IterativeCatalogAgentComponent",
-      "component_type": "dagster_community_components.IterativeCatalogAgentComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/iterative_catalog_agent/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/iterative_catalog_agent/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/iterative_catalog_agent/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/iterative_catalog_agent/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/iterative_catalog_agent/requirements.txt",
-      "dependencies": {"pip": ["pandas", "openai>=1.0.0"]},
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/iterative_catalog_agent.md",
-        "last_validated": "2026-07-07"
       }
     },
     {

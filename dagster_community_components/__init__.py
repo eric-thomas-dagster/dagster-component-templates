@@ -28,7 +28,7 @@ _PACKAGE_ROOT = Path(__file__).resolve().parent
 # class name -> component.py path (relative to package root). Generated.
 _CLASS_PATHS: dict[str, str] = {
     "ABControlsComponent": "assets/analytics/ab_controls/component.py",
-    "ComponentCatalogAgentComponent": "assets/ai/component_catalog_agent/component.py",
+    "CatalogAgentComponent": "assets/ai/catalog_agent/component.py",
     "ABTestAnalysisComponent": "assets/analytics/ab_test_analysis/component.py",
     "ABTreatmentsComponent": "assets/analytics/ab_treatments/component.py",
     "ABTrendComponent": "assets/analytics/ab_trend/component.py",
@@ -496,7 +496,6 @@ _CLASS_PATHS: dict[str, str] = {
     "IntervalScheduleComponent": "schedules/interval_schedule/component.py",
     "InvoiceExtractorComponent": "assets/ai/invoice_extractor/component.py",
     "Iso20022PaymentParserComponent": "assets/transforms/iso20022_payment_parser/component.py",
-    "IterativeCatalogAgentComponent": "assets/ai/iterative_catalog_agent/component.py",
     "IterativeSupervisorAgentComponent": "assets/ai/iterative_supervisor_agent/component.py",
     "JiraIngestionComponent": "assets/ingestion/jira_ingestion/component.py",
     "JiraIssueSensorComponent": "sensors/jira_issue_sensor/component.py",

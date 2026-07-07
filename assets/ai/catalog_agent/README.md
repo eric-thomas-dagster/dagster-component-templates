@@ -1,4 +1,4 @@
-# iterative_catalog_agent
+# catalog_agent
 
 Fusion of the two most sophisticated primitives:
 
@@ -33,7 +33,7 @@ Same as `component_catalog_agent` plus `max_iterations` (default 5, range 1–15
 ## Example
 
 ```yaml
-type: dagster_community_components.IterativeCatalogAgentComponent
+type: dagster_community_components.CatalogAgentComponent
 attributes:
   step_asset_prefix: catalog_step
   synthesis_asset_name: catalog_final_answer

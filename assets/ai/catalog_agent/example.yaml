@@ -1,4 +1,4 @@
-type: dagster_community_components.IterativeCatalogAgentComponent
+type: dagster_community_components.CatalogAgentComponent
 attributes:
   step_asset_prefix: catalog_step
   synthesis_asset_name: catalog_final_answer

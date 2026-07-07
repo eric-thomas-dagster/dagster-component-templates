@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_community_components.IterativeCatalogAgentComponent",
+  "component_type": "dagster_community_components.CatalogAgentComponent",
   "description": "Iterative + catalog. Planner runs per step, sees REAL columns/preview from prior step's materialization, picks next component from the live registry. Handles customer-built data with unknown schemas — schema is discovered at runtime from the actual output.",
   "category": "ai",
   "icon": "Sparkles",

@@ -225,19 +225,25 @@ class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 with urlopen(_self.manifest_url, timeout=30) as resp:
                     manifest = json.load(resp)
             comps = manifest.get("components") or manifest.get("templates") or []
+            # include_ids, include_categories, and include_tags combine as OR
+            # (union) — a component matches if it satisfies ANY of the specified
+            # filters. This lets you say "give me all sources + ingestion + sinks
+            # AND also this specific synthetic_data_generator (which is in ai)".
+            _ids_set = set(_self.include_ids or [])
+            _cats_set = set(_self.include_categories or [])
+            _tags_set = set(_self.include_tags or [])
+            _any_filter = bool(_ids_set or _cats_set or _tags_set)
             filtered = []
-            if _self.include_ids:
-                _iset = set(_self.include_ids)
-                filtered = [c for c in comps if c.get("id") in _iset]
-            else:
-                for c in comps:
-                    if _self.include_categories and c.get("category") not in _self.include_categories:
-                        continue
-                    if _self.include_tags:
-                        _ct = set(c.get("tags") or [])
-                        if not (_ct & set(_self.include_tags)):
-                            continue
+            for c in comps:
+                if not _any_filter:
                     filtered.append(c)
+                    continue
+                if c.get("id") in _ids_set:
+                    filtered.append(c); continue
+                if c.get("category") in _cats_set:
+                    filtered.append(c); continue
+                if _tags_set and (set(c.get("tags") or []) & _tags_set):
+                    filtered.append(c); continue
             resolved = []
             for c in filtered:
                 raw_type = c.get("component_type") or c.get("type") or ""
@@ -259,6 +265,23 @@ class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 s = s[len("Optional["):-1]
             return s[:60]
 
+        # Common OPTIONAL infra fields that appear on nearly every component —
+        # skip them in the catalog lines we send to the planner. They eat
+        # tokens and the planner rarely needs them for a first pick.
+        # (NB: asset_name is required on every component and MUST NOT be
+        # skipped — the planner has to supply it.)
+        _skip_common_fields = {
+            "description", "group_name", "owners", "tags",
+            "asset_tags", "kinds", "deps",
+            "partition_type", "partition_start", "partition_values",
+            "partition_date_column", "partition_static_column", "partition_static_dim",
+            "dynamic_partition_name", "partition_dimensions",
+            "freshness_max_lag_minutes", "freshness_cron",
+            "retry_policy_max_retries", "retry_policy_delay_seconds",
+            "retry_policy_backoff",
+            "include_preview_metadata", "preview_rows", "column_lineage",
+        }
+
         def _catalog_lines(catalog, dcc):
             lines = []
             for c in catalog:
@@ -268,18 +291,24 @@ class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                     _req_lines = []
                     _opt_lines = []
                     for _n, _f in _cls.model_fields.items():
+                        if _n in _skip_common_fields:
+                            continue
                         _ts = _short_type(_f.annotation) if _f.annotation else "any"
                         (_req_lines if _f.is_required() else _opt_lines).append(f"{_n}: {_ts}")
-                    _fs = (
-                        f"required=[{', '.join(_req_lines) or '(none)'}]"
-                        f"\n      optional=[{', '.join(_opt_lines[:8]) or '(none)'}]"
-                    )
+                    # Trim: 4 optional field examples is enough for the planner
+                    # to know the shape; it can consult schema.json for more.
+                    _parts = []
+                    if _req_lines:
+                        _parts.append(f"req=[{', '.join(_req_lines)}]")
+                    if _opt_lines:
+                        _parts.append(f"opt=[{', '.join(_opt_lines[:4])}{', ...' if len(_opt_lines) > 4 else ''}]")
+                    _parts.append("+ std asset_name/upstream_asset_key/etc")
+                    _fs = " | ".join(_parts)
                 else:
                     _fs = "fields=(unknown)"
-                lines.append(
-                    f"  - id: {c['id']}  |  {c.get('description', '')[:100]}\n"
-                    f"      {_fs}"
-                )
+                # Description trimmed to 150 chars — clear signal about
+                # what a component DOES without blowing token budget.
+                lines.append(f"  - {c['id']}: {c.get('description', '')[:150]}  ({_fs})")
             return lines
 
         # ── One planner+executor step. Called from each step_N asset. ─────
@@ -382,6 +411,11 @@ class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 f"  • Use REAL column names from prior steps\' `columns` field.\n"
                 f"  • For summarize/filter, group_by must be List[str] and aggregations must be Dict[str, Any] "
                 f"like {{'row_count': {{'col': '<real_col>', 'agg': 'count'}}}}.\n"
+                f"  • FOLLOW THE TASK LITERALLY. If the task says 'join', you MUST use a "
+                f"join component (dataframe_join) — do not shortcut by grouping on a "
+                f"key that happens to be in one table. If the task requires columns "
+                f"from a specific source (e.g. 'group by first_name, email' when those "
+                f"live in customers), you MUST have joined that source first.\n"
                 f"  • For MULTI-SOURCE components like dataframe_join, set BOTH `left_asset_key` and "
                 f"`right_asset_key` to PRIOR asset_names.\n"
                 f"  • Sources (like synthetic_data_generator) that produce independent inputs can be picked "

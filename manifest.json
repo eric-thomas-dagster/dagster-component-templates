@@ -9673,8 +9673,9 @@
         "firebase_resource"
       ],
       "validation": {
-        "level": "code",
-        "last_validated": "2026-07-06"
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/firebase_emulator.md",
+        "last_validated": "2026-07-07"
       }
     },
     {
@@ -9739,8 +9740,9 @@
       "component_type": "dagster_component_templates.FirestoreCollectionIngestionComponent",
       "icon": "si:firebase",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-07-06"
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/firebase_emulator.md",
+        "last_validated": "2026-07-07"
       }
     },
     {

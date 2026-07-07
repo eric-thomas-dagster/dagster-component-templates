@@ -1,0 +1,15 @@
+type: dagster_community_components.ComponentCatalogAgentComponent
+attributes:
+  plan_asset_name: catalog_plan
+  execution_asset_name: catalog_execution
+  synthesis_asset_name: catalog_answer
+  task: |
+    Generate two small synthetic datasets — one of customers and one of
+    products — and give me a one-paragraph description of what each looks like.
+  model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  # Filter the 900+ manifest entries down to a manageable slice
+  include_ids:
+    - synthetic_data_generator
+  max_picks: 3
+  group_name: catalog_agent_demo

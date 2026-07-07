@@ -28,6 +28,7 @@ _PACKAGE_ROOT = Path(__file__).resolve().parent
 # class name -> component.py path (relative to package root). Generated.
 _CLASS_PATHS: dict[str, str] = {
     "ABControlsComponent": "assets/analytics/ab_controls/component.py",
+    "ComponentCatalogAgentComponent": "assets/ai/component_catalog_agent/component.py",
     "ABTestAnalysisComponent": "assets/analytics/ab_test_analysis/component.py",
     "ABTreatmentsComponent": "assets/analytics/ab_treatments/component.py",
     "ABTrendComponent": "assets/analytics/ab_trend/component.py",

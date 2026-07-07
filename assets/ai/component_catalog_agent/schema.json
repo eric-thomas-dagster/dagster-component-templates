@@ -1,0 +1,43 @@
+{
+  "component_type": "dagster_community_components.ComponentCatalogAgentComponent",
+  "description": "Meta-agent that reads the LIVE component manifest, presents a filtered slice to a planner LLM, and executes real picked components via reflection + in-process materialize. Truly dynamic — the manifest is the catalog, filtered by category/tags/ids is the bounded action space.",
+  "category": "ai",
+  "icon": "Sparkles",
+  "x-dagster-io": {
+    "inputs": {"type": "none"},
+    "outputs": {"type": "multi_asset", "description": "Emits 3 assets: planner, executor, synthesizer."}
+  },
+  "attributes": {
+    "plan_asset_name": {"type": "string", "required": true},
+    "execution_asset_name": {"type": "string", "required": true},
+    "synthesis_asset_name": {"type": "string", "required": true},
+    "task": {"type": "string", "required": true},
+    "manifest_url": {"type": "string", "required": false, "description": "URL of manifest.json to fetch."},
+    "manifest_path": {"type": "string", "required": false, "description": "Local filesystem path (takes precedence over URL)."},
+    "include_categories": {"type": "array", "required": false},
+    "include_tags": {"type": "array", "required": false},
+    "include_ids": {"type": "array", "required": false},
+    "max_catalog_entries": {"type": "integer", "required": false, "default": 40},
+    "max_picks": {"type": "integer", "required": false, "default": 3},
+    "fail_on_execution_error": {"type": "boolean", "required": false, "default": false},
+    "model": {"type": "string", "required": false, "default": "gpt-4o-mini"},
+    "api_key_env_var": {"type": "string", "required": false, "default": "OPENAI_API_KEY"},
+    "api_base_env_var": {"type": "string", "required": false},
+    "temperature": {"type": "number", "required": false, "default": 0.2},
+    "planner_max_tokens": {"type": "integer", "required": false, "default": 800},
+    "synthesis_max_tokens": {"type": "integer", "required": false, "default": 800},
+    "group_name": {"type": "string", "required": false},
+    "owners": {"type": "array", "required": false},
+    "tags": {"type": "object", "required": false},
+    "kinds": {"type": "array", "required": false},
+    "partition_type": {"type": "string", "required": false},
+    "partition_start": {"type": "string", "required": false},
+    "partition_values": {"type": "string", "required": false},
+    "dynamic_partition_name": {"type": "string", "required": false},
+    "freshness_max_lag_minutes": {"type": "integer", "required": false},
+    "freshness_cron": {"type": "string", "required": false},
+    "retry_policy_max_retries": {"type": "integer", "required": false},
+    "retry_policy_delay_seconds": {"type": "integer", "required": false},
+    "retry_policy_backoff": {"type": "string", "required": false, "default": "exponential"}
+  }
+}

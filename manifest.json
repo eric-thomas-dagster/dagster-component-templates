@@ -3644,6 +3644,39 @@
       }
     },
     {
+      "id": "component_catalog_agent",
+      "name": "Component Catalog Agent",
+      "category": "ai",
+      "description": "Meta-agent that reads the LIVE component manifest, presents a filtered slice to a planner LLM, and executes real picked components via reflection + in-process materialize. Truly dynamic — the manifest IS the catalog, filtered by category/tags/ids as the bounded action space.",
+      "path": "assets/ai/component_catalog_agent",
+      "tags": [
+        "ai",
+        "agent",
+        "agentic",
+        "supervisor",
+        "meta-agent",
+        "catalog",
+        "reflection",
+        "openai"
+      ],
+      "icon": "Sparkles",
+      "type": "dagster_community_components.ComponentCatalogAgentComponent",
+      "component_type": "dagster_community_components.ComponentCatalogAgentComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/component_catalog_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/component_catalog_agent/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/component_catalog_agent/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/component_catalog_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/component_catalog_agent/requirements.txt",
+      "dependencies": {
+        "pip": ["pandas", "openai>=1.0.0"]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/component_catalog_agent.md",
+        "last_validated": "2026-07-07"
+      }
+    },
+    {
       "id": "community_component_installer",
       "name": "Community Component Installer",
       "category": "infrastructure",

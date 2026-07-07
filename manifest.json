@@ -13922,6 +13922,43 @@
       }
     },
     {
+      "id": "mcp_tool_picker",
+      "name": "MCP Tool Picker",
+      "category": "ai",
+      "description": "Planner LLM picks MCP tools + args to invoke from a bounded YAML-declared set. Each pick becomes a Dagster asset that actually calls the MCP server (stdio / http / sse); a synthesizer LLM writes the grounded final answer with per-tool citations. The 'agent picks MCPs' pattern with full lineage.",
+      "path": "assets/ai/mcp_tool_picker",
+      "tags": [
+        "ai",
+        "agent",
+        "agentic",
+        "mcp",
+        "supervisor",
+        "planner",
+        "multi-agent",
+        "openai"
+      ],
+      "icon": "Sparkles",
+      "type": "dagster_community_components.MCPToolPickerComponent",
+      "component_type": "dagster_community_components.MCPToolPickerComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_tool_picker/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_tool_picker/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_tool_picker/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_tool_picker/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_tool_picker/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "openai>=1.0.0",
+          "mcp>=1.0.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/mcp_tool_picker.md",
+        "last_validated": "2026-07-07"
+      }
+    },
+    {
       "id": "litellm_agent",
       "name": "LiteLLM Agent",
       "category": "ai",

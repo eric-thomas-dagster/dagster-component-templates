@@ -1,0 +1,33 @@
+type: dagster_community_components.MCPToolPickerComponent
+attributes:
+  plan_asset_name: mcp_plan
+  synthesis_asset_name: mcp_final_answer
+  task: "Find the largest .py file under /tmp/demo and show its first 20 lines."
+  model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  tools:
+    - name: list_dir
+      description: "List files with sizes in a directory."
+      args_schema_hint: '{path: string}'
+      server:
+        name: fs
+        type: stdio
+        command:
+          - npx
+          - -y
+          - "@modelcontextprotocol/server-filesystem"
+          - /tmp/demo
+      mcp_tool_name: list_directory_with_sizes
+    - name: read_head
+      description: "Read a text file's contents (use only for files you already know exist)."
+      args_schema_hint: '{path: string}'
+      server:
+        name: fs
+        type: stdio
+        command:
+          - npx
+          - -y
+          - "@modelcontextprotocol/server-filesystem"
+          - /tmp/demo
+      mcp_tool_name: read_text_file
+  group_name: mcp_picker_demo

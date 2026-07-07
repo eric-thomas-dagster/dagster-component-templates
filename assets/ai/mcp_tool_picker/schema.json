@@ -1,0 +1,25 @@
+{
+  "component_type": "dagster_community_components.MCPToolPickerComponent",
+  "description": "Planner LLM picks MCP tools + args to invoke from a bounded YAML-declared set. Each pick becomes a Dagster asset that actually calls the MCP server; a synthesizer LLM writes the grounded final answer. The 'agent picks MCPs' pattern with full lineage.",
+  "category": "ai",
+  "icon": "Sparkles",
+  "x-dagster-io": {
+    "inputs": {"type": "none"},
+    "outputs": {"type": "multi_asset", "description": "Emits (2 + N) assets: plan, one per MCP tool, and synthesis."}
+  },
+  "attributes": {
+    "plan_asset_name": {"type": "string", "required": true},
+    "synthesis_asset_name": {"type": "string", "required": true},
+    "task": {"type": "string", "required": true},
+    "tools": {"type": "array", "required": true, "description": "Bounded list of {name, description, server (stdio/http/sse), mcp_tool_name, args_schema_hint}."},
+    "model": {"type": "string", "required": false, "default": "gpt-4o-mini"},
+    "api_key_env_var": {"type": "string", "required": false, "default": "OPENAI_API_KEY"},
+    "api_base_env_var": {"type": "string", "required": false},
+    "temperature": {"type": "number", "required": false, "default": 0.2},
+    "planner_max_tokens": {"type": "integer", "required": false, "default": 500},
+    "synthesis_max_tokens": {"type": "integer", "required": false, "default": 800},
+    "synthesis_system_message": {"type": "string", "required": false},
+    "group_name": {"type": "string", "required": false},
+    "kinds": {"type": "array", "required": false}
+  }
+}

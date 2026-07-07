@@ -564,6 +564,7 @@ _CLASS_PATHS: dict[str, str] = {
     "LookupComponent": "transforms/lookup/component.py",
     "MCPServerSpec": "assets/ai/anthropic_agent/component.py",
     "MCPToolCallComponent": "assets/sources/mcp_tool_call/component.py",
+    "MCPToolPickerComponent": "assets/ai/mcp_tool_picker/component.py",
     "MLflowModelSensor": "sensors/mlflow_model_sensor/component.py",
     "MLflowResource": "resources/mlflow_resource/component.py",
     "MLflowResourceComponent": "resources/mlflow_resource/component.py",

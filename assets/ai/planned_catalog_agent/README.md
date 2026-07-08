@@ -37,6 +37,16 @@ Same as `catalog_agent` — `task`, `include_ids` / `include_categories` / `incl
 
 - `defs_state: ResolvedDefsStateConfig` — where to store the plan cache. Default is `DefsStateConfigArgs.local_filesystem()`. State key is derived from a hash of the task string so different tasks get different state files.
 
+- `available_resources: Optional[List[str]]` — external resources / credentials configured in this environment. Any component whose `agent_hints.requires_resources` includes a resource NOT in this list is filtered out of the catalog before the planner sees it. Prevents the planner from picking credentialed components you can't actually use.
+
+  Example — user has Snowflake but no BQ/Delta:
+  ```yaml
+  available_resources: [snowflake_resource]
+  ```
+  Hides `bigquery_query_asset`, `dataframe_to_bigquery`, `delta_ingestion`, `iceberg_ingestion`, etc. Keeps `dataframe_to_snowflake` and all resource-free components (csv/json/parquet/transformations).
+
+  Default `None` = no filtering (assume everything is available).
+
 - `prefilter_llm: bool = False` — pre-filter the catalog via ONE cheap `gpt-4o-mini` call before the planner iterates. Reads (id + short description) for every filtered component and returns ~40 IDs it thinks the task actually needs. Live-validated: 300-component wide catalog → 41 shortlisted → 14/14 clean picks in 29s (vs 14 min without prefilter on gpt-4o). Trade-offs:
   - Adds one ~5-10s LLM call at trajectory start.
   - Costs ~$0.001 (mini pricing).

@@ -182,6 +182,20 @@ if _HAS_STATE_BACKED:
         #     is still too big.
         prefilter_llm: bool = False
         prefilter_max_entries: int = 40  # how many components the pre-filter keeps
+
+        # Which external resources / credentials are actually configured in this
+        # environment. Feeds into the planner prompt so the LLM avoids components
+        # that need resources you don't have. Any component with
+        # `agent_hints.requires_resources` containing a resource NOT in this list
+        # will be filtered out of the catalog before the planner sees it.
+        #
+        # Example — user has Snowflake creds but not BQ:
+        #   available_resources: [snowflake_resource]
+        # → the planner won't see bigquery_query_asset, dataframe_to_bigquery, etc.
+        #
+        # Default None = no filtering. Components authored WITHOUT
+        # requires_resources are always available (safe default).
+        available_resources: Optional[List[str]] = None
         fail_on_execution_error: bool = False
 
         group_name: Optional[str] = None
@@ -285,6 +299,22 @@ if _HAS_STATE_BACKED:
                     filtered.append(c); continue
                 if _tags and (set(c.get("tags") or []) & _tags):
                     filtered.append(c); continue
+
+            # If `available_resources` is set, drop components whose
+            # agent_hints.requires_resources includes a resource NOT in
+            # the allowed set. Components without requires_resources are
+            # always kept (safe default — assume no external requirement).
+            if self.available_resources is not None:
+                _allowed = set(self.available_resources)
+                _filtered_2 = []
+                for c in filtered:
+                    _req = (c.get("agent_hints") or {}).get("requires_resources") or []
+                    if isinstance(_req, str):
+                        _req = [_req]
+                    _missing = [r for r in _req if r not in _allowed]
+                    if not _missing:
+                        _filtered_2.append(c)
+                filtered = _filtered_2
 
             resolved = []
             for c in filtered:

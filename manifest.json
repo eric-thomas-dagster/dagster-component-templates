@@ -2633,7 +2633,10 @@
         "inputs": "None (root source) \u2014 runs a BigQuery SQL query.",
         "outputs": "DataFrame with columns from the query SELECT list.",
         "side_effects": "None on local data. Requires bigquery_resource / GCP credentials configured.",
-        "anti_uses": "For loading Parquet/JSON from GCS into BigQuery use bigquery_load_from_gcs_asset. For writing a DataFrame TO BigQuery use dataframe_to_bigquery."
+        "anti_uses": "For loading Parquet/JSON from GCS into BigQuery use bigquery_load_from_gcs_asset. For writing a DataFrame TO BigQuery use dataframe_to_bigquery.",
+        "requires_resources": [
+          "bigquery_resource"
+        ]
       }
     },
     {
@@ -5107,7 +5110,10 @@
         "inputs": "None (root source) \u2014 runs SQL against a `connection_env_var` URL.",
         "outputs": "DataFrame with columns from the query.",
         "side_effects": "None on local data.",
-        "anti_uses": "For vendor-specific integrations prefer the typed reader (e.g. bigquery_query_asset). For DDL introspection use database_schema_inventory."
+        "anti_uses": "For vendor-specific integrations prefer the typed reader (e.g. bigquery_query_asset). For DDL introspection use database_schema_inventory.",
+        "requires_resources": [
+          "database_connection"
+        ]
       }
     },
     {
@@ -5186,7 +5192,10 @@
         "inputs": "None (root source) \u2014 introspects DB metadata via connection_env_var.",
         "outputs": "DataFrame with columns: object_type, schema_name, object_name, definition, row_count. One row per DB object.",
         "side_effects": "Read-only. Used for warehouse-migration scoping.",
-        "anti_uses": "Not for data extraction (use database_query). Not for schema comparison across DBs (that's manual review of the inventory)."
+        "anti_uses": "Not for data extraction (use database_query). Not for schema comparison across DBs (that's manual review of the inventory).",
+        "requires_resources": [
+          "database_connection"
+        ]
       }
     },
     {
@@ -5797,7 +5806,10 @@
         "inputs": "None (root source) \u2014 runs SQL against a configured `connection_env_var` (SQLAlchemy URL).",
         "outputs": "DataFrame with columns from the query SELECT list.",
         "side_effects": "None on local data. Read-only.",
-        "anti_uses": "For BigQuery specifically prefer bigquery_query_asset (typed integration). For DuckDB in-memory SQL over pandas inputs use sql_transform."
+        "anti_uses": "For BigQuery specifically prefer bigquery_query_asset (typed integration). For DuckDB in-memory SQL over pandas inputs use sql_transform.",
+        "requires_resources": [
+          "database_connection"
+        ]
       }
     },
     {
@@ -5879,7 +5891,10 @@
         "inputs": "Any DataFrame to write.",
         "outputs": "None (sink \u2014 writes to Azure Data Lake Storage).",
         "side_effects": "Writes to ADLS Gen2. Format per config (parquet/csv/json). Requires Azure credentials.",
-        "anti_uses": "For AWS use dataframe_to_s3 (or a specific parquet variant). For local files use dataframe_to_parquet/csv/json."
+        "anti_uses": "For AWS use dataframe_to_s3 (or a specific parquet variant). For local files use dataframe_to_parquet/csv/json.",
+        "requires_resources": [
+          "azure_credentials"
+        ]
       }
     },
     {
@@ -5968,7 +5983,10 @@
         "inputs": "Any DataFrame to write.",
         "outputs": "None (sink \u2014 writes to a BigQuery table).",
         "side_effects": "Writes to BigQuery. `write_disposition`: WRITE_TRUNCATE / WRITE_APPEND / WRITE_EMPTY. Requires GCP credentials.",
-        "anti_uses": "For loading files from GCS to BigQuery use bigquery_load_from_gcs_asset. For reading FROM BQ use bigquery_query_asset."
+        "anti_uses": "For loading files from GCS to BigQuery use bigquery_load_from_gcs_asset. For reading FROM BQ use bigquery_query_asset.",
+        "requires_resources": [
+          "bigquery_resource"
+        ]
       }
     },
     {
@@ -6057,7 +6075,10 @@
         "inputs": "Any DataFrame to write.",
         "outputs": "None (sink \u2014 writes to a Databricks table).",
         "side_effects": "Writes via databricks-sql-connector. Requires databricks_resource.",
-        "anti_uses": "For writing to Delta on ADLS/S3 directly use dataframe_to_delta_table. For Snowflake use dataframe_to_snowflake."
+        "anti_uses": "For writing to Delta on ADLS/S3 directly use dataframe_to_delta_table. For Snowflake use dataframe_to_snowflake.",
+        "requires_resources": [
+          "databricks_resource"
+        ]
       }
     },
     {
@@ -6091,7 +6112,10 @@
         "inputs": "Any DataFrame to write.",
         "outputs": "None (sink \u2014 writes to a Delta Lake table).",
         "side_effects": "Writes to Delta on ADLS/S3/local. Mode: append/overwrite/merge. Requires deltalake or Spark.",
-        "anti_uses": "For Iceberg use dataframe_to_iceberg_table. For Databricks specifically use dataframe_to_databricks (typed)."
+        "anti_uses": "For Iceberg use dataframe_to_iceberg_table. For Databricks specifically use dataframe_to_databricks (typed).",
+        "requires_resources": [
+          "storage_resource"
+        ]
       }
     },
     {
@@ -6287,7 +6311,10 @@
         "inputs": "Any DataFrame to write.",
         "outputs": "None (sink \u2014 writes to an Iceberg table).",
         "side_effects": "Writes to Iceberg. Requires pyiceberg + configured catalog.",
-        "anti_uses": "For Delta Lake use dataframe_to_delta_table. For reading FROM Iceberg use iceberg_ingestion."
+        "anti_uses": "For Delta Lake use dataframe_to_delta_table. For reading FROM Iceberg use iceberg_ingestion.",
+        "requires_resources": [
+          "iceberg_catalog"
+        ]
       }
     },
     {
@@ -6698,7 +6725,10 @@
         "inputs": "Any DataFrame to write.",
         "outputs": "None (sink \u2014 writes to a Snowflake table).",
         "side_effects": "Writes to Snowflake. `if_exists` controls behavior (replace/append/upsert). Requires snowflake_resource.",
-        "anti_uses": "For reading FROM Snowflake use dataframe_from_sql or a snowflake source component. For BigQuery use dataframe_to_bigquery. Not for local file output."
+        "anti_uses": "For reading FROM Snowflake use dataframe_from_sql or a snowflake source component. For BigQuery use dataframe_to_bigquery. Not for local file output.",
+        "requires_resources": [
+          "snowflake_resource"
+        ]
       }
     },
     {
@@ -6794,7 +6824,10 @@
         "inputs": "Any DataFrame to write.",
         "outputs": "None (sink \u2014 writes to a SQL table via SQLAlchemy URL).",
         "side_effects": "Writes to the target DB. `if_exists`: replace/append/fail. Requires connection_env_var.",
-        "anti_uses": "For typed vendor sinks (Snowflake/BigQuery/Databricks) prefer the vendor-specific components \u2014 better dtype handling and faster."
+        "anti_uses": "For typed vendor sinks (Snowflake/BigQuery/Databricks) prefer the vendor-specific components \u2014 better dtype handling and faster.",
+        "requires_resources": [
+          "database_connection"
+        ]
       }
     },
     {
@@ -7173,7 +7206,10 @@
         "inputs": "None (root source) \u2014 reads a Delta Lake table by path or URI.",
         "outputs": "DataFrame with columns from the Delta table's schema.",
         "side_effects": "Requires deltalake or PySpark. Reads latest version by default; can time-travel via version/timestamp.",
-        "anti_uses": "For writing to Delta use dataframe_to_delta_table. For Iceberg use iceberg_ingestion."
+        "anti_uses": "For writing to Delta use dataframe_to_delta_table. For Iceberg use iceberg_ingestion.",
+        "requires_resources": [
+          "storage_resource"
+        ]
       }
     },
     {
@@ -12500,7 +12536,10 @@
         "inputs": "None (root source) \u2014 reads an Iceberg table.",
         "outputs": "DataFrame with columns from the Iceberg table's schema.",
         "side_effects": "Requires pyiceberg or configured catalog.",
-        "anti_uses": "For writing to Iceberg use dataframe_to_iceberg_table. For Delta use delta_ingestion."
+        "anti_uses": "For writing to Iceberg use dataframe_to_iceberg_table. For Delta use delta_ingestion.",
+        "requires_resources": [
+          "iceberg_catalog"
+        ]
       }
     },
     {

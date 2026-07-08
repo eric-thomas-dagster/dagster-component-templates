@@ -664,6 +664,7 @@ _CLASS_PATHS: dict[str, str] = {
     "PagerDutyResourceComponent": "resources/pagerduty_resource/component.py",
     "PagerdutyHeartbeatJobComponent": "jobs/pagerduty_heartbeat_job/component.py",
     "PandasDataframeCheckComponent": "asset_checks/pandas_dataframe_check/component.py",
+    "PlannedCatalogAgentComponent": "assets/ai/planned_catalog_agent/component.py",
     "PanderaAssetCheckComponent": "asset_checks/pandera_asset_check/component.py",
     "PapertrailResourceComponent": "resources/papertrail_resource/component.py",
     "ParametricDataGeneratorComponent": "assets/source/parametric_data_generator/component.py",

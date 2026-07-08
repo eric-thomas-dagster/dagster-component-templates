@@ -1,0 +1,11 @@
+type: dagster_community_components.PlannedCatalogAgentComponent
+attributes:
+  task: |
+    Generate synthetic orders and synthetic customers, join them, group by
+    first name, email, and month, sum total and count of orders, and store
+    to a csv at /tmp/orders_by_customer_month.csv.
+  include_categories: [source, ingestion, transformation, sink]
+  include_ids: [synthetic_data_generator]
+  llm_model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  max_iterations: 8

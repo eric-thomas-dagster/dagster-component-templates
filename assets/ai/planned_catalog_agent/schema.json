@@ -1,0 +1,30 @@
+{
+  "component_type": "dagster_community_components.PlannedCatalogAgentComponent",
+  "description": "StateBackedComponent — runs the LLM planner + real materializations once at prepare time (write_state_to_path) and caches the full plan. build_defs_from_state builds REAL Dagster assets from the cached plan on every subsequent load. Zero LLM cost after prepare. Perfect for the 'input a task in Dagster+ UI, real assets appear' UX.",
+  "category": "ai",
+  "icon": "Sparkles",
+  "x-dagster-io": {
+    "inputs": {"type": "none"},
+    "outputs": {"type": "multi_asset", "description": "Emits N real Dagster assets — one per pick from the cached plan."}
+  },
+  "attributes": {
+    "task": {"type": "string", "required": true, "description": "The task the agent plans against."},
+    "include_ids": {"type": "array", "required": false},
+    "include_categories": {"type": "array", "required": false},
+    "include_tags": {"type": "array", "required": false},
+    "max_catalog_entries": {"type": "integer", "required": false, "default": 300},
+    "max_iterations": {"type": "integer", "required": false, "default": 8, "minimum": 1, "maximum": 15},
+    "manifest_url": {"type": "string", "required": false},
+    "manifest_path": {"type": "string", "required": false},
+    "llm_model": {"type": "string", "required": false, "default": "gpt-4o-mini"},
+    "api_key_env_var": {"type": "string", "required": false, "default": "OPENAI_API_KEY"},
+    "api_base_env_var": {"type": "string", "required": false},
+    "temperature": {"type": "number", "required": false, "default": 0.1},
+    "planner_max_tokens": {"type": "integer", "required": false, "default": 600},
+    "fail_on_execution_error": {"type": "boolean", "required": false, "default": false},
+    "group_name": {"type": "string", "required": false},
+    "owners": {"type": "array", "required": false},
+    "tags": {"type": "object", "required": false},
+    "kinds": {"type": "array", "required": false}
+  }
+}

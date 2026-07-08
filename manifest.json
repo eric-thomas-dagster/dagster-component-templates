@@ -17746,6 +17746,31 @@
       }
     },
     {
+      "id": "planned_catalog_agent",
+      "name": "Planned Catalog Agent",
+      "category": "ai",
+      "description": "StateBackedComponent variant of catalog_agent. Runs the LLM planner + real materializations ONCE at prepare time (write_state_to_path) and caches the full plan to Dagster's native state store. Every subsequent load reads the cache and emits REAL Dagster assets — zero LLM cost. Perfect for the 'input a task in Dagster+ UI, real assets appear' UX.",
+      "path": "assets/ai/planned_catalog_agent",
+      "tags": [
+        "ai", "agent", "agentic", "state-backed", "catalog", "meta-agent",
+        "planner", "cached", "openai"
+      ],
+      "icon": "Sparkles",
+      "type": "dagster_community_components.PlannedCatalogAgentComponent",
+      "component_type": "dagster_community_components.PlannedCatalogAgentComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/planned_catalog_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/planned_catalog_agent/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/planned_catalog_agent/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/planned_catalog_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/planned_catalog_agent/requirements.txt",
+      "dependencies": {"pip": ["pandas", "openai>=1.0.0"]},
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/planned_catalog_agent.md",
+        "last_validated": "2026-07-07"
+      }
+    },
+    {
       "id": "point_in_polygon",
       "name": "Point In Polygon",
       "category": "analytics",

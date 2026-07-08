@@ -22,6 +22,8 @@
     "temperature": {"type": "number", "required": false, "default": 0.1},
     "planner_max_tokens": {"type": "integer", "required": false, "default": 600},
     "tpm_budget": {"type": "integer", "required": false, "description": "OpenAI TPM budget for a single request. When set, the component progressively trims catalog contents (hints, descriptions, entries) to fit tpm_budget-2000. OpenAI tiers: T1=30000, T2=500000, T3=5000000. Prefer narrowing include_ids over setting this — smaller filter + rich hints beats big filter + no hints."},
+    "prefilter_llm": {"type": "boolean", "required": false, "default": false, "description": "Pre-filter the catalog via one cheap gpt-4o-mini call before the planner iterates. Shortlists the ~40 (prefilter_max_entries) components most likely needed. Trades one ~5s LLM call for massive downstream context savings — often 10x+ faster overall. Cost ~$0.001. Combines well with tpm_budget."},
+    "prefilter_max_entries": {"type": "integer", "required": false, "default": 40, "description": "Target number of components the LLM pre-filter keeps."},
     "fail_on_execution_error": {"type": "boolean", "required": false, "default": false},
     "group_name": {"type": "string", "required": false},
     "owners": {"type": "array", "required": false},

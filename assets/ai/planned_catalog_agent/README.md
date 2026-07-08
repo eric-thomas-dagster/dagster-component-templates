@@ -37,6 +37,13 @@ Same as `catalog_agent` — `task`, `include_ids` / `include_categories` / `incl
 
 - `defs_state: ResolvedDefsStateConfig` — where to store the plan cache. Default is `DefsStateConfigArgs.local_filesystem()`. State key is derived from a hash of the task string so different tasks get different state files.
 
+- `prefilter_llm: bool = False` — pre-filter the catalog via ONE cheap `gpt-4o-mini` call before the planner iterates. Reads (id + short description) for every filtered component and returns ~40 IDs it thinks the task actually needs. Live-validated: 300-component wide catalog → 41 shortlisted → 14/14 clean picks in 29s (vs 14 min without prefilter on gpt-4o). Trade-offs:
+  - Adds one ~5-10s LLM call at trajectory start.
+  - Costs ~$0.001 (mini pricing).
+  - If it misses a component the task needs, the planner may fail. Combine with `include_ids` for guaranteed availability.
+  - Highest-leverage lever when the catalog is wide and the task is narrow.
+- `prefilter_max_entries: int = 40` — target count for the pre-filter's shortlist.
+
 - `tpm_budget: Optional[int]` — OpenAI tokens-per-minute budget for a single request. When set, the component progressively trims catalog contents to fit `tpm_budget - 2000` (safety margin):
   1. Drop `anti_uses` hints (keep `side_effects` only)
   2. Trim descriptions from 300 → 150 chars

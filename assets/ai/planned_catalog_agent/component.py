@@ -163,6 +163,25 @@ if _HAS_STATE_BACKED:
         #   • OpenAI Tier reference: Tier1=30000, Tier2=500000, Tier3=5000000.
         #   • None (default) = no trimming; trust the user's include_* filters.
         tpm_budget: Optional[int] = None
+
+        # Pre-filter the catalog with ONE cheap gpt-4o-mini call before the
+        # iterative planner runs. The pre-filter sees (id + description) for
+        # every filtered component and returns ~30 IDs it thinks the task
+        # actually needs. Effective at semantic matching that keyword scoring
+        # can't handle (e.g. task says "predict survival" → pre-filter picks
+        # logistic_regression_model even though the words don't overlap).
+        # Trade-offs:
+        #   • Adds one ~2-5s LLM call at trajectory start.
+        #   • Costs ~$0.001 (mini pricing).
+        #   • If the pre-filter misses a component the planner needs, that
+        #     component simply isn't available → planner may fail or
+        #     pick something suboptimal. Set include_ids explicitly to
+        #     guarantee availability.
+        #   • Best combined with tpm_budget: the pre-filter shrinks the
+        #     catalog, tpm_budget catches overflow if the shrunk catalog
+        #     is still too big.
+        prefilter_llm: bool = False
+        prefilter_max_entries: int = 40  # how many components the pre-filter keeps
         fail_on_execution_error: bool = False
 
         group_name: Optional[str] = None
@@ -320,6 +339,84 @@ if _HAS_STATE_BACKED:
                 lines.append(f"  - {c['id']}: {c.get('description', '')[:description_max]}  ({_fs}){_hint_str}")
             return lines
 
+        def _llm_prefilter(self, catalog):
+            """Cheap gpt-4o-mini call to shortlist the catalog for the task.
+
+            Returns (filtered_catalog, notes). If prefilter_llm is False,
+            returns the input catalog unchanged.
+            """
+            if not self.prefilter_llm:
+                return catalog, []
+
+            if len(catalog) <= self.prefilter_max_entries:
+                return catalog, [f"prefilter_llm: skipped (catalog {len(catalog)} <= {self.prefilter_max_entries})"]
+
+            # Minimal per-component line: just id + short description.
+            _lines = [
+                f"- {c['id']} ({c.get('category','?')}): {c.get('description','')[:100]}"
+                for c in catalog
+            ]
+            _catalog_str = "\n".join(_lines)
+            _prompt = (
+                f"You are shortlisting Dagster component IDs from a catalog for the task below. "
+                f"A separate planner LLM will pick components from your shortlist to build a real "
+                f"data pipeline — if you exclude a component it needs, the pipeline will FAIL.\n\n"
+                f"Task:\n{self.task}\n\n"
+                f"Return {self.prefilter_max_entries}+ component IDs (never fewer than 20). "
+                f"Err on the side of INCLUDING components — extra picks are cheap; missing picks are fatal.\n\n"
+                f"Include ALL of these categories that apply:\n"
+                f"  1. INGESTION components matching the input format the task describes "
+                f"(csv → file_ingestion; API → rest_api_fetcher; DB → database_query; etc.).\n"
+                f"  2. Every TRANSFORMATION the task calls for by name or intent (dedup, cleanse, join, "
+                f"filter, group-by/summarize, encode, bin, impute, coerce, sort, pivot/unpivot, formula, etc.).\n"
+                f"  3. Any ANALYTICS/MODEL the task calls for (predict → logistic_regression_model / "
+                f"linear_regression_model; forecast → arima_forecast; anomaly → anomaly_detection; etc.).\n"
+                f"  4. Every SINK implied by the task (write to CSV → dataframe_to_csv; parquet → "
+                f"dataframe_to_parquet; Snowflake → dataframe_to_snowflake; write ONE csv → one instance, "
+                f"write THREE csvs → still ONE component id, just used 3 times).\n"
+                f"  5. LIKELY BRIDGE components: formula (compute derived columns), select_columns, "
+                f"type_coercer, imputation, outlier_clipper — include these even if the task doesn't "
+                f"explicitly name them; the planner often needs them.\n\n"
+                f"Available components ({len(catalog)}):\n{_catalog_str}\n\n"
+                f'Reply ONLY with: {{"selected": ["file_ingestion", "unique_dedup", ...]}}. '
+                f"IDs must be EXACT matches from the catalog above."
+            )
+
+            client = self._client()
+            import time as _t
+            _start = _t.time()
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",   # always mini for the pre-filter
+                temperature=0.0,
+                max_tokens=2000,
+                response_format={"type": "json_object"},
+                messages=[{"role": "user", "content": _prompt}],
+            )
+            _elapsed = round(_t.time() - _start, 2)
+
+            _raw = resp.choices[0].message.content or "{}"
+            try:
+                _sel = json.loads(_raw).get("selected") or []
+            except Exception:  # noqa: BLE001
+                _sel = []
+            _sel_set = {str(x) for x in _sel}
+            _filtered = [c for c in catalog if c["id"] in _sel_set]
+
+            _notes = [
+                f"prefilter_llm: catalog {len(catalog)} → {len(_filtered)} in {_elapsed}s",
+                f"prefilter_llm: kept={sorted(_sel_set)[:20]}{'...' if len(_sel_set) > 20 else ''}",
+                f"prefilter_llm: raw_response_head={_raw[:200]}",
+            ]
+
+            # Safety: if the pre-filter returned nothing or something ridiculously
+            # small, fall back to the original catalog so the trajectory still has
+            # something to pick from.
+            if len(_filtered) < 5:
+                _notes.append(f"prefilter_llm: returned <5 picks; falling back to full catalog")
+                return catalog, _notes
+
+            return _filtered, _notes
+
         def _fit_to_budget(self, catalog, dcc):
             """Return (lines, catalog, trim_notes) fit to self.tpm_budget.
 
@@ -400,8 +497,12 @@ if _HAS_STATE_BACKED:
                     "include_categories / include_tags."
                 )
 
-            # Trim catalog contents to fit `tpm_budget` (no-op if unset).
+            # Pre-filter the catalog via cheap LLM call (no-op if prefilter_llm=False).
+            catalog, _prefilter_notes = self._llm_prefilter(catalog)
+
+            # Then trim catalog contents to fit `tpm_budget` (no-op if unset).
             lines, catalog, _trim_notes = self._fit_to_budget(catalog, _dcc)
+            _trim_notes = _prefilter_notes + _trim_notes
             valid_ids = ", ".join(f'"{c["id"]}"' for c in catalog)
 
             # STATIC prefix — identical across all iterations of THIS trajectory.

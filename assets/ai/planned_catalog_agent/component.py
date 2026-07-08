@@ -306,7 +306,14 @@ if _HAS_STATE_BACKED:
                     f"insert a formula step FIRST to derive it.\n"
                     f"  • For summarize/filter, group_by is List[str], aggregations is Dict[str, Any] "
                     f"like {{'total': {{'col': '<real_col>', 'agg': 'sum'}}}}.\n"
-                    f"  • For MULTI-SOURCE (dataframe_join), set BOTH left_asset_key and right_asset_key."
+                    f"  • For MULTI-SOURCE (dataframe_join), set BOTH left_asset_key and right_asset_key,\n"
+                    f"    and they MUST reference DIFFERENT prior assets — never join an asset with itself.\n"
+                    f"  • synthetic_data_generator produces ONE schema per call. If the task mentions\n"
+                    f"    multiple distinct datasets (e.g. 'orders and customers'), use SEPARATE calls\n"
+                    f"    with different schema_type values (e.g. schema_type: 'orders', then schema_type: 'customers').\n"
+                    f"  • NEVER declare done until EVERY part of the task is complete. If the task says\n"
+                    f"    'store to a csv' / 'write to file' / 'save' — a sink step (e.g. dataframe_to_csv)\n"
+                    f"    MUST have run successfully first."
                 )
 
                 resp = client.chat.completions.create(
@@ -365,6 +372,27 @@ if _HAS_STATE_BACKED:
                                 if isinstance(_vv, str) and _vv:
                                     if _vv == asset_name: _self_dep.append(f"{_k}={_vv!r}")
                                     elif _vv not in prior_dfs: _dangling.append(f"{_k}={_vv!r}")
+                # Reject degenerate self-joins where left_asset_key == right_asset_key.
+                _left = cfg.get("left_asset_key")
+                _right = cfg.get("right_asset_key")
+                _self_join = (
+                    isinstance(_left, str) and isinstance(_right, str) and _left == _right
+                )
+                if _self_join:
+                    picks.append({
+                        "iteration": iteration, "done": False, "component_id": cid,
+                        "component_type": ctype, "config": json.dumps(cfg), "reason": reason,
+                        "asset_name": asset_name, "output_columns": [],
+                        "status": "failed",
+                        "error": (
+                            f"degenerate self-join: left_asset_key == right_asset_key == {_left!r}. "
+                            f"Join requires two DIFFERENT upstream datasets. If the task needs multiple "
+                            f"datasets, generate them via separate synthetic_data_generator calls first "
+                            f"(with different schema_type values)."
+                        ),
+                    })
+                    continue
+
                 if _self_dep or _dangling:
                     _err = (
                         f"self-dep: {_self_dep}" if _self_dep

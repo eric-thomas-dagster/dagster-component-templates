@@ -97,11 +97,14 @@ class RestApiFetcherComponent(Component, Model, Resolvable):
     )
 
     output_format: str = Field(
-        default="json",
+        default="dataframe",
         description=(
-            "Output format: 'json', 'dataframe', 'csv', 'parquet', or "
-            "'text' / 'html' (raw response body wrapped in a 1-row DataFrame "
-            "with a single 'content' column — useful for HTML scraping)"
+            "Output format: 'dataframe' (default — parsed JSON wrapped in a "
+            "pandas DataFrame ready for downstream transforms), 'json' (raw "
+            "Python dict/list — use only if a custom asset consumes it "
+            "directly), 'csv', 'parquet', or 'text' / 'html' (raw response "
+            "body wrapped in a 1-row DataFrame with a single 'content' column "
+            "— useful for HTML scraping)"
         ),
     )
 

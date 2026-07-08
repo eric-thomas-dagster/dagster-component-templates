@@ -21087,9 +21087,9 @@
       },
       "agent_hints": {
         "inputs": "None (root source) \u2014 hits a JSON REST API endpoint.",
-        "outputs": "DataFrame constructed from the JSON response. Column names depend on the response shape.",
+        "outputs": "DataFrame constructed from the JSON response. `output_format` defaults to 'dataframe' \u2014 keep it that way for any downstream transform. For JSONs with an array under a nested key (e.g. {'data': {'results': [...]}}), set json_path='data.results' to extract the array.",
         "side_effects": "None on local data. Makes an HTTP call per materialize.",
-        "anti_uses": "NOT for CSV / parquet / xlsx files at a URL \u2014 those are files, not APIs; use file_ingestion. Not for paginated APIs without configured pagination."
+        "anti_uses": "NOT for CSV / parquet / xlsx files at a URL \u2014 use file_ingestion. Set output_format explicitly if you want raw JSON (default is 'dataframe'). For paginated APIs configure pagination_type."
       }
     },
     {

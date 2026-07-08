@@ -37,6 +37,8 @@ Same as `catalog_agent` — `task`, `include_ids` / `include_categories` / `incl
 
 - `defs_state: ResolvedDefsStateConfig` — where to store the plan cache. Default is `DefsStateConfigArgs.local_filesystem()`. State key is derived from a hash of the task string so different tasks get different state files.
 
+- `agent_hints.requires_pip` (per-component, on manifest entries) — python packages the component needs (e.g. `["sklearn"]`, `["statsmodels"]`, `["shapely"]`). The planner auto-checks `importlib.util.find_spec` for each and **filters out components whose packages aren't installed** — no configuration needed, no wasted "ModuleNotFoundError" iterations. Component authors declare their real deps once; the planner respects the actual environment.
+
 - `available_resources: Optional[List[str]]` — external resources / credentials configured in this environment. Any component whose `agent_hints.requires_resources` includes a resource NOT in this list is filtered out of the catalog before the planner sees it. Prevents the planner from picking credentialed components you can't actually use.
 
   Example — user has Snowflake but no BQ/Delta:

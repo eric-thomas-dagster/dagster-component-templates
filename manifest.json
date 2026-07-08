@@ -32,6 +32,11 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/ab_full_pipeline.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with user_id + control-group assignment.",
+        "outputs": "DataFrame with control-group summary metrics.",
+        "side_effects": "For A/B experiment analysis; typically feeds ab_test_analysis."
       }
     },
     {
@@ -99,6 +104,11 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/ab_full_pipeline.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with user_id + treatment-group assignment.",
+        "outputs": "DataFrame with treatment-group summary metrics.",
+        "side_effects": "For A/B experiment analysis; typically feeds ab_test_analysis."
       }
     },
     {
@@ -128,6 +138,11 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/ab_full_pipeline.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with time-series conversion metrics for A/B groups.",
+        "outputs": "DataFrame with per-day / per-week trend lines.",
+        "side_effects": "For monitoring experiment lift over time."
       }
     },
     {
@@ -2859,6 +2874,11 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/west_coast_cities.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with lat/lon columns.",
+        "outputs": "DataFrame with rows within a bounding box only.",
+        "side_effects": "Reduces row count."
       }
     },
     {
@@ -2891,6 +2911,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/store_coverage.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with point / line geometry column.",
+        "outputs": "DataFrame with buffered polygon per row.",
+        "side_effects": "Requires shapely.",
+        "requires_pip": [
+          "shapely"
+        ]
       }
     },
     {
@@ -3124,6 +3152,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with document text + optional embeddings.",
+        "outputs": "Reads or writes to ChromaDB.",
+        "side_effects": "Requires chromadb.",
+        "requires_pip": [
+          "chromadb"
+        ]
       }
     },
     {
@@ -3897,6 +3933,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with coordinate columns in one CRS.",
+        "outputs": "DataFrame with coordinates in a target CRS.",
+        "side_effects": "Modifies coordinate values IN PLACE. Requires pyproj.",
+        "requires_pip": [
+          "pyproj"
+        ]
       }
     },
     {
@@ -4409,6 +4453,11 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "Multiple DataFrames (transactions, engagements, profile) via upstream keys.",
+        "outputs": "DataFrame with one row per customer + composite metrics.",
+        "side_effects": "Reduces rows to per-customer. Column set = customer_id + aggregated metrics."
       }
     },
     {
@@ -4438,6 +4487,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with customer engagement/usage/spend features.",
+        "outputs": "DataFrame + `health_score` column (0-100 or similar).",
+        "side_effects": "Adds column. Score is a weighted combination per config.",
+        "anti_uses": "For churn probability use churn_prediction. For LTV use ltv_prediction."
       }
     },
     {
@@ -4467,6 +4522,11 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/retail_ltv.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with user + event + timestamp columns.",
+        "outputs": "DataFrame with journey paths (sequences of events per user).",
+        "side_effects": "May reshape events into path columns."
       }
     },
     {
@@ -4495,6 +4555,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/churn.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with customer features (RFM or behavioral).",
+        "outputs": "DataFrame + `segment` column (or new rows summarizing segments).",
+        "side_effects": "Requires sklearn for clustering-based segmentation.",
+        "anti_uses": "For pure RFM buckets use rfm_segmentation. For churn use churn_prediction.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -7272,6 +7341,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/wine_ml_pipeline.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric feature columns + target column.",
+        "outputs": "DataFrame with predictions + optional feature importances.",
+        "side_effects": "Output is test-set predictions (not the full input). Requires sklearn.",
+        "anti_uses": "For linear regression use linear_regression_model. For ensembles use gradient_boosting_model / random_forest_model.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -7464,6 +7542,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/cities_distance.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with two point columns (lat/lon pairs).",
+        "outputs": "DataFrame + `distance` column (haversine or geodesic).",
+        "side_effects": "Adds column. Requires shapely / pyproj / geopy depending on config.",
+        "requires_pip": [
+          "shapely"
+        ]
       }
     },
     {
@@ -8614,6 +8700,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/forecast_comparison.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with datetime + numeric target column.",
+        "outputs": "DataFrame with forecast rows (Exponential Smoothing / Holt-Winters).",
+        "side_effects": "Good baseline for seasonal data. Requires statsmodels.",
+        "anti_uses": "For ARIMA use arima_forecast. For covariate models use ts_covariate_forecast.",
+        "requires_pip": [
+          "statsmodels"
+        ]
       }
     },
     {
@@ -10696,6 +10791,11 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with event/step + user_id + timestamp columns.",
+        "outputs": "DataFrame with per-step conversion counts + drop-off rates.",
+        "side_effects": "Reduces to one row per funnel step."
       }
     },
     {
@@ -10757,6 +10857,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with positive continuous target + feature columns.",
+        "outputs": "DataFrame with fitted values / predictions.",
+        "side_effects": "GLM for positive right-skewed data (durations, spend). Requires statsmodels.",
+        "anti_uses": "For Poisson counts use count_regression. For general continuous regression use linear_regression_model.",
+        "requires_pip": [
+          "statsmodels"
+        ]
       }
     },
     {
@@ -11223,6 +11332,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with address strings.",
+        "outputs": "DataFrame + lat/lon columns.",
+        "side_effects": "Requires an external geocoding API (Nominatim, Google, etc.). Rate-limited.",
+        "anti_uses": "For reverse (coords \u2192 address) use reverse_geocoder.",
+        "requires_pip": [
+          "geopy"
+        ]
       }
     },
     {
@@ -11965,6 +12083,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric feature columns + target column.",
+        "outputs": "DataFrame with predictions + probabilities.",
+        "side_effects": "Slower to fit than decision_tree_model but usually higher accuracy. Requires sklearn (or xgboost/lightgbm if configured).",
+        "anti_uses": "For simple baselines use logistic/linear_regression_model. For very large data prefer distributed frameworks.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -13611,6 +13738,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/iris_unsupervised.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric feature columns.",
+        "outputs": "DataFrame + a NEW `cluster` column (integer id per row).",
+        "side_effects": "Adds one column. Requires sklearn. Feature scaling matters \u2014 chain feature_scaler.",
+        "anti_uses": "For hierarchical or density-based clustering use spatial_cluster. For diagnostics use k_centroids_diagnostics.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -14138,6 +14274,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with lead features + conversion labels (or scoring rules).",
+        "outputs": "DataFrame + score column.",
+        "side_effects": "Requires sklearn if ML-based; pure pandas if rule-based.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -14195,6 +14339,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with predicted probabilities + actual labels.",
+        "outputs": "DataFrame representing the lift curve (decile-based).",
+        "side_effects": "Reduces to N deciles. Requires sklearn.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -15240,6 +15392,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/retail_ltv.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with customer transaction history.",
+        "outputs": "DataFrame + `predicted_ltv` column.",
+        "side_effects": "Adds column. Requires sklearn or lifetimes (BG/NBD models).",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -15431,6 +15591,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/market_basket.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with transactions (order_id + item_id).",
+        "outputs": "DataFrame with association rules (antecedent \u2192 consequent) + support / confidence / lift.",
+        "side_effects": "Requires mlxtend. Row count depends on min_support threshold.",
+        "requires_pip": [
+          "mlxtend"
+        ]
       }
     },
     {
@@ -15792,6 +15960,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "A fitted linear/logistic model asset.",
+        "outputs": "DataFrame with feature names + coefficients + p-values (if statsmodels).",
+        "side_effects": "Introspection asset. Requires the upstream model's pickle format.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -15816,6 +15992,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "Multiple predictions or models on the same test set.",
+        "outputs": "DataFrame with per-model metrics side-by-side.",
+        "side_effects": "Requires sklearn.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -15848,6 +16032,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "TWO DataFrames \u2014 predictions + ground truth (or model + test set).",
+        "outputs": "DataFrame with metrics: accuracy, precision, recall, f1, roc_auc (or R\u00b2, MAE, RMSE for regression).",
+        "side_effects": "Reduces to one row of scores. Requires sklearn.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -16412,6 +16604,11 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/retail_ltv.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with touch events (timestamp, channel, user_id) + conversion column.",
+        "outputs": "DataFrame with attribution weights per channel/touch.",
+        "side_effects": "First-touch / last-touch / linear / U-shape / data-driven attribution per config."
       }
     },
     {
@@ -16444,6 +16641,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a distance/similarity matrix or feature vectors.",
+        "outputs": "DataFrame with 2D or 3D coordinates per row (for visualization).",
+        "side_effects": "Requires sklearn. Row count preserved; column set replaced with dim1..dimN.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -16535,6 +16740,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with feature columns + categorical target.",
+        "outputs": "DataFrame with predictions + class probabilities.",
+        "side_effects": "Fast. Assumes feature independence. Requires sklearn.",
+        "anti_uses": "For continuous outcomes use linear_regression_model. For interpretability use logistic_regression_model.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -16644,6 +16858,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/cities_nn.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric feature columns + optional query points.",
+        "outputs": "DataFrame with nearest-neighbor indices + distances per query row.",
+        "side_effects": "For similarity search. Feature scaling matters. Requires sklearn.",
+        "anti_uses": "For approximate/large-scale similarity use pgvector_asset / pinecone_asset / chromadb_asset (vector DBs).",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -16792,6 +17015,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric feature columns + target column.",
+        "outputs": "DataFrame with predictions.",
+        "side_effects": "Requires sklearn (MLPClassifier/MLPRegressor). Feature scaling essential \u2014 chain feature_scaler.",
+        "anti_uses": "For tabular data, prefer gradient_boosting_model \u2014 usually competitive and faster.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -17572,6 +17804,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame + objective function config.",
+        "outputs": "DataFrame with optimal solution + objective value.",
+        "side_effects": "Requires scipy. Constrained optimization via scipy.optimize.",
+        "requires_pip": [
+          "scipy"
+        ]
       }
     },
     {
@@ -17660,6 +17900,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a class-imbalanced categorical column.",
+        "outputs": "DataFrame with rows RESAMPLED to balance the class distribution.",
+        "side_effects": "Row count grows. Use for imbalanced classification training. Requires imblearn.",
+        "requires_pip": [
+          "imblearn"
+        ]
       }
     },
     {
@@ -18150,6 +18398,18 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with vector + metadata columns.",
+        "outputs": "Reads or writes to a Postgres+pgvector table.",
+        "side_effects": "Requires psycopg2 + pgvector extension in Postgres.",
+        "anti_uses": "For managed vector DB use pinecone_asset / chromadb_asset.",
+        "requires_pip": [
+          "psycopg2"
+        ],
+        "requires_resources": [
+          "postgres_resource"
+        ]
       }
     },
     {
@@ -18260,6 +18520,17 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with vector + metadata columns.",
+        "outputs": "Reads or writes to Pinecone index.",
+        "side_effects": "Requires pinecone-client + API key.",
+        "requires_pip": [
+          "pinecone"
+        ],
+        "requires_resources": [
+          "pinecone_resource"
+        ]
       }
     },
     {
@@ -18505,6 +18776,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with lat/lon columns + a polygon set (via upstream or config).",
+        "outputs": "DataFrame + `polygon_id` (or NULL) per row.",
+        "side_effects": "Adds column. Requires shapely.",
+        "anti_uses": "For nearest-polygon (not containment) use spatial_join with a distance metric.",
+        "requires_pip": [
+          "shapely"
+        ]
       }
     },
     {
@@ -18976,6 +19256,11 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with product-analytics events (Amplitude, Mixpanel, etc.).",
+        "outputs": "DataFrame with standardized schema (user_id, event, timestamp, properties).",
+        "side_effects": "Reshapes / renames per source vendor."
       }
     },
     {
@@ -19004,6 +19289,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with user \u00d7 item interactions.",
+        "outputs": "DataFrame with top-N recommendations per user.",
+        "side_effects": "Collaborative-filtering or content-based per config. May need sklearn/surprise.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -19092,6 +19385,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with features + binary conversion label.",
+        "outputs": "DataFrame with propensity score column.",
+        "side_effects": "Requires sklearn.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -19636,6 +19937,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/spacex_join.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric feature columns + target column.",
+        "outputs": "DataFrame with predictions + feature importances.",
+        "side_effects": "Bagging ensemble \u2014 reduces variance. Requires sklearn.",
+        "anti_uses": "For interpretability prefer decision_tree_model. For raw speed on tiny data use logistic_regression_model.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -20134,6 +20444,11 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/revenue_attribution.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with revenue events + attribution touchpoints.",
+        "outputs": "DataFrame with revenue attributed per channel/campaign.",
+        "side_effects": "Same as multi_touch_attribution but for revenue instead of count-based conversion."
       }
     },
     {
@@ -20158,6 +20473,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with lat/lon columns.",
+        "outputs": "DataFrame + address string / components columns.",
+        "side_effects": "Requires an external geocoding API.",
+        "requires_pip": [
+          "geopy"
+        ]
       }
     },
     {
@@ -20189,6 +20512,11 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/kitchen_sink.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with customer_id, recency, frequency, monetary columns (or transaction data to derive them).",
+        "outputs": "DataFrame + `rfm_segment` column (traditional RFM 3x3x3 buckets).",
+        "side_effects": "Adds column. Pure pandas \u2014 no ML."
       }
     },
     {
@@ -21714,6 +22042,11 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame + a distribution / sampling config.",
+        "outputs": "DataFrame with N sampled rows per configuration.",
+        "side_effects": "Row count = N \u00d7 configurations."
       }
     },
     {
@@ -21933,6 +22266,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/store_coverage.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a numeric column to smooth, sorted.",
+        "outputs": "DataFrame + smoothed column (rolling mean / EWMA / Savitzky-Golay).",
+        "side_effects": "Adds column. Order-sensitive.",
+        "anti_uses": "For running totals use running_total. For general window ops use window_calculation."
       }
     },
     {
@@ -22910,6 +23249,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/store_coverage.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "TWO spatial DataFrames.",
+        "outputs": "Joined DataFrame per spatial predicate (intersects / contains / within).",
+        "side_effects": "Requires geopandas.",
+        "anti_uses": "For attribute joins use dataframe_join.",
+        "requires_pip": [
+          "geopandas"
+        ]
       }
     },
     {
@@ -22978,6 +23326,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric feature column(s) + target.",
+        "outputs": "DataFrame with fitted values (smooth spline).",
+        "side_effects": "For non-linear univariate fits. Requires scipy or statsmodels.",
+        "requires_pip": [
+          "scipy"
+        ]
       }
     },
     {
@@ -23393,6 +23749,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with target + candidate feature columns.",
+        "outputs": "DataFrame documenting selected features + iteration history.",
+        "side_effects": "Iterative feature selection. Requires statsmodels / sklearn.",
+        "anti_uses": "For regularization-based selection use gradient_boosting_model with feature_importances. Stepwise selection is disfavored in modern statistics.",
+        "requires_pip": [
+          "statsmodels"
+        ]
       }
     },
     {
@@ -23522,6 +23887,11 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/saas_metrics.md",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with subscription events (subscribe/cancel/renew timestamps).",
+        "outputs": "DataFrame with MRR / ARR / churn rate / retention curves.",
+        "side_effects": "Reduces to summary rows / cohort table."
       }
     },
     {
@@ -23841,6 +24211,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/subscription_survival.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with duration + event columns.",
+        "outputs": "DataFrame with survival function + hazard estimates.",
+        "side_effects": "Requires lifelines. For customer churn timing, medical time-to-event, etc.",
+        "anti_uses": "For simple binary churn use churn_prediction / logistic_regression_model.",
+        "requires_pip": [
+          "lifelines"
+        ]
       }
     },
     {
@@ -23874,6 +24253,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric feature columns + target column.",
+        "outputs": "DataFrame with predictions (+ decision function values).",
+        "side_effects": "Slow on large data (O(n\u00b2-n\u00b3)). Requires sklearn.",
+        "anti_uses": "For >100K rows prefer gradient_boosting_model or a linear model. Feature scaling matters \u2014 chain feature_scaler upstream.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -24491,6 +24879,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a value column + a group column (2 groups).",
+        "outputs": "DataFrame with t-test / Welch's / Mann-Whitney statistics.",
+        "side_effects": "Reduces to 1 row. Requires scipy.",
+        "anti_uses": "For A/B lift+CI use ab_test_analysis (broader). For >2 groups use ANOVA (not in this component).",
+        "requires_pip": [
+          "scipy"
+        ]
       }
     },
     {
@@ -24823,6 +25220,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/churn.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "None (root generator) \u2014 creates synthetic time-series data per config.",
+        "outputs": "DataFrame with datetime + value column(s).",
+        "side_effects": "For demos / tests. Requires numpy.",
+        "anti_uses": "For real data use ts_forecast on existing series."
       }
     },
     {
@@ -25124,6 +25527,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/forecast_comparison.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "Multiple time-series (via upstream keys).",
+        "outputs": "DataFrame comparing forecast metrics side-by-side.",
+        "side_effects": "Requires statsmodels.",
+        "requires_pip": [
+          "statsmodels"
+        ]
       }
     },
     {
@@ -25156,6 +25567,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/time_series_advanced.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with datetime + target + covariate columns.",
+        "outputs": "DataFrame with forecast rows using covariates (SARIMAX / regression with time-series errors).",
+        "side_effects": "Requires statsmodels.",
+        "anti_uses": "For univariate use ts_forecast. For non-time-series with covariates use linear_regression_model.",
+        "requires_pip": [
+          "statsmodels"
+        ]
       }
     },
     {
@@ -25207,6 +25627,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/time_series_advanced.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with datetime + numeric target column, sorted by date.",
+        "outputs": "DataFrame with forecast rows (date, forecast, lower_ci, upper_ci).",
+        "side_effects": "Output is FUTURE points, not the input. Order-sensitive. Requires statsmodels.",
+        "anti_uses": "For ARIMA specifically use arima_forecast. For ETS use ets_forecast. For per-group forecasts run multiple times or use ts_model_factory.",
+        "requires_pip": [
+          "statsmodels"
+        ]
       }
     },
     {
@@ -25231,6 +25660,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/time_series_advanced.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with datetime + target column + config.",
+        "outputs": "Multiple model assets, one per config variant.",
+        "side_effects": "Emits many trained models \u2014 cost/time scales with config space. Requires statsmodels.",
+        "requires_pip": [
+          "statsmodels"
+        ]
       }
     },
     {
@@ -25794,6 +26231,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric feature columns.",
+        "outputs": "DataFrame with Variance Inflation Factor per feature (multicollinearity diagnostic).",
+        "side_effects": "Reduces to one row per feature. Requires statsmodels.",
+        "requires_pip": [
+          "statsmodels"
+        ]
       }
     },
     {
@@ -26709,6 +27154,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-05"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with lat/lon columns.",
+        "outputs": "DataFrame + a `geometry` column of shapely Point objects.",
+        "side_effects": "Adds column. Downstream spatial ops require shapely.",
+        "requires_pip": [
+          "shapely"
+        ]
       }
     },
     {
@@ -26842,6 +27295,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-05"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric columns.",
+        "outputs": "DataFrame with pairwise correlation matrix (columns \u00d7 columns).",
+        "side_effects": "Reduces to N\u00d7N shape.",
+        "requires_pip": [
+          "scipy"
+        ]
       }
     },
     {

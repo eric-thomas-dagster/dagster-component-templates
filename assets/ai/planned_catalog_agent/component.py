@@ -316,6 +316,32 @@ if _HAS_STATE_BACKED:
                         _filtered_2.append(c)
                 filtered = _filtered_2
 
+            # Always: drop components whose `agent_hints.requires_pip` includes
+            # a package not importable in this Python environment. Auto-detected
+            # via importlib.util.find_spec (no import side-effects). This lets
+            # analytics/ML components declare their real dependencies once, and
+            # the planner automatically avoids them when the packages are absent
+            # — no "ModuleNotFoundError" iterations wasted.
+            import importlib.util as _ilu
+            _pip_ok_cache: Dict[str, bool] = {}
+            def _pip_available(_pkg: str) -> bool:
+                if _pkg not in _pip_ok_cache:
+                    try:
+                        _pip_ok_cache[_pkg] = _ilu.find_spec(_pkg) is not None
+                    except Exception:  # noqa: BLE001
+                        _pip_ok_cache[_pkg] = False
+                return _pip_ok_cache[_pkg]
+
+            _filtered_3 = []
+            for c in filtered:
+                _pip = (c.get("agent_hints") or {}).get("requires_pip") or []
+                if isinstance(_pip, str):
+                    _pip = [_pip]
+                _missing_pip = [p for p in _pip if not _pip_available(p)]
+                if not _missing_pip:
+                    _filtered_3.append(c)
+            filtered = _filtered_3
+
             resolved = []
             for c in filtered:
                 raw_type = c.get("component_type") or c.get("type") or ""

@@ -42,6 +42,29 @@ class DataframeFlattenNestedColumnsComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output asset name.")
     upstream_asset_key: str = Field(description="Upstream DataFrame asset key.")
 
+    expand: bool = Field(
+        default=True,
+        description=(
+            "If True (default), nested dict values are expanded into new "
+            "columns via pandas.json_normalize — e.g. row with `properties: "
+            "{mag: 3.4}` becomes new columns `properties.mag` (or `mag` if "
+            "strip_prefix=True). If False, nested dicts/lists are just "
+            "JSON-serialized in place (legacy behavior)."
+        ),
+    )
+    separator: str = Field(
+        default=".",
+        description="Separator used between parent/child keys when expand=True (e.g. '.', '_').",
+    )
+    strip_prefix: bool = Field(
+        default=False,
+        description=(
+            "When expand=True, drop the parent column name from expanded "
+            "columns. E.g. `properties.mag` becomes `mag`. Useful when you "
+            "only care about the innermost fields."
+        ),
+    )
+
     columns: Optional[List[Union[str, int]]] = Field(
         default=None,
         description="Explicit columns to flatten. Default: every column with at least one dict/list value.",
@@ -181,20 +204,59 @@ class DataframeFlattenNestedColumnsComponent(Component, Model, Resolvable):
                 ]
 
             flattened: List[str] = []
-            for col in target_cols:
-                if col in exclude:
-                    continue
-                df[col] = df[col].apply(
-                    lambda v: json.dumps(v, default=str) if isinstance(v, (dict, list)) else v
-                )
-                flattened.append(col)
+            new_columns: List[str] = []
+
+            if self.expand:
+                # Real flatten via pd.json_normalize on each nested column.
+                # Rows without a dict value in that column keep NaN.
+                sep = self.separator or "."
+                for col in target_cols:
+                    if col in exclude:
+                        continue
+                    _series = df[col]
+                    _dict_mask = _series.apply(lambda v: isinstance(v, dict))
+                    if not bool(_dict_mask.any()):
+                        # Column is nested lists — serialize instead.
+                        df[col] = _series.apply(
+                            lambda v: json.dumps(v, default=str) if isinstance(v, list) else v
+                        )
+                        flattened.append(col)
+                        continue
+
+                    _normalized = pd.json_normalize(
+                        _series.where(_dict_mask, {}).tolist(), sep=sep
+                    )
+                    _normalized.index = df.index
+                    # Column name policy: `<col><sep><subkey>` OR strip parent.
+                    if self.strip_prefix:
+                        _normalized.columns = [str(_c) for _c in _normalized.columns]
+                    else:
+                        _normalized.columns = [f"{col}{sep}{_c}" for _c in _normalized.columns]
+                    # Drop source col and merge in normalized. If any name
+                    # collision, drop the pre-existing one (from df).
+                    df = df.drop(columns=[col])
+                    _dupes = [_c for _c in _normalized.columns if _c in df.columns]
+                    if _dupes:
+                        df = df.drop(columns=_dupes)
+                    df = pd.concat([df, _normalized], axis=1)
+                    flattened.append(col)
+                    new_columns.extend(_normalized.columns.tolist())
+            else:
+                for col in target_cols:
+                    if col in exclude:
+                        continue
+                    df[col] = df[col].apply(
+                        lambda v: json.dumps(v, default=str) if isinstance(v, (dict, list)) else v
+                    )
+                    flattened.append(col)
 
             return Output(
                 value=df,
                 metadata={
                     "rows":              MetadataValue.int(len(df)),
                     "columns_flattened": MetadataValue.json(flattened),
-                    "columns_untouched": MetadataValue.json([c for c in df.columns if c not in flattened]),
+                    "new_columns":       MetadataValue.json(new_columns),
+                    "columns_untouched": MetadataValue.json([c for c in df.columns if c not in new_columns]),
                     "preview":           MetadataValue.md(df.head(5).to_markdown(index=False) or ""),
                 },
             )

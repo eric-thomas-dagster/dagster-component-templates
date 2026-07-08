@@ -370,6 +370,32 @@ group_name=group_name,
                 _meta_df = result.to_pandas()
             else:
                 query_expr = f"not ({condition})" if negate else condition
+
+                # Auto-backtick-quote column names that pandas.query can't
+                # parse — anything containing '.', '-', space, or leading
+                # digit. Common after dataframe_flatten_nested_columns emits
+                # `properties.mag` style columns.
+                import re as _re
+                _quoted_query = query_expr
+                for _col in upstream.columns:
+                    _c = str(_col)
+                    if (
+                        ("." in _c or "-" in _c or " " in _c or (_c and _c[0].isdigit()))
+                        and f"`{_c}`" not in _quoted_query
+                        and _c in _quoted_query
+                    ):
+                        # Word-boundary safe replace so we don't touch
+                        # substring matches inside larger identifiers.
+                        _pat = _re.compile(
+                            r"(?<![`\w.])" + _re.escape(_c) + r"(?![\w.`])"
+                        )
+                        _quoted_query = _pat.sub(f"`{_c}`", _quoted_query)
+                if _quoted_query != query_expr:
+                    context.log.info(
+                        f"filter: auto-quoted dotted/spaced column names in query: {_quoted_query!r}"
+                    )
+                query_expr = _quoted_query
+
                 try:
                     result = upstream.query(query_expr)
                 except Exception as e:

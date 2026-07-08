@@ -449,7 +449,7 @@ group_name=group_name,
             if schema_type == "customers":
                 df = _generate_customers(row_count, target_date)
             elif schema_type == "orders":
-                df = _generate_orders(row_count, target_date)
+                df = _generate_orders(row_count, target_date, self.schema_options or {})
             elif schema_type == "products":
                 df = _generate_products(row_count)
             elif schema_type == "transactions":
@@ -614,7 +614,7 @@ def _generate_customers(n: int, target_date: Optional[datetime] = None) -> pd.Da
     return pd.DataFrame(data)
 
 
-def _generate_orders(n: int, target_date: Optional[datetime] = None) -> pd.DataFrame:
+def _generate_orders(n: int, target_date: Optional[datetime] = None, opts: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
     """Generate synthetic e-commerce orders matching the Snowflake RAW.ORDERS schema.
 
     Column shape (lowercase here; ``dataframe_to_snowflake`` / ``write_pandas``
@@ -660,8 +660,12 @@ def _generate_orders(n: int, target_date: Optional[datetime] = None) -> pd.DataF
                 seconds=random.randint(0, 59),
             )
         else:
+            # Broadened default from 30 → 365 days so downstream analytics
+            # (cohort_analysis, window_calculation, ts_forecast) have real
+            # signal to work with. Override via schema_options.date_range_days.
+            _range_days = int((opts or {}).get("date_range_days", 365))
             order_date = datetime.now() - timedelta(
-                days=random.randint(0, 30),
+                days=random.randint(0, _range_days),
                 hours=random.randint(0, 23),
                 minutes=random.randint(0, 59),
                 seconds=random.randint(0, 59),

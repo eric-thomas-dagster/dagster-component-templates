@@ -5992,7 +5992,7 @@
         "inputs": "DataFrame with columns containing dicts or lists (e.g. from JSON APIs).",
         "outputs": "DataFrame with nested columns expanded \u2014 dict keys become new columns (dot-notation for nesting).",
         "side_effects": "Column count grows significantly. Original nested column may be dropped or retained per config.",
-        "anti_uses": "Not for wide \u2192 long reshape (use unpivot). Not for extracting a single field (use dataframe_extract_field)."
+        "anti_uses": "Config: columns (optional list \u2014 auto-detects nested dict cols if omitted), expand: true|false (default true \u2014 real json_normalize expand into new columns), separator: '.' (or '_'), strip_prefix: true|false (default false \u2014 set true to drop the parent column name from expanded columns; e.g. properties.mag \u2192 mag). For flattening ALL nested keys use this component. For extracting a SINGLE field use dataframe_extract_field. For array elements use array_exploder."
       }
     },
     {
@@ -25211,7 +25211,7 @@
       "agent_hints": {
         "inputs": "None (root source) \u2014 generates synthetic tabular data per `schema_type`.",
         "outputs": "DataFrame with fixed schema per schema_type. Common schemas:\n  \u2022 'customers' \u2192 customer_id, first_name, last_name, email, phone, city, state, signup_date, lifetime_value, is_active\n  \u2022 'orders' \u2192 order_id, customer_id, order_date, CATEGORY (NOT product_id), num_items, subtotal, shipping, tax, total, status, region\n  \u2022 'products' \u2192 product_id, name, category, price, cost, inventory\n  \u2022 'transactions' \u2192 txn_id, customer_id, amount, merchant, timestamp\n  \u2022 'support_tickets' \u2192 ticket_id, customer_id, subject, priority, status, created_at, resolved_at",
-        "side_effects": "Produces ONE schema per call. For multiple datasets (orders AND customers), use SEPARATE calls with different schema_type values. Order-schema DOES NOT have a 'product_id' or 'product' column \u2014 the closest analogue is 'category'.",
+        "side_effects": "Produces ONE schema per call. Default order_date range: last 365 days (was 30) \u2014 gives cohort_analysis / window_calculation / ts_forecast real signal. Override via schema_options={date_range_days: N}. For multiple datasets use SEPARATE calls with different schema_type. Never self-join synthetic tables.",
         "anti_uses": "Not for reading real files (use file_ingestion). Not for custom schemas (use a formula step after generation)."
       }
     },

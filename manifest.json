@@ -5583,6 +5583,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_io.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads a CSV from URL or local path.",
+        "outputs": "DataFrame with columns from the CSV header row.",
+        "side_effects": "None on data (read-only).",
+        "anti_uses": "For non-CSV tabular files (parquet/json/xlsx) or if you want auto-format detection, use file_ingestion instead."
       }
     },
     {
@@ -5708,6 +5714,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/adls_round_trip.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "TWO DataFrames \u2014 `left_asset_key` and `right_asset_key` referencing DIFFERENT prior assets.",
+        "outputs": "Joined DataFrame with columns from both sides. Duplicate column names get `Right_` prefix.",
+        "side_effects": "Row count changes per join type. left/right/inner/outer/cross behave per pandas.",
+        "anti_uses": "NEVER join an asset with itself (left_asset_key == right_asset_key is rejected \u2014 degenerate self-join). For UNION (row stacking) use dataframe_union instead."
       }
     },
     {
@@ -6027,6 +6039,11 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/spacex.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame.",
+        "outputs": "None (sink \u2014 writes an Excel workbook to `file_path`).",
+        "side_effects": "Writes to disk. Requires openpyxl. Slow for large frames \u2014 prefer CSV or parquet for pipelines."
       }
     },
     {
@@ -6158,6 +6175,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/books_scraper.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame.",
+        "outputs": "None (sink \u2014 writes JSON file to `file_path`).",
+        "side_effects": "Writes to disk. `orient` controls JSON shape (records|split|table|columns|index).",
+        "anti_uses": "For CSV/parquet output use respective components. Very large frames should prefer parquet."
       }
     },
     {
@@ -6342,6 +6365,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/dagster_plus_security_lake.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame.",
+        "outputs": "None (sink \u2014 writes parquet file to `file_path`).",
+        "side_effects": "Writes to disk. For MULTIPLE parquet outputs, use MULTIPLE instances with different asset_name AND file_path.",
+        "anti_uses": "For CSV output use dataframe_to_csv. Requires pyarrow (or fastparquet)."
       }
     },
     {
@@ -6673,6 +6702,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/regional_orders.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "Multiple DataFrames via `additional_asset_keys` (list of prior asset names).",
+        "outputs": "Stacked DataFrame \u2014 rows from all inputs concatenated. Column set is union of all inputs (missing columns filled with NaN).",
+        "side_effects": "Row count = sum of input rows. Column set may grow if inputs have different columns.",
+        "anti_uses": "For JOIN (matching rows by key) use dataframe_join instead. All inputs should have compatible schemas \u2014 mismatched dtypes cause silent object-dtype columns."
       }
     },
     {
@@ -10161,6 +10196,13 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/arxiv_pdf.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with columns referenced in `expressions`.",
+        "outputs": "DataFrame with NEW columns added per `expressions` mapping. Existing columns unchanged.",
+        "side_effects": "Adds N new columns (one per expression key). Does NOT rename or remove source columns.",
+        "anti_uses": "expressions is Dict[str, str] where each value is a pandas eval expression (e.g. `{month: order_date.dt.month}`). Column names in the expression must exist in upstream. For type conversion, use type_coercer.",
+        "chains_with": "Common predecessor to summarize when a group_by key needs to be derived (month from timestamp, quarter from month, etc.)."
       }
     },
     {
@@ -13970,6 +14012,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric feature columns AND a numeric target column.",
+        "outputs": "DataFrame with test-set rows + columns: ground truth, predictions, residuals.",
+        "side_effects": "sklearn dependency. OUTPUT is the test set only, not the full input.",
+        "anti_uses": "Target must be numeric/continuous. For binary classification use logistic_regression_model. Feature columns must be numeric \u2014 one-hot encode categoricals FIRST."
       }
     },
     {
@@ -15746,6 +15794,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with multiple numeric columns to bin (each independently).",
+        "outputs": "DataFrame + N new columns named per config (defaults to `<col>_bin` per binned column).",
+        "side_effects": "Adds N new columns; source columns preserved.",
+        "anti_uses": "For single-column binning use tile_binning. method values are the same (equal_width|equal_freq|custom)."
       }
     },
     {
@@ -17306,6 +17360,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/iris_unsupervised.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric feature columns.",
+        "outputs": "DataFrame with PC1..PCN columns replacing the original feature columns. Rows unchanged.",
+        "side_effects": "REMOVES the original feature columns and REPLACES with N principal components. Downstream references to original column names will KeyError.",
+        "anti_uses": "Only for numeric features \u2014 one-hot encode categoricals FIRST. Set n_components based on desired explained variance."
       }
     },
     {
@@ -17333,6 +17393,11 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/transformations.md",
         "last_validated": "2026-05-15"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a numeric time-series column, sorted by time.",
+        "outputs": "DataFrame + new column `<value_column>_pct_change` with row-over-row percent change.",
+        "side_effects": "Adds one new column. First row per group has NaN. Order sensitive \u2014 ensure input is sorted."
       }
     },
     {
@@ -17778,6 +17843,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/pivot_unpivot.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame in long format (rows contain both category + measure).",
+        "outputs": "DataFrame in wide format \u2014 `index` becomes row keys, `columns` values become NEW column headers (many new columns per unique value), aggregated `values`.",
+        "side_effects": "Reshapes rows and columns significantly. Downstream steps must reference the NEW pivoted column names, not the original `columns` field values.",
+        "anti_uses": "For long \u2192 many one-hot columns based on a category, use one_hot_encoding instead. For simple grouping without reshape, use summarize."
       }
     },
     {
@@ -19394,6 +19465,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/books_scraper.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 hits a JSON REST API endpoint.",
+        "outputs": "DataFrame constructed from the JSON response. Column names depend on the response shape.",
+        "side_effects": "None on local data. Makes an HTTP call per materialize.",
+        "anti_uses": "NOT for CSV / parquet / xlsx files at a URL \u2014 those are files, not APIs; use file_ingestion. Not for paginated APIs without configured pagination."
       }
     },
     {
@@ -20286,6 +20363,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/earthquakes.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame.",
+        "outputs": "DataFrame containing ONLY the columns listed in `columns` (in that order). Rows unchanged.",
+        "side_effects": "REMOVES all columns not in the list. Downstream steps referencing dropped columns will KeyError.",
+        "chains_with": "Useful mid-pipeline to trim before one_hot_encoding (avoid encoding label columns) or to reshape output."
       }
     },
     {
@@ -22397,6 +22480,12 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame(s) referenced in the SQL via `upstream_asset_key` (single) or `upstream_asset_keys` (multiple). Available in-query as table names.",
+        "outputs": "DataFrame from SQL result (return_dataframe=true) OR writes to a target table.",
+        "side_effects": "Depends on `return_dataframe` and target. Uses duckdb for in-memory SQL over pandas inputs.",
+        "anti_uses": "For simple filter/summarize/join, use dedicated components (they're faster and typed). Use sql_transform when you need something SQL-specific (window functions, complex joins, CTEs)."
       }
     },
     {
@@ -23211,6 +23300,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/adls_round_trip.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 generates synthetic tabular data per `schema_type`.",
+        "outputs": "DataFrame with fixed schema per schema_type. schema_type='customers' \u2192 customer_id/first_name/last_name/email/phone/city/state/signup_date/lifetime_value/is_active. schema_type='orders' \u2192 order_id/customer_id/order_date/product/quantity/price/total.",
+        "side_effects": "Produces ONE schema per call. For multiple synthetic datasets (orders AND customers), use MULTIPLE calls with different schema_type values \u2014 never join a synthetic table with itself.",
+        "anti_uses": "Not for reading real files (use file_ingestion). Not for custom schemas (use a formula step after generation)."
       }
     },
     {
@@ -24096,6 +24191,11 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/transformations.md",
         "last_validated": "2026-05-15"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with `group_by` and `order_by` columns present.",
+        "outputs": "DataFrame with the top N rows per group by the order column. Column set unchanged.",
+        "side_effects": "Reduces row count to N \u00d7 number_of_groups. Column set unchanged."
       }
     },
     {
@@ -24630,6 +24730,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/prometheus_demo.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame in wide format with multiple value columns.",
+        "outputs": "DataFrame in long format \u2014 `id_vars` preserved, `value_vars` columns collapsed into two new columns (default names 'variable' and 'value').",
+        "side_effects": "Row count multiplies by number of value_vars. Column set becomes id_vars + 2 (variable, value). Downstream references to the original value_var column names will KeyError.",
+        "anti_uses": "For wide \u2192 long with structural preservation, unpivot is right. For dropping columns, use select_columns."
       }
     },
     {
@@ -25603,6 +25709,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/window_calculation.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a numeric column + optional partition/order columns.",
+        "outputs": "DataFrame + new column with the window function result (rolling mean, lag, lead, cumulative sum, etc.).",
+        "side_effects": "Adds one new column. NaNs appear at partition boundaries depending on window function.",
+        "anti_uses": "For simple row-over-row percent change use pct_change. For group aggregations use summarize."
       }
     },
     {

@@ -174,10 +174,12 @@ if _HAS_STATE_BACKED:
         def write_state_to_path(self, state_path: Path) -> None:
             """Run the full LLM planning trajectory + cache the plan."""
             plan = self._run_full_trajectory()
+            _timing = getattr(self, "_last_timing_summary", None) or {}
             state_path.write_text(json.dumps({
                 "task": self.task,
                 "plan": plan,
                 "task_hash": hashlib.sha256(self.task.encode()).hexdigest()[:12],
+                "timing": _timing,
             }, indent=2))
 
         def build_defs_from_state(
@@ -290,15 +292,16 @@ if _HAS_STATE_BACKED:
                 else:
                     _fs = "fields=(unknown)"
 
-                # agent_hints structured metadata — authored on the manifest
-                # entry, targeted at planner LLMs. Present sparingly per key so
-                # the catalog line stays under ~500 chars.
+                # agent_hints structured metadata — only the two highest-signal
+                # fields (side_effects + anti_uses) make it into the catalog
+                # line. inputs/outputs/chains_with are useful but push prompts
+                # over gpt-4o's 30K TPM on wide filter sets.
                 _hints = c.get("agent_hints") or {}
                 _hint_bits = []
-                for _hk in ("inputs", "outputs", "side_effects", "anti_uses", "chains_with"):
+                for _hk in ("side_effects", "anti_uses"):
                     _hv = _hints.get(_hk)
                     if _hv:
-                        _hint_bits.append(f"{_hk}={str(_hv)[:120]}")
+                        _hint_bits.append(f"{_hk}={str(_hv)[:180]}")
                 _hint_str = f"  [{' | '.join(_hint_bits)}]" if _hint_bits else ""
 
                 lines.append(f"  - {c['id']}: {c.get('description', '')[:300]}  ({_fs}){_hint_str}")
@@ -375,7 +378,16 @@ if _HAS_STATE_BACKED:
             prior_dfs: Dict[str, Any] = {}
             client = self._client()
 
+            import time as _time
+            _trajectory_start = _time.time()
+            _total_llm_seconds = 0.0
+            _total_mat_seconds = 0.0
+            _iter_timings: List[Dict[str, Any]] = []
+
             for iteration in range(1, self.max_iterations + 1):
+                _iter_start = _time.time()
+                _llm_seconds = 0.0
+                _mat_seconds = 0.0
                 # DYNAMIC suffix — prior_summary changes every iteration.
                 _prior_lines = []
                 for p in picks:
@@ -394,16 +406,33 @@ if _HAS_STATE_BACKED:
 
                 planner_prompt = f"{static_prompt}\n\nPrior steps:\n{prior_summary}"
 
-                resp = client.chat.completions.create(
-                    model=self.llm_model,
-                    temperature=self.temperature,
-                    max_tokens=self.planner_max_tokens,
-                    response_format={"type": "json_object"},
-                    messages=[
-                        {"role": "system", "content": "You are an iterative agent picking real Dagster components. Reply ONLY with a single JSON object."},
-                        {"role": "user", "content": planner_prompt},
-                    ],
-                )
+                _llm_start = _time.time()
+                _attempts = 0
+                while True:
+                    try:
+                        resp = client.chat.completions.create(
+                            model=self.llm_model,
+                            temperature=self.temperature,
+                            max_tokens=self.planner_max_tokens,
+                            response_format={"type": "json_object"},
+                            messages=[
+                                {"role": "system", "content": "You are an iterative agent picking real Dagster components. Reply ONLY with a single JSON object."},
+                                {"role": "user", "content": planner_prompt},
+                            ],
+                        )
+                        break
+                    except Exception as _e:  # noqa: BLE001
+                        _attempts += 1
+                        _msg = str(_e)
+                        # Retry on rate-limit / TPM errors up to 3 times, sleeping
+                        # 20/40/60s. Any other error propagates immediately.
+                        if _attempts < 3 and ("rate_limit" in _msg.lower() or "429" in _msg or "tpm" in _msg.lower()):
+                            _wait = 20 * _attempts
+                            print(f"[planner] rate-limit hit, sleeping {_wait}s (attempt {_attempts}/3)")
+                            _time.sleep(_wait)
+                            continue
+                        raise
+                _llm_seconds = _time.time() - _llm_start
                 raw = (resp.choices[0].message.content or "").strip()
                 if raw.startswith("```"):
                     raw = raw.strip("`").split("\n", 1)[-1]
@@ -617,7 +646,9 @@ if _HAS_STATE_BACKED:
                                         _extra_assets.append(_make_source_asset(_vv, prior_dfs[_vv]))
                                         _wired.add(_vv)
 
+                    _mat_start = _time.time()
                     _mat = dg.materialize(_extra_assets + _assets, raise_on_error=False)
+                    _mat_seconds = _time.time() - _mat_start
                     if not _mat.success:
                         # Extract the underlying step exception — the LLM needs a
                         # real error to course-correct, not the DagsterExecutionStepExecutionError
@@ -668,6 +699,25 @@ if _HAS_STATE_BACKED:
                     if self.fail_on_execution_error:
                         raise
 
+                # Record iteration timing regardless of pick outcome.
+                _total_llm_seconds += _llm_seconds
+                _total_mat_seconds += _mat_seconds
+                _iter_timings.append({
+                    "iteration": iteration,
+                    "component_id": cid,
+                    "llm_s": round(_llm_seconds, 2),
+                    "mat_s": round(_mat_seconds, 2),
+                    "total_s": round(_time.time() - _iter_start, 2),
+                })
+
+            # Attach summary timing to the return value via a wrapper structure
+            # so write_state_to_path can persist it alongside `plan`.
+            self._last_timing_summary = {
+                "trajectory_total_s": round(_time.time() - _trajectory_start, 2),
+                "llm_total_s": round(_total_llm_seconds, 2),
+                "materialize_total_s": round(_total_mat_seconds, 2),
+                "per_iteration": _iter_timings,
+            }
             return picks
 
 

@@ -327,6 +327,11 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame from a specific ad-platform export (Google Ads / Facebook Ads / etc.).",
+        "outputs": "DataFrame with standardized columns: date, platform, campaign_id, campaign_name, impressions, clicks, cost, conversions.",
+        "side_effects": "Enables unified reporting across vendors."
       }
     },
     {
@@ -944,6 +949,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric feature columns.",
+        "outputs": "DataFrame + `cluster` column.",
+        "side_effects": "Simpler alias for k_means_clustering. Requires sklearn.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -2017,6 +2030,15 @@
           "pandas",
           "boto3"
         ]
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 runs a query against AWS CloudWatch Logs (Insights) log store.",
+        "outputs": "DataFrame with log/metric rows \u2014 schema depends on the query.",
+        "side_effects": "Requires aws_credentials. Query language is vendor-specific.",
+        "anti_uses": "For streaming logs use a broker-to-database ingest (kafka_to_database_asset). Not for writing.",
+        "requires_resources": [
+          "aws_credentials"
+        ]
       }
     },
     {
@@ -2052,6 +2074,15 @@
           "dagster",
           "pandas",
           "boto3"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 runs a query against AWS CloudWatch Metrics log store.",
+        "outputs": "DataFrame with log/metric rows \u2014 schema depends on the query.",
+        "side_effects": "Requires aws_credentials. Query language is vendor-specific.",
+        "anti_uses": "For streaming logs use a broker-to-database ingest (kafka_to_database_asset). Not for writing.",
+        "requires_resources": [
+          "aws_credentials"
         ]
       }
     },
@@ -2391,6 +2422,15 @@
           "azure-monitor-query",
           "isodate"
         ]
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 runs a query against Azure Log Analytics log store.",
+        "outputs": "DataFrame with log/metric rows \u2014 schema depends on the query.",
+        "side_effects": "Requires azure_credentials. Query language is vendor-specific.",
+        "anti_uses": "For streaming logs use a broker-to-database ingest (kafka_to_database_asset). Not for writing.",
+        "requires_resources": [
+          "azure_credentials"
+        ]
       }
     },
     {
@@ -2616,6 +2656,15 @@
           "pandas",
           "azure-data-tables",
           "azure-identity"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads documents/records from Azure Table Storage.",
+        "outputs": "DataFrame with columns from Azure Table Storage docs (nested fields may need dataframe_flatten_nested_columns downstream).",
+        "side_effects": "Read-only. Requires azure_credentials.",
+        "anti_uses": "For writing TO Azure Table Storage use its writer. For SQL DBs use dataframe_from_sql.",
+        "requires_resources": [
+          "azure_credentials"
         ]
       }
     },
@@ -3134,7 +3183,15 @@
         "evidence": "",
         "last_validated": "2026-05-11"
       },
-      "vendor": "Google"
+      "vendor": "Google",
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 BigQuery ML.VECTOR_SEARCH against an embedding column.",
+        "outputs": "DataFrame with nearest-neighbor matches.",
+        "requires_resources": [
+          "gcp_credentials",
+          "bigquery_resource"
+        ]
+      }
     },
     {
       "id": "bigtable_reader_asset",
@@ -3164,6 +3221,15 @@
         "level": "live",
         "evidence": "",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads documents/records from Google Bigtable.",
+        "outputs": "DataFrame with columns from Google Bigtable docs (nested fields may need dataframe_flatten_nested_columns downstream).",
+        "side_effects": "Read-only. Requires gcp_credentials.",
+        "anti_uses": "For writing TO Google Bigtable use its writer. For SQL DBs use dataframe_from_sql.",
+        "requires_resources": [
+          "gcp_credentials"
+        ]
       }
     },
     {
@@ -3371,6 +3437,15 @@
           "dagster",
           "pandas",
           "cassandra-driver"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads documents/records from Cassandra.",
+        "outputs": "DataFrame with columns from Cassandra docs (nested fields may need dataframe_flatten_nested_columns downstream).",
+        "side_effects": "Read-only. Requires cassandra_resource.",
+        "anti_uses": "For writing TO Cassandra use its writer. For SQL DBs use dataframe_from_sql.",
+        "requires_resources": [
+          "cassandra_resource"
         ]
       }
     },
@@ -3581,6 +3656,18 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 queries ChromaDB vector index by embedding or metadata filter.",
+        "outputs": "DataFrame with matched rows: (id, score, embedding, metadata columns).",
+        "side_effects": "Requires chromadb_resource.",
+        "anti_uses": "For writing TO ChromaDB use its asset writer. For local nearest-neighbor over pandas use sklearn NearestNeighbors.",
+        "requires_pip": [
+          "chromadb"
+        ],
+        "requires_resources": [
+          "chromadb_resource"
+        ]
       }
     },
     {
@@ -3872,6 +3959,15 @@
         "level": "live",
         "evidence": "",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 runs a query against Google Cloud Logging log store.",
+        "outputs": "DataFrame with log/metric rows \u2014 schema depends on the query.",
+        "side_effects": "Requires gcp_credentials. Query language is vendor-specific.",
+        "anti_uses": "For streaming logs use a broker-to-database ingest (kafka_to_database_asset). Not for writing.",
+        "requires_resources": [
+          "gcp_credentials"
+        ]
       }
     },
     {
@@ -3902,6 +3998,15 @@
         "level": "live",
         "evidence": "",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 runs a query against Google Cloud Monitoring metrics log store.",
+        "outputs": "DataFrame with log/metric rows \u2014 schema depends on the query.",
+        "side_effects": "Requires gcp_credentials. Query language is vendor-specific.",
+        "anti_uses": "For streaming logs use a broker-to-database ingest (kafka_to_database_asset). Not for writing.",
+        "requires_resources": [
+          "gcp_credentials"
+        ]
       }
     },
     {
@@ -4399,6 +4504,15 @@
           "pandas",
           "azure-cosmos"
         ]
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads documents/records from Azure Cosmos DB.",
+        "outputs": "DataFrame with columns from Azure Cosmos DB docs (nested fields may need dataframe_flatten_nested_columns downstream).",
+        "side_effects": "Read-only. Requires azure_credentials.",
+        "anti_uses": "For writing TO Azure Cosmos DB use its writer. For SQL DBs use dataframe_from_sql.",
+        "requires_resources": [
+          "azure_credentials"
+        ]
       }
     },
     {
@@ -4509,6 +4623,15 @@
           "dagster",
           "pandas",
           "requests"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads documents/records from CouchDB.",
+        "outputs": "DataFrame with columns from CouchDB docs (nested fields may need dataframe_flatten_nested_columns downstream).",
+        "side_effects": "Read-only. Requires couchdb_resource.",
+        "anti_uses": "For writing TO CouchDB use its writer. For SQL DBs use dataframe_from_sql.",
+        "requires_resources": [
+          "couchdb_resource"
         ]
       }
     },
@@ -4689,6 +4812,16 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/store_coverage.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a geometry column (shapely / geopandas).",
+        "outputs": "DataFrame with point geometries from lat/lon or x/y columns.",
+        "side_effects": "Requires shapely + geopandas.",
+        "anti_uses": "For lat/lon columns use points_from_latlon first to construct geometry.",
+        "requires_pip": [
+          "shapely",
+          "geopandas"
+        ]
       }
     },
     {
@@ -4759,6 +4892,10 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame from a CRM (Salesforce / HubSpot / Pipedrive).",
+        "outputs": "Standardized (account, contact, opportunity, activity) schema."
       }
     },
     {
@@ -5748,7 +5885,15 @@
         "last_validated": "2026-05-16"
       },
       "version": "1.0.0",
-      "author": "Dagster Community"
+      "author": "Dagster Community",
+      "agent_hints": {
+        "inputs": "None (root) \u2014 introspects source + target DBs.",
+        "outputs": "DataFrame with per-object status (auto_convertible|needs_review|will_fail), complexity, dialect_markers.",
+        "side_effects": "Dry-run of the migration. No writes. Use before database_tables_migration.",
+        "requires_resources": [
+          "database_connection"
+        ]
+      }
     },
     {
       "id": "database_query",
@@ -6454,6 +6599,11 @@
         "pip": [
           "pandas"
         ]
+      },
+      "agent_hints": {
+        "inputs": "None \u2014 you provide the data literal in the config.",
+        "outputs": "DataFrame constructed from the config's `rows` or `records`.",
+        "side_effects": "For fixture data / demos where you don't want an external source."
       }
     },
     {
@@ -6528,6 +6678,15 @@
           "pandas",
           "azure-kusto-data"
         ]
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 runs a KQL query against Azure Data Explorer.",
+        "outputs": "DataFrame from KQL result.",
+        "side_effects": "Requires azure_credentials.",
+        "anti_uses": "For writing use dataframe_to_kusto. For SQL warehouses use dataframe_from_sql.",
+        "requires_resources": [
+          "azure_credentials"
+        ]
       }
     },
     {
@@ -6564,6 +6723,12 @@
           "pandas",
           "requests"
         ]
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 runs a PromQL query.",
+        "outputs": "DataFrame of time-series samples (metric_name, value, timestamp, labels).",
+        "side_effects": "Requires prometheus_url (unauthenticated) or credentials.",
+        "anti_uses": "For writing use dataframe_to_prometheus. Prefer VictoriaMetrics for high-cardinality (dataframe_from_kusto or vm asset)."
       }
     },
     {
@@ -6638,6 +6803,15 @@
           "dagster",
           "pandas",
           "sqlalchemy"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads a full SQL table via SQLAlchemy URL.",
+        "outputs": "DataFrame with all columns from the table.",
+        "side_effects": "Read-only. Requires database_connection.",
+        "anti_uses": "For custom SQL use dataframe_from_sql. For pushdown SQL over pandas inputs use sql_transform.",
+        "requires_resources": [
+          "database_connection"
         ]
       }
     },
@@ -9061,6 +9235,13 @@
         "level": "code",
         "last_validated": "2026-05-28",
         "evidence": "build_defs + Pydantic instantiation pass; awaiting customer pilot for live"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 runs SQL against Apache Doris.",
+        "outputs": "DataFrame from query.",
+        "requires_resources": [
+          "doris_resource"
+        ]
       }
     },
     {
@@ -9367,6 +9548,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_io.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 runs SQL against a local DuckDB file.",
+        "outputs": "DataFrame from query.",
+        "side_effects": "Requires duckdb + db_path. Fast columnar in-memory OLAP.",
+        "anti_uses": "For remote warehouses use dataframe_from_sql. For writing use duckdb_table_writer.",
+        "requires_pip": [
+          "duckdb"
+        ]
       }
     },
     {
@@ -9501,6 +9691,15 @@
           "pandas",
           "boto3"
         ]
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads documents/records from DynamoDB.",
+        "outputs": "DataFrame with columns from DynamoDB docs (nested fields may need dataframe_flatten_nested_columns downstream).",
+        "side_effects": "Read-only. Requires aws_credentials.",
+        "anti_uses": "For writing TO DynamoDB use its writer. For SQL DBs use dataframe_from_sql.",
+        "requires_resources": [
+          "aws_credentials"
+        ]
       }
     },
     {
@@ -9613,6 +9812,15 @@
           "pandas",
           "requests"
         ]
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 runs a query against Dynatrace metrics log store.",
+        "outputs": "DataFrame with log/metric rows \u2014 schema depends on the query.",
+        "side_effects": "Requires dynatrace_resource. Query language is vendor-specific.",
+        "anti_uses": "For streaming logs use a broker-to-database ingest (kafka_to_database_asset). Not for writing.",
+        "requires_resources": [
+          "dynatrace_resource"
+        ]
       }
     },
     {
@@ -9679,6 +9887,10 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame from a specific e-commerce platform (Shopify / WooCommerce / Magento).",
+        "outputs": "DataFrame with standardized order schema (order_id, customer_id, product_id, quantity, price, timestamp)."
       }
     },
     {
@@ -9741,6 +9953,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/elasticsearch.md",
         "last_validated": "2026-05-14"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads documents/records from Elasticsearch.",
+        "outputs": "DataFrame with columns from Elasticsearch docs (nested fields may need dataframe_flatten_nested_columns downstream).",
+        "side_effects": "Read-only. Requires elasticsearch_resource.",
+        "anti_uses": "For writing TO Elasticsearch use its writer. For SQL DBs use dataframe_from_sql.",
+        "requires_resources": [
+          "elasticsearch_resource"
+        ]
       }
     },
     {
@@ -9983,6 +10204,10 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "Event stream DataFrame from various sources.",
+        "outputs": "Standardized (user_id, event, timestamp, properties) shape."
       }
     },
     {
@@ -11810,6 +12035,15 @@
           "pandas",
           "google-cloud-firestore"
         ]
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads documents/records from Google Firestore.",
+        "outputs": "DataFrame with columns from Google Firestore docs (nested fields may need dataframe_flatten_nested_columns downstream).",
+        "side_effects": "Read-only. Requires firestore_resource.",
+        "anti_uses": "For writing TO Google Firestore use its writer. For SQL DBs use dataframe_from_sql.",
+        "requires_resources": [
+          "firestore_resource"
+        ]
       }
     },
     {
@@ -11844,6 +12078,15 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads documents/records from Google Firestore.",
+        "outputs": "DataFrame with columns from Google Firestore docs (nested fields may need dataframe_flatten_nested_columns downstream).",
+        "side_effects": "Read-only. Requires firestore_resource.",
+        "anti_uses": "For writing TO Google Firestore use its writer. For SQL DBs use dataframe_from_sql.",
+        "requires_resources": [
+          "firestore_resource"
+        ]
       }
     },
     {
@@ -14894,6 +15137,13 @@
         "level": "live",
         "last_validated": "2026-05-19",
         "evidence": "email_roundtrip.md"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads emails from an IMAP server.",
+        "outputs": "DataFrame of emails (from, to, subject, body, timestamp).",
+        "requires_resources": [
+          "imap_resource"
+        ]
       }
     },
     {
@@ -15502,6 +15752,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric feature columns.",
+        "outputs": "DataFrame with diagnostic metrics per k (elbow / silhouette).",
+        "side_effects": "Helps pick the right k for k_means_clustering.",
+        "requires_pip": [
+          "sklearn"
+        ]
       }
     },
     {
@@ -16754,6 +17012,11 @@
         "pip": [
           "mcp"
         ]
+      },
+      "agent_hints": {
+        "inputs": "None \u2014 calls an MCP server's tool.",
+        "outputs": "DataFrame with the tool call result.",
+        "side_effects": "Requires an MCP server running + tool name."
       }
     },
     {
@@ -17578,6 +17841,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/store_coverage.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "Bounding box columns (min_lat, max_lat, min_lon, max_lon) or a bounding polygon.",
+        "outputs": "DataFrame with grid cells (polygon geometry + cell_id).",
+        "side_effects": "Row count = grid_x \u00d7 grid_y cells.",
+        "requires_pip": [
+          "shapely"
+        ]
       }
     },
     {
@@ -17754,6 +18025,10 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame from various marketing sources (email tools, CRMs).",
+        "outputs": "DataFrame with unified marketing schema (contact_id, campaign, channel, action, timestamp)."
       }
     },
     {
@@ -18337,6 +18612,15 @@
           "dagster",
           "pandas",
           "pymongo"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads documents/records from MongoDB.",
+        "outputs": "DataFrame with columns from MongoDB docs (nested fields may need dataframe_flatten_nested_columns downstream).",
+        "side_effects": "Read-only. Requires mongodb_resource.",
+        "anti_uses": "For writing TO MongoDB use its writer. For SQL DBs use dataframe_from_sql.",
+        "requires_resources": [
+          "mongodb_resource"
         ]
       }
     },
@@ -19156,6 +19440,15 @@
           "pandas",
           "neo4j"
         ]
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads documents/records from Neo4j (Cypher query result).",
+        "outputs": "DataFrame with columns from Neo4j (Cypher query result) docs (nested fields may need dataframe_flatten_nested_columns downstream).",
+        "side_effects": "Read-only. Requires neo4j_resource.",
+        "anti_uses": "For writing TO Neo4j (Cypher query result) use its writer. For SQL DBs use dataframe_from_sql.",
+        "requires_resources": [
+          "neo4j_resource"
+        ]
       }
     },
     {
@@ -19340,6 +19633,15 @@
           "dagster",
           "pandas",
           "requests"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 runs a query against New Relic (NRQL) log store.",
+        "outputs": "DataFrame with log/metric rows \u2014 schema depends on the query.",
+        "side_effects": "Requires newrelic_resource. Query language is vendor-specific.",
+        "anti_uses": "For streaming logs use a broker-to-database ingest (kafka_to_database_asset). Not for writing.",
+        "requires_resources": [
+          "newrelic_resource"
         ]
       }
     },
@@ -20547,6 +20849,11 @@
         "level": "live",
         "evidence": "",
         "last_validated": "2026-05-12"
+      },
+      "agent_hints": {
+        "inputs": "None \u2014 configured distribution + row count.",
+        "outputs": "DataFrame with generated numeric/categorical columns.",
+        "side_effects": "For statistical / model-test fixtures."
       }
     },
     {
@@ -20912,6 +21219,16 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 vector similarity query against a Postgres+pgvector table.",
+        "outputs": "DataFrame with matched rows.",
+        "requires_pip": [
+          "psycopg2"
+        ],
+        "requires_resources": [
+          "postgres_resource"
+        ]
       }
     },
     {
@@ -21059,6 +21376,18 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 queries Pinecone vector index by embedding or metadata filter.",
+        "outputs": "DataFrame with matched rows: (id, score, embedding, metadata columns).",
+        "side_effects": "Requires pinecone_resource.",
+        "anti_uses": "For writing TO Pinecone use its asset writer. For local nearest-neighbor over pandas use sklearn NearestNeighbors.",
+        "requires_pip": [
+          "pinecone"
+        ],
+        "requires_resources": [
+          "pinecone_resource"
+        ]
       }
     },
     {
@@ -21383,6 +21712,15 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-19"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame(s) \u2014 accepts pandas or polars.",
+        "outputs": "DataFrame result of a chained polars expression.",
+        "side_effects": "Uses polars lazy execution. Faster than pandas chains for CPU-bound ops on medium-large data.",
+        "anti_uses": "For simple 1-step transforms prefer the dedicated component (faster to author).",
+        "requires_pip": [
+          "polars"
+        ]
       }
     },
     {
@@ -21416,6 +21754,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-19"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads from a database via Polars (fast, columnar).",
+        "outputs": "polars DataFrame (or convert to pandas per downstream needs).",
+        "side_effects": "Requires polars + connection resource. Faster than dataframe_from_sql for large results.",
+        "requires_pip": [
+          "polars"
+        ]
       }
     },
     {
@@ -21447,6 +21793,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-19"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 lazy scan of Parquet files via Polars.",
+        "outputs": "polars LazyFrame \u2014 no data loaded until .collect().",
+        "side_effects": "Requires polars. Great for predicate pushdown to Parquet files.",
+        "requires_pip": [
+          "polars"
+        ]
       }
     },
     {
@@ -21620,7 +21974,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/precisely_address_verify/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/precisely_address_verify/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/precisely_address_verify/requirements.txt",
-      "vendor": "Precisely"
+      "vendor": "Precisely",
+      "agent_hints": {
+        "inputs": "DataFrame with address strings.",
+        "outputs": "DataFrame + verified address components + confidence score.",
+        "side_effects": "Requires Precisely API license \u2014 paid."
+      }
     },
     {
       "id": "precisely_connect_job_trigger",
@@ -21784,6 +22143,11 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with feature columns.",
+        "outputs": "DataFrame + `priority_score` column (weighted sum per config).",
+        "side_effects": "Pure pandas; no external deps."
       }
     },
     {
@@ -21884,6 +22248,10 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame of product-usage events.",
+        "outputs": "DataFrame of engagement metrics per user/feature."
       }
     },
     {
@@ -22300,6 +22668,15 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-19"
+      },
+      "agent_hints": {
+        "inputs": "Upstream DataFrame(s) or file paths.",
+        "outputs": "Spark DataFrame or the collected pandas result.",
+        "side_effects": "Spins up a Spark session \u2014 heavy. Best for data > 100M rows or when Spark cluster is already up.",
+        "anti_uses": "For < 10M rows use the pandas-based transforms. Requires pyspark.",
+        "requires_pip": [
+          "pyspark"
+        ]
       }
     },
     {
@@ -22707,6 +23084,15 @@
           "dagster",
           "pandas",
           "redis"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads documents/records from Redis (keys/values).",
+        "outputs": "DataFrame with columns from Redis (keys/values) docs (nested fields may need dataframe_flatten_nested_columns downstream).",
+        "side_effects": "Read-only. Requires redis_resource.",
+        "anti_uses": "For writing TO Redis (keys/values) use its writer. For SQL DBs use dataframe_from_sql.",
+        "requires_resources": [
+          "redis_resource"
         ]
       }
     },
@@ -26090,7 +26476,16 @@
         "level": "code",
         "last_validated": "2026-05-19"
       },
-      "vendor": "Snowflake"
+      "vendor": "Snowflake",
+      "agent_hints": {
+        "inputs": "Upstream Snowflake tables.",
+        "outputs": "Snowflake result (materialized as Snowflake asset).",
+        "side_effects": "All work happens in Snowflake compute \u2014 pandas is not involved.",
+        "anti_uses": "For non-Snowflake use polars_pipeline or pyspark_pipeline.",
+        "requires_resources": [
+          "snowflake_resource"
+        ]
+      }
     },
     {
       "id": "soda_check",
@@ -26186,6 +26581,13 @@
         "level": "live",
         "evidence": "",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 runs SQL against Google Cloud Spanner.",
+        "outputs": "DataFrame from query.",
+        "requires_resources": [
+          "gcp_credentials"
+        ]
       }
     },
     {
@@ -26219,6 +26621,14 @@
           "pandas",
           "scikit-learn",
           "numpy"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with lat/lon or geometry columns.",
+        "outputs": "DataFrame + `cluster_id` from DBSCAN or KMeans on spatial features.",
+        "requires_pip": [
+          "shapely",
+          "sklearn"
         ]
       }
     },
@@ -27196,6 +27606,10 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame of support tickets from a specific vendor (Zendesk / Freshdesk / Intercom).",
+        "outputs": "Standardized (ticket_id, requester, agent, status, priority, created_at, resolved_at) schema."
       }
     },
     {
@@ -28234,6 +28648,14 @@
           "pandas",
           "nltk"
         ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a text column.",
+        "outputs": "DataFrame + processed text (lowercased / stopwords removed / tokenized).",
+        "side_effects": "May add or replace text columns per config. Requires nltk or spacy for advanced options.",
+        "requires_pip": [
+          "nltk"
+        ]
       }
     },
     {
@@ -28595,6 +29017,14 @@
           "pandas",
           "scikit-learn",
           "nltk"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a text column.",
+        "outputs": "DataFrame + `topic_id` per document + `topic_keywords`.",
+        "side_effects": "LDA-based topic modeling. Requires scikit-learn or gensim.",
+        "requires_pip": [
+          "sklearn"
         ]
       }
     },
@@ -29394,6 +29824,15 @@
         "level": "live",
         "last_validated": "2026-05-27",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/victoriametrics.md"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 runs a query against VictoriaMetrics log store.",
+        "outputs": "DataFrame with log/metric rows \u2014 schema depends on the query.",
+        "side_effects": "Requires victoriametrics_resource. Query language is vendor-specific.",
+        "anti_uses": "For streaming logs use a broker-to-database ingest (kafka_to_database_asset). Not for writing.",
+        "requires_resources": [
+          "victoriametrics_resource"
+        ]
       }
     },
     {
@@ -29710,6 +30149,16 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads runs / artifacts / metrics from Weights & Biases.",
+        "outputs": "DataFrame of runs or artifact metadata.",
+        "requires_pip": [
+          "wandb"
+        ],
+        "requires_resources": [
+          "wandb_resource"
+        ]
       }
     },
     {
@@ -29775,6 +30224,15 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-19"
+      },
+      "agent_hints": {
+        "inputs": "SQL-side upstream table + connection resource.",
+        "outputs": "Materialized/replaced SQL table (or CTE) \u2014 unique_dedup logic runs INSIDE the warehouse.",
+        "side_effects": "Pushdown: no data leaves the warehouse. Much faster than pandas-based unique_dedup for tables > ~1M rows.",
+        "anti_uses": "For in-memory DataFrames use unique_dedup. Requires database_connection or warehouse-specific resource. Semantics match unique_dedup but syntax is SQL.",
+        "requires_resources": [
+          "database_connection"
+        ]
       }
     },
     {
@@ -29807,6 +30265,15 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-19"
+      },
+      "agent_hints": {
+        "inputs": "SQL-side upstream table + connection resource.",
+        "outputs": "Materialized/replaced SQL table (or CTE) \u2014 filter logic runs INSIDE the warehouse.",
+        "side_effects": "Pushdown: no data leaves the warehouse. Much faster than pandas-based filter for tables > ~1M rows.",
+        "anti_uses": "For in-memory DataFrames use filter. Requires database_connection or warehouse-specific resource. Semantics match filter but syntax is SQL.",
+        "requires_resources": [
+          "database_connection"
+        ]
       }
     },
     {
@@ -29839,6 +30306,15 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-19"
+      },
+      "agent_hints": {
+        "inputs": "SQL-side upstream table + connection resource.",
+        "outputs": "Materialized/replaced SQL table (or CTE) \u2014 formula logic runs INSIDE the warehouse.",
+        "side_effects": "Pushdown: no data leaves the warehouse. Much faster than pandas-based formula for tables > ~1M rows.",
+        "anti_uses": "For in-memory DataFrames use formula. Requires database_connection or warehouse-specific resource. Semantics match formula but syntax is SQL.",
+        "requires_resources": [
+          "database_connection"
+        ]
       }
     },
     {
@@ -29871,6 +30347,15 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-19"
+      },
+      "agent_hints": {
+        "inputs": "SQL-side upstream table + connection resource.",
+        "outputs": "Materialized/replaced SQL table (or CTE) \u2014 dataframe_join logic runs INSIDE the warehouse.",
+        "side_effects": "Pushdown: no data leaves the warehouse. Much faster than pandas-based dataframe_join for tables > ~1M rows.",
+        "anti_uses": "For in-memory DataFrames use dataframe_join. Requires database_connection or warehouse-specific resource. Semantics match dataframe_join but syntax is SQL.",
+        "requires_resources": [
+          "database_connection"
+        ]
       }
     },
     {
@@ -29933,6 +30418,15 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-19"
+      },
+      "agent_hints": {
+        "inputs": "SQL-side upstream table + connection resource.",
+        "outputs": "Materialized/replaced SQL table (or CTE) \u2014 multi_field_formula logic runs INSIDE the warehouse.",
+        "side_effects": "Pushdown: no data leaves the warehouse. Much faster than pandas-based multi_field_formula for tables > ~1M rows.",
+        "anti_uses": "For in-memory DataFrames use multi_field_formula. Requires database_connection or warehouse-specific resource. Semantics match multi_field_formula but syntax is SQL.",
+        "requires_resources": [
+          "database_connection"
+        ]
       }
     },
     {
@@ -29965,6 +30459,15 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-19"
+      },
+      "agent_hints": {
+        "inputs": "SQL-side upstream table + connection resource.",
+        "outputs": "Materialized/replaced SQL table (or CTE) \u2014 multi_row_formula logic runs INSIDE the warehouse.",
+        "side_effects": "Pushdown: no data leaves the warehouse. Much faster than pandas-based multi_row_formula for tables > ~1M rows.",
+        "anti_uses": "For in-memory DataFrames use multi_row_formula. Requires database_connection or warehouse-specific resource. Semantics match multi_row_formula but syntax is SQL.",
+        "requires_resources": [
+          "database_connection"
+        ]
       }
     },
     {
@@ -29997,6 +30500,15 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-19"
+      },
+      "agent_hints": {
+        "inputs": "Multiple upstream tables (list).",
+        "outputs": "A chain of pushdown SQL operations executed as one asset \u2014 like sql_transform but broken into named steps.",
+        "side_effects": "All work stays in the warehouse. Requires database_connection.",
+        "anti_uses": "For a single templated SQL query use sql_transform. For pandas chains use the individual transforms.",
+        "requires_resources": [
+          "database_connection"
+        ]
       }
     },
     {
@@ -30060,6 +30572,15 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-19"
+      },
+      "agent_hints": {
+        "inputs": "SQL-side upstream table + connection resource.",
+        "outputs": "Materialized/replaced SQL table (or CTE) \u2014 summarize logic runs INSIDE the warehouse.",
+        "side_effects": "Pushdown: no data leaves the warehouse. Much faster than pandas-based summarize for tables > ~1M rows.",
+        "anti_uses": "For in-memory DataFrames use summarize. Requires database_connection or warehouse-specific resource. Semantics match summarize but syntax is SQL.",
+        "requires_resources": [
+          "database_connection"
+        ]
       }
     },
     {
@@ -30092,6 +30613,15 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-19"
+      },
+      "agent_hints": {
+        "inputs": "SQL-side upstream table + connection resource.",
+        "outputs": "Materialized/replaced SQL table (or CTE) \u2014 top_n_per_group logic runs INSIDE the warehouse.",
+        "side_effects": "Pushdown: no data leaves the warehouse. Much faster than pandas-based top_n_per_group for tables > ~1M rows.",
+        "anti_uses": "For in-memory DataFrames use top_n_per_group. Requires database_connection or warehouse-specific resource. Semantics match top_n_per_group but syntax is SQL.",
+        "requires_resources": [
+          "database_connection"
+        ]
       }
     },
     {
@@ -30124,6 +30654,15 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-19"
+      },
+      "agent_hints": {
+        "inputs": "SQL-side upstream table + connection resource.",
+        "outputs": "Materialized/replaced SQL table (or CTE) \u2014 dataframe_union logic runs INSIDE the warehouse.",
+        "side_effects": "Pushdown: no data leaves the warehouse. Much faster than pandas-based dataframe_union for tables > ~1M rows.",
+        "anti_uses": "For in-memory DataFrames use dataframe_union. Requires database_connection or warehouse-specific resource. Semantics match dataframe_union but syntax is SQL.",
+        "requires_resources": [
+          "database_connection"
+        ]
       }
     },
     {
@@ -30614,6 +31153,16 @@
           "shapely",
           "pyproj"
         ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a geometry column (shapely / geopandas).",
+        "outputs": "DataFrame with a new column with buffered polygons around each geometry.",
+        "side_effects": "Requires shapely + geopandas.",
+        "anti_uses": "For lat/lon columns use points_from_latlon first to construct geometry.",
+        "requires_pip": [
+          "shapely",
+          "geopandas"
+        ]
       }
     },
     {
@@ -30649,6 +31198,16 @@
           "pandas",
           "geopandas",
           "shapely"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a geometry column (shapely / geopandas).",
+        "outputs": "DataFrame with simplified geometry (fewer vertices for lighter rendering).",
+        "side_effects": "Requires shapely + geopandas.",
+        "anti_uses": "For lat/lon columns use points_from_latlon first to construct geometry.",
+        "requires_pip": [
+          "shapely",
+          "geopandas"
         ]
       }
     },
@@ -30686,6 +31245,16 @@
           "pandas",
           "geopandas",
           "shapely"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a geometry column (shapely / geopandas).",
+        "outputs": "DataFrame with polygon overlay results (intersection / union / difference).",
+        "side_effects": "Requires shapely + geopandas.",
+        "anti_uses": "For lat/lon columns use points_from_latlon first to construct geometry.",
+        "requires_pip": [
+          "shapely",
+          "geopandas"
         ]
       }
     },
@@ -30727,6 +31296,12 @@
           "openrouteservice",
           "requests"
         ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with origin + destination lat/lon columns.",
+        "outputs": "DataFrame + travel_time / distance columns.",
+        "side_effects": "Requires routing API (OSRM/HERE/Google) \u2014 external call.",
+        "anti_uses": "For straight-line distance use distance_calculator (no API)."
       }
     },
     {
@@ -30833,6 +31408,16 @@
           "pandas",
           "shapely"
         ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a geometry column (shapely / geopandas).",
+        "outputs": "DataFrame with polygons constructed from ordered point sets.",
+        "side_effects": "Requires shapely + geopandas.",
+        "anti_uses": "For lat/lon columns use points_from_latlon first to construct geometry.",
+        "requires_pip": [
+          "shapely",
+          "geopandas"
+        ]
       }
     },
     {
@@ -30863,6 +31448,14 @@
           "dagster",
           "pandas",
           "geopandas",
+          "shapely"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a geometry column.",
+        "outputs": "DataFrame + columns: area, length, centroid, bounds, geom_type.",
+        "side_effects": "Adds derived columns.",
+        "requires_pip": [
           "shapely"
         ]
       }
@@ -30997,6 +31590,14 @@
       "dependencies": {
         "pip": [
           "shapely"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a geometry column.",
+        "outputs": "DataFrame with additional processed geometry (union/dissolve/etc.).",
+        "requires_pip": [
+          "shapely",
+          "geopandas"
         ]
       }
     },

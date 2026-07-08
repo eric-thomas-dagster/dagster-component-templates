@@ -54,6 +54,30 @@ _SKIP_COMMON_FIELDS = {
 }
 
 
+# OpenAI $ per 1M tokens (July 2026, as of Tier 1 published pricing).
+# `cached` is the discount rate applied to prompt_tokens_details.cached_tokens.
+_OPENAI_PRICING = {
+    "gpt-4o":        {"input": 2.50, "cached": 1.25, "output": 10.00},
+    "gpt-4o-mini":   {"input": 0.15, "cached": 0.075, "output": 0.60},
+    "gpt-4.1":       {"input": 2.00, "cached": 0.50, "output": 8.00},
+    "gpt-4.1-mini":  {"input": 0.40, "cached": 0.10, "output": 1.60},
+    "gpt-5":         {"input": 1.25, "cached": 0.125, "output": 10.00},
+    "gpt-5-mini":    {"input": 0.25, "cached": 0.025, "output": 2.00},
+}
+
+
+def _price_for(model: str) -> Dict[str, float]:
+    """Return per-1M pricing dict for the closest-matching model name."""
+    if model in _OPENAI_PRICING:
+        return _OPENAI_PRICING[model]
+    # Match on prefix (e.g. "gpt-4o-2024-08-06" → gpt-4o).
+    for _k, _v in _OPENAI_PRICING.items():
+        if model.startswith(_k):
+            return _v
+    # Unknown model → fall back to gpt-4o-mini pricing (conservative).
+    return _OPENAI_PRICING["gpt-4o-mini"]
+
+
 def _short_type(annotation) -> str:
     s = str(annotation).replace("typing.", "").replace("<class '", "").replace("'>", "")
     if s.startswith("Optional["):
@@ -196,6 +220,14 @@ if _HAS_STATE_BACKED:
         # Default None = no filtering. Components authored WITHOUT
         # requires_resources are always available (safe default).
         available_resources: Optional[List[str]] = None
+
+        # Domain-specific hints injected into the planner prompt just after the
+        # task. Give per-task context the manifest can't know: actual column
+        # value casings, size-dependent choices, business rules. E.g.:
+        #   task_hints:
+        #     - "Survived column has values 'yes'/'no' (already lowercased)."
+        #     - "For row-count over 1M prefer dataframe_to_snowflake_bulk."
+        task_hints: Optional[List[str]] = None
         fail_on_execution_error: bool = False
 
         group_name: Optional[str] = None
@@ -268,7 +300,30 @@ if _HAS_STATE_BACKED:
                     _cfg = json.loads(pick["config"]) if isinstance(pick.get("config"), str) else pick.get("config", {})
                     _inst = _cls(**_cfg)
                     _defs = _inst.build_defs(context)
-                    all_assets.extend(_defs.assets or [])
+
+                    # Attach planner-decision metadata to every asset from
+                    # this pick. Metadata surfaces in `dg dev` on the asset
+                    # detail page — no more `cat state` archaeology.
+                    _pick_meta = {
+                        "planner_component_id": dg.MetadataValue.text(pick.get("component_id") or ""),
+                        "planner_iteration": dg.MetadataValue.int(pick.get("iteration") or 0),
+                        "planner_reason": dg.MetadataValue.text(str(pick.get("reason") or "")[:1000]),
+                        "planner_output_columns": dg.MetadataValue.json(pick.get("output_columns") or []),
+                        "planner_config": dg.MetadataValue.md(
+                            f"```json\n{json.dumps((json.loads(pick['config']) if isinstance(pick.get('config'), str) else pick.get('config')) or {}, indent=2)[:1500]}\n```"
+                        ),
+                    }
+                    _decorated_assets = []
+                    for _ad in (_defs.assets or []):
+                        try:
+                            _mbk = {_k: _pick_meta for _k in _ad.keys}
+                            _ad = _ad.with_attributes(metadata_by_key=_mbk)
+                        except Exception:  # noqa: BLE001
+                            # Older Dagster or non-standard AssetsDefinition
+                            # → skip decoration, keep the raw asset.
+                            pass
+                        _decorated_assets.append(_ad)
+                    all_assets.extend(_decorated_assets)
                     _built_asset_names.append(pick.get("asset_name") or "")
                 except Exception:  # noqa: BLE001
                     continue
@@ -668,9 +723,15 @@ if _HAS_STATE_BACKED:
             # putting task + catalog + rules FIRST means iterations 2..N get a 50%
             # discount on those tokens. Only the DYNAMIC suffix (prior_summary +
             # iteration hint) changes across calls.
+            _hints_block = ""
+            if self.task_hints:
+                _hb = "\n".join(f"  - {h}" for h in self.task_hints)
+                _hints_block = f"\nAdditional task hints (domain knowledge):\n{_hb}\n"
+
             static_prompt = (
                 f"You are an iterative pipeline agent. Decide the NEXT step, or declare done.\n\n"
-                f"Task:\n{self.task}\n\n"
+                f"Task:\n{self.task}\n"
+                f"{_hints_block}\n"
                 f"Available components ({len(catalog)} shown):\n"
                 + "\n".join(lines) + "\n\n"
                 f"Output ONLY a JSON object.\nIf more work is needed:\n"
@@ -724,7 +785,12 @@ if _HAS_STATE_BACKED:
             _trajectory_start = _time.time()
             _total_llm_seconds = 0.0
             _total_mat_seconds = 0.0
+            _total_in_tokens = 0
+            _total_out_tokens = 0
+            _total_cached_tokens = 0
+            _total_cost = 0.0
             _iter_timings: List[Dict[str, Any]] = []
+            print(f"[planned_agent] trajectory START: model={self.llm_model} catalog={len(catalog)} tpm_budget={self.tpm_budget}")
 
             for iteration in range(1, self.max_iterations + 1):
                 _iter_start = _time.time()
@@ -775,6 +841,25 @@ if _HAS_STATE_BACKED:
                             continue
                         raise
                 _llm_seconds = _time.time() - _llm_start
+
+                # Token usage + cost tracking. Cached-prompt discount kicks in on
+                # iters ≥2 for gpt-4o family when the static prefix matches.
+                _usage = getattr(resp, "usage", None)
+                _in_tok = int(getattr(_usage, "prompt_tokens", 0) or 0)
+                _out_tok = int(getattr(_usage, "completion_tokens", 0) or 0)
+                _cached_tok = 0
+                _details = getattr(_usage, "prompt_tokens_details", None)
+                if _details is not None:
+                    _cached_tok = int(getattr(_details, "cached_tokens", 0) or 0)
+                _p = _price_for(self.llm_model)
+                _in_cost = ((_in_tok - _cached_tok) * _p["input"] + _cached_tok * _p["cached"]) / 1_000_000
+                _out_cost = _out_tok * _p["output"] / 1_000_000
+                _iter_cost = round(_in_cost + _out_cost, 6)
+                _total_in_tokens += _in_tok
+                _total_out_tokens += _out_tok
+                _total_cached_tokens += _cached_tok
+                _total_cost += _iter_cost
+
                 raw = (resp.choices[0].message.content or "").strip()
                 if raw.startswith("```"):
                     raw = raw.strip("`").split("\n", 1)[-1]
@@ -1044,25 +1129,58 @@ if _HAS_STATE_BACKED:
                 # Record iteration timing regardless of pick outcome.
                 _total_llm_seconds += _llm_seconds
                 _total_mat_seconds += _mat_seconds
+                _last_pick = picks[-1] if picks else {}
+                _status = _last_pick.get("status", "?")
+                _asset_name = _last_pick.get("asset_name") or "?"
                 _iter_timings.append({
                     "iteration": iteration,
                     "component_id": cid,
+                    "asset_name": _asset_name,
+                    "status": _status,
                     "llm_s": round(_llm_seconds, 2),
                     "mat_s": round(_mat_seconds, 2),
                     "total_s": round(_time.time() - _iter_start, 2),
+                    "in_tokens": _in_tok,
+                    "cached_tokens": _cached_tok,
+                    "out_tokens": _out_tok,
+                    "cost_usd": _iter_cost,
                 })
+                _mark = "✓" if _status == "success" else "✗"
+                _cache_pct = (
+                    f" cache={100*_cached_tok//_in_tok}%" if _in_tok else ""
+                )
+                print(
+                    f"[planned_agent] iter {iteration:2d}/{self.max_iterations} {_mark} "
+                    f"{cid or '?':30s} → {_asset_name:34s} "
+                    f"llm={_llm_seconds:5.1f}s mat={_mat_seconds:5.1f}s "
+                    f"tok={_in_tok+_out_tok:5d}{_cache_pct} ${_iter_cost:.4f}"
+                )
 
             # Attach summary timing to the return value via a wrapper structure
             # so write_state_to_path can persist it alongside `plan`.
+            _cache_pct = (100 * _total_cached_tokens // _total_in_tokens) if _total_in_tokens else 0
             self._last_timing_summary = {
                 "trajectory_total_s": round(_time.time() - _trajectory_start, 2),
                 "llm_total_s": round(_total_llm_seconds, 2),
                 "materialize_total_s": round(_total_mat_seconds, 2),
+                "total_input_tokens": _total_in_tokens,
+                "total_output_tokens": _total_out_tokens,
+                "total_cached_tokens": _total_cached_tokens,
+                "cache_hit_pct": _cache_pct,
+                "total_cost_usd": round(_total_cost, 4),
+                "model": self.llm_model,
                 "per_iteration": _iter_timings,
                 "tpm_budget": self.tpm_budget,
                 "catalog_trim_notes": _trim_notes,
                 "catalog_final_size": len(catalog),
             }
+            print(
+                f"[planned_agent] trajectory END: {sum(1 for p in picks if p.get('status')=='success')}/{len(picks)} picks "
+                f"in {round(_time.time() - _trajectory_start,1)}s "
+                f"(llm={round(_total_llm_seconds,1)}s mat={round(_total_mat_seconds,1)}s) "
+                f"tokens={_total_in_tokens+_total_out_tokens} cache={_cache_pct}% "
+                f"total_cost=${round(_total_cost, 4)}"
+            )
             return picks
 
 

@@ -5275,7 +5275,7 @@
         "inputs": "DataFrame with columns containing PII.",
         "outputs": "Same columns; PII values redacted/hashed/tokenized per strategy.",
         "side_effects": "Modifies values IN PLACE. Original values IRRETRIEVABLE if strategy=hash/redact.",
-        "anti_uses": "Not for schema-level column drops (use select_columns to remove sensitive columns entirely). Not reversible."
+        "anti_uses": "Config shape: rules=[{column: <col>, method: <hash|partial|redact|pseudonymize>, ...}]. The rule key is `method` NOT `strategy`. Valid methods: 'hash', 'partial' (keep_last N chars), 'redact' (replace with fixed string), 'pseudonymize' (deterministic surrogate). Not for schema-level column drops (use select_columns). Not reversible with hash/redact."
       }
     },
     {
@@ -25204,8 +25204,8 @@
       },
       "agent_hints": {
         "inputs": "None (root source) \u2014 generates synthetic tabular data per `schema_type`.",
-        "outputs": "DataFrame with fixed schema per schema_type. schema_type='customers' \u2192 customer_id/first_name/last_name/email/phone/city/state/signup_date/lifetime_value/is_active. schema_type='orders' \u2192 order_id/customer_id/order_date/product/quantity/price/total.",
-        "side_effects": "Produces ONE schema per call. For multiple synthetic datasets (orders AND customers), use MULTIPLE calls with different schema_type values \u2014 never join a synthetic table with itself.",
+        "outputs": "DataFrame with fixed schema per schema_type. Common schemas:\n  \u2022 'customers' \u2192 customer_id, first_name, last_name, email, phone, city, state, signup_date, lifetime_value, is_active\n  \u2022 'orders' \u2192 order_id, customer_id, order_date, CATEGORY (NOT product_id), num_items, subtotal, shipping, tax, total, status, region\n  \u2022 'products' \u2192 product_id, name, category, price, cost, inventory\n  \u2022 'transactions' \u2192 txn_id, customer_id, amount, merchant, timestamp\n  \u2022 'support_tickets' \u2192 ticket_id, customer_id, subject, priority, status, created_at, resolved_at",
+        "side_effects": "Produces ONE schema per call. For multiple datasets (orders AND customers), use SEPARATE calls with different schema_type values. Order-schema DOES NOT have a 'product_id' or 'product' column \u2014 the closest analogue is 'category'.",
         "anti_uses": "Not for reading real files (use file_ingestion). Not for custom schemas (use a formula step after generation)."
       }
     },

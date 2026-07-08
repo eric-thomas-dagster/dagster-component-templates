@@ -613,6 +613,13 @@ if _HAS_STATE_BACKED:
             except Exception:  # noqa: BLE001
                 _sel = []
             _sel_set = {str(x) for x in _sel}
+
+            # ALWAYS include the user's explicit include_ids in the shortlist —
+            # they asked for them by name, the prefilter must not drop them.
+            if self.include_ids:
+                _forced = set(self.include_ids)
+                _sel_set |= _forced
+
             _filtered = [c for c in catalog if c["id"] in _sel_set]
 
             _notes = [
@@ -939,11 +946,17 @@ if _HAS_STATE_BACKED:
                     })
                     break
 
-                # Exact-repeat guard: if this pick is an EXACT repeat of the
-                # last failed one (same component_id + same upstream key), reject
-                # it immediately with a hard hint — don't waste a materialize.
+                # Exact-repeat guard: if this pick is a TRUE exact repeat of the
+                # last failed one (same component_id + same upstream key + same
+                # FULL config), reject it immediately. Config changes = the LLM
+                # is legitimately retrying with a different approach — let it
+                # through.
                 _upstream_of = lambda _c: (_c or {}).get("upstream_asset_key") or (
                     (_c or {}).get("left_asset_key"), (_c or {}).get("right_asset_key")
+                )
+                _cfg_fingerprint = lambda _c: json.dumps(
+                    {k: v for k, v in (_c or {}).items() if k != "asset_name"},
+                    sort_keys=True,
                 )
                 _last_failed = next(
                     (p for p in reversed(picks) if p.get("status") == "failed"), None
@@ -955,7 +968,7 @@ if _HAS_STATE_BACKED:
                         except: _last_cfg = {}
                     if (
                         _last_failed.get("component_id") == cid
-                        and _upstream_of(_last_cfg) == _upstream_of(cfg)
+                        and _cfg_fingerprint(_last_cfg) == _cfg_fingerprint(cfg)
                     ):
                         # If the last error was a KeyError, extract the missing
                         # column name and point the LLM at the prior asset that

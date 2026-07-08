@@ -178,7 +178,9 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/adaptive_research_brief.md",
         "last_validated": "2026-07-07"
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "abinitio_job_sensor",
@@ -803,6 +805,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
       }
     },
     {
@@ -832,6 +841,14 @@
         "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/litellm_agent.md",
         "last_validated": "2026-06-04"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "anthropic",
+          "mcp"
+        ]
       }
     },
     {
@@ -956,6 +973,14 @@
         "outputs": "DataFrame + N new columns per config.",
         "side_effects": "Adds columns; does not remove existing.",
         "anti_uses": "For pandas-eval expressions use formula. For type conversion use type_coercer."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -1089,6 +1114,15 @@
         "outputs": "DataFrame with forecast rows: date, forecast, lower_ci, upper_ci.",
         "side_effects": "Requires statsmodels. Output is FUTURE forecasts, not the input rows. Order-sensitive.",
         "anti_uses": "For simple pct-change use pct_change. For non-time-series prediction use logistic_regression_model / linear_regression_model."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "statsmodels"
+        ]
       }
     },
     {
@@ -1147,6 +1181,14 @@
         "inputs": "Any DataFrame.",
         "outputs": "Same columns; rows sorted per `sort_by` and `ascending`.",
         "side_effects": "Row order changes only. No data loss."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -1179,6 +1221,14 @@
         "outputs": "DataFrame with row per array element \u2014 row count MULTIPLIES by array length.",
         "side_effects": "Row count multiplies. Original array column replaced with element column.",
         "anti_uses": "For flattening nested dicts use dataframe_flatten_nested_columns. For long \u2192 wide use pivot."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -1365,6 +1415,15 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "openai-whisper"
+        ]
       }
     },
     {
@@ -1779,6 +1838,14 @@
         "outputs": "Same rows; column dtypes optimized (numeric strings \u2192 numeric, dates \u2192 datetime, etc.).",
         "side_effects": "Modifies dtypes IN PLACE; column names unchanged.",
         "anti_uses": "For explicit typed conversion prefer type_coercer. auto_field guesses \u2014 not always right."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -1804,6 +1871,11 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/automation_condition_pipeline.md",
         "last_validated": "2026-05-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": []
       }
     },
     {
@@ -1828,6 +1900,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
       }
     },
     {
@@ -1854,7 +1933,14 @@
         "level": "code",
         "last_validated": "2026-05-11"
       },
-      "vendor": "AWS"
+      "vendor": "AWS",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      }
     },
     {
       "id": "aws_cloudtrail_ingestion",
@@ -1922,7 +2008,16 @@
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/aws_cloudwatch.md",
         "last_validated": "2026-05-11"
       },
-      "vendor": "AWS"
+      "vendor": "AWS",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "boto3"
+        ]
+      }
     },
     {
       "id": "aws_cloudwatch_metrics_query",
@@ -1949,7 +2044,16 @@
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/aws_cloudwatch.md",
         "last_validated": "2026-05-11"
       },
-      "vendor": "AWS"
+      "vendor": "AWS",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "boto3"
+        ]
+      }
     },
     {
       "id": "aws_dms",
@@ -1964,7 +2068,12 @@
         "aws",
         "dms"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "boto3",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_dms/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_dms/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_dms/schema.json",
@@ -1990,7 +2099,12 @@
         "aws",
         "glue"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "boto3",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_glue/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_glue/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_glue/schema.json",
@@ -2016,7 +2130,12 @@
         "aws",
         "kinesis"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "boto3",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_kinesis/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_kinesis/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_kinesis/schema.json",
@@ -2042,7 +2161,12 @@
         "aws",
         "redshift"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "boto3",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_redshift/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_redshift/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_redshift/schema.json",
@@ -2101,7 +2225,12 @@
         "aws",
         "sagemaker"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "boto3",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_sagemaker/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_sagemaker/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/aws_sagemaker/schema.json",
@@ -2204,7 +2333,13 @@
         "data",
         "factory"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "azure-identity",
+          "azure-mgmt-datafactory",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_data_factory/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_data_factory/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_data_factory/schema.json",
@@ -2245,7 +2380,18 @@
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_data_explorer.md",
         "last_validated": "2026-05-11"
       },
-      "vendor": "Microsoft"
+      "vendor": "Microsoft",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "azure-identity",
+          "azure-monitor-query",
+          "isodate"
+        ]
+      }
     },
     {
       "id": "azure_openai_resource",
@@ -2272,7 +2418,16 @@
         "level": "code",
         "last_validated": "2026-05-11"
       },
-      "vendor": "Microsoft"
+      "vendor": "Microsoft",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "openai",
+          "azure-identity"
+        ]
+      }
     },
     {
       "id": "azure_search_indexer",
@@ -2310,6 +2465,16 @@
         "requires_resources": [
           "azure_credentials"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "azure-search-documents",
+          "azure-identity"
+        ]
       }
     },
     {
@@ -2338,7 +2503,17 @@
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_search.md",
         "last_validated": "2026-05-06"
       },
-      "vendor": "Microsoft"
+      "vendor": "Microsoft",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "azure-search-documents",
+          "azure-identity"
+        ]
+      }
     },
     {
       "id": "azure_stream_analytics",
@@ -2354,7 +2529,13 @@
         "stream",
         "analytics"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "azure-identity",
+          "azure-mgmt-streamanalytics",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_stream_analytics/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_stream_analytics/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_stream_analytics/schema.json",
@@ -2380,7 +2561,14 @@
         "azure",
         "synapse"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "azure-identity",
+          "azure-mgmt-synapse",
+          "azure-synapse-artifacts",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_synapse/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_synapse/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/azure_synapse/schema.json",
@@ -2419,7 +2607,17 @@
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_tables.md",
         "last_validated": "2026-05-06"
       },
-      "vendor": "Microsoft"
+      "vendor": "Microsoft",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "azure-data-tables",
+          "azure-identity"
+        ]
+      }
     },
     {
       "id": "bank_statement_extractor",
@@ -3035,6 +3233,14 @@
         "inputs": "DataFrame with lat/lon columns.",
         "outputs": "DataFrame with rows within a bounding box only.",
         "side_effects": "Reduces row count."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -3157,6 +3363,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/cassandra.md",
         "last_validated": "2026-05-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "cassandra-driver"
+        ]
       }
     },
     {
@@ -3224,6 +3439,15 @@
         "anti_uses": "For local files use dataframe_to_parquet/csv/json.",
         "requires_resources": [
           "cassandra_resource"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "cassandra-driver"
         ]
       }
     },
@@ -3303,11 +3527,13 @@
         "chromadb",
         "asset"
       ],
-      "dependencies": [
-        "chromadb",
-        "openai",
-        "sqlalchemy"
-      ],
+      "dependencies": {
+        "pip": [
+          "chromadb",
+          "openai",
+          "sqlalchemy"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/chromadb_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/chromadb_asset/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/chromadb_asset/schema.json",
@@ -3804,6 +4030,13 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/bicep_self_provision.md",
         "last_validated": "2026-05-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "boto3"
+        ]
       }
     },
     {
@@ -3967,7 +4200,9 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/catalog_agent.md",
         "last_validated": "2026-07-07"
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "community_component_installer",
@@ -3992,6 +4227,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
       }
     },
     {
@@ -4114,6 +4357,15 @@
         "requires_pip": [
           "pyproj"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "pyproj"
+        ]
       }
     },
     {
@@ -4138,6 +4390,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/cosmosdb_round_trip.md",
         "last_validated": "2026-05-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "azure-cosmos"
+        ]
       }
     },
     {
@@ -4208,6 +4469,15 @@
         "requires_resources": [
           "azure_credentials"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "azure-cosmos"
+        ]
       }
     },
     {
@@ -4231,6 +4501,15 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "requests"
+        ]
       }
     },
     {
@@ -4332,6 +4611,14 @@
         "outputs": "Single-row DataFrame with a count column (or emits metadata).",
         "side_effects": "Reduces to 1 row.",
         "anti_uses": "For group-by counts use summarize with agg='count'. For per-column non-null counts use dataframe_describe."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -4432,6 +4719,15 @@
         "outputs": "DataFrame with N sampled rows (random or stratified).",
         "side_effects": "Reduces row count. For stratified samples, column set unchanged.",
         "anti_uses": "For train/test split use train_test_splitter. For top-N use top_n_per_group."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn"
+        ]
       }
     },
     {
@@ -4555,6 +4851,14 @@
         "outputs": "DataFrame in wide crosstab shape \u2014 row keys \u00d7 column values with counts/aggregations.",
         "side_effects": "Reshapes rows and columns significantly. Downstream must reference new pivoted names.",
         "anti_uses": "For groupby aggregation use summarize. For long \u2192 wide with values use pivot."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -4585,6 +4889,15 @@
         "outputs": "DataFrame with per-fold scores + summary statistics.",
         "side_effects": "Requires sklearn. Runs the model N times.",
         "anti_uses": "Not for hyperparameter tuning (use grid_search or similar). For a single train/test split use the model component directly."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn"
+        ]
       }
     },
     {
@@ -4613,6 +4926,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/cube_query.md",
         "last_validated": "2026-07-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests",
+          "pandas",
+          "tabulate"
+        ]
       }
     },
     {
@@ -5026,6 +5348,13 @@
         "level": "live",
         "evidence": "Validated against otel/opentelemetry-collector-contrib in Docker \u2014 4 envelopes received with correct Sum/Gauge data points and resource attrs.",
         "last_validated": "2026-06-04"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
       }
     },
     {
@@ -5053,6 +5382,11 @@
         "level": "live",
         "evidence": "Validated against graphiteapp/graphite-statsd in Docker \u2014 tagged metrics (env/job/status/step) confirmed via graphite tag index.",
         "last_validated": "2026-06-04"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": []
       }
     },
     {
@@ -5213,6 +5547,14 @@
         "outputs": "Same columns; string values trimmed and case-normalized in the specified `columns`.",
         "side_effects": "Modifies VALUES (not names) IN PLACE. IMPORTANT: if `columns` is omitted or empty, normalize_case applies to ALL string columns INCLUDING target/label columns \u2014 a downstream `filter` condition like \"Survived == 'Yes'\" will then match ZERO rows because values are now 'yes'. Either list `columns` explicitly (excluding labels) or match the normalized case in downstream filters.",
         "anti_uses": "Not for renaming columns. Not for schema coercion (use type_coercer). Do NOT omit `columns` if you plan to filter on a string label column downstream."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -5239,6 +5581,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/ai_with_llm.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "litellm"
+        ]
       }
     },
     {
@@ -5309,7 +5660,9 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/data_doctor.md",
         "last_validated": "2026-07-07"
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "database_constraints_migration",
@@ -5354,7 +5707,9 @@
         "requires_resources": [
           "database_connection"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "database_migration_assessment",
@@ -5391,7 +5746,9 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/warehouse_migration.md",
         "last_validated": "2026-05-16"
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "database_query",
@@ -5477,7 +5834,9 @@
         "requires_resources": [
           "database_connection"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "database_schema_inventory",
@@ -5522,7 +5881,9 @@
         "requires_resources": [
           "database_connection"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "database_tables_migration",
@@ -5568,7 +5929,9 @@
         "requires_resources": [
           "database_connection"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "database_view_migration",
@@ -5608,7 +5971,9 @@
         "requires_resources": [
           "database_connection"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "database_views_migration",
@@ -5652,7 +6017,9 @@
         "requires_resources": [
           "database_connection"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "databricks_genie_query",
@@ -5677,6 +6044,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-04"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests",
+          "pandas"
+        ]
       }
     },
     {
@@ -5693,7 +6068,13 @@
         "asset",
         "bundle"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "databricks-sdk",
+          "dagster",
+          "pyyaml"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_asset_bundle/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_asset_bundle/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_asset_bundle/schema.json",
@@ -5819,7 +6200,12 @@
         "databricks",
         "workspace"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "databricks-sdk",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_workspace/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_workspace/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_workspace/schema.json",
@@ -5925,6 +6311,14 @@
         "outputs": "DataFrame with statistical summary per column (count, mean, std, min, quartiles, max for numeric; unique/top/freq for categorical).",
         "side_effects": "REDUCES rows to ~8 (summary stats). Column set becomes per-input-column stats.",
         "anti_uses": "Not for filtering (use filter). Not for group-by aggregation (use summarize). This is the pandas .describe() output as an asset."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -6018,6 +6412,15 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-05"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "yxdb",
+          "import-yxdb"
+        ]
       }
     },
     {
@@ -6044,6 +6447,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-05"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
       }
     },
     {
@@ -6074,6 +6484,14 @@
         "outputs": "DataFrame with columns from the CSV header row.",
         "side_effects": "None on data (read-only).",
         "anti_uses": "For non-CSV tabular files (parquet/json/xlsx) or if you want auto-format detection, use file_ingestion instead."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -6101,6 +6519,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_data_explorer.md",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "azure-kusto-data"
+        ]
       }
     },
     {
@@ -6128,6 +6555,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/prometheus_demo.md",
         "last_validated": "2026-05-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "requests"
+        ]
       }
     },
     {
@@ -6161,6 +6597,15 @@
         "requires_resources": [
           "database_connection"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "sqlalchemy"
+        ]
       }
     },
     {
@@ -6185,6 +6630,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_postgres.md",
         "last_validated": "2026-05-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "sqlalchemy"
+        ]
       }
     },
     {
@@ -6214,6 +6668,14 @@
         "outputs": "Joined DataFrame with columns from both sides. Duplicate column names get `Right_` prefix.",
         "side_effects": "Row count changes per join type. left/right/inner/outer/cross behave per pandas.",
         "anti_uses": "NEVER join an asset with itself (left_asset_key == right_asset_key is rejected \u2014 degenerate self-join). For UNION (row stacking) use dataframe_union instead."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -6245,6 +6707,16 @@
         "anti_uses": "For AWS use dataframe_to_s3 (or a specific parquet variant). For local files use dataframe_to_parquet/csv/json.",
         "requires_resources": [
           "azure_credentials"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "adlfs",
+          "pyarrow"
         ]
       }
     },
@@ -6278,6 +6750,15 @@
         "outputs": "None (sink \u2014 writes Avro file).",
         "side_effects": "Writes to disk. Requires fastavro. Schema is inferred from DataFrame dtypes.",
         "anti_uses": "For parquet use dataframe_to_parquet. Avro is column-agnostic; downstream tools must have compatible schema handling."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "fastavro",
+          "fsspec"
+        ]
       }
     },
     {
@@ -6315,6 +6796,16 @@
         "requires_resources": [
           "azure_credentials"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "azure-data-tables",
+          "azure-identity"
+        ]
       }
     },
     {
@@ -6346,6 +6837,16 @@
         "anti_uses": "For loading files from GCS to BigQuery use bigquery_load_from_gcs_asset. For reading FROM BQ use bigquery_query_asset.",
         "requires_resources": [
           "bigquery_resource"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "google-cloud-bigquery",
+          "db-dtypes"
         ]
       }
     },
@@ -6416,6 +6917,14 @@
         "outputs": "None (sink \u2014 writes file to `file_path` and returns Output(value=None)).",
         "side_effects": "Writes to `file_path` on disk. For MULTIPLE CSV outputs, use MULTIPLE instances with different asset_name AND file_path values.",
         "anti_uses": "Not for reading (use file_ingestion). Not for parquet/JSON/excel (use dataframe_to_parquet/json/excel)."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -6447,6 +6956,15 @@
         "anti_uses": "For writing to Delta on ADLS/S3 directly use dataframe_to_delta_table. For Snowflake use dataframe_to_snowflake.",
         "requires_resources": [
           "databricks_resource"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "databricks-sql-connector"
         ]
       }
     },
@@ -6484,6 +7002,15 @@
         "anti_uses": "For Iceberg use dataframe_to_iceberg_table. For Databricks specifically use dataframe_to_databricks (typed).",
         "requires_resources": [
           "storage_resource"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "deltalake",
+          "pyarrow",
+          "pandas"
         ]
       }
     },
@@ -6561,6 +7088,15 @@
         "requires_resources": [
           "dynatrace_resource"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "requests"
+        ]
       }
     },
     {
@@ -6595,6 +7131,15 @@
         "requires_resources": [
           "azure_credentials"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "azure-eventhub"
+        ]
       }
     },
     {
@@ -6623,6 +7168,15 @@
         "inputs": "Any DataFrame.",
         "outputs": "None (sink \u2014 writes an Excel workbook to `file_path`).",
         "side_effects": "Writes to disk. Requires openpyxl. Slow for large frames \u2014 prefer CSV or parquet for pipelines."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "openpyxl"
+        ]
       }
     },
     {
@@ -6661,6 +7215,16 @@
         "requires_resources": [
           "azure_credentials"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "deltalake",
+          "azure-identity"
+        ]
       }
     },
     {
@@ -6692,6 +7256,16 @@
         "anti_uses": "For BigQuery table writes use dataframe_to_bigquery. For local files use dataframe_to_parquet/csv/json.",
         "requires_resources": [
           "gcp_credentials"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "gcsfs",
+          "pyarrow"
         ]
       }
     },
@@ -6726,6 +7300,15 @@
         "anti_uses": "For Delta Lake use dataframe_to_delta_table. For reading FROM Iceberg use iceberg_ingestion.",
         "requires_resources": [
           "iceberg_catalog"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pyiceberg",
+          "pyarrow",
+          "pandas"
         ]
       }
     },
@@ -6796,6 +7379,14 @@
         "outputs": "None (sink \u2014 writes JSON file to `file_path`).",
         "side_effects": "Writes to disk. `orient` controls JSON shape (records|split|table|columns|index).",
         "anti_uses": "For CSV/parquet output use respective components. Very large frames should prefer parquet."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -6832,6 +7423,16 @@
         "requires_resources": [
           "azure_credentials"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "azure-kusto-data",
+          "azure-kusto-ingest"
+        ]
       }
     },
     {
@@ -6867,6 +7468,15 @@
         "requires_resources": [
           "newrelic_resource"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "requests"
+        ]
       }
     },
     {
@@ -6898,6 +7508,14 @@
         "outputs": "None (sink \u2014 POSTs entities to an OData endpoint).",
         "side_effects": "One entity per row. Requires OData endpoint + auth.",
         "anti_uses": "For reading FROM OData use odata_ingestion."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests",
+          "pandas"
+        ]
       }
     },
     {
@@ -6931,6 +7549,16 @@
         "outputs": "None (sink \u2014 sends via OpenTelemetry OTLP protocol to a collector).",
         "side_effects": "Requires otlp_endpoint. Vendor-agnostic (works with any OTLP-compatible backend).",
         "anti_uses": "For metrics use dataframe_to_otlp_metrics. For traces use dataframe_to_otlp_traces."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "opentelemetry-sdk",
+          "opentelemetry-exporter-otlp-proto-http"
+        ]
       }
     },
     {
@@ -6963,6 +7591,16 @@
         "inputs": "DataFrame of metric samples (metric_name, value, timestamp, labels).",
         "outputs": "None (sink \u2014 sends metrics via OTLP).",
         "side_effects": "Requires otlp_endpoint. Vendor-agnostic."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "opentelemetry-sdk",
+          "opentelemetry-exporter-otlp-proto-http"
+        ]
       }
     },
     {
@@ -6996,6 +7634,16 @@
         "inputs": "DataFrame of span records.",
         "outputs": "None (sink \u2014 sends traces via OTLP).",
         "side_effects": "Requires otlp_endpoint. Vendor-agnostic."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "opentelemetry-sdk",
+          "opentelemetry-exporter-otlp-proto-http"
+        ]
       }
     },
     {
@@ -7025,6 +7673,15 @@
         "outputs": "None (sink \u2014 writes parquet file to `file_path`).",
         "side_effects": "Writes to disk. For MULTIPLE parquet outputs, use MULTIPLE instances with different asset_name AND file_path.",
         "anti_uses": "For CSV output use dataframe_to_csv. Requires pyarrow (or fastparquet)."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "pyarrow"
+        ]
       }
     },
     {
@@ -7058,6 +7715,15 @@
         "outputs": "None (sink \u2014 pushes metrics to Prometheus).",
         "side_effects": "Requires pushgateway URL. Metric names normalized per Prometheus conventions.",
         "anti_uses": "For querying Prometheus use dataframe_from_prometheus. For high-cardinality events use dataframe_to_influxdb."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "prometheus_client"
+        ]
       }
     },
     {
@@ -7090,6 +7756,16 @@
         "requires_resources": [
           "redshift_resource"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "sqlalchemy",
+          "psycopg2-binary"
+        ]
       }
     },
     {
@@ -7119,6 +7795,17 @@
         "anti_uses": "For local files use dataframe_to_parquet/csv/json. For ADLS use dataframe_to_adls.",
         "requires_resources": [
           "aws_credentials"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "boto3",
+          "s3fs",
+          "pyarrow"
         ]
       }
     },
@@ -7198,6 +7885,15 @@
         "requires_resources": [
           "azure_credentials"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "azure-servicebus"
+        ]
       }
     },
     {
@@ -7229,6 +7925,15 @@
         "anti_uses": "For reading FROM Snowflake use dataframe_from_sql or a snowflake source component. For BigQuery use dataframe_to_bigquery. Not for local file output.",
         "requires_resources": [
           "snowflake_resource"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "snowflake-connector-python[pandas]"
         ]
       }
     },
@@ -7274,7 +7979,9 @@
         "requires_resources": [
           "snowflake_resource"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "dataframe_to_starrocks",
@@ -7346,6 +8053,15 @@
         "anti_uses": "For typed vendor sinks (Snowflake/BigQuery/Databricks) prefer the vendor-specific components \u2014 better dtype handling and faster.",
         "requires_resources": [
           "database_connection"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "sqlalchemy"
         ]
       }
     },
@@ -7448,6 +8164,14 @@
         "outputs": "Stacked DataFrame \u2014 rows from all inputs concatenated. Column set is union of all inputs (missing columns filled with NaN).",
         "side_effects": "Row count = sum of input rows. Column set may grow if inputs have different columns.",
         "anti_uses": "For JOIN (matching rows by key) use dataframe_join instead. All inputs should have compatible schemas \u2014 mismatched dtypes cause silent object-dtype columns."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -7472,6 +8196,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
       }
     },
     {
@@ -7531,6 +8262,14 @@
         "outputs": "Same DataFrame with the parsed column converted to datetime dtype (or a NEW datetime column added).",
         "side_effects": "May modify existing column dtype OR add new column, per config. Failed parses become NaT.",
         "anti_uses": "For type coercion of multiple columns use type_coercer. Not for date arithmetic (use formula)."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -7654,6 +8393,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-dbt"
+        ]
       }
     },
     {
@@ -7716,6 +8463,15 @@
         "requires_pip": [
           "sklearn"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn"
+        ]
       }
     },
     {
@@ -7752,6 +8508,15 @@
         "anti_uses": "For writing to Delta use dataframe_to_delta_table. For Iceberg use iceberg_ingestion.",
         "requires_resources": [
           "storage_resource"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "deltalake",
+          "pyarrow",
+          "pandas"
         ]
       }
     },
@@ -7915,6 +8680,15 @@
         "side_effects": "Adds column. Requires shapely / pyproj / geopy depending on config.",
         "requires_pip": [
           "shapely"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "geopy"
         ]
       }
     },
@@ -8142,6 +8916,17 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "transformers",
+          "Pillow",
+          "torch"
+        ]
       }
     },
     {
@@ -8168,6 +8953,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/transformations.md",
         "last_validated": "2026-05-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -8399,6 +9192,14 @@
         "requires_resources": [
           "dremio_resource"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests",
+          "pandas"
+        ]
       }
     },
     {
@@ -8426,6 +9227,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/llm_execution.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dspy-ai",
+          "pandas"
+        ]
       }
     },
     {
@@ -8683,7 +9492,16 @@
         "level": "code",
         "last_validated": "2026-05-11"
       },
-      "vendor": "AWS"
+      "vendor": "AWS",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "boto3"
+        ]
+      }
     },
     {
       "id": "dynamodb_resource",
@@ -8751,6 +9569,15 @@
         "requires_resources": [
           "aws_credentials"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "boto3"
+        ]
       }
     },
     {
@@ -8777,6 +9604,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/newrelic_dynatrace.md",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "requests"
+        ]
       }
     },
     {
@@ -8804,6 +9640,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/newrelic_dynatrace.md",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
       }
     },
     {
@@ -8850,11 +9694,13 @@
         "elasticsearch",
         "asset"
       ],
-      "dependencies": [
-        "elasticsearch>=8.0",
-        "pandas",
-        "sqlalchemy"
-      ],
+      "dependencies": {
+        "pip": [
+          "elasticsearch>=8.0",
+          "pandas",
+          "sqlalchemy"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/elasticsearch_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/elasticsearch_asset/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/elasticsearch_asset/schema.json",
@@ -8955,6 +9801,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/transformations.md",
         "last_validated": "2026-05-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -9005,7 +9859,13 @@
         "quality",
         "checks"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "numpy",
+          "scipy"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/enhanced_data_quality_checks/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/enhanced_data_quality_checks/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/enhanced_data_quality_checks/schema.json",
@@ -9081,6 +9941,15 @@
         "side_effects": "Good baseline for seasonal data. Requires statsmodels.",
         "anti_uses": "For ARIMA use arima_forecast. For covariate models use ts_covariate_forecast.",
         "requires_pip": [
+          "statsmodels"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
           "statsmodels"
         ]
       }
@@ -9211,6 +10080,15 @@
           "azure_credentials",
           "database_connection"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "azure-eventhub",
+          "pandas",
+          "sqlalchemy"
+        ]
       }
     },
     {
@@ -9280,7 +10158,7 @@
       "id": "external_cube_metric",
       "name": "External Cube Metric",
       "vendor": "Cube",
-      "category": "external_assets",
+      "category": "external",
       "description": "Declare a Cube semantic-layer measure or dimension as an external Dagster asset. Pair with cube_query_asset.",
       "path": "external_assets/external_cube_metric",
       "tags": [
@@ -9300,6 +10178,11 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/cube_query.md",
         "last_validated": "2026-07-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": []
       }
     },
     {
@@ -9448,7 +10331,12 @@
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
         "last_validated": "2026-05-14"
       },
-      "vendor": "Databricks"
+      "vendor": "Databricks",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": []
+      }
     },
     {
       "id": "external_doris_table",
@@ -9561,6 +10449,11 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-22"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": []
       }
     },
     {
@@ -9585,6 +10478,11 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
         "last_validated": "2026-05-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": []
       }
     },
     {
@@ -9731,7 +10629,12 @@
         "level": "code",
         "last_validated": "2026-05-22"
       },
-      "vendor": "Precisely"
+      "vendor": "Precisely",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": []
+      }
     },
     {
       "id": "external_pubsub_asset",
@@ -9999,7 +10902,12 @@
         "level": "code",
         "last_validated": "2026-05-22"
       },
-      "vendor": "Snowflake"
+      "vendor": "Snowflake",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": []
+      }
     },
     {
       "id": "external_snowflake_table",
@@ -10146,7 +11054,16 @@
         "level": "code",
         "last_validated": "2026-05-11"
       },
-      "vendor": "Microsoft"
+      "vendor": "Microsoft",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "azure-identity",
+          "requests"
+        ]
+      }
     },
     {
       "id": "fabric_lakehouse_io_manager",
@@ -10175,7 +11092,16 @@
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
         "last_validated": "2026-05-11"
       },
-      "vendor": "Microsoft"
+      "vendor": "Microsoft",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "deltalake"
+        ]
+      }
     },
     {
       "id": "fabric_lakehouse_resource",
@@ -10203,7 +11129,14 @@
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
         "last_validated": "2026-05-11"
       },
-      "vendor": "Microsoft"
+      "vendor": "Microsoft",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      }
     },
     {
       "id": "fabric_pipeline_trigger_job",
@@ -10230,7 +11163,16 @@
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
         "last_validated": "2026-05-11"
       },
-      "vendor": "Microsoft"
+      "vendor": "Microsoft",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "azure-identity",
+          "requests"
+        ]
+      }
     },
     {
       "id": "fabric_workspace",
@@ -10257,7 +11199,16 @@
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
         "last_validated": "2026-05-11"
       },
-      "vendor": "Microsoft"
+      "vendor": "Microsoft",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "azure-identity",
+          "requests"
+        ]
+      }
     },
     {
       "id": "fabric_workspace_resource",
@@ -10284,7 +11235,16 @@
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
         "last_validated": "2026-05-11"
       },
-      "vendor": "Microsoft"
+      "vendor": "Microsoft",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "azure-identity",
+          "requests"
+        ]
+      }
     },
     {
       "id": "face_detector",
@@ -10308,6 +11268,15 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "opencv-python"
+        ]
       }
     },
     {
@@ -10395,9 +11364,11 @@
         "feast",
         "asset"
       ],
-      "dependencies": [
-        "feast"
-      ],
+      "dependencies": {
+        "pip": [
+          "feast"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/feast_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/feast_asset/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/feast_asset/schema.json",
@@ -10438,6 +11409,15 @@
         "outputs": "Same DataFrame with scaled features (StandardScaler / MinMaxScaler / RobustScaler).",
         "side_effects": "Modifies values IN PLACE. Requires sklearn.",
         "anti_uses": "For outlier clipping use outlier_clipper. Not for imputation."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "numpy"
+        ]
       }
     },
     {
@@ -10498,6 +11478,14 @@
         "outputs": "DataFrame with a new schema (columns renamed / dropped / transformed per map).",
         "side_effects": "Column set changes. Downstream references must use TARGET names.",
         "anti_uses": "For simple renames use dynamic_rename. For value transforms use formula."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -10633,6 +11621,14 @@
         "outputs": "Same columns; fewer rows. Preserves column order and dtypes.",
         "side_effects": "Reduces row count; column set unchanged. If the condition matches 0 rows, the step succeeds but writes an EMPTY output \u2014 check upstream data values (case, whitespace, type) when this happens.",
         "anti_uses": "condition is a Python-style expression evaluated with pandas eval. Column names must exist in upstream. Value CASE matters: if `data_cleansing` with normalize_case=lower ran upstream, string values are now lowercase \u2014 use `condition: \"Survived == 'yes'\"` (not 'Yes'). For case-insensitive match, use `Survived.str.lower() == 'yes'`."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -10662,6 +11658,14 @@
         "outputs": "Same DataFrame; values substituted per rules.",
         "side_effects": "Modifies values IN PLACE. Regex- or literal-mode per config.",
         "anti_uses": "For column dtype changes use type_coercer. For missing values use imputation."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -10797,6 +11801,15 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "google-cloud-firestore"
+        ]
       }
     },
     {
@@ -10898,6 +11911,15 @@
         "anti_uses": "For local files use dataframe_to_parquet/csv/json.",
         "requires_resources": [
           "firestore_resource"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "google-cloud-firestore"
         ]
       }
     },
@@ -11088,6 +12110,14 @@
         "side_effects": "Adds N new columns (one per expression key). Does NOT rename or remove source columns.",
         "anti_uses": "expressions is Dict[str, str] where each value is a pandas eval expression (e.g. `{month: order_date.dt.month}`). Column names in the expression must exist in upstream. For type conversion, use type_coercer.",
         "chains_with": "Common predecessor to summarize when a group_by key needs to be derived (month from timestamp, quarter from month, etc.)."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -11253,6 +12283,14 @@
         "outputs": "DataFrame with match candidates + similarity scores.",
         "side_effects": "Row expansion (each left row may have multiple candidate matches). Requires rapidfuzz.",
         "anti_uses": "For exact joins use dataframe_join. Cross-join semantics \u2014 expensive on large inputs."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -11638,6 +12676,14 @@
         "level": "code",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/litellm_agent.md",
         "last_validated": "2026-06-04"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "google-genai",
+          "mcp"
+        ]
       }
     },
     {
@@ -11739,6 +12785,14 @@
         "outputs": "DataFrame with N synthetic rows appended (or replacing).",
         "side_effects": "Row count increases. For test-data generation.",
         "anti_uses": "For realistic synthetic data (customer/orders schemas) use synthetic_data_generator instead."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -12186,7 +13240,13 @@
         "google",
         "bigquery"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "google-cloud-bigquery",
+          "google-cloud-bigquery-datatransfer",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_bigquery/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_bigquery/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_bigquery/schema.json",
@@ -12257,7 +13317,12 @@
         "cloud",
         "functions"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "google-cloud-functions",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_functions/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_functions/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_functions/schema.json",
@@ -12284,7 +13349,12 @@
         "run",
         "jobs"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "google-cloud-run",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_run_jobs/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_run_jobs/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_cloud_run_jobs/schema.json",
@@ -12309,7 +13379,12 @@
         "google",
         "dataflow"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "google-cloud-dataflow-client",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_dataflow/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_dataflow/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_dataflow/schema.json",
@@ -12334,7 +13409,12 @@
         "google",
         "datastream"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "google-cloud-datastream",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_datastream/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_datastream/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_datastream/schema.json",
@@ -12449,7 +13529,12 @@
         "google",
         "pubsub"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "google-cloud-pubsub",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_pubsub/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_pubsub/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_pubsub/schema.json",
@@ -12547,7 +13632,12 @@
         "google",
         "vertex"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "google-cloud-aiplatform",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_vertex_ai/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_vertex_ai/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/google_vertex_ai/schema.json",
@@ -12592,6 +13682,15 @@
         "requires_pip": [
           "sklearn"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn"
+        ]
       }
     },
     {
@@ -12607,11 +13706,13 @@
         "graphql",
         "asset"
       ],
-      "dependencies": [
-        "requests",
-        "pandas",
-        "sqlalchemy"
-      ],
+      "dependencies": {
+        "pip": [
+          "requests",
+          "pandas",
+          "sqlalchemy"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/graphql_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/graphql_asset/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/graphql_asset/schema.json",
@@ -12754,6 +13855,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
       }
     },
     {
@@ -12778,6 +13887,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
       }
     },
     {
@@ -12902,6 +14018,15 @@
         "outputs": "DataFrame + parsed elements (text, tables, links, meta) as new columns.",
         "side_effects": "Adds columns. Requires beautifulsoup4 / lxml.",
         "anti_uses": "For plain-text extraction use markdown_stripper. For document ingestion use document_ingestion."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "beautifulsoup4"
+        ]
       }
     },
     {
@@ -13136,7 +14261,9 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-22"
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "huggingface_dataset_asset",
@@ -13165,7 +14292,9 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-22"
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "huggingface_inference_endpoint",
@@ -13194,7 +14323,9 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-22"
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "huggingface_model_asset",
@@ -13223,7 +14354,9 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-22"
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "huggingface_pipeline",
@@ -13252,7 +14385,9 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-22"
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "huggingface_space_status_sensor",
@@ -13281,7 +14416,9 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-22"
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "huggingface_text_to_image",
@@ -13311,7 +14448,9 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-22"
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "iceberg_catalog_resource",
@@ -13335,6 +14474,13 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lakehouse_local.md",
         "last_validated": "2026-05-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pyiceberg"
+        ]
       }
     },
     {
@@ -13373,6 +14519,15 @@
         "anti_uses": "For writing to Iceberg use dataframe_to_iceberg_table. For Delta use delta_ingestion.",
         "requires_resources": [
           "iceberg_catalog"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pyiceberg",
+          "pyarrow",
+          "pandas"
         ]
       }
     },
@@ -13463,6 +14618,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/multimodal_ai.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "litellm"
+        ]
       }
     },
     {
@@ -13487,6 +14651,17 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "transformers",
+          "Pillow",
+          "torch"
+        ]
       }
     },
     {
@@ -13543,6 +14718,16 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/multimodal_ai.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "litellm",
+          "Pillow"
+        ]
       }
     },
     {
@@ -13569,6 +14754,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vision_pipeline.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "Pillow"
+        ]
       }
     },
     {
@@ -13593,6 +14787,17 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "transformers",
+          "Pillow",
+          "torch"
+        ]
       }
     },
     {
@@ -13618,6 +14823,17 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "transformers",
+          "Pillow",
+          "torch"
+        ]
       }
     },
     {
@@ -13706,6 +14922,14 @@
         "outputs": "Same columns; nulls in the listed `columns` filled per strategy.",
         "side_effects": "Modifies values IN PLACE; column names unchanged.",
         "anti_uses": "Not for type conversion (use type_coercer). Not for dropping rows with nulls (use unique_dedup with keep or filter)."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -13763,6 +14987,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/llm_execution.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "instructor",
+          "openai",
+          "pandas"
+        ]
       }
     },
     {
@@ -13822,6 +15055,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/enterprise_saas.md",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
       }
     },
     {
@@ -13873,6 +15114,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/document_extractors.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "litellm"
+        ]
       }
     },
     {
@@ -13938,7 +15188,9 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/iterative_supervisor_agent.md",
         "last_validated": "2026-07-07"
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "jira_ingestion",
@@ -14103,6 +15355,14 @@
         "outputs": "DataFrame with nested JSON expanded into columns (dot-notation for nesting).",
         "side_effects": "Column count grows. Original JSON column may be dropped.",
         "anti_uses": "For dataframe-native nested columns use dataframe_flatten_nested_columns. For array elements use array_exploder."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -14135,6 +15395,15 @@
         "outputs": "DataFrame + a NEW column containing the JSONPath result per row.",
         "side_effects": "Adds one column. Original JSON preserved.",
         "anti_uses": "For full flattening use json_flatten. For dict access on already-parsed dicts use dataframe_extract_field."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "jsonpath-ng"
+        ]
       }
     },
     {
@@ -14161,6 +15430,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/notebooks.md",
         "last_validated": "2026-05-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "papermill",
+          "ipykernel"
+        ]
       }
     },
     {
@@ -14255,6 +15533,15 @@
         "anti_uses": "For hierarchical or density-based clustering use spatial_cluster. For diagnostics use k_centroids_diagnostics.",
         "requires_pip": [
           "sklearn"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn"
         ]
       }
     },
@@ -14419,6 +15706,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/key_vault.md",
         "last_validated": "2026-05-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "azure-identity",
+          "azure-keyvault-secrets"
+        ]
       }
     },
     {
@@ -14445,6 +15741,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/ai_no_llm.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn"
+        ]
       }
     },
     {
@@ -14541,6 +15846,15 @@
           "aws_credentials",
           "database_connection"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "boto3",
+          "pandas",
+          "sqlalchemy"
+        ]
       }
     },
     {
@@ -14572,6 +15886,14 @@
         "outputs": "Same DataFrame with the encoded columns replaced by integer codes (0..N-1).",
         "side_effects": "REPLACES source column values with integers. Original strings LOST unless preserved separately.",
         "anti_uses": "For binary or few-value categoricals with a natural ordering only. For nominal categoricals use one_hot_encoding."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -14587,9 +15909,11 @@
         "lakefs",
         "asset"
       ],
-      "dependencies": [
-        "requests"
-      ],
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lakefs_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lakefs_asset/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/lakefs_asset/schema.json",
@@ -14702,6 +16026,16 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/llm_execution.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "langchain-core",
+          "langchain-openai",
+          "pandas",
+          "sqlalchemy"
+        ]
       }
     },
     {
@@ -14730,6 +16064,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/langgraph_agent.md",
         "last_validated": "2026-07-02"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "langgraph",
+          "langchain-core",
+          "langchain-openai"
+        ]
       }
     },
     {
@@ -14755,6 +16098,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/ai_no_llm.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "langdetect"
+        ]
       }
     },
     {
@@ -14856,6 +16208,14 @@
         "requires_pip": [
           "sklearn"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -14882,6 +16242,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/lineage_catalogs.md",
         "last_validated": "2026-05-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
       }
     },
     {
@@ -14917,6 +16285,14 @@
         "requires_resources": [
           "alation_resource"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
       }
     },
     {
@@ -14951,6 +16327,14 @@
         "anti_uses": "For consuming lineage FROM Collibra into Dagster catalog assets, use a dedicated source (if available).",
         "requires_resources": [
           "collibra_resource"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
         ]
       }
     },
@@ -15029,6 +16413,14 @@
         "requires_resources": [
           "datahub_resource"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
       }
     },
     {
@@ -15061,6 +16453,14 @@
         "outputs": "None (sink \u2014 writes lineage records to a file per config format).",
         "side_effects": "Writes to `file_path`. Format: json / csv / OpenLineage per config.",
         "anti_uses": "For catalog-native push use lineage_to_<catalog>. For programmatic delivery use lineage_to_webhook."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
       }
     },
     {
@@ -15136,6 +16536,14 @@
         "requires_resources": [
           "azure_credentials"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
       }
     },
     {
@@ -15167,6 +16575,14 @@
         "inputs": "DataFrame of lineage records.",
         "outputs": "None (sink \u2014 POSTs lineage payloads to a webhook URL).",
         "side_effects": "One POST per row (or batched per config)."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
       }
     },
     {
@@ -15225,6 +16641,15 @@
         "outputs": "DataFrame with test-set rows + columns: ground truth, predictions, residuals.",
         "side_effects": "sklearn dependency. OUTPUT is the test set only, not the full input.",
         "anti_uses": "Target must be numeric/continuous. For binary classification use logistic_regression_model. Feature columns must be numeric \u2014 one-hot encode categoricals FIRST."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn"
+        ]
       }
     },
     {
@@ -15322,6 +16747,13 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/litellm_agent.md",
         "last_validated": "2026-06-04"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "mcp"
+        ]
       }
     },
     {
@@ -15359,7 +16791,9 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/mcp_tool_picker.md",
         "last_validated": "2026-07-07"
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "litellm_agent",
@@ -15387,6 +16821,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/litellm_agent.md",
         "last_validated": "2026-06-04"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "litellm",
+          "mcp"
+        ]
       }
     },
     {
@@ -15413,6 +16855,14 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "litellm",
+          "pandas"
+        ]
       }
     },
     {
@@ -15440,6 +16890,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/llm_execution.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "litellm",
+          "pandas"
+        ]
       }
     },
     {
@@ -15467,6 +16925,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/multimodal_ai.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "litellm",
+          "pandas"
+        ]
       }
     },
     {
@@ -15495,6 +16961,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/llm_execution.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "litellm",
+          "pandas"
+        ]
       }
     },
     {
@@ -15521,6 +16995,14 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "litellm",
+          "pandas"
+        ]
       }
     },
     {
@@ -15547,6 +17029,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/litellm_multi_provider.md",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "litellm",
+          "pandas",
+          "sqlalchemy"
+        ]
       }
     },
     {
@@ -15575,6 +17066,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/llm_execution.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "litellm",
+          "pandas"
+        ]
       }
     },
     {
@@ -15631,6 +17130,13 @@
         "level": "live",
         "evidence": "Live-validated against the dagster_plus_agent_run output \u2014 all 4 evaluations (answer_relevance, helpfulness, harmfulness, coherence) scored with sensible 0.0-1.0 values + reasons.",
         "last_validated": "2026-06-04"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "litellm"
+        ]
       }
     },
     {
@@ -15692,6 +17198,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/llm_execution.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "litellm",
+          "pandas"
+        ]
       }
     },
     {
@@ -15881,6 +17395,15 @@
         "outputs": "DataFrame with test-set rows + columns: ground truth (target_column), predictions, and probabilities.",
         "side_effects": "sklearn dependency. Uses test_size for held-out split; the OUTPUT is the test set only, not the full input.",
         "anti_uses": "Target must be binary/0-1. Not for regression (use linear_regression_model). Feature columns must be numeric \u2014 one-hot encode categoricals FIRST."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn"
+        ]
       }
     },
     {
@@ -16013,6 +17536,14 @@
         "outputs": "Same rows + N new columns per config.",
         "side_effects": "Adds columns. Doesn't remove existing.",
         "anti_uses": "For pandas-eval expressions use formula. For type conversion use type_coercer."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -16143,6 +17674,16 @@
         "outputs": "Same DataFrame with the column's markdown syntax stripped to plain text.",
         "side_effects": "Modifies values IN PLACE.",
         "anti_uses": "For HTML use html_parser. For source truth preservation, add as a new column via formula."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "markdown",
+          "beautifulsoup4"
+        ]
       }
     },
     {
@@ -16239,6 +17780,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/enterprise_saas.md",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
       }
     },
     {
@@ -16462,6 +18011,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "mlflow"
+        ]
       }
     },
     {
@@ -16519,6 +18075,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "modal"
+        ]
       }
     },
     {
@@ -16591,6 +18155,15 @@
         "side_effects": "Requires sklearn.",
         "requires_pip": [
           "sklearn"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn"
         ]
       }
     },
@@ -16756,6 +18329,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/mongodb.md",
         "last_validated": "2026-05-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "pymongo"
+        ]
       }
     },
     {
@@ -16822,6 +18404,15 @@
         "anti_uses": "For SQL DBs use dataframe_to_table.",
         "requires_resources": [
           "mongodb_resource"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "pymongo"
         ]
       }
     },
@@ -16982,6 +18573,15 @@
         "requires_resources": [
           "mqtt_resource",
           "database_connection"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "paho-mqtt",
+          "pandas",
+          "sqlalchemy"
         ]
       }
     },
@@ -17147,6 +18747,15 @@
         "outputs": "DataFrame + N new columns from N expressions (all evaluated on the same row).",
         "side_effects": "Adds columns; doesn't remove.",
         "anti_uses": "For single-column formula use formula. For row-window calculations use multi_row_formula."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "numpy"
+        ]
       }
     },
     {
@@ -17177,6 +18786,14 @@
         "outputs": "DataFrame + a NEW column derived from adjacent-row values (running sum, diff, lag, lead, etc.).",
         "side_effects": "Adds column. Order-sensitive \u2014 needs sorted input.",
         "anti_uses": "For per-row formula use formula. For simple pct change use pct_change. For general window ops use window_calculation."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -17351,6 +18968,15 @@
         "requires_pip": [
           "sklearn"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn"
+        ]
       }
     },
     {
@@ -17447,6 +19073,15 @@
           "nats_resource",
           "database_connection"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "nats-py",
+          "pandas",
+          "sqlalchemy"
+        ]
       }
     },
     {
@@ -17479,6 +19114,15 @@
         "requires_pip": [
           "sklearn"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn"
+        ]
       }
     },
     {
@@ -17503,6 +19147,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/neo4j.md",
         "last_validated": "2026-05-14"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "neo4j"
+        ]
       }
     },
     {
@@ -17602,6 +19255,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/github_jsonpath.md",
         "last_validated": "2026-05-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -17636,6 +19297,15 @@
         "requires_pip": [
           "sklearn"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn"
+        ]
       }
     },
     {
@@ -17662,6 +19332,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/newrelic_dynatrace.md",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "requests"
+        ]
       }
     },
     {
@@ -17689,6 +19368,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/newrelic_dynatrace.md",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
       }
     },
     {
@@ -17859,6 +19546,14 @@
         "outputs": "DataFrame from JSON response.",
         "side_effects": "Handles token refresh. Requires oauth_config (client_id, client_secret, token_url, scopes).",
         "anti_uses": "For unauthenticated / API-key auth use rest_api_fetcher. For GraphQL use graphql_asset."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests",
+          "pandas"
+        ]
       }
     },
     {
@@ -17887,6 +19582,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-13"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
       }
     },
     {
@@ -17942,6 +19644,16 @@
       "validation": {
         "level": "live",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "pytesseract",
+          "Pillow"
+        ]
       }
     },
     {
@@ -18026,6 +19738,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-13"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
       }
     },
     {
@@ -18064,6 +19783,14 @@
         "outputs": "DataFrame with columns from the OData entity set.",
         "side_effects": "None on local data. Requires OData endpoint URL + auth.",
         "anti_uses": "For generic REST APIs use rest_api_fetcher. For SharePoint file lists use msgraph-specific patterns."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests",
+          "pandas"
+        ]
       }
     },
     {
@@ -18090,6 +19817,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-13"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
       }
     },
     {
@@ -18157,6 +19891,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/ollama.md",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests",
+          "pandas",
+          "sqlalchemy"
+        ]
       }
     },
     {
@@ -18188,6 +19931,14 @@
         "side_effects": "REMOVES the source `columns` and adds MANY new `<col>_<value>` columns. Any downstream step referencing the original column name will fail with KeyError \u2014 branch pre-encoding data off an earlier step for summarize/group_by/filter on the original column.",
         "anti_uses": "Not for ordinal encoding (use label_encoder or a formula step).",
         "chains_with": "Typical successor to tile_binning; typical predecessor to logistic_regression_model."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -18216,6 +19967,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/litellm_agent.md",
         "last_validated": "2026-06-04"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "openai",
+          "mcp"
+        ]
       }
     },
     {
@@ -18310,6 +20069,16 @@
         "outputs": "DataFrame from the response, typed per the OpenAPI schema.",
         "side_effects": "Type safety from the spec. Requires openapi_spec_url + auth.",
         "anti_uses": "For generic REST use rest_api_fetcher."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests",
+          "pyyaml",
+          "pandas",
+          "sqlalchemy"
+        ]
       }
     },
     {
@@ -18512,6 +20281,14 @@
         "outputs": "Same columns and dtypes; extreme values clipped to bounds.",
         "side_effects": "Modifies numeric column values IN PLACE; column names unchanged.",
         "anti_uses": "Only 'iqr', 'zscore', or 'percentile' are valid for strategy. NOT 'clip'."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -18543,6 +20320,16 @@
         "side_effects": "Row count grows. Use for imbalanced classification training. Requires imblearn.",
         "requires_pip": [
           "imblearn"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn",
+          "imbalanced-learn"
         ]
       }
     },
@@ -18785,6 +20572,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/nlp_utilities.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "spacy"
+        ]
       }
     },
     {
@@ -18813,6 +20609,15 @@
         "outputs": "DataFrame with PC1..PCN columns replacing the original feature columns. Rows unchanged.",
         "side_effects": "REMOVES the original feature columns and REPLACES with N principal components. Downstream references to original column names will KeyError.",
         "anti_uses": "Only for numeric features \u2014 one-hot encode categoricals FIRST. Set n_components based on desired explained variance."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn"
+        ]
       }
     },
     {
@@ -18845,6 +20650,14 @@
         "inputs": "DataFrame with a numeric time-series column, sorted by time.",
         "outputs": "DataFrame + new column `<value_column>_pct_change` with row-over-row percent change.",
         "side_effects": "Adds one new column. First row per group has NaN. Order sensitive \u2014 ensure input is sorted."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -18877,6 +20690,15 @@
         "outputs": "DataFrame with extracted text (per page or per document).",
         "side_effects": "Requires pypdf / pdfplumber. Adds text columns; row count may grow (per page).",
         "anti_uses": "For OCR use a dedicated OCR component. For DOCX use document_ingestion."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "pdfplumber"
+        ]
       }
     },
     {
@@ -19028,12 +20850,14 @@
         "pgvector",
         "asset"
       ],
-      "dependencies": [
-        "openai",
-        "pgvector",
-        "sqlalchemy",
-        "psycopg2-binary"
-      ],
+      "dependencies": {
+        "pip": [
+          "openai",
+          "pgvector",
+          "sqlalchemy",
+          "psycopg2-binary"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pgvector_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pgvector_asset/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pgvector_asset/schema.json",
@@ -19114,6 +20938,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/ai_no_llm.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "presidio-analyzer"
+        ]
       }
     },
     {
@@ -19141,6 +20974,16 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/ai_no_llm.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "presidio-analyzer",
+          "presidio-anonymizer"
+        ]
       }
     },
     {
@@ -19175,6 +21018,15 @@
         ],
         "requires_resources": [
           "pinecone_resource"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pinecone-client",
+          "pandas"
         ]
       }
     },
@@ -19378,6 +21230,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/enterprise_saas.md",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
       }
     },
     {
@@ -19415,7 +21275,9 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/planned_catalog_agent.md",
         "last_validated": "2026-07-07"
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "point_in_polygon",
@@ -19446,6 +21308,15 @@
         "side_effects": "Adds column. Requires shapely.",
         "anti_uses": "For nearest-polygon (not containment) use spatial_join with a distance metric.",
         "requires_pip": [
+          "shapely"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
           "shapely"
         ]
       }
@@ -19608,6 +21479,13 @@
         "anti_uses": "For direct writes with Dagster-managed lineage prefer the dedicated dataframe_to_<destination>.",
         "requires_resources": [
           "polytomic_resource"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
         ]
       }
     },
@@ -19862,6 +21740,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_nlp.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "litellm"
+        ]
       }
     },
     {
@@ -20203,6 +22090,15 @@
           "gcp_credentials",
           "database_connection"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "google-cloud-pubsub",
+          "pandas",
+          "sqlalchemy"
+        ]
       }
     },
     {
@@ -20299,6 +22195,15 @@
           "pulsar_resource",
           "database_connection"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pulsar-client",
+          "pandas",
+          "sqlalchemy"
+        ]
       }
     },
     {
@@ -20323,6 +22228,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
       }
     },
     {
@@ -20578,6 +22490,15 @@
           "rabbitmq_resource",
           "database_connection"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pika",
+          "pandas",
+          "sqlalchemy"
+        ]
       }
     },
     {
@@ -20646,6 +22567,15 @@
         "requires_pip": [
           "sklearn"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn"
+        ]
       }
     },
     {
@@ -20674,6 +22604,14 @@
         "outputs": "DataFrame + a NEW rank column (per group if group_by set).",
         "side_effects": "Adds one column. Ties handled per config (dense/min/max/first).",
         "anti_uses": "For top-N filtering use top_n_per_group. For sort-only use arrange."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -20729,6 +22667,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -20753,6 +22699,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_redis.md",
         "last_validated": "2026-05-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "redis"
+        ]
       }
     },
     {
@@ -20886,6 +22841,15 @@
           "redis_resource",
           "database_connection"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "redis",
+          "pandas",
+          "sqlalchemy"
+        ]
       }
     },
     {
@@ -20919,6 +22883,15 @@
         "anti_uses": "For general key-value with schema use a SQL DB. For pub/sub use redis_streams_to_database_asset upstream.",
         "requires_resources": [
           "redis_resource"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "redis"
         ]
       }
     },
@@ -21018,6 +22991,14 @@
         "outputs": "DataFrame + N new columns (one per named group).",
         "side_effects": "Adds columns. Non-matching rows get NaN in extracted columns.",
         "anti_uses": "For structured JSON use json_flatten/json_path_extractor. For delimited splits use text_to_columns."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -21189,6 +23170,15 @@
         "outputs": "DataFrame + address string / components columns.",
         "side_effects": "Requires an external geocoding API.",
         "requires_pip": [
+          "geopy"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
           "geopy"
         ]
       }
@@ -21380,6 +23370,14 @@
         "outputs": "DataFrame + a NEW running-total column (per group if group_by set).",
         "side_effects": "Adds column. Order-sensitive.",
         "anti_uses": "For non-cumulative aggregations use summarize."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -21721,6 +23719,14 @@
         "outputs": "DataFrame with random N rows (or fraction).",
         "side_effects": "Reduces row count. Not deterministic unless random_state set.",
         "anti_uses": "For stratified samples use create_samples. For train/test split use train_test_splitter."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -21747,6 +23753,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-13"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
       }
     },
     {
@@ -21773,6 +23786,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-13"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
       }
     },
     {
@@ -21807,6 +23827,16 @@
         "requires_resources": [
           "sap_hana_resource"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "sqlalchemy",
+          "sqlalchemy-hana",
+          "hdbcli",
+          "pandas"
+        ]
       }
     },
     {
@@ -21834,6 +23864,16 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/sap_hana.md",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sqlalchemy",
+          "sqlalchemy-hana",
+          "hdbcli"
+        ]
       }
     },
     {
@@ -21873,6 +23913,14 @@
         "requires_resources": [
           "sap_rfc_resource"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pyrfc",
+          "pandas"
+        ]
       }
     },
     {
@@ -21900,6 +23948,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-13"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pyrfc"
+        ]
       }
     },
     {
@@ -21997,6 +24052,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_nlp.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "litellm"
+        ]
       }
     },
     {
@@ -22029,6 +24093,15 @@
         "outputs": "Same DataFrame (or raises on validation failure per config).",
         "side_effects": "Read-only \u2014 pass-through if valid; raises otherwise. Adds no columns.",
         "anti_uses": "For type coercion use type_coercer. For null checks use imputation."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "jsonschema"
+        ]
       }
     },
     {
@@ -22092,6 +24165,14 @@
         "outputs": "DataFrame containing ONLY the columns listed in `columns` (in that order). Rows unchanged.",
         "side_effects": "REMOVES all columns not in the list. Downstream steps referencing dropped columns will KeyError.",
         "chains_with": "Useful mid-pipeline to trim before one_hot_encoding (avoid encoding label columns) or to reshape output."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -22250,6 +24331,15 @@
           "azure_credentials",
           "database_connection"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "azure-servicebus",
+          "pandas",
+          "sqlalchemy"
+        ]
       }
     },
     {
@@ -22291,7 +24381,9 @@
         "requires_resources": [
           "servicenow_resource"
         ]
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "servicenow_resource",
@@ -22320,7 +24412,9 @@
       },
       "validation": {
         "level": "code"
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "servicenow_sensor",
@@ -23192,7 +25286,12 @@
         "monitoring",
         "data-quality"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_alert/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_alert/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_alert/schema.json",
@@ -23230,6 +25329,16 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-04"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests",
+          "mcp",
+          "PyJWT",
+          "cryptography"
+        ]
       }
     },
     {
@@ -23246,10 +25355,12 @@
         "cortex",
         "asset"
       ],
-      "dependencies": [
-        "snowflake-connector-python",
-        "snowflake-sqlalchemy"
-      ],
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python",
+          "snowflake-sqlalchemy"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/snowflake_cortex_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/snowflake_cortex_asset/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/snowflake_cortex_asset/schema.json",
@@ -23278,7 +25389,12 @@
         "vector-search",
         "llm"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python",
+          "dagster"
+        ]
+      },
       "icon": "si:snowflake",
       "validation": {
         "level": "code",
@@ -23306,7 +25422,12 @@
         "materialized",
         "refresh"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_dynamic_table/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_dynamic_table/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_dynamic_table/schema.json",
@@ -23322,7 +25443,7 @@
     {
       "id": "snowflake_dynamic_table_refresh_asset",
       "name": "Snowflake Dynamic Table Refresh Asset",
-      "category": "data-warehouse",
+      "category": "data_warehouse",
       "description": "Materialize by ALTER DYNAMIC TABLE ... REFRESH on a named Snowflake dynamic table.",
       "path": "assets/data-warehouse/snowflake_dynamic_table_refresh_asset",
       "tags": [
@@ -23347,7 +25468,9 @@
           "snowflake-connector-python>=3.0.0"
         ]
       },
-      "vendor": "Snowflake"
+      "vendor": "Snowflake",
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "snowflake_iceberg_table",
@@ -23364,7 +25487,12 @@
         "open-table-format",
         "ddl"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python",
+          "dagster"
+        ]
+      },
       "icon": "si:snowflake",
       "validation": {
         "level": "code",
@@ -23426,7 +25554,12 @@
         "enterprise",
         "aggregation"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_materialized_view/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_materialized_view/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_materialized_view/schema.json",
@@ -23467,7 +25600,9 @@
           "snowflake-connector-python>=3.0.0"
         ]
       },
-      "vendor": "Snowflake"
+      "vendor": "Snowflake",
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "snowflake_polars_io_manager",
@@ -23584,7 +25719,12 @@
         "ingestion",
         "copy-into"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_snowpipe/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_snowpipe/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_snowpipe/schema.json",
@@ -23613,7 +25753,11 @@
         "auto-ingest",
         "ingestion"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_snowpipe_load_sensor/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_snowpipe_load_sensor/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/snowflake_snowpipe_load_sensor/schema.json",
@@ -23641,7 +25785,12 @@
         "snowpark",
         "python"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_stored_procedure/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_stored_procedure/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_stored_procedure/schema.json",
@@ -23657,7 +25806,7 @@
     {
       "id": "snowflake_stored_procedure_call_asset",
       "name": "Snowflake Stored Procedure Call Asset",
-      "category": "data-warehouse",
+      "category": "data_warehouse",
       "description": "Materialize by CALL on a named Snowflake stored procedure. Single-entity counterpart to snowflake_workspace.",
       "path": "assets/data-warehouse/snowflake_stored_procedure_call_asset",
       "tags": [
@@ -23682,7 +25831,9 @@
           "snowflake-connector-python>=3.0.0"
         ]
       },
-      "vendor": "Snowflake"
+      "vendor": "Snowflake",
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "snowflake_stream",
@@ -23699,7 +25850,12 @@
         "cdc",
         "change-data-capture"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_stream/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_stream/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_stream/schema.json",
@@ -23758,7 +25914,12 @@
         "orchestration",
         "scheduling"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_task/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_task/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_task/schema.json",
@@ -23799,12 +25960,14 @@
           "snowflake-connector-python>=3.0.0"
         ]
       },
-      "vendor": "Snowflake"
+      "vendor": "Snowflake",
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "snowflake_task_execute_asset",
       "name": "Snowflake Task Execute Asset",
-      "category": "data-warehouse",
+      "category": "data_warehouse",
       "description": "Materialize by EXECUTE TASK on a named Snowflake task. Single-entity counterpart to snowflake_workspace.",
       "path": "assets/data-warehouse/snowflake_task_execute_asset",
       "tags": [
@@ -23829,7 +25992,9 @@
           "snowflake-connector-python>=3.0.0"
         ]
       },
-      "vendor": "Snowflake"
+      "vendor": "Snowflake",
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "snowflake_time_travel_asset",
@@ -23846,7 +26011,12 @@
         "rollback",
         "historical-query"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python",
+          "dagster"
+        ]
+      },
       "icon": "si:snowflake",
       "validation": {
         "level": "code",
@@ -23872,7 +26042,12 @@
         "snowflake",
         "workspace"
       ],
-      "dependencies": [],
+      "dependencies": {
+        "pip": [
+          "snowflake-connector-python",
+          "dagster"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_workspace/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_workspace/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_workspace/schema.json",
@@ -23973,6 +26148,14 @@
         "outputs": "Same DataFrame; rows sorted per config.",
         "side_effects": "Row order changes; no data loss.",
         "anti_uses": "For top-N use top_n_per_group. Same as `arrange` \u2014 pick one."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -24027,6 +26210,16 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/airports_cluster.md",
         "last_validated": "2026-05-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn",
+          "numpy"
+        ]
       }
     },
     {
@@ -24059,6 +26252,16 @@
         "anti_uses": "For attribute joins use dataframe_join.",
         "requires_pip": [
           "geopandas"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "geopandas",
+          "shapely"
         ]
       }
     },
@@ -24193,6 +26396,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_nlp.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "litellm"
+        ]
       }
     },
     {
@@ -24284,6 +26496,14 @@
         "requires_resources": [
           "database_connection"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "sqlalchemy"
+        ]
       }
     },
     {
@@ -24322,7 +26542,9 @@
         "outputs": "DataFrame from SQL result (return_dataframe=true) OR writes to a target table.",
         "side_effects": "Depends on `return_dataframe` and target. Uses duckdb for in-memory SQL over pandas inputs.",
         "anti_uses": "For simple filter/summarize/join, use dedicated components (they're faster and typed). Use sql_transform when you need something SQL-specific (window functions, complex joins, CTEs)."
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "sqs_monitor",
@@ -24458,6 +26680,14 @@
         "requires_resources": [
           "ssh_resource"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "paramiko"
+        ]
       }
     },
     {
@@ -24547,6 +26777,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "boto3"
+        ]
       }
     },
     {
@@ -24749,6 +26986,14 @@
         "outputs": "DataFrame with columns: group_by keys + one column per aggregation.",
         "side_effects": "REDUCES rows to one per group. Column set changes: only group_by keys + aggs remain.",
         "anti_uses": "group_by columns MUST exist in the upstream. aggregations shape: {'<output_name>': {'col': '<source_col>', 'agg': 'sum|mean|count|min|max|std|median|first|last'}}. For ANY 'group by X, sum/count/mean Y' task \u2014 USE summarize, not count_records + formula. count_records only gives a grand total; formula only computes per-row values \u2014 neither does group-by aggregation. If upstream was one_hot_encoded, branch off pre-encoded upstream."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -24986,7 +27231,9 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/supervisor_agent.md",
         "last_validated": "2026-07-07"
-      }
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "surrogate_key",
@@ -25053,6 +27300,15 @@
         "side_effects": "Requires lifelines. For customer churn timing, medical time-to-event, etc.",
         "anti_uses": "For simple binary churn use churn_prediction / logistic_regression_model.",
         "requires_pip": [
+          "lifelines"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
           "lifelines"
         ]
       }
@@ -25125,7 +27381,16 @@
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/fabric_full_stack.md",
         "last_validated": "2026-05-11"
       },
-      "vendor": "Microsoft"
+      "vendor": "Microsoft",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "azure-identity",
+          "requests"
+        ]
+      }
     },
     {
       "id": "synthetic_audio_generator",
@@ -25176,6 +27441,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/nlp_utilities.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "litellm"
+        ]
       }
     },
     {
@@ -25374,9 +27648,11 @@
         "tecton",
         "asset"
       ],
-      "dependencies": [
-        "tecton-client"
-      ],
+      "dependencies": {
+        "pip": [
+          "tecton-client"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/tecton_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/tecton_asset/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/tecton_asset/schema.json",
@@ -25411,6 +27687,13 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/bicep_self_provision.md",
         "last_validated": "2026-05-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
       }
     },
     {
@@ -25436,6 +27719,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
       }
     },
     {
@@ -25464,6 +27754,13 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_signal_query.md",
         "last_validated": "2026-07-02"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "temporalio"
+        ]
       }
     },
     {
@@ -25492,6 +27789,13 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_signal_query.md",
         "last_validated": "2026-07-02"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "temporalio"
+        ]
       }
     },
     {
@@ -25520,13 +27824,22 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/supabase_rag.md",
         "last_validated": "2026-07-07"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "openai",
+          "pandas",
+          "tabulate"
+        ]
       }
     },
     {
       "id": "vercel_deployment_sensor",
       "name": "Vercel Deployment Sensor",
       "vendor": "Vercel",
-      "category": "sensors",
+      "category": "sensor",
       "description": "Poll Vercel for deployment state, emit AssetMaterialization/Observation on READY, and fire a Dagster job. Optionally fire on ERROR for alert flows.",
       "path": "sensors/vercel_deployment_sensor",
       "tags": [
@@ -25547,13 +27860,20 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vercel_deployment.md",
         "last_validated": "2026-07-02"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
       }
     },
     {
       "id": "external_vercel_deployment",
       "name": "External Vercel Deployment",
       "vendor": "Vercel",
-      "category": "external_assets",
+      "category": "external",
       "description": "Declare a Vercel project's deployment stream as an external Dagster asset. Pair with vercel_deployment_sensor.",
       "path": "external_assets/external_vercel_deployment",
       "tags": [
@@ -25573,6 +27893,11 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vercel_deployment.md",
         "last_validated": "2026-07-02"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": []
       }
     },
     {
@@ -25603,6 +27928,14 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vercel_ai_gateway_agent.md",
         "last_validated": "2026-07-02"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "openai",
+          "mcp"
+        ]
       }
     },
     {
@@ -25630,13 +27963,20 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_workflow.md",
         "last_validated": "2026-07-02"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "temporalio"
+        ]
       }
     },
     {
       "id": "temporal_workflow_sensor",
       "name": "Temporal Workflow Sensor",
       "vendor": "Temporal",
-      "category": "sensors",
+      "category": "sensor",
       "description": "Poll Temporal for terminal workflow status via the temporalio SDK and fire a Dagster job + optional AssetMaterialization/Observation. Pairs with external_temporal_workflow or temporal_workflow_trigger.",
       "path": "sensors/temporal_workflow_sensor",
       "tags": [
@@ -25657,13 +27997,20 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_workflow.md",
         "last_validated": "2026-07-02"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "temporalio"
+        ]
       }
     },
     {
       "id": "external_temporal_workflow",
       "name": "External Temporal Workflow",
       "vendor": "Temporal",
-      "category": "external_assets",
+      "category": "external",
       "description": "Declare a Temporal Workflow as an external Dagster asset. Pair with temporal_workflow_sensor when Temporal owns the schedule.",
       "path": "external_assets/external_temporal_workflow",
       "tags": [
@@ -25683,6 +28030,11 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_workflow.md",
         "last_validated": "2026-07-02"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": []
       }
     },
     {
@@ -25873,6 +28225,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/arxiv_pdf.md",
         "last_validated": "2026-05-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "nltk"
+        ]
       }
     },
     {
@@ -25899,6 +28260,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/nlp_utilities.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn"
+        ]
       }
     },
     {
@@ -25928,6 +28298,14 @@
         "outputs": "DataFrame with the source column REPLACED by N new columns (one per delimited field).",
         "side_effects": "Removes source column and adds N new ones per delimiter. Downstream references to source will KeyError.",
         "anti_uses": "For JSON extraction use json_flatten. For extracting one field use dataframe_extract_field."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -26032,6 +28410,14 @@
         "outputs": "Same DataFrame + ONE new column named `output_column` (defaults to '<column>_bin') containing the bin labels.",
         "side_effects": "Adds ONE column; does NOT rename or remove the source column. Original `column` still present downstream.",
         "anti_uses": "method valid values are 'equal_width' (pd.cut), 'equal_freq' (pd.qcut), or 'custom' (uses bin_edges). NOT 'quantile'."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -26133,6 +28519,14 @@
         "inputs": "DataFrame with `group_by` and `order_by` columns present.",
         "outputs": "DataFrame with the top N rows per group by the order column. Column set unchanged.",
         "side_effects": "Reduces row count to N \u00d7 number_of_groups. Column set unchanged."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -26160,6 +28554,15 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/nlp_utilities.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn"
+        ]
       }
     },
     {
@@ -26183,6 +28586,16 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/customer_analytics.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "scikit-learn",
+          "nltk"
+        ]
       }
     },
     {
@@ -26214,6 +28627,14 @@
         "outputs": "Emits TWO assets \u2014 train_df and test_df \u2014 via multi-output.",
         "side_effects": "Splits rows randomly (or stratified). Downstream picks one output.",
         "anti_uses": "For a single held-out sample use sample. For k-fold use cross_validation."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -26277,6 +28698,14 @@
         "outputs": "DataFrame with rows and columns SWAPPED \u2014 row count becomes column count and vice versa.",
         "side_effects": "Drastic reshape. Downstream cannot reference old column/row semantics.",
         "anti_uses": "Rarely useful in analytical pipelines. For wide\u2194long use pivot/unpivot. For crosstab use cross_tab."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -26379,6 +28808,16 @@
         "requires_pip": [
           "statsmodels"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "statsmodels",
+          "numpy"
+        ]
       }
     },
     {
@@ -26448,6 +28887,14 @@
         "outputs": "DataFrame with gap rows filled at a consistent frequency (values = 0/NaN/interpolated per config).",
         "side_effects": "Row count grows to cover full time range. Requires sorted datetime.",
         "anti_uses": "For simple imputation of missing values use imputation. For forecasting use arima_forecast."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -26478,6 +28925,15 @@
         "side_effects": "Output is FUTURE points, not the input. Order-sensitive. Requires statsmodels.",
         "anti_uses": "For ARIMA specifically use arima_forecast. For ETS use ets_forecast. For per-group forecasts run multiple times or use ts_model_factory.",
         "requires_pip": [
+          "statsmodels"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
           "statsmodels"
         ]
       }
@@ -26512,6 +28968,15 @@
         "requires_pip": [
           "statsmodels"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "statsmodels"
+        ]
       }
     },
     {
@@ -26536,6 +29001,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
       }
     },
     {
@@ -26669,6 +29141,14 @@
         "outputs": "Same columns; dtypes changed per type_map. Values that fail to coerce become NaN with errors='coerce'.",
         "side_effects": "Modifies column dtypes IN PLACE. Downstream steps that need float columns (tile_binning, models) should chain AFTER this.",
         "chains_with": "Typical predecessor to tile_binning, logistic_regression_model, and any component requiring numeric types."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -26698,6 +29178,14 @@
         "outputs": "Same columns; fewer rows. Preserves column order and dtypes.",
         "side_effects": "Row count decreases; column set unchanged.",
         "anti_uses": "Do NOT pass `subset: []` (empty list) \u2014 it will error. Either OMIT `subset` entirely (dedup on all columns) OR pass a non-empty list of column names. Do not use to filter by predicate \u2014 use `filter` component."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -27177,10 +29665,12 @@
         "wandb",
         "asset"
       ],
-      "dependencies": [
-        "wandb",
-        "sqlalchemy"
-      ],
+      "dependencies": {
+        "pip": [
+          "wandb",
+          "sqlalchemy"
+        ]
+      },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/wandb_asset/README.md",
       "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/wandb_asset/component.py",
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/wandb_asset/schema.json",
@@ -27532,6 +30022,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "sqlalchemy"
+        ]
       }
     },
     {
@@ -27689,6 +30186,14 @@
         "outputs": "DataFrame with weighted-avg per group.",
         "side_effects": "Reduces to one row per group. Column set changes.",
         "anti_uses": "For unweighted mean use summarize with agg=mean."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -27751,6 +30256,16 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/nlp_utilities.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "nltk",
+          "scikit-learn"
+        ]
       }
     },
     {
@@ -27815,6 +30330,14 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/enterprise_saas.md",
         "last_validated": "2026-05-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
       }
     },
     {
@@ -27866,6 +30389,15 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/hn_xml.md",
         "last_validated": "2026-05-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "lxml"
+        ]
       }
     },
     {
@@ -27991,6 +30523,16 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/local_nlp.md",
         "last_validated": "2026-05-08"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "transformers",
+          "torch"
+        ]
       }
     },
     {
@@ -28024,6 +30566,16 @@
         "requires_pip": [
           "shapely"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "geopandas",
+          "shapely"
+        ]
       }
     },
     {
@@ -28051,6 +30603,17 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-05"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "geopandas",
+          "shapely",
+          "pyproj"
+        ]
       }
     },
     {
@@ -28077,6 +30640,16 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-05"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "geopandas",
+          "shapely"
+        ]
       }
     },
     {
@@ -28104,6 +30677,16 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-05"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "geopandas",
+          "shapely"
+        ]
       }
     },
     {
@@ -28132,6 +30715,18 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-05"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "geopandas",
+          "shapely",
+          "openrouteservice",
+          "requests"
+        ]
       }
     },
     {
@@ -28165,6 +30760,14 @@
         "requires_pip": [
           "scipy"
         ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -28190,6 +30793,15 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-05"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "requests"
+        ]
       }
     },
     {
@@ -28212,6 +30824,15 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "shapely"
+        ]
       }
     },
     {
@@ -28234,6 +30855,16 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "geopandas",
+          "shapely"
+        ]
       }
     },
     {
@@ -28262,6 +30893,15 @@
         "outputs": "None (sink \u2014 writes PDF file with formatted report).",
         "side_effects": "Requires reportlab/weasyprint. Writes to `file_path` on disk.",
         "anti_uses": "For structured data output use dataframe_to_csv/parquet. For emails use smtp_send_asset."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "reportlab"
+        ]
       }
     },
     {
@@ -28284,6 +30924,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -28312,6 +30960,14 @@
         "outputs": "Same rows; some column NAMES changed per mapping.",
         "side_effects": "Renames columns IN PLACE \u2014 downstream referencing OLD names will KeyError.",
         "anti_uses": "For column drop use select_columns. For value transformation use formula."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -28335,6 +30991,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "shapely"
+        ]
       }
     },
     {
@@ -28366,6 +31029,13 @@
         "outputs": "Same rows + parsed components (street, city, state, postal, country) OR standardized address string.",
         "side_effects": "Adds columns. Requires libpostal or an external service.",
         "anti_uses": "For verified/validated addresses use precisely_address_verify (paid). Not for geocoding (use points_from_latlon after geocoding)."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
       }
     },
     {
@@ -28390,6 +31060,13 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pyarrow"
+        ]
       }
     },
     {
@@ -28414,6 +31091,14 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pyarrow",
+          "papermill"
+        ]
       }
     },
     {

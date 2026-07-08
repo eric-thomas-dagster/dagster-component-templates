@@ -1,0 +1,17 @@
+type: dagster_community_components.DataframeToSentryComponent
+attributes:
+  asset_name: sentry_export
+  upstream_asset_key: pipeline_failure_events
+  dsn_env_var: SENTRY_DSN
+  environment: prod
+  release: dagster-etl-v1.4.2
+
+  message_column: message
+  level_column: severity
+  default_level: warning
+
+  tag_columns: [asset_key, run_id, partition]
+  extra_columns: [error_trace, upstream_asset, materialize_seconds]
+  fingerprint_columns: [asset_key]
+
+  group_name: sentry

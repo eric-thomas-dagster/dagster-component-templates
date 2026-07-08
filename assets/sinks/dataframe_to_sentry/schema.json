@@ -1,0 +1,21 @@
+{
+  "component_type": "dagster_community_components.DataframeToSentryComponent",
+  "description": "Send each row of an upstream DataFrame to Sentry as an event via the official sentry-sdk. Supports level, tags, extras, and grouping fingerprints per row. Common use: pipe Dagster+ run-failure events into Sentry so on-call sees data-pipeline health alongside application errors.",
+  "category": "sink",
+  "icon": "AlertCircle",
+  "attributes": {
+    "asset_name":          {"type": "string",  "required": true},
+    "upstream_asset_key":  {"type": "string",  "required": true},
+    "dsn_env_var":         {"type": "string",  "required": false, "default": "SENTRY_DSN"},
+    "environment":         {"type": "string",  "required": false},
+    "release":             {"type": "string",  "required": false},
+    "message_column":      {"type": "string",  "required": false, "default": "message"},
+    "level_column":        {"type": "string",  "required": false},
+    "default_level":       {"type": "string",  "required": false, "default": "info"},
+    "tag_columns":         {"type": "array",   "required": false},
+    "extra_columns":       {"type": "array",   "required": false},
+    "fingerprint_columns": {"type": "array",   "required": false},
+    "description":         {"type": "string",  "required": false},
+    "group_name":          {"type": "string",  "required": false, "default": "sentry"}
+  }
+}

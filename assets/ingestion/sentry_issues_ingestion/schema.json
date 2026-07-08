@@ -1,0 +1,18 @@
+{
+  "component_type": "dagster_community_components.SentryIssuesIngestionComponent",
+  "description": "Ingest issues from a Sentry project via the /api/0/projects/{org}/{project}/issues/ REST endpoint. Handles cursor pagination via the Link header. Returns a DataFrame with flattened issue fields.",
+  "category": "ingestion",
+  "icon": "AlertCircle",
+  "attributes": {
+    "asset_name":        {"type": "string", "required": true},
+    "organization":      {"type": "string", "required": true, "description": "Sentry org slug."},
+    "project":           {"type": "string", "required": true, "description": "Sentry project slug."},
+    "api_host":          {"type": "string", "required": false, "default": "https://sentry.io"},
+    "api_token_env_var": {"type": "string", "required": false, "default": "SENTRY_AUTH_TOKEN"},
+    "query":             {"type": "string", "required": false, "default": "is:unresolved"},
+    "stats_period":      {"type": "string", "required": false, "default": "24h"},
+    "limit":             {"type": "integer", "required": false, "default": 1000, "minimum": 1, "maximum": 10000},
+    "description":       {"type": "string", "required": false},
+    "group_name":        {"type": "string", "required": false, "default": "sentry"}
+  }
+}

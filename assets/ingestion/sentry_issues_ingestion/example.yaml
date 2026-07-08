@@ -1,0 +1,11 @@
+type: dagster_community_components.SentryIssuesIngestionComponent
+attributes:
+  asset_name: sentry_unresolved_issues
+  organization: acme-inc
+  project: frontend-web
+  api_host: https://sentry.io
+  api_token_env_var: SENTRY_AUTH_TOKEN
+  query: "is:unresolved"
+  stats_period: 24h
+  limit: 5000
+  group_name: sentry

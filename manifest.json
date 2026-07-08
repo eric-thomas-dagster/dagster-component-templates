@@ -146,43 +146,6 @@
       }
     },
     {
-      "id": "adaptive_research_brief",
-      "name": "Adaptive Research Brief",
-      "category": "ai",
-      "description": "Planner LLM decides N sub-topics at runtime for a given research topic. Row-wise researcher LLM writes a note per subtopic; synthesizer combines into a markdown brief. Where DynamicOutput / dynamic partitions fits \u2014 N is truly runtime-decided per run.",
-      "path": "assets/ai/adaptive_research_brief",
-      "tags": [
-        "ai",
-        "agent",
-        "agentic",
-        "planner",
-        "research",
-        "openai",
-        "dynamic-output"
-      ],
-      "icon": "Sparkles",
-      "type": "dagster_community_components.AdaptiveResearchBriefComponent",
-      "component_type": "dagster_community_components.AdaptiveResearchBriefComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/adaptive_research_brief/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/adaptive_research_brief/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/adaptive_research_brief/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/adaptive_research_brief/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/adaptive_research_brief/requirements.txt",
-      "dependencies": {
-        "pip": [
-          "pandas",
-          "openai>=1.0.0"
-        ]
-      },
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/adaptive_research_brief.md",
-        "last_validated": "2026-07-07"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community"
-    },
-    {
       "id": "abinitio_job_sensor",
       "name": "Ab Initio Job Sensor",
       "category": "sensor",
@@ -332,6 +295,81 @@
         "inputs": "DataFrame from a specific ad-platform export (Google Ads / Facebook Ads / etc.).",
         "outputs": "DataFrame with standardized columns: date, platform, campaign_id, campaign_name, impressions, clicks, cost, conversions.",
         "side_effects": "Enables unified reporting across vendors."
+      }
+    },
+    {
+      "id": "adaptive_research_brief",
+      "name": "Adaptive Research Brief",
+      "category": "ai",
+      "description": "Planner LLM decides N sub-topics at runtime for a given research topic. Row-wise researcher LLM writes a note per subtopic; synthesizer combines into a markdown brief. Where DynamicOutput / dynamic partitions fits \u2014 N is truly runtime-decided per run.",
+      "path": "assets/ai/adaptive_research_brief",
+      "tags": [
+        "ai",
+        "agent",
+        "agentic",
+        "planner",
+        "research",
+        "openai",
+        "dynamic-output"
+      ],
+      "icon": "Sparkles",
+      "type": "dagster_community_components.AdaptiveResearchBriefComponent",
+      "component_type": "dagster_community_components.AdaptiveResearchBriefComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/adaptive_research_brief/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/adaptive_research_brief/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/adaptive_research_brief/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/adaptive_research_brief/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/adaptive_research_brief/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "openai>=1.0.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/adaptive_research_brief.md",
+        "last_validated": "2026-07-07"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
+    },
+    {
+      "id": "address_standardize",
+      "name": "Address Standardize",
+      "category": "transformation",
+      "description": "Parse messy address strings into structured components (street, city, state, ZIP, ZIP+4, country) using libpostal / Geoapify / Nominatim / regex. Free / open-source drop-in for Alteryx CASS.",
+      "path": "assets/transforms/address_standardize",
+      "tags": [
+        "transformation",
+        "address",
+        "geocoding",
+        "data-quality",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardize/schema.json",
+      "component_type": "dagster_community_components.AddressStandardizeComponent",
+      "icon": "MapPin",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardize/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardize/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardize/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardize/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a raw address column.",
+        "outputs": "Same rows + parsed components (street, city, state, postal, country) OR standardized address string.",
+        "side_effects": "Adds columns. Requires libpostal or an external service.",
+        "anti_uses": "For verified/validated addresses use precisely_address_verify (paid). Not for geocoding (use points_from_latlon after geocoding)."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
       }
     },
     {
@@ -3272,6 +3310,36 @@
       }
     },
     {
+      "id": "blob_convert",
+      "name": "Blob Convert",
+      "category": "transformation",
+      "description": "Convert a bytes/text column between common encodings: base64 (encode/decode), hex (encode/decode), text/bytes (utf-8). Drop-in for Alteryx Blob Convert tool.",
+      "path": "assets/transforms/blob_convert",
+      "tags": [
+        "transformation",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/blob_convert/schema.json",
+      "component_type": "dagster_component_templates.BlobConvertComponent",
+      "icon": "Binary",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/blob_convert/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/blob_convert/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/blob_convert/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/blob_convert/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
+      }
+    },
+    {
       "id": "bounding_box_filter",
       "name": "Bounding Box Filter",
       "category": "analytics",
@@ -3525,6 +3593,45 @@
           "cassandra-driver"
         ]
       }
+    },
+    {
+      "id": "catalog_agent",
+      "name": "Catalog Agent",
+      "category": "ai",
+      "description": "Meta-agent that reads the LIVE component manifest, presents a filtered slice to a planner LLM, and executes REAL picked components via reflection + in-process materialize. Per-step iteration \u2014 planner sees actual output columns/preview after each step so it picks the next component with real schema knowledge. Works on customer data with schemas unknown at pipeline-write time.",
+      "path": "assets/ai/catalog_agent",
+      "tags": [
+        "ai",
+        "agent",
+        "agentic",
+        "iterative",
+        "catalog",
+        "meta-agent",
+        "schema-discovery",
+        "reflection",
+        "openai"
+      ],
+      "icon": "Sparkles",
+      "type": "dagster_community_components.CatalogAgentComponent",
+      "component_type": "dagster_community_components.CatalogAgentComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "openai>=1.0.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/catalog_agent.md",
+        "last_validated": "2026-07-07"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "census_sync_asset",
@@ -4269,45 +4376,6 @@
         "side_effects": "REDUCES rows drastically (one row per cohort). Column set becomes {cohort_period, N age-period columns}.",
         "anti_uses": "Required config: customer_id_field, activity_date_field (the timestamp column), cohort_period ('daily'|'weekly'|'monthly'), retention_periods (int). Optional: first_date_field (auto-derived if omitted), include_revenue+revenue_field. Do NOT rely on inferred columns \u2014 always specify activity_date_field explicitly (e.g. 'order_date' or 'signup_month')."
       }
-    },
-    {
-      "id": "catalog_agent",
-      "name": "Catalog Agent",
-      "category": "ai",
-      "description": "Meta-agent that reads the LIVE component manifest, presents a filtered slice to a planner LLM, and executes REAL picked components via reflection + in-process materialize. Per-step iteration \u2014 planner sees actual output columns/preview after each step so it picks the next component with real schema knowledge. Works on customer data with schemas unknown at pipeline-write time.",
-      "path": "assets/ai/catalog_agent",
-      "tags": [
-        "ai",
-        "agent",
-        "agentic",
-        "iterative",
-        "catalog",
-        "meta-agent",
-        "schema-discovery",
-        "reflection",
-        "openai"
-      ],
-      "icon": "Sparkles",
-      "type": "dagster_community_components.CatalogAgentComponent",
-      "component_type": "dagster_community_components.CatalogAgentComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/requirements.txt",
-      "dependencies": {
-        "pip": [
-          "pandas",
-          "openai>=1.0.0"
-        ]
-      },
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/catalog_agent.md",
-        "last_validated": "2026-07-07"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community"
     },
     {
       "id": "community_component_installer",
@@ -5495,38 +5563,6 @@
       }
     },
     {
-      "id": "dagster_runs_to_statsd_sensor",
-      "name": "Dagster Runs \u2192 StatsD Sensor",
-      "category": "sensor",
-      "description": "Push Dagster run lifecycle events as StatsD/DogStatsD UDP metrics. No external Python deps \u2014 raw datagrams. Targets the Datadog Agent, local statsd, graphite-statsd, etcd-statsd, Telegraf, Grafana statsd_exporter, etc.",
-      "path": "sensors/dagster_runs_to_statsd_sensor",
-      "tags": [
-        "sensor",
-        "observability",
-        "statsd",
-        "dogstatsd",
-        "datadog",
-        "metrics"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_statsd_sensor/schema.json",
-      "component_type": "dagster_component_templates.DagsterRunsToStatsdSensorComponent",
-      "icon": "Activity",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_statsd_sensor/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_statsd_sensor/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_statsd_sensor/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_statsd_sensor/requirements.txt",
-      "validation": {
-        "level": "live",
-        "evidence": "Validated against graphiteapp/graphite-statsd in Docker \u2014 tagged metrics (env/job/status/step) confirmed via graphite tag index.",
-        "last_validated": "2026-06-04"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": []
-      }
-    },
-    {
       "id": "dagster_runs_to_otlp_sensor",
       "name": "Dagster Runs \u2192 OTLP Sensor",
       "category": "sensor",
@@ -5622,6 +5658,38 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-06-04"
+      }
+    },
+    {
+      "id": "dagster_runs_to_statsd_sensor",
+      "name": "Dagster Runs \u2192 StatsD Sensor",
+      "category": "sensor",
+      "description": "Push Dagster run lifecycle events as StatsD/DogStatsD UDP metrics. No external Python deps \u2014 raw datagrams. Targets the Datadog Agent, local statsd, graphite-statsd, etcd-statsd, Telegraf, Grafana statsd_exporter, etc.",
+      "path": "sensors/dagster_runs_to_statsd_sensor",
+      "tags": [
+        "sensor",
+        "observability",
+        "statsd",
+        "dogstatsd",
+        "datadog",
+        "metrics"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_statsd_sensor/schema.json",
+      "component_type": "dagster_component_templates.DagsterRunsToStatsdSensorComponent",
+      "icon": "Activity",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_statsd_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_statsd_sensor/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_statsd_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/dagster_runs_to_statsd_sensor/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "Validated against graphiteapp/graphite-statsd in Docker \u2014 tagged metrics (env/job/status/step) confirmed via graphite tag index.",
+        "last_validated": "2026-06-04"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": []
       }
     },
     {
@@ -6167,39 +6235,6 @@
       "author": "Dagster Community"
     },
     {
-      "id": "databricks_genie_query",
-      "name": "Databricks Genie Query",
-      "category": "ai",
-      "description": "NL \u2192 SQL \u2192 result via Databricks AI/BI Genie spaces. Single-question or per-row over an upstream DataFrame. Full Dagster pattern (partitions, freshness, retry, kinds).",
-      "path": "assets/ai/databricks_genie_query",
-      "tags": [
-        "ai",
-        "databricks",
-        "genie",
-        "sql",
-        "nl-to-sql"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/databricks_genie_query/schema.json",
-      "component_type": "dagster_component_templates.DatabricksGenieQueryComponent",
-      "icon": "si:databricks",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/databricks_genie_query/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/databricks_genie_query/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/databricks_genie_query/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/databricks_genie_query/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-04"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "requests",
-          "pandas"
-        ]
-      }
-    },
-    {
       "id": "databricks_asset_bundle",
       "name": "Databricks Asset Bundle",
       "category": "integration",
@@ -6231,6 +6266,39 @@
         "last_validated": "2026-05-11"
       },
       "vendor": "Databricks"
+    },
+    {
+      "id": "databricks_genie_query",
+      "name": "Databricks Genie Query",
+      "category": "ai",
+      "description": "NL \u2192 SQL \u2192 result via Databricks AI/BI Genie spaces. Single-question or per-row over an upstream DataFrame. Full Dagster pattern (partitions, freshness, retry, kinds).",
+      "path": "assets/ai/databricks_genie_query",
+      "tags": [
+        "ai",
+        "databricks",
+        "genie",
+        "sql",
+        "nl-to-sql"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/databricks_genie_query/schema.json",
+      "component_type": "dagster_component_templates.DatabricksGenieQueryComponent",
+      "icon": "si:databricks",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/databricks_genie_query/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/databricks_genie_query/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/databricks_genie_query/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/databricks_genie_query/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-04"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests",
+          "pandas"
+        ]
+      }
     },
     {
       "id": "databricks_io_manager",
@@ -6535,78 +6603,6 @@
       }
     },
     {
-      "id": "dataframe_from_yxdb",
-      "name": "DataFrame from Alteryx .yxdb",
-      "category": "source",
-      "description": "Read an Alteryx native binary file (.yxdb) and materialize it as a pandas DataFrame asset. Wraps the import-yxdb PyPI package (whole-file \u2192 DataFrame) with a fallback to the lower-level yxdb row iterator. Pairs with the alteryx-to-dagster migrator (which auto-routes Alteryx Input Data tools pointing at .yxdb files to this component).",
-      "path": "assets/sources/dataframe_from_yxdb",
-      "tags": [
-        "source",
-        "alteryx",
-        "yxdb",
-        "migration",
-        "dataframe"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/schema.json",
-      "component_type": "dagster_component_templates.DataframeFromYxdbComponent",
-      "icon": "Database",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-05"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "pandas",
-          "yxdb",
-          "import-yxdb"
-        ]
-      }
-    },
-    {
-      "id": "inline_dataframe",
-      "name": "Inline DataFrame",
-      "category": "source",
-      "description": "Materialize a small literal DataFrame from inline YAML rows + optional per-column dtypes. For reference tables, fixtures, or Alteryx Text Input ports \u2014 where bundling a CSV alongside the project is overkill. Pairs with the alteryx-to-dagster migrator (auto-routes Text Input tools to this component instead of emitting a custom .py asset).",
-      "path": "assets/sources/inline_dataframe",
-      "tags": [
-        "source",
-        "dataframe",
-        "inline",
-        "reference",
-        "alteryx",
-        "fixture"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/inline_dataframe/schema.json",
-      "component_type": "dagster_component_templates.InlineDataframeComponent",
-      "icon": "Table",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/inline_dataframe/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/inline_dataframe/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/inline_dataframe/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/inline_dataframe/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-05"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "pandas"
-        ]
-      },
-      "agent_hints": {
-        "inputs": "None \u2014 you provide the data literal in the config.",
-        "outputs": "DataFrame constructed from the config's `rows` or `records`.",
-        "side_effects": "For fixture data / demos where you don't want an external source."
-      }
-    },
-    {
       "id": "dataframe_from_csv",
       "name": "DataFrame from CSV",
       "category": "source",
@@ -6812,6 +6808,40 @@
         "anti_uses": "For custom SQL use dataframe_from_sql. For pushdown SQL over pandas inputs use sql_transform.",
         "requires_resources": [
           "database_connection"
+        ]
+      }
+    },
+    {
+      "id": "dataframe_from_yxdb",
+      "name": "DataFrame from Alteryx .yxdb",
+      "category": "source",
+      "description": "Read an Alteryx native binary file (.yxdb) and materialize it as a pandas DataFrame asset. Wraps the import-yxdb PyPI package (whole-file \u2192 DataFrame) with a fallback to the lower-level yxdb row iterator. Pairs with the alteryx-to-dagster migrator (which auto-routes Alteryx Input Data tools pointing at .yxdb files to this component).",
+      "path": "assets/sources/dataframe_from_yxdb",
+      "tags": [
+        "source",
+        "alteryx",
+        "yxdb",
+        "migration",
+        "dataframe"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/schema.json",
+      "component_type": "dagster_component_templates.DataframeFromYxdbComponent",
+      "icon": "Database",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/dataframe_from_yxdb/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "yxdb",
+          "import-yxdb"
         ]
       }
     },
@@ -8024,6 +8054,52 @@
           "aws_credentials"
         ]
       }
+    },
+    {
+      "name": "DataFrame to Sentry",
+      "category": "sink",
+      "description": "Send each row of an upstream DataFrame to Sentry as an event via the official sentry-sdk. Supports per-row level, tags (searchable), extras (context), and fingerprint (grouping). Killer pattern: pipe Dagster+ run-failure events into Sentry so on-call sees data-pipeline health alongside application errors.",
+      "path": "assets/sinks/dataframe_to_sentry",
+      "tags": [
+        "sink",
+        "sentry",
+        "observability",
+        "alerts",
+        "saas"
+      ],
+      "icon": "AlertCircle",
+      "type": "dagster_community_components.DataframeToSentryComponent",
+      "component_type": "dagster_community_components.DataframeToSentryComponent",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "sentry-sdk"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a message column + optional tag/extra/fingerprint/level columns.",
+        "outputs": "None (sink \u2014 sends one Sentry event per row, returns Output(value=None)).",
+        "side_effects": "Sends N events to Sentry via sentry-sdk. Requires SENTRY_DSN env var. environment + release fields apply to every event. Sync-flushes on completion.",
+        "anti_uses": "Not for INGESTING FROM Sentry (use sentry_issues_ingestion). For high-volume events > 1K/run, watch Sentry's ingestion quota. For scheduled cron check-ins use Sentry Cron Monitoring API (separate).",
+        "requires_pip": [
+          "sentry_sdk"
+        ],
+        "requires_resources": [
+          "sentry_dsn"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-08"
+      },
+      "id": "dataframe_to_sentry",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_sentry/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_sentry/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_sentry/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_sentry/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/dataframe_to_sentry/requirements.txt"
     },
     {
       "id": "dataframe_to_servicebus",
@@ -9384,6 +9460,52 @@
       }
     },
     {
+      "id": "drive_time",
+      "name": "Drive Time",
+      "category": "transformation",
+      "description": "Compute drive-time isochrone polygons (where can I drive in N minutes?) for each input point via a routing API. Drop-in for Alteryx's Drive Time and Trade Area tools. v1 ships openrouteservice (free tier with API key); google / mapbox / OSRM are stubbed with same component shape.",
+      "path": "assets/transforms/drive_time",
+      "tags": [
+        "spatial",
+        "geo",
+        "routing",
+        "isochrone",
+        "openrouteservice",
+        "drive_time",
+        "trade_area",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/drive_time/schema.json",
+      "component_type": "dagster_component_templates.DriveTimeComponent",
+      "icon": "Navigation",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/drive_time/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/drive_time/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/drive_time/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/drive_time/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "geopandas",
+          "shapely",
+          "openrouteservice",
+          "requests"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with origin + destination lat/lon columns.",
+        "outputs": "DataFrame + travel_time / distance columns.",
+        "side_effects": "Requires routing API (OSRM/HERE/Google) \u2014 external call.",
+        "anti_uses": "For straight-line distance use distance_calculator (no API)."
+      }
+    },
+    {
       "id": "dspy_program",
       "name": "Dspy Program",
       "category": "ai",
@@ -9658,6 +9780,42 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/dynamic_fanout_job.md",
         "last_validated": "2026-05-06"
+      }
+    },
+    {
+      "id": "dynamic_rename",
+      "name": "Dynamic Rename",
+      "category": "transformation",
+      "description": "Pattern-based column renaming with several modes (first_row / add_prefix / add_suffix / replace / mapping / mapping_from_column). Drop-in for Alteryx Dynamic Rename.",
+      "path": "assets/transforms/dynamic_rename",
+      "tags": [
+        "transformation",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_rename/schema.json",
+      "component_type": "dagster_component_templates.DynamicRenameComponent",
+      "icon": "Edit",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_rename/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_rename/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_rename/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_rename/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame + a mapping (or rule) for column renaming.",
+        "outputs": "Same rows; some column NAMES changed per mapping.",
+        "side_effects": "Renames columns IN PLACE \u2014 downstream referencing OLD names will KeyError.",
+        "anti_uses": "For column drop use select_columns. For value transformation use formula."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
       }
     },
     {
@@ -10380,37 +10538,6 @@
       }
     },
     {
-      "id": "external_cube_metric",
-      "name": "External Cube Metric",
-      "vendor": "Cube",
-      "category": "external",
-      "description": "Declare a Cube semantic-layer measure or dimension as an external Dagster asset. Pair with cube_query_asset.",
-      "path": "external_assets/external_cube_metric",
-      "tags": [
-        "cube",
-        "semantic-layer",
-        "external",
-        "metrics"
-      ],
-      "icon": "si:cube",
-      "type": "dagster_community_components.ExternalCubeMetricAsset",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_cube_metric/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_cube_metric/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_cube_metric/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_cube_metric/example.yaml",
-      "component_type": "dagster_community_components.ExternalCubeMetricAsset",
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/cube_query.md",
-        "last_validated": "2026-07-06"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": []
-      }
-    },
-    {
       "id": "external_argo_workflow",
       "name": "External Argo Workflow",
       "category": "external",
@@ -10500,6 +10627,37 @@
         "last_validated": "2026-05-08"
       },
       "vendor": "ClickHouse"
+    },
+    {
+      "id": "external_cube_metric",
+      "name": "External Cube Metric",
+      "vendor": "Cube",
+      "category": "external",
+      "description": "Declare a Cube semantic-layer measure or dimension as an external Dagster asset. Pair with cube_query_asset.",
+      "path": "external_assets/external_cube_metric",
+      "tags": [
+        "cube",
+        "semantic-layer",
+        "external",
+        "metrics"
+      ],
+      "icon": "si:cube",
+      "type": "dagster_community_components.ExternalCubeMetricAsset",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_cube_metric/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_cube_metric/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_cube_metric/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_cube_metric/example.yaml",
+      "component_type": "dagster_community_components.ExternalCubeMetricAsset",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/cube_query.md",
+        "last_validated": "2026-07-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": []
+      }
     },
     {
       "id": "external_databricks_table",
@@ -11252,6 +11410,68 @@
         "level": "code",
         "last_validated": "2026-05-28",
         "evidence": "build_defs + Pydantic instantiation pass; awaiting customer pilot for live"
+      }
+    },
+    {
+      "id": "external_temporal_workflow",
+      "name": "External Temporal Workflow",
+      "vendor": "Temporal",
+      "category": "external",
+      "description": "Declare a Temporal Workflow as an external Dagster asset. Pair with temporal_workflow_sensor when Temporal owns the schedule.",
+      "path": "external_assets/external_temporal_workflow",
+      "tags": [
+        "temporal",
+        "workflow",
+        "external",
+        "catalog"
+      ],
+      "icon": "si:temporal",
+      "type": "dagster_community_components.ExternalTemporalWorkflowAsset",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_temporal_workflow/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_temporal_workflow/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_temporal_workflow/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_temporal_workflow/example.yaml",
+      "component_type": "dagster_community_components.ExternalTemporalWorkflowAsset",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_workflow.md",
+        "last_validated": "2026-07-02"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": []
+      }
+    },
+    {
+      "id": "external_vercel_deployment",
+      "name": "External Vercel Deployment",
+      "vendor": "Vercel",
+      "category": "external",
+      "description": "Declare a Vercel project's deployment stream as an external Dagster asset. Pair with vercel_deployment_sensor.",
+      "path": "external_assets/external_vercel_deployment",
+      "tags": [
+        "vercel",
+        "deployment",
+        "external",
+        "catalog"
+      ],
+      "icon": "si:vercel",
+      "type": "dagster_community_components.ExternalVercelDeploymentAsset",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_vercel_deployment/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_vercel_deployment/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_vercel_deployment/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_vercel_deployment/example.yaml",
+      "component_type": "dagster_community_components.ExternalVercelDeploymentAsset",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vercel_deployment.md",
+        "last_validated": "2026-07-02"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": []
       }
     },
     {
@@ -12856,43 +13076,6 @@
       }
     },
     {
-      "id": "gemini_image_generation",
-      "name": "GeminiImageGenerationComponent",
-      "category": "ai",
-      "description": "Native (no-LiteLLM) image generation / edit per DataFrame row using Google's Gemini 2.5 Flash Image \u2014 the model the community nicknames 'Nano Banana'. Default: gemini-2.5-flash-image-preview. Supports text-to-image and image-to-image editing. For multi-vendor workflows, use litellm_image_generation instead.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/ai/gemini_image_generation",
-      "tags": [
-        "ai",
-        "image",
-        "image-generation",
-        "gemini",
-        "google",
-        "nano-banana",
-        "image-edit",
-        "vision"
-      ],
-      "dependencies": {
-        "pip": [
-          "dagster>=1.8.0",
-          "pandas>=1.5.0",
-          "google-genai>=0.3.0"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/requirements.txt",
-      "component_type": "dagster_component_templates.GeminiImageGenerationComponent",
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/nano_banana.md",
-        "last_validated": "2026-05-11"
-      }
-    },
-    {
       "id": "gemini_agent",
       "name": "Gemini Agent",
       "category": "ai",
@@ -12927,6 +13110,43 @@
           "google-genai",
           "mcp"
         ]
+      }
+    },
+    {
+      "id": "gemini_image_generation",
+      "name": "GeminiImageGenerationComponent",
+      "category": "ai",
+      "description": "Native (no-LiteLLM) image generation / edit per DataFrame row using Google's Gemini 2.5 Flash Image \u2014 the model the community nicknames 'Nano Banana'. Default: gemini-2.5-flash-image-preview. Supports text-to-image and image-to-image editing. For multi-vendor workflows, use litellm_image_generation instead.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/gemini_image_generation",
+      "tags": [
+        "ai",
+        "image",
+        "image-generation",
+        "gemini",
+        "google",
+        "nano-banana",
+        "image-edit",
+        "vision"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "google-genai>=0.3.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/gemini_image_generation/requirements.txt",
+      "component_type": "dagster_component_templates.GeminiImageGenerationComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/nano_banana.md",
+        "last_validated": "2026-05-11"
       }
     },
     {
@@ -13035,6 +13255,147 @@
         "pip": [
           "dagster",
           "pandas"
+        ]
+      }
+    },
+    {
+      "id": "geo_buffer",
+      "name": "Geo Buffer",
+      "category": "transformation",
+      "description": "Expand each geometry by a distance, producing a polygon buffer. Drop-in for Alteryx's Buffer and Trade Area tools. Projects to Web Mercator before buffering so distance units are meters / km / miles, not degrees.",
+      "path": "assets/transforms/geo_buffer",
+      "tags": [
+        "spatial",
+        "geo",
+        "geopandas",
+        "shapely",
+        "buffer",
+        "trade_area",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_buffer/schema.json",
+      "component_type": "dagster_component_templates.GeoBufferComponent",
+      "icon": "Circle",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_buffer/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_buffer/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_buffer/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_buffer/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "geopandas",
+          "shapely",
+          "pyproj"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a geometry column (shapely / geopandas).",
+        "outputs": "DataFrame with a new column with buffered polygons around each geometry.",
+        "side_effects": "Requires shapely + geopandas.",
+        "anti_uses": "For lat/lon columns use points_from_latlon first to construct geometry.",
+        "requires_pip": [
+          "shapely",
+          "geopandas"
+        ]
+      }
+    },
+    {
+      "id": "geo_overlay",
+      "name": "Geo Overlay",
+      "category": "transformation",
+      "description": "Combine two geometry DataFrames using set-theoretic spatial operations (intersection / union / difference / symmetric_difference / identity). Drop-in for Alteryx's Spatial Process tool.",
+      "path": "assets/transforms/geo_overlay",
+      "tags": [
+        "spatial",
+        "geo",
+        "geopandas",
+        "overlay",
+        "intersection",
+        "union",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_overlay/schema.json",
+      "component_type": "dagster_component_templates.GeoOverlayComponent",
+      "icon": "Layers",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_overlay/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_overlay/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_overlay/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_overlay/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "geopandas",
+          "shapely"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a geometry column (shapely / geopandas).",
+        "outputs": "DataFrame with polygon overlay results (intersection / union / difference).",
+        "side_effects": "Requires shapely + geopandas.",
+        "anti_uses": "For lat/lon columns use points_from_latlon first to construct geometry.",
+        "requires_pip": [
+          "shapely",
+          "geopandas"
+        ]
+      }
+    },
+    {
+      "id": "geo_simplify",
+      "name": "Geo Simplify",
+      "category": "transformation",
+      "description": "Reduce vertex count of each geometry via Shapely Douglas-Peucker simplification. Drop-in for Alteryx's Generalize tool. Useful for shrinking tile sizes or speeding up downstream spatial joins.",
+      "path": "assets/transforms/geo_simplify",
+      "tags": [
+        "spatial",
+        "geo",
+        "shapely",
+        "simplify",
+        "generalize",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_simplify/schema.json",
+      "component_type": "dagster_component_templates.GeoSimplifyComponent",
+      "icon": "Minimize2",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_simplify/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_simplify/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_simplify/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_simplify/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "geopandas",
+          "shapely"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a geometry column (shapely / geopandas).",
+        "outputs": "DataFrame with simplified geometry (fewer vertices for lighter rendering).",
+        "side_effects": "Requires shapely + geopandas.",
+        "anti_uses": "For lat/lon columns use points_from_latlon first to construct geometry.",
+        "requires_pip": [
+          "shapely",
+          "geopandas"
         ]
       }
     },
@@ -15213,6 +15574,44 @@
       }
     },
     {
+      "id": "inline_dataframe",
+      "name": "Inline DataFrame",
+      "category": "source",
+      "description": "Materialize a small literal DataFrame from inline YAML rows + optional per-column dtypes. For reference tables, fixtures, or Alteryx Text Input ports \u2014 where bundling a CSV alongside the project is overkill. Pairs with the alteryx-to-dagster migrator (auto-routes Text Input tools to this component instead of emitting a custom .py asset).",
+      "path": "assets/sources/inline_dataframe",
+      "tags": [
+        "source",
+        "dataframe",
+        "inline",
+        "reference",
+        "alteryx",
+        "fixture"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/inline_dataframe/schema.json",
+      "component_type": "dagster_component_templates.InlineDataframeComponent",
+      "icon": "Table",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/inline_dataframe/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/inline_dataframe/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/inline_dataframe/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/inline_dataframe/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "None \u2014 you provide the data literal in the config.",
+        "outputs": "DataFrame constructed from the config's `rows` or `records`.",
+        "side_effects": "For fixture data / demos where you don't want an external source."
+      }
+    },
+    {
       "id": "instructor_extractor",
       "name": "Instructor Extractor",
       "category": "ai",
@@ -15653,6 +16052,38 @@
           "dagster",
           "pandas",
           "jsonpath-ng"
+        ]
+      }
+    },
+    {
+      "id": "jupyter_notebook",
+      "name": "Jupyter Notebook",
+      "category": "transformation",
+      "description": "Execute a Jupyter notebook (.ipynb) or inline Python code against an upstream DataFrame. Drop-in for Alteryx's Jupyter Code tool.",
+      "path": "assets/transforms/jupyter_notebook",
+      "tags": [
+        "transformation",
+        "jupyter",
+        "python",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/jupyter_notebook/schema.json",
+      "component_type": "dagster_community_components.JupyterNotebookComponent",
+      "icon": "Notebook",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/jupyter_notebook/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/jupyter_notebook/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/jupyter_notebook/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/jupyter_notebook/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pyarrow",
+          "papermill"
         ]
       }
     },
@@ -16983,82 +17414,6 @@
       }
     },
     {
-      "id": "mcp_tool_call",
-      "name": "MCP Tool Call",
-      "category": "source",
-      "description": "Deterministic single-shot call to one MCP tool \u2014 no LLM in the loop. Args templating supports {partition_key} / {partition_keys.<dim>} / {run_id}, and the asset supports full Dagster pattern (partitions, kinds, FreshnessPolicy, RetryPolicy).",
-      "path": "assets/sources/mcp_tool_call",
-      "tags": [
-        "source",
-        "mcp",
-        "tool-call",
-        "deterministic"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mcp_tool_call/schema.json",
-      "component_type": "dagster_component_templates.MCPToolCallComponent",
-      "icon": "Network",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mcp_tool_call/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mcp_tool_call/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mcp_tool_call/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mcp_tool_call/requirements.txt",
-      "validation": {
-        "level": "live",
-        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/litellm_agent.md",
-        "last_validated": "2026-06-04"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "mcp"
-        ]
-      },
-      "agent_hints": {
-        "inputs": "None \u2014 calls an MCP server's tool.",
-        "outputs": "DataFrame with the tool call result.",
-        "side_effects": "Requires an MCP server running + tool name."
-      }
-    },
-    {
-      "id": "mcp_tool_picker",
-      "name": "MCP Tool Picker",
-      "category": "ai",
-      "description": "Planner LLM picks MCP tools + args to invoke from a bounded YAML-declared set. Each pick becomes a Dagster asset that actually calls the MCP server (stdio / http / sse); a synthesizer LLM writes the grounded final answer with per-tool citations. The 'agent picks MCPs' pattern with full lineage.",
-      "path": "assets/ai/mcp_tool_picker",
-      "tags": [
-        "ai",
-        "agent",
-        "agentic",
-        "mcp",
-        "supervisor",
-        "planner",
-        "multi-agent",
-        "openai"
-      ],
-      "icon": "Sparkles",
-      "type": "dagster_community_components.MCPToolPickerComponent",
-      "component_type": "dagster_community_components.MCPToolPickerComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_tool_picker/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_tool_picker/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_tool_picker/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_tool_picker/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_tool_picker/requirements.txt",
-      "dependencies": {
-        "pip": [
-          "pandas",
-          "openai>=1.0.0",
-          "mcp>=1.0.0"
-        ]
-      },
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/mcp_tool_picker.md",
-        "last_validated": "2026-07-07"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community"
-    },
-    {
       "id": "litellm_agent",
       "name": "LiteLLM Agent",
       "category": "ai",
@@ -17369,6 +17724,39 @@
       }
     },
     {
+      "id": "llm_chain_executor",
+      "name": "LLM Chain",
+      "category": "ai",
+      "description": "Component for executing LLM chains row-by-row over an upstream DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/llm_chain_executor",
+      "tags": [
+        "ai",
+        "llm",
+        "chain",
+        "executor",
+        "agentic"
+      ],
+      "dependencies": {
+        "pip": [
+          "openai>=1.0.0",
+          "anthropic>=0.18.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_chain_executor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_chain_executor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_chain_executor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_chain_executor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_chain_executor/requirements.txt",
+      "icon": "Sparkles",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/llm_execution.md",
+        "last_validated": "2026-05-08"
+      }
+    },
+    {
       "id": "llm_evaluator",
       "name": "LLM Evaluator (LLM-as-Judge)",
       "category": "ai",
@@ -17400,39 +17788,6 @@
         "pip": [
           "litellm"
         ]
-      }
-    },
-    {
-      "id": "llm_chain_executor",
-      "name": "LLM Chain",
-      "category": "ai",
-      "description": "Component for executing LLM chains row-by-row over an upstream DataFrame.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/ai/llm_chain_executor",
-      "tags": [
-        "ai",
-        "llm",
-        "chain",
-        "executor",
-        "agentic"
-      ],
-      "dependencies": {
-        "pip": [
-          "openai>=1.0.0",
-          "anthropic>=0.18.0"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_chain_executor/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_chain_executor/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_chain_executor/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_chain_executor/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/llm_chain_executor/requirements.txt",
-      "icon": "Sparkles",
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/llm_execution.md",
-        "last_validated": "2026-05-08"
       }
     },
     {
@@ -18161,6 +18516,82 @@
           "matomo_resource"
         ]
       }
+    },
+    {
+      "id": "mcp_tool_call",
+      "name": "MCP Tool Call",
+      "category": "source",
+      "description": "Deterministic single-shot call to one MCP tool \u2014 no LLM in the loop. Args templating supports {partition_key} / {partition_keys.<dim>} / {run_id}, and the asset supports full Dagster pattern (partitions, kinds, FreshnessPolicy, RetryPolicy).",
+      "path": "assets/sources/mcp_tool_call",
+      "tags": [
+        "source",
+        "mcp",
+        "tool-call",
+        "deterministic"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mcp_tool_call/schema.json",
+      "component_type": "dagster_component_templates.MCPToolCallComponent",
+      "icon": "Network",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mcp_tool_call/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mcp_tool_call/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mcp_tool_call/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/mcp_tool_call/requirements.txt",
+      "validation": {
+        "level": "live",
+        "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/litellm_agent.md",
+        "last_validated": "2026-06-04"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "mcp"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "None \u2014 calls an MCP server's tool.",
+        "outputs": "DataFrame with the tool call result.",
+        "side_effects": "Requires an MCP server running + tool name."
+      }
+    },
+    {
+      "id": "mcp_tool_picker",
+      "name": "MCP Tool Picker",
+      "category": "ai",
+      "description": "Planner LLM picks MCP tools + args to invoke from a bounded YAML-declared set. Each pick becomes a Dagster asset that actually calls the MCP server (stdio / http / sse); a synthesizer LLM writes the grounded final answer with per-tool citations. The 'agent picks MCPs' pattern with full lineage.",
+      "path": "assets/ai/mcp_tool_picker",
+      "tags": [
+        "ai",
+        "agent",
+        "agentic",
+        "mcp",
+        "supervisor",
+        "planner",
+        "multi-agent",
+        "openai"
+      ],
+      "icon": "Sparkles",
+      "type": "dagster_community_components.MCPToolPickerComponent",
+      "component_type": "dagster_community_components.MCPToolPickerComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_tool_picker/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_tool_picker/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_tool_picker/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_tool_picker/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mcp_tool_picker/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "openai>=1.0.0",
+          "mcp>=1.0.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/mcp_tool_picker.md",
+        "last_validated": "2026-07-07"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
     },
     {
       "id": "medical_record_extractor",
@@ -20968,6 +21399,43 @@
       }
     },
     {
+      "id": "pdf_report",
+      "name": "Pdf Report",
+      "category": "sink",
+      "description": "Render an upstream DataFrame to a PDF report (reportlab table mode or Jinja2/weasyprint HTML mode). Drop-in for Alteryx Render / Portfolio Composer.",
+      "path": "assets/sinks/pdf_report",
+      "tags": [
+        "sink",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pdf_report/schema.json",
+      "component_type": "dagster_component_templates.PdfReportComponent",
+      "icon": "FileText",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pdf_report/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pdf_report/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pdf_report/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pdf_report/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame (or multiple, via config).",
+        "outputs": "None (sink \u2014 writes PDF file with formatted report).",
+        "side_effects": "Requires reportlab/weasyprint. Writes to `file_path` on disk.",
+        "anti_uses": "For structured data output use dataframe_to_csv/parquet. For emails use smtp_send_asset."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "reportlab"
+        ]
+      }
+    },
+    {
       "id": "pdf_text_extractor",
       "name": "Pdf Text Extractor",
       "category": "transformation",
@@ -21005,6 +21473,47 @@
           "dagster",
           "pandas",
           "pdfplumber"
+        ]
+      }
+    },
+    {
+      "id": "pearson_correlation",
+      "name": "Pearson Correlation",
+      "category": "analytics",
+      "description": "Compute the Pearson / Spearman / Kendall correlation matrix across numeric columns. Output in long form (one row per pair) or wide (square matrix). Drop-in for Alteryx's Pearson Correlation tool.",
+      "path": "assets/analytics/pearson_correlation",
+      "tags": [
+        "analytics",
+        "statistics",
+        "correlation",
+        "pearson",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pearson_correlation/schema.json",
+      "component_type": "dagster_component_templates.PearsonCorrelationComponent",
+      "icon": "Activity",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pearson_correlation/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pearson_correlation/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pearson_correlation/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pearson_correlation/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric columns.",
+        "outputs": "DataFrame with pairwise correlation matrix (columns \u00d7 columns).",
+        "side_effects": "Reduces to N\u00d7N shape.",
+        "requires_pip": [
+          "scipy"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
         ]
       }
     },
@@ -21071,6 +21580,40 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/partitions.md",
         "last_validated": "2026-05-08"
+      }
+    },
+    {
+      "id": "per_row_http_fetcher",
+      "name": "Per-Row HTTP Fetcher",
+      "category": "transformation",
+      "description": "For each row in an upstream DataFrame, fetch the URL in `url_column` via HTTP and append response body / status / optional parsed JSON. Concurrent via ThreadPoolExecutor. Drop-in for Alteryx's Download tool (per-row HTTP) \u2014 different shape from `rest_api_fetcher` which does one URL per asset.",
+      "path": "assets/transforms/per_row_http_fetcher",
+      "tags": [
+        "transformation",
+        "http",
+        "api",
+        "download",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/per_row_http_fetcher/schema.json",
+      "component_type": "dagster_component_templates.PerRowHttpFetcherComponent",
+      "icon": "Globe",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/per_row_http_fetcher/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/per_row_http_fetcher/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/per_row_http_fetcher/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/per_row_http_fetcher/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "requests"
+        ]
       }
     },
     {
@@ -21651,6 +22194,49 @@
       }
     },
     {
+      "id": "points_from_latlon",
+      "name": "Points from Lat/Lon",
+      "category": "transformation",
+      "description": "Build Shapely Point geometries from a DataFrame's latitude / longitude columns and add them as a `geometry` column. Drop-in for Alteryx's Create Points tool.",
+      "path": "assets/transforms/points_from_latlon",
+      "tags": [
+        "spatial",
+        "geo",
+        "geopandas",
+        "create_points",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/points_from_latlon/schema.json",
+      "component_type": "dagster_component_templates.PointsFromLatLonComponent",
+      "icon": "MapPin",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/points_from_latlon/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/points_from_latlon/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/points_from_latlon/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/points_from_latlon/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-05"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with lat/lon columns.",
+        "outputs": "DataFrame + a `geometry` column of shapely Point objects.",
+        "side_effects": "Adds column. Downstream spatial ops require shapely.",
+        "requires_pip": [
+          "shapely"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "geopandas",
+          "shapely"
+        ]
+      }
+    },
+    {
       "id": "polars_io_manager",
       "name": "PolarsIOManager",
       "category": "io_manager",
@@ -21804,6 +22390,47 @@
       }
     },
     {
+      "id": "poly_build",
+      "name": "Poly Build",
+      "category": "transformation",
+      "description": "Construct polygon (or polyline) geometries from a points DataFrame by grouping rows into rings and ordering them by a sequence column. Drop-in for Alteryx's Poly-Build tool. Accepts either lat/lng coords OR an existing Shapely Point column.",
+      "path": "assets/transforms/poly_build",
+      "tags": [
+        "transformation",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/poly_build/schema.json",
+      "component_type": "dagster_component_templates.PolyBuildComponent",
+      "icon": "Hexagon",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/poly_build/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/poly_build/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/poly_build/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/poly_build/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "shapely"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a geometry column (shapely / geopandas).",
+        "outputs": "DataFrame with polygons constructed from ordered point sets.",
+        "side_effects": "Requires shapely + geopandas.",
+        "anti_uses": "For lat/lon columns use points_from_latlon first to construct geometry.",
+        "requires_pip": [
+          "shapely",
+          "geopandas"
+        ]
+      }
+    },
+    {
       "id": "polytomic_asset",
       "name": "Polytomic Asset",
       "category": "sink",
@@ -21941,6 +22568,48 @@
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_postgres.md",
         "last_validated": "2026-05-06"
       }
+    },
+    {
+      "name": "PostHog Events Ingestion",
+      "category": "ingestion",
+      "description": "Pull events from a PostHog project via the /events REST API. Handles cursor pagination automatically. Returns a pandas DataFrame with flattened event fields (id, event, distinct_id, timestamp, properties.*, person.*).",
+      "path": "assets/ingestion/posthog_events_ingestion",
+      "tags": [
+        "ingestion",
+        "posthog",
+        "product-analytics",
+        "saas"
+      ],
+      "icon": "BarChart",
+      "type": "dagster_community_components.PostHogEventsIngestionComponent",
+      "component_type": "dagster_community_components.PostHogEventsIngestionComponent",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 reads events from a PostHog project via REST API.",
+        "outputs": "DataFrame with flattened event fields (id, event, distinct_id, timestamp, properties.*, person.*).",
+        "side_effects": "Read-only. Requires POSTHOG_API_KEY personal API key with `query:read` scope. Cursor-paginated.",
+        "anti_uses": "For writing events INTO PostHog use the PostHog SDK directly (not a Dagster component). For real-time streaming use PostHog's webhooks + kafka_to_database_asset. Prefer this for backfills / analytics warehouses.",
+        "requires_resources": [
+          "posthog_api_key"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-08"
+      },
+      "id": "posthog_events_ingestion",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/posthog_events_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/posthog_events_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/posthog_events_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/posthog_events_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/posthog_events_ingestion/requirements.txt"
     },
     {
       "id": "precisely_address_verify",
@@ -22771,6 +23440,37 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "r_script",
+      "name": "R Script",
+      "category": "transformation",
+      "description": "Run an R script against an upstream DataFrame. Drop-in for Alteryx's R Tool. Two backends: rpy2 (in-process) or Rscript (subprocess + parquet/csv handoff).",
+      "path": "assets/transforms/r_script",
+      "tags": [
+        "transformation",
+        "r",
+        "alteryx",
+        "ml"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/r_script/schema.json",
+      "component_type": "dagster_community_components.RScriptComponent",
+      "icon": "Code",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/r_script/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/r_script/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/r_script/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/r_script/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pyarrow"
+        ]
       }
     },
     {
@@ -24621,6 +25321,49 @@
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/ai_with_llm.md",
         "last_validated": "2026-05-08"
       }
+    },
+    {
+      "name": "Sentry Issues Ingestion",
+      "category": "ingestion",
+      "description": "Pull issues from a Sentry project via the /api/0/projects REST API. Uses Link-header cursor pagination. Returns a pandas DataFrame with flattened issue fields (id, shortId, title, level, status, count, userCount, firstSeen, lastSeen, project.*, metadata.*).",
+      "path": "assets/ingestion/sentry_issues_ingestion",
+      "tags": [
+        "ingestion",
+        "sentry",
+        "observability",
+        "errors",
+        "saas"
+      ],
+      "icon": "AlertCircle",
+      "type": "dagster_community_components.SentryIssuesIngestionComponent",
+      "component_type": "dagster_community_components.SentryIssuesIngestionComponent",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 reads issues from a Sentry project.",
+        "outputs": "DataFrame with issue fields (id, shortId, title, level, status, count, userCount, firstSeen, lastSeen, permalink).",
+        "side_effects": "Read-only. Requires SENTRY_AUTH_TOKEN with `project:read` scope. Cursor-paginated via Link header. Query language matches Sentry's search bar (e.g. 'is:unresolved', 'level:error age:-24h').",
+        "anti_uses": "For sending events TO Sentry use dataframe_to_sentry. For querying events (individual occurrences) not issues (aggregated), use a different endpoint. Not for real-time \u2014 poll on a schedule.",
+        "requires_resources": [
+          "sentry_auth_token"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-08"
+      },
+      "id": "sentry_issues_ingestion",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sentry_issues_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sentry_issues_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sentry_issues_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sentry_issues_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/sentry_issues_ingestion/requirements.txt"
     },
     {
       "id": "servicebus_monitor",
@@ -26633,6 +27376,46 @@
       }
     },
     {
+      "id": "spatial_info",
+      "name": "Spatial Info",
+      "category": "transformation",
+      "description": "Append geometry metadata columns (area, length, centroid, bounds, geom type) to a (Geo)DataFrame. Drop-in for Alteryx's Spatial Info tool.",
+      "path": "assets/transforms/spatial_info",
+      "tags": [
+        "transformation",
+        "alteryx"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_info/schema.json",
+      "component_type": "dagster_component_templates.SpatialInfoComponent",
+      "icon": "Info",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_info/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_info/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_info/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_info/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "geopandas",
+          "shapely"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a geometry column.",
+        "outputs": "DataFrame + columns: area, length, centroid, bounds, geom_type.",
+        "side_effects": "Adds derived columns.",
+        "requires_pip": [
+          "shapely"
+        ]
+      }
+    },
+    {
       "id": "spatial_join",
       "name": "Spatial Join",
       "category": "analytics",
@@ -26672,6 +27455,44 @@
           "pandas",
           "geopandas",
           "shapely"
+        ]
+      }
+    },
+    {
+      "id": "spatial_process",
+      "name": "Spatial Process",
+      "category": "transformation",
+      "description": "Apply a single geometry op (centroid, boundary, convex_hull, envelope, simplify, buffer, polygon\u2194points/lines, set_precision) to a column of Shapely geometries. Drop-in for Alteryx Spatial Process tool.",
+      "path": "assets/transforms/spatial_process",
+      "tags": [
+        "transformation",
+        "alteryx",
+        "spatial"
+      ],
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_process/schema.json",
+      "component_type": "dagster_community_components.SpatialProcessComponent",
+      "icon": "Compass",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_process/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_process/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_process/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_process/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-06-06"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "shapely"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a geometry column.",
+        "outputs": "DataFrame with additional processed geometry (union/dissolve/etc.).",
+        "requires_pip": [
+          "shapely",
+          "geopandas"
         ]
       }
     },
@@ -27541,6 +28362,43 @@
       }
     },
     {
+      "id": "supervisor_agent",
+      "name": "Supervisor Agent",
+      "category": "ai",
+      "description": "Planner LLM reads a task and picks tools from a bounded YAML-declared set. Each pick fans out to its own per-tool Dagster asset (LLM persona). A synthesizer LLM reads all tool outputs + task and writes the grounded final answer. The 'agent of agents' pattern with full lineage.",
+      "path": "assets/ai/supervisor_agent",
+      "tags": [
+        "ai",
+        "agent",
+        "agentic",
+        "supervisor",
+        "planner",
+        "multi-agent",
+        "openai"
+      ],
+      "icon": "Sparkles",
+      "type": "dagster_community_components.SupervisorAgentComponent",
+      "component_type": "dagster_community_components.SupervisorAgentComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supervisor_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supervisor_agent/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supervisor_agent/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supervisor_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supervisor_agent/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "openai>=1.0.0"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/supervisor_agent.md",
+        "last_validated": "2026-07-07"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community"
+    },
+    {
       "id": "support_ticket_ingestion",
       "name": "Support Ticket Ingestion",
       "category": "ingestion",
@@ -27611,43 +28469,6 @@
         "inputs": "DataFrame of support tickets from a specific vendor (Zendesk / Freshdesk / Intercom).",
         "outputs": "Standardized (ticket_id, requester, agent, status, priority, created_at, resolved_at) schema."
       }
-    },
-    {
-      "id": "supervisor_agent",
-      "name": "Supervisor Agent",
-      "category": "ai",
-      "description": "Planner LLM reads a task and picks tools from a bounded YAML-declared set. Each pick fans out to its own per-tool Dagster asset (LLM persona). A synthesizer LLM reads all tool outputs + task and writes the grounded final answer. The 'agent of agents' pattern with full lineage.",
-      "path": "assets/ai/supervisor_agent",
-      "tags": [
-        "ai",
-        "agent",
-        "agentic",
-        "supervisor",
-        "planner",
-        "multi-agent",
-        "openai"
-      ],
-      "icon": "Sparkles",
-      "type": "dagster_community_components.SupervisorAgentComponent",
-      "component_type": "dagster_community_components.SupervisorAgentComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supervisor_agent/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supervisor_agent/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supervisor_agent/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supervisor_agent/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/supervisor_agent/requirements.txt",
-      "dependencies": {
-        "pip": [
-          "pandas",
-          "openai>=1.0.0"
-        ]
-      },
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/supervisor_agent.md",
-        "last_validated": "2026-07-07"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community"
     },
     {
       "id": "surrogate_key",
@@ -28079,6 +28900,144 @@
       }
     },
     {
+      "id": "temporal_query_asset",
+      "name": "Temporal Query Asset",
+      "vendor": "Temporal",
+      "category": "infrastructure",
+      "description": "Materialize the live state of a running Temporal workflow via a Query (read-only). Great for long-lived workflows exposing accumulated state.",
+      "path": "assets/infrastructure/temporal_query_asset",
+      "tags": [
+        "temporal",
+        "workflow",
+        "query",
+        "infrastructure",
+        "long-lived"
+      ],
+      "icon": "si:temporal",
+      "type": "dagster_community_components.TemporalQueryAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_query_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_query_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_query_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_query_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_query_asset/requirements.txt",
+      "component_type": "dagster_community_components.TemporalQueryAssetComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_signal_query.md",
+        "last_validated": "2026-07-02"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "temporalio"
+        ]
+      }
+    },
+    {
+      "id": "temporal_signal_asset",
+      "name": "Temporal Signal Asset",
+      "vendor": "Temporal",
+      "category": "infrastructure",
+      "description": "Send a Signal to a running Temporal workflow as a Dagster asset. For long-lived workflows that need Dagster-driven state pushes (flush, add, kick, shutdown).",
+      "path": "assets/infrastructure/temporal_signal_asset",
+      "tags": [
+        "temporal",
+        "workflow",
+        "signal",
+        "infrastructure",
+        "long-lived"
+      ],
+      "icon": "si:temporal",
+      "type": "dagster_community_components.TemporalSignalAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_signal_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_signal_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_signal_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_signal_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_signal_asset/requirements.txt",
+      "component_type": "dagster_community_components.TemporalSignalAssetComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_signal_query.md",
+        "last_validated": "2026-07-02"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "temporalio"
+        ]
+      }
+    },
+    {
+      "id": "temporal_workflow_sensor",
+      "name": "Temporal Workflow Sensor",
+      "vendor": "Temporal",
+      "category": "sensor",
+      "description": "Poll Temporal for terminal workflow status via the temporalio SDK and fire a Dagster job + optional AssetMaterialization/Observation. Pairs with external_temporal_workflow or temporal_workflow_trigger.",
+      "path": "sensors/temporal_workflow_sensor",
+      "tags": [
+        "temporal",
+        "workflow",
+        "sensor",
+        "observation"
+      ],
+      "icon": "si:temporal",
+      "type": "dagster_community_components.TemporalWorkflowSensorComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/temporal_workflow_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/temporal_workflow_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/temporal_workflow_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/temporal_workflow_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/temporal_workflow_sensor/requirements.txt",
+      "component_type": "dagster_community_components.TemporalWorkflowSensorComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_workflow.md",
+        "last_validated": "2026-07-02"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "temporalio"
+        ]
+      }
+    },
+    {
+      "id": "temporal_workflow_trigger",
+      "name": "Temporal Workflow Trigger",
+      "vendor": "Temporal",
+      "category": "infrastructure",
+      "description": "Start a Temporal Workflow via the temporalio SDK (gRPC). Works against local dev-server, self-hosted clusters, or Temporal Cloud. Captures result in asset metadata.",
+      "path": "assets/infrastructure/temporal_workflow_trigger",
+      "tags": [
+        "temporal",
+        "workflow",
+        "infrastructure",
+        "durable-execution"
+      ],
+      "icon": "si:temporal",
+      "type": "dagster_community_components.TemporalWorkflowTriggerComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_workflow_trigger/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_workflow_trigger/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_workflow_trigger/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_workflow_trigger/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_workflow_trigger/requirements.txt",
+      "component_type": "dagster_community_components.TemporalWorkflowTriggerComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_workflow.md",
+        "last_validated": "2026-07-02"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "temporalio"
+        ]
+      }
+    },
+    {
       "id": "terraform_asset",
       "name": "Terraform Asset",
       "category": "infrastructure",
@@ -28140,315 +29099,6 @@
         "pip": [
           "requests"
         ]
-      }
-    },
-    {
-      "id": "temporal_signal_asset",
-      "name": "Temporal Signal Asset",
-      "vendor": "Temporal",
-      "category": "infrastructure",
-      "description": "Send a Signal to a running Temporal workflow as a Dagster asset. For long-lived workflows that need Dagster-driven state pushes (flush, add, kick, shutdown).",
-      "path": "assets/infrastructure/temporal_signal_asset",
-      "tags": [
-        "temporal",
-        "workflow",
-        "signal",
-        "infrastructure",
-        "long-lived"
-      ],
-      "icon": "si:temporal",
-      "type": "dagster_community_components.TemporalSignalAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_signal_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_signal_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_signal_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_signal_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_signal_asset/requirements.txt",
-      "component_type": "dagster_community_components.TemporalSignalAssetComponent",
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_signal_query.md",
-        "last_validated": "2026-07-02"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "temporalio"
-        ]
-      }
-    },
-    {
-      "id": "temporal_query_asset",
-      "name": "Temporal Query Asset",
-      "vendor": "Temporal",
-      "category": "infrastructure",
-      "description": "Materialize the live state of a running Temporal workflow via a Query (read-only). Great for long-lived workflows exposing accumulated state.",
-      "path": "assets/infrastructure/temporal_query_asset",
-      "tags": [
-        "temporal",
-        "workflow",
-        "query",
-        "infrastructure",
-        "long-lived"
-      ],
-      "icon": "si:temporal",
-      "type": "dagster_community_components.TemporalQueryAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_query_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_query_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_query_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_query_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_query_asset/requirements.txt",
-      "component_type": "dagster_community_components.TemporalQueryAssetComponent",
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_signal_query.md",
-        "last_validated": "2026-07-02"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "temporalio"
-        ]
-      }
-    },
-    {
-      "id": "text_embedding_asset",
-      "name": "Text Embedding Asset",
-      "category": "ai",
-      "description": "Embed literal text strings from config into a DataFrame \u2014 one row per text with an embedding column. Ideal for RAG query embeddings and intent-label pre-embedding.",
-      "path": "assets/ai/text_embedding_asset",
-      "tags": [
-        "ai",
-        "embedding",
-        "openai",
-        "rag",
-        "vector-search",
-        "agentic"
-      ],
-      "icon": "Sparkles",
-      "type": "dagster_community_components.TextEmbeddingAssetComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_embedding_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_embedding_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_embedding_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_embedding_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_embedding_asset/requirements.txt",
-      "component_type": "dagster_community_components.TextEmbeddingAssetComponent",
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/supabase_rag.md",
-        "last_validated": "2026-07-07"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "openai",
-          "pandas",
-          "tabulate"
-        ]
-      }
-    },
-    {
-      "id": "vercel_deployment_sensor",
-      "name": "Vercel Deployment Sensor",
-      "vendor": "Vercel",
-      "category": "sensor",
-      "description": "Poll Vercel for deployment state, emit AssetMaterialization/Observation on READY, and fire a Dagster job. Optionally fire on ERROR for alert flows.",
-      "path": "sensors/vercel_deployment_sensor",
-      "tags": [
-        "vercel",
-        "deployment",
-        "sensor",
-        "observation"
-      ],
-      "icon": "si:vercel",
-      "type": "dagster_community_components.VercelDeploymentSensorComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/vercel_deployment_sensor/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/vercel_deployment_sensor/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/vercel_deployment_sensor/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/vercel_deployment_sensor/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/vercel_deployment_sensor/requirements.txt",
-      "component_type": "dagster_community_components.VercelDeploymentSensorComponent",
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vercel_deployment.md",
-        "last_validated": "2026-07-02"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "requests"
-        ]
-      }
-    },
-    {
-      "id": "external_vercel_deployment",
-      "name": "External Vercel Deployment",
-      "vendor": "Vercel",
-      "category": "external",
-      "description": "Declare a Vercel project's deployment stream as an external Dagster asset. Pair with vercel_deployment_sensor.",
-      "path": "external_assets/external_vercel_deployment",
-      "tags": [
-        "vercel",
-        "deployment",
-        "external",
-        "catalog"
-      ],
-      "icon": "si:vercel",
-      "type": "dagster_community_components.ExternalVercelDeploymentAsset",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_vercel_deployment/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_vercel_deployment/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_vercel_deployment/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_vercel_deployment/example.yaml",
-      "component_type": "dagster_community_components.ExternalVercelDeploymentAsset",
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vercel_deployment.md",
-        "last_validated": "2026-07-02"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": []
-      }
-    },
-    {
-      "id": "vercel_ai_gateway_agent",
-      "name": "Vercel AI Gateway Agent",
-      "vendor": "Vercel",
-      "category": "ai",
-      "description": "Single-shot LLM agent via Vercel AI Gateway \u2014 OpenAI-compatible proxy that routes to any provider with unified billing + automatic fallback + Vercel observability.",
-      "path": "assets/ai/vercel_ai_gateway_agent",
-      "tags": [
-        "ai",
-        "agent",
-        "vercel",
-        "ai-gateway",
-        "llm",
-        "mcp",
-        "agentic"
-      ],
-      "icon": "si:vercel",
-      "type": "dagster_community_components.VercelAIGatewayAgentComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vercel_ai_gateway_agent/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vercel_ai_gateway_agent/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vercel_ai_gateway_agent/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vercel_ai_gateway_agent/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vercel_ai_gateway_agent/requirements.txt",
-      "component_type": "dagster_community_components.VercelAIGatewayAgentComponent",
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vercel_ai_gateway_agent.md",
-        "last_validated": "2026-07-02"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "openai",
-          "mcp"
-        ]
-      }
-    },
-    {
-      "id": "temporal_workflow_trigger",
-      "name": "Temporal Workflow Trigger",
-      "vendor": "Temporal",
-      "category": "infrastructure",
-      "description": "Start a Temporal Workflow via the temporalio SDK (gRPC). Works against local dev-server, self-hosted clusters, or Temporal Cloud. Captures result in asset metadata.",
-      "path": "assets/infrastructure/temporal_workflow_trigger",
-      "tags": [
-        "temporal",
-        "workflow",
-        "infrastructure",
-        "durable-execution"
-      ],
-      "icon": "si:temporal",
-      "type": "dagster_community_components.TemporalWorkflowTriggerComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_workflow_trigger/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_workflow_trigger/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_workflow_trigger/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_workflow_trigger/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/temporal_workflow_trigger/requirements.txt",
-      "component_type": "dagster_community_components.TemporalWorkflowTriggerComponent",
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_workflow.md",
-        "last_validated": "2026-07-02"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "temporalio"
-        ]
-      }
-    },
-    {
-      "id": "temporal_workflow_sensor",
-      "name": "Temporal Workflow Sensor",
-      "vendor": "Temporal",
-      "category": "sensor",
-      "description": "Poll Temporal for terminal workflow status via the temporalio SDK and fire a Dagster job + optional AssetMaterialization/Observation. Pairs with external_temporal_workflow or temporal_workflow_trigger.",
-      "path": "sensors/temporal_workflow_sensor",
-      "tags": [
-        "temporal",
-        "workflow",
-        "sensor",
-        "observation"
-      ],
-      "icon": "si:temporal",
-      "type": "dagster_community_components.TemporalWorkflowSensorComponent",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/temporal_workflow_sensor/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/temporal_workflow_sensor/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/temporal_workflow_sensor/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/temporal_workflow_sensor/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/temporal_workflow_sensor/requirements.txt",
-      "component_type": "dagster_community_components.TemporalWorkflowSensorComponent",
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_workflow.md",
-        "last_validated": "2026-07-02"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "temporalio"
-        ]
-      }
-    },
-    {
-      "id": "external_temporal_workflow",
-      "name": "External Temporal Workflow",
-      "vendor": "Temporal",
-      "category": "external",
-      "description": "Declare a Temporal Workflow as an external Dagster asset. Pair with temporal_workflow_sensor when Temporal owns the schedule.",
-      "path": "external_assets/external_temporal_workflow",
-      "tags": [
-        "temporal",
-        "workflow",
-        "external",
-        "catalog"
-      ],
-      "icon": "si:temporal",
-      "type": "dagster_community_components.ExternalTemporalWorkflowAsset",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_temporal_workflow/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_temporal_workflow/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_temporal_workflow/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_temporal_workflow/example.yaml",
-      "component_type": "dagster_community_components.ExternalTemporalWorkflowAsset",
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/temporal_workflow.md",
-        "last_validated": "2026-07-02"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": []
       }
     },
     {
@@ -28579,6 +29229,43 @@
         "level": "live",
         "evidence": "",
         "last_validated": "2026-05-11"
+      }
+    },
+    {
+      "id": "text_embedding_asset",
+      "name": "Text Embedding Asset",
+      "category": "ai",
+      "description": "Embed literal text strings from config into a DataFrame \u2014 one row per text with an embedding column. Ideal for RAG query embeddings and intent-label pre-embedding.",
+      "path": "assets/ai/text_embedding_asset",
+      "tags": [
+        "ai",
+        "embedding",
+        "openai",
+        "rag",
+        "vector-search",
+        "agentic"
+      ],
+      "icon": "Sparkles",
+      "type": "dagster_community_components.TextEmbeddingAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_embedding_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_embedding_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_embedding_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_embedding_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/text_embedding_asset/requirements.txt",
+      "component_type": "dagster_community_components.TextEmbeddingAssetComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/supabase_rag.md",
+        "last_validated": "2026-07-07"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "openai",
+          "pandas",
+          "tabulate"
+        ]
       }
     },
     {
@@ -29655,6 +30342,127 @@
       }
     },
     {
+      "id": "vanta_controls_ingestion",
+      "name": "Vanta Controls Ingestion",
+      "category": "ingestion",
+      "description": "Fetches Vanta compliance controls (SOC 2, ISO 27001, HIPAA, PCI) plus status and evidence counts via GET /v1/controls. Returns a flattened pandas DataFrame.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/vanta_controls_ingestion",
+      "tags": [
+        "ingestion",
+        "vanta",
+        "compliance",
+        "soc2",
+        "iso27001",
+        "grc",
+        "rest"
+      ],
+      "vendor": "Vanta",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vanta_controls_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vanta_controls_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vanta_controls_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vanta_controls_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vanta_controls_ingestion/requirements.txt",
+      "component_type": "dagster_community_components.VantaControlsIngestionComponent",
+      "icon": "Shield",
+      "x-dagster-consumes": [
+        "vanta_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-06"
+      },
+      "agent_hints": {
+        "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
+        "outputs": "DataFrame with columns from Vanta compliance controls + evidence.",
+        "side_effects": "Read-only. Requires Vanta API credentials. Rate-limited per Vanta's tier.",
+        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Vanta use its dedicated writer (if available).",
+        "requires_resources": [
+          "vanta_resource"
+        ]
+      }
+    },
+    {
+      "id": "vanta_evidence_response_agent",
+      "name": "Vanta Evidence Response Agent",
+      "category": "ai",
+      "description": "Reads a DataFrame of Vanta controls and uses an LLM (OpenAI / Anthropic) to draft SOC 2 / ISO 27001 evidence responses per row.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/vanta_evidence_response_agent",
+      "tags": [
+        "ai",
+        "llm",
+        "vanta",
+        "compliance",
+        "soc2",
+        "iso27001",
+        "grc"
+      ],
+      "vendor": "Vanta",
+      "dependencies": {
+        "pip": [
+          "openai>=1.0.0",
+          "pandas>=1.5.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vanta_evidence_response_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vanta_evidence_response_agent/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vanta_evidence_response_agent/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vanta_evidence_response_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vanta_evidence_response_agent/requirements.txt",
+      "component_type": "dagster_community_components.VantaEvidenceResponseAgentComponent",
+      "icon": "Robot",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-06"
+      }
+    },
+    {
+      "id": "vanta_resource",
+      "name": "Vanta Resource",
+      "category": "resource",
+      "description": "Vanta API v1 resource with OAuth2 client-credentials token minting, caching, and auto-refresh. Provides get_client() returning an auth'd requests.Session.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/vanta_resource",
+      "tags": [
+        "resource",
+        "vanta",
+        "compliance",
+        "soc2",
+        "iso27001",
+        "grc"
+      ],
+      "vendor": "Vanta",
+      "dependencies": {
+        "pip": [
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vanta_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vanta_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vanta_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vanta_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vanta_resource/requirements.txt",
+      "component_type": "dagster_community_components.VantaResourceComponent",
+      "icon": "Shield",
+      "x-dagster-provides": [
+        "vanta_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-06"
+      }
+    },
+    {
       "id": "vector_store_query",
       "name": "Vector Store Query",
       "category": "ai",
@@ -29723,6 +30531,78 @@
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vector_rag.md",
         "last_validated": "2026-05-08"
+      }
+    },
+    {
+      "id": "vercel_ai_gateway_agent",
+      "name": "Vercel AI Gateway Agent",
+      "vendor": "Vercel",
+      "category": "ai",
+      "description": "Single-shot LLM agent via Vercel AI Gateway \u2014 OpenAI-compatible proxy that routes to any provider with unified billing + automatic fallback + Vercel observability.",
+      "path": "assets/ai/vercel_ai_gateway_agent",
+      "tags": [
+        "ai",
+        "agent",
+        "vercel",
+        "ai-gateway",
+        "llm",
+        "mcp",
+        "agentic"
+      ],
+      "icon": "si:vercel",
+      "type": "dagster_community_components.VercelAIGatewayAgentComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vercel_ai_gateway_agent/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vercel_ai_gateway_agent/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vercel_ai_gateway_agent/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vercel_ai_gateway_agent/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vercel_ai_gateway_agent/requirements.txt",
+      "component_type": "dagster_community_components.VercelAIGatewayAgentComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vercel_ai_gateway_agent.md",
+        "last_validated": "2026-07-02"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "openai",
+          "mcp"
+        ]
+      }
+    },
+    {
+      "id": "vercel_deployment_sensor",
+      "name": "Vercel Deployment Sensor",
+      "vendor": "Vercel",
+      "category": "sensor",
+      "description": "Poll Vercel for deployment state, emit AssetMaterialization/Observation on READY, and fire a Dagster job. Optionally fire on ERROR for alert flows.",
+      "path": "sensors/vercel_deployment_sensor",
+      "tags": [
+        "vercel",
+        "deployment",
+        "sensor",
+        "observation"
+      ],
+      "icon": "si:vercel",
+      "type": "dagster_community_components.VercelDeploymentSensorComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/vercel_deployment_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/vercel_deployment_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/vercel_deployment_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/vercel_deployment_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/vercel_deployment_sensor/requirements.txt",
+      "component_type": "dagster_community_components.VercelDeploymentSensorComponent",
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vercel_deployment.md",
+        "last_validated": "2026-07-02"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
       }
     },
     {
@@ -31072,755 +31952,6 @@
           "transformers",
           "torch"
         ]
-      }
-    },
-    {
-      "id": "points_from_latlon",
-      "name": "Points from Lat/Lon",
-      "category": "transformation",
-      "description": "Build Shapely Point geometries from a DataFrame's latitude / longitude columns and add them as a `geometry` column. Drop-in for Alteryx's Create Points tool.",
-      "path": "assets/transforms/points_from_latlon",
-      "tags": [
-        "spatial",
-        "geo",
-        "geopandas",
-        "create_points",
-        "alteryx"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/points_from_latlon/schema.json",
-      "component_type": "dagster_component_templates.PointsFromLatLonComponent",
-      "icon": "MapPin",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/points_from_latlon/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/points_from_latlon/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/points_from_latlon/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/points_from_latlon/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-05"
-      },
-      "agent_hints": {
-        "inputs": "DataFrame with lat/lon columns.",
-        "outputs": "DataFrame + a `geometry` column of shapely Point objects.",
-        "side_effects": "Adds column. Downstream spatial ops require shapely.",
-        "requires_pip": [
-          "shapely"
-        ]
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "pandas",
-          "geopandas",
-          "shapely"
-        ]
-      }
-    },
-    {
-      "id": "geo_buffer",
-      "name": "Geo Buffer",
-      "category": "transformation",
-      "description": "Expand each geometry by a distance, producing a polygon buffer. Drop-in for Alteryx's Buffer and Trade Area tools. Projects to Web Mercator before buffering so distance units are meters / km / miles, not degrees.",
-      "path": "assets/transforms/geo_buffer",
-      "tags": [
-        "spatial",
-        "geo",
-        "geopandas",
-        "shapely",
-        "buffer",
-        "trade_area",
-        "alteryx"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_buffer/schema.json",
-      "component_type": "dagster_component_templates.GeoBufferComponent",
-      "icon": "Circle",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_buffer/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_buffer/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_buffer/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_buffer/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-05"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "pandas",
-          "geopandas",
-          "shapely",
-          "pyproj"
-        ]
-      },
-      "agent_hints": {
-        "inputs": "DataFrame with a geometry column (shapely / geopandas).",
-        "outputs": "DataFrame with a new column with buffered polygons around each geometry.",
-        "side_effects": "Requires shapely + geopandas.",
-        "anti_uses": "For lat/lon columns use points_from_latlon first to construct geometry.",
-        "requires_pip": [
-          "shapely",
-          "geopandas"
-        ]
-      }
-    },
-    {
-      "id": "geo_simplify",
-      "name": "Geo Simplify",
-      "category": "transformation",
-      "description": "Reduce vertex count of each geometry via Shapely Douglas-Peucker simplification. Drop-in for Alteryx's Generalize tool. Useful for shrinking tile sizes or speeding up downstream spatial joins.",
-      "path": "assets/transforms/geo_simplify",
-      "tags": [
-        "spatial",
-        "geo",
-        "shapely",
-        "simplify",
-        "generalize",
-        "alteryx"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_simplify/schema.json",
-      "component_type": "dagster_component_templates.GeoSimplifyComponent",
-      "icon": "Minimize2",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_simplify/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_simplify/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_simplify/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_simplify/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-05"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "pandas",
-          "geopandas",
-          "shapely"
-        ]
-      },
-      "agent_hints": {
-        "inputs": "DataFrame with a geometry column (shapely / geopandas).",
-        "outputs": "DataFrame with simplified geometry (fewer vertices for lighter rendering).",
-        "side_effects": "Requires shapely + geopandas.",
-        "anti_uses": "For lat/lon columns use points_from_latlon first to construct geometry.",
-        "requires_pip": [
-          "shapely",
-          "geopandas"
-        ]
-      }
-    },
-    {
-      "id": "geo_overlay",
-      "name": "Geo Overlay",
-      "category": "transformation",
-      "description": "Combine two geometry DataFrames using set-theoretic spatial operations (intersection / union / difference / symmetric_difference / identity). Drop-in for Alteryx's Spatial Process tool.",
-      "path": "assets/transforms/geo_overlay",
-      "tags": [
-        "spatial",
-        "geo",
-        "geopandas",
-        "overlay",
-        "intersection",
-        "union",
-        "alteryx"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_overlay/schema.json",
-      "component_type": "dagster_component_templates.GeoOverlayComponent",
-      "icon": "Layers",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_overlay/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_overlay/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_overlay/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/geo_overlay/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-05"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "pandas",
-          "geopandas",
-          "shapely"
-        ]
-      },
-      "agent_hints": {
-        "inputs": "DataFrame with a geometry column (shapely / geopandas).",
-        "outputs": "DataFrame with polygon overlay results (intersection / union / difference).",
-        "side_effects": "Requires shapely + geopandas.",
-        "anti_uses": "For lat/lon columns use points_from_latlon first to construct geometry.",
-        "requires_pip": [
-          "shapely",
-          "geopandas"
-        ]
-      }
-    },
-    {
-      "id": "drive_time",
-      "name": "Drive Time",
-      "category": "transformation",
-      "description": "Compute drive-time isochrone polygons (where can I drive in N minutes?) for each input point via a routing API. Drop-in for Alteryx's Drive Time and Trade Area tools. v1 ships openrouteservice (free tier with API key); google / mapbox / OSRM are stubbed with same component shape.",
-      "path": "assets/transforms/drive_time",
-      "tags": [
-        "spatial",
-        "geo",
-        "routing",
-        "isochrone",
-        "openrouteservice",
-        "drive_time",
-        "trade_area",
-        "alteryx"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/drive_time/schema.json",
-      "component_type": "dagster_component_templates.DriveTimeComponent",
-      "icon": "Navigation",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/drive_time/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/drive_time/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/drive_time/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/drive_time/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-05"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "pandas",
-          "geopandas",
-          "shapely",
-          "openrouteservice",
-          "requests"
-        ]
-      },
-      "agent_hints": {
-        "inputs": "DataFrame with origin + destination lat/lon columns.",
-        "outputs": "DataFrame + travel_time / distance columns.",
-        "side_effects": "Requires routing API (OSRM/HERE/Google) \u2014 external call.",
-        "anti_uses": "For straight-line distance use distance_calculator (no API)."
-      }
-    },
-    {
-      "id": "pearson_correlation",
-      "name": "Pearson Correlation",
-      "category": "analytics",
-      "description": "Compute the Pearson / Spearman / Kendall correlation matrix across numeric columns. Output in long form (one row per pair) or wide (square matrix). Drop-in for Alteryx's Pearson Correlation tool.",
-      "path": "assets/analytics/pearson_correlation",
-      "tags": [
-        "analytics",
-        "statistics",
-        "correlation",
-        "pearson",
-        "alteryx"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pearson_correlation/schema.json",
-      "component_type": "dagster_component_templates.PearsonCorrelationComponent",
-      "icon": "Activity",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pearson_correlation/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pearson_correlation/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pearson_correlation/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/analytics/pearson_correlation/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-05"
-      },
-      "agent_hints": {
-        "inputs": "DataFrame with numeric columns.",
-        "outputs": "DataFrame with pairwise correlation matrix (columns \u00d7 columns).",
-        "side_effects": "Reduces to N\u00d7N shape.",
-        "requires_pip": [
-          "scipy"
-        ]
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "pandas"
-        ]
-      }
-    },
-    {
-      "id": "per_row_http_fetcher",
-      "name": "Per-Row HTTP Fetcher",
-      "category": "transformation",
-      "description": "For each row in an upstream DataFrame, fetch the URL in `url_column` via HTTP and append response body / status / optional parsed JSON. Concurrent via ThreadPoolExecutor. Drop-in for Alteryx's Download tool (per-row HTTP) \u2014 different shape from `rest_api_fetcher` which does one URL per asset.",
-      "path": "assets/transforms/per_row_http_fetcher",
-      "tags": [
-        "transformation",
-        "http",
-        "api",
-        "download",
-        "alteryx"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/per_row_http_fetcher/schema.json",
-      "component_type": "dagster_component_templates.PerRowHttpFetcherComponent",
-      "icon": "Globe",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/per_row_http_fetcher/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/per_row_http_fetcher/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/per_row_http_fetcher/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/per_row_http_fetcher/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-05"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "pandas",
-          "requests"
-        ]
-      }
-    },
-    {
-      "id": "poly_build",
-      "name": "Poly Build",
-      "category": "transformation",
-      "description": "Construct polygon (or polyline) geometries from a points DataFrame by grouping rows into rings and ordering them by a sequence column. Drop-in for Alteryx's Poly-Build tool. Accepts either lat/lng coords OR an existing Shapely Point column.",
-      "path": "assets/transforms/poly_build",
-      "tags": [
-        "transformation",
-        "alteryx"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/poly_build/schema.json",
-      "component_type": "dagster_component_templates.PolyBuildComponent",
-      "icon": "Hexagon",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/poly_build/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/poly_build/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/poly_build/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/poly_build/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-06"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "pandas",
-          "shapely"
-        ]
-      },
-      "agent_hints": {
-        "inputs": "DataFrame with a geometry column (shapely / geopandas).",
-        "outputs": "DataFrame with polygons constructed from ordered point sets.",
-        "side_effects": "Requires shapely + geopandas.",
-        "anti_uses": "For lat/lon columns use points_from_latlon first to construct geometry.",
-        "requires_pip": [
-          "shapely",
-          "geopandas"
-        ]
-      }
-    },
-    {
-      "id": "spatial_info",
-      "name": "Spatial Info",
-      "category": "transformation",
-      "description": "Append geometry metadata columns (area, length, centroid, bounds, geom type) to a (Geo)DataFrame. Drop-in for Alteryx's Spatial Info tool.",
-      "path": "assets/transforms/spatial_info",
-      "tags": [
-        "transformation",
-        "alteryx"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_info/schema.json",
-      "component_type": "dagster_component_templates.SpatialInfoComponent",
-      "icon": "Info",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_info/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_info/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_info/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_info/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-06"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "pandas",
-          "geopandas",
-          "shapely"
-        ]
-      },
-      "agent_hints": {
-        "inputs": "DataFrame with a geometry column.",
-        "outputs": "DataFrame + columns: area, length, centroid, bounds, geom_type.",
-        "side_effects": "Adds derived columns.",
-        "requires_pip": [
-          "shapely"
-        ]
-      }
-    },
-    {
-      "id": "pdf_report",
-      "name": "Pdf Report",
-      "category": "sink",
-      "description": "Render an upstream DataFrame to a PDF report (reportlab table mode or Jinja2/weasyprint HTML mode). Drop-in for Alteryx Render / Portfolio Composer.",
-      "path": "assets/sinks/pdf_report",
-      "tags": [
-        "sink",
-        "alteryx"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pdf_report/schema.json",
-      "component_type": "dagster_component_templates.PdfReportComponent",
-      "icon": "FileText",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pdf_report/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pdf_report/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pdf_report/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/pdf_report/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-06"
-      },
-      "agent_hints": {
-        "inputs": "Any DataFrame (or multiple, via config).",
-        "outputs": "None (sink \u2014 writes PDF file with formatted report).",
-        "side_effects": "Requires reportlab/weasyprint. Writes to `file_path` on disk.",
-        "anti_uses": "For structured data output use dataframe_to_csv/parquet. For emails use smtp_send_asset."
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "pandas",
-          "reportlab"
-        ]
-      }
-    },
-    {
-      "id": "blob_convert",
-      "name": "Blob Convert",
-      "category": "transformation",
-      "description": "Convert a bytes/text column between common encodings: base64 (encode/decode), hex (encode/decode), text/bytes (utf-8). Drop-in for Alteryx Blob Convert tool.",
-      "path": "assets/transforms/blob_convert",
-      "tags": [
-        "transformation",
-        "alteryx"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/blob_convert/schema.json",
-      "component_type": "dagster_component_templates.BlobConvertComponent",
-      "icon": "Binary",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/blob_convert/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/blob_convert/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/blob_convert/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/blob_convert/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-06"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "pandas"
-        ]
-      }
-    },
-    {
-      "id": "dynamic_rename",
-      "name": "Dynamic Rename",
-      "category": "transformation",
-      "description": "Pattern-based column renaming with several modes (first_row / add_prefix / add_suffix / replace / mapping / mapping_from_column). Drop-in for Alteryx Dynamic Rename.",
-      "path": "assets/transforms/dynamic_rename",
-      "tags": [
-        "transformation",
-        "alteryx"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_rename/schema.json",
-      "component_type": "dagster_component_templates.DynamicRenameComponent",
-      "icon": "Edit",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_rename/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_rename/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_rename/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/dynamic_rename/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-06"
-      },
-      "agent_hints": {
-        "inputs": "Any DataFrame + a mapping (or rule) for column renaming.",
-        "outputs": "Same rows; some column NAMES changed per mapping.",
-        "side_effects": "Renames columns IN PLACE \u2014 downstream referencing OLD names will KeyError.",
-        "anti_uses": "For column drop use select_columns. For value transformation use formula."
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "pandas"
-        ]
-      }
-    },
-    {
-      "id": "spatial_process",
-      "name": "Spatial Process",
-      "category": "transformation",
-      "description": "Apply a single geometry op (centroid, boundary, convex_hull, envelope, simplify, buffer, polygon\u2194points/lines, set_precision) to a column of Shapely geometries. Drop-in for Alteryx Spatial Process tool.",
-      "path": "assets/transforms/spatial_process",
-      "tags": [
-        "transformation",
-        "alteryx",
-        "spatial"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_process/schema.json",
-      "component_type": "dagster_community_components.SpatialProcessComponent",
-      "icon": "Compass",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_process/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_process/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_process/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/spatial_process/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-06"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "shapely"
-        ]
-      },
-      "agent_hints": {
-        "inputs": "DataFrame with a geometry column.",
-        "outputs": "DataFrame with additional processed geometry (union/dissolve/etc.).",
-        "requires_pip": [
-          "shapely",
-          "geopandas"
-        ]
-      }
-    },
-    {
-      "id": "address_standardize",
-      "name": "Address Standardize",
-      "category": "transformation",
-      "description": "Parse messy address strings into structured components (street, city, state, ZIP, ZIP+4, country) using libpostal / Geoapify / Nominatim / regex. Free / open-source drop-in for Alteryx CASS.",
-      "path": "assets/transforms/address_standardize",
-      "tags": [
-        "transformation",
-        "address",
-        "geocoding",
-        "data-quality",
-        "alteryx"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardize/schema.json",
-      "component_type": "dagster_community_components.AddressStandardizeComponent",
-      "icon": "MapPin",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardize/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardize/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardize/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/address_standardize/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-06"
-      },
-      "agent_hints": {
-        "inputs": "DataFrame with a raw address column.",
-        "outputs": "Same rows + parsed components (street, city, state, postal, country) OR standardized address string.",
-        "side_effects": "Adds columns. Requires libpostal or an external service.",
-        "anti_uses": "For verified/validated addresses use precisely_address_verify (paid). Not for geocoding (use points_from_latlon after geocoding)."
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "requests"
-        ]
-      }
-    },
-    {
-      "id": "r_script",
-      "name": "R Script",
-      "category": "transformation",
-      "description": "Run an R script against an upstream DataFrame. Drop-in for Alteryx's R Tool. Two backends: rpy2 (in-process) or Rscript (subprocess + parquet/csv handoff).",
-      "path": "assets/transforms/r_script",
-      "tags": [
-        "transformation",
-        "r",
-        "alteryx",
-        "ml"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/r_script/schema.json",
-      "component_type": "dagster_community_components.RScriptComponent",
-      "icon": "Code",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/r_script/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/r_script/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/r_script/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/r_script/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-06"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "pyarrow"
-        ]
-      }
-    },
-    {
-      "id": "jupyter_notebook",
-      "name": "Jupyter Notebook",
-      "category": "transformation",
-      "description": "Execute a Jupyter notebook (.ipynb) or inline Python code against an upstream DataFrame. Drop-in for Alteryx's Jupyter Code tool.",
-      "path": "assets/transforms/jupyter_notebook",
-      "tags": [
-        "transformation",
-        "jupyter",
-        "python",
-        "alteryx"
-      ],
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/jupyter_notebook/schema.json",
-      "component_type": "dagster_community_components.JupyterNotebookComponent",
-      "icon": "Notebook",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/jupyter_notebook/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/jupyter_notebook/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/jupyter_notebook/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/transforms/jupyter_notebook/requirements.txt",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-06-06"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "dependencies": {
-        "pip": [
-          "pyarrow",
-          "papermill"
-        ]
-      }
-    },
-    {
-      "id": "vanta_resource",
-      "name": "Vanta Resource",
-      "category": "resource",
-      "description": "Vanta API v1 resource with OAuth2 client-credentials token minting, caching, and auto-refresh. Provides get_client() returning an auth'd requests.Session.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "resources/vanta_resource",
-      "tags": [
-        "resource",
-        "vanta",
-        "compliance",
-        "soc2",
-        "iso27001",
-        "grc"
-      ],
-      "vendor": "Vanta",
-      "dependencies": {
-        "pip": [
-          "requests>=2.28"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vanta_resource/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vanta_resource/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vanta_resource/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vanta_resource/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/vanta_resource/requirements.txt",
-      "component_type": "dagster_community_components.VantaResourceComponent",
-      "icon": "Shield",
-      "x-dagster-provides": [
-        "vanta_resource"
-      ],
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-07-06"
-      }
-    },
-    {
-      "id": "vanta_controls_ingestion",
-      "name": "Vanta Controls Ingestion",
-      "category": "ingestion",
-      "description": "Fetches Vanta compliance controls (SOC 2, ISO 27001, HIPAA, PCI) plus status and evidence counts via GET /v1/controls. Returns a flattened pandas DataFrame.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/ingestion/vanta_controls_ingestion",
-      "tags": [
-        "ingestion",
-        "vanta",
-        "compliance",
-        "soc2",
-        "iso27001",
-        "grc",
-        "rest"
-      ],
-      "vendor": "Vanta",
-      "dependencies": {
-        "pip": [
-          "requests>=2.28",
-          "pandas>=1.5.0"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vanta_controls_ingestion/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vanta_controls_ingestion/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vanta_controls_ingestion/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vanta_controls_ingestion/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/vanta_controls_ingestion/requirements.txt",
-      "component_type": "dagster_community_components.VantaControlsIngestionComponent",
-      "icon": "Shield",
-      "x-dagster-consumes": [
-        "vanta_resource"
-      ],
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-07-06"
-      },
-      "agent_hints": {
-        "inputs": "None (root ingestion) \u2014 hits vendor's REST API.",
-        "outputs": "DataFrame with columns from Vanta compliance controls + evidence.",
-        "side_effects": "Read-only. Requires Vanta API credentials. Rate-limited per Vanta's tier.",
-        "anti_uses": "For generic REST APIs use rest_api_fetcher. For writing back to Vanta use its dedicated writer (if available).",
-        "requires_resources": [
-          "vanta_resource"
-        ]
-      }
-    },
-    {
-      "id": "vanta_evidence_response_agent",
-      "name": "Vanta Evidence Response Agent",
-      "category": "ai",
-      "description": "Reads a DataFrame of Vanta controls and uses an LLM (OpenAI / Anthropic) to draft SOC 2 / ISO 27001 evidence responses per row.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "assets/ai/vanta_evidence_response_agent",
-      "tags": [
-        "ai",
-        "llm",
-        "vanta",
-        "compliance",
-        "soc2",
-        "iso27001",
-        "grc"
-      ],
-      "vendor": "Vanta",
-      "dependencies": {
-        "pip": [
-          "openai>=1.0.0",
-          "pandas>=1.5.0"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vanta_evidence_response_agent/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vanta_evidence_response_agent/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vanta_evidence_response_agent/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vanta_evidence_response_agent/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/vanta_evidence_response_agent/requirements.txt",
-      "component_type": "dagster_community_components.VantaEvidenceResponseAgentComponent",
-      "icon": "Robot",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-07-06"
       }
     }
   ],

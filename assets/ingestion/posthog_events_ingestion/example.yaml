@@ -1,0 +1,10 @@
+type: dagster_community_components.PostHogEventsIngestionComponent
+attributes:
+  asset_name: posthog_pageviews
+  project_id: "12345"
+  api_host: https://us.i.posthog.com
+  api_key_env_var: POSTHOG_API_KEY
+  event: "$pageview"
+  since_days: 7
+  limit: 5000
+  group_name: posthog

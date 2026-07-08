@@ -25323,6 +25323,52 @@
       }
     },
     {
+      "id": "sentry_alert_job",
+      "name": "Sentry Alert Job",
+      "category": "jobs",
+      "description": "Fire a Sentry event as a scheduled (or on-demand) job \u2014 no asset materialized. Matches the shape of http_webhook_job / observability_heartbeat_job. Configurable message ({now} substitution), level, environment/release, Sentry tags/extras/fingerprint. Common uses: nightly heartbeat that on-call watches for gaps; release-notification events; scheduled 'job completed' signals into the Sentry inbox.",
+      "path": "jobs/sentry_alert_job",
+      "tags": [
+        "jobs",
+        "sentry",
+        "observability",
+        "alert",
+        "heartbeat"
+      ],
+      "icon": "AlertCircle",
+      "type": "dagster_community_components.SentryAlertJobComponent",
+      "component_type": "dagster_community_components.SentryAlertJobComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sentry_alert_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sentry_alert_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sentry_alert_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sentry_alert_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/sentry_alert_job/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sentry-sdk"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "None \u2014 schedule-triggered or on-demand.",
+        "outputs": "None (op job \u2014 sends one Sentry event per run, no asset materialized).",
+        "side_effects": "Requires SENTRY_DSN env var + sentry-sdk installed. Message supports {now} placeholder for UTC ISO timestamp.",
+        "anti_uses": "For per-row events from a DataFrame use dataframe_to_sentry (asset sink). For reading issues use sentry_issues_ingestion. For generic webhook use http_webhook_job. For pinging any observability endpoint use observability_heartbeat_job.",
+        "requires_pip": [
+          "sentry_sdk"
+        ],
+        "requires_resources": [
+          "sentry_dsn"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-07-08"
+      }
+    },
+    {
       "name": "Sentry Issues Ingestion",
       "category": "ingestion",
       "description": "Pull issues from a Sentry project via the /api/0/projects REST API. Uses Link-header cursor pagination. Returns a pandas DataFrame with flattened issue fields (id, shortId, title, level, status, count, userCount, firstSeen, lastSeen, project.*, metadata.*).",

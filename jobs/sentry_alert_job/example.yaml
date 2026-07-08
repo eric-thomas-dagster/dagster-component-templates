@@ -1,0 +1,20 @@
+type: dagster_community_components.SentryAlertJobComponent
+attributes:
+  job_name: nightly_etl_heartbeat
+  schedule: "0 3 * * *"      # every day at 03:00
+  default_status: RUNNING
+  tags: { purpose: "etl_heartbeat" }
+
+  dsn_env_var: SENTRY_DSN
+  environment: prod
+  release: dagster-etl
+
+  message: "Nightly ETL heartbeat at {now}"
+  level: info
+  sentry_tags:
+    system: dagster
+    job: nightly_etl_heartbeat
+  sentry_extras:
+    scheduler: dagster_plus
+  fingerprint: [dagster, etl_heartbeat]
+  fail_on_error: false

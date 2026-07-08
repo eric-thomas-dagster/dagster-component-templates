@@ -3929,7 +3929,7 @@
         "inputs": "DataFrame with user_id + event_date columns.",
         "outputs": "DataFrame in cohort-retention shape: cohort_period (rows) \u00d7 age_period (columns) with retention values.",
         "side_effects": "REDUCES rows drastically (one row per cohort). Column set becomes {cohort_period, N age-period columns}.",
-        "anti_uses": "Requires event-level data. For simple churn use churn_prediction."
+        "anti_uses": "Required config: customer_id_field, activity_date_field (the timestamp column), cohort_period ('daily'|'weekly'|'monthly'), retention_periods (int). Optional: first_date_field (auto-derived if omitted), include_revenue+revenue_field. Do NOT rely on inferred columns \u2014 always specify activity_date_field explicitly (e.g. 'order_date' or 'signup_month')."
       }
     },
     {
@@ -24748,7 +24748,7 @@
         "inputs": "DataFrame with columns named by `group_by` present. Aggregation column names must exist in input.",
         "outputs": "DataFrame with columns: group_by keys + one column per aggregation.",
         "side_effects": "REDUCES rows to one per group. Column set changes: only group_by keys + aggs remain.",
-        "anti_uses": "group_by columns MUST exist in the upstream \u2014 if a prior step renamed or removed them (e.g. one_hot_encoding), branch off the earlier upstream that still has them. aggregations format: {'output_name': {'col': 'source_col', 'agg': 'sum|mean|count|min|max|std|median|first|last'}}."
+        "anti_uses": "group_by columns MUST exist in the upstream. aggregations shape: {'<output_name>': {'col': '<source_col>', 'agg': 'sum|mean|count|min|max|std|median|first|last'}}. For ANY 'group by X, sum/count/mean Y' task \u2014 USE summarize, not count_records + formula. count_records only gives a grand total; formula only computes per-row values \u2014 neither does group-by aggregation. If upstream was one_hot_encoded, branch off pre-encoded upstream."
       }
     },
     {

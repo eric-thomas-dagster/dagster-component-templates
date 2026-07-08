@@ -499,15 +499,44 @@ if _HAS_STATE_BACKED:
                     _filtered_3.append(c)
             filtered = _filtered_3
 
+            # Build a reverse-index: snake_case(class_name) → class_name. Covers
+            # acronyms (RFMSegmentationComponent → rfm_segmentation) which the
+            # naive pascalize pass misses.
+            import re as _re
+            def _snake(_name: str) -> str:
+                # Insert underscores before uppercase runs, then lowercase.
+                _s = _re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', _name)
+                _s = _re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', _s)
+                _s = _s.lower()
+                # Strip a trailing _component if present.
+                if _s.endswith("_component"):
+                    _s = _s[:-len("_component")]
+                return _s
+            _snake_index = {}
+            for _attr in dir(_dcc):
+                if not _attr[:1].isupper():
+                    continue
+                _snake_index.setdefault(_snake(_attr), _attr)
+
             resolved = []
             for c in filtered:
                 raw_type = c.get("component_type") or c.get("type") or ""
+                _cls_name = None
                 if raw_type:
-                    _cls_name = raw_type.rsplit(".", 1)[-1]
-                else:
+                    _cand = raw_type.rsplit(".", 1)[-1]
+                    if hasattr(_dcc, _cand):
+                        _cls_name = _cand
+                if _cls_name is None:
+                    # Try naive pascalize.
                     _pascal = "".join(p.capitalize() for p in (c.get("id") or "").split("_"))
-                    _cls_name = _pascal + "Component" if hasattr(_dcc, _pascal + "Component") else _pascal
-                if hasattr(_dcc, _cls_name):
+                    for _cand in (_pascal + "Component", _pascal):
+                        if hasattr(_dcc, _cand):
+                            _cls_name = _cand
+                            break
+                if _cls_name is None:
+                    # Reverse-lookup: snake_case(class_name) → class.
+                    _cls_name = _snake_index.get(c.get("id"))
+                if _cls_name is not None and hasattr(_dcc, _cls_name):
                     resolved.append({**c, "component_type": f"dagster_community_components.{_cls_name}"})
             return resolved[: self.max_catalog_entries], _dcc
 
@@ -917,18 +946,26 @@ if _HAS_STATE_BACKED:
                         p for p in picks
                         if p.get("component_id") in _sink_ids and p.get("status") == "success"
                     ]
-                    if _wants_sink and not _succeeded_sinks:
-                        # Reject done; log the rejection and re-loop. The next
-                        # iteration will see the failure in prior_summary.
+                    # Count distinct file paths in the task — if the task
+                    # asks for N CSVs and we've only written M<N, reject done.
+                    import re as _re
+                    _paths = set(_re.findall(
+                        r"/?[\w\-\./]+\.(?:csv|parquet|json|xlsx|avro|xls)", self.task or ""
+                    ))
+                    _expected_sinks = len(_paths)
+                    if _wants_sink and len(_succeeded_sinks) < max(1, _expected_sinks):
+                        _missing = (_expected_sinks - len(_succeeded_sinks)) if _expected_sinks else 1
                         picks.append({
                             "iteration": iteration, "done": False, "component_id": None,
                             "component_type": None, "config": None,
                             "reason": plan.get("reason", ""), "asset_name": None,
                             "output_columns": [], "status": "failed",
                             "error": (
-                                "REJECTED 'done': task mentions writing a file/CSV but no sink "
-                                "step (dataframe_to_csv / dataframe_to_parquet / etc.) has "
-                                "succeeded yet. Pick a sink component now, once per required output."
+                                f"REJECTED 'done': task mentions {_expected_sinks or 'at least one'} "
+                                f"output file path(s) — {sorted(_paths) if _paths else 'unspecified'}. "
+                                f"Only {len(_succeeded_sinks)} sink(s) have succeeded. Pick "
+                                f"{_missing} more sink(s), each with a DIFFERENT upstream_asset_key "
+                                f"and DIFFERENT file_path."
                             ),
                         })
                         continue

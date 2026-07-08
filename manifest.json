@@ -128,7 +128,7 @@
       "id": "adaptive_research_brief",
       "name": "Adaptive Research Brief",
       "category": "ai",
-      "description": "Planner LLM decides N sub-topics at runtime for a given research topic. Row-wise researcher LLM writes a note per subtopic; synthesizer combines into a markdown brief. Where DynamicOutput / dynamic partitions fits — N is truly runtime-decided per run.",
+      "description": "Planner LLM decides N sub-topics at runtime for a given research topic. Row-wise researcher LLM writes a note per subtopic; synthesizer combines into a markdown brief. Where DynamicOutput / dynamic partitions fits \u2014 N is truly runtime-decided per run.",
       "path": "assets/ai/adaptive_research_brief",
       "tags": [
         "ai",
@@ -3647,11 +3647,18 @@
       "id": "catalog_agent",
       "name": "Catalog Agent",
       "category": "ai",
-      "description": "Meta-agent that reads the LIVE component manifest, presents a filtered slice to a planner LLM, and executes REAL picked components via reflection + in-process materialize. Per-step iteration — planner sees actual output columns/preview after each step so it picks the next component with real schema knowledge. Works on customer data with schemas unknown at pipeline-write time.",
+      "description": "Meta-agent that reads the LIVE component manifest, presents a filtered slice to a planner LLM, and executes REAL picked components via reflection + in-process materialize. Per-step iteration \u2014 planner sees actual output columns/preview after each step so it picks the next component with real schema knowledge. Works on customer data with schemas unknown at pipeline-write time.",
       "path": "assets/ai/catalog_agent",
       "tags": [
-        "ai", "agent", "agentic", "iterative", "catalog", "meta-agent",
-        "schema-discovery", "reflection", "openai"
+        "ai",
+        "agent",
+        "agentic",
+        "iterative",
+        "catalog",
+        "meta-agent",
+        "schema-discovery",
+        "reflection",
+        "openai"
       ],
       "icon": "Sparkles",
       "type": "dagster_community_components.CatalogAgentComponent",
@@ -3661,7 +3668,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/catalog_agent/requirements.txt",
-      "dependencies": {"pip": ["pandas", "openai>=1.0.0"]},
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "openai>=1.0.0"
+        ]
+      },
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/catalog_agent.md",
@@ -4794,6 +4806,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/kitchen_sink.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with string columns to normalize.",
+        "outputs": "Same columns; string values trimmed and case-normalized in the specified `columns`.",
+        "side_effects": "Modifies VALUES (not names) IN PLACE. IMPORTANT: if `columns` is omitted or empty, normalize_case applies to ALL string columns INCLUDING target/label columns \u2014 a downstream `filter` condition like \"Survived == 'Yes'\" will then match ZERO rows because values are now 'yes'. Either list `columns` explicitly (excluding labels) or match the normalized case in downstream filters.",
+        "anti_uses": "Not for renaming columns. Not for schema coercion (use type_coercer). Do NOT omit `columns` if you plan to filter on a string label column downstream."
       }
     },
     {
@@ -4857,7 +4875,7 @@
       "id": "data_remediation_asset",
       "name": "Data Remediation Asset",
       "category": "ai",
-      "description": "Apply an agent-produced remediation plan to a DataFrame. Bounded action set (drop_nulls, fill_nulls, dedup, cast_type, clip_outliers, filter_range, strip_whitespace) — the LLM picks by name, this component executes safely with a full audit trail.",
+      "description": "Apply an agent-produced remediation plan to a DataFrame. Bounded action set (drop_nulls, fill_nulls, dedup, cast_type, clip_outliers, filter_range, strip_whitespace) \u2014 the LLM picks by name, this component executes safely with a full audit trail.",
       "path": "assets/ai/data_remediation_asset",
       "tags": [
         "ai",
@@ -5844,6 +5862,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_redis.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame to write.",
+        "outputs": "None (sink \u2014 writes file to `file_path` and returns Output(value=None)).",
+        "side_effects": "Writes to `file_path` on disk. For MULTIPLE CSV outputs, use MULTIPLE instances with different asset_name AND file_path values.",
+        "anti_uses": "Not for reading (use file_ingestion). Not for parquet/JSON/excel (use dataframe_to_parquet/json/excel)."
       }
     },
     {
@@ -9627,6 +9651,12 @@
         "level": "live",
         "evidence": "Validated end-to-end: format auto-detection (csv/tsv/json/jsonl/parquet/excel), from_upstream pattern reads movies.csv from archive_fetcher dict, from_run_config + dynamic_partition reads /tmp/fi_demo/movies.csv via partition key",
         "last_validated": "2026-05-13"
+      },
+      "agent_hints": {
+        "inputs": "None (root source) \u2014 reads a tabular file from URL or local path.",
+        "outputs": "DataFrame with columns from the source file's header row.",
+        "side_effects": "None on data (read-only). asset_name becomes the source asset for downstream chains.",
+        "anti_uses": "Not for JSON APIs (use rest_api_fetcher). Not for Excel with multiple sheets unless you set sheet_name."
       }
     },
     {
@@ -9709,6 +9739,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/cities_distance.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with columns referenced by the condition.",
+        "outputs": "Same columns; fewer rows. Preserves column order and dtypes.",
+        "side_effects": "Reduces row count; column set unchanged. If the condition matches 0 rows, the step succeeds but writes an EMPTY output \u2014 check upstream data values (case, whitespace, type) when this happens.",
+        "anti_uses": "condition is a Python-style expression evaluated with pandas eval. Column names must exist in upstream. Value CASE matters: if `data_cleansing` with normalize_case=lower ran upstream, string values are now lowercase \u2014 use `condition: \"Survived == 'yes'\"` (not 'Yes'). For case-insensitive match, use `Survived.str.lower() == 'yes'`."
       }
     },
     {
@@ -12552,6 +12588,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/penguins.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with columns containing nulls to fill.",
+        "outputs": "Same columns; nulls in the listed `columns` filled per strategy.",
+        "side_effects": "Modifies values IN PLACE; column names unchanged.",
+        "anti_uses": "Not for type conversion (use type_coercer). Not for dropping rows with nulls (use unique_dedup with keep or filter)."
       }
     },
     {
@@ -12753,7 +12795,7 @@
       "id": "iterative_supervisor_agent",
       "name": "Iterative Supervisor Agent",
       "category": "ai",
-      "description": "Iterative / chained supervisor agent — planner runs once per step, sees prior steps' tool outputs, and picks the NEXT tool call (or declares done). Each step is its own Dagster asset (ReAct loop with full lineage). Static DAG shape via pre-declared max_iterations, dynamic termination via short-circuit.",
+      "description": "Iterative / chained supervisor agent \u2014 planner runs once per step, sees prior steps' tool outputs, and picks the NEXT tool call (or declares done). Each step is its own Dagster asset (ReAct loop with full lineage). Static DAG shape via pre-declared max_iterations, dynamic termination via short-circuit.",
       "path": "assets/ai/iterative_supervisor_agent",
       "tags": [
         "ai",
@@ -14569,6 +14611,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/titanic_complete.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric feature columns AND a binary target column.",
+        "outputs": "DataFrame with test-set rows + columns: ground truth (target_column), predictions, and probabilities.",
+        "side_effects": "sklearn dependency. Uses test_size for held-out split; the OUTPUT is the test set only, not the full input.",
+        "anti_uses": "Target must be binary/0-1. Not for regression (use linear_regression_model). Feature columns must be numeric \u2014 one-hot encode categoricals FIRST."
       }
     },
     {
@@ -16654,6 +16702,13 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/penguins.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with categorical string columns to encode.",
+        "outputs": "Original `columns` are REMOVED and replaced by dummy columns named `<col>_<value>` (one per unique value; if drop_first=true, drops the first alphabetically).",
+        "side_effects": "REMOVES the source `columns` and adds MANY new `<col>_<value>` columns. Any downstream step referencing the original column name will fail with KeyError \u2014 branch pre-encoding data off an earlier step for summarize/group_by/filter on the original column.",
+        "anti_uses": "Not for ordinal encoding (use label_encoder or a formula step).",
+        "chains_with": "Typical successor to tile_binning; typical predecessor to logistic_regression_model."
       }
     },
     {
@@ -16958,6 +17013,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/kitchen_sink.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with numeric columns.",
+        "outputs": "Same columns and dtypes; extreme values clipped to bounds.",
+        "side_effects": "Modifies numeric column values IN PLACE; column names unchanged.",
+        "anti_uses": "Only 'iqr', 'zscore', or 'percentile' are valid for strategy. NOT 'clip'."
       }
     },
     {
@@ -17749,11 +17810,18 @@
       "id": "planned_catalog_agent",
       "name": "Planned Catalog Agent",
       "category": "ai",
-      "description": "StateBackedComponent variant of catalog_agent. Runs the LLM planner + real materializations ONCE at prepare time (write_state_to_path) and caches the full plan to Dagster's native state store. Every subsequent load reads the cache and emits REAL Dagster assets — zero LLM cost. Perfect for the 'input a task in Dagster+ UI, real assets appear' UX.",
+      "description": "StateBackedComponent variant of catalog_agent. Runs the LLM planner + real materializations ONCE at prepare time (write_state_to_path) and caches the full plan to Dagster's native state store. Every subsequent load reads the cache and emits REAL Dagster assets \u2014 zero LLM cost. Perfect for the 'input a task in Dagster+ UI, real assets appear' UX.",
       "path": "assets/ai/planned_catalog_agent",
       "tags": [
-        "ai", "agent", "agentic", "state-backed", "catalog", "meta-agent",
-        "planner", "cached", "openai"
+        "ai",
+        "agent",
+        "agentic",
+        "state-backed",
+        "catalog",
+        "meta-agent",
+        "planner",
+        "cached",
+        "openai"
       ],
       "icon": "Sparkles",
       "type": "dagster_community_components.PlannedCatalogAgentComponent",
@@ -17763,7 +17831,12 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/planned_catalog_agent/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/planned_catalog_agent/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/planned_catalog_agent/requirements.txt",
-      "dependencies": {"pip": ["pandas", "openai>=1.0.0"]},
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "openai>=1.0.0"
+        ]
+      },
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/planned_catalog_agent.md",
@@ -22704,6 +22777,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/adls_inbox.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with columns named by `group_by` present. Aggregation column names must exist in input.",
+        "outputs": "DataFrame with columns: group_by keys + one column per aggregation.",
+        "side_effects": "REDUCES rows to one per group. Column set changes: only group_by keys + aggs remain.",
+        "anti_uses": "group_by columns MUST exist in the upstream \u2014 if a prior step renamed or removed them (e.g. one_hot_encoding), branch off the earlier upstream that still has them. aggregations format: {'output_name': {'col': 'source_col', 'agg': 'sum|mean|count|min|max|std|median|first|last'}}."
       }
     },
     {
@@ -23921,6 +24000,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/titanic_complete.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with a numeric `column` to bin.",
+        "outputs": "Same DataFrame + ONE new column named `output_column` (defaults to '<column>_bin') containing the bin labels.",
+        "side_effects": "Adds ONE column; does NOT rename or remove the source column. Original `column` still present downstream.",
+        "anti_uses": "method valid values are 'equal_width' (pd.cut), 'equal_freq' (pd.qcut), or 'custom' (uses bin_edges). NOT 'quantile'."
       }
     },
     {
@@ -24480,6 +24565,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/kitchen_sink.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame with columns to convert.",
+        "outputs": "Same columns; dtypes changed per type_map. Values that fail to coerce become NaN with errors='coerce'.",
+        "side_effects": "Modifies column dtypes IN PLACE. Downstream steps that need float columns (tile_binning, models) should chain AFTER this.",
+        "chains_with": "Typical predecessor to tile_binning, logistic_regression_model, and any component requiring numeric types."
       }
     },
     {
@@ -24503,6 +24594,12 @@
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/kitchen_sink.md",
         "last_validated": "2026-05-06"
+      },
+      "agent_hints": {
+        "inputs": "Any DataFrame.",
+        "outputs": "Same columns; fewer rows. Preserves column order and dtypes.",
+        "side_effects": "Row count decreases; column set unchanged.",
+        "anti_uses": "Do NOT pass `subset: []` (empty list) \u2014 it will error. Either OMIT `subset` entirely (dedup on all columns) OR pass a non-empty list of column names. Do not use to filter by predicate \u2014 use `filter` component."
       }
     },
     {

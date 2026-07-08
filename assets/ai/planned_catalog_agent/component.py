@@ -61,6 +61,41 @@ def _short_type(annotation) -> str:
     return s[:60]
 
 
+def _enum_values(annotation) -> Optional[List[str]]:
+    """Extract literal string choices from `Literal[...]` or `Optional[Literal[...]]`."""
+    try:
+        import typing as _t
+        _ann = annotation
+        # Unwrap Optional[X] / Union[X, None] to get X.
+        _origin = _t.get_origin(_ann)
+        if _origin is _t.Union:
+            _args = [a for a in _t.get_args(_ann) if a is not type(None)]
+            if len(_args) == 1:
+                _ann = _args[0]
+                _origin = _t.get_origin(_ann)
+        if _origin is _t.Literal:
+            _vals = [a for a in _t.get_args(_ann) if isinstance(a, str)]
+            return _vals or None
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
+def _extract_choices_from_description(desc: str) -> Optional[List[str]]:
+    """Heuristic: scrape single-quoted / double-quoted tokens out of a Field description
+    when the description reads like 'one of A, B, C' — helps for enums the author wrote
+    with str (not Literal). Only returns 2-6 tokens; wider returns None."""
+    import re as _re
+    if not desc:
+        return None
+    # Look for patterns like: 'foo' | "foo" -- collect single/double-quoted values.
+    _tokens = _re.findall(r"['\"]([a-zA-Z][a-zA-Z0-9_]{1,25})['\"]", desc)
+    _tokens = list(dict.fromkeys(_tokens))  # dedupe, preserve order
+    if 2 <= len(_tokens) <= 6:
+        return _tokens
+    return None
+
+
 if _HAS_STATE_BACKED:
 
     @dataclass
@@ -239,6 +274,13 @@ if _HAS_STATE_BACKED:
                         if _n in _SKIP_COMMON_FIELDS:
                             continue
                         _ts = _short_type(_f.annotation) if _f.annotation else "any"
+                        # Prefer Literal choices; fall back to description-scraped tokens.
+                        _choices = _enum_values(_f.annotation)
+                        if _choices is None:
+                            _desc = getattr(_f, "description", "") or ""
+                            _choices = _extract_choices_from_description(_desc)
+                        if _choices:
+                            _ts = f"{_ts}={'|'.join(_choices)}"
                         (_req if _f.is_required() else _opt).append(f"{_n}: {_ts}")
                     _parts = []
                     if _req: _parts.append(f"req=[{', '.join(_req)}]")
@@ -247,7 +289,19 @@ if _HAS_STATE_BACKED:
                     _fs = " | ".join(_parts)
                 else:
                     _fs = "fields=(unknown)"
-                lines.append(f"  - {c['id']}: {c.get('description', '')[:150]}  ({_fs})")
+
+                # agent_hints structured metadata — authored on the manifest
+                # entry, targeted at planner LLMs. Present sparingly per key so
+                # the catalog line stays under ~500 chars.
+                _hints = c.get("agent_hints") or {}
+                _hint_bits = []
+                for _hk in ("inputs", "outputs", "side_effects", "anti_uses", "chains_with"):
+                    _hv = _hints.get(_hk)
+                    if _hv:
+                        _hint_bits.append(f"{_hk}={str(_hv)[:120]}")
+                _hint_str = f"  [{' | '.join(_hint_bits)}]" if _hint_bits else ""
+
+                lines.append(f"  - {c['id']}: {c.get('description', '')[:300]}  ({_fs}){_hint_str}")
             return lines
 
         def _run_full_trajectory(self) -> List[Dict[str, Any]]:
@@ -264,12 +318,65 @@ if _HAS_STATE_BACKED:
             lines = self._catalog_lines(catalog, _dcc)
             valid_ids = ", ".join(f'"{c["id"]}"' for c in catalog)
 
+            # STATIC prefix — identical across all iterations of THIS trajectory.
+            # OpenAI auto-caches prompt prefixes ≥1024 tokens for 5-10 minutes, so
+            # putting task + catalog + rules FIRST means iterations 2..N get a 50%
+            # discount on those tokens. Only the DYNAMIC suffix (prior_summary +
+            # iteration hint) changes across calls.
+            static_prompt = (
+                f"You are an iterative pipeline agent. Decide the NEXT step, or declare done.\n\n"
+                f"Task:\n{self.task}\n\n"
+                f"Available components ({len(catalog)} shown):\n"
+                + "\n".join(lines) + "\n\n"
+                f"Output ONLY a JSON object.\nIf more work is needed:\n"
+                f'  {{"done": false, "id": "<one of: {valid_ids}>", '
+                f'"config": <object; asset_name (unique, snake_case) + required fields; '
+                f'wire _asset_key fields to a prior asset_name to chain>, '
+                f'"reason": "<why this step now>"}}\n'
+                f"If the task is complete:\n"
+                f'  {{"done": true, "reason": "<why done>"}}\n\n'
+                f"CRITICAL:\n"
+                f"  • asset_name MUST be new, unique, snake_case; NEVER equal to an upstream_asset_key.\n"
+                f"  • NEVER reference an asset that wasn't produced by a prior step.\n"
+                f"  • FOLLOW the task literally. If it says 'join', you MUST use dataframe_join.\n"
+                f"  • Field values shown as `name: type=A|B|C` are ENUMS — you MUST pick one of the listed\n"
+                f"    values verbatim. Do not invent similar-sounding alternatives (e.g. 'quantile' when\n"
+                f"    the enum is 'equal_freq').\n"
+                f"  • If task mentions 'month'/'year'/'quarter'/'week' and data has a raw timestamp, "
+                f"insert a formula step FIRST to derive it.\n"
+                f"  • For summarize/filter, group_by is List[str], aggregations is Dict[str, Any] "
+                f"like {{'total': {{'col': '<real_col>', 'agg': 'sum'}}}}.\n"
+                f"  • For MULTI-SOURCE (dataframe_join), set BOTH left_asset_key and right_asset_key,\n"
+                f"    and they MUST reference DIFFERENT prior assets — never join an asset with itself.\n"
+                f"  • synthetic_data_generator produces ONE schema per call. If the task mentions\n"
+                f"    multiple distinct datasets (e.g. 'orders and customers'), use SEPARATE calls\n"
+                f"    with different schema_type values (e.g. schema_type: 'orders', then schema_type: 'customers').\n"
+                f"  • NEVER declare done until EVERY part of the task is complete. If the task says\n"
+                f"    'store to a csv' / 'write to file' / 'save' — a sink step (e.g. dataframe_to_csv)\n"
+                f"    MUST have run successfully first.\n"
+                f"  • INGESTION routing: for tabular files at a URL or local path (.csv / .tsv /\n"
+                f"    .parquet / .json / .xlsx), use file_ingestion or dataframe_from_csv — NOT\n"
+                f"    rest_api_fetcher. rest_api_fetcher is for paginated JSON APIs, not files.\n"
+                f"  • If a prior step's output has ZERO columns, its output is not a usable\n"
+                f"    DataFrame — the upstream picked is wrong. Do NOT chain further transforms\n"
+                f"    off that asset; pick a different ingestion component and try again.\n"
+                f"  • BRANCHING: when the task describes MULTIPLE independent outputs (e.g. 'also\n"
+                f"    produce a summary', 'also write survivors to a CSV'), each branch picks its\n"
+                f"    OWN upstream_asset_key from EARLIER in the pipeline — pick the earliest step\n"
+                f"    that has the columns you need. Do NOT feed every branch off the final step.\n"
+                f"  • If a step fails with KeyError on a column, LOOK at every prior step's\n"
+                f"    output_columns. Find the LATEST prior step whose columns contain the missing\n"
+                f"    key. Use THAT asset_name as upstream_asset_key. Do NOT re-pick the same\n"
+                f"    upstream that just failed — that will fail again.\n\n"
+                f"=== END OF STATIC RULES; DYNAMIC PRIOR-STEPS SUMMARY FOLLOWS ==="
+            )
+
             picks: List[Dict[str, Any]] = []
             prior_dfs: Dict[str, Any] = {}
             client = self._client()
 
             for iteration in range(1, self.max_iterations + 1):
-                # Build prior_summary from picks so far (like CatalogAgentComponent).
+                # DYNAMIC suffix — prior_summary changes every iteration.
                 _prior_lines = []
                 for p in picks:
                     _lbl = "SUCCESS" if p.get("status") == "success" else "FAILED"
@@ -285,43 +392,15 @@ if _HAS_STATE_BACKED:
                     _prior_lines.append("\n".join(_lines_p))
                 prior_summary = "\n\n".join(_prior_lines) or "(no prior steps — this is step 1)"
 
-                planner_prompt = (
-                    f"You are an iterative pipeline agent. Decide the NEXT step, or declare done.\n\n"
-                    f"Task:\n{self.task}\n\n"
-                    f"Prior steps:\n{prior_summary}\n\n"
-                    f"Available components ({len(catalog)} shown):\n"
-                    + "\n".join(lines) + "\n\n"
-                    f"Output ONLY a JSON object.\nIf more work is needed:\n"
-                    f'  {{"done": false, "id": "<one of: {valid_ids}>", '
-                    f'"config": <object; asset_name (unique, snake_case) + required fields; '
-                    f'wire _asset_key fields to a prior asset_name to chain>, '
-                    f'"reason": "<why this step now>"}}\n'
-                    f"If the task is complete:\n"
-                    f'  {{"done": true, "reason": "<why done>"}}\n\n'
-                    f"CRITICAL:\n"
-                    f"  • asset_name MUST be new, unique, snake_case; NEVER equal to an upstream_asset_key.\n"
-                    f"  • NEVER reference an asset that wasn\'t produced by a prior step.\n"
-                    f"  • FOLLOW the task literally. If it says 'join', you MUST use dataframe_join.\n"
-                    f"  • If task mentions 'month'/'year'/'quarter'/'week' and data has a raw timestamp, "
-                    f"insert a formula step FIRST to derive it.\n"
-                    f"  • For summarize/filter, group_by is List[str], aggregations is Dict[str, Any] "
-                    f"like {{'total': {{'col': '<real_col>', 'agg': 'sum'}}}}.\n"
-                    f"  • For MULTI-SOURCE (dataframe_join), set BOTH left_asset_key and right_asset_key,\n"
-                    f"    and they MUST reference DIFFERENT prior assets — never join an asset with itself.\n"
-                    f"  • synthetic_data_generator produces ONE schema per call. If the task mentions\n"
-                    f"    multiple distinct datasets (e.g. 'orders and customers'), use SEPARATE calls\n"
-                    f"    with different schema_type values (e.g. schema_type: 'orders', then schema_type: 'customers').\n"
-                    f"  • NEVER declare done until EVERY part of the task is complete. If the task says\n"
-                    f"    'store to a csv' / 'write to file' / 'save' — a sink step (e.g. dataframe_to_csv)\n"
-                    f"    MUST have run successfully first."
-                )
+                planner_prompt = f"{static_prompt}\n\nPrior steps:\n{prior_summary}"
 
                 resp = client.chat.completions.create(
                     model=self.llm_model,
                     temperature=self.temperature,
                     max_tokens=self.planner_max_tokens,
+                    response_format={"type": "json_object"},
                     messages=[
-                        {"role": "system", "content": "You are an iterative agent picking real Dagster components."},
+                        {"role": "system", "content": "You are an iterative agent picking real Dagster components. Reply ONLY with a single JSON object."},
                         {"role": "user", "content": planner_prompt},
                     ],
                 )
@@ -332,20 +411,129 @@ if _HAS_STATE_BACKED:
                         raw = raw.rsplit("```", 1)[0]
                 try:
                     plan = json.loads(raw)
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as _e:
+                    # Don't kill the whole trajectory — the LLM sometimes emits
+                    # near-JSON. Record the failure, feed it into prior_summary,
+                    # and give the LLM another chance.
                     picks.append({
-                        "iteration": iteration, "done": True, "component_id": None,
+                        "iteration": iteration, "done": False, "component_id": None,
                         "component_type": None, "config": None, "reason": "planner JSON parse failed",
-                        "asset_name": None, "output_columns": [], "status": "failed", "error": "parse fail",
+                        "asset_name": None, "output_columns": [],
+                        "status": "failed",
+                        "error": f"json parse failed: {str(_e)[:100]}. Output MUST be a single JSON object.",
                     })
-                    break
+                    continue
 
                 if plan.get("done"):
+                    # Done-validation: if the task text mentions writing a file
+                    # (csv / parquet / json / xlsx / a /path/to/file) but no sink
+                    # component has succeeded, override "done" — the LLM is
+                    # skipping the required sinks.
+                    _sink_ids = {"dataframe_to_csv", "dataframe_to_parquet",
+                                 "dataframe_to_json", "dataframe_to_excel",
+                                 "dataframe_to_avro"}
+                    _task_lower = self.task.lower()
+                    _wants_sink = any(
+                        _kw in _task_lower for _kw in
+                        ["csv", "parquet", "json", "xlsx", "excel", "write to",
+                         "store to", "save to", "output to", "to disk", "to a file"]
+                    )
+                    _succeeded_sinks = [
+                        p for p in picks
+                        if p.get("component_id") in _sink_ids and p.get("status") == "success"
+                    ]
+                    if _wants_sink and not _succeeded_sinks:
+                        # Reject done; log the rejection and re-loop. The next
+                        # iteration will see the failure in prior_summary.
+                        picks.append({
+                            "iteration": iteration, "done": False, "component_id": None,
+                            "component_type": None, "config": None,
+                            "reason": plan.get("reason", ""), "asset_name": None,
+                            "output_columns": [], "status": "failed",
+                            "error": (
+                                "REJECTED 'done': task mentions writing a file/CSV but no sink "
+                                "step (dataframe_to_csv / dataframe_to_parquet / etc.) has "
+                                "succeeded yet. Pick a sink component now, once per required output."
+                            ),
+                        })
+                        continue
                     break
 
                 cid = plan.get("id")
                 cfg = plan.get("config") or {}
                 reason = plan.get("reason", "")
+
+                # Loop guard FIRST: if the planner has picked the SAME component
+                # id and failed 3 times in a row, break out. Runs BEFORE the
+                # exact-repeat guard so we don't waste iterations on infinite
+                # rejections when the LLM ignores the hints.
+                _recent_same = [
+                    p for p in picks[-3:]
+                    if p.get("component_id") == cid and p.get("status") == "failed"
+                ]
+                if len(_recent_same) >= 3:
+                    picks.append({
+                        "iteration": iteration, "done": True, "component_id": cid,
+                        "component_type": None, "config": json.dumps(cfg), "reason": reason,
+                        "asset_name": None, "output_columns": [], "status": "failed",
+                        "error": (
+                            f"loop guard: {cid!r} failed 3 times in a row — planner is stuck. "
+                            f"Ending trajectory to preserve prior successful picks."
+                        ),
+                    })
+                    break
+
+                # Exact-repeat guard: if this pick is an EXACT repeat of the
+                # last failed one (same component_id + same upstream key), reject
+                # it immediately with a hard hint — don't waste a materialize.
+                _upstream_of = lambda _c: (_c or {}).get("upstream_asset_key") or (
+                    (_c or {}).get("left_asset_key"), (_c or {}).get("right_asset_key")
+                )
+                _last_failed = next(
+                    (p for p in reversed(picks) if p.get("status") == "failed"), None
+                )
+                if _last_failed:
+                    _last_cfg = _last_failed.get("config")
+                    if isinstance(_last_cfg, str):
+                        try: _last_cfg = json.loads(_last_cfg)
+                        except: _last_cfg = {}
+                    if (
+                        _last_failed.get("component_id") == cid
+                        and _upstream_of(_last_cfg) == _upstream_of(cfg)
+                    ):
+                        # If the last error was a KeyError, extract the missing
+                        # column name and point the LLM at the prior asset that
+                        # DOES have that column.
+                        _hint = ""
+                        _last_err = str(_last_failed.get("error") or "")
+                        import re as _re
+                        _m = _re.search(r"KeyError:?\s*['\"]?([^'\"\)]+?)['\"]?\s*$", _last_err)
+                        if _m:
+                            _missing = _m.group(1).strip("'\" ")
+                            _has_col = [
+                                p.get("asset_name") for p in picks
+                                if p.get("status") == "success"
+                                and _missing in (p.get("output_columns") or [])
+                            ]
+                            if _has_col:
+                                _hint = (
+                                    f" HINT: Missing column {_missing!r}. Prior asset(s) that HAVE "
+                                    f"this column: {_has_col}. Set upstream_asset_key to one of these."
+                                )
+                        picks.append({
+                            "iteration": iteration, "done": False, "component_id": cid,
+                            "component_type": None, "config": json.dumps(cfg), "reason": reason,
+                            "asset_name": cfg.get("asset_name"), "output_columns": [],
+                            "status": "failed",
+                            "error": (
+                                f"EXACT REPEAT of the last failed pick ({cid} with same upstream) — "
+                                f"prior error was {_last_err[:200]}. "
+                                f"You MUST change either the component_id OR the upstream_asset_key "
+                                f"OR the config.{_hint}"
+                            ),
+                        })
+                        continue
+
                 entry = next((c for c in catalog if c["id"] == cid), None)
                 if entry is None:
                     picks.append({
@@ -431,10 +619,23 @@ if _HAS_STATE_BACKED:
 
                     _mat = dg.materialize(_extra_assets + _assets, raise_on_error=False)
                     if not _mat.success:
+                        # Extract the underlying step exception — the LLM needs a
+                        # real error to course-correct, not the DagsterExecutionStepExecutionError
+                        # wrapper. Walk `.cause` down to the innermost SerializableErrorInfo.
                         _err_msg = ""
                         for _evt in _mat.all_events:
-                            if "FAILURE" in getattr(_evt, "event_type_value", "") or "":
-                                _err_msg = str(getattr(_evt, "message", "") or _evt)[:300]
+                            if "STEP_FAILURE" in getattr(_evt, "event_type_value", ""):
+                                _esd = getattr(_evt, "event_specific_data", None)
+                                _err_info = getattr(_esd, "error", None) if _esd else None
+                                # Chase .cause down to the root exception.
+                                while _err_info is not None and getattr(_err_info, "cause", None):
+                                    _err_info = _err_info.cause
+                                if _err_info is not None:
+                                    _cls = getattr(_err_info, "cls_name", "") or ""
+                                    _msg = getattr(_err_info, "message", "") or ""
+                                    _err_msg = f"{_cls}: {_msg}".strip(": ")[:400]
+                                if not _err_msg:
+                                    _err_msg = str(getattr(_evt, "message", "") or _evt)[:400]
                                 break
                         raise RuntimeError(_err_msg or "materialize failed")
 
